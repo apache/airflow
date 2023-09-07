@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import os
 import random
 import re
@@ -473,9 +474,8 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
 
     start_time = datetime.now(timezone.utc)
     sleep_seconds = 5
-    num_try = 1
-    while True:
-        get_console(output=output).print(f"[info]Connecting to localhost:{port_number}. Num try: {num_try}")
+    for attempt in itertools.count(1):
+        get_console(output=output).print(f"[info]Connecting to localhost:{port_number}. Num try: {attempt}")
         try:
             response = requests.head(f"http://localhost:{port_number}/health")
         except ConnectionError:
@@ -500,10 +500,10 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
         if current_time - start_time > timedelta(seconds=wait_seconds):
             if wait_seconds > 0:
                 get_console(output=output).print(f"[error]More than {wait_seconds} passed. Exiting.")
-            return False
+            break
         get_console(output=output).print(f"Sleeping for {sleep_seconds} seconds.")
         sleep(sleep_seconds)
-        num_try += 1
+    return False
 
 
 def print_cluster_urls(

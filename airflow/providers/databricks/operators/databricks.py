@@ -365,6 +365,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         if "dbt_task" in self.json and "git_source" not in self.json:
             raise AirflowException("git_source is required for dbt_task")
+        if pipeline_task is not None and "pipeline_id" in pipeline_task and "pipeline_name" in pipeline_task:
+            raise AirflowException("'pipeline_name' is not allowed in conjunction with 'pipeline_id'")
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -384,6 +386,15 @@ class DatabricksSubmitRunOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
+        if (
+            "pipeline_task" in self.json
+            and self.json["pipeline_task"].get("pipeline_id") is None
+            and self.json["pipeline_task"].get("pipeline_name")
+        ):
+            # If pipeline_id is not provided, we need to fetch it from the pipeline_name
+            pipeline_name = self.json["pipeline_task"]["pipeline_name"]
+            self.json["pipeline_task"]["pipeline_id"] = self._hook.get_pipeline_id(pipeline_name)
+            del self.json["pipeline_task"]["pipeline_name"]
         json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
         if self.deferrable:

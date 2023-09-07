@@ -32,6 +32,9 @@ There is one way to connect to Azure Container Registry using Airflow.
 1. Use `Individual login with Azure AD
    <https://docs.microsoft.com/en-us/azure/container-registry/container-registry-authentication#individual-login-with-azure-ad>`_
    i.e. add specific credentials to the Airflow connection.
+2. Fallback on `DefaultAzureCredential
+   <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI...
 
 Default Connection IDs
 ----------------------
@@ -44,13 +47,13 @@ Configuring the Connection
 Login
     Specify the Image Registry Username used for the initial connection.
 
-Password
-    Specify the Image Registry Password used for the initial connection.
+Password (optional)
+    Specify the Image Registry Password used for the initial connection. It can be left out to fall back on ``DefaultAzureCredential``.
 
 Host
     Specify the Image Registry Server used for the initial connection.
 
-Subscription ID
+Subscription ID (optional)
     Specify the ID of the subscription used for the initial connection.
     This is needed for Azure Active Directory (Azure AD) authentication.
     Use extra param ``subscription_id`` to pass in the Azure subscription ID.

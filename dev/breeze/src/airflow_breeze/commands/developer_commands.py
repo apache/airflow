@@ -34,7 +34,6 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_SELECTED,
-    get_available_documentation_packages,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
@@ -43,6 +42,7 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
+    argument_packages_plus_all_providers,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -75,7 +75,7 @@ from airflow_breeze.utils.common_options import (
     option_verbose,
 )
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
     get_env_variables_for_docker_commands,
@@ -357,11 +357,14 @@ def start_airflow(
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
+@argument_packages_plus_all_providers
 @option_builder
 @click.option(
     "--package-filter",
-    help="List of packages to consider.",
-    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
+    "the short hand names or the glob pattern matching the full package name. "
+    "The list of short hand names can be found in --help output",
+    type=str,
     multiple=True,
 )
 @click.option(
@@ -379,6 +382,7 @@ def start_airflow(
 @option_verbose
 @option_dry_run
 def build_docs(
+    packages_plus_all_providers: tuple[str],
     docs_only: bool,
     spellcheck_only: bool,
     builder: str,
@@ -409,6 +413,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         skip_environment_initialization=True,
+        packages_plus_all_providers=packages_plus_all_providers,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = get_env_variables_for_docker_commands(params)
@@ -528,9 +533,8 @@ def static_checks(
             f"[info]Trying to install the environments up to {max_initialization_attempts} "
             f"times in case of flakiness[/]"
         )
-        i = 0
-        while True:
-            get_console().print(f"[info]Attempt number {i+1} to install pre-commit environments")
+        for attempt in range(1, 1 + max_initialization_attempts):
+            get_console().print(f"[info]Attempt number {attempt} to install pre-commit environments")
             initialization_result = run_command(
                 [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
                 check=False,
@@ -539,11 +543,10 @@ def static_checks(
             )
             if initialization_result.returncode == 0:
                 break
-            get_console().print(f"[warning]Attempt number {i+1} failed - retrying[/]")
-            if i == max_initialization_attempts - 1:
-                get_console().print("[error]Could not install pre-commit environments[/]")
-                sys.exit(initialization_result.returncode)
-            i += 1
+            get_console().print(f"[warning]Attempt number {attempt} failed - retrying[/]")
+        else:
+            get_console().print("[error]Could not install pre-commit environments[/]")
+            sys.exit(initialization_result.returncode)
 
     command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
     if not one_or_none_set([last_commit, commit_ref, only_my_changes, all_files]):
@@ -716,11 +719,25 @@ def enter_shell(**kwargs) -> RunCommandResult:
 
     if shell_params.backend == "sqlite":
         get_console().print(
-            f"\n[warn]backend: sqlite is not "
+            f"\n[warning]backend: sqlite is not "
             f"compatible with executor: {shell_params.executor}. "
             f"Changing the executor to SequentialExecutor.\n"
         )
         shell_params.executor = "SequentialExecutor"
+
+    if shell_params.executor == "CeleryExecutor" and shell_params.use_airflow_version:
+        if shell_params.airflow_extras and "celery" not in shell_params.airflow_extras.split():
+            get_console().print(
+                f"\n[warning]CeleryExecutor requires airflow_extras: celery. "
+                f"Adding celery to extras: '{shell_params.airflow_extras}'.\n"
+            )
+            shell_params.airflow_extras += ",celery"
+        elif not shell_params.airflow_extras:
+            get_console().print(
+                "\n[warning]CeleryExecutor requires airflow_extras: celery. "
+                "Setting airflow extras to 'celery'.\n"
+            )
+            shell_params.airflow_extras = "celery"
 
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()

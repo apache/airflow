@@ -17,11 +17,11 @@
 """Various utils to prepare docker and docker compose commands."""
 from __future__ import annotations
 
+import copy
 import os
+import random
 import re
 import sys
-from copy import deepcopy
-from random import randint
 from subprocess import DEVNULL, CalledProcessError, CompletedProcess
 from typing import TYPE_CHECKING
 
@@ -372,7 +372,7 @@ def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParam
     value = "true" if raw_value is True else value
     value = "false" if raw_value is False else value
     if arg_name == "upgrade_to_newer_dependencies" and value == "true":
-        value = f"{randint(0, 2**32):x}"
+        value = f"{random.randrange(2**32):x}"
     return value
 
 
@@ -509,7 +509,7 @@ def construct_docker_push_command(
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
     build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
-        platform_image_params = deepcopy(image_params)
+        platform_image_params = copy.deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
         # as a workaround to https://github.com/docker/buildx/issues/1044
         platform_image_params.platform = platform
@@ -721,7 +721,7 @@ def warm_up_docker_builder(image_params: CommonBuildParams):
         return
     docker_syntax = get_docker_syntax_version()
     get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
-    warm_up_image_param = deepcopy(image_params)
+    warm_up_image_param = copy.deepcopy(image_params)
     warm_up_image_param.image_tag = "warmup"
     warm_up_image_param.push = False
     build_command = prepare_base_build_command(image_params=warm_up_image_param)

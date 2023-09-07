@@ -40,7 +40,7 @@ from __future__ import annotations
 import os
 import subprocess
 from datetime import datetime
-from os.path import expanduser
+from pathlib import Path
 from urllib.parse import quote_plus
 
 from airflow import models
@@ -87,17 +87,14 @@ SQL = [
 
 # [START howto_operator_cloudsql_query_connections]
 
-HOME_DIR = expanduser("~")
+HOME_DIR = Path.home()
 
 
 def get_absolute_path(path):
     """
     Returns absolute path.
     """
-    if path.startswith("/"):
-        return path
-    else:
-        return os.path.join(HOME_DIR, path)
+    return os.fspath(HOME_DIR / path)
 
 
 postgres_kwargs = {

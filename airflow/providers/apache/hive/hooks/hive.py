@@ -315,7 +315,7 @@ class HiveCliHook(BaseHook):
                     message = e.args[0].splitlines()[-2]
                     self.log.info(message)
                     error_loc = re.search(r"(\d+):(\d+)", message)
-                    if error_loc and error_loc.group(1).isdigit():
+                    if error_loc:
                         lst = int(error_loc.group(1))
                         begin = max(lst - 2, 0)
                         end = min(lst + 3, len(query.splitlines()))

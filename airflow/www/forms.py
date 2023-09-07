@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import json
 import operator
-from datetime import datetime as dt
 from typing import Iterator
 
 import pendulum
@@ -75,7 +75,7 @@ class DateTimeWithTimezoneField(Field):
             # Check if the datetime string is in the format without timezone, if so convert it to the
             # default timezone
             if len(date_str) == 19:
-                parsed_datetime = dt.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                parsed_datetime = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
                 default_timezone = self._get_default_timezone()
                 self.data = default_timezone.convert(parsed_datetime)
             else:

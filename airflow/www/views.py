@@ -1087,8 +1087,8 @@ class Airflow(AirflowBaseView):
             filter_dag_ids = allowed_dag_ids
 
         dataset_triggered_dag_ids = [
-            dag.dag_id
-            for dag in (
+            dag_id
+            for dag_id in (
                 session.scalars(
                     select(DagModel.dag_id)
                     .where(DagModel.dag_id.in_(filter_dag_ids))
@@ -2310,7 +2310,7 @@ class Airflow(AirflowBaseView):
     @auth.has_access(
         [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -2405,7 +2405,7 @@ class Airflow(AirflowBaseView):
     @auth.has_access(
         [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -5247,6 +5247,8 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
+        "delete": "delete",
+        "edit": "edit",
         "list": "read",
         "action_clear": "edit",
         "action_muldelete": "delete",
@@ -5625,6 +5627,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_TASK_INSTANCE
     method_permission_name = {
         "list": "read",
+        "delete": "delete",
         "action_clear": "edit",
         "action_muldelete": "delete",
         "action_set_running": "edit",

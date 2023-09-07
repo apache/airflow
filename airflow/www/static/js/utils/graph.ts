@@ -117,7 +117,7 @@ const generateGraph = ({
     height?: number;
   } => {
     const { id, value, children } = node;
-    const isOpen = openGroupIds?.includes(value.label);
+    const isOpen = openGroupIds?.includes(id);
     const childCount =
       children?.filter((c: DepNode) => !c.id.includes("join_id")).length || 0;
     const childIds = children?.length ? getNestedChildIds(children) : [];
@@ -170,7 +170,7 @@ const generateGraph = ({
           sourceId: childIds.indexOf(e.sourceId) > -1 ? node.id : e.sourceId,
           targetId: childIds.indexOf(e.targetId) > -1 ? node.id : e.targetId,
         }));
-      closedGroupIds.push(value.label);
+      closedGroupIds.push(id);
     }
     return {
       id,

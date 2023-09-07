@@ -493,7 +493,10 @@ class BaseSerialization:
         elif use_pydantic_models and _ENABLE_AIP_44:
 
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
-                return model_cls.model_validate(var).model_dump(mode="json")
+                try:
+                    return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
+                except AttributeError:  # Pydantic 1.x compatibility.
+                    return model_cls.from_orm(var).dict()  # type: ignore[attr-defined]
 
             if isinstance(var, Job):
                 return cls._encode(_pydantic_model_dump(JobPydantic, var), type_=DAT.BASE_JOB)
@@ -1396,6 +1399,14 @@ class SerializedDAG(DAG, BaseSerialization):
             SerializedBaseOperator.set_task_dag_references(task, dag)
 
         return dag
+
+    @classmethod
+    def _is_excluded(cls, var: Any, attrname: str, op: DAGNode):
+        # {} is explicitly different from None in the case of DAG-level access control
+        # and as a result we need to preserve empty dicts through serialization for this field
+        if attrname == "_access_control" and var is not None:
+            return False
+        return super()._is_excluded(var, attrname, op)
 
     @classmethod
     def to_dict(cls, var: Any) -> dict:
