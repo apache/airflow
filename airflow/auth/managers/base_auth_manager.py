@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -30,9 +30,10 @@ if TYPE_CHECKING:
         DagAccessEntity,
         DagDetails,
     )
-    from airflow.auth.managers.models.resource_method import ResourceMethod
     from airflow.cli.cli_config import CLICommand
     from airflow.www.security import AirflowSecurityManager
+
+ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
 
 
 class BaseAuthManager(LoggingMixin):

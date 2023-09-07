@@ -31,7 +31,7 @@ from airflow.utils.net import get_hostname
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.models.resource_method import ResourceMethod
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.models import Connection
 
 T = TypeVar("T", bound=Callable)

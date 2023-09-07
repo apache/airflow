@@ -27,7 +27,6 @@ from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User
 from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
-from airflow.auth.managers.models.resource_method import ResourceMethod
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -113,35 +112,35 @@ class TestFabAuthManager:
                     # With permission
                     (
                         api_name,
-                        ResourceMethod.POST,
+                        "POST",
                         [(ACTION_CAN_CREATE, resource_type)],
                         True,
                     ),
                     # With permission
                     (
                         api_name,
-                        ResourceMethod.GET,
+                        "GET",
                         [(ACTION_CAN_READ, resource_type)],
                         True,
                     ),
                     # With permission (with several user permissions)
                     (
                         api_name,
-                        ResourceMethod.DELETE,
+                        "DELETE",
                         [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
                         True,
                     ),
                     # With permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
                     (
                         api_name,
-                        ResourceMethod.GET,
+                        "GET",
                         [(ACTION_CAN_ACCESS_MENU, resource_type)],
                         True,
                     ),
                     # Without permission
                     (
                         api_name,
-                        ResourceMethod.POST,
+                        "POST",
                         [(ACTION_CAN_READ, resource_type), (ACTION_CAN_CREATE, "resource_test")],
                         False,
                     ),
@@ -165,7 +164,7 @@ class TestFabAuthManager:
             # Scenario 1 #
             # With global permissions on Dags
             (
-                ResourceMethod.GET,
+                "GET",
                 None,
                 None,
                 [(ACTION_CAN_READ, RESOURCE_DAG)],
@@ -173,7 +172,7 @@ class TestFabAuthManager:
             ),
             # On specific DAG with global permissions on Dags
             (
-                ResourceMethod.GET,
+                "GET",
                 None,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_READ, RESOURCE_DAG)],
@@ -181,7 +180,7 @@ class TestFabAuthManager:
             ),
             # With permission on a specific DAG
             (
-                ResourceMethod.GET,
+                "GET",
                 None,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, "DAG:test_dag_id2")],
@@ -189,7 +188,7 @@ class TestFabAuthManager:
             ),
             # Without permission on a specific DAG (wrong method)
             (
-                ResourceMethod.POST,
+                "POST",
                 None,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_READ, "DAG:test_dag_id")],
@@ -197,7 +196,7 @@ class TestFabAuthManager:
             ),
             # Without permission on a specific DAG
             (
-                ResourceMethod.GET,
+                "GET",
                 None,
                 DagDetails(id="test_dag_id2"),
                 [(ACTION_CAN_READ, "DAG:test_dag_id")],
@@ -205,7 +204,7 @@ class TestFabAuthManager:
             ),
             # Without permission on DAGs
             (
-                ResourceMethod.GET,
+                "GET",
                 None,
                 None,
                 [(ACTION_CAN_READ, "resource_test")],
@@ -214,7 +213,7 @@ class TestFabAuthManager:
             # Scenario 2 #
             # With global permissions on DAGs
             (
-                ResourceMethod.GET,
+                "GET",
                 DagAccessEntity.RUN,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
@@ -222,7 +221,7 @@ class TestFabAuthManager:
             ),
             # With read permissions on a specific DAG
             (
-                ResourceMethod.GET,
+                "GET",
                 DagAccessEntity.TASK_INSTANCE,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
@@ -230,7 +229,7 @@ class TestFabAuthManager:
             ),
             # With edit permissions on a specific DAG and read on the DAG access entity
             (
-                ResourceMethod.POST,
+                "POST",
                 DagAccessEntity.RUN,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_CREATE, RESOURCE_DAG_RUN)],
@@ -238,7 +237,7 @@ class TestFabAuthManager:
             ),
             # Without permissions to edit the DAG
             (
-                ResourceMethod.POST,
+                "POST",
                 DagAccessEntity.RUN,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_CREATE, RESOURCE_DAG_RUN)],
@@ -246,7 +245,7 @@ class TestFabAuthManager:
             ),
             # Without read permissions on a specific DAG
             (
-                ResourceMethod.GET,
+                "GET",
                 DagAccessEntity.TASK_LOGS,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
@@ -292,14 +291,14 @@ class TestFabAuthManager:
         with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
             auth_manager.get_url_login()
 
-    @mock.patch.object(FabAuthManager, "url_for")
+    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
     def test_get_url_login(self, mock_url_for, auth_manager):
         auth_manager.security_manager.auth_view = Mock()
         auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager.get_url_login()
         mock_url_for.assert_called_once_with("test_endpoint.login")
 
-    @mock.patch.object(FabAuthManager, "url_for")
+    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
     def test_get_url_login_with_next(self, mock_url_for, auth_manager):
         auth_manager.security_manager.auth_view = Mock()
         auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
@@ -310,7 +309,7 @@ class TestFabAuthManager:
         with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
             auth_manager.get_url_logout()
 
-    @mock.patch.object(FabAuthManager, "url_for")
+    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
     def test_get_url_logout(self, mock_url_for, auth_manager):
         auth_manager.security_manager.auth_view = Mock()
         auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
@@ -320,7 +319,7 @@ class TestFabAuthManager:
     def test_get_url_user_profile_when_auth_view_not_defined(self, auth_manager):
         assert auth_manager.get_url_user_profile() is None
 
-    @mock.patch.object(FabAuthManager, "url_for")
+    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
     def test_get_url_user_profile(self, mock_url_for, auth_manager):
         expected_url = "test_url"
         mock_url_for.return_value = expected_url

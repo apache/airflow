@@ -17,17 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from flask import url_for
 
 from airflow import AirflowException
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.fab.cli_commands.definition import (
     ROLES_COMMANDS,
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
 )
 from airflow.auth.managers.models.resource_details import ConnectionDetails, DagAccessEntity, DagDetails
-from airflow.auth.managers.models.resource_method import ResourceMethod
 from airflow.cli.cli_config import (
     GroupCommand,
 )
@@ -62,11 +63,11 @@ if TYPE_CHECKING:
         CLICommand,
     )
 
-_MAP_METHOD_NAME_TO_FAB_ACTION_NAME = {
-    ResourceMethod.POST: ACTION_CAN_CREATE,
-    ResourceMethod.GET: ACTION_CAN_READ,
-    ResourceMethod.PUT: ACTION_CAN_EDIT,
-    ResourceMethod.DELETE: ACTION_CAN_DELETE,
+_MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
+    "POST": ACTION_CAN_CREATE,
+    "GET": ACTION_CAN_READ,
+    "PUT": ACTION_CAN_EDIT,
+    "DELETE": ACTION_CAN_DELETE,
 }
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE = {
@@ -177,7 +178,7 @@ class FabAuthManager(BaseAuthManager):
         else:
             # Scenario 2
             resource_type = self._get_fab_resource_type(dag_access_entity)
-            dag_method = ResourceMethod.GET if method == ResourceMethod.GET else ResourceMethod.PUT
+            dag_method: ResourceMethod = cast(ResourceMethod, "GET" if method == "GET" else "PUT")
 
             return self._is_authorized_dag(
                 method=dag_method, dag_details=dag_details, user=user
@@ -190,7 +191,7 @@ class FabAuthManager(BaseAuthManager):
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
     def is_authorized_website(self, *, user: BaseUser | None = None) -> bool:
-        return self._is_authorized(method=ResourceMethod.GET, resource_type=RESOURCE_WEBSITE, user=user)
+        return self._is_authorized(method="GET", resource_type=RESOURCE_WEBSITE, user=user)
 
     def get_security_manager_override_class(self) -> type:
         """Return the security manager override."""
@@ -203,21 +204,21 @@ class FabAuthManager(BaseAuthManager):
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
         if "next_url" in kwargs and kwargs["next_url"]:
-            return self._url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
+            return url_for(f"{self.security_manager.auth_view.endpoint}.login", next=kwargs["next_url"])
         else:
-            return self._url_for(f"{self.security_manager.auth_view.endpoint}.login")
+            return url_for(f"{self.security_manager.auth_view.endpoint}.login")
 
     def get_url_logout(self):
         """Return the logout page url."""
         if not self.security_manager.auth_view:
             raise AirflowException("`auth_view` not defined in the security manager.")
-        return self._url_for(f"{self.security_manager.auth_view.endpoint}.logout")
+        return url_for(f"{self.security_manager.auth_view.endpoint}.logout")
 
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
         if not self.security_manager.user_view:
             return None
-        return self._url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
+        return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 
     def _is_authorized(
         self,
@@ -348,14 +349,3 @@ class FabAuthManager(BaseAuthManager):
             )
             return dm.root_dag_id or dm.dag_id
         return dag_id
-
-    @staticmethod
-    def _url_for(*args, **kwargs):
-        """
-        Wrapper to allow mocking without having to import at the top of the file.
-
-        :meta private:
-        """
-        from flask import url_for
-
-        return url_for(*args, **kwargs)

@@ -20,14 +20,13 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.exceptions import AirflowException
 from airflow.www.security import ApplessAirflowSecurityManager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import ConnectionDetails, DagAccessEntity, DagDetails
-    from airflow.auth.managers.models.resource_method import ResourceMethod
 
 
 class EmptyAuthManager(BaseAuthManager):
