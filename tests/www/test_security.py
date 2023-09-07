@@ -334,6 +334,7 @@ def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, se
         with _create_dag_model_context(dag_id, session, security_manager):
             security_manager.sync_roles()
 
+            assert security_manager.can_read_dag(dag_id, user) is False
             assert security_manager.can_edit_dag(dag_id, user) is False
             assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is False
             assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is False
@@ -378,6 +379,7 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
             with _create_dag_model_context(dag_id, session, security_manager):
                 security_manager.sync_roles()
 
+                assert security_manager.can_read_dag(dag_id, user) is True
                 assert security_manager.can_edit_dag(dag_id, user) is True
                 assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is True
                 assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is True

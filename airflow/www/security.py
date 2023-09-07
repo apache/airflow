@@ -397,6 +397,12 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
             return any(self.get_readable_dag_ids(user))
         return any(self.get_editable_dag_ids(user))
 
+    def can_read_dag(self, dag_id: str, user=None) -> bool:
+        """Determines whether a user has DAG read access."""
+        root_dag_id = self._get_root_dag_id(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
+        return self.has_access(permissions.ACTION_CAN_READ, dag_resource_name, user=user)
+
     def can_edit_dag(self, dag_id: str, user=None) -> bool:
         """Determines whether a user has DAG edit access."""
         root_dag_id = self._get_root_dag_id(dag_id)
