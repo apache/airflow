@@ -540,6 +540,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             )
 
         hook = GKEPodHook(
+            gcp_conn_id=self.gcp_conn_id,
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
         )
