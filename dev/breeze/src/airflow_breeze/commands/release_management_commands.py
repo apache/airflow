@@ -1087,16 +1087,19 @@ def release_prod_images(
                     f"{dockerhub_repo}:{airflow_version}-python{python}",
                     f"{dockerhub_repo}:latest-python{python}",
                 )
-        if slim_images:
-            alias_image(
-                f"{dockerhub_repo}:slim-{airflow_version}",
-                f"{dockerhub_repo}:slim-latest",
-            )
-        else:
-            alias_image(
-                f"{dockerhub_repo}:{airflow_version}",
-                f"{dockerhub_repo}:latest",
-            )
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            # only tag latest  "default" image when we build default python version
+            # otherwise if the non-default images complete before the default one, their jobs will fail
+            if slim_images:
+                alias_image(
+                    f"{dockerhub_repo}:slim-{airflow_version}",
+                    f"{dockerhub_repo}:slim-latest",
+                )
+            else:
+                alias_image(
+                    f"{dockerhub_repo}:{airflow_version}",
+                    f"{dockerhub_repo}:latest",
+                )
 
 
 def is_package_in_dist(dist_files: list[str], package: str) -> bool:
