@@ -19,12 +19,12 @@ from __future__ import annotations
 
 from functools import cached_property
 from time import sleep
-from typing import Callable, NoReturn
+from typing import TYPE_CHECKING, Callable, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
-from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.orm.session import make_transient
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -41,6 +41,9 @@ from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import JobState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 
 def _resolve_dagrun_model():
@@ -99,6 +102,7 @@ class Job(Base, LoggingMixin):
 
     def __init__(self, executor=None, heartrate=None, **kwargs):
         # Save init parameters as DB fields
+        self.heartbeat_failed = False
         self.hostname = get_hostname()
         if executor:
             self.executor = executor
@@ -153,7 +157,7 @@ class Job(Base, LoggingMixin):
         try:
             self.on_kill()
         except Exception as e:
-            self.log.error("on_kill() method failed: %s", str(e))
+            self.log.error("on_kill() method failed: %s", e)
         session.merge(job)
         session.commit()
         raise AirflowException("Job shut down externally.")
@@ -190,7 +194,7 @@ class Job(Base, LoggingMixin):
             session.merge(self)
             previous_heartbeat = self.latest_heartbeat
 
-            if self.state in (JobState.SHUTDOWN, JobState.RESTARTING):
+            if self.state == JobState.RESTARTING:
                 # TODO: Make sure it is AIP-44 compliant
                 self.kill()
 
@@ -214,9 +218,21 @@ class Job(Base, LoggingMixin):
 
                 heartbeat_callback(session)
                 self.log.debug("[heartbeat]")
+                self.heartbeat_failed = False
         except OperationalError:
             Stats.incr(convert_camel_to_snake(self.__class__.__name__) + "_heartbeat_failure", 1, 1)
-            self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+            if not self.heartbeat_failed:
+                self.log.exception("%s heartbeat got an exception", self.__class__.__name__)
+                self.heartbeat_failed = True
+            if self.is_alive():
+                self.log.error(
+                    "%s heartbeat failed with error. Scheduler may go into unhealthy state",
+                    self.__class__.__name__,
+                )
+            else:
+                self.log.error(
+                    "%s heartbeat failed with error. Scheduler is in unhealthy state", self.__class__.__name__
+                )
             # We didn't manage to heartbeat, so make sure that the timestamp isn't updated
             self.latest_heartbeat = previous_heartbeat
 

@@ -426,7 +426,7 @@ class TestBatchClientDelays:
         assert result >= minima
         assert result <= width
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.uniform")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.random.uniform")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.sleep")
     def test_delay_defaults(self, mock_sleep, mock_uniform):
         assert BatchClientHook.DEFAULT_DELAY_MIN == 1
@@ -438,21 +438,21 @@ class TestBatchClientDelays:
         )
         mock_sleep.assert_called_once_with(0)
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.uniform")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.random.uniform")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.sleep")
     def test_delay_with_zero(self, mock_sleep, mock_uniform):
         self.batch_client.delay(0)
         mock_uniform.assert_called_once_with(0, 1)  # in add_jitter
         mock_sleep.assert_called_once_with(mock_uniform.return_value)
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.uniform")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.random.uniform")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.sleep")
     def test_delay_with_int(self, mock_sleep, mock_uniform):
         self.batch_client.delay(5)
         mock_uniform.assert_called_once_with(4, 6)  # in add_jitter
         mock_sleep.assert_called_once_with(mock_uniform.return_value)
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.uniform")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.random.uniform")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.sleep")
     def test_delay_with_float(self, mock_sleep, mock_uniform):
         self.batch_client.delay(5.0)

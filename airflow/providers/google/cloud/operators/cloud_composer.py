@@ -21,10 +21,8 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.orchestration.airflow.service_v1 import ImageVersion
 from google.cloud.orchestration.airflow.service_v1.types import Environment
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
 from airflow.configuration import conf
@@ -35,6 +33,9 @@ from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposer
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 CLOUD_COMPOSER_BASE_LINK = "https://console.cloud.google.com/composer/environments"

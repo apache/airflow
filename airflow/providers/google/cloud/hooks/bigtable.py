@@ -18,17 +18,20 @@
 """This module contains a Google Cloud Bigtable Hook."""
 from __future__ import annotations
 
-import enum
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.cloud.bigtable import Client, enums
 from google.cloud.bigtable.cluster import Cluster
-from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionRule
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState, Table
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    import enum
+
+    from google.cloud.bigtable.column_family import ColumnFamily, GarbageCollectionRule
 
 
 class BigtableHook(GoogleBaseHook):
@@ -148,11 +151,11 @@ class BigtableHook(GoogleBaseHook):
             instance_labels,
         )
 
-        cluster_kwargs = dict(
-            cluster_id=main_cluster_id,
-            location_id=main_cluster_zone,
-            default_storage_type=cluster_storage_type,
-        )
+        cluster_kwargs = {
+            "cluster_id": main_cluster_id,
+            "location_id": main_cluster_zone,
+            "default_storage_type": cluster_storage_type,
+        }
         if instance_type != enums.Instance.Type.DEVELOPMENT and cluster_nodes:
             cluster_kwargs["serve_nodes"] = cluster_nodes
         clusters = [instance.cluster(**cluster_kwargs)]

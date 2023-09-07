@@ -18,15 +18,17 @@ from __future__ import annotations
 
 import base64
 import pickle
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 import requests
-from aiohttp.client_reqrep import ClientResponse
 from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from aiohttp.client_reqrep import ClientResponse
 
 
 class HttpTrigger(BaseTrigger):

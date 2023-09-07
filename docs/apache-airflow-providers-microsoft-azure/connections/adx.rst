@@ -27,7 +27,7 @@ The ``Azure Data Explorer`` connection type enables Azure Data Explorer (ADX) in
 Authenticating to Azure Data Explorer
 ---------------------------------------
 
-There are three ways to connect to Azure Data Explorer using Airflow.
+There are four ways to connect to Azure Data Explorer using Airflow.
 
 1. Use `AAD application certificate
    <https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-certificate-credentials>`_
@@ -38,6 +38,8 @@ There are three ways to connect to Azure Data Explorer using Airflow.
 3. Use a `AAD device code
    <https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-device-code>`_
    (i.e. use "AAD_DEVICE" as the Authentication Method in the Airflow connection).
+4. Fallback on DefaultAzureCredential_.
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -64,6 +66,8 @@ Authentication Method
 
     * AAD_DEVICE: Authenticate with AAD device code. Please note that if you choose this option, you'll need to authenticate for every new instance that is initialized. It is highly recommended to create one instance and use it for all queries.
 
+    * AZURE_TOKEN_CRED: Authentication with DefaultAzureCredential_. This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc. Only the "Data Explorer Cluster URL" is required when using this method.
+
 Username (optional)
     Specify the username used for data explorer. Needed for with AAD_APP, AAD_APP_CERT, and AAD_CREDS authentication methods.
 
@@ -89,3 +93,6 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_AZURE_DATA_EXPLORER_DEFAULT='azure-data-explorer://add%20username:add%20password@mycluster.com?auth_method=AAD_APP&tenant=tenant+id'
+
+
+.. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential

@@ -1908,12 +1908,6 @@ to test them.
 The DAGs can be run in the main version of Airflow but they also work
 with older versions.
 
-To run the tests for Airflow 1.10.* series, you need to run Breeze with
-``--use-airflow-pypi-version=<VERSION>`` to re-install a different version of Airflow.
-
-You should also consider running it with ``restart`` command when you change the installed version.
-This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
-So typically you'd run it like ``breeze --use-airflow-pypi-version=1.10.9 restart``.
 
 Tracking SQL statements
 =======================

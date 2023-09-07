@@ -34,6 +34,7 @@ Alibaba
 alibaba
 allAuthenticatedUsers
 allowinsert
+allowlist
 allUsers
 alphanumerics
 Alphasort
@@ -154,6 +155,7 @@ BaseView
 BaseXCom
 bashrc
 batchGet
+BatchServiceClient
 bc
 bcc
 bdist
@@ -373,6 +375,8 @@ datapoint
 Dataprep
 Dataproc
 dataproc
+DataScan
+dataScans
 Dataset
 dataset
 datasetId
@@ -485,6 +489,7 @@ DOS'ing
 DownloadReportV
 downscaling
 downstreams
+dq
 Drillbit
 Drivy
 dropdown
@@ -786,6 +791,7 @@ isfile
 ish
 isn
 isort
+istio
 iterable
 iterables
 iteratively
@@ -1045,6 +1051,7 @@ openapi
 openfaas
 openlineage
 oper
+OperatorLineage
 Opsgenie
 opsgenie
 Optimise

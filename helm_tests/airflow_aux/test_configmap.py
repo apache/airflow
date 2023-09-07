@@ -124,13 +124,8 @@ metadata:
             show_only=["templates/configmaps/configmap.yaml"],
         )
         expected = "flower_url_prefix = "
-        found = False
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
-        for item in cfg.split("\n"):
-            if item == expected:
-                found = True
-
-        assert found is True
+        assert expected in cfg.splitlines()
 
     def test_overriden_flower_url_prefix(self):
         docs = render_chart(
@@ -139,11 +134,6 @@ metadata:
         )
 
         expected = "flower_url_prefix = /overriden-path"
-        found = False
 
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
-        for item in cfg.split("\n"):
-            if item == expected:
-                found = True
-
-        assert found is True
+        assert expected in cfg.splitlines()

@@ -17,15 +17,18 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from dateutil.relativedelta import relativedelta
 from pendulum import DateTime
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables._cron import CronMixin
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils.timezone import convert_to_utc
+
+if TYPE_CHECKING:
+    from airflow.timetables.base import TimeRestriction
 
 Delta = Union[datetime.timedelta, relativedelta]
 
@@ -185,7 +188,8 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
         return cls(datetime.timedelta(seconds=delta))
 
     def __eq__(self, other: Any) -> bool:
-        """The offset should match.
+        """
+        Return if the offsets match.
 
         This is only for testing purposes and should not be relied on otherwise.
         """

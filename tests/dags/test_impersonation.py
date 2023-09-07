@@ -35,14 +35,12 @@ dag = DAG(dag_id="test_impersonation", default_args=args)
 run_as_user = "airflow_test_user"
 
 test_command = dedent(
-    """\
-    if [ '{user}' != "$(whoami)" ]; then
-        echo current user is not {user}!
+    f"""\
+    if [ '{run_as_user}' != "$(whoami)" ]; then
+        echo current user is not {run_as_user}!
         exit 1
     fi
-    """.format(
-        user=run_as_user
-    )
+    """
 )
 
 task = BashOperator(

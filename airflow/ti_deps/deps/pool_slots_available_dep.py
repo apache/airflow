@@ -31,7 +31,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context=None):
         """
-        Determines if the pool task instance is in has available slots.
+        Determine if the pool task instance is in has available slots.
 
         :param ti: the task instance to get the dependency status for
         :param session: database session

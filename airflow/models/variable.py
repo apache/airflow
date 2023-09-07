@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, delete
+from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import Session, declared_attr, reconstructor, synonym
+from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import ensure_secrets_loaded
@@ -34,6 +34,9 @@ from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
@@ -126,7 +129,7 @@ class Variable(Base, LoggingMixin):
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
     ) -> Any:
-        """Gets a value for an Airflow Variable Key.
+        """Get a value for an Airflow Variable Key.
 
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exist
@@ -157,7 +160,7 @@ class Variable(Base, LoggingMixin):
         serialize_json: bool = False,
         session: Session = None,
     ) -> None:
-        """Sets a value for an Airflow Variable with a given Key.
+        """Set a value for an Airflow Variable with a given Key.
 
         This operation overwrites an existing variable.
 
@@ -190,7 +193,7 @@ class Variable(Base, LoggingMixin):
         serialize_json: bool = False,
         session: Session = None,
     ) -> None:
-        """Updates a given Airflow Variable with the Provided value.
+        """Update a given Airflow Variable with the Provided value.
 
         :param key: Variable Key
         :param value: Value to set for the Variable
@@ -200,8 +203,7 @@ class Variable(Base, LoggingMixin):
 
         if Variable.get_variable_from_secrets(key=key) is None:
             raise KeyError(f"Variable {key} does not exist")
-
-        obj = session.query(Variable).filter(Variable.key == key).first()
+        obj = session.scalar(select(Variable).where(Variable.key == key))
         if obj is None:
             raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
 
@@ -227,7 +229,7 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     def check_for_write_conflict(key: str) -> None:
-        """Logs a warning if a variable exists outside of the metastore.
+        """Log a warning if a variable exists outside the metastore.
 
         If we try to write a variable to the metastore while the same key
         exists in an environment variable or custom secrets backend, then

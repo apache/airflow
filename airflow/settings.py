@@ -30,8 +30,7 @@ import pendulum
 import pluggy
 import sqlalchemy
 from sqlalchemy import create_engine, exc, text
-from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Session as SASession, scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import policies
@@ -43,6 +42,9 @@ from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.orm import Session as SASession
+
     from airflow.www.utils import UIAlert
 
 log = logging.getLogger(__name__)
@@ -100,7 +102,6 @@ STATE_COLORS = {
     "restarting": "violet",
     "running": "lime",
     "scheduled": "tan",
-    "shutdown": "blue",
     "skipped": "hotpink",
     "success": "green",
     "up_for_reschedule": "turquoise",
@@ -118,7 +119,7 @@ def _get_rich_console(file):
 
 
 def custom_show_warning(message, category, filename, lineno, file=None, line=None):
-    """Custom function to print rich and visible warnings."""
+    """Print rich and visible warnings."""
     # Delay imports until we need it
     from rich.markup import escape
 
@@ -432,7 +433,7 @@ def prepare_syspath():
 
 
 def get_session_lifetime_config():
-    """Gets session timeout configs and handles outdated configs gracefully."""
+    """Get session timeout configs and handle outdated configs gracefully."""
     session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
     session_lifetime_days = conf.get("webserver", "session_lifetime_days", fallback=None)
     uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
@@ -465,11 +466,23 @@ def import_local_settings():
     """Import airflow_local_settings.py files to allow overriding any configs in settings.py file."""
     try:
         import airflow_local_settings
-
-        if hasattr(airflow_local_settings, "__all__"):
-            names = list(airflow_local_settings.__all__)
+    except ModuleNotFoundError as e:
+        if e.name == "airflow_local_settings":
+            log.debug("No airflow_local_settings to import.", exc_info=True)
         else:
-            names = list(filter(lambda n: not n.startswith("__"), airflow_local_settings.__dict__.keys()))
+            log.critical(
+                "Failed to import airflow_local_settings due to a transitive module not found error.",
+                exc_info=True,
+            )
+            raise
+    except ImportError:
+        log.critical("Failed to import airflow_local_settings.", exc_info=True)
+        raise
+    else:
+        if hasattr(airflow_local_settings, "__all__"):
+            names = set(airflow_local_settings.__all__)
+        else:
+            names = {n for n in airflow_local_settings.__dict__ if not n.startswith("__")}
 
         if "policy" in names and "task_policy" not in names:
             warnings.warn(
@@ -485,30 +498,15 @@ def import_local_settings():
             POLICY_PLUGIN_MANAGER, airflow_local_settings, names
         )
 
-        for name in names:
-            # If we have already handled a function by adding it to the plugin, then don't clobber the global
-            # function
-            if name in plugin_functions:
-                continue
-
+        # If we have already handled a function by adding it to the plugin,
+        # then don't clobber the global function
+        for name in names - plugin_functions:
             globals()[name] = getattr(airflow_local_settings, name)
 
         if POLICY_PLUGIN_MANAGER.hook.task_instance_mutation_hook.get_hookimpls():
             task_instance_mutation_hook.is_noop = False
 
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
-    except ModuleNotFoundError as e:
-        if e.name == "airflow_local_settings":
-            log.debug("No airflow_local_settings to import.", exc_info=True)
-        else:
-            log.critical(
-                "Failed to import airflow_local_settings due to a transitive module not found error.",
-                exc_info=True,
-            )
-            raise
-    except ImportError:
-        log.critical("Failed to import airflow_local_settings.", exc_info=True)
-        raise
 
 
 def initialize():

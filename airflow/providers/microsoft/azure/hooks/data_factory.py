@@ -34,11 +34,10 @@ import inspect
 import time
 import warnings
 from functools import wraps
-from typing import Any, Callable, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union, cast
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import ServiceRequestError
-from azure.core.polling import LROPoller
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import (
     ClientSecretCredential as AsyncClientSecretCredential,
@@ -46,20 +45,23 @@ from azure.identity.aio import (
 )
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataFactoryManagementClient
-from azure.mgmt.datafactory.models import (
-    CreateRunResponse,
-    DataFlow,
-    DatasetResource,
-    Factory,
-    LinkedServiceResource,
-    PipelineResource,
-    PipelineRun,
-    TriggerResource,
-)
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.typing_compat import TypedDict
+
+if TYPE_CHECKING:
+    from azure.core.polling import LROPoller
+    from azure.mgmt.datafactory.models import (
+        CreateRunResponse,
+        DataFlow,
+        DatasetResource,
+        Factory,
+        LinkedServiceResource,
+        PipelineResource,
+        PipelineRun,
+        TriggerResource,
+    )
 
 Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
 AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
@@ -853,8 +855,8 @@ class AzureDataFactoryHook(BaseHook):
             except ServiceRequestError:
                 if executed_after_token_refresh:
                     self.refresh_conn()
-                    continue
-                raise
+                else:
+                    raise
 
         return pipeline_run_status in expected_statuses
 

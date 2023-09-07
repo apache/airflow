@@ -265,6 +265,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| generate-pypi-readme                                      | Generate PyPI README                                         |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | identity                                                  | Print input to the static check hooks for troubleshooting    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | insert-license                                            | * Add license for all SQL files                              |         |
@@ -356,6 +358,8 @@ require Breeze Docker image to be built locally.
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-version                                            | Update version to the latest version in the documentation    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| validate-pyproject                                        | Validate pyproject.toml                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -484,7 +488,7 @@ Run all checks for all changes in my branch since branched from main:
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --only-my-changes
+     breeze static-checks --type mypy-core --only-my-changes
 
 More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
 

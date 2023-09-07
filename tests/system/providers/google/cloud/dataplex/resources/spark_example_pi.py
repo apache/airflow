@@ -17,9 +17,9 @@
 
 from __future__ import annotations
 
+import random
 import sys
 from operator import add
-from random import random
 
 from pyspark.sql import SparkSession
 
@@ -33,8 +33,8 @@ if __name__ == "__main__":
     n = 100000 * partitions
 
     def f(_: int) -> float:
-        x = random() * 2 - 1
-        y = random() * 2 - 1
+        x = random.random() * 2 - 1
+        y = random.random() * 2 - 1
         return 1 if x**2 + y**2 <= 1 else 0
 
     count = spark.sparkContext.parallelize(range(1, n + 1), partitions).map(f).reduce(add)

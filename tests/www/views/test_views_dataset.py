@@ -440,3 +440,14 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
 
         assert response.status_code == 200
         assert len(response.json["datasets"]) == 50
+
+
+class TestGetDatasetNextRunSummary(TestDatasetEndpoint):
+    def test_next_run_dataset_summary(self, dag_maker, admin_client):
+        with dag_maker(dag_id="upstream", schedule=[Dataset(uri="s3://bucket/key/1")], serialized=True):
+            EmptyOperator(task_id="task1")
+
+        response = admin_client.post("/next_run_datasets_summary", data={"dag_ids": ["upstream"]})
+
+        assert response.status_code == 200
+        assert response.json == {"upstream": {"ready": 0, "total": 1, "uri": "s3://bucket/key/1"}}

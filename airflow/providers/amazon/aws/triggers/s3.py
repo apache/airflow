@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 from functools import cached_property
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class S3KeyTrigger(BaseTrigger):

@@ -26,14 +26,15 @@ from typing import TYPE_CHECKING, Any, Iterable, Union
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from psycopg2.extensions import connection
+
+    from airflow.models.connection import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
@@ -127,13 +128,13 @@ class PostgresHook(DbApiHook):
         if conn.extra_dejson.get("iam", False):
             conn.login, conn.password, conn.port = self.get_iam_token(conn)
 
-        conn_args = dict(
-            host=conn.host,
-            user=conn.login,
-            password=conn.password,
-            dbname=self.database or conn.schema,
-            port=conn.port,
-        )
+        conn_args = {
+            "host": conn.host,
+            "user": conn.login,
+            "password": conn.password,
+            "dbname": self.database or conn.schema,
+            "port": conn.port,
+        }
         raw_cursor = conn.extra_dejson.get("cursor", False)
         if raw_cursor:
             conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
@@ -170,12 +171,10 @@ class PostgresHook(DbApiHook):
             with open(filename, "w"):
                 pass
 
-        with open(filename, "r+") as file:
-            with closing(self.get_conn()) as conn:
-                with closing(conn.cursor()) as cur:
-                    cur.copy_expert(sql, file)
-                    file.truncate(file.tell())
-                    conn.commit()
+        with open(filename, "r+") as file, closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
+            cur.copy_expert(sql, file)
+            file.truncate(file.tell())
+            conn.commit()
 
     def get_uri(self) -> str:
         """Extract the URI from the connection.

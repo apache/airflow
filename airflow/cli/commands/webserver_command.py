@@ -24,10 +24,9 @@ import subprocess
 import sys
 import textwrap
 import time
-import types
 from contextlib import suppress
 from time import sleep
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 import daemon
 import psutil
@@ -43,6 +42,9 @@ from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
+
+if TYPE_CHECKING:
+    import types
 
 log = logging.getLogger(__name__)
 
@@ -138,14 +140,14 @@ class GunicornMonitor(LoggingMixin):
         def ready_prefix_on_cmdline(proc):
             try:
                 cmdline = proc.cmdline()
-                if len(cmdline) > 0:
+                if cmdline:
                     return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
             except psutil.NoSuchProcess:
                 pass
             return False
 
-        ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
-        return len(ready_workers)
+        nb_ready_workers = sum(1 for proc in workers if ready_prefix_on_cmdline(proc))
+        return nb_ready_workers
 
     def _get_num_workers_running(self) -> int:
         """Return number of running Gunicorn workers processes."""
@@ -491,11 +493,10 @@ def webserver(args):
 
                     # Reading pid of gunicorn master as it will be different that
                     # the one of process spawned above.
-                    while True:
+                    gunicorn_master_proc_pid = None
+                    while not gunicorn_master_proc_pid:
                         sleep(0.1)
                         gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
-                        if gunicorn_master_proc_pid:
-                            break
 
                     # Run Gunicorn monitor
                     gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)

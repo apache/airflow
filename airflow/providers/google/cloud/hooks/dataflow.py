@@ -226,10 +226,7 @@ class _DataflowJobsController(LoggingMixin):
         if not self._jobs:
             return False
 
-        for job in self._jobs:
-            if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES:
-                return True
-        return False
+        return any(job["currentState"] not in DataflowJobStatus.TERMINAL_STATES for job in self._jobs)
 
     def _get_current_jobs(self) -> list[dict]:
         """
@@ -870,7 +867,7 @@ class DataflowHook(GoogleBaseHook):
         """Builds Dataflow job name."""
         base_job_name = str(job_name).replace("_", "-")
 
-        if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", base_job_name):
+        if not re.fullmatch(r"[a-z]([-a-z0-9]*[a-z0-9])?", base_job_name):
             raise ValueError(
                 f"Invalid job_name ({base_job_name}); the name must consist of only the characters "
                 f"[-a-z0-9], starting with a letter and ending with a letter or number "
@@ -1014,8 +1011,12 @@ class DataflowHook(GoogleBaseHook):
         self.log.info("Output: %s", proc.stdout.decode())
         self.log.warning("Stderr: %s", proc.stderr.decode())
         self.log.info("Exit code %d", proc.returncode)
+        stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
         if proc.returncode != 0:
-            raise AirflowException(f"Process exit with non-zero exit code. Exit code: {proc.returncode}")
+            raise AirflowException(
+                f"Process exit with non-zero exit code. Exit code: {proc.returncode} Error Details : "
+                f"{stderr_last_20_lines}"
+            )
         job_id = proc.stdout.decode().strip()
 
         self.log.info("Created job ID: %s", job_id)
@@ -1232,12 +1233,12 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
         client = await self.initialize_client(JobsV1Beta3AsyncClient)
 
         request = GetJobRequest(
-            dict(
-                project_id=project_id,
-                job_id=job_id,
-                view=job_view,
-                location=location,
-            )
+            {
+                "project_id": project_id,
+                "job_id": job_id,
+                "view": job_view,
+                "location": location,
+            }
         )
 
         job = await client.get_job(

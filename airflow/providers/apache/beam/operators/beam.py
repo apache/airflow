@@ -401,7 +401,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.

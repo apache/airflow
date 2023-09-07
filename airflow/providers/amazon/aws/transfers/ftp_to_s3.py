@@ -127,7 +127,7 @@ class FTPToS3Operator(BaseOperator):
                     files = list_dir
                 else:
                     ftp_filename: str = self.ftp_filenames
-                    files = list(filter(lambda f: ftp_filename in f, list_dir))
+                    files = [f for f in list_dir if ftp_filename in f]
 
                 for file in files:
                     self.log.info("Moving file %s", file)

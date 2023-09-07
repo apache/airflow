@@ -323,9 +323,11 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
-# Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
+# Remove pytest.ini and .coveragerc from the current directory if it exists. It has been removed from the source tree
 # but may still be present in the local directory if the user has old breeze image
 rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+rm -f "${AIRFLOW_SOURCES}/.coveragerc"
+
 
 set +u
 # If we do not want to run tests, we simply drop into bash
@@ -398,10 +400,11 @@ else
 fi
 
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
+    _suffix="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)"
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow"
-        "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+        "--cov-config=pyproject.toml"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}-${_suffix}.xml"
     )
 fi
 

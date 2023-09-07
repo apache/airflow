@@ -20,16 +20,16 @@ from __future__ import annotations
 
 import logging
 import zlib
-from datetime import datetime, timedelta
-from typing import Collection
+from datetime import timedelta
+from typing import TYPE_CHECKING, Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_, select
-from sqlalchemy.orm import Session, backref, foreign, relationship
+from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
 from airflow.models.base import ID_LEN, Base
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
@@ -38,6 +38,13 @@ from airflow.utils import timezone
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
+
+    from airflow.models.dag import DAG
 
 log = logging.getLogger(__name__)
 
@@ -129,7 +136,7 @@ class SerializedDagModel(Base):
         session: Session = NEW_SESSION,
     ) -> bool:
         """
-        Serializes a DAG and writes it into database.
+        Serialize a DAG and writes it into database.
 
         If the record already exists, it checks if the Serialized DAG changed or not. If it is
         changed, it updates the record, ignores otherwise.
@@ -174,7 +181,7 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
-        """Reads all DAGs in serialized_dag table.
+        """Read all DAGs in serialized_dag table.
 
         :param session: ORM Session
         :returns: a dict of DAGs read from database
@@ -224,7 +231,7 @@ class SerializedDagModel(Base):
     @provide_session
     def remove_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> None:
         """
-        Deletes a DAG with given dag_id.
+        Delete a DAG with given dag_id.
 
         :param dag_id: dag_id to be deleted
         :param session: ORM Session.
@@ -239,9 +246,10 @@ class SerializedDagModel(Base):
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
-        """Deletes DAGs not included in alive_dag_filelocs.
+        """Delete DAGs not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
+        :param processor_subdir: dag processor subdir
         :param session: ORM Session
         """
         alive_fileloc_hashes = [DagCode.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
@@ -266,7 +274,7 @@ class SerializedDagModel(Base):
     @classmethod
     @provide_session
     def has_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> bool:
-        """Checks a DAG exist in serialized_dag table.
+        """Check a DAG exist in serialized_dag table.
 
         :param dag_id: the DAG to check
         :param session: ORM Session
@@ -310,7 +318,7 @@ class SerializedDagModel(Base):
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Saves DAGs as Serialized DAG objects in the database.
+        Save DAGs as Serialized DAG objects in the database.
 
         Each DAG is saved in a separate database query.
 

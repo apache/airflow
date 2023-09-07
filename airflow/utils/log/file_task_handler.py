@@ -109,14 +109,13 @@ def _parse_timestamps_in_log_file(lines: Iterable[str]):
     timestamp = None
     next_timestamp = None
     for idx, line in enumerate(lines):
-        if not line:
-            continue
-        with suppress(Exception):
-            # next_timestamp unchanged if line can't be parsed
-            next_timestamp = _parse_timestamp(line)
-        if next_timestamp:
-            timestamp = next_timestamp
-        yield timestamp, idx, line
+        if line:
+            with suppress(Exception):
+                # next_timestamp unchanged if line can't be parsed
+                next_timestamp = _parse_timestamp(line)
+            if next_timestamp:
+                timestamp = next_timestamp
+            yield timestamp, idx, line
 
 
 def _interleave_logs(*logs):
@@ -193,7 +192,7 @@ class FileTaskHandler(logging.Handler):
     @staticmethod
     def add_triggerer_suffix(full_path, job_id=None):
         """
-        Helper for deriving trigger log filename from task log filename.
+        Derive trigger log filename from task log filename.
 
         E.g. given /path/to/file.log returns /path/to/file.log.trigger.123.log, where 123
         is the triggerer id.  We use the triggerer ID instead of trigger ID to distinguish
@@ -219,7 +218,7 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     def _render_filename(self, ti: TaskInstance, try_number: int) -> str:
-        """Returns the worker log filename."""
+        """Return the worker log filename."""
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
@@ -520,7 +519,7 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            messages.append(f"Could not read served logs: {str(e)}")
+            messages.append(f"Could not read served logs: {e}")
             logger.exception("Could not read served logs")
         return messages, logs
 
