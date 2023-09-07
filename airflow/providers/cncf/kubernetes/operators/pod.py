@@ -627,6 +627,10 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
+        ti = context["ti"]
+        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
+
         self.invoke_defer_method()
 
     def invoke_defer_method(self):
@@ -663,10 +667,6 @@ class KubernetesPodOperator(BaseOperator):
                     self.write_logs(pod)
                 raise AirflowException(event["message"])
             elif event["status"] == "success":
-                ti = context["ti"]
-                ti.xcom_push(key="pod_name", value=pod.metadata.name)
-                ti.xcom_push(key="pod_namespace", value=pod.metadata.namespace)
-
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
                     self.write_logs(pod)
