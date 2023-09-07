@@ -117,6 +117,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
                     trigger=GCSBlobTrigger(
                         bucket=self.bucket,
                         object_name=self.object,
+                        use_glob=self.use_glob,
                         poke_interval=self.poke_interval,
                         google_cloud_conn_id=self.google_cloud_conn_id,
                         hook_params={
