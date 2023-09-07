@@ -73,7 +73,7 @@ class EmrAddStepsTrigger(BaseTrigger):
         async with self.hook.async_conn as client:
             for step_id in self.step_ids:
                 waiter = client.get_waiter("step_complete")
-                for attempt in range(1, 1 + self.max_attempts):
+                for attempt in range(1, 1 + int(self.max_attempts)):
                     try:
                         await waiter.wait(
                             ClusterId=self.job_flow_id,
