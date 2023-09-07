@@ -33,7 +33,6 @@ from kubernetes import client
 from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
-from pytest import param
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, Connection, DagRun, TaskInstance
@@ -395,7 +394,7 @@ class TestKubernetesPodOperatorSystem:
     @pytest.mark.parametrize(
         "val",
         [
-            param(
+            pytest.param(
                 k8s.V1Affinity(
                     node_affinity=k8s.V1NodeAffinity(
                         required_during_scheduling_ignored_during_execution=k8s.V1NodeSelector(
@@ -415,7 +414,7 @@ class TestKubernetesPodOperatorSystem:
                 ),
                 id="current",
             ),
-            param(
+            pytest.param(
                 {
                     "nodeAffinity": {
                         "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -729,8 +728,8 @@ class TestKubernetesPodOperatorSystem:
     @pytest.mark.parametrize(
         "env_vars",
         [
-            param([k8s.V1EnvVar(name="env_name", value="value")], id="current"),
-            param({"env_name": "value"}, id="backcompat"),  # todo: remove?
+            pytest.param([k8s.V1EnvVar(name="env_name", value="value")], id="current"),
+            pytest.param({"env_name": "value"}, id="backcompat"),  # todo: remove?
         ],
     )
     def test_pod_template_file_with_overrides_system(self, env_vars, test_label, mock_get_connection):

@@ -24,7 +24,6 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1PodSecurityContext, V1PodStatus, models as k8s
-from pytest import param
 from urllib3 import HTTPResponse
 from urllib3.packages.six import BytesIO
 
@@ -205,8 +204,8 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(
         "input",
         [
-            param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
-            param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
+            pytest.param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
+            pytest.param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
         ],
     )
     def test_env_vars(self, input):
@@ -377,8 +376,8 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(
         "val",
         [
-            param([k8s.V1LocalObjectReference("fakeSecret")], id="current"),
-            param("fakeSecret", id="backcompat"),
+            pytest.param([k8s.V1LocalObjectReference("fakeSecret")], id="current"),
+            pytest.param("fakeSecret", id="backcompat"),
         ],
     )
     def test_image_pull_secrets_correctly_set(self, val):

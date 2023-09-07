@@ -23,7 +23,6 @@ from unittest.mock import ANY
 
 import pytest
 from opentelemetry.metrics import MeterProvider
-from pytest import param
 
 from airflow.exceptions import InvalidStatsNameException
 from airflow.metrics.otel_logger import (
@@ -76,8 +75,14 @@ class TestOtelMetrics:
     @pytest.mark.parametrize(
         "invalid_stat_combo",
         [
-            *[param(("prefix", name), id=f"Stat name {msg}.") for (name, msg) in INVALID_STAT_NAME_CASES],
-            *[param((prefix, "name"), id=f"Stat prefix {msg}.") for (prefix, msg) in INVALID_STAT_NAME_CASES],
+            *[
+                pytest.param(("prefix", name), id=f"Stat name {msg}.")
+                for (name, msg) in INVALID_STAT_NAME_CASES
+            ],
+            *[
+                pytest.param((prefix, "name"), id=f"Stat prefix {msg}.")
+                for (prefix, msg) in INVALID_STAT_NAME_CASES
+            ],
         ],
     )
     def test_invalid_stat_names_are_caught(self, invalid_stat_combo):

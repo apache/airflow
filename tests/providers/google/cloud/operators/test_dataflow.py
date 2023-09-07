@@ -21,7 +21,7 @@ import copy
 from copy import deepcopy
 from unittest import mock
 
-import pytest as pytest
+import pytest
 
 import airflow
 from airflow.providers.google.cloud.operators.dataflow import (

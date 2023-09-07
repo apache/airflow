@@ -19,7 +19,7 @@ from __future__ import annotations
 import contextlib
 import os
 
-import pytest as pytest
+import pytest
 
 from airflow import AirflowException
 from airflow.jobs.job import Job, run_job

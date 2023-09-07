@@ -22,7 +22,6 @@ from unittest import mock
 import botocore.exceptions
 import pytest
 from moto import mock_ssm
-from pytest import param
 
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 
@@ -60,9 +59,11 @@ class TestSsmHook:
     @pytest.mark.parametrize(
         "param_name, default_value, expected_result",
         [
-            param(EXISTING_PARAM_NAME, None, PARAM_VALUE, id="param_exists_no_default_provided"),
-            param(EXISTING_PARAM_NAME, DEFAULT_VALUE, PARAM_VALUE, id="param_exists_with_default"),
-            param(BAD_PARAM_NAME, DEFAULT_VALUE, DEFAULT_VALUE, id="param_does_not_exist_uses_default"),
+            pytest.param(EXISTING_PARAM_NAME, None, PARAM_VALUE, id="param_exists_no_default_provided"),
+            pytest.param(EXISTING_PARAM_NAME, DEFAULT_VALUE, PARAM_VALUE, id="param_exists_with_default"),
+            pytest.param(
+                BAD_PARAM_NAME, DEFAULT_VALUE, DEFAULT_VALUE, id="param_does_not_exist_uses_default"
+            ),
         ],
     )
     def test_get_parameter_value_happy_cases(self, param_name, default_value, expected_result) -> None:
