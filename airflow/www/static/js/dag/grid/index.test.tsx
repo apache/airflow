@@ -86,6 +86,55 @@ const mockGridData = {
           },
         ],
       },
+      {
+        id: "group_2",
+        label: "group_2",
+        instances: [
+          {
+            endDate: "2021-10-26T15:42:03.391939+00:00",
+            runId: "run1",
+            startDate: "2021-10-26T15:42:03.391917+00:00",
+            state: "success",
+            taskId: "group_1",
+            tryNumber: 1,
+          },
+        ],
+        children: [
+          {
+            id: "group_2.task_1",
+            operator: "DummyOperator",
+            label: "task_1",
+            instances: [
+              {
+                endDate: "2021-10-26T15:42:03.391939+00:00",
+                runId: "run1",
+                startDate: "2021-10-26T15:42:03.391917+00:00",
+                state: "success",
+                taskId: "group_1.task_1",
+                tryNumber: 1,
+              },
+            ],
+            children: [
+              {
+                id: "group_2.task_1.sub_task_1",
+                label: "sub_task_1",
+                extraLinks: [],
+                operator: "DummyOperator",
+                instances: [
+                  {
+                    endDate: "2021-10-26T15:42:03.391939+00:00",
+                    runId: "run1",
+                    startDate: "2021-10-26T15:42:03.391917+00:00",
+                    state: "success",
+                    taskId: "group_2.task_1.sub_task_1",
+                    tryNumber: 1,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
     ],
     instances: [],
   },
@@ -144,16 +193,18 @@ describe("Test ToggleGroups", () => {
   });
 
   test("Group defaults to closed", () => {
-    const { getByTestId, getByText, getAllByTestId } = render(
+    const { queryAllByTestId, getByText, getAllByTestId } = render(
       <Grid openGroupIds={[]} onToggleGroups={() => {}} />,
       { wrapper: Wrapper }
     );
 
-    const groupName = getByText("group_1");
+    const groupName1 = getByText("group_1");
+    const groupName2 = getByText("group_2");
 
-    expect(getAllByTestId("task-instance")).toHaveLength(1);
-    expect(groupName).toBeInTheDocument();
-    expect(getByTestId("open-group")).toBeInTheDocument();
+    expect(getAllByTestId("task-instance")).toHaveLength(2);
+    expect(groupName1).toBeInTheDocument();
+    expect(groupName2).toBeInTheDocument();
+    expect(queryAllByTestId("open-group")).toHaveLength(2);
   });
 
   test("Buttons are disabled if all groups are expanded or collapsed", () => {
@@ -168,12 +219,12 @@ describe("Test ToggleGroups", () => {
     expect(collapseButton).toBeDisabled();
 
     const taskElements = queryAllByTestId("task-instance");
-    expect(taskElements).toHaveLength(1);
+    expect(taskElements).toHaveLength(2);
 
     fireEvent.click(expandButton);
 
     const newTaskElements = queryAllByTestId("task-instance");
-    expect(newTaskElements).toHaveLength(3);
+    expect(newTaskElements).toHaveLength(6);
 
     expect(collapseButton).toBeEnabled();
     expect(expandButton).toBeDisabled();
@@ -188,41 +239,71 @@ describe("Test ToggleGroups", () => {
     const expandButton = getByTitle(EXPAND);
     const collapseButton = getByTitle(COLLAPSE);
 
-    const groupName = getByText("group_1");
+    const groupName1 = getByText("group_1");
+    const groupName2 = getByText("group_2");
 
-    expect(queryAllByTestId("task-instance")).toHaveLength(3);
-    expect(groupName).toBeInTheDocument();
+    expect(queryAllByTestId("task-instance")).toHaveLength(6);
+    expect(groupName1).toBeInTheDocument();
+    expect(groupName2).toBeInTheDocument();
 
-    expect(queryAllByTestId("close-group")).toHaveLength(2);
+    expect(queryAllByTestId("close-group")).toHaveLength(4);
     expect(queryAllByTestId("open-group")).toHaveLength(0);
 
     fireEvent.click(collapseButton);
 
     await waitFor(() =>
-      expect(queryAllByTestId("task-instance")).toHaveLength(1)
+      expect(queryAllByTestId("task-instance")).toHaveLength(2)
     );
     expect(queryAllByTestId("close-group")).toHaveLength(0);
-    // Since the groups are nested, only the parent row is rendered
-    expect(queryAllByTestId("open-group")).toHaveLength(1);
+    // Since the groups are nested, only the parent rows is rendered
+    expect(queryAllByTestId("open-group")).toHaveLength(2);
 
     fireEvent.click(expandButton);
 
     await waitFor(() =>
-      expect(queryAllByTestId("task-instance")).toHaveLength(3)
+      expect(queryAllByTestId("task-instance")).toHaveLength(6)
     );
-    expect(queryAllByTestId("close-group")).toHaveLength(2);
+    expect(queryAllByTestId("close-group")).toHaveLength(4);
     expect(queryAllByTestId("open-group")).toHaveLength(0);
   });
 
+  test("Toggling a group does not affect groups with the same label", async () => {
+    const { getByTitle, getByTestId, queryAllByTestId } = render(
+      <GridWithGroups />,
+      { wrapper: Wrapper }
+    );
+
+    const expandButton = getByTitle(EXPAND);
+
+    fireEvent.click(expandButton);
+
+    await waitFor(() =>
+      expect(queryAllByTestId("task-instance")).toHaveLength(6)
+    );
+    expect(queryAllByTestId("close-group")).toHaveLength(4);
+    expect(queryAllByTestId("open-group")).toHaveLength(0);
+
+    const group2Task1 = getByTestId("group_2.task_1");
+
+    fireEvent.click(group2Task1);
+
+    // We only expect group_2.task_1 to be affected, not group_1.task_1
+    await waitFor(() =>
+      expect(queryAllByTestId("task-instance")).toHaveLength(5)
+    );
+    expect(queryAllByTestId("close-group")).toHaveLength(3);
+    expect(queryAllByTestId("open-group")).toHaveLength(1);
+  });
+
   test("Hovered effect on task state", async () => {
-    const openGroupIds = ["group_1", "task_1"];
+    const openGroupIds = ["group_1", "group_1.task_1"];
     const { rerender, queryAllByTestId } = render(
       <Grid openGroupIds={openGroupIds} onToggleGroups={() => {}} />,
       { wrapper: Wrapper }
     );
 
     const taskElements = queryAllByTestId("task-instance");
-    expect(taskElements).toHaveLength(3);
+    expect(taskElements).toHaveLength(4);
 
     taskElements.forEach((taskElement) => {
       expect(taskElement).toHaveStyle("opacity: 1");

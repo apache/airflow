@@ -317,7 +317,8 @@
       "asgiref"
     ],
     "cross-providers-deps": [
-      "http"
+      "http",
+      "openlineage"
     ],
     "excluded-python-versions": []
   },

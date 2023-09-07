@@ -109,7 +109,7 @@ const indexToTab = (
   }
 };
 
-const TAB_PARAM = "tab";
+export const TAB_PARAM = "tab";
 
 const Details = ({
   openGroupIds,

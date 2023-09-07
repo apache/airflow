@@ -1081,8 +1081,8 @@ class Airflow(AirflowBaseView):
             filter_dag_ids = allowed_dag_ids
 
         dataset_triggered_dag_ids = [
-            dag.dag_id
-            for dag in (
+            dag_id
+            for dag_id in (
                 session.scalars(
                     select(DagModel.dag_id)
                     .where(DagModel.dag_id.in_(filter_dag_ids))
@@ -2216,7 +2216,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/clear", methods=["POST"])
-    @auth.has_access_dag(ResourceMethod.DELETE, DagAccessEntity.TASK_INSTANCE)
+    @auth.has_access_dag(ResourceMethod.PUT, DagAccessEntity.TASK_INSTANCE)
     @action_logging
     @provide_session
     def clear(self, *, session: Session = NEW_SESSION):
@@ -2306,7 +2306,7 @@ class Airflow(AirflowBaseView):
         return response
 
     @expose("/dagrun_clear", methods=["POST"])
-    @auth.has_access_dag(ResourceMethod.DELETE, DagAccessEntity.TASK_INSTANCE)
+    @auth.has_access_dag(ResourceMethod.PUT, DagAccessEntity.TASK_INSTANCE)
     @action_logging
     @provide_session
     def dagrun_clear(self, *, session: Session = NEW_SESSION):
