@@ -150,7 +150,9 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         self.body = body
         self.zone = zone
         self.request_id = request_id
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        # NOTICE: don't use self.resource_id until execution, as it can be overriden by body["name"],
+        #   which can be determined only during execution
+        self.resource_id = resource_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -202,6 +204,9 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         )
         self._validate_all_body_fields()
         self.check_body_fields()
+        # name field in body should override resource_id but only after it has been jinja-resolved
+        if "name" in body:
+            self.resource_id = self.body["name"]
         try:
             # Idempotence check (sort of) - we want to check if the new Instance
             # is already created and if is, then we assume it was created previously - we do
