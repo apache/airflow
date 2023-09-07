@@ -140,7 +140,7 @@ class DagRun(Base, LoggingMixin):
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    cleared_count = Column(Integer, default=0)
+    clear_number = Column(Integer, default=0)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -211,7 +211,7 @@ class DagRun(Base, LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
-        cleared_count: int = 0,
+        clear_number: int = 0,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -234,7 +234,7 @@ class DagRun(Base, LoggingMixin):
         self.run_type = run_type
         self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
-        self.cleared_count = cleared_count
+        self.clear_number = clear_number
         super().__init__()
 
     def __repr__(self):
@@ -920,14 +920,14 @@ class DagRun(Base, LoggingMixin):
         rid of the outliers on the stats side through dashboards tooling.
 
         Note that the stat will only be emitted for scheduler-triggered DAG runs
-        (i.e. when ``external_trigger`` is *False* and ``cleared_count`` is
+        (i.e. when ``external_trigger`` is *False* and ``clear_number`` is
         greater than 0).
         """
         if self.state == TaskInstanceState.RUNNING:
             return
         if self.external_trigger:
             return
-        if self.cleared_count > 0:
+        if self.clear_number > 0:
             return
         if not finished_tis:
             return

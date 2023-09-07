@@ -348,7 +348,7 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
-                    dr.cleared_count += 1
+                    dr.clear_number += 1
     session.flush()
 
 

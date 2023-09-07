@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""add new field 'cleared_count' to dagrun
+"""add new field 'clear_number' to dagrun
 
 Revision ID: 375a816bbbf4
 Revises: 405de8318b3a
@@ -41,7 +41,7 @@ def upgrade():
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.add_column(
             sa.Column(
-                "cleared_count",
+                "clear_number",
                 sa.Integer,
                 default=0,
                 nullable=False,
@@ -52,4 +52,4 @@ def upgrade():
 def downgrade():
     """Unapply add cleared column to pool"""
     with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.drop_column("cleared_count")
+        batch_op.drop_column("clear_number")
