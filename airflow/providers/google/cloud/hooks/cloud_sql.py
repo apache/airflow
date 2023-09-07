@@ -21,7 +21,6 @@ from __future__ import annotations
 import errno
 import json
 import os
-import os.path
 import platform
 import random
 import re

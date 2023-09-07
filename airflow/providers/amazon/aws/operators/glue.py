@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import os.path
+import os
 import urllib.parse
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence

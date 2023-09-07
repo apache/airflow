@@ -30,7 +30,6 @@ import subprocess
 import sys
 import unittest
 from copy import deepcopy
-from os.path import relpath
 from pathlib import Path
 from textwrap import wrap
 from typing import Iterable
@@ -864,7 +863,9 @@ class AirflowDistribution(Distribution):
             ]
             provider_yaml_files = glob.glob("airflow/providers/**/provider.yaml", recursive=True)
             for provider_yaml_file in provider_yaml_files:
-                provider_relative_path = relpath(provider_yaml_file, str(AIRFLOW_SOURCES_ROOT / "airflow"))
+                provider_relative_path = os.path.relpath(
+                    provider_yaml_file, str(AIRFLOW_SOURCES_ROOT / "airflow")
+                )
                 self.package_data["airflow"].append(provider_relative_path)
         else:
             self.install_requires.extend(

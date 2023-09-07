@@ -29,7 +29,6 @@ from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
 from io import BytesIO
-from os import path
 from tempfile import NamedTemporaryFile
 from typing import IO, Any, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
@@ -1294,7 +1293,7 @@ class GCSHook(GoogleBaseHook):
         self, blob: storage.Blob, destination_object: str | None, source_object_prefix_len: int
     ) -> str:
         return (
-            path.join(destination_object, blob.name[source_object_prefix_len:])
+            os.path.join(destination_object, blob.name[source_object_prefix_len:])
             if destination_object
             else blob.name[source_object_prefix_len:]
         )

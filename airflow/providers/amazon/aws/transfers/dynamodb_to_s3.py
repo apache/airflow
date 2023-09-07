@@ -19,11 +19,11 @@
 from __future__ import annotations
 
 import json
+import os
 from copy import copy
 from datetime import datetime
 from decimal import Decimal
 from functools import cached_property
-from os.path import getsize
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
@@ -197,7 +197,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             scan_kwargs["ExclusiveStartKey"] = last_evaluated_key
 
             # Upload the file to S3 if reach file size limit
-            if getsize(temp_file.name) >= self.file_size:
+            if os.path.getsize(temp_file.name) >= self.file_size:
                 _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix, self.dest_aws_conn_id)
                 temp_file.close()
 
