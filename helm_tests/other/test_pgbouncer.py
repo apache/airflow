@@ -121,7 +121,7 @@ class TestPgbouncer:
 
     def test_scheduler_name(self):
         docs = render_chart(
-            values={"schedulerName": "airflow-scheduler"},
+            values={"pgbouncer": {"enabled": True}, "schedulerName": "airflow-scheduler"},
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 

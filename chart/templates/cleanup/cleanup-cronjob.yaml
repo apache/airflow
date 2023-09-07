@@ -76,6 +76,9 @@ spec:
           restartPolicy: Never
           nodeSelector: {{- toYaml $nodeSelector | nindent 12 }}
           affinity: {{- toYaml $affinity | nindent 12 }}
+          {{- if .Values.schedulerName }}
+          schedulerName: {{ .Values.schedulerName }}
+          {{- end }}
           tolerations: {{- toYaml $tolerations | nindent 12 }}
           topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 12 }}
           serviceAccountName: {{ include "cleanup.serviceAccountName" . }}

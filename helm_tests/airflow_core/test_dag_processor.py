@@ -179,7 +179,7 @@ class TestDagProcessor:
 
     def test_scheduler_name(self):
         docs = render_chart(
-            values={"schedulerName": "airflow-scheduler"},
+            values={"dagProcessor": {"enabled": True}, "schedulerName": "airflow-scheduler"},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 

@@ -166,7 +166,7 @@ class TestFlowerDeployment:
 
     def test_scheduler_name(self):
         docs = render_chart(
-            values={"schedulerName": "airflow-scheduler"},
+            values={"flower": {"enabled": True}, "schedulerName": "airflow-scheduler"},
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
