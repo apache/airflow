@@ -32,7 +32,6 @@ import os
 import warnings
 from copy import deepcopy
 from functools import cached_property, wraps
-from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
@@ -819,7 +818,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return False, str(f"{type(e).__name__!r} error occurred while testing connection: {e}")
 
     @cached_property
-    def waiter_path(self) -> PathLike[str] | None:
+    def waiter_path(self) -> os.PathLike[str] | None:
         filename = self.client_type if self.client_type else self.resource_type
         path = Path(__file__).parents[1].joinpath(f"waiters/{filename}.json").resolve()
         return path if path.exists() else None

@@ -463,8 +463,7 @@ class UndeployModelOperator(GoogleCloudBaseOperator):
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
-    :param endpoint_id:  Required. The name of the Endpoint resource from which to undeploy a Model. Format:
-        ``projects/{project}/locations/{location}/endpoints/{endpoint}``
+    :param endpoint_id:  Required. The ID of the Endpoint resource from which to undeploy a Model.
     :param deployed_model_id:  Required. The ID of the DeployedModel to be undeployed from the Endpoint.
     :param traffic_split: If this field is provided, then the Endpoint's
         [traffic_split][google.cloud.aiplatform.v1.Endpoint.traffic_split] will be overwritten with it. If

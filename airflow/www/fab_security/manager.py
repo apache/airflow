@@ -490,7 +490,7 @@ class BaseSecurityManager:
                 "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
                 "password",
             )
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
         elif check_password_hash(user.password, password):
             self._rotate_session_id()
@@ -498,7 +498,7 @@ class BaseSecurityManager:
             return user
         else:
             self.update_user_auth_stat(user, False)
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 
     def _search_ldap(self, ldap, con, username):
@@ -678,7 +678,7 @@ class BaseSecurityManager:
                 try:
                     con.start_tls_s()
                 except Exception:
-                    log.error(LOGMSG_ERR_SEC_AUTH_LDAP_TLS.format(self.auth_ldap_server))
+                    log.error(LOGMSG_ERR_SEC_AUTH_LDAP_TLS, self.auth_ldap_server)
                     return None
 
             # Define variables, so we can check if they are set in later steps
@@ -706,7 +706,7 @@ class BaseSecurityManager:
 
                 # If search failed, go away
                 if user_dn is None:
-                    log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ.format(username))
+                    log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ, username)
                     return None
 
                 # Bind with user_dn/password (validates credentials)
@@ -715,7 +715,7 @@ class BaseSecurityManager:
                         self.update_user_auth_stat(user, False)
 
                     # Invalid credentials, go away
-                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
+                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
                     return None
 
             # Flow 2 - (Direct Search Bind):
@@ -746,7 +746,7 @@ class BaseSecurityManager:
                         self.update_user_auth_stat(user, False)
 
                     # Invalid credentials, go away
-                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(bind_username))
+                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, bind_username)
                     return None
 
                 # Search for `username` (if AUTH_LDAP_SEARCH is set)
@@ -760,7 +760,7 @@ class BaseSecurityManager:
 
                     # If search failed, go away
                     if user_dn is None:
-                        log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ.format(username))
+                        log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ, username)
                         return None
 
             # Sync the user's roles
@@ -785,7 +785,7 @@ class BaseSecurityManager:
 
                 # If user registration failed, go away
                 if not user:
-                    log.info(LOGMSG_ERR_SEC_ADD_REGISTER_USER.format(username))
+                    log.info(LOGMSG_ERR_SEC_ADD_REGISTER_USER, username)
                     return None
 
             # LOGIN SUCCESS (only if user is now registered)
@@ -801,7 +801,7 @@ class BaseSecurityManager:
             if isinstance(e, dict):
                 msg = getattr(e, "message", None)
             if (msg is not None) and ("desc" in msg):
-                log.error(LOGMSG_ERR_SEC_AUTH_LDAP.format(e.message["desc"]))
+                log.error(LOGMSG_ERR_SEC_AUTH_LDAP, e.message["desc"])
                 return None
             else:
                 log.error(e)
@@ -815,7 +815,7 @@ class BaseSecurityManager:
         """
         user = self.find_user(email=email)
         if user is None or (not user.is_active):
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(email))
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, email)
             return None
         else:
             self._rotate_session_id()
@@ -845,7 +845,7 @@ class BaseSecurityManager:
         # If user does not exist on the DB and not auto user registration,
         # or user is inactive, go away.
         elif user is None or (not user.is_active):
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 
         self._rotate_session_id()
