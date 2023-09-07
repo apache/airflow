@@ -22,7 +22,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
@@ -90,10 +90,18 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         job_run_status = self.hook.get_job_run_status(run_id=self.run_id, account_id=self.account_id)
 
         if job_run_status == DbtCloudJobRunStatus.ERROR.value:
-            raise DbtCloudJobRunException(f"Job run {self.run_id} has failed.")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = f"Job run {self.run_id} has failed."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise DbtCloudJobRunException(message)
 
         if job_run_status == DbtCloudJobRunStatus.CANCELLED.value:
-            raise DbtCloudJobRunException(f"Job run {self.run_id} has been cancelled.")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = f"Job run {self.run_id} has been cancelled."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise DbtCloudJobRunException(message)
 
         return job_run_status == DbtCloudJobRunStatus.SUCCESS.value
 
@@ -128,7 +136,10 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         execution was successful.
         """
         if event["status"] in ["error", "cancelled"]:
-            raise AirflowException("Error in dbt: " + event["message"])
+            message = f"Error in dbt: {event['message']}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException()
         self.log.info(event["message"])
         return int(event["run_id"])
 
