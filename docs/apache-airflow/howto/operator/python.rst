@@ -141,6 +141,9 @@ Note that no automated cleanup is made and in case of cached mode. All worker sl
 different workers, it might happen that venvs are created on multiple workers individually. Also if the worker is started in a Kubernetes POD, a restart
 of the worker will drop the cache (assuming ``venv_cache_path`` is not on a persistent volume).
 
+In case you have problems during runtime with broken cached virtualenvs, you can influence the cache directory hash by setting the Airflow variable
+``PythonVirtualenvOperator.cache_key`` to any text. The content of this variable is uses in the vector to calculate the cache directory key.
+
 Note that any modification of a cached venv (like temp files in binary path, post-installing further requirements) might pollute a cached venv and the
 operator is not maintaining or cleaning the cache path.
 

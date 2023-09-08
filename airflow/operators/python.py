@@ -47,6 +47,7 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
+from airflow.models.variable import Variable
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
@@ -615,11 +616,32 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             index_urls=self.index_urls,
         )
 
+    def _calculate_cache_hash(self) -> str:
+        """Helper to generate the hash of the cache folder to use.
+
+        The following factors are used as input for the hash:
+        - (sorted) list of requirements
+        - pip install options
+        - flag of system site packages
+        - python version
+        - Variable to override the hash with a cache key
+        - Index URLs
+        """
+        requirements_list = ",".join(self._requirements_list())
+        pip_options = ",".join(self.pip_install_options) if self.pip_install_options else ""
+        index_urls = ",".join(self.index_urls) if self.index_urls else ""
+        cache_key = str(Variable.get("PythonVirtualenvOperator.cache_key", ""))
+        hash_text = (
+            f"{self.python_version};{requirements_list};{cache_key};{self.system_site_packages};{pip_options};"
+            f"{index_urls}"
+        )
+        hash_object = hashlib_wrapper.md5(hash_text.encode())
+        requirements_hash = hash_object.hexdigest()
+        return requirements_hash[0:8]
+
     def _ensure_venv_cache_exists(self, venv_cache_path: Path) -> Path:
         """Helper to ensure a valid venv is set up and will create inplace."""
-        hash_object = hashlib_wrapper.md5(",".join(self._requirements_list()).encode())
-        requirements_hash = hash_object.hexdigest()
-        venv_path = venv_cache_path / f"venv-{requirements_hash[0:8]}"
+        venv_path = venv_cache_path / f"venv-{self._calculate_cache_hash()}"
         self.log.info("Python Virtualenv will be cached in %s", venv_path)
         venv_path.parent.mkdir(parents=True, exist_ok=True)
         with open(f"{venv_path}.lock", "w") as f:
