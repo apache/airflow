@@ -368,7 +368,7 @@ class CeleryExecutor(BaseExecutor):
                 self.success(key, info)
             elif state in (celery_states.FAILURE, celery_states.REVOKED):
                 self.fail(key, info)
-            elif state in (celery_states.STARTEDstate, celery_states.PENDING):
+            elif state in (celery_states.STARTED, celery_states.PENDING):
                 pass
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)
