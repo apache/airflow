@@ -136,7 +136,13 @@ for each execution.
 But still setting up the virtualenv for every execution needs some time. For repeated execution you can set the option ``venv_cache_path`` to a file system
 folder on your worker. In this case the virtualenv will be set up once and be re-used. If venv caching is used, per unique requirements set different
 virtualenv subfolders are created in the cache path. So depending on your variations in the DAGs in your system setup sufficient disk space is needed.
-Note that no automated cleanup is made and in case of cached mode. All worker slots share the same virtualenv.
+
+Note that no automated cleanup is made and in case of cached mode. All worker slots share the same virtualenv but if tasks are scheduled over and over on
+different workers, it might happen that venvs are created on multiple workers individually. Also if the worker is started in a Kubernetes POD, a restart
+of the worker will drop the cache (assuming ``venv_cache_path`` is not on a persistent volume).
+
+Note that any modification of a cached venv (like temp files in binary path, post-installing further requirements) might pollute a cached venv and the
+operator is not maintaining or cleaning the cache path.
 
 
 .. _howto/operator:ExternalPythonOperator:
