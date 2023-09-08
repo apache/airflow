@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+3.7.3
+.....
+
+Misc
+~~~~
+
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``E731: replace lambda by a def method in Airflow providers (#33757)``
+
 3.7.2
 .....
 

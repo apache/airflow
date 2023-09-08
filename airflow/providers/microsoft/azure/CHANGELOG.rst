@@ -54,6 +54,27 @@ Breaking changes
   ``LocalToAzureDataLakeStorageOperator`` class has been removed in favor of ``LocalFilesystemToADLSOperator``
   ``AzureDataFactoryPipelineRunStatusAsyncSensor`` class has been removed in favor of ``AzureDataFactoryPipelineRunStatusSensor``
 
+* ``Update Azure fileshare hook to use azure-storage-file-share instead of azure-storage-file (#33904)``
+* ``Remove 'AzureDataFactoryPipelineRunStatusAsyncSensor' class (#34036)``
+* ``Remove 'LocalToAzureDataLakeStorageOperator' class (#34035)``
+
+Features
+~~~~~~~~
+
+* ``feat(providers/microsoft): add AzureContainerInstancesOperator.volume as template field (#34070)``
+* ``Add DefaultAzureCredential support to AzureContainerRegistryHook (#33825)``
+* ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerVolumeHook (#33822)``
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+* ``Improve docs on AzureBatchHook DefaultAzureCredential support (#34098)``
+* ``Remove  azure-storage-common from microsoft azure providers (#34038)``
+* ``Remove useless string join from providers (#33968)``
+* ``Refactor unneeded  jumps in providers (#33833)``
+
+
 6.3.0
 .....
 

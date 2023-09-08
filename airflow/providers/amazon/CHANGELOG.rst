@@ -25,7 +25,52 @@
 
 Changelog
 ---------
-* ``A bug intoduced in provider-amazon version 8.0.0 caused all 'EcsRunTaskOperator' tasks to detach from the ECS task after 10 minutes and fail - even if the ECS task was still running. In this version we are fixing it by returning the default 'waiter_max_attempts' value to 'sys.maxsize'``
+
+8.7.0
+.....
+
+.. warning:: A bug introduced in version 8.0.0 caused all ``EcsRunTaskOperator`` tasks to detach from the ECS task
+  and fail after 10 minutes, even if the ECS task was still running.
+  In this version we are fixing it by returning the default ``waiter_max_attempts`` value to ``sys.maxsize``.
+
+Features
+~~~~~~~~
+
+* ``Add decorator for suppress optional internal methods in Amazon Provider (#34034)``
+* ``Add Amazon SQS Notifier (#33962)``
+* ``Add Amazon SNS Notifier (#33828)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Increase 'waiter_max_attempts' default value in 'EcsRunTaskOperator' (#33712)``
+* ``Fix AWS 'EmrStepSensor' ignoring the specified 'aws_conn_id' in deferred mode  (#33952)``
+* ``Fix type annotation in AppflowHook (#33881)``
+* ``Make Amazon Chime connection lazy loaded and consistent with docs (#34000)``
+* ``respect "soft_fail" argument when running BatchSensor in deferrable mode (#33405)``
+
+Misc
+~~~~
+
+ * ``Refactor: Consolidate import and usage of random (#34108)``
+ * ``Consolidate importing of os.path.* (#34060)``
+ * ``Refactor regex in providers (#33898)``
+ * ``Refactor: Simplify loop in aws/triggers/batch.py (#34052)``
+ * ``Combine similar if logics in providers (#33987)``
+ * ``Replace single quotes by double quotes in tests (#33864)``
+ * ``Remove useless string join from providers (#33968)``
+ * ``Make 'aws.session_factory' part of Amazon provider configuration documentation (#33960)``
+ * ``Refactor unneeded  jumps in providers (#33833)``
+ * ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+ * ``Remove some useless try/except from providers code (#33967)``
+ * ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+ * ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+ * ``Reorganize devel_only extra in airflow's setup.py (#33907)``
+ * ``Remove explicit str concat from Airflow providers package and tests (#33860)``
+ * ``Improve modules import in AWS provider by move some of them into a type-checking block (#33780)``
+ * ``Always use 'Literal' from 'typing_extensions' (#33794)``
+ * ``Use literal dict instead of calling dict() in providers (#33761)``
+ * ``remove unnecessary and rewrite it using list in providers (#33763)``
 
 8.6.0
 .....
