@@ -97,8 +97,8 @@ class TestDatabricksExecutionTrigger:
         )
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_page_url")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.async_get_run_page_url")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.async_get_run_state")
     async def test_run_return_success(self, mock_get_run_state, mock_get_run_page_url):
         mock_get_run_page_url.return_value = RUN_PAGE_URL
         mock_get_run_state.return_value = RunState(
@@ -121,7 +121,7 @@ class TestDatabricksExecutionTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
-    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
+    @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.async_get_run_state")
     async def test_sleep_between_retries(self, mock_get_run_state, mock_sleep):
 
         mock_get_run_state.side_effect = [

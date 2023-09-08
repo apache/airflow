@@ -622,8 +622,8 @@ class TestDatabricksHook:
         assert cluster_state == ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
         mock_requests.get.assert_called_once_with(
             get_cluster_endpoint(HOST),
-            json={"cluster_id": CLUSTER_ID},
-            params=None,
+            json=None,
+            params={"cluster_id": CLUSTER_ID},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
@@ -657,8 +657,8 @@ class TestDatabricksHook:
             self.hook.activate_cluster(json=json, polling=5, timeout=60)
             mock_requests.get.assert_called_once_with(
                 get_cluster_endpoint(HOST),
-                json={"cluster_id": CLUSTER_ID},
-                params=None,
+                json=None,
+                params={"cluster_id": CLUSTER_ID},
                 auth=HTTPBasicAuth(LOGIN, PASSWORD),
                 headers=self.hook.user_agent_header,
                 timeout=self.hook.timeout_seconds,
@@ -672,7 +672,7 @@ class TestDatabricksHook:
         for state in terminal_states:
             side_effect = [{"state": state, "state_message": ""}, {"state": "RUNNING", "state_message": ""}]
             mock_requests.codes.ok = 200
-            mock_requests.get.side_effect = side_effect
+            mock_requests.get.return_value.json.side_effect = side_effect
             mock_requests.post.return_value.json.return_value = {}
             status_code_mock = mock.PropertyMock(return_value=200)
             type(mock_requests.post.return_value).status_code = status_code_mock
@@ -682,8 +682,8 @@ class TestDatabricksHook:
             assert mock_requests.get.call_count == 2
             mock_requests.get.assert_any_call(
                 get_cluster_endpoint(HOST),
-                json={"cluster_id": CLUSTER_ID},
-                params=None,
+                json=None,
+                params={"cluster_id": CLUSTER_ID},
                 auth=HTTPBasicAuth(LOGIN, PASSWORD),
                 headers=self.hook.user_agent_header,
                 timeout=self.hook.timeout_seconds,
@@ -1029,8 +1029,8 @@ class TestRunState:
             assert not run_state.is_terminal
 
     def test_is_terminal_with_nonexistent_life_cycle_state(self):
-        run_state = RunState("blah", "", "")
         with pytest.raises(AirflowException):
+            run_state = RunState("blah", "", "")
             assert run_state.is_terminal
 
     def test_is_successful(self):
@@ -1064,8 +1064,8 @@ class TestClusterState:
             assert not cluster_state.is_terminal
 
     def test_is_terminal_with_nonexistent_life_cycle_state(self):
-        cluster_state = ClusterState("blah", "")
         with pytest.raises(AirflowException):
+            cluster_state = ClusterState("blah", "")
             assert cluster_state.is_terminal
 
     def test_is_running(self):

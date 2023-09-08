@@ -565,7 +565,8 @@ class DatabricksHook(BaseDatabricksHook):
             elif run_state.is_terminal:
                 if api_called:
                     raise AirflowException(
-                        f"Cluster {cluster_id} start failed with '{run_state.state}' state: {run_state.state_message}"
+                        f"Cluster {cluster_id} start failed with '{run_state.state}' "
+                        f"state: {run_state.state_message}"
                     )
 
                 self.start_cluster(json)
