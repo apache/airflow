@@ -36,7 +36,6 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Add decorator for suppress optional internal methods in Amazon Provider (#34034)``
 * ``Add Amazon SQS Notifier (#33962)``
 * ``Add Amazon SNS Notifier (#33828)``
 
@@ -71,6 +70,10 @@ Misc
  * ``Always use 'Literal' from 'typing_extensions' (#33794)``
  * ``Use literal dict instead of calling dict() in providers (#33761)``
  * ``remove unnecessary and rewrite it using list in providers (#33763)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add decorator for suppress optional internal methods in Amazon Provider (#34034)``
 
 8.6.0
 .....
