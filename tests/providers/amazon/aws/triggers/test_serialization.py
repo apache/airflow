@@ -111,12 +111,12 @@ AWS_REGION = "us-east-2"
 pytest.importorskip("aiobotocore")
 
 
-class TestRdsTriggers:
-    @staticmethod
-    def gen_test_name(trigger):
-        """Gives to tests the name of the class being tested."""
-        return trigger.__class__.__name__
+def gen_test_name(trigger):
+    """Gives to tests the name of the class being tested."""
+    return trigger.__class__.__name__
 
+
+class TestRdsTriggers:
     @pytest.mark.parametrize(
         "trigger",
         [
