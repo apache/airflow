@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-08T17:15:39Z
+# This constraints file was automatically generated on 2023-09-08T20:57:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -207,7 +207,7 @@ google-cloud-bigquery==3.11.4
 google-cloud-bigtable==2.21.0
 google-cloud-build==3.20.0
 google-cloud-compute==1.14.0
-google-cloud-container==2.30.0
+google-cloud-container==2.31.0
 google-cloud-core==2.3.3
 google-cloud-datacatalog==3.15.1
 google-cloud-dataflow-client==0.8.4
@@ -351,7 +351,7 @@ opentelemetry-semantic-conventions==0.41b0
 opsgenie-sdk==2.1.5
 oracledb==1.4.1
 ordered-set==4.1.0
-orjson==3.9.6
+orjson==3.9.7
 oscrypto==1.3.0
 oss2==2.18.1
 packaging==23.1
