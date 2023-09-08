@@ -750,7 +750,7 @@ class TestDatabricksHook:
         mock_requests.codes.ok = 200
         mock_requests.get.side_effect = [
             create_successful_response_mock(
-                {**LIST_JOBS_RESPONSE, "has_more": True, "page_token": "PAGETOKEN"}
+                {**LIST_JOBS_RESPONSE, "has_more": True, "next_page_token": "PAGETOKEN"}
             ),
             create_successful_response_mock(LIST_JOBS_RESPONSE),
         ]
