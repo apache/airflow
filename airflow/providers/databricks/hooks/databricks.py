@@ -79,7 +79,7 @@ class RunState:
     ) -> None:
         if life_cycle_state not in self.RUN_LIFE_CYCLE_STATES:
             raise AirflowException(
-                f"Unexpected life cycle state: {self.life_cycle_state}: If the state has "
+                f"Unexpected life cycle state: {life_cycle_state}: If the state has "
                 "been introduced recently, please check the Databricks user "
                 "guide for troubleshooting information"
             )
@@ -135,7 +135,7 @@ class ClusterState:
     def __init__(self, state: str = "", state_message: str = "", *args, **kwargs) -> None:
         if state not in self.CLUSTER_LIFE_CYCLE_STATES:
             raise AirflowException(
-                f"Unexpected cluster life cycle state: {self.state}: If the state has "
+                f"Unexpected cluster life cycle state: {state}: If the state has "
                 "been introduced recently, please check the Databricks user "
                 "guide for troubleshooting information"
             )
