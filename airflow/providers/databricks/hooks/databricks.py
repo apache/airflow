@@ -576,7 +576,7 @@ class DatabricksHook(BaseDatabricksHook):
             time.sleep(polling)
 
             elapsed_time = time.time() - time_start
-            if timeout and elapsed_time <= timeout:
+            if timeout and elapsed_time > timeout:
                 raise AirflowException(f"Cluster {cluster_id} start timed out after {timeout} seconds")
 
     def terminate_cluster(self, json: dict) -> None:
