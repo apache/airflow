@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from flask import url_for
+from sqlalchemy import select
 
 from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
@@ -338,10 +339,8 @@ class FabAuthManager(BaseAuthManager):
         :meta private:
         """
         if "." in dag_id:
-            dm = (
-                self.security_manager.appbuilder.get_session.query(DagModel.dag_id, DagModel.root_dag_id)
-                .filter(DagModel.dag_id == dag_id)
-                .first()
+            dm = self.security_manager.appbuilder.get_session.scalar(
+                select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
             )
             return dm.root_dag_id or dm.dag_id
         return dag_id
