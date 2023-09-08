@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-07T19:53:21Z
+# This constraints file was automatically generated on 2023-09-08T17:23:42Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -183,7 +183,7 @@ astroid==2.15.6
 asttokens==2.4.0
 async-timeout==4.0.3
 atlasclient==1.0.0
-atlassian-python-api==3.41.1
+atlassian-python-api==3.41.2
 attrs==23.1.0
 aws-xray-sdk==2.12.0
 azure-batch==14.0.0
@@ -219,7 +219,6 @@ beautifulsoup4==4.12.2
 billiard==4.1.0
 bitarray==2.8.1
 black==23.7.0
-bleach==6.0.0
 blinker==1.6.2
 boto3==1.28.17
 botocore==1.31.17
@@ -432,6 +431,7 @@ mysqlclient==2.2.0
 nbclient==0.8.0
 nbformat==5.9.2
 neo4j==5.12.0
+nh3==0.2.14
 nodeenv==1.8.0
 numpy==1.24.4
 oauthlib==3.2.2
@@ -454,7 +454,7 @@ opentelemetry-semantic-conventions==0.41b0
 opsgenie-sdk==2.1.5
 oracledb==1.4.1
 ordered-set==4.1.0
-orjson==3.9.5
+orjson==3.9.7
 oscrypto==1.3.0
 oss2==2.18.1
 packaging==23.1
@@ -481,7 +481,7 @@ ply==3.11
 plyvel==1.5.0
 portalocker==2.7.0
 pre-commit==3.4.0
-presto-python-client==0.8.3
+presto-python-client==0.8.4
 prison==0.2.1
 prometheus-client==0.17.1
 prompt-toolkit==3.0.39
@@ -527,7 +527,7 @@ pytest-mock==3.11.1
 pytest-rerunfailures==12.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.3.1
-pytest==7.4.1
+pytest==7.4.2
 python-arango==7.6.2
 python-daemon==3.0.1
 python-dateutil==2.8.2
@@ -543,7 +543,7 @@ pytzdata==2020.1
 pywinrm==0.4.3
 pyzmq==25.1.1
 reactivex==4.0.4
-readme-renderer==41.0
+readme-renderer==42.0
 redis==5.0.0
 redshift-connector==2.0.913
 referencing==0.30.2
@@ -579,7 +579,7 @@ smbprotocol==1.11.0
 smmap==5.0.0
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==3.1.1
+snowflake-connector-python==3.2.0
 snowflake-sqlalchemy==1.5.0
 sortedcontainers==2.4.0
 soupsieve==2.5
@@ -661,7 +661,6 @@ vine==5.0.0
 virtualenv==20.24.1
 watchtower==2.0.1
 wcwidth==0.2.6
-webencodings==0.5.1
 websocket-client==1.6.2
 wrapt==1.15.0
 xmltodict==0.13.0
@@ -669,7 +668,7 @@ yamllint==1.32.0
 yandexcloud==0.230.0
 yarl==1.9.2
 zeep==4.2.1
-zenpy==2.0.35
+zenpy==2.0.36
 zict==3.0.0
 zipp==3.16.2
 zope.event==5.0
