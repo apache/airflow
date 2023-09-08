@@ -207,6 +207,15 @@
                 "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
             }
         },
+        "schedulerName": {
+            "description": "Specify kube scheduler name for Pods.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "default": null,
+            "x-docsSection": "Common"
+        },
         "labels": {
             "description": "Add common labels to all objects and pods defined in this chart.",
             "type": "object",
