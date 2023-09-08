@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+2.5.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/alibaba): respect soft_fail argument when exception is raised (#34157)``
+
 2.5.2
 .....
 

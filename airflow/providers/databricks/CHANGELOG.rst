@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add "QUEUED" to RUN_LIFE_CYCLE_STATES following deployement of … (#33886)``
+* ``allow DatabricksSubmitRunOperator to accept a pipeline name for a pipeline_task (#32903)``
+
+Misc
+~~~~
+
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``Use f-string instead of  in Airflow providers (#33752)``
+
 4.4.0
 .....
 
