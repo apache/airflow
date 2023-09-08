@@ -54,7 +54,6 @@ import jinja2
 import pendulum
 import re2
 from dateutil.relativedelta import relativedelta
-from pendulum.tz.timezone import Timezone
 from sqlalchemy import (
     Boolean,
     Column,
@@ -73,8 +72,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, joinedload, relationship
-from sqlalchemy.orm.query import Query
-from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import Select, expression
 
 import airflow.templates
@@ -97,7 +94,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.operator import Operator
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
@@ -111,7 +107,6 @@ from airflow.timetables.simple import (
     NullTimetable,
     OnceTimetable,
 )
-from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -128,15 +123,23 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from types import ModuleType
 
+    from pendulum.tz.timezone import Timezone
+    from sqlalchemy.orm.query import Query
+    from sqlalchemy.orm.session import Session
+
     from airflow.datasets import Dataset
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
+    from airflow.models.operator import Operator
     from airflow.models.slamiss import SlaMiss
+    from airflow.serialization.pydantic.dag import DagModelPydantic
+    from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)
@@ -575,7 +578,7 @@ class DAG(LoggingMixin):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.template_undefined = template_undefined
-        self.last_loaded = timezone.utcnow()
+        self.last_loaded: datetime = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
         if self.timetable.active_runs_limit is not None:
@@ -620,8 +623,8 @@ class DAG(LoggingMixin):
 
         # To keep it in parity with Serialized DAGs
         # and identify if DAG has on_*_callback without actually storing them in Serialized JSON
-        self.has_on_success_callback = self.on_success_callback is not None
-        self.has_on_failure_callback = self.on_failure_callback is not None
+        self.has_on_success_callback: bool = self.on_success_callback is not None
+        self.has_on_failure_callback: bool = self.on_failure_callback is not None
 
         self._access_control = DAG._upgrade_outdated_dag_access_control(access_control)
         self.is_paused_upon_creation = is_paused_upon_creation
@@ -717,6 +720,13 @@ class DAG(LoggingMixin):
         :meta private:
         """
         for task in self.tasks:
+            if task.is_setup:
+                for down_task in task.downstream_list:
+                    if not down_task.is_teardown and down_task.trigger_rule != TriggerRule.ALL_SUCCESS:
+                        # todo: we can relax this to allow out-of-scope tasks to have other trigger rules
+                        # this is required to ensure consistent behavior of dag
+                        # when clearing an indirect setup
+                        raise ValueError("Setup tasks must be followed with trigger rule ALL_SUCCESS.")
             FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
 
     def __repr__(self):
@@ -769,7 +779,7 @@ class DAG(LoggingMixin):
         will be replaced with 'can_read', in {'role2': {'can_dag_read', 'can_dag_edit'}}
         'can_dag_edit' will be replaced with 'can_edit', etc.
         """
-        if not access_control:
+        if access_control is None:
             return None
         new_perm_mapping = {
             permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
@@ -1583,7 +1593,7 @@ class DAG(LoggingMixin):
             .limit(num)
         ).all()
 
-        if len(execution_dates) == 0:
+        if not execution_dates:
             return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
 
         min_date: datetime | None = execution_dates[-1]._mapping.get(
@@ -1698,7 +1708,7 @@ class DAG(LoggingMixin):
         if include_subdags:
             # Crafting the right filter for dag_id and task_ids combo
             conditions = []
-            for dag in self.subdags + [self]:
+            for dag in [*self.subdags, self]:
                 conditions.append(
                     (TaskInstance.dag_id == dag.dag_id) & TaskInstance.task_id.in_(dag.task_ids)
                 )
@@ -2029,8 +2039,7 @@ class DAG(LoggingMixin):
             raise ValueError("TaskGroup {group_id} could not be found")
         tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
         task_ids = [task.task_id for task in task_group.iter_tasks()]
-
-        dag_runs_query = session.query(DagRun.id).where(DagRun.dag_id == self.dag_id)
+        dag_runs_query = select(DagRun.id).where(DagRun.dag_id == self.dag_id)
         if start_date is None and end_date is None:
             dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
         else:
@@ -2930,12 +2939,12 @@ class DAG(LoggingMixin):
             session.add(orm_dag)
             orm_dags.append(orm_dag)
 
-        most_recent_runs: dict[str, DagRun] = {}
+        dag_id_to_last_automated_run: dict[str, DagRun] = {}
         num_active_runs: dict[str, int] = {}
         # Skip these queries entirely if no DAGs can be scheduled to save time.
         if any(dag.timetable.can_be_scheduled for dag in dags):
-            # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
-            most_recent_subq = (
+            # Get the latest automated dag run for each existing dag as a single query (avoid n+1 query)
+            last_automated_runs_subq = (
                 select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
                 .where(
                     DagRun.dag_id.in_(existing_dags),
@@ -2944,13 +2953,13 @@ class DAG(LoggingMixin):
                 .group_by(DagRun.dag_id)
                 .subquery()
             )
-            most_recent_runs_iter = session.scalars(
+            last_automated_runs = session.scalars(
                 select(DagRun).where(
-                    DagRun.dag_id == most_recent_subq.c.dag_id,
-                    DagRun.execution_date == most_recent_subq.c.max_execution_date,
+                    DagRun.dag_id == last_automated_runs_subq.c.dag_id,
+                    DagRun.execution_date == last_automated_runs_subq.c.max_execution_date,
                 )
             )
-            most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
+            dag_id_to_last_automated_run = {run.dag_id: run for run in last_automated_runs}
 
             # Get number of active dagruns for all dags we are processing as a single query.
             num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
@@ -2984,15 +2993,15 @@ class DAG(LoggingMixin):
             orm_dag.timetable_description = dag.timetable.description
             orm_dag.processor_subdir = processor_subdir
 
-            run: DagRun | None = most_recent_runs.get(dag.dag_id)
-            if run is None:
-                data_interval = None
+            last_automated_run: DagRun | None = dag_id_to_last_automated_run.get(dag.dag_id)
+            if last_automated_run is None:
+                last_automated_data_interval = None
             else:
-                data_interval = dag.get_run_data_interval(run)
+                last_automated_data_interval = dag.get_run_data_interval(last_automated_run)
             if num_active_runs.get(dag.dag_id, 0) >= orm_dag.max_active_runs:
                 orm_dag.next_dagrun_create_after = None
             else:
-                orm_dag.calculate_dagrun_date_fields(dag, data_interval)
+                orm_dag.calculate_dagrun_date_fields(dag, last_automated_data_interval)
 
             dag_tags = set(dag.tags or {})
             orm_dag_tags = list(orm_dag.tags or [])
@@ -3147,7 +3156,7 @@ class DAG(LoggingMixin):
         :param active_dag_ids: list of DAG IDs that are active
         :return: None
         """
-        if len(active_dag_ids) == 0:
+        if not active_dag_ids:
             return
         for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))).all():
             dag.is_active = False
@@ -3275,7 +3284,7 @@ class DAG(LoggingMixin):
         if not self.timetable.can_be_scheduled:
             return
 
-        for k, v in self.params.items():
+        for v in self.params.values():
             # As type can be an array, we would check if `null` is an allowed type or not
             if not v.has_value and ("type" not in v.schema or "null" not in v.schema["type"]):
                 raise AirflowException(
@@ -3482,8 +3491,9 @@ class DagModel(Base):
         )
 
     @classmethod
+    @internal_api_call
     @provide_session
-    def get_current(cls, dag_id, session=NEW_SESSION):
+    def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel | DagModelPydantic:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
@@ -3657,27 +3667,27 @@ class DagModel(Base):
     def calculate_dagrun_date_fields(
         self,
         dag: DAG,
-        most_recent_dag_run: None | datetime | DataInterval,
+        last_automated_dag_run: None | datetime | DataInterval,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
-        :param most_recent_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
+        :param last_automated_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
             if not yet scheduled.
         """
-        most_recent_data_interval: DataInterval | None
-        if isinstance(most_recent_dag_run, datetime):
+        last_automated_data_interval: DataInterval | None
+        if isinstance(last_automated_dag_run, datetime):
             warnings.warn(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is deprecated. "
                 "Provide a data interval instead.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
-            most_recent_data_interval = dag.infer_automated_data_interval(most_recent_dag_run)
+            last_automated_data_interval = dag.infer_automated_data_interval(last_automated_dag_run)
         else:
-            most_recent_data_interval = most_recent_dag_run
-        next_dagrun_info = dag.next_dagrun_info(most_recent_data_interval)
+            last_automated_data_interval = last_automated_dag_run
+        next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
         if next_dagrun_info is None:
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:

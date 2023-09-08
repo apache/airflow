@@ -19,15 +19,17 @@ from __future__ import annotations
 
 import warnings
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib import parse
 
 from elasticsearch import Elasticsearch
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection as AirflowConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection as AirflowConnection
 
 
 def connect(
@@ -92,13 +94,13 @@ class ElasticsearchSQLHook(DbApiHook):
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 
-        conn_args = dict(
-            host=conn.host,
-            port=conn.port,
-            user=conn.login or None,
-            password=conn.password or None,
-            scheme=conn.schema or "http",
-        )
+        conn_args = {
+            "host": conn.host,
+            "port": conn.port,
+            "user": conn.login or None,
+            "password": conn.password or None,
+            "scheme": conn.schema or "http",
+        }
 
         if conn.extra_dejson.get("http_compress", False):
             conn_args["http_compress"] = bool(["http_compress"])
@@ -116,11 +118,11 @@ class ElasticsearchSQLHook(DbApiHook):
 
         login = ""
         if conn.login:
-            login = "{conn.login}:{conn.password}@".format(conn=conn)
+            login = f"{conn.login}:{conn.password}@"
         host = conn.host
         if conn.port is not None:
             host += f":{conn.port}"
-        uri = "{conn.conn_type}+{conn.schema}://{login}{host}/".format(conn=conn, login=login, host=host)
+        uri = f"{conn.conn_type}+{conn.schema}://{login}{host}/"
 
         extras_length = len(conn.extra_dejson)
         if not extras_length:

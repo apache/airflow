@@ -48,13 +48,15 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import Context, context_copy_partial, context_merge
+from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
+
+    from airflow.utils.context import Context
 
 
 def is_venv_installed() -> bool:
@@ -432,14 +434,14 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
-            jinja_context=dict(
-                op_args=self.op_args,
-                op_kwargs=op_kwargs,
-                expect_airflow=self.expect_airflow,
-                pickling_library=self.pickling_library.__name__,
-                python_callable=self.python_callable.__name__,
-                python_callable_source=self.get_python_source(),
-            ),
+            jinja_context={
+                "op_args": self.op_args,
+                "op_kwargs": op_kwargs,
+                "expect_airflow": self.expect_airflow,
+                "pickling_library": self.pickling_library.__name__,
+                "python_callable": self.python_callable.__name__,
+                "python_callable_source": self.get_python_source(),
+            },
             filename=os.fspath(script_path),
             render_template_as_native_obj=self.dag.render_template_as_native_obj,
         )

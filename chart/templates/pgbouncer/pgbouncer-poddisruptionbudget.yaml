@@ -24,7 +24,7 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ .Release.Name }}-pgbouncer-pdb
+  name: {{ include "airflow.fullname" . }}-pgbouncer-pdb
   labels:
     tier: airflow
     component: pgbouncer

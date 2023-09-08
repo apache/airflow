@@ -474,7 +474,8 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             "labels": LABELS,
             "virtual_cluster_config": None,
         }
-        expected_calls = self.extra_links_expected_calls_base + [
+        expected_calls = [
+            *self.extra_links_expected_calls_base,
             call.hook().create_cluster(**create_cluster_args),
         ]
 
@@ -523,7 +524,8 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             "labels": LABELS,
             "virtual_cluster_config": VIRTUAL_CLUSTER_CONFIG,
         }
-        expected_calls = self.extra_links_expected_calls_base + [
+        expected_calls = [
+            *self.extra_links_expected_calls_base,
             call.hook().create_cluster(**create_cluster_args),
         ]
 
@@ -619,12 +621,15 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         with pytest.raises(AlreadyExists):
             op.execute(context=self.mock_context)
 
+    @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._wait_for_cluster_in_deleting_state"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_if_cluster_exists_in_error_state(self, mock_hook):
+    def test_execute_if_cluster_exists_in_error_state(self, mock_hook, mock_wait_for_deleting):
         mock_hook.return_value.create_cluster.side_effect = [AlreadyExists("test")]
         cluster_status = mock_hook.return_value.get_cluster.return_value.status
         cluster_status.state = 0
         cluster_status.State.ERROR = 0
+
+        mock_wait_for_deleting.return_value.get_cluster.side_effect = [NotFound]
 
         op = DataprocCreateClusterOperator(
             task_id=TASK_ID,
@@ -650,24 +655,30 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             region=GCP_REGION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
         )
 
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("exponential_sleep_generator"))
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._create_cluster"))
     @mock.patch(DATAPROC_PATH.format("DataprocCreateClusterOperator._get_cluster"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_if_cluster_exists_in_deleting_state(
-        self, mock_hook, mock_get_cluster, mock_create_cluster, mock_generator
+        self,
+        mock_hook,
+        mock_get_cluster,
+        mock_create_cluster,
+        mock_generator,
+        to_dict_mock,
     ):
-        cluster = mock.MagicMock()
-        cluster.status.state = 0
-        cluster.status.State.DELETING = 0
+        cluster_deleting = mock.MagicMock()
+        cluster_deleting.status.state = 0
+        cluster_deleting.status.State.DELETING = 0
 
-        cluster2 = mock.MagicMock()
-        cluster2.status.state = 0
-        cluster2.status.State.ERROR = 0
+        cluster_running = mock.MagicMock()
+        cluster_running.status.state = 0
+        cluster_running.status.State.RUNNING = 0
 
-        mock_create_cluster.side_effect = [AlreadyExists("test"), cluster2]
+        mock_create_cluster.side_effect = [AlreadyExists("test"), cluster_running]
         mock_generator.return_value = [0]
-        mock_get_cluster.side_effect = [cluster, NotFound("test")]
+        mock_get_cluster.side_effect = [cluster_deleting, NotFound("test")]
 
         op = DataprocCreateClusterOperator(
             task_id=TASK_ID,
@@ -679,15 +690,13 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             delete_on_error=True,
             gcp_conn_id=GCP_CONN_ID,
         )
-        with pytest.raises(AirflowException):
-            op.execute(context=self.mock_context)
 
+        op.execute(context=self.mock_context)
         calls = [mock.call(mock_hook.return_value), mock.call(mock_hook.return_value)]
         mock_get_cluster.assert_has_calls(calls)
         mock_create_cluster.assert_has_calls(calls)
-        mock_hook.return_value.diagnose_cluster.assert_called_once_with(
-            region=GCP_REGION, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
-        )
+
+        to_dict_mock.assert_called_once_with(cluster_running)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
@@ -804,8 +813,9 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
             "graceful_decommission_timeout": {"seconds": 600},
             "update_mask": UPDATE_MASK,
         }
-        expected_calls = self.extra_links_expected_calls_base + [
-            call.hook().update_cluster(**update_cluster_args)
+        expected_calls = [
+            *self.extra_links_expected_calls_base,
+            call.hook().update_cluster(**update_cluster_args),
         ]
 
         op = DataprocScaleClusterOperator(
@@ -1249,8 +1259,9 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
             "timeout": TIMEOUT,
             "metadata": METADATA,
         }
-        expected_calls = self.extra_links_expected_calls_base + [
-            call.hook().update_cluster(**update_cluster_args)
+        expected_calls = [
+            *self.extra_links_expected_calls_base,
+            call.hook().update_cluster(**update_cluster_args),
         ]
 
         op = DataprocUpdateClusterOperator(

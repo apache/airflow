@@ -27,12 +27,103 @@
 Changelog
 ---------
 
-10.6.0
+10.8.0
 ......
 
-Breaking changes
-~~~~~~~~~~~~~~~~
 
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to Dataplex DataQuality. (#33954)``
+* ``allow impersonation_chain to be set on Google Cloud connection (#33715)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google-marketing-platform): respect soft_fail argument when exception is raised (#34165)``
+* ``fix: docstring in endpoint_service.py (#34135)``
+* ``Fix BigQueryValueCheckOperator deferrable mode optimisation (#34018)``
+* ``Dynamic setting up of artifact versions for Datafusion pipelines (#34068)``
+* ``Early delete a Dataproc cluster if started in the ERROR state. (#33668)``
+* ``Avoid blocking event loop when using DataFusionAsyncHook by replacing sleep by asyncio.sleep (#33756)``
+
+Misc
+~~~~
+
+* ``Consolidate importing of os.path.* (#34060)``
+* ``Refactor regex in providers (#33898)``
+* ``Move the try outside the loop when this is possible in Google provider (#33976)``
+* ``Combine similar if logics in providers (#33987)``
+* ``Remove useless string join from providers (#33968)``
+* ``Update Azure fileshare hook to use azure-storage-file-share instead of azure-storage-file (#33904)``
+* ``Refactor unneeded  jumps in providers (#33833)``
+* ``replace loop by any when looking for a positive value in providers (#33984)``
+* ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+* ``Remove some useless try/except from providers code (#33967)``
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Remove a deprecated option from 'BigQueryHook.get_pandas_df' (#33819)``
+* ``replace unnecessary dict comprehension by dict() in providers (#33857)``
+* ``Improve modules import in google provider by move some of them into a type-checking block (#33783)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+* ``Refactor: Simplify a few loops (#33736)``
+* ``E731: replace lambda by a def method in Airflow providers (#33757)``
+* ``Use f-string instead of  in Airflow providers (#33752)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix google CHANGELOG.rst (#34007)``
+   * ``Fix Google 10.7.0 changelog (#33953)``
+   * ``Fix Cloud Worflows system test (#33386)``
+   * ``fix entry in Google provider CHANGELOG.rst (#33890)``
+   * ``Generate Python API docs for Google ADS (#33814)``
+
+10.7.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add CloudRunHook and operators (#33067)``
+* ``Add 'CloudBatchHook' and operators (#32606)``
+* ``Adding Support for Google Cloud's Data Pipelines Run Operator (#32846)``
+* ``Add parameter sftp_prefetch to SFTPToGCSOperator (#33274)``
+* ``Add Google Cloud's Data Pipelines Create Operator (#32843)``
+* ``Add Dataplex Data Quality operators. (#32256)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BigQueryCreateExternalTableOperator when using a foramt different to CSV (#33540)``
+* ``Fix DataplexDataQualityJobStatusSensor and add unit tests (#33440)``
+* ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+
+Misc
+~~~~
+
+* ``Add missing template fields to DataformCreateCompilationResultOperator (#33585)``
+* ``Consolidate import and usage of pandas (#33480)``
+* ``Import utc from datetime and normalize its import (#33450)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   ``Refactor: Use random.choices (#33631)``
+   ``Further improvements for provider verification (#33670)``
+   ``Refactor: Remove useless str() calls (#33629)``
+   ``Refactor: lists and paths in dev (#33626)``
+   ``Do not create lists we don't need (#33519)``
+   ``Replace strftime with f-strings where nicer (#33455)``
+   ``Refactor: Better percentage formatting (#33595)``
+   ``Fix typos (double words and it's/its) (#33623)``
+   ``Fix system test example_cloud_storage_transfer_service_aws (#33429)``
+   ``Enable D205 Support (#33398)``
+   ``Update Error details for Generic Error Code  (#32847)``
+   ``D205 Support - Providers - Final Pass (#33303)``
+
+10.6.0
+......
 
 Features
 ~~~~~~~~
@@ -108,7 +199,7 @@ Misc
 Features
 ~~~~~~~~
 
-Implement deferrable mode for S3ToGCSOperator
+* ``Implement deferrable mode for S3ToGCSOperator (#29462)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -130,7 +221,6 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Combine 8 into 1 (#29462)``
    * ``D205 Support - Provider: Google (#32356)``
    * ``Migrating Google AutoML example_dags to sys tests (#32368)``
    * ``build(pre-commit): check deferrable default value (#32370)``

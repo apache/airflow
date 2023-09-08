@@ -24,12 +24,11 @@ import sys
 import time
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import click
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
-from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
@@ -43,6 +42,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference_build,
     option_answer,
+    option_build_progress,
     option_build_timeout_minutes,
     option_builder,
     option_commit_sha,
@@ -105,6 +105,9 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+
+if TYPE_CHECKING:
+    from airflow_breeze.params.shell_params import ShellParams
 
 
 @click.group(
@@ -226,6 +229,7 @@ def kill_process_group(build_process_group_id: int):
 @option_additional_dev_apt_command
 @option_additional_dev_apt_env
 @option_builder
+@option_build_progress
 @option_build_timeout_minutes
 @option_commit_sha
 @option_dev_apt_command
@@ -455,7 +459,10 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
     # We import those locally so that click autocomplete works
     from inputimeout import TimeoutOccurred
 
-    if not md5sum_check_if_build_is_needed(md5sum_cache_dir=build_ci_params.md5sum_cache_dir):
+    if not md5sum_check_if_build_is_needed(
+        md5sum_cache_dir=build_ci_params.md5sum_cache_dir,
+        skip_provider_dependencies_check=build_ci_params.skip_provider_dependencies_check,
+    ):
         return False
     try:
         answer = user_confirm(
@@ -631,6 +638,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         image_tag=command_params.image_tag,
         platform=command_params.platform,
         force_build=command_params.force_build,
+        skip_provider_dependencies_check=command_params.skip_provider_dependencies_check,
     )
     if command_params.image_tag is not None and command_params.image_tag != "latest":
         return_code, message = run_pull_image(

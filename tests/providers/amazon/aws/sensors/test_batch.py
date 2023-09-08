@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.sensors.batch import (
     BatchComputeEnvironmentSensor,
@@ -98,6 +98,12 @@ class TestBatchSensor:
         """Tests that an AirflowException is raised in case of error event"""
 
         with pytest.raises(AirflowException):
+            deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
+
+    def test_execute_failure_in_deferrable_mode_with_soft_fail(self, deferrable_batch_sensor: BatchSensor):
+        """Tests that an AirflowSkipException is raised in case of error event and soft_fail is set to True"""
+        deferrable_batch_sensor.soft_fail = True
+        with pytest.raises(AirflowSkipException):
             deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
 
 

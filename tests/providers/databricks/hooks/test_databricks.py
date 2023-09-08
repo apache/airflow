@@ -940,7 +940,7 @@ class TestRunState:
             assert run_state.is_terminal
 
     def test_is_terminal_false(self):
-        non_terminal_states = ["PENDING", "RUNNING", "TERMINATING"]
+        non_terminal_states = ["PENDING", "RUNNING", "TERMINATING", "QUEUED"]
         for state in non_terminal_states:
             run_state = RunState(state, "", "")
             assert not run_state.is_terminal

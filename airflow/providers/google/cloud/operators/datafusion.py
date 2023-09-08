@@ -44,7 +44,7 @@ class DataFusionPipelineLinkHelper:
     @staticmethod
     def get_project_id(instance):
         instance = instance["name"]
-        project_id = [x for x in instance.split("/") if x.startswith("airflow")][0]
+        project_id = next(x for x in instance.split("/") if x.startswith("airflow"))
         return project_id
 
 
@@ -783,7 +783,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         if success_states:
             self.success_states = success_states
         else:
-            self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
+            self.success_states = [*SUCCESS_STATES, PipelineStates.RUNNING]
 
     def execute(self, context: Context) -> str:
         hook = DataFusionHook(

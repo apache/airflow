@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime
+
 import pytest
 
 from airflow.exceptions import SerializationError
@@ -89,13 +92,25 @@ def test_use_pydantic_models():
 
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    ti = TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING)
+    ti = TaskInstance(
+        task=EmptyOperator(task_id="task"),
+        run_id="run_id",
+        state=State.RUNNING,
+    )
+    start_date = datetime.utcnow()
+    ti.start_date = start_date
     obj = [[ti]]  # nested to verify recursive behavior
 
     serialized = BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
     deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)  # does not raise
-
     assert isinstance(deserialized[0][0], TaskInstancePydantic)
+
+    serialized_json = json.dumps(serialized)  # does not raise
+    deserialized_from_json = BaseSerialization.deserialize(
+        json.loads(serialized_json), use_pydantic_models=True
+    )  # does not raise
+    assert isinstance(deserialized_from_json[0][0], TaskInstancePydantic)
+    assert deserialized_from_json[0][0].start_date == start_date
 
 
 def test_serialized_mapped_operator_unmap(dag_maker):

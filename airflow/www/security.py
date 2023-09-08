@@ -20,8 +20,8 @@ import warnings
 from typing import TYPE_CHECKING, Any, Collection, Container, Iterable, Sequence
 
 from flask import g
-from sqlalchemy import or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_, select
+from sqlalchemy.orm import joinedload
 
 from airflow.auth.managers.fab.models import Permission, Resource, Role, User
 from airflow.auth.managers.fab.views.permissions import (
@@ -61,6 +61,8 @@ EXISTING_ROLES = {
 }
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     SecurityManagerOverride: type = object
 else:
     # Fetch the security manager override from the auth manager
@@ -233,21 +235,17 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         # This is needed to support the "hack" where we had to edit
         # FieldConverter.conversion_table in place in airflow.www.utils
         for attr in dir(self):
-            if not attr.endswith("view"):
-                continue
-            view = getattr(self, attr, None)
-            if not view or not getattr(view, "datamodel", None):
-                continue
-            view.datamodel = CustomSQLAInterface(view.datamodel.obj)
+            if attr.endswith("view"):
+                view = getattr(self, attr, None)
+                if view and getattr(view, "datamodel", None):
+                    view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
     def _get_root_dag_id(self, dag_id: str) -> str:
         if "." in dag_id:
-            dm = (
-                self.appbuilder.get_session.query(DagModel.dag_id, DagModel.root_dag_id)
-                .filter(DagModel.dag_id == dag_id)
-                .first()
-            )
+            dm = self.appbuilder.get_session.execute(
+                select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id)
+            ).one()
             return dm.root_dag_id or dm.dag_id
         return dag_id
 
@@ -331,7 +329,7 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
             stacklevel=3,
         )
         dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
-        return session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids))
+        return session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids)))
 
     def get_readable_dag_ids(self, user) -> set[str]:
         """Gets the DAG IDs readable by authenticated user."""
@@ -358,16 +356,15 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
             if (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags(user)) or (
                 permissions.ACTION_CAN_READ in user_actions and self.can_read_all_dags(user)
             ):
-                return {dag.dag_id for dag in session.query(DagModel.dag_id)}
-            user_query = (
-                session.query(User)
+                return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+            user_query = session.scalar(
+                select(User)
                 .options(
                     joinedload(User.roles)
                     .subqueryload(Role.permissions)
                     .options(joinedload(Permission.action), joinedload(Permission.resource))
                 )
-                .filter(User.id == user.id)
-                .first()
+                .where(User.id == user.id)
             )
             roles = user_query.roles
 
@@ -375,18 +372,19 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         for role in roles:
             for permission in role.permissions:
                 action = permission.action.name
-                if action not in user_actions:
-                    continue
+                if action in user_actions:
+                    resource = permission.resource.name
+                    if resource == permissions.RESOURCE_DAG:
+                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
 
-                resource = permission.resource.name
-                if resource == permissions.RESOURCE_DAG:
-                    return {dag.dag_id for dag in session.query(DagModel.dag_id)}
-
-                if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
-                    resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
-                else:
-                    resources.add(resource)
-        return {dag.dag_id for dag in session.query(DagModel.dag_id).filter(DagModel.dag_id.in_(resources))}
+                    if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
+                        resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+                    else:
+                        resources.add(resource)
+        return {
+            dag.dag_id
+            for dag in session.execute(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))
+        }
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
         """Checks if user has read or write access to some dags."""
@@ -524,10 +522,8 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         resource = self.get_resource(resource_name)
         perm = None
         if action and resource:
-            perm = (
-                self.appbuilder.get_session.query(self.permission_model)
-                .filter_by(action=action, resource=resource)
-                .first()
+            perm = self.appbuilder.get_session.scalar(
+                select(self.permission_model).filter_by(action=action, resource=resource).limit(1)
             )
         if not perm and action_name and resource_name:
             self.create_permission(action_name, resource_name)
@@ -548,11 +544,11 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
     def get_all_permissions(self) -> set[tuple[str, str]]:
         """Returns all permissions as a set of tuples with the action and resource names."""
         return set(
-            self.appbuilder.get_session.query(self.permission_model)
-            .join(self.permission_model.action)
-            .join(self.permission_model.resource)
-            .with_entities(self.action_model.name, self.resource_model.name)
-            .all()
+            self.appbuilder.get_session.execute(
+                select(self.action_model.name, self.resource_model.name)
+                .join(self.permission_model.action)
+                .join(self.permission_model.resource)
+            )
         )
 
     def _get_all_non_dag_permissions(self) -> dict[tuple[str, str], Permission]:
@@ -565,12 +561,12 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         return {
             (action_name, resource_name): viewmodel
             for action_name, resource_name, viewmodel in (
-                self.appbuilder.get_session.query(self.permission_model)
-                .join(self.permission_model.action)
-                .join(self.permission_model.resource)
-                .filter(~self.resource_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
-                .with_entities(self.action_model.name, self.resource_model.name, self.permission_model)
-                .all()
+                self.appbuilder.get_session.execute(
+                    select(self.action_model.name, self.resource_model.name, self.permission_model)
+                    .join(self.permission_model.action)
+                    .join(self.permission_model.resource)
+                    .where(~self.resource_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+                )
             )
         }
 
@@ -578,9 +574,9 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         """Returns a dict with a key of role name and value of role with early loaded permissions."""
         return {
             r.name: r
-            for r in self.appbuilder.get_session.query(self.role_model).options(
-                joinedload(self.role_model.permissions)
-            )
+            for r in self.appbuilder.get_session.scalars(
+                select(self.role_model).options(joinedload(self.role_model.permissions))
+            ).unique()
         }
 
     def create_dag_specific_permissions(self) -> None:
@@ -607,7 +603,7 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
                 if (action_name, dag_resource_name) not in perms:
                     self._merge_perm(action_name, dag_resource_name)
 
-            if dag.access_control:
+            if dag.access_control is not None:
                 self.sync_perm_for_dag(dag_resource_name, dag.access_control)
 
     def update_admin_permission(self) -> None:
@@ -621,12 +617,12 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         :return: None.
         """
         session = self.appbuilder.get_session
-        dag_resources = session.query(Resource).filter(
-            Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%")
+        dag_resources = session.scalars(
+            select(Resource).where(Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
         )
         resource_ids = [resource.id for resource in dag_resources]
 
-        perms = session.query(Permission).filter(~Permission.resource_id.in_(resource_ids))
+        perms = session.scalars(select(Permission).where(~Permission.resource_id.in_(resource_ids)))
         perms = [p for p in perms if p.action and p.resource]
 
         admin = self.find_role("Admin")
@@ -684,25 +680,14 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         for dag_action_name in self.DAG_ACTIONS:
             self.create_permission(dag_action_name, dag_resource_name)
 
-        def _revoke_all_stale_permissions(resource: Resource):
-            existing_dag_perms = self.get_resource_permissions(resource)
-            for perm in existing_dag_perms:
-                non_admin_roles = [role for role in perm.role if role.name != "Admin"]
-                for role in non_admin_roles:
-                    self.log.info(
-                        "Revoking '%s' on DAG '%s' for role '%s'",
-                        perm.action,
-                        dag_resource_name,
-                        role.name,
-                    )
-                    self.remove_permission_from_role(role, perm)
-
-        if access_control:
+        if access_control is not None:
+            self.log.info("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
             self._sync_dag_view_permissions(dag_resource_name, access_control)
         else:
-            resource = self.get_resource(dag_resource_name)
-            if resource:
-                _revoke_all_stale_permissions(resource)
+            self.log.info(
+                "Not syncing DAG-level permissions for DAG '%s' as access control is unset.",
+                dag_resource_name,
+            )
 
     def _sync_dag_view_permissions(self, dag_id: str, access_control: dict[str, Collection[str]]) -> None:
         """
@@ -786,14 +771,10 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
                 (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
             ):
                 can_access_all_dags = self.has_access(*perm)
-                if can_access_all_dags:
-                    continue
-
-                action = perm[0]
-                if self.can_access_some_dags(action, dag_id):
-                    continue
-                return False
-
+                if not can_access_all_dags:
+                    action = perm[0]
+                    if not self.can_access_some_dags(action, dag_id):
+                        return False
             elif not self.has_access(*perm):
                 return False
 

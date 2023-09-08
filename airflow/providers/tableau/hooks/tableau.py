@@ -19,13 +19,15 @@ from __future__ import annotations
 import time
 import warnings
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
-from tableauserverclient.server import Auth
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from tableauserverclient.server import Auth
 
 
 def parse_boolean(val: str) -> str | bool:

@@ -34,6 +34,7 @@ Alibaba
 alibaba
 allAuthenticatedUsers
 allowinsert
+allowlist
 allUsers
 alphanumerics
 Alphasort
@@ -154,6 +155,7 @@ BaseView
 BaseXCom
 bashrc
 batchGet
+BatchServiceClient
 bc
 bcc
 bdist
@@ -789,6 +791,7 @@ isfile
 ish
 isn
 isort
+istio
 iterable
 iterables
 iteratively
@@ -1048,6 +1051,7 @@ openapi
 openfaas
 openlineage
 oper
+OperatorLineage
 Opsgenie
 opsgenie
 Optimise

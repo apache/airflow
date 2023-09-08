@@ -25,10 +25,11 @@ from airflow.providers.google.cloud.links.dataform import (
 )
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.dataform_v1beta1.types import (
     CompilationResult,
     InstallNpmPackagesResponse,
@@ -64,6 +65,8 @@ class DataformCreateCompilationResultOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    template_fields = ("repository_id", "impersonation_chain")
 
     def __init__(
         self,

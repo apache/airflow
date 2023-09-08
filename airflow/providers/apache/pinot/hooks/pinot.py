@@ -19,14 +19,16 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Any, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Iterable, Mapping
 
 from pinotdb import connect
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class PinotAdminHook(BaseHook):
@@ -55,6 +57,11 @@ class PinotAdminHook(BaseHook):
                                     Otherwise, the result is evaluated as a failure if "Error" or
                                     "Exception" is in the output message.
     """
+
+    conn_name_attr = "conn_id"
+    default_conn_name = "pinot_admin_default"
+    conn_type = "pinot_admin"
+    hook_name = "Pinot Admin"
 
     def __init__(
         self,
@@ -258,6 +265,8 @@ class PinotDbApiHook(DbApiHook):
 
     conn_name_attr = "pinot_broker_conn_id"
     default_conn_name = "pinot_broker_default"
+    conn_type = "pinot"
+    hook_name = "Pinot Broker"
     supports_autocommit = False
 
     def get_conn(self) -> Any:

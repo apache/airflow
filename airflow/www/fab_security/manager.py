@@ -20,12 +20,11 @@ from __future__ import annotations
 
 import datetime
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 import re2
-from flask import Flask, g, session, url_for
-from flask_appbuilder import AppBuilder
+from flask import g, session, url_for
 from flask_appbuilder.const import (
     AUTH_DB,
     AUTH_LDAP,
@@ -63,9 +62,14 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from werkzeug.security import check_password_hash
 
-from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role, User
 from airflow.configuration import conf
 from airflow.www.extensions.init_auth_manager import get_auth_manager
+
+if TYPE_CHECKING:
+    from flask import Flask
+    from flask_appbuilder import AppBuilder
+
+    from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role, User
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -374,7 +378,7 @@ class BaseSecurityManager:
         Decorator function to be the OAuth user info getter for all the providers.
 
         Receives provider and response return a dict with the information returned from the provider.
-        The returned user info dict should have it's keys with the same name as the User Model.
+        The returned user info dict should have its keys with the same name as the User Model.
 
         Use it like this an example for GitHub ::
 
@@ -390,7 +394,7 @@ class BaseSecurityManager:
         def wraps(provider, response=None):
             ret = f(self, provider, response=response)
             # Checks if decorator is well behaved and returns a dict as supposed.
-            if not type(ret) == dict:
+            if not isinstance(ret, dict):
                 log.error("OAuth user info decorated function did not returned a dict, but: %s", type(ret))
                 return {}
             return ret
@@ -486,7 +490,7 @@ class BaseSecurityManager:
                 "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
                 "password",
             )
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
         elif check_password_hash(user.password, password):
             self._rotate_session_id()
@@ -494,7 +498,7 @@ class BaseSecurityManager:
             return user
         else:
             self.update_user_auth_stat(user, False)
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 
     def _search_ldap(self, ldap, con, username):
@@ -521,7 +525,7 @@ class BaseSecurityManager:
             self.auth_ldap_lastname_field,
             self.auth_ldap_email_field,
         ]
-        if len(self.auth_roles_mapping) > 0:
+        if self.auth_roles_mapping:
             request_fields.append(self.auth_ldap_group_field)
 
         # perform the LDAP search
@@ -561,7 +565,7 @@ class BaseSecurityManager:
         user_role_objects = set()
 
         # apply AUTH_ROLES_MAPPING
-        if len(self.auth_roles_mapping) > 0:
+        if self.auth_roles_mapping:
             user_role_keys = self.ldap_extract_list(user_attributes, self.auth_ldap_group_field)
             user_role_objects.update(self.get_roles_from_keys(user_role_keys))
 
@@ -674,7 +678,7 @@ class BaseSecurityManager:
                 try:
                     con.start_tls_s()
                 except Exception:
-                    log.error(LOGMSG_ERR_SEC_AUTH_LDAP_TLS.format(self.auth_ldap_server))
+                    log.error(LOGMSG_ERR_SEC_AUTH_LDAP_TLS, self.auth_ldap_server)
                     return None
 
             # Define variables, so we can check if they are set in later steps
@@ -702,7 +706,7 @@ class BaseSecurityManager:
 
                 # If search failed, go away
                 if user_dn is None:
-                    log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ.format(username))
+                    log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ, username)
                     return None
 
                 # Bind with user_dn/password (validates credentials)
@@ -711,7 +715,7 @@ class BaseSecurityManager:
                         self.update_user_auth_stat(user, False)
 
                     # Invalid credentials, go away
-                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
+                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
                     return None
 
             # Flow 2 - (Direct Search Bind):
@@ -742,7 +746,7 @@ class BaseSecurityManager:
                         self.update_user_auth_stat(user, False)
 
                     # Invalid credentials, go away
-                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(bind_username))
+                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, bind_username)
                     return None
 
                 # Search for `username` (if AUTH_LDAP_SEARCH is set)
@@ -756,7 +760,7 @@ class BaseSecurityManager:
 
                     # If search failed, go away
                     if user_dn is None:
-                        log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ.format(username))
+                        log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ, username)
                         return None
 
             # Sync the user's roles
@@ -781,7 +785,7 @@ class BaseSecurityManager:
 
                 # If user registration failed, go away
                 if not user:
-                    log.info(LOGMSG_ERR_SEC_ADD_REGISTER_USER.format(username))
+                    log.info(LOGMSG_ERR_SEC_ADD_REGISTER_USER, username)
                     return None
 
             # LOGIN SUCCESS (only if user is now registered)
@@ -797,7 +801,7 @@ class BaseSecurityManager:
             if isinstance(e, dict):
                 msg = getattr(e, "message", None)
             if (msg is not None) and ("desc" in msg):
-                log.error(LOGMSG_ERR_SEC_AUTH_LDAP.format(e.message["desc"]))
+                log.error(LOGMSG_ERR_SEC_AUTH_LDAP, e.message["desc"])
                 return None
             else:
                 log.error(e)
@@ -811,7 +815,7 @@ class BaseSecurityManager:
         """
         user = self.find_user(email=email)
         if user is None or (not user.is_active):
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(email))
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, email)
             return None
         else:
             self._rotate_session_id()
@@ -841,7 +845,7 @@ class BaseSecurityManager:
         # If user does not exist on the DB and not auto user registration,
         # or user is inactive, go away.
         elif user is None or (not user.is_active):
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED.format(username))
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 
         self._rotate_session_id()
@@ -852,7 +856,7 @@ class BaseSecurityManager:
         user_role_objects = set()
 
         # apply AUTH_ROLES_MAPPING
-        if len(self.auth_roles_mapping) > 0:
+        if self.auth_roles_mapping:
             user_role_keys = userinfo.get("role_keys", [])
             user_role_objects.update(self.get_roles_from_keys(user_role_keys))
 
@@ -1096,7 +1100,7 @@ class BaseSecurityManager:
                 self.delete_resource(resource.name)
 
     def find_user(self, username=None, email=None):
-        """Generic function find a user by it's username or email."""
+        """Generic function find a user by its username or email."""
         raise NotImplementedError
 
     def get_role_permissions_from_db(self, role_id: int) -> list[Permission]:

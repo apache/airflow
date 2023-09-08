@@ -411,6 +411,22 @@ as follows:
 
     breeze --python 3.8 --backend mysql --mysql-version 8
 
+.. note:: Note for Windows WSL2 users
+
+   You may find error messages:
+
+.. code-block:: bash
+
+    Current context is now "..."
+    protocol not available
+    Error 1 returned
+
+Try adding ``--builder=default`` to your command. For example:
+
+.. code-block:: bash
+
+    breeze --builder=default --python 3.8 --backend mysql --mysql-version 8
+
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
 them when you run the script. You can delete the ``.build/`` directory in case you want to restore the
@@ -451,6 +467,9 @@ instance, for using it with Amazon, the command would be:
 
      breeze build-docs --package-filter apache-airflow-providers-amazon
 
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
+
 Often errors during documentation generation come from the docstrings of auto-api generated classes.
 During the docs building auto-api generated files are stored in the ``docs/_api`` folder. This helps you
 easily identify the location the problems with documentation originated from.
@@ -462,6 +481,16 @@ These are all available flags of ``build-docs`` command:
   :width: 100%
   :alt: Breeze build documentation
 
+.. _generating_short_form_names:
+
+Generating short form names for Providers
+-----------------------------------------
+
+Skip the ``apache-airflow-providers-`` from the usual provider full names.
+Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
+
+Example:
+If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
 Running static checks
 ---------------------
@@ -474,7 +503,7 @@ For example, this following command:
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core
+     breeze static-checks --type mypy-core
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
 
@@ -491,7 +520,7 @@ re-run latest pre-commits on your changes, but it can take a long time (few minu
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --all-files
+     breeze static-checks --type mypy-core --all-files
 
 The above will run mypy check for all files.
 
@@ -500,7 +529,7 @@ specifying (can be multiple times) ``--file`` flag.
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
+     breeze static-checks --type mypy-core --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
 
 The above will run mypy check for those to files (note: autocomplete should work for the file selection).
 
@@ -512,26 +541,26 @@ of commits you choose.
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --last-commit
+     breeze static-checks --type mypy-core --last-commit
 
 The above will run mypy check for all files in the last commit in your branch.
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --only-my-changes
+     breeze static-checks --type mypy-core --only-my-changes
 
 The above will run mypy check for all commits in your branch which were added since you branched off from main.
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks --type mypy-core --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
 
 .. code-block:: bash
 
-     breeze static-checks -t identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
+     breeze static-checks --type identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
 
 The above will run the check for the last 4 commits in your branch. You can use any ``commit-ish`` references
 in ``--from-ref`` and ``--to-ref`` flags.
@@ -2051,6 +2080,9 @@ while publishing the documentation.
 
 The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
 not proceed if this is an invalid path.
+
+When you have multi-processor machine docs publishing can be vastly sped up by using ``--run-in-parallel`` option when
+publishing docs for multiple providers.
 
 These are all available flags of ``release-management publish-docs`` command:
 

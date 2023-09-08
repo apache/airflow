@@ -208,16 +208,14 @@ class InfoJsonEncodable(dict):
             raise Exception("Don't use both includes and excludes.")
         if self.includes:
             for field in self.includes:
-                if field in self._fields or not hasattr(self.obj, field):
-                    continue
-                setattr(self, field, getattr(self.obj, field))
-                self._fields.append(field)
+                if field not in self._fields and hasattr(self.obj, field):
+                    setattr(self, field, getattr(self.obj, field))
+                    self._fields.append(field)
         else:
             for field, val in self.obj.__dict__.items():
-                if field in self._fields or field in self.excludes or field in self.renames:
-                    continue
-                setattr(self, field, val)
-                self._fields.append(field)
+                if field not in self._fields and field not in self.excludes and field not in self.renames:
+                    setattr(self, field, val)
+                    self._fields.append(field)
 
 
 class DagInfo(InfoJsonEncodable):
@@ -380,13 +378,8 @@ class OpenLineageRedactor(SecretsMasker):
                     return item
                 else:
                     return super()._redact(item, name, depth, max_depth)
-        except Exception as e:
-            log.warning(
-                "Unable to redact %s. Error was: %s: %s",
-                repr(item),
-                type(e).__name__,
-                str(e),
-            )
+        except Exception as exc:
+            log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
         return item
 
 

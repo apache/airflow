@@ -25,9 +25,23 @@ XComs (short for "cross-communications") are a mechanism that let :doc:`tasks` t
 
 An XCom is identified by a ``key`` (essentially its name), as well as the ``task_id`` and ``dag_id`` it came from. They can have any (serializable) value, but they are only designed for small amounts of data; do not use them to pass around large values, like dataframes.
 
-XComs are explicitly "pushed" and "pulled" to/from their storage using the ``xcom_push`` and ``xcom_pull`` methods on Task Instances. Many operators will auto-push their results into an XCom key called ``return_value`` if the ``do_xcom_push`` argument is set to ``True`` (as it is by default), and ``@task`` functions do this as well.
+XComs are explicitly "pushed" and "pulled" to/from their storage using the ``xcom_push`` and ``xcom_pull`` methods on Task Instances.
 
-``xcom_pull`` defaults to using this key if no key is passed to it, meaning it's possible to write code like this::
+To push a value within a task called **"task-1"** that will be used by another task:
+
+.. code-block:: python
+
+    # pushes data in any_serializable_value into xcom with key "identifier as string"
+    task_instance.xcom_push(key="identifier as a string", value=any_serializable_value)
+
+To pull the value that was pushed in the code above in a different task:
+
+.. code-block:: python
+
+    # pulls the xcom variable with key "identifier as string" that was pushed from within task-1
+    task_instance.xcom_pull(key="identifier as string", task_ids="task-1")
+
+Many operators will auto-push their results into an XCom key called ``return_value`` if the ``do_xcom_push`` argument is set to ``True`` (as it is by default), and ``@task`` functions do this as well. ``xcom_pull`` defaults to using ``return_value`` as key if no key is passed to it, meaning it's possible to write code like this::
 
     # Pulls the return_value XCOM from "pushing_task"
     value = task_instance.xcom_pull(task_ids='pushing_task')

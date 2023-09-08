@@ -54,7 +54,7 @@ GLOBAL_PARAMS = ("pretty", "human", "error_trace", "format", "filter_path")
 
 def get_random_id(size=DEFAULT_ELASTICSEARCH_ID_SIZE):
     """Returns random if for elasticsearch"""
-    return "".join(random.choice(CHARSET_FOR_ELASTICSEARCH_ID) for _ in range(size))
+    return "".join(random.choices(CHARSET_FOR_ELASTICSEARCH_ID, k=size))
 
 
 def query_params(*es_query_params, **kwargs):

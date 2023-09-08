@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+4.5.2
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Convert hard-coded allowlist error code to be argument of HttpSensor (#33717)``
+
+4.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
 4.5.0
 .....
 

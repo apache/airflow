@@ -28,6 +28,34 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for DBT Cloud. (#33959)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/redis): respect soft_fail argument when exception is raised (#34164)``
+
+Misc
+~~~~
+
+* ``Remove some useless try/except from providers code (#33967)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+
+3.2.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
 3.2.2
 .....
 

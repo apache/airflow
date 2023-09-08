@@ -21,7 +21,7 @@ import io
 from unittest import mock
 
 from airflow.cli import cli_parser
-from airflow.cli.cli_parser import ActionCommand, CLICommand, GroupCommand
+from airflow.cli.cli_config import ActionCommand, CLICommand, GroupCommand
 
 
 def noop():

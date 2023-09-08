@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterator
-from logging import Logger
+from typing import TYPE_CHECKING
 
 from google.cloud.bigquery.table import Row, RowIterator
 
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from logging import Logger
+
+    from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 
 
 def bigquery_get_data(

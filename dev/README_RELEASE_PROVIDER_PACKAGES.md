@@ -97,7 +97,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 First thing that release manager has to do is to change version of the provider to a target
 version. Each provider has a `provider.yaml` file that, among others, stores information
 about provider versions. When you attempt to release a provider you should update that
-information based on the changes for the provider, and it's `CHANGELOG.rst`. It might be that
+information based on the changes for the provider, and its `CHANGELOG.rst`. It might be that
 `CHANGELOG.rst` already contains the right target version. This will be especially true if some
 changes in the provider add new features (then minor version is increased) or when the changes
 introduce backwards-incompatible, breaking change in the provider (then major version is
@@ -351,6 +351,14 @@ breeze build-docs --clean-build --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. Example:
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+breeze build-docs cncf.kubernetes sftp --clean-build
+```
+
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
 means that unless we release just few selected packages or if we need to deliberately skip some packages
 we should release documentation for all provider packages and the above command is the one to use.
@@ -364,6 +372,14 @@ breeze build-docs --clean-build \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
   ...
+```
+
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. Example:
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+breeze build-docs package1 package2 --clean-build
 ```
 
 
@@ -382,7 +398,9 @@ If you have providers as list of provider ids because you just released them, yo
 
 - Copy the documentation to the ``airflow-site`` repository
 
-All providers (including overriding documentation for doc-only changes):
+All providers (including overriding documentation for doc-only changes) - note that publishing is
+way faster on multi-cpu machines when you are publishing multiple providers:
+
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
@@ -390,7 +408,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze release-management publish-docs \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
-    --override-versioned
+    --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers
 ```
@@ -408,7 +426,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
 
-breeze release-management add-back-references amazon apache.beam google ....
+# No need to add back references as the script has this step as integral part
 ```
 
 

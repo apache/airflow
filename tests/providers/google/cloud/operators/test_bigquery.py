@@ -77,8 +77,10 @@ TEST_JOB_PROJECT_ID = "test-job-project"
 TEST_DELETE_CONTENTS = True
 TEST_TABLE_ID = "test-table-id"
 TEST_GCS_BUCKET = "test-bucket"
-TEST_GCS_DATA = ["dir1/*.csv"]
-TEST_SOURCE_FORMAT = "CSV"
+TEST_GCS_CSV_DATA = ["dir1/*.csv"]
+TEST_SOURCE_CSV_FORMAT = "CSV"
+TEST_GCS_PARQUET_DATA = ["dir1/*.parquet"]
+TEST_SOURCE_PARQUET_FORMAT = "PARQUET"
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "test-bigquery-operators"
 TEST_TABLE_RESOURCES = {"tableReference": {"tableId": TEST_TABLE_ID}, "expirationTime": 1234567}
@@ -246,15 +248,15 @@ class TestBigQueryCreateEmptyTableOperator:
 
 class TestBigQueryCreateExternalTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_execute(self, mock_hook):
+    def test_execute_with_csv_format(self, mock_hook):
         operator = BigQueryCreateExternalTableOperator(
             task_id=TASK_ID,
             destination_project_dataset_table=f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
             schema_fields=[],
             bucket=TEST_GCS_BUCKET,
             gcs_schema_bucket=TEST_GCS_BUCKET,
-            source_objects=TEST_GCS_DATA,
-            source_format=TEST_SOURCE_FORMAT,
+            source_objects=TEST_GCS_CSV_DATA,
+            source_format=TEST_SOURCE_CSV_FORMAT,
             autodetect=True,
         )
 
@@ -276,9 +278,9 @@ class TestBigQueryCreateExternalTableOperator:
                 "schema": {"fields": []},
                 "externalDataConfiguration": {
                     "source_uris": [
-                        f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_DATA
+                        f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_CSV_DATA
                     ],
-                    "source_format": TEST_SOURCE_FORMAT,
+                    "source_format": TEST_SOURCE_CSV_FORMAT,
                     "maxBadRecords": 0,
                     "autodetect": True,
                     "compression": "NONE",
@@ -289,6 +291,49 @@ class TestBigQueryCreateExternalTableOperator:
                         "allowQuotedNewlines": False,
                         "allowJaggedRows": False,
                     },
+                },
+                "location": None,
+                "encryptionConfiguration": None,
+            }
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_with_parquet_format(self, mock_hook):
+        operator = BigQueryCreateExternalTableOperator(
+            task_id=TASK_ID,
+            destination_project_dataset_table=f"{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
+            schema_fields=[],
+            bucket=TEST_GCS_BUCKET,
+            gcs_schema_bucket=TEST_GCS_BUCKET,
+            source_objects=TEST_GCS_PARQUET_DATA,
+            source_format=TEST_SOURCE_PARQUET_FORMAT,
+            autodetect=True,
+        )
+
+        mock_hook.return_value.split_tablename.return_value = (
+            TEST_GCP_PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+
+        operator.execute(context=MagicMock())
+        mock_hook.return_value.create_empty_table.assert_called_once_with(
+            table_resource={
+                "tableReference": {
+                    "projectId": TEST_GCP_PROJECT_ID,
+                    "datasetId": TEST_DATASET,
+                    "tableId": TEST_TABLE_ID,
+                },
+                "labels": None,
+                "schema": {"fields": []},
+                "externalDataConfiguration": {
+                    "source_uris": [
+                        f"gs://{TEST_GCS_BUCKET}/{source_object}" for source_object in TEST_GCS_PARQUET_DATA
+                    ],
+                    "source_format": TEST_SOURCE_PARQUET_FORMAT,
+                    "maxBadRecords": 0,
+                    "autodetect": True,
+                    "compression": "NONE",
                 },
                 "location": None,
                 "encryptionConfiguration": None,
@@ -685,7 +730,7 @@ class TestBigQueryOperator:
         ]
 
         # Check DeSerialized version of operator link
-        assert isinstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleLink)
+        assert isinstance(next(iter(simple_task.operator_extra_links)), BigQueryConsoleLink)
 
         ti.xcom_push("job_id_path", TEST_FULL_JOB_ID)
 
@@ -723,7 +768,7 @@ class TestBigQueryOperator:
         ]
 
         # Check DeSerialized version of operator link
-        assert isinstance(list(simple_task.operator_extra_links)[0], BigQueryConsoleIndexableLink)
+        assert isinstance(next(iter(simple_task.operator_extra_links)), BigQueryConsoleIndexableLink)
 
         ti.xcom_push(key="job_id_path", value=[TEST_FULL_JOB_ID, TEST_FULL_JOB_ID_2])
 
@@ -1874,11 +1919,11 @@ class TestBigQueryValueCheckOperator:
             exc.value.trigger, BigQueryValueCheckTrigger
         ), "Trigger is not a BigQueryValueCheckTrigger"
 
-    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.execute")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.defer")
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.check_value")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_value_check_operator_async_finish_before_deferred(
-        self, mock_hook, mock_defer, mock_execute, create_task_instance_of_operator
+        self, mock_hook, mock_check_value, mock_defer, create_task_instance_of_operator
     ):
         job_id = "123456"
         hash_ = "hash"
@@ -1899,7 +1944,7 @@ class TestBigQueryValueCheckOperator:
 
         ti.task.execute(MagicMock())
         assert not mock_defer.called
-        assert mock_execute.called
+        assert mock_check_value.called
 
     @pytest.mark.parametrize(
         "kwargs, expected",

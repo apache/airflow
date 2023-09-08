@@ -19,19 +19,17 @@ from __future__ import annotations
 
 import sys
 from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from urllib.parse import ParseResult, urlsplit
 
 import pytest
 import time_machine
 import yaml
-from _pytest._code import ExceptionInfo
 from botocore.exceptions import ClientError
 from moto import mock_eks
 from moto.core import DEFAULT_ACCOUNT_ID
-from moto.core.exceptions import AWSError
 from moto.eks.exceptions import (
     InvalidParameterException,
     InvalidRequestException,
@@ -94,6 +92,12 @@ from ..utils.eks_test_utils import (
     iso_date,
     region_matches_partition,
 )
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from moto.core.exceptions import AWSError
+    from pytest import ExceptionInfo
 
 
 @pytest.fixture(scope="function")
@@ -1166,15 +1170,15 @@ class TestEksHooks:
 
         test_inputs = dict(
             deepcopy(
-                # Required Constants
-                [POD_EXECUTION_ROLE_ARN]
-                # Required Variables
-                + [
+                [
+                    # Required Constants
+                    POD_EXECUTION_ROLE_ARN,
+                    # Required Variables
                     (ClusterAttributes.CLUSTER_NAME, cluster_name),
                     (FargateProfileAttributes.FARGATE_PROFILE_NAME, fargate_profile_name),
+                    # Test Case Values
+                    (FargateProfileAttributes.SELECTORS, selectors),
                 ]
-                # Test Case Values
-                + [(FargateProfileAttributes.SELECTORS, selectors)]
             )
         )
 

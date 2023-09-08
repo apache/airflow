@@ -16,16 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow import DAG
 from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema, TimezoneField
 from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagTag
+
+if TYPE_CHECKING:
+    from airflow import DAG
 
 
 class DagTagSchema(SQLAlchemySchema):
@@ -120,7 +122,7 @@ class DAGDetailSchema(DAGSchema):
         """Dump tags as objects."""
         tags = obj.tags
         if tags:
-            return [DagTagSchema().dump(dict(name=tag)) for tag in tags]
+            return [DagTagSchema().dump({"name": tag}) for tag in tags]
         return []
 
     @staticmethod

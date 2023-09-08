@@ -170,9 +170,9 @@ def import_all_classes(
         return f"{prefix}{provider_id}"
 
     if provider_ids:
-        provider_prefixes = [mk_prefix(provider_id) for provider_id in provider_ids]
+        provider_prefixes = tuple(mk_prefix(provider_id) for provider_id in provider_ids)
     else:
-        provider_prefixes = [prefix]
+        provider_prefixes = (prefix,)
 
     def onerror(_):
         nonlocal tracebacks
@@ -187,7 +187,7 @@ def import_all_classes(
 
     for path, prefix in walkable_paths_and_prefixes.items():
         for modinfo in pkgutil.walk_packages(path=[path], prefix=prefix, onerror=onerror):
-            if not modinfo.name.startswith(tuple(provider_prefixes)):
+            if not modinfo.name.startswith(provider_prefixes):
                 if print_skips:
                     console.print(f"Skipping module: {modinfo.name}")
                 continue
@@ -447,7 +447,6 @@ def find_all_entities(
                                     f"It should not match {unexpected_class_name_pattern}",
                                 )
                             )
-                        continue
             found_entities.add(imported_name)
     return VerifiedEntities(all_entities=found_entities, wrong_entities=wrong_entities)
 
@@ -716,7 +715,7 @@ def verify_provider_classes() -> tuple[list[str], list[str]]:
     if not summarise_total_vs_bad(total, bad):
         sys.exit(1)
 
-    if len(imported_classes) == 0:
+    if not imported_classes:
         console.print("[red]Something is seriously wrong - no classes imported[/]")
         sys.exit(1)
     console.print()

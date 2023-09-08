@@ -73,7 +73,7 @@ core:
     auth_manager:
       description: |
         The auth manager class that airflow should use. Full import path to the auth manager class.
-      version_added: ~
+      version_added: 2.7.0
       type: string
       example: ~
       default: "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager"
@@ -446,14 +446,14 @@ core:
       example: '{"some_param": "some_value"}'
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
-      version_added: 2.7.0
+      version_added: 2.6.0
       type: boolean
       example: ~
       default: "False"
     internal_api_url:
       description: |
         (experimental) Airflow Internal API url. Only used if [core] database_access_isolation is True.
-      version_added: 2.7.0
+      version_added: 2.6.0
       type: string
       default: ~
       example: 'http://localhost:8080'
@@ -919,7 +919,7 @@ logging:
         With this option AirFlow will create new handlers
         and send low level logs like INFO and WARNING to stdout,
         while sending higher severity logs to stderr.
-      version_added: 2.5.4
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
@@ -1031,31 +1031,31 @@ metrics:
     otel_on:
       description: |
         Enables sending metrics to OpenTelemetry.
-      version_added: 2.5.1
+      version_added: 2.6.0
       type: string
       example: ~
       default: "False"
     otel_host:
       description: ~
-      version_added: 2.5.1
+      version_added: 2.6.0
       type: string
       example: ~
       default: "localhost"
     otel_port:
       description: ~
-      version_added: 2.5.1
+      version_added: 2.6.0
       type: string
       example: ~
       default: "8889"
     otel_prefix:
       description: ~
-      version_added: 2.0.0
+      version_added: 2.6.0
       type: string
       example: ~
       default: "airflow"
     otel_interval_milliseconds:
       description: ~
-      version_added: 2.0.0
+      version_added: 2.6.0
       type: integer
       example: ~
       default: "60000"
@@ -1276,7 +1276,7 @@ operators:
     default_deferrable:
       description: |
         The default value of attribute "deferrable" in operators and sensors.
-      version_added: ~
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "false"
@@ -1766,7 +1766,7 @@ webserver:
     run_internal_api:
       description: |
         Boolean for running Internal API in the webserver.
-      version_added: 2.7.0
+      version_added: 2.6.0
       type: boolean
       example: ~
       default: "False"

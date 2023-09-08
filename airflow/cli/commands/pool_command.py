@@ -97,7 +97,7 @@ def pool_import(args):
     if not os.path.exists(args.file):
         raise SystemExit(f"Missing pools file {args.file}")
     pools, failed = pool_import_helper(args.file)
-    if len(failed) > 0:
+    if failed:
         raise SystemExit(f"Failed to update pool(s): {', '.join(failed)}")
     print(f"Uploaded {len(pools)} pool(s)")
 

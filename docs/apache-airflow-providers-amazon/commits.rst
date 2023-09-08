@@ -28,14 +28,86 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.7.0
+.....
+
+Latest change: 2023-09-07
+
+=================================================================================================  ===========  ====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================
+`4fa66d1700 <https://github.com/apache/airflow/commit/4fa66d17003f10d03a13eda659bca8670bdf5052>`_  2023-09-07   ``Refactor: Consolidate import and usage of random (#34108)``
+`9079093291 <https://github.com/apache/airflow/commit/907909329195c6655d1e2989b05609466ef50563>`_  2023-09-07   ``Consolidate importing of os.path.* (#34060)``
+`a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+`b1c2b07e58 <https://github.com/apache/airflow/commit/b1c2b07e581d7040859bc44abea8bacde2705627>`_  2023-09-04   ``Refactor: Simplify loop in aws/triggers/batch.py (#34052)``
+`bf2d411a2a <https://github.com/apache/airflow/commit/bf2d411a2a953d17f7847d23f0563589a0a58a94>`_  2023-09-04   ``Add decorator for suppress optional internal methods in Amazon Provider (#34034)``
+`fa5e54c4c5 <https://github.com/apache/airflow/commit/fa5e54c4c57631de353102af56633f05346685f9>`_  2023-09-03   ``Combine similar if logics in providers (#33987)``
+`c82806641f <https://github.com/apache/airflow/commit/c82806641f1a973da1cfc0d32ea2177fa4047747>`_  2023-09-03   ``Replace single quotes by double quotes in tests (#33864)``
+`47bd5dd0e1 <https://github.com/apache/airflow/commit/47bd5dd0e1e13af45206b94dd5518ada278a9552>`_  2023-09-03   ``Remove useless string join from providers (#33968)``
+`6eaa69ee46 <https://github.com/apache/airflow/commit/6eaa69ee46468af212909fae11464914471e9961>`_  2023-09-01   ``Make 'aws.session_factory' part of Amazon provider configuration documentation (#33960)``
+`875387afa5 <https://github.com/apache/airflow/commit/875387afa53c207364fa20b515d154100b5d0a8d>`_  2023-09-01   ``Refactor unneeded  jumps in providers (#33833)``
+`c4967b00c4 <https://github.com/apache/airflow/commit/c4967b00c447ac7ac8f73ab2d01810765a856616>`_  2023-09-01   ``Make Amazon Chime connection lazy loaded and consistent with docs (#34000)``
+`a9bbb430fc <https://github.com/apache/airflow/commit/a9bbb430fcf6df7ac2677edfe5b0402c23cfe8e2>`_  2023-09-01   ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+`0a5e2281e0 <https://github.com/apache/airflow/commit/0a5e2281e084b228e697ffdd5d825b927fce9483>`_  2023-08-31   ``Remove some useless try/except from providers code (#33967)``
+`17d031df66 <https://github.com/apache/airflow/commit/17d031df66ce99943aa7e7272e24c8e6d3b3ebd6>`_  2023-08-31   ``Add Amazon SQS Notifier (#33962)``
+`097e3e618e <https://github.com/apache/airflow/commit/097e3e618ec3ee09221cb64bb8f64e8b275b6399>`_  2023-08-31   ``Fix AWS 'EmrStepSensor' ignoring the specified 'aws_conn_id' in deferred mode  (#33952)``
+`f860141cfd <https://github.com/apache/airflow/commit/f860141cfd1df91efaca0a1c904762778d91cd77>`_  2023-08-31   ``respect "soft_fail" argument when running BatchSensor in deferrable mode (#33405)``
+`b4d4f55b47 <https://github.com/apache/airflow/commit/b4d4f55b479d07c13ab25bb2e80cb053378b56d7>`_  2023-08-31   ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+`55976af32e <https://github.com/apache/airflow/commit/55976af32ea7d09831e2bcd21c0f3814d9b0eb3f>`_  2023-08-31   ``Replace sequence concatination by unpacking in Airflow providers (#33933)``
+`b497234eda <https://github.com/apache/airflow/commit/b497234eda4b4bdfda0b09e3674012c6ebebaf2b>`_  2023-08-31   ``Reorganize devel_only extra in airflow's setup.py (#33907)``
+`ea44ed9f54 <https://github.com/apache/airflow/commit/ea44ed9f54f6c0083aa6283b2f3f3712bc710a1f>`_  2023-08-30   ``Increase 'waiter_max_attempts' default value in 'EcsRunTaskOperator' (#33712)``
+`3ef770e3d2 <https://github.com/apache/airflow/commit/3ef770e3d25b1b0a82308b37c9fd21ac8566f296>`_  2023-08-30   ``Remove explicit str concat from Airflow providers package and tests (#33860)``
+`869f84e9c3 <https://github.com/apache/airflow/commit/869f84e9c398dba453456e89357876ed8a11c547>`_  2023-08-29   ``Add Amazon SNS Notifier (#33828)``
+`7d267fbefe <https://github.com/apache/airflow/commit/7d267fbefefb9f15c1f679954e98d1b06b49d4eb>`_  2023-08-29   ``Fix type annotation in AppflowHook (#33881)``
+`667ab8c6ea <https://github.com/apache/airflow/commit/667ab8c6eaceb689f6a1afbd909d88bdf0584342>`_  2023-08-28   ``Improve modules import in AWS probvider by move some of them into a type-checking block (#33780)``
+`cede385e93 <https://github.com/apache/airflow/commit/cede385e938d4645fdbdfabd6c92c02fbfb95628>`_  2023-08-28   ``Always use 'Literal' from 'typing_extensions' (#33794)``
+`b11525702c <https://github.com/apache/airflow/commit/b11525702c72cb53034aa29ccd6d0e1161ac475c>`_  2023-08-26   ``Use literal dict instead of calling dict() in providers (#33761)``
+`353b1482d3 <https://github.com/apache/airflow/commit/353b1482d3720c7e962022f25c7e5d3e105ed4f0>`_  2023-08-26   ``remove unnecessary and rewrite it using list in providers (#33763)``
+=================================================================================================  ===========  ====================================================================================================
+
+8.6.0
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  =============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`633217c842 <https://github.com/apache/airflow/commit/633217c84217f925c4c0a92e0b24ba314b64281b>`_  2023-08-25   ``Simplify conditions on len() in providers/amazon (#33565)``
+`83efcaa835 <https://github.com/apache/airflow/commit/83efcaa835c4316efe2f45fd9cfb619295b25a4f>`_  2023-08-24   ``always push ECS task ARN to xcom in 'EcsRunTaskOperator' (#33703)``
+`2d8625253f <https://github.com/apache/airflow/commit/2d8625253f7101a9da7161a7856f4a4084457548>`_  2023-08-24   ``Remove non-public interface usage in EcsRunTaskOperator (#29447)``
+`85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
+`53a8973952 <https://github.com/apache/airflow/commit/53a89739528cda26b8b53670fc51769850eb263e>`_  2023-08-24   ``Fix bug in task logs when using AWS CloudWatch. Do not set 'start_time' (#33673)``
+`94f70d8184 <https://github.com/apache/airflow/commit/94f70d818482de7defa03c0aff3c213ca6b83e9e>`_  2023-08-23   ``Replace strftime with f-strings where nicer (#33455)``
+`5f504e9a17 <https://github.com/apache/airflow/commit/5f504e9a17353259e70bd3ed54f8edd2e465882c>`_  2023-08-23   ``Upgrade botocore/aiobotocore minimum requirements (#33649)``
+`85aea74b64 <https://github.com/apache/airflow/commit/85aea74b647f978cd1e3c42e3a5f3bb068b56539>`_  2023-08-23   ``Fix AWS Batch waiter failure state (#33656)``
+`a54c2424df <https://github.com/apache/airflow/commit/a54c2424df51bf1acec420f4792a237dabcfa12b>`_  2023-08-23   ``Fix typos (double words and it's/its) (#33623)``
+`8ed38c1619 <https://github.com/apache/airflow/commit/8ed38c1619209aaae3cf900ed34d9a3b48a8bf8d>`_  2023-08-22   ``Add Appflow system test + improvements (#33614)``
+`41d9be072a <https://github.com/apache/airflow/commit/41d9be072abacc47393f700aa8fb98bc2b9a3713>`_  2023-08-22   ``Fix AWS appflow waiter (#33613)``
+`8402e9adf4 <https://github.com/apache/airflow/commit/8402e9adf4c7d0ddf234ccfb22fce5c34384920a>`_  2023-08-21   ``Use 'boto3.client' linked to resource meta instead of create new one for waiters (#33552)``
+`95a930bc0a <https://github.com/apache/airflow/commit/95a930bc0a720c5548e4fa2e1f74e25f12e9ae1d>`_  2023-08-21   ``Consolidate import and usage of itertools (#33479)``
+`1407e277ae <https://github.com/apache/airflow/commit/1407e277aeb059cbfd1bb96fb3f43c4bf4f15cea>`_  2023-08-19   ``Add 'sql_hook_params' parameter to 'S3ToSqlOperator' (#33427)``
+`b555ed6f35 <https://github.com/apache/airflow/commit/b555ed6f358f738e2484db77b0782755440c8c8d>`_  2023-08-18   ``Fix striping tags when falling back to update in 'SageMakerEndpointOperator' (#33487)``
+`8e88eb8fa7 <https://github.com/apache/airflow/commit/8e88eb8fa7e1fc12918dcbfcfc8ed28381008d33>`_  2023-08-17   ``Consolidate import and usage of pandas (#33480)``
+`223b41d68f <https://github.com/apache/airflow/commit/223b41d68f53e7aa76588ffb8ba1e37e780d9e3b>`_  2023-08-16   ``Added Amazon SageMaker Notebook hook and operators (#33219)``
+`45d5f64127 <https://github.com/apache/airflow/commit/45d5f6412731f81002be7e9c86c11060394875cf>`_  2023-08-16   ``Add 'sql_hook_params' parameter to 'SqlToS3Operator' (#33425)``
+`60df70526a <https://github.com/apache/airflow/commit/60df70526a00fb9a3e245bb3ffb2a9faa23582e7>`_  2023-08-15   ``Add parameter to pass role ARN to 'GlueJobOperator ' (#33408)``
+`4d99705f69 <https://github.com/apache/airflow/commit/4d99705f69114d37bb3e85d7723602e71bd023c1>`_  2023-08-14   ``Add 'deferrable' option to 'LambdaCreateFunctionOperator' (#33327)``
+`bd11ea81e5 <https://github.com/apache/airflow/commit/bd11ea81e50f602d1c9f64c44c61b4e7294aafa9>`_  2023-08-13   ``Add Deferrable mode to GlueCatalogPartitionSensor (#33239)``
+`c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+`0df0d7457e <https://github.com/apache/airflow/commit/0df0d7457e78f83e2c0f6ab65c2d01bb8938167d>`_  2023-08-11   ``Add new RdsStartExportTaskOperator parameters (#33251)``
+=================================================================================================  ===========  =============================================================================================
+
 8.5.1
 .....
 
-Latest change: 2023-08-10
+Latest change: 2023-08-11
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
 `681ee46b21 <https://github.com/apache/airflow/commit/681ee46b21308e8cb38afda9722d3b1a8f91efa0>`_  2023-08-10   ``Fix get_log_events() in AWS logs hook (#33290)``
 `c14cb85f16 <https://github.com/apache/airflow/commit/c14cb85f16b6c9befd35866327fecb4ab9bc0fc4>`_  2023-08-10   ``Improve fetching logs from AWS (#33231)``
 `83bd60fd97 <https://github.com/apache/airflow/commit/83bd60fd97d4ca622adcbd7898d88880fee43054>`_  2023-08-09   ``Refactor: Simplify code in providers/amazon (#33222)``

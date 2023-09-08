@@ -104,6 +104,17 @@ class TestMigrateDatabaseJob:
             docs[0],
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     @pytest.mark.parametrize(
         "use_default_image,expected_image",
         [

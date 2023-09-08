@@ -321,7 +321,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         if conf:
             if not isinstance(conf, dict):
                 raise ValueError("'conf' argument must be a dict")
-            if not all(v and isinstance(v, str) or isinstance(v, int) for v in conf.values()):
+            if not all(isinstance(v, (str, int)) and v != "" for v in conf.values()):
                 raise ValueError("'conf' values must be either strings or ints")
         return True
 

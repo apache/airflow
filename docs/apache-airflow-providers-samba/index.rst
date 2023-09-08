@@ -61,7 +61,7 @@ Package apache-airflow-providers-samba
 `Samba <https://www.samba.org/>`__
 
 
-Release: 4.2.1
+Release: 4.2.2
 
 Provider package
 ----------------
