@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock
-
 import pytest
 
 from airflow.jobs.triggerer_job_runner import TriggerRunner
@@ -63,7 +61,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
 from airflow.providers.amazon.aws.triggers.step_function import StepFunctionsExecutionCompleteTrigger
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
-from airflow.utils.sqlalchemy import ExtendedJSON
+from airflow.serialization.serialized_objects import BaseSerialization
 
 BATCH_JOB_ID = "job_id"
 
@@ -353,12 +351,9 @@ class TestRdsTriggers:
         # generate the DB object from the trigger
         trigger_db: Trigger = Trigger.from_object(trigger)
 
-        # use the same json serializer as the one that is used for the DB
-        jsonifier = ExtendedJSON()
-        # apply the function that processes the data pre-insert
-        json_params = jsonifier.process_bind_param(trigger_db.kwargs, Mock())
-        # apply the function that processes the data post-select
-        retrieved_params = jsonifier.process_result_value(json_params, Mock())
+        # serialize/deserialize using the same method that is used when inserting in DB
+        json_params = BaseSerialization.serialize(trigger_db.kwargs)
+        retrieved_params = BaseSerialization.deserialize(json_params)
 
         # recreate a new trigger object from the data we would have in DB
         clazz = TriggerRunner().get_trigger_by_classpath(trigger_db.classpath)
