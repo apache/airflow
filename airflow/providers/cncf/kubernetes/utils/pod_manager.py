@@ -288,6 +288,7 @@ class PodManager(LoggingMixin):
         Creates the launcher.
 
         :param kube_client: kubernetes client
+        :param progress_callback: Callback function invoked when fetching container log.
         """
         super().__init__()
         self._client = kube_client
@@ -416,6 +417,7 @@ class PodManager(LoggingMixin):
                     line = raw_line.decode("utf-8", errors="backslashreplace")
                     line_timestamp, message = self.parse_log_line(line)
                     if self._progress_callback:
+                        print(line)
                         self._progress_callback(line)
                     if line_timestamp is not None:
                         last_captured_timestamp = line_timestamp

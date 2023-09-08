@@ -245,6 +245,7 @@ class KubernetesPodOperator(BaseOperator):
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
         in V1PodSpec.
+    :param progress_callback: Callback function for receiving k8s container logs.
     """
 
     # This field can be overloaded at the instance level via base_container_name
