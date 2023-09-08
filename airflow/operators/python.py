@@ -25,13 +25,13 @@ import pickle
 import shutil
 import subprocess
 import sys
+import textwrap
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
 
 import dill
@@ -398,7 +398,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
     def get_python_source(self):
         """Return the source of self.python_callable."""
-        return dedent(inspect.getsource(self.python_callable))
+        return textwrap.dedent(inspect.getsource(self.python_callable))
 
     def _write_args(self, file: Path):
         if self.op_args or self.op_kwargs:
