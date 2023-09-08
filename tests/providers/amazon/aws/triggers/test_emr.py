@@ -22,6 +22,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
     EmrStepSensorTrigger,
+    EmrStepsTrigger,
     EmrTerminateJobFlowTrigger,
 )
 
@@ -45,6 +46,13 @@ class TestEmrTriggers:
                 aws_conn_id=TEST_AWS_CONN_ID,
                 poll_interval=TEST_POLL_INTERVAL,
                 max_attempts=TEST_MAX_ATTEMPTS,
+            ),
+            EmrStepsTrigger(
+                job_flow_id=TEST_JOB_FLOW_ID,
+                step_ids=["my_step1", "my_step2"],
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_POLL_INTERVAL,
+                waiter_max_attempts=TEST_MAX_ATTEMPTS,
             ),
             EmrTerminateJobFlowTrigger(
                 job_flow_id=TEST_JOB_FLOW_ID,

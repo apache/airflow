@@ -21,6 +21,7 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import WaiterError
+from deprecated import deprecated
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
+@deprecated(reason="use EmrStepsTrigger instead")
 class EmrAddStepsTrigger(BaseTrigger):
     """
     Asynchronously poll the boto3 API and wait for the steps to finish executing.
@@ -100,6 +102,45 @@ class EmrAddStepsTrigger(BaseTrigger):
             yield TriggerEvent({"status": "failure", "message": "Steps failed: max attempts reached"})
         else:
             yield TriggerEvent({"status": "success", "message": "Steps completed", "step_ids": self.step_ids})
+
+
+class EmrStepsTrigger(AwsBaseWaiterTrigger):
+    """
+    Poll for the status of EMR steps until they reach terminal state.
+
+    :param job_flow_id: job_flow_id which contains the step check the state of
+    :param step_ids: steps to check the state of
+    :param waiter_delay: polling period in seconds to check for the status
+    :param waiter_max_attempts: The maximum number of attempts to be made
+    :param aws_conn_id: Reference to AWS connection id
+    """
+
+    def __init__(
+        self,
+        job_flow_id: str,
+        step_ids: list[str],
+        waiter_delay: int,
+        waiter_max_attempts: int,
+        aws_conn_id: str = "aws_default",
+    ):
+        super().__init__(
+            serialized_fields={"job_flow_id": job_flow_id, "step_ids": step_ids},
+            waiter_name="steps_wait_for_terminal",
+            waiter_args={"ClusterId": job_flow_id, "StepIds": step_ids},
+            failure_message=f"Error while waiting for steps {step_ids} to complete",
+            status_message=f"Step ids: {step_ids}, Steps are still in non-terminal state",
+            status_queries=[
+                "Steps[].Status.State",
+                "Steps[].Status.FailureDetails",
+            ],
+            return_value=step_ids,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+        )
+
+    def hook(self) -> AwsGenericHook:
+        return EmrHook(aws_conn_id=self.aws_conn_id)
 
 
 class EmrCreateJobFlowTrigger(AwsBaseWaiterTrigger):

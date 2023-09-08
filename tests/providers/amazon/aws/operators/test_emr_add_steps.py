@@ -30,7 +30,7 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
-from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
+from airflow.providers.amazon.aws.triggers.emr import EmrStepsTrigger
 from airflow.utils import timezone
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
@@ -277,4 +277,4 @@ class TestEmrAddStepsOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(self.mock_context)
 
-        assert isinstance(exc.value.trigger, EmrAddStepsTrigger), "Trigger is not a EmrAddStepsTrigger"
+        assert isinstance(exc.value.trigger, EmrStepsTrigger), "Trigger is not a EmrStepsTrigger"
