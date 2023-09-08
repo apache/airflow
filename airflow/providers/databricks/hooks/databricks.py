@@ -164,7 +164,12 @@ class DatabricksHook(BaseDatabricksHook):
         return response["run_id"]
 
     def list_jobs(
-        self, limit: int = 25, offset: int | None = None, expand_tasks: bool = False, job_name: str | None = None, page_token: str | None = None
+        self,
+        limit: int = 25,
+        offset: int | None = None,
+        expand_tasks: bool = False,
+        job_name: str | None = None,
+        page_token: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         Lists the jobs in the Databricks Job Service.
@@ -199,7 +204,7 @@ class DatabricksHook(BaseDatabricksHook):
             }
             if use_token_pagination:
                 payload["page_token"] = page_token
-            else: # offset pagination
+            else:  # offset pagination
                 payload["offset"] = offset
             if job_name:
                 payload["name"] = job_name
