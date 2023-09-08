@@ -26,7 +26,11 @@ import { Flex, Box, Tooltip, Text, VStack, useTheme } from "@chakra-ui/react";
 import { useContainerRef } from "src/context/containerRef";
 import Time from "src/components/Time";
 import type { SelectionProps } from "src/dag/useSelection";
-import { hoverDelay, getStatusBackgroundColor , getDagRunLabel } from "src/utils";
+import {
+  hoverDelay,
+  getStatusBackgroundColor,
+  getDagRunLabel,
+} from "src/utils";
 import RunTypeIcon from "src/components/RunTypeIcon";
 
 import { useGridData } from "src/api";
