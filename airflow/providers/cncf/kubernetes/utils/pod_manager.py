@@ -415,6 +415,8 @@ class PodManager(LoggingMixin):
                 for raw_line in logs:
                     line = raw_line.decode("utf-8", errors="backslashreplace")
                     line_timestamp, message = self.parse_log_line(line)
+                    if self._progress_callback:
+                        self._progress_callback(line)
                     if line_timestamp is not None:
                         last_captured_timestamp = line_timestamp
                     self.log.info("[%s] %s", container_name, message)

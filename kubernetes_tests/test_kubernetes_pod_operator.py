@@ -1223,7 +1223,6 @@ class TestKubernetesPodOperatorSystem:
             in_cluster=False,
             do_xcom_push=False,
             get_logs=True,
-            base_container_name="apple-sauce",
             progress_callback=progress_callback,
         )
         context = create_context(k)
