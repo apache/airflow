@@ -176,3 +176,16 @@ Some important things to point out for remote logging in the context of the ECS 
 ECS can be configured to use the awslogs log driver to send log information to CloudWatch Logs for the ECS Tasks themselves. These logs will include the Airflow Task Operator logging and any other logging that occurs throughout the life of the process running in the container (in this case the Airflow CLI command `airflow tasks run ...`). This can be helpful for debugging issues with remote logging or while testing remote logging configuration.  Information on enabling this logging can be found [here](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_awslogs.html).
 
 ***Note: These logs will _not_ be viewable from the Airflow Webserver UI.***
+
+### Performance and Tuning
+
+While the ECS executor adds about 50-60 seconds of latency to each Airflow task execution, due to container startup time, it allows for a higher degree of parallelism and isolation. We have tested this executor with over 1,000 tasks scheduled in parallel and observed that up to 500 tasks could be run in parallel simultaneously. The limit of 500 tasks is in accordance with [ECS Service Quotas](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/service-quotas.html).
+
+When running this executor, and Airflow generally, at a large scale there are some configuration options to take into consideration. Many of the below configurations will either limit how many tasks can run concurrently or the performance of the scheduler.
+
+- [core.max_active_tasks_per_dag](https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#max-active-tasks-per-dag)
+- [core.max_active_runs_per_dag](https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#max-active-runs-per-dag)
+- [core.parallelism](https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#parallelism)
+- [scheduler.max_tis_per_query](https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#max-tis-per-query)
+- [default_pool_task_slot_count](https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#default-pool-task-slot-count)
+- [scheduler_health_check_threshold](https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#scheduler-health-check-threshold)
