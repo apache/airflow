@@ -69,9 +69,11 @@ def get_event_logs(
         "execution_date",
         "owner",
         "extra",
+        "run_id",
     ]
     total_entries = session.scalars(func.count(Log.id)).one()
-    query = select(Log)
+    run_id_alias = aliased(Log)
+    query = select(Log, run_id_alias.run_id.label("run_id"))
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     event_logs = session.scalars(query.offset(offset).limit(limit)).all()
     return event_log_collection_schema.dump(
