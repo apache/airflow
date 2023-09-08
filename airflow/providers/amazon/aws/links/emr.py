@@ -19,19 +19,18 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from urllib.parse import quote_plus, urlparse
 
+from airflow.exceptions import AirflowException
 from airflow.models import XCom
+from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     import boto3
 
     from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
-
-from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
-from airflow.utils.helpers import exactly_one
 
 
 class EmrClusterLink(BaseAwsLink):
