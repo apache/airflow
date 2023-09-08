@@ -34,9 +34,9 @@ from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
     GET_RUN_ENDPOINT,
     SUBMIT_RUN_ENDPOINT,
+    ClusterState,
     DatabricksHook,
     RunState,
-    ClusterState
 )
 from airflow.providers.databricks.hooks.databricks_base import (
     AZURE_DEFAULT_AD_ENDPOINT,
@@ -81,10 +81,7 @@ GET_RUN_RESPONSE = {
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
 CLUSTER_STATE = "TERMINATED"
 CLUSTER_STATE_MESSAGE = "Inactive cluster terminated (inactive for 120 minutes)."
-GET_CLUSTER_RESPONSE = {
-    "state": CLUSTER_STATE,
-    "state_message": CLUSTER_STATE_MESSAGE
-}
+GET_CLUSTER_RESPONSE = {"state": CLUSTER_STATE, "state_message": CLUSTER_STATE_MESSAGE}
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = ""
@@ -656,10 +653,7 @@ class TestDatabricksHook:
         json = {"cluster_id": CLUSTER_ID}
         for state in running_states:
             mock_requests.codes.ok = 200
-            mock_requests.get.return_value.json.return_value = {
-                "state": state,
-                "state_message": ""
-            }
+            mock_requests.get.return_value.json.return_value = {"state": state, "state_message": ""}
             self.hook.activate_cluster(json=json, polling=5, timeout=60)
             mock_requests.get.assert_called_once_with(
                 get_cluster_endpoint(HOST),
@@ -676,10 +670,7 @@ class TestDatabricksHook:
         terminal_states = ["TERMINATING", "TERMINATED", "ERROR", "UNKNOWN"]
         json = {"cluster_id": CLUSTER_ID}
         for state in terminal_states:
-            side_effect = [
-                {"state": state, "state_message": ""},
-                {"state": "RUNNING", "state_message": ""}
-            ]
+            side_effect = [{"state": state, "state_message": ""}, {"state": "RUNNING", "state_message": ""}]
             mock_requests.codes.ok = 200
             mock_requests.get.side_effect = side_effect
             mock_requests.post.return_value.json.return_value = {}
@@ -1060,9 +1051,6 @@ class TestRunState:
 
 
 class TestClusterState:
-    """
-    Tests for ClusterState.
-    """
     def test_is_terminal_true(self):
         terminal_states = ["TERMINATING", "TERMINATED", "ERROR", "UNKNOWN"]
         for state in terminal_states:
