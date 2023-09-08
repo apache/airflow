@@ -22,6 +22,7 @@ import time
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Sequence
+from urllib.parse import urlsplit, urlunsplit
 
 from botocore.exceptions import ClientError
 
@@ -166,9 +167,9 @@ class SageMakerBaseOperator(BaseOperator):
     def path_to_s3_dataset(path) -> Dataset:
         from openlineage.client.run import Dataset
 
-        path = path.replace("s3://", "")
-        split_path = path.split("/")
-        return Dataset(namespace=f"s3://{split_path[0]}", name="/".join(split_path[1:]), facets={})
+        split = urlsplit(path)
+        name = urlunsplit(split._replace(scheme="", netloc="")).lstrip("/")
+        return Dataset(namespace=f"{split.scheme}://{split.netloc}", name=name, facets={})
 
 
 class SageMakerProcessingOperator(SageMakerBaseOperator):

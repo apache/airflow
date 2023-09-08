@@ -124,18 +124,8 @@ class ElasticsearchSQLHook(DbApiHook):
             host += f":{conn.port}"
         uri = f"{conn.conn_type}+{conn.schema}://{login}{host}/"
 
-        extras_length = len(conn.extra_dejson)
-        if not extras_length:
-            return uri
-
-        uri += "?"
-
-        for arg_key, arg_value in conn.extra_dejson.items():
-            extras_length -= 1
-            uri += f"{arg_key}={arg_value}"
-
-            if extras_length:
-                uri += "&"
+        if conn.extra_dejson:
+            uri += "?" + parse.urlencode(conn.extra_dejson)
 
         return uri
 

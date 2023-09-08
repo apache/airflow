@@ -122,13 +122,7 @@ def _create_pod_id(
     """
     if not (dag_id or task_id):
         raise ValueError("Must supply either dag_id or task_id.")
-    name = ""
-    if dag_id:
-        name += dag_id
-    if task_id:
-        if name:
-            name += "-"
-        name += task_id
+    name = f"{dag_id or ''}-{task_id or ''}".strip("-")
     base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
     if unique:
         return _add_pod_suffix(pod_name=base_name, max_len=max_length)
@@ -830,10 +824,10 @@ class KubernetesPodOperator(BaseOperator):
             **self._get_ti_pod_labels(context, include_try_number=False),
         }
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
-        labels_value = ",".join(label_strings)
         if exclude_checked:
-            labels_value += f",{self.POD_CHECKED_KEY}!=True"
-        labels_value += ",!airflow-worker"
+            label_strings.append(f"{self.POD_CHECKED_KEY}!=True")
+        label_strings.append("!airflow-worker")
+        labels_value = ",".join(label_strings)
         return labels_value
 
     @staticmethod

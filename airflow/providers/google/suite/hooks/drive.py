@@ -220,12 +220,14 @@ class GoogleDriveHook(GoogleBaseHook):
 
         :return: Google Drive file id if the file exists, otherwise None
         """
-        query = f"name = '{file_name}'"
+        conds = [f"name = '{file_name}'"]
         if folder_id:
-            query += f" and parents in '{folder_id}'"
+            conds.append(f"parents in '{folder_id}'")
 
         if not include_trashed:
-            query += " and trashed=false"
+            conds.append("trashed = false")
+
+        query = " and ".join(conds)
 
         service = self.get_conn()
         if drive_id:

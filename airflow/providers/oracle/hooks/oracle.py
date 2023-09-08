@@ -193,9 +193,9 @@ class OracleHook(DbApiHook):
             if dsn is None:
                 dsn = conn.host
                 if conn.port is not None:
-                    dsn += ":" + str(conn.port)
+                    dsn += f":{conn.port}"
                 if service_name:
-                    dsn += "/" + service_name
+                    dsn += f"/{service_name}"
                 elif conn.schema:
                     warnings.warn(
                         """Using conn.schema to pass the Oracle Service Name is deprecated.
@@ -203,7 +203,7 @@ class OracleHook(DbApiHook):
                         AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
-                    dsn += "/" + conn.schema
+                    dsn += f"/{conn.schema}"
             conn_config["dsn"] = dsn
 
         if "events" in conn.extra_dejson:
