@@ -196,7 +196,7 @@ class DatabricksHook(BaseDatabricksHook):
             page_token = ""
         if offset is None:
             offset = 0
-        
+
         while has_more:
             payload: dict[str, Any] = {
                 "limit": limit,
