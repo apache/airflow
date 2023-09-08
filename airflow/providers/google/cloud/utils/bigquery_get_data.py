@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 from typing import TYPE_CHECKING
 
 from google.cloud.bigquery.table import Row, RowIterator
@@ -23,7 +24,6 @@ from google.cloud.bigquery.table import Row, RowIterator
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from logging import Logger
-
     from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 
 
@@ -38,14 +38,13 @@ def bigquery_get_data(
     logger.info("Fetching Data from:")
     logger.info("Dataset: %s ; Table: %s", dataset_id, table_id)
 
-    i = 0
-    while True:
+    for start_index in itertools.count(step=batch_size):
         rows: list[Row] | RowIterator = big_query_hook.list_rows(
             dataset_id=dataset_id,
             table_id=table_id,
             max_results=batch_size,
             selected_fields=selected_fields,
-            start_index=i * batch_size,
+            start_index=start_index,
         )
 
         if isinstance(rows, RowIterator):
@@ -55,8 +54,6 @@ def bigquery_get_data(
             logger.info("Job Finished")
             return
 
-        logger.info("Total Extracted rows: %s", len(rows) + i * batch_size)
+        logger.info("Total Extracted rows: %s", len(rows) + start_index)
 
         yield [row.values() for row in rows]
-
-        i += 1
