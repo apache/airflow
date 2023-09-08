@@ -818,7 +818,8 @@ class TestPodGenerator:
         )
         labels = PodGenerator.build_labels_for_k8s_executor_pod(**kwargs, **extra)
         assert labels == {**expected, **extra_expected}
-        exp_selector = ",".join([f"{k}={v}" for k, v in sorted(labels.items())])
+        items = [f"{k}={v}" for k, v in sorted(labels.items())]
         if "airflow_worker" not in extra:
-            exp_selector += ",airflow-worker"
+            items.append("airflow-worker")
+        exp_selector = ",".join(items)
         assert PodGenerator.build_selector_for_k8s_executor_pod(**kwargs, **extra) == exp_selector
