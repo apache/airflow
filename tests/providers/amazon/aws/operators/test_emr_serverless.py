@@ -356,6 +356,9 @@ class TestEmrServerlessCreateApplicationOperator:
 
 
 class TestEmrServerlessStartJobOperator:
+    def setup_method(self):
+        self.mock_context = MagicMock()
+
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_job_run_app_started(self, mock_conn, mock_get_waiter):
@@ -376,7 +379,7 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
         )
         default_name = operator.name
-        id = operator.execute(None)
+        id = operator.execute(self.mock_context)
 
         assert operator.wait_for_completion is True
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
@@ -415,7 +418,7 @@ class TestEmrServerlessStartJobOperator:
         )
         default_name = operator.name
         with pytest.raises(AirflowException) as ex_message:
-            id = operator.execute(None)
+            id = operator.execute(self.mock_context)
             assert id == job_run_id
         assert "Serverless Job failed:" in str(ex_message.value)
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
@@ -448,7 +451,7 @@ class TestEmrServerlessStartJobOperator:
         )
         default_name = operator.name
 
-        id = operator.execute(None)
+        id = operator.execute(self.mock_context)
 
         assert operator.wait_for_completion is True
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
@@ -492,7 +495,7 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
         )
         with pytest.raises(AirflowException) as ex_message:
-            operator.execute(None)
+            operator.execute(self.mock_context)
         assert "Serverless Application failed to start:" in str(ex_message.value)
         assert operator.wait_for_completion is True
         assert mock_get_waiter().wait.call_count == 2
@@ -517,7 +520,7 @@ class TestEmrServerlessStartJobOperator:
             wait_for_completion=False,
         )
         default_name = operator.name
-        id = operator.execute(None)
+        id = operator.execute(self.mock_context)
 
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
         mock_get_waiter().wait.assert_called_once()
@@ -551,7 +554,7 @@ class TestEmrServerlessStartJobOperator:
             wait_for_completion=False,
         )
         default_name = operator.name
-        id = operator.execute(None)
+        id = operator.execute(self.mock_context)
         assert id == job_run_id
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
@@ -583,7 +586,7 @@ class TestEmrServerlessStartJobOperator:
         )
         default_name = operator.name
         with pytest.raises(AirflowException) as ex_message:
-            operator.execute(None)
+            operator.execute(self.mock_context)
 
         assert "EMR serverless job failed to start:" in str(ex_message.value)
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
@@ -621,7 +624,7 @@ class TestEmrServerlessStartJobOperator:
         )
         default_name = operator.name
         with pytest.raises(AirflowException) as ex_message:
-            operator.execute(None)
+            operator.execute(self.mock_context)
 
         assert "Serverless Job failed:" in str(ex_message.value)
         mock_conn.get_application.call_count == 2
@@ -653,7 +656,7 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
-        operator.execute(None)
+        operator.execute(self.mock_context)
         default_name = operator.name
         generated_name_uuid = default_name.split("_")[-1]
         assert default_name.startswith("emr_serverless_job_airflow")
@@ -687,7 +690,7 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
             name=custom_name,
         )
-        operator.execute(None)
+        operator.execute(self.mock_context)
 
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
@@ -717,7 +720,7 @@ class TestEmrServerlessStartJobOperator:
             wait_for_completion=False,
         )
 
-        id = operator.execute(None)
+        id = operator.execute(self.mock_context)
         operator.on_kill()
         mock_conn.cancel_job_run.assert_called_once_with(
             applicationId=application_id,
@@ -768,7 +771,7 @@ class TestEmrServerlessStartJobOperator:
         )
 
         with pytest.raises(TaskDeferred):
-            operator.execute(None)
+            operator.execute(self.mock_context)
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
@@ -788,7 +791,7 @@ class TestEmrServerlessStartJobOperator:
         )
 
         with pytest.raises(TaskDeferred):
-            operator.execute(None)
+            operator.execute(self.mock_context)
 
 
 class TestEmrServerlessDeleteOperator:

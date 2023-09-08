@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from urllib.parse import quote_plus, urlparse
+
 from airflow.models import XCom
 
 if TYPE_CHECKING:
