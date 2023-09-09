@@ -23,12 +23,12 @@ from airflow.models.param import Param
 from airflow.operators.python import PythonOperator
 
 with DAG(
-    "test_invalid_param",
+    "test_invalid_param4",
     start_date=datetime(2021, 1, 1),
     schedule="0 0 * * *",
     params={
-        # a mandatory str param
-        "str_param": Param(type="string", minLength=2, maxLength=4),
+        # a mandatory string but the default is not valid in length validation
+        "str_param": Param(default="banana", type="string", minLength=2, maxLength=4),
     },
 ) as the_dag:
 

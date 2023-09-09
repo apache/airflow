@@ -159,6 +159,11 @@ JSON Schema Validation
     ):
 
 .. note::
+    Schema validation on DAG definitions is only made if a schedule is defined. If a manual or external trigger
+    is defined (e.g. via ``schedule=None``) then params are validated during submission. This allows to enforce
+    undefined parameters being defined at trigger time.
+
+.. note::
     As of now, for security reasons, one can not use Param objects derived out of custom classes. We are
     planning to have a registration system for custom Param classes, just like we've for Operator ExtraLinks.
 
@@ -175,7 +180,7 @@ The following features are supported in the Trigger UI Form:
 
 - Direct scalar values (boolean, int, string, lists, dicts) from top-level DAG params are interpreted and render a corresponding field type.
   The name of the param is used as label and no further validation is made, all values are treated as optional.
-- If you use the :class:`~airflow.modules.param.Param` class as definition of the param value, the following parameters can be added:
+- If you use the :class:`~airflow.modules.param.Param` class as definition of the param value, the following attributes can be added:
 
   - The Param attribute ``title`` is used to render the form field label of the entry box
   - The Param attribute ``description`` is rendered below an entry field as help text in gray color.
@@ -198,6 +203,8 @@ The following features are supported in the Trigger UI Form:
     - Note: Per default if you specify a type, a field will be made required with input - because of JSON validation.
       If you want to have a field value being added optional only, you must allow JSON schema validation allowing null values via:
       ``type=["null", "string"]``
+    - Note: If the field is required you need to specify a valid default value as well. Exception is if DAG is defined with
+      ``schedule=None`` which enforces the user to provide a value in the form at time of submission.
 
 - The Param attribute ``enum`` generates a drop-down select list for scalar values. As of JSON validation, a value must be selected or
   the field must be marked as optional explicit.

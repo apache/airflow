@@ -710,7 +710,7 @@ class DAG(LoggingMixin):
                 f"inconsistent schedule: timetable {self.timetable.summary!r} "
                 f"does not match schedule_interval {self.schedule_interval!r}",
             )
-        self.params.validate()
+        self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
 
@@ -3288,8 +3288,8 @@ class DAG(LoggingMixin):
             self.params.validate()
         except ParamValidationError as pverr:
             raise AirflowException(
-                "DAG is not allowed to define a Schedule, "
-                "if there are any required params without default values or default values are not valid."
+                "There are either required params without default values or default values are not valid "
+                f"in DAG {self.dag_id}. This is not allowed if the DAG defines a Schedule."
             ) from pverr
 
     def iter_invalid_owner_links(self) -> Iterator[tuple[str, str]]:
