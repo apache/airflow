@@ -28,7 +28,7 @@ import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
@@ -245,6 +245,7 @@ class KubernetesPodOperator(BaseOperator):
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
         in V1PodSpec.
+    :param progress_callback: Callback function for receiving k8s container logs.
     """
 
     # This field can be overloaded at the instance level via base_container_name
@@ -328,6 +329,7 @@ class KubernetesPodOperator(BaseOperator):
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
+        progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -428,6 +430,7 @@ class KubernetesPodOperator(BaseOperator):
         self.active_deadline_seconds = active_deadline_seconds
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
+        self._progress_callback = progress_callback
 
     @cached_property
     def _incluster_namespace(self):
@@ -505,7 +508,7 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def pod_manager(self) -> PodManager:
-        return PodManager(kube_client=self.client)
+        return PodManager(kube_client=self.client, progress_callback=self._progress_callback)
 
     @cached_property
     def hook(self) -> PodOperatorHookProtocol:
