@@ -384,6 +384,12 @@ class DAG(LoggingMixin):
     :param fail_stop: Fails currently running tasks when task in DAG fails.
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
+    :param default_run_id: A function to determine run_id when it's not specifically given through API.
+        The function should have run_type, logical_date, data_interval, conf parameters to run properly.
+
+        **Example**
+        def my_default_run_id(run_type, logical_date, data_interval, conf):
+            return f"{conf['param1']}_{logical_date.isoformat()}"
     """
 
     _comps = {
