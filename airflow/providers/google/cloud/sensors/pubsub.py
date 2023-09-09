@@ -18,11 +18,15 @@
 """This module contains a Google PubSub sensor."""
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
+from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -30,7 +34,9 @@ if TYPE_CHECKING:
 
 
 class PubSubPullSensor(BaseSensorOperator):
-    """Pulls messages from a PubSub subscription and passes them through XCom.
+    """
+    Pulls messages from a PubSub subscription and passes them through XCom.
+
     Always waits for at least one message to be returned from the subscription.
 
     .. seealso::
@@ -67,7 +73,7 @@ class PubSubPullSensor(BaseSensorOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
     :param messages_callback: (Optional) Callback to process received messages.
-        It's return value will be saved to XCom.
+        Its return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
         If not provided, the default implementation will convert `ReceivedMessage` objects
         into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
@@ -79,6 +85,7 @@ class PubSubPullSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run sensor in deferrable mode
     """
 
     template_fields: Sequence[str] = (
@@ -98,9 +105,10 @@ class PubSubPullSensor(BaseSensorOperator):
         gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        poke_interval: float = 10.0,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
@@ -109,13 +117,9 @@ class PubSubPullSensor(BaseSensorOperator):
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
-
+        self.deferrable = deferrable
+        self.poke_interval = poke_interval
         self._return_value = None
-
-    def execute(self, context: Context) -> Any:
-        """Overridden to allow messages to be passed"""
-        super().execute(context)
-        return self._return_value
 
     def poke(self, context: Context) -> bool:
         hook = PubSubHook(
@@ -143,6 +147,35 @@ class PubSubPullSensor(BaseSensorOperator):
 
         return bool(pulled_messages)
 
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the triggers if deferrable is True."""
+        if not self.deferrable:
+            super().execute(context)
+            return self._return_value
+        else:
+            self.defer(
+                timeout=timedelta(seconds=self.timeout),
+                trigger=PubsubPullTrigger(
+                    project_id=self.project_id,
+                    subscription=self.subscription,
+                    max_messages=self.max_messages,
+                    ack_messages=self.ack_messages,
+                    messages_callback=self.messages_callback,
+                    poke_interval=self.poke_interval,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
+        """Callback for the trigger; returns immediately and relies on trigger to throw a success event."""
+        if event["status"] == "success":
+            self.log.info("Sensor pulls messages: %s", event["message"])
+            return event["message"]
+        self.log.info("Sensor failed: %s", event["message"])
+        raise AirflowException(event["message"])
+
     def _default_message_callback(
         self,
         pulled_messages: list[ReceivedMessage],
@@ -150,6 +183,7 @@ class PubSubPullSensor(BaseSensorOperator):
     ):
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
+
         This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.
 
         :param pulled_messages: messages received from the topic.

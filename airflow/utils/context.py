@@ -31,6 +31,7 @@ from typing import (
     KeysView,
     Mapping,
     MutableMapping,
+    SupportsIndex,
     ValuesView,
 )
 
@@ -186,7 +187,7 @@ class Context(MutableMapping[str, Any]):
     def __repr__(self) -> str:
         return repr(self._context)
 
-    def __reduce_ex__(self, protocol: int) -> tuple[Any, ...]:
+    def __reduce_ex__(self, protocol: SupportsIndex) -> tuple[Any, ...]:
         """Pickle the context as a dict.
 
         We are intentionally going through ``__getitem__`` in this function,

@@ -25,9 +25,9 @@ from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import unquote, urlsplit
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from airflow.providers.google.cloud.links.cloud_build import (
@@ -43,6 +43,8 @@ from airflow.utils import yaml
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 
@@ -176,7 +178,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: float = 4.0,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         location: str = "global",
         **kwargs,
     ) -> None:
@@ -746,8 +748,7 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
 
 class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
     """
-    Creates a new build based on the specified build. This method creates a new build
-    using the original build request, which may or may not result in an identical build.
+    Creates a new build using the original build request, which may or may not result in an identical build.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -998,6 +999,7 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
 class BuildProcessor:
     """
     Processes build configurations to add additional functionality to support the use of operators.
+
     The following improvements are made:
     * It is required to provide the source and only one type can be given,
     * It is possible to provide the source as the URL address instead dict.
@@ -1044,7 +1046,7 @@ class BuildProcessor:
 
     def process_body(self) -> Build:
         """
-        Processes the body passed in the constructor
+        Processes the body passed in the constructor.
 
         :return: the body.
         """
@@ -1056,7 +1058,7 @@ class BuildProcessor:
     @staticmethod
     def _convert_repo_url_to_dict(source: str) -> dict[str, Any]:
         """
-        Convert url to repository in Google Cloud Source to a format supported by the API
+        Convert url to repository in Google Cloud Source to a format supported by the API.
 
         Example valid input:
 
@@ -1090,7 +1092,7 @@ class BuildProcessor:
     @staticmethod
     def _convert_storage_url_to_dict(storage_url: str) -> dict[str, Any]:
         """
-        Convert url to object in Google Cloud Storage to a format supported by the API
+        Convert url to object in Google Cloud Storage to a format supported by the API.
 
         Example valid input:
 

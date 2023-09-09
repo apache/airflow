@@ -20,6 +20,7 @@ import os
 
 import click
 
+from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.utils.common_options import option_answer
 from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
@@ -148,10 +149,9 @@ def create_constraints(version_branch):
             )
 
 
-@click.command(
+@release_management.command(
     name="create-minor-branch",
     help="Create a new version branch and update the default branches in main",
-    hidden=True,
 )
 @click.option("--version-branch", help="The version branch you want to create e.g 2-4", required=True)
 @option_answer
@@ -173,7 +173,7 @@ def create_minor_version_branch(version_branch):
     create_branch(version_branch)
     # Build ci image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.7"], dry_run_override=DRY_RUN, check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.8"], dry_run_override=DRY_RUN, check=True)
     # Update default branches
     update_default_branch(version_branch)
     # Commit changes

@@ -15,16 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing secrets from AWS Secrets Manager"""
+"""Objects relating to sourcing secrets from AWS Secrets Manager."""
 from __future__ import annotations
 
 import json
 import re
 import warnings
+from functools import cached_property
 from typing import Any
 from urllib.parse import unquote
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
@@ -33,7 +33,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection or Variables from AWS Secrets Manager
+    Retrieves Connection or Variables from AWS Secrets Manager.
 
     Configurable via ``airflow.cfg`` like so:
 
@@ -178,7 +178,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     @cached_property
     def client(self):
-        """Create a Secrets Manager client"""
+        """Create a Secrets Manager client."""
         from airflow.providers.amazon.aws.hooks.base_aws import SessionFactory
         from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 
@@ -198,7 +198,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         return session.client(service_name="secretsmanager", **client_kwargs)
 
     def _standardize_secret_keys(self, secret: dict[str, Any]) -> dict[str, Any]:
-        """Standardize the names of the keys in the dict. These keys align with"""
+        """Standardize the names of the keys in the dict. These keys align with."""
         possible_words_for_conn_fields = {
             "login": ["login", "user", "username", "user_name"],
             "password": ["password", "pass", "key"],
@@ -217,15 +217,12 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         conn_d: dict[str, Any] = {}
         for conn_field, possible_words in possible_words_for_conn_fields.items():
-            try:
-                conn_d[conn_field] = [v for k, v in secret.items() if k in possible_words][0]
-            except IndexError:
-                conn_d[conn_field] = None
+            conn_d[conn_field] = next((v for k, v in secret.items() if k in possible_words), None)
 
         return conn_d
 
     def _remove_escaping_in_secret_dict(self, secret: dict[str, Any]) -> dict[str, Any]:
-        """Un-escape secret values that are URL-encoded"""
+        """Un-escape secret values that are URL-encoded."""
         for k, v in secret.copy().items():
             if k == "extra" and isinstance(v, dict):
                 # The old behavior was that extras were _not_ urlencoded inside the secret.
@@ -239,7 +236,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_conn_value(self, conn_id: str) -> str | None:
         """
-        Get serialized representation of Connection
+        Get serialized representation of Connection.
 
         :param conn_id: connection id
         """
@@ -270,7 +267,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_variable(self, key: str) -> str | None:
         """
-        Get Airflow Variable
+        Get Airflow Variable.
+
         :param key: Variable Key
         :return: Variable Value
         """
@@ -281,7 +279,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_config(self, key: str) -> str | None:
         """
-        Get Airflow Configuration
+        Get Airflow Configuration.
+
         :param key: Configuration Option Key
         :return: Configuration Option Value
         """
@@ -292,7 +291,8 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def _get_secret(self, path_prefix, secret_id: str, lookup_pattern: str | None) -> str | None:
         """
-        Get secret value from Secrets Manager
+        Get secret value from Secrets Manager.
+
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
         :param lookup_pattern: If provided, `secret_id` must match this pattern to look up the secret in

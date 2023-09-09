@@ -32,10 +32,10 @@ DEFAULT_TARGET_PARTITION_SIZE = 5000000
 
 
 class HiveToDruidOperator(BaseOperator):
-    """
-    Moves data from Hive to Druid, [del]note that for now the data is loaded
-    into memory before being pushed to Druid, so this operator should
-    be used for smallish amount of data.[/del]
+    """Moves data from Hive to Druid.
+
+    [del]note that for now the data is loaded into memory before being pushed to
+    Druid, so this operator should be used for smallish amount of data.[/del]
 
     :param sql: SQL query to execute against the Druid database. (templated)
     :param druid_datasource: the datasource you want to ingest into in druid
@@ -154,7 +154,7 @@ class HiveToDruidOperator(BaseOperator):
 
     def construct_ingest_query(self, static_path: str, columns: list[str]) -> dict[str, Any]:
         """
-        Builds an ingest query for an HDFS TSV load.
+        Build an ingest query for an HDFS TSV load.
 
         :param static_path: The path on hdfs where the data is
         :param columns: List of all the columns that are available

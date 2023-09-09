@@ -29,7 +29,7 @@ from airflow.utils.module_loading import import_string
 
 
 class AwaitMessageTrigger(BaseTrigger):
-    """A trigger that waits for a message matching specific criteria to arrive in Kafka
+    """A trigger that waits for a message matching specific criteria to arrive in Kafka.
 
     The behavior of the consumer of this trigger is as follows:
     - poll the Kafka topics for a message, if no message returned, sleep
@@ -49,7 +49,7 @@ class AwaitMessageTrigger(BaseTrigger):
         defaults to None
     :param poll_timeout: How long the Kafka client should wait before returning from a poll request to
         Kafka (seconds), defaults to 1
-    :param poll_interval: How long the the trigger should sleep after reaching the end of the Kafka log
+    :param poll_interval: How long the trigger should sleep after reaching the end of the Kafka log
         (seconds), defaults to 5
 
     """
@@ -113,6 +113,7 @@ class AwaitMessageTrigger(BaseTrigger):
                 if rv:
                     await async_commit(asynchronous=False)
                     yield TriggerEvent(rv)
+                    break
                 else:
                     await async_commit(asynchronous=False)
                     await asyncio.sleep(self.poll_interval)

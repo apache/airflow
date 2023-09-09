@@ -57,51 +57,50 @@ class PigCliHook(BaseHook):
 
     def run_cli(self, pig: str, pig_opts: str | None = None, verbose: bool = True) -> Any:
         """
-        Run a pig script using the pig cli
+        Run a pig script using the pig cli.
 
         >>> ph = PigCliHook()
         >>> result = ph.run_cli("ls /;", pig_opts="-x mapreduce")
         >>> ("hdfs://" in result)
         True
         """
-        with TemporaryDirectory(prefix="airflow_pigop_") as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir) as f:
-                f.write(pig.encode("utf-8"))
-                f.flush()
-                fname = f.name
-                pig_bin = "pig"
-                cmd_extra: list[str] = []
+        with TemporaryDirectory(prefix="airflow_pigop_") as tmp_dir, NamedTemporaryFile(dir=tmp_dir) as f:
+            f.write(pig.encode("utf-8"))
+            f.flush()
+            fname = f.name
+            pig_bin = "pig"
+            cmd_extra: list[str] = []
 
-                pig_cmd = [pig_bin]
+            pig_cmd = [pig_bin]
 
-                if self.pig_properties:
-                    pig_cmd.extend(self.pig_properties)
-                if pig_opts:
-                    pig_opts_list = pig_opts.split()
-                    pig_cmd.extend(pig_opts_list)
+            if self.pig_properties:
+                pig_cmd.extend(self.pig_properties)
+            if pig_opts:
+                pig_opts_list = pig_opts.split()
+                pig_cmd.extend(pig_opts_list)
 
-                pig_cmd.extend(["-f", fname] + cmd_extra)
+            pig_cmd.extend(["-f", fname, *cmd_extra])
 
+            if verbose:
+                self.log.info("%s", " ".join(pig_cmd))
+            sub_process: Any = subprocess.Popen(
+                pig_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=tmp_dir, close_fds=True
+            )
+            self.sub_process = sub_process
+            stdout = ""
+            for line in iter(sub_process.stdout.readline, b""):
+                stdout += line.decode("utf-8")
                 if verbose:
-                    self.log.info("%s", " ".join(pig_cmd))
-                sub_process: Any = subprocess.Popen(
-                    pig_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, cwd=tmp_dir, close_fds=True
-                )
-                self.sub_process = sub_process
-                stdout = ""
-                for line in iter(sub_process.stdout.readline, b""):
-                    stdout += line.decode("utf-8")
-                    if verbose:
-                        self.log.info(line.strip())
-                sub_process.wait()
+                    self.log.info(line.strip())
+            sub_process.wait()
 
-                if sub_process.returncode:
-                    raise AirflowException(stdout)
+            if sub_process.returncode:
+                raise AirflowException(stdout)
 
-                return stdout
+            return stdout
 
     def kill(self) -> None:
-        """Kill Pig job"""
+        """Kill Pig job."""
         if self.sub_process:
             if self.sub_process.poll() is None:
                 self.log.info("Killing the Pig job")

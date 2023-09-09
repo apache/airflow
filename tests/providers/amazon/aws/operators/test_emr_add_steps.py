@@ -25,11 +25,12 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
+from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.utils import timezone
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
@@ -240,7 +241,40 @@ class TestEmrAddStepsOperator:
             job_flow_id=job_flow_id,
             steps=[],
             wait_for_completion=False,
-            waiter_delay=None,
-            waiter_max_attempts=None,
+            waiter_delay=30,
+            waiter_max_attempts=60,
             execution_role_arn=None,
         )
+
+    def test_wait_for_completion_false_with_deferrable(self):
+        job_flow_id = "j-8989898989"
+        operator = EmrAddStepsOperator(
+            task_id="test_task",
+            job_flow_id=job_flow_id,
+            aws_conn_id="aws_default",
+            dag=DAG("test_dag_id", default_args=self.args),
+            wait_for_completion=True,
+            deferrable=True,
+        )
+
+        assert operator.wait_for_completion is False
+
+    @patch("airflow.providers.amazon.aws.operators.emr.get_log_uri")
+    @patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.add_job_flow_steps")
+    def test_emr_add_steps_deferrable(self, mock_add_job_flow_steps, mock_get_log_uri):
+        mock_add_job_flow_steps.return_value = "test_step_id"
+        mock_get_log_uri.return_value = "test/log/uri"
+        job_flow_id = "j-8989898989"
+        operator = EmrAddStepsOperator(
+            task_id="test_task",
+            job_flow_id=job_flow_id,
+            aws_conn_id="aws_default",
+            dag=DAG("test_dag_id", default_args=self.args),
+            wait_for_completion=True,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(self.mock_context)
+
+        assert isinstance(exc.value.trigger, EmrAddStepsTrigger), "Trigger is not a EmrAddStepsTrigger"

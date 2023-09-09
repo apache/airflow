@@ -22,7 +22,7 @@ from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, B
 
 
 class CloudWatchEventsLink(BaseAwsLink):
-    """Helper class for constructing AWS CloudWatch Events Link"""
+    """Helper class for constructing AWS CloudWatch Events Link."""
 
     name = "CloudWatch Events"
     key = "cloudwatch_events"

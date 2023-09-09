@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.utils.context import Context
 
 PUBSUB_BASE_LINK = "/cloudpubsub"
@@ -32,7 +32,7 @@ PUBSUB_SUBSCRIPTION_LINK = PUBSUB_BASE_LINK + "/subscription/detail/{subscriptio
 
 
 class PubSubTopicLink(BaseGoogleLink):
-    """Helper class for constructing Pub/Sub Topic Link"""
+    """Helper class for constructing Pub/Sub Topic Link."""
 
     name = "Pub/Sub Topic"
     key = "pubsub_topic"
@@ -53,7 +53,7 @@ class PubSubTopicLink(BaseGoogleLink):
 
 
 class PubSubSubscriptionLink(BaseGoogleLink):
-    """Helper class for constructing Pub/Sub Subscription Link"""
+    """Helper class for constructing Pub/Sub Subscription Link."""
 
     name = "Pub/Sub Subscription"
     key = "pubsub_subscription"

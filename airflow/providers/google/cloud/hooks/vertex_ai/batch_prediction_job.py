@@ -17,7 +17,7 @@
 # under the License.
 """This module contains a Google Cloud Vertex AI hook.
 
-.. spelling::
+.. spelling:word-list::
 
     jsonl
     codepoints
@@ -26,18 +26,20 @@
 """
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.aiplatform import BatchPredictionJob, Model, explain
 from google.cloud.aiplatform_v1 import JobServiceClient
-from google.cloud.aiplatform_v1.services.job_service.pagers import ListBatchPredictionJobsPager
 
 from airflow import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1.services.job_service.pagers import ListBatchPredictionJobsPager
 
 
 class BatchPredictionJobHook(GoogleBaseHook):
@@ -85,7 +87,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         return obj["name"].rpartition("/")[-1]
 
     def cancel_batch_prediction_job(self) -> None:
-        """Cancel BatchPredictionJob"""
+        """Cancel BatchPredictionJob."""
         if self._batch_prediction_job:
             self._batch_prediction_job.cancel()
 
@@ -291,7 +293,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> BatchPredictionJob:
         """
-        Gets a BatchPredictionJob
+        Gets a BatchPredictionJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

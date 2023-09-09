@@ -46,7 +46,7 @@ class RedisPublishOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         """
-        Publish the message to Redis channel
+        Publish the message to Redis channel.
 
         :param context: the context object
         """

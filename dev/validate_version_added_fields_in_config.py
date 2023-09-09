@@ -83,7 +83,7 @@ def parse_config_template_old_format(config_content: str) -> set[tuple[str, str,
     }
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def fetch_config_options_for_version(version_str: str) -> set[tuple[str, str]]:
     r = requests.get(
         f"https://raw.githubusercontent.com/apache/airflow/{version_str}/airflow/config_templates/config.yml"
@@ -114,9 +114,8 @@ for new_section, old_section, version_before_renaming in RENAMED_SECTIONS:
     computed_option_new_section.update(options)
 
 # 1. Prepare versions to checks
-airflow_version = fetch_pypi_versions()
-airflow_version = sorted(airflow_version, key=semver.VersionInfo.parse)
-to_check_versions: list[str] = [d for d in airflow_version if d.startswith("2.")]
+to_check_versions: list[str] = [d for d in fetch_pypi_versions() if d.startswith("2.")]
+to_check_versions.sort(key=semver.VersionInfo.parse)
 
 # 2. Compute expected options set with version added fields
 expected_computed_options: set[tuple[str, str, str]] = set()

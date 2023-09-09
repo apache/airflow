@@ -145,7 +145,7 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 
 * <BRANCH> might be either "main" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor).Should be one of ["3.7", "3.8", "3.9"].
+* <X.Y> - Python version (Major + Minor).Should be one of ["3.8", "3.9", "3.10", "3.11"].
 * <COMMIT_SHA> - full-length SHA of commit either from the tip of the branch (for pushes/schedule) or
   commit from the tip of the branch used for the PR.
 
@@ -177,7 +177,7 @@ The variables are automatically set in GitHub actions
 The Variables beginning with ``GITHUB_`` cannot be overridden in GitHub Actions by the workflow.
 Those variables are set by GitHub Actions automatically and they are immutable. Therefore if
 you want to override them in your own CI workflow and use ``breeze``, you need to pass the
-values by corresponding ``breeze`` flags ``--github-repository``, ``--github-username``,
+values by corresponding ``breeze`` flags ``--github-repository``,
 ``--github-token`` rather than by setting them as environment variables in your workflow.
 Unless you want to keep your own copy of constraints in orphaned ``constraints-*``
 branches, the ``CONSTRAINTS_GITHUB_REPOSITORY`` should remain ``apache/airflow``, regardless in which
@@ -523,9 +523,9 @@ For example knowing that the CI job was for commit ``cd27124534b46c9688a1d89e75f
 
 .. code-block:: bash
 
-  docker pull ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker pull ghcr.io/apache/airflow/main/ci/python3.8:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
-  docker run -it ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker run -it ghcr.io/apache/airflow/main/ci/python3.8:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
 
 But you usually need to pass more variables and complex setup if you want to connect to a database or

@@ -28,14 +28,16 @@ import packaging.version
 
 __all__ = ["__version__"]
 
-__version__ = "8.1.0"
+__version__ = "8.7.0"
 
 try:
     from airflow import __version__ as airflow_version
 except ImportError:
     from airflow.version import version as airflow_version
 
-if packaging.version.parse(airflow_version) < packaging.version.parse("2.4.0"):
+if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
+    "2.4.0"
+):
     raise RuntimeError(
         f"The package `apache-airflow-providers-amazon:{__version__}` requires Apache Airflow 2.4.0+"  # NOQA: E501
     )

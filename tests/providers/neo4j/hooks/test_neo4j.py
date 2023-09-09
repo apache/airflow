@@ -135,7 +135,7 @@ class TestNeo4jHookConn:
             neo4j_hook = Neo4jHook()
             with neo4j_hook.get_conn():
                 if should_provide_encrypted:
-                    assert "encrypted" in mock_graph_database.call_args[1]
-                    assert mock_graph_database.call_args[1]["encrypted"] == expected_encrypted
+                    assert "encrypted" in mock_graph_database.call_args.kwargs
+                    assert mock_graph_database.call_args.kwargs["encrypted"] == expected_encrypted
                 else:
-                    assert "encrypted" not in mock_graph_database.call_args[1]
+                    assert "encrypted" not in mock_graph_database.call_args.kwargs

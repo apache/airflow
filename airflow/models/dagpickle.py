@@ -32,14 +32,13 @@ if TYPE_CHECKING:
 
 class DagPickle(Base):
     """
-    Dags can originate from different places (user repos, main repo, ...)
-    and also get executed in different places (different executors). This
-    object represents a version of a DAG and becomes a source of truth for
-    a BackfillJob execution. A pickle is a native python serialized object,
+    Represents a version of a DAG and becomes a source of truth for a BackfillJob execution.
+
+    Dags can originate from different places (user repos, main repo, ...) and also get executed
+    in different places (different executors).  A pickle is a native python serialized object,
     and in this case gets stored in the database for the duration of the job.
 
-    The executors pick up the DagPickle id and read the dag definition from
-    the database.
+    The executors pick up the DagPickle id and read the dag definition from the database.
     """
 
     id = Column(Integer, primary_key=True)

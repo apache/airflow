@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
@@ -25,15 +26,13 @@ from airflow.providers.amazon.aws.utils import trim_none_values
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.sensors.base import BaseSensorOperator
 
 
 class LambdaFunctionStateSensor(BaseSensorOperator):
     """
-    Asks for the state of the Lambda until it reaches a target state.
-    If the query fails, the task will fail.
+    Poll the state of the Lambda until it reaches a target state; fails if the query fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

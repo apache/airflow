@@ -27,6 +27,7 @@ from unittest import mock
 
 import dateutil
 import pytest
+from google.api_core.exceptions import GoogleAPICallError
 
 # dynamic storage type in google.cloud needs to be type-ignored
 from google.cloud import exceptions, storage  # type: ignore[attr-defined]
@@ -45,6 +46,8 @@ GCS_STRING = "airflow.providers.google.cloud.hooks.gcs.{}"
 
 EMPTY_CONTENT = b""
 PROJECT_ID_TEST = "project-id"
+GCP_CONN_ID = "google_cloud_default"
+GCS_FILE_URI = "gs://bucket/file"
 
 
 @pytest.fixture(scope="module")
@@ -84,6 +87,41 @@ class TestGCSHookHelperFunctions:
 
         # bucket only
         assert gcs._parse_gcs_url("gs://bucket/") == ("bucket", "")
+
+    @pytest.mark.parametrize(
+        "json_value, parsed_value",
+        [
+            ("[1, 2, 3]", [1, 2, 3]),
+            ('"string value"', "string value"),
+            ('{"key1": [1], "key2": {"subkey": 2}}', {"key1": [1], "key2": {"subkey": 2}}),
+        ],
+    )
+    @mock.patch(GCS_STRING.format("GCSHook"))
+    @mock.patch(GCS_STRING.format("NamedTemporaryFile"))
+    def test_parse_json_from_gcs(self, temp_file, gcs_hook, json_value, parsed_value):
+        temp_file.return_value.__enter__.return_value.read.return_value = json_value
+        assert gcs.parse_json_from_gcs(gcp_conn_id=GCP_CONN_ID, file_uri=GCS_FILE_URI) == parsed_value
+
+    @mock.patch(GCS_STRING.format("GCSHook"))
+    def test_parse_json_from_gcs_fail_download(self, gsc_hook):
+        gsc_hook.return_value.download.return_value.side_effect = GoogleAPICallError
+        with pytest.raises(AirflowException):
+            gcs.parse_json_from_gcs(gcp_conn_id=GCP_CONN_ID, file_uri=GCS_FILE_URI)
+
+    @mock.patch(GCS_STRING.format("GCSHook"))
+    @mock.patch(GCS_STRING.format("NamedTemporaryFile"))
+    def test_parse_json_from_gcs_fail_read_file(self, temp_file, gcs_hook):
+        for exception_class in (ValueError, OSError, RuntimeError):
+            temp_file.return_value.__enter__.return_value.read.side_effect = exception_class
+            with pytest.raises(AirflowException):
+                gcs.parse_json_from_gcs(gcp_conn_id=GCP_CONN_ID, file_uri=GCS_FILE_URI)
+
+    @mock.patch(GCS_STRING.format("GCSHook"))
+    @mock.patch(GCS_STRING.format("NamedTemporaryFile"))
+    def test_parse_json_from_gcs_fail_json_loads(self, temp_file, gcs_hook):
+        temp_file.return_value.__enter__.return_value.read.return_value = "Invalid json"
+        with pytest.raises(AirflowException):
+            gcs.parse_json_from_gcs(gcp_conn_id=GCP_CONN_ID, file_uri=GCS_FILE_URI)
 
 
 class TestFallbackObjectUrlToObjectNameAndBucketName:
@@ -273,10 +311,11 @@ class TestGCSHook:
         test_object = "test_object"
 
         # Given
-        # fmt: off
-        mock_service.return_value.bucket.return_value.get_blob \
-            .return_value.updated = timezone.utcnow() + timedelta(days=2)
-        # fmt: on
+
+        mock_service.return_value.bucket.return_value.get_blob.return_value.updated = (
+            timezone.utcnow() + timedelta(days=2)
+        )
+
         # When
         response = self.gcs_hook.is_older_than(
             bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
@@ -332,10 +371,7 @@ class TestGCSHook:
 
         assert str(ctx.value) == (
             "Either source/destination bucket or source/destination object must be different, "
-            "not both the same: bucket={}, object={}"
-        ).format(
-            source_bucket,
-            source_object,
+            f"not both the same: bucket={source_bucket}, object={source_object}"
         )
 
     def test_copy_empty_source_bucket(self):
@@ -465,7 +501,7 @@ class TestGCSHook:
 
         self.gcs_hook.delete_bucket(bucket_name=test_bucket)
 
-        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -476,7 +512,7 @@ class TestGCSHook:
         test_bucket = "test bucket"
         with caplog.at_level(logging.INFO):
             self.gcs_hook.delete_bucket(bucket_name=test_bucket)
-        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
         assert "Bucket test bucket not exist" in caplog.text
 
@@ -746,7 +782,7 @@ class TestGCSHook:
             fhandle.write()
 
         mock_upload.assert_called_once_with(
-            bucket_name=test_bucket, object_name=test_object, filename=test_file
+            bucket_name=test_bucket, object_name=test_object, filename=test_file, user_project=None
         )
         mock_temp_file.assert_has_calls(
             [
@@ -779,14 +815,66 @@ class TestGCSHook:
         ),
     )
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
-    def test_list(self, mock_service, prefix, result):
+    def test_list__delimiter(self, mock_service, prefix, result):
         mock_service.return_value.bucket.return_value.list_blobs.return_value.next_page_token = None
+        with pytest.deprecated_call():
+            self.gcs_hook.list(
+                bucket_name="test_bucket",
+                prefix=prefix,
+                delimiter=",",
+            )
+        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    @mock.patch("airflow.providers.google.cloud.hooks.gcs.functools")
+    @mock.patch("google.cloud.storage.bucket._item_to_blob")
+    @mock.patch("google.cloud.storage.bucket._blobs_page_start")
+    @mock.patch("google.api_core.page_iterator.HTTPIterator")
+    def test_list__match_glob(
+        self, http_iterator, _blobs_page_start, _item_to_blob, mocked_functools, mock_service
+    ):
+        http_iterator.return_value.next_page_token = None
         self.gcs_hook.list(
             bucket_name="test_bucket",
-            prefix=prefix,
-            delimiter=",",
+            prefix="prefix",
+            match_glob="**/*.json",
         )
-        assert mock_service.return_value.bucket.return_value.list_blobs.call_args_list == result
+        http_iterator.assert_has_calls(
+            [
+                mock.call(
+                    api_request=mocked_functools.partial.return_value,
+                    client=mock_service.return_value,
+                    extra_params={"prefix": "prefix", "matchGlob": "**/*.json"},
+                    item_to_value=_item_to_blob,
+                    max_results=None,
+                    page_start=_blobs_page_start,
+                    page_token=None,
+                    path=mock_service.return_value.bucket.return_value.path.__add__.return_value,
+                )
+            ]
+        )
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_list__error_match_glob_and_invalid_delimiter(self, _):
+        with pytest.raises(AirflowException):
+            self.gcs_hook.list(
+                bucket_name="test_bucket",
+                prefix="prefix",
+                delimiter=",",
+                match_glob="**/*.json",
+            )
+
+    @pytest.mark.parametrize("delimiter", [None, "", "/"])
+    @mock.patch("google.api_core.page_iterator.HTTPIterator")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_list__error_match_glob_and_valid_delimiter(self, mock_service, http_iterator, delimiter):
+        http_iterator.return_value.next_page_token = None
+        self.gcs_hook.list(
+            bucket_name="test_bucket",
+            prefix="prefix",
+            delimiter="/",
+            match_glob="**/*.json",
+        )
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_list_by_timespans(self, mock_service):
@@ -845,6 +933,19 @@ class TestGCSHookUpload:
         )
 
         assert metadata == blob_object.return_value.metadata
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_upload_cache_control(self, mock_service, testdata_file):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+        cache_control = "public, max-age=3600"
+
+        bucket_mock = mock_service.return_value.bucket
+        blob_object = bucket_mock.return_value.blob
+
+        self.gcs_hook.upload(test_bucket, test_object, filename=testdata_file, cache_control=cache_control)
+
+        assert cache_control == blob_object.return_value.cache_control
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_upload_file_gzip(self, mock_service, testdata_file):

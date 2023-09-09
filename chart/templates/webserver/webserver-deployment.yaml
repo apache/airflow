@@ -25,11 +25,15 @@
 {{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.webserver.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.webserver.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.webserver) }}
-kind: Deployment
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.webserver) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.webserver) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.webserver.waitForMigrations) }}
+{{- $containerLifecycleHooks := or .Values.webserver.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksWaitForMigrations := or .Values.webserver.waitForMigrations.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-webserver
+  name: {{ include "airflow.fullname" . }}-webserver
   labels:
     tier: airflow
     component: webserver
@@ -103,6 +107,9 @@ spec:
       {{- if .Values.webserver.priorityClassName }}
       priorityClassName: {{ .Values.webserver.priorityClassName }}
       {{- end }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
         {{- if $affinity }}
@@ -131,13 +138,17 @@ spec:
           resources: {{- toYaml .Values.webserver.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
+          {{- if $containerLifecycleHooksWaitForMigrations }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksWaitForMigrations) . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.webserver.extraVolumeMounts }}
-              {{- toYaml .Values.webserver.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.webserver.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -152,7 +163,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.webserver.extraInitContainers }}
           {{- toYaml .Values.webserver.extraInitContainers | nindent 8 }}
@@ -161,6 +172,10 @@ spec:
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ or $containerSecurityContext .Values.webserver.securityContexts.container .Values.securityContexts.container | nindent 12 }}
+          {{- if $containerLifecycleHooks  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.webserver.command }}
           command: {{ tpl (toYaml .Values.webserver.command) . | nindent 12 }}
           {{- end }}
@@ -223,6 +238,19 @@ spec:
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold }}
             periodSeconds: {{ .Values.webserver.readinessProbe.periodSeconds }}
+          startupProbe:
+            httpGet:
+              path: {{ if .Values.config.webserver.base_url }}{{- with urlParse (tpl .Values.config.webserver.base_url .) }}{{ .path }}{{ end }}{{ end }}/health
+              port: {{ .Values.ports.airflowUI }}
+              {{- if .Values.config.webserver.base_url}}
+              httpHeaders:
+                - name: Host
+                  value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
+              {{- end }}
+              scheme: {{ .Values.webserver.startupProbe.scheme | default "http" }}
+            timeoutSeconds: {{ .Values.webserver.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.webserver.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values.webserver.startupProbe.periodSeconds }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
             {{- include "custom_airflow_environment" . | indent 10 }}

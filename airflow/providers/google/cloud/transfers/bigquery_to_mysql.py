@@ -28,8 +28,7 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
     """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
-    and insert that data into a MySQL table.
+    Fetch data from a BigQuery table (alternatively fetch selected columns) and insert it into a MySQL table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -41,10 +40,7 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     """
 
-    template_fields: Sequence[str] = tuple(BigQueryToSqlBaseOperator.template_fields) + (
-        "dataset_id",
-        "table_id",
-    )
+    template_fields: Sequence[str] = (*BigQueryToSqlBaseOperator.template_fields, "dataset_id", "table_id")
 
     def __init__(
         self,

@@ -21,8 +21,308 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-amazon``
+
 Changelog
 ---------
+
+8.7.0
+.....
+
+.. warning:: A bug introduced in version 8.0.0 caused all ``EcsRunTaskOperator`` tasks to detach from the ECS task
+  and fail after 10 minutes, even if the ECS task was still running.
+  In this version we are fixing it by returning the default ``waiter_max_attempts`` value to ``sys.maxsize``.
+
+Features
+~~~~~~~~
+
+* ``Add Amazon SQS Notifier (#33962)``
+* ``Add Amazon SNS Notifier (#33828)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Increase 'waiter_max_attempts' default value in 'EcsRunTaskOperator' (#33712)``
+* ``Fix AWS 'EmrStepSensor' ignoring the specified 'aws_conn_id' in deferred mode  (#33952)``
+* ``Fix type annotation in AppflowHook (#33881)``
+* ``Make Amazon Chime connection lazy loaded and consistent with docs (#34000)``
+* ``respect "soft_fail" argument when running BatchSensor in deferrable mode (#33405)``
+
+Misc
+~~~~
+
+ * ``Refactor: Consolidate import and usage of random (#34108)``
+ * ``Consolidate importing of os.path.* (#34060)``
+ * ``Refactor regex in providers (#33898)``
+ * ``Refactor: Simplify loop in aws/triggers/batch.py (#34052)``
+ * ``Combine similar if logics in providers (#33987)``
+ * ``Replace single quotes by double quotes in tests (#33864)``
+ * ``Remove useless string join from providers (#33968)``
+ * ``Make 'aws.session_factory' part of Amazon provider configuration documentation (#33960)``
+ * ``Refactor unneeded  jumps in providers (#33833)``
+ * ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+ * ``Remove some useless try/except from providers code (#33967)``
+ * ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+ * ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+ * ``Reorganize devel_only extra in airflow's setup.py (#33907)``
+ * ``Remove explicit str concat from Airflow providers package and tests (#33860)``
+ * ``Improve modules import in AWS provider by move some of them into a type-checking block (#33780)``
+ * ``Always use 'Literal' from 'typing_extensions' (#33794)``
+ * ``Use literal dict instead of calling dict() in providers (#33761)``
+ * ``remove unnecessary and rewrite it using list in providers (#33763)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add decorator for suppress optional internal methods in Amazon Provider (#34034)``
+
+8.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added Amazon SageMaker Notebook hook and operators (#33219)``
+* ``Add 'deferrable' option to 'LambdaCreateFunctionOperator' (#33327)``
+* ``Add Deferrable mode to GlueCatalogPartitionSensor (#33239)``
+* ``Add 'sql_hook_params' parameter to 'S3ToSqlOperator' (#33427)``
+* ``Add 'sql_hook_params' parameter to 'SqlToS3Operator' (#33425)``
+* ``Add parameter to pass role ARN to 'GlueJobOperator ' (#33408)``
+* ``Add new RdsStartExportTaskOperator parameters (#33251)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bug in task logs when using AWS CloudWatch. Do not set 'start_time' (#33673)``
+* ``Fix AWS Batch waiter failure state (#33656)``
+* ``Fix AWS appflow waiter (#33613)``
+* ``Fix striping tags when falling back to update in 'SageMakerEndpointOperator' (#33487)``
+
+
+Misc
+~~~~
+
+* ``Simplify conditions on len() in providers/amazon (#33565)``
+* ``Remove non-public interface usage in EcsRunTaskOperator (#29447)``
+* ``Upgrade botocore/aiobotocore minimum requirements (#33649)``
+* ``Consolidate import and usage of itertools (#33479)``
+* ``Consolidate import and usage of pandas (#33480)``
+* ``always push ECS task ARN to xcom in 'EcsRunTaskOperator' (#33703)``
+* ``Use 'boto3.client' linked to resource meta instead of create new one for waiters (#33552)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add Appflow system test + improvements (#33614)``
+   * ``Fix typos (double words and it's/its) (#33623)``
+   * ``Refactor: Remove useless str() calls (#33629)``
+   * ``Replace strftime with f-strings where nicer (#33455)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+8.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Get failure information on EMR job failure (#32151)``
+* ``Fix get_log_events() in AWS logs hook (#33290)``
+
+Misc
+~~~~
+
+* ``Improve fetching logs from AWS (#33231)``
+* ``Refactor: Simplify code in providers/amazon (#33222)``
+* ``Implement EventBridge enable and disable rule operators (#33226)``
+* ``Update mypy-boto3-appflow dependency (#32930)``
+* ``use 'cached_property' from functools in 'RdsBaseOperator' (#33133)``
+* ``Use set for 'template_fields' of 'EcsDeregisterTaskDefinitionOperator' (#33129)``
+
+8.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, sagemaker: add OpenLineage support for SageMaker's Processing, Transform and Training operators (#31816)``
+* ``Add Amazon EventBridge PutRule hook and operator (#32869)``
+* ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Check google provider version in GCSToS3Operator before provide match_glob param (#32925)``
+* ``Set longer default 'waiter_max_attempts' for deferred BatchJobOperator (#33045)``
+
+Misc
+~~~~
+
+* ``openlineage, sagemaker: add missing OpenLineage type signature (#33114)``
+* ``Add S3Bucket for mypy (#33028)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deferrable mode for Sqs Sensor (#32809)``
+   * ``Increase the number of attempts in AWS system test 'example_rds_export' (#32976)``
+
+8.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add endpoint_url in test_connection (#32664)``
+* ``Add support for querying Redshift Serverless clusters (#32785)``
+* ``Add Deferrable mode to StepFunctionStartExecutionOperator (#32563)``
+* ``Add Deferrable mode for EMR Serverless Start Job Operator (#32534)``
+* ``Add Eventbridge PutEvents operator and hook (#32498)``
+* ``add deferrable mode to rds start & stop DB (#32437)``
+* ``EMR serverless Create/Start/Stop/Delete Application deferrable mode (#32513)``
+* ``Make Start and Stop SageMaker Pipelines operators deferrable (#32683)``
+* ``Deferrable mode for EKS Create/Delete Operator (#32355)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX AWS deferrable operators by using AioCredentials when using 'assume_role' (#32733)``
+* ``[bugfix] fix AWS triggers where deserialization would crash if region was not specified (#32729)``
+* ``Fix bug in prune_dict where empty dict and list would be removed even in strict mode (#32573)``
+* ``Fix S3ToRedshiftOperator does not support default values on UPSERT (#32558)``
+* ``Do not return success from AWS ECS trigger after max_attempts (#32589)``
+
+Misc
+~~~~
+
+* ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+* ``Limit Appflow mypy to 1.28.12 as it introduces strange typing issue (#32901)``
+* ``Further limit mypy-boto3-appflow as the fix is not in sight (#32927)``
+
+8.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Append region info to S3ToRedshitOperator if present (#32328)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'ChimeWebhookHook' (#31939)``
+* ``Add 'ChimeNotifier' (#32222)``
+* ``Add deferrable mode to S3KeysUnchangedSensor (#31940)``
+* ``Add deferrable mode to 'RdsCreateDbInstanceOperator' and 'RdsDeleteDbInstanceOperator' (#32171)``
+* ``Add deferrable mode for 'AthenaOperator' (#32186)``
+* ``Add a deferrable mode to 'BatchCreateComputeEnvironmentOperator' (#32036)``
+* ``Add deferrable mode in EMR operator and sensor (#32029)``
+* ``add async wait method to the "with logging" aws utils (#32055)``
+* ``Add custom waiters to EMR Serverless  (#30463)``
+* ``Add an option to 'GlueJobOperator' to stop the job run when the TI is killed (#32155)``
+* ``deferrable mode for 'SageMakerTuningOperator' and 'SageMakerEndpointOperator' (#32112)``
+* ``EKS Create/Delete Nodegroup Deferrable mode (#32165)``
+* ``Deferrable mode for ECS operators (#31881)``
+* ``feature: AWS - GlueJobOperator - job_poll_interval (#32147)``
+* ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
+* ``Introduce a base class for aws triggers (#32274)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bugfix: break down run+wait method in ECS operator (#32104)``
+* ``Handle 'UnboundLocalError' while parsing invalid 's3_url' (#32120)``
+* ``Fix 'LambdaInvokeFunctionOperator' payload parameter type (#32259)``
+* ``Bug fix GCSToS3Operator: avoid 'ValueError' when 'replace=False' with files already in S3 (#32322)``
+
+Misc
+~~~~
+
+* ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
+* ``aws waiter util: log status info with error level on waiter error (#32247)``
+* ``rewrite method used in ecs to fetch less logs (#31786)``
+* ``Refactor Eks Create Cluster Operator code (#31960)``
+* ``Use a waiter in 'AthenaHook' (#31942)``
+* ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+* ``Add default_deferrable config (#31712)``
+* ``deprecate arbitrary parameter passing to RDS hook (#32352)``
+* ``quick fix on RDS operator to prevent parameter collision (#32436)``
+* ``Remove ability to specify arbitrary hook params in AWS RDS trigger (#32386)``
+* ``Only update crawler tags if present in config dict (#32331)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "add deferrable mode for 'AthenaOperator' (#32110)" (#32172)``
+   * ``add deferrable mode for 'AthenaOperator' (#32110)``
+   * ``D205 Support - Auto-fixes and Stragglers (#32212)``
+   * ``D205 Support - Providers: Amazon/AWS (#32224)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Minor name change for the util wait method. (#32152)``
+   * ``Clean up string concatenation (#32129)``
+   * ``cleanup Amazon CHANGELOG.rst (#32031)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Stragglers and new additions (#32447)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+
+8.2.0
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+
+Features
+~~~~~~~~
+
+* ``Add deferrable option to EmrTerminateJobFlowOperator (#31646)``
+* ``Add Deferrable option to EmrCreateJobFlowOperator (#31641)``
+* ``Add deferrable mode to 'BatchSensor'  (#30279)``
+* ``Add deferrable mode for S3KeySensor (#31018)``
+* ``Add Deferrable mode to Emr Add Steps operator (#30928)``
+* ``Add deferrable mode in Redshift delete cluster (#30244)``
+* ``Add deferrable mode to AWS glue operators (Job & Crawl) (#30948)``
+* ``Add deferrable param in BatchOperator (#30865)``
+* ``Add Deferrable Mode to RedshiftCreateClusterSnapshotOperator (#30856)``
+* ``Deferrable mode for EksCreateFargateProfileOperator and EksDeleteFargateProfileOperator (#31657)``
+* ``allow anonymous AWS access (#31659)``
+* ``Support of wildcard in S3ListOperator and S3ToGCSOperator (#31640)``
+* ``Add 'deferrable' param in 'EmrContainerSensor' (#30945)``
+* ``Add realtime container execution logs for BatchOperator (#31837)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Various fixes on ECS run task operator (#31838)``
+* ``fix return values on glue operators deferrable mode (#31694)``
+* ``Add back missing AsyncIterator import (#31710)``
+* ``Use a continuation token to get logs in ecs (#31824)``
+* ``Fetch status in while loop so as to not exit too early (#31804)``
+* ``[AWS hook] use provided client to get the official waiter on fallback (#31748)``
+* ``handle missing LogUri in emr 'describe_cluster' API response (#31482)``
+
+Misc
+~~~~
+
+* ``Add Python 3.11 support (#27264)``
+* ``Added config template field to EmrServerlessStartJobOperator (#31746)``
+* ``Add null check for host in Amazon Redshift connection (#31567)``
+* ``add workgroup to templated fields (#31574)``
+* ``Add docstring and signature for _read_remote_logs (#31623)``
+* ``Deprecate 'wait_for_completion' from 'EcsRegisterTaskDefinitionOperator' and 'EcsDeregisterTaskDefinitionOperator' (#31884)``
+* ``Remove Python 3.7 support (#30963)``
+* ``Change Deferrable implementation for RedshiftResumeClusterOperator to follow standard (#30864)``
+* ``Change Deferrable implementation for RedshiftPauseClusterOperator to follow standard (#30853)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check (#31742)``
+   * ``Add D400 pydocstyle check - Amazon provider only (#31423)``
+   * ``AWS system test example_dynamodb_to_s3: add retry when fecthing the export time (#31388)``
+   * ``Amazon provider docstring improvements (#31729)``
+   * ``Replace spelling directive with spelling:word-list (#31752)``
+   * ``Remove aws unused code (#31610)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
 
 8.1.0
 .....

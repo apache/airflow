@@ -30,9 +30,9 @@ _JOB_NAMESPACE = conf.get("openlineage", "namespace", fallback=os.getenv("OPENLI
 
 def lineage_run_id(task_instance: TaskInstance):
     """
-    Macro function which returns the generated run id for a given task. This
-    can be used to forward the run id from a task to a child run so the job
-    hierarchy is preserved.
+    Macro function which returns the generated run id for a given task.
+
+    This can be used to forward the run id from a task to a child run so the job hierarchy is preserved.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -45,8 +45,9 @@ def lineage_run_id(task_instance: TaskInstance):
 
 def lineage_parent_id(run_id: str, task_instance: TaskInstance):
     """
-    Macro function which returns the generated job and run id for a given task. This
-    can be used to forward the ids from a task to a child run so the job
+    Macro function which returns the generated job and run id for a given task.
+
+    This can be used to forward the ids from a task to a child run so the job
     hierarchy is preserved. Child run can create ParentRunFacet from those ids.
 
     .. seealso::

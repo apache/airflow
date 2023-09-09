@@ -225,6 +225,7 @@ function generate(file) {
 
   fs.writeFileSync(file, finalText, (err) => {
     if (err) {
+      // eslint-disable-next-line no-console
       console.error(err);
     }
   });

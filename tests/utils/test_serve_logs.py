@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import jwt
 import pytest
 import time_machine
 
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.serve_logs import create_app
 from tests.test_utils.config import conf_vars
@@ -34,18 +36,46 @@ LOG_DATA = "Airflow log data" * 20
 
 
 @pytest.fixture
-def client(tmpdir):
-    with conf_vars({("logging", "base_log_folder"): str(tmpdir)}):
+def client_without_config(tmp_path):
+    with conf_vars({("logging", "base_log_folder"): tmp_path.as_posix()}):
         app = create_app()
 
         yield app.test_client()
 
 
 @pytest.fixture
-def sample_log(tmpdir):
-    f = tmpdir / "sample.log"
-    f.write(LOG_DATA.encode())
+def client_with_config():
+    with conf_vars(
+        {
+            (
+                "logging",
+                "logging_config_class",
+            ): "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
+        }
+    ):
+        app = create_app()
 
+        yield app.test_client()
+
+
+@pytest.fixture(params=["client_without_config", "client_with_config"])
+def client(request):
+    return request.getfixturevalue(request.param)
+
+
+@pytest.fixture
+def sample_log(request, tmp_path):
+    client = request.getfixturevalue("client")
+
+    if client == request.getfixturevalue("client_without_config"):
+        base_log_dir = tmp_path
+    elif client == request.getfixturevalue("client_with_config"):
+        base_log_dir = Path(DEFAULT_LOGGING_CONFIG["handlers"]["task"]["base_log_folder"])
+    else:
+        raise ValueError(f"Unknown client fixture: {client}")
+
+    f = base_log_dir.joinpath("sample.log")
+    f.write_text(LOG_DATA)
     return f
 
 

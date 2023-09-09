@@ -18,12 +18,17 @@
 """Pool APIs."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from deprecated import deprecated
-from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models import Pool
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 @deprecated(reason="Use Pool.get_pool() instead", version="2.2.4")
@@ -33,7 +38,7 @@ def get_pool(name, session: Session = NEW_SESSION):
     if not (name and name.strip()):
         raise AirflowBadRequest("Pool name shouldn't be empty")
 
-    pool = session.query(Pool).filter_by(pool=name).first()
+    pool = session.scalar(select(Pool).filter_by(pool=name).limit(1))
     if pool is None:
         raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
@@ -44,7 +49,7 @@ def get_pool(name, session: Session = NEW_SESSION):
 @provide_session
 def get_pools(session: Session = NEW_SESSION):
     """Get all pools."""
-    return session.query(Pool).all()
+    return session.scalars(select(Pool)).all()
 
 
 @deprecated(reason="Use Pool.create_pool() instead", version="2.2.4")
@@ -65,9 +70,9 @@ def create_pool(name, slots, description, session: Session = NEW_SESSION):
         raise AirflowBadRequest(f"Pool name can't be more than {pool_name_length} characters")
 
     session.expire_on_commit = False
-    pool = session.query(Pool).filter_by(pool=name).first()
+    pool = session.scalar(select(Pool).filter_by(pool=name).limit(1))
     if pool is None:
-        pool = Pool(pool=name, slots=slots, description=description)
+        pool = Pool(pool=name, slots=slots, description=description, include_deferred=False)
         session.add(pool)
     else:
         pool.slots = slots
@@ -88,7 +93,7 @@ def delete_pool(name, session: Session = NEW_SESSION):
     if name == Pool.DEFAULT_POOL_NAME:
         raise AirflowBadRequest(f"{Pool.DEFAULT_POOL_NAME} cannot be deleted")
 
-    pool = session.query(Pool).filter_by(pool=name).first()
+    pool = session.scalar(select(Pool).filter_by(pool=name).limit(1))
     if pool is None:
         raise PoolNotFound(f"Pool '{name}' doesn't exist")
 

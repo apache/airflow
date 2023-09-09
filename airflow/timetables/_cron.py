@@ -17,17 +17,19 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
-from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
 from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
 
 
 def _is_schedule_fixed(expression: str) -> bool:
@@ -65,10 +67,10 @@ class CronMixin:
             # as Croniter has inconsistent evaluation with other libraries
             if len(croniter(self._expression).expanded) > 5:
                 raise FormatException()
-            interval_description = descriptor.get_description()
+            interval_description: str = descriptor.get_description()
         except (CroniterBadCronError, FormatException, MissingFieldException):
             interval_description = ""
-        self.description = interval_description
+        self.description: str = interval_description
 
     def __eq__(self, other: Any) -> bool:
         """Both expression and timezone should match.

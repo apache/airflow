@@ -19,16 +19,25 @@
 ``apache-airflow-providers-opsgenie``
 =====================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
     Operators <operators/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -36,11 +45,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/opsgenie/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -52,6 +63,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -64,7 +76,7 @@ Package apache-airflow-providers-opsgenie
 `Opsgenie <https://www.opsgenie.com/>`__
 
 
-Release: 5.1.0
+Release: 5.1.1
 
 Provider package
 ----------------
@@ -90,5 +102,3 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.4.0``
 ``opsgenie-sdk``    ``>=2.1.5``
 ==================  ==================
-
-.. include:: ../../airflow/providers/opsgenie/CHANGELOG.rst

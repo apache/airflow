@@ -18,52 +18,47 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
-from airflow.triggers.base import TriggerEvent
-from tests.providers.amazon.aws.utils.compat import AsyncMock, async_mock
+from airflow.providers.amazon.aws.triggers.batch import (
+    BatchCreateComputeEnvironmentTrigger,
+    BatchJobTrigger,
+)
 
 BATCH_JOB_ID = "job_id"
 POLL_INTERVAL = 5
 MAX_ATTEMPT = 5
 AWS_CONN_ID = "aws_batch_job_conn"
 AWS_REGION = "us-east-2"
+pytest.importorskip("aiobotocore")
 
 
-class TestBatchOperatorTrigger:
-    def test_batch_operator_trigger_serialize(self):
-        batch_trigger = BatchOperatorTrigger(
-            job_id=BATCH_JOB_ID,
-            poll_interval=POLL_INTERVAL,
-            max_retries=MAX_ATTEMPT,
-            aws_conn_id=AWS_CONN_ID,
-            region_name=AWS_REGION,
-        )
-        class_path, args = batch_trigger.serialize()
-        assert class_path == "airflow.providers.amazon.aws.triggers.batch.BatchOperatorTrigger"
-        assert args["job_id"] == BATCH_JOB_ID
-        assert args["poll_interval"] == POLL_INTERVAL
-        assert args["max_retries"] == MAX_ATTEMPT
-        assert args["aws_conn_id"] == AWS_CONN_ID
-        assert args["region_name"] == AWS_REGION
+class TestBatchTrigger:
+    @pytest.mark.parametrize(
+        "trigger",
+        [
+            BatchJobTrigger(
+                job_id=BATCH_JOB_ID,
+                waiter_delay=POLL_INTERVAL,
+                waiter_max_attempts=MAX_ATTEMPT,
+                aws_conn_id=AWS_CONN_ID,
+                region_name=AWS_REGION,
+            ),
+            BatchCreateComputeEnvironmentTrigger(
+                compute_env_arn="my_arn",
+                waiter_delay=POLL_INTERVAL,
+                waiter_max_attempts=MAX_ATTEMPT,
+                aws_conn_id=AWS_CONN_ID,
+                region_name=AWS_REGION,
+            ),
+        ],
+    )
+    def test_serialize_recreate(self, trigger):
+        class_path, args = trigger.serialize()
 
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_waiter")
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.async_conn")
-    async def test_batch_job_trigger_run(self, mock_async_conn, mock_get_waiter):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        class_name = class_path.split(".")[-1]
+        clazz = globals()[class_name]
+        instance = clazz(**args)
 
-        mock_get_waiter().wait = AsyncMock()
+        class_path2, args2 = instance.serialize()
 
-        batch_trigger = BatchOperatorTrigger(
-            job_id=BATCH_JOB_ID,
-            poll_interval=POLL_INTERVAL,
-            max_retries=MAX_ATTEMPT,
-            aws_conn_id=AWS_CONN_ID,
-            region_name=AWS_REGION,
-        )
-
-        generator = batch_trigger.run()
-        response = await generator.asend(None)
-
-        assert response == TriggerEvent({"status": "success", "job_id": BATCH_JOB_ID})
+        assert class_path == class_path2
+        assert args == args2

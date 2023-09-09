@@ -18,15 +18,12 @@
 """Marks tasks APIs."""
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Iterable, Iterator, NamedTuple
 
-from sqlalchemy import or_
-from sqlalchemy.orm import Session as SASession, lazyload
+from sqlalchemy import or_, select
+from sqlalchemy.orm import lazyload
 
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.operator import Operator
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
@@ -34,6 +31,14 @@ from airflow.utils.helpers import exactly_one
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session as SASession
+
+    from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
 
 
 class _DagRunInfo(NamedTuple):
@@ -62,16 +67,15 @@ def _create_dagruns(
     }
 
     for info in infos:
-        if info.logical_date in dag_runs:
-            continue
-        dag_runs[info.logical_date] = dag.create_dagrun(
-            execution_date=info.logical_date,
-            data_interval=info.data_interval,
-            start_date=timezone.utcnow(),
-            external_trigger=False,
-            state=state,
-            run_type=run_type,
-        )
+        if info.logical_date not in dag_runs:
+            dag_runs[info.logical_date] = dag.create_dagrun(
+                execution_date=info.logical_date,
+                data_interval=info.data_interval,
+                start_date=timezone.utcnow(),
+                external_trigger=False,
+                state=state,
+                run_type=run_type,
+            )
     return dag_runs.values()
 
 
@@ -148,22 +152,22 @@ def set_state(
     qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
 
     if commit:
-        tis_altered = qry_dag.with_for_update().all()
+        tis_altered = session.scalars(qry_dag.with_for_update()).all()
         if sub_dag_run_ids:
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-            tis_altered += qry_sub_dag.with_for_update().all()
+            tis_altered += session.scalars(qry_sub_dag.with_for_update()).all()
         for task_instance in tis_altered:
             # The try_number was decremented when setting to up_for_reschedule and deferred.
             # Increment it back when changing the state again
-            if task_instance.state in [State.DEFERRED, State.UP_FOR_RESCHEDULE]:
+            if task_instance.state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
                 task_instance._try_number += 1
             task_instance.set_state(state, session=session)
         session.flush()
     else:
-        tis_altered = qry_dag.all()
+        tis_altered = session.scalars(qry_dag).all()
         if sub_dag_run_ids:
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-            tis_altered += qry_sub_dag.all()
+            tis_altered += session.scalars(qry_sub_dag).all()
     return tis_altered
 
 
@@ -175,9 +179,9 @@ def all_subdag_tasks_query(
 ):
     """Get *all* tasks of the sub dags."""
     qry_sub_dag = (
-        session.query(TaskInstance)
-        .filter(TaskInstance.dag_id.in_(sub_dag_run_ids), TaskInstance.execution_date.in_(confirmed_dates))
-        .filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
+        select(TaskInstance)
+        .where(TaskInstance.dag_id.in_(sub_dag_run_ids), TaskInstance.execution_date.in_(confirmed_dates))
+        .where(or_(TaskInstance.state.is_(None), TaskInstance.state != state))
     )
     return qry_sub_dag
 
@@ -190,13 +194,13 @@ def get_all_dag_task_query(
     run_ids: Iterable[str],
 ):
     """Get all tasks of the main dag that will be affected by a state change."""
-    qry_dag = session.query(TaskInstance).filter(
+    qry_dag = select(TaskInstance).where(
         TaskInstance.dag_id == dag.dag_id,
         TaskInstance.run_id.in_(run_ids),
         TaskInstance.ti_selector_condition(task_ids),
     )
 
-    qry_dag = qry_dag.filter(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(
+    qry_dag = qry_dag.where(or_(TaskInstance.state.is_(None), TaskInstance.state != state)).options(
         lazyload(TaskInstance.dag_run)
     )
     return qry_dag
@@ -305,7 +309,7 @@ def get_execution_dates(
     else:
         start_date = execution_date
     start_date = execution_date if not past else start_date
-    if not dag.timetable.can_run:
+    if not dag.timetable.can_be_scheduled:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
@@ -324,11 +328,8 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     """Return DAG executions' run_ids."""
     last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
     current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
-    first_dagrun = (
-        session.query(DagRun)
-        .filter(DagRun.dag_id == dag.dag_id)
-        .order_by(DagRun.execution_date.asc())
-        .first()
+    first_dagrun = session.scalar(
+        select(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.execution_date.asc()).limit(1)
     )
 
     if last_dagrun is None:
@@ -337,7 +338,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     # determine run_id range of dag runs and tasks to consider
     end_date = last_dagrun.logical_date if future else current_dagrun.logical_date
     start_date = current_dagrun.logical_date if not past else first_dagrun.logical_date
-    if not dag.timetable.can_run:
+    if not dag.timetable.can_be_scheduled:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date, session=session)
@@ -361,9 +362,11 @@ def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SA
     :param state: target state
     :param session: database session
     """
-    dag_run = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == run_id).one()
+    dag_run = session.execute(
+        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+    ).scalar_one()
     dag_run.state = state
-    if state == State.RUNNING:
+    if state == DagRunState.RUNNING:
         dag_run.start_date = timezone.utcnow()
         dag_run.end_date = None
     else:
@@ -416,7 +419,13 @@ def set_dag_run_state_to_success(
     # Mark all task instances of the dag run to success.
     for task in dag.tasks:
         task.dag = dag
-    return set_state(tasks=dag.tasks, run_id=run_id, state=State.SUCCESS, commit=commit, session=session)
+    return set_state(
+        tasks=dag.tasks,
+        run_id=run_id,
+        state=TaskInstanceState.SUCCESS,
+        commit=commit,
+        session=session,
+    )
 
 
 @provide_session
@@ -462,37 +471,52 @@ def set_dag_run_state_to_failed(
     if commit:
         _set_dag_run_state(dag.dag_id, run_id, DagRunState.FAILED, session)
 
+    running_states = (
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+    )
+
     # Mark only RUNNING task instances.
     task_ids = [task.task_id for task in dag.tasks]
-    tis = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag.dag_id,
-        TaskInstance.run_id == run_id,
-        TaskInstance.task_id.in_(task_ids),
-        TaskInstance.state.in_([State.RUNNING, State.DEFERRED, State.UP_FOR_RESCHEDULE]),
+    tis = session.scalars(
+        select(TaskInstance).where(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.task_id.in_(task_ids),
+            TaskInstance.state.in_(running_states),
+        )
     )
+
     task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
 
     tasks = []
     for task in dag.tasks:
-        if task.task_id not in task_ids_of_running_tis:
-            continue
-        task.dag = dag
-        tasks.append(task)
+        if task.task_id in task_ids_of_running_tis:
+            task.dag = dag
+            tasks.append(task)
 
     # Mark non-finished tasks as SKIPPED.
-    tis = session.query(TaskInstance).filter(
-        TaskInstance.dag_id == dag.dag_id,
-        TaskInstance.run_id == run_id,
-        TaskInstance.state.not_in(State.finished),
-        TaskInstance.state.not_in([State.RUNNING, State.DEFERRED, State.UP_FOR_RESCHEDULE]),
-    )
+    tis = session.scalars(
+        select(TaskInstance).filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.run_id == run_id,
+            TaskInstance.state.not_in(State.finished),
+            TaskInstance.state.not_in(running_states),
+        )
+    ).all()
 
-    tis = [ti for ti in tis]
     if commit:
         for ti in tis:
-            ti.set_state(State.SKIPPED)
+            ti.set_state(TaskInstanceState.SKIPPED)
 
-    return tis + set_state(tasks=tasks, run_id=run_id, state=State.FAILED, commit=commit, session=session)
+    return tis + set_state(
+        tasks=tasks,
+        run_id=run_id,
+        state=TaskInstanceState.FAILED,
+        commit=commit,
+        session=session,
+    )
 
 
 def __set_dag_run_state_to_running_or_queued(

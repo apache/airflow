@@ -35,6 +35,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+FOLDER_ID = os.environ.get("GCP_GDRIVE_FOLDER_ID", "abcd1234")
 
 DAG_ID = "example_gcs_to_gdrive"
 
@@ -81,6 +82,16 @@ with models.DAG(
         destination_object=f"copied_tmp/copied_{FILE_NAME}",
     )
     # [END howto_operator_gcs_to_gdrive_copy_single_file]
+
+    # [START howto_operator_gcs_to_gdrive_copy_single_file_into_folder]
+    copy_single_file_into_folder = GCSToGoogleDriveOperator(
+        task_id="copy_single_file_into_folder",
+        source_bucket=BUCKET_NAME,
+        source_object=f"{TMP_PATH}/{FILE_NAME}",
+        destination_object=f"copied_tmp/copied_{FILE_NAME}",
+        destination_folder_id=FOLDER_ID,
+    )
+    # [END howto_operator_gcs_to_gdrive_copy_single_file_into_folder]
 
     # [START howto_operator_gcs_to_gdrive_copy_files]
     copy_files = GCSToGoogleDriveOperator(

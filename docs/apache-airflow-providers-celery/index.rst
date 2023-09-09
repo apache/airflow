@@ -19,13 +19,23 @@
 ``apache-airflow-providers-celery``
 ===================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
+    CLI <cli-ref>
     Python API <_api/airflow/providers/celery/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-celery/>
     Installing from sources <installing-providers-from-sources>
@@ -34,6 +44,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -46,7 +57,7 @@ Package apache-airflow-providers-celery
 `Celery <http://www.celeryproject.org/>`__
 
 
-Release: 3.2.0
+Release: 3.3.4
 
 Provider package
 ----------------
@@ -66,12 +77,39 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
 
-==================  ==================
+==================  ==============================
 PIP package         Version required
-==================  ==================
+==================  ==============================
 ``apache-airflow``  ``>=2.4.0``
-``celery``          ``>=5.2.3,<6``
+``celery``          ``>=5.3.0,<6,!=5.3.3,!=5.3.2``
 ``flower``          ``>=1.0.0``
-==================  ==================
+``google-re2``      ``>=1.0``
+==================  ==============================
 
-.. include:: ../../airflow/providers/celery/CHANGELOG.rst
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider packages in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-celery[cncf.kubernetes]
+
+
+======================================================================================================================  ===================
+Dependent package                                                                                                       Extra
+======================================================================================================================  ===================
+`apache-airflow-providers-cncf-kubernetes <https://airflow.apache.org/docs/apache-airflow-providers-cncf-kubernetes>`_  ``cncf.kubernetes``
+======================================================================================================================  ===================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-celery 3.3.4 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.3.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.3.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-celery-3.3.4.tar.gz.sha512>`__)
+* `The apache-airflow-providers-celery 3.3.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.3.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.3.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_celery-3.3.4-py3-none-any.whl.sha512>`__)

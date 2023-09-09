@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import json
-import sys
 from copy import deepcopy
+from unittest import mock
 from unittest.mock import PropertyMock
 
 import httplib2
@@ -35,11 +35,6 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,
 )
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 pytest.mlengine_hook = MLEngineAsyncHook()
 pytest.PROJECT_ID = "test-project"
@@ -75,23 +70,12 @@ class TestMLEngineHook:
         operation_path = f"projects/{project_id}/operations/test-operation"
         model_path = f"projects/{project_id}/models/{model_name}"
         operation_done = {"name": operation_path, "done": True}
-        # fmt: off
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value.
-            create.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value.create.return_value.execute.return_value
         ) = version
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            operations.return_value.
-            get.return_value.
-            execute.return_value
-        ) = {'name': operation_path, 'done': True}
-        # fmt: on
+            mock_get_conn.return_value.projects.return_value.operations.return_value.get.return_value.execute.return_value
+        ) = {"name": operation_path, "done": True}
         create_version_response = self.hook.create_version(
             project_id=project_id, model_name=model_name, version_spec=deepcopy(version)
         )
@@ -124,29 +108,17 @@ class TestMLEngineHook:
         operation_path = f"projects/{project_id}/operations/test-operation"
         model_path = f"projects/{project_id}/models/{model_name}"
         operation_done = {"name": operation_path, "done": True}
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value.
-            create.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value.create.return_value.execute.return_value
         ) = version
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            operations.return_value.
-            get.return_value.
-            execute.return_value
-        ) = {'name': operation_path, 'done': True}
+            mock_get_conn.return_value.projects.return_value.operations.return_value.get.return_value.execute.return_value
+        ) = {"name": operation_path, "done": True}
 
         create_version_response = self.hook.create_version(
-            project_id=project_id,
-            model_name=model_name,
-            version_spec=deepcopy(version)
+            project_id=project_id, model_name=model_name, version_spec=deepcopy(version)
         )
-        # fmt: on
 
         assert create_version_response == operation_done
 
@@ -171,16 +143,11 @@ class TestMLEngineHook:
         operation_path = f"projects/{project_id}/operations/test-operation"
         version_path = f"projects/{project_id}/models/{model_name}/versions/{version_name}"
         operation_done = {"name": operation_path, "done": True}
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value.
-            setDefault.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value.setDefault.return_value.execute.return_value
         ) = operation_done
-        # fmt: on
+
         set_default_version_response = self.hook.set_default_version(
             project_id=project_id, model_name=model_name, version_name=version_name
         )
@@ -211,17 +178,13 @@ class TestMLEngineHook:
         versions_mock = mock.Mock(
             **{"list.return_value": pages_requests[0], "list_next.side_effect": pages_requests[1:] + [None]}
         )
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value
         ) = versions_mock
 
-        list_versions_response = self.hook.list_versions(
-            project_id=project_id, model_name=model_name)
-        # fmt: on
+        list_versions_response = self.hook.list_versions(project_id=project_id, model_name=model_name)
+
         assert list_versions_response == version_names
         mock_get_conn.assert_has_calls(
             [
@@ -249,24 +212,15 @@ class TestMLEngineHook:
         version = {"name": operation_path}
         operation_not_done = {"name": operation_path, "done": False}
         operation_done = {"name": operation_path, "done": True}
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            operations.return_value.
-            get.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.operations.return_value.get.return_value.execute.side_effect
         ) = [operation_not_done, operation_done]
 
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value.
-            delete.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value.delete.return_value.execute.return_value
         ) = version
-        # fmt: on
+
         delete_version_response = self.hook.delete_version(
             project_id=project_id, model_name=model_name, version_name=version_name
         )
@@ -294,15 +248,11 @@ class TestMLEngineHook:
             "labels": {"airflow-version": hook._AIRFLOW_VERSION},
         }
         project_path = f"projects/{project_id}"
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            create.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.create.return_value.execute.return_value
         ) = model
-        # fmt: on
+
         create_model_response = self.hook.create_model(project_id=project_id, model=deepcopy(model))
 
         assert create_model_response == model
@@ -325,13 +275,9 @@ class TestMLEngineHook:
             "labels": {"airflow-version": hook._AIRFLOW_VERSION},
         }
         project_path = f"projects/{project_id}"
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            create.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.models.return_value.create.return_value.execute.side_effect
         ) = [
             HttpError(
                 resp=httplib2.Response({"status": 409}),
@@ -347,7 +293,7 @@ class TestMLEngineHook:
                                     "fieldViolations": [
                                         {
                                             "field": "model.name",
-                                            "description": "A model with the same name already exists."
+                                            "description": "A model with the same name already exists.",
                                         }
                                     ],
                                 }
@@ -359,13 +305,9 @@ class TestMLEngineHook:
         ]
 
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            get.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.get.return_value.execute.return_value
         ) = deepcopy(model)
-        # fmt: on
+
         create_model_response = self.hook.create_model(project_id=project_id, model=deepcopy(model))
 
         assert create_model_response == model
@@ -392,19 +334,13 @@ class TestMLEngineHook:
             "labels": {"other-label": "test-value", "airflow-version": hook._AIRFLOW_VERSION},
         }
         project_path = f"projects/{project_id}"
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            create.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.create.return_value.execute.return_value
         ) = model
 
-        create_model_response = self.hook.create_model(
-            project_id=project_id, model=deepcopy(model)
-        )
-        # fmt: on
+        create_model_response = self.hook.create_model(project_id=project_id, model=deepcopy(model))
+
         assert create_model_response == model
         mock_get_conn.assert_has_calls(
             [
@@ -419,15 +355,11 @@ class TestMLEngineHook:
         model_name = "test-model"
         model = {"model": model_name}
         model_path = f"projects/{project_id}/models/{model_name}"
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            get.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.get.return_value.execute.return_value
         ) = model
-        # fmt: on
+
         get_model_response = self.hook.get_model(project_id=project_id, model_name=model_name)
 
         assert get_model_response == model
@@ -444,15 +376,11 @@ class TestMLEngineHook:
         model_name = "test-model"
         model = {"model": model_name}
         model_path = f"projects/{project_id}/models/{model_name}"
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            delete.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.delete.return_value.execute.return_value
         ) = model
-        # fmt: on
+
         self.hook.delete_model(project_id=project_id, model_name=model_name)
 
         mock_get_conn.assert_has_calls(
@@ -471,15 +399,11 @@ class TestMLEngineHook:
         http_error = HttpError(
             resp=mock.MagicMock(status=404, reason="Model not found."), content=b"Model not found."
         )
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            delete.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.models.return_value.delete.return_value.execute.side_effect
         ) = [http_error]
-        # fmt: on
+
         self.hook.delete_model(project_id=project_id, model_name=model_name)
 
         mock_get_conn.assert_has_calls(
@@ -506,30 +430,17 @@ class TestMLEngineHook:
             }
             for i, version_name in enumerate(version_names)
         ]
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            operations.return_value.
-            get.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.operations.return_value.get.return_value.execute.return_value
         ) = operation_done
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value.
-            list.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value.list.return_value.execute.return_value
         ) = {"versions": versions}
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value.
-            list_next.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value.list_next.return_value
         ) = None
-        # fmt: on
+
         self.hook.delete_model(project_id=project_id, model_name=model_name, delete_contents=True)
 
         mock_get_conn.assert_has_calls(
@@ -575,22 +486,14 @@ class TestMLEngineHook:
             "jobId": job_id,
             "state": "QUEUED",
         }
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            create.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.create.return_value.execute.return_value
         ) = job_queued
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            get.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.get.return_value.execute.side_effect
         ) = [job_queued, job_succeeded]
-        # fmt: on
+
         create_job_response = self.hook.create_job(project_id=project_id, job=deepcopy(new_job))
 
         assert create_job_response == job_succeeded
@@ -625,26 +528,16 @@ class TestMLEngineHook:
             "jobId": job_id,
             "state": "QUEUED",
         }
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            create.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.create.return_value.execute.return_value
         ) = job_queued
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            get.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.get.return_value.execute.side_effect
         ) = [job_queued, job_succeeded]
 
-        create_job_response = self.hook.create_job(
-            project_id=project_id, job=deepcopy(new_job)
-        )
-        # fmt: on
+        create_job_response = self.hook.create_job(project_id=project_id, job=deepcopy(new_job))
+
         assert create_job_response == job_succeeded
         mock_get_conn.assert_has_calls(
             [
@@ -667,22 +560,14 @@ class TestMLEngineHook:
             "state": "SUCCEEDED",
         }
         error_job_exists = HttpError(resp=mock.MagicMock(status=409), content=b"Job already exists")
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            create.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.create.return_value.execute.side_effect
         ) = error_job_exists
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            get.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.get.return_value.execute.return_value
         ) = job_succeeded
-        # fmt: on
+
         create_job_response = self.hook.create_job(project_id=project_id, job=job_succeeded)
 
         assert create_job_response == job_succeeded
@@ -714,23 +599,13 @@ class TestMLEngineHook:
         }
         error_job_exists = HttpError(resp=mock.MagicMock(status=409), content=b"Job already exists")
 
-        # fmt: off
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            create.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.create.return_value.execute.side_effect
         ) = error_job_exists
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            get.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.get.return_value.execute.return_value
         ) = different_job
 
-        # fmt: on
         def check_input(existing_job):
             return existing_job.get("someInput") == my_job["someInput"]
 
@@ -748,23 +623,14 @@ class TestMLEngineHook:
             "someInput": {"input": "someInput"},
         }
         error_job_exists = HttpError(resp=mock.MagicMock(status=409), content=b"Job already exists")
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            create.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.create.return_value.execute.side_effect
         ) = error_job_exists
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            get.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.get.return_value.execute.return_value
         ) = my_job
 
-        # fmt: on
         def check_input(existing_job):
             return existing_job.get("someInput") == my_job["someInput"]
 
@@ -781,15 +647,11 @@ class TestMLEngineHook:
         job_path = f"projects/{project_id}/jobs/{job_id}"
 
         job_cancelled = {}
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            cancel.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.cancel.return_value.execute.return_value
         ) = job_cancelled
-        # fmt: on
+
         cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=project_id)
 
         assert cancel_job_response == job_cancelled
@@ -808,22 +670,14 @@ class TestMLEngineHook:
         job_cancelled = {}
 
         error_job_does_not_exist = HttpError(resp=mock.MagicMock(status=404), content=b"Job does not exist")
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            cancel.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.cancel.return_value.execute.side_effect
         ) = error_job_does_not_exist
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            cancel.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.cancel.return_value.execute.return_value
         ) = job_cancelled
-        # fmt: on
+
         with pytest.raises(HttpError):
             self.hook.cancel_job(job_id=job_id, project_id=project_id)
 
@@ -837,22 +691,14 @@ class TestMLEngineHook:
         error_job_already_completed = HttpError(
             resp=mock.MagicMock(status=400), content=b"Job already completed"
         )
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            cancel.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.cancel.return_value.execute.side_effect
         ) = error_job_already_completed
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            cancel.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.cancel.return_value.execute.return_value
         ) = job_cancelled
-        # fmt: on
+
         cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=project_id)
 
         assert cancel_job_response == job_cancelled
@@ -886,23 +732,14 @@ class TestMLEngineHookWithDefaultProjectId:
         operation_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation"
         model_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}"
         operation_done = {"name": operation_path, "done": True}
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value.
-            create.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value.create.return_value.execute.return_value
         ) = version
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            operations.return_value.
-            get.return_value.
-            execute.return_value
-        ) = {'name': operation_path, 'done': True}
-        # fmt: on
+            mock_get_conn.return_value.projects.return_value.operations.return_value.get.return_value.execute.return_value
+        ) = {"name": operation_path, "done": True}
+
         create_version_response = self.hook.create_version(
             model_name=model_name, version_spec=version, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
         )
@@ -930,16 +767,11 @@ class TestMLEngineHookWithDefaultProjectId:
         operation_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation"
         version_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}"
         operation_done = {"name": operation_path, "done": True}
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value.
-            setDefault.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value.setDefault.return_value.execute.return_value
         ) = operation_done
-        # fmt: on
+
         set_default_version_response = self.hook.set_default_version(
             model_name=model_name,
             version_name=version_name,
@@ -975,14 +807,11 @@ class TestMLEngineHookWithDefaultProjectId:
         versions_mock = mock.Mock(
             **{"list.return_value": pages_requests[0], "list_next.side_effect": pages_requests[1:] + [None]}
         )
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value
         ) = versions_mock
-        # fmt: on
+
         list_versions_response = self.hook.list_versions(
             model_name=model_name, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
         )
@@ -1013,30 +842,21 @@ class TestMLEngineHookWithDefaultProjectId:
     def test_delete_version(self, mock_get_conn, mock_project_id):
         model_name = "test-model"
         version_name = "test-version"
-        # fmt: off
-        operation_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation'
-        version_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}'
-        version = {'name': operation_path}
-        operation_not_done = {'name': operation_path, 'done': False}
-        operation_done = {'name': operation_path, 'done': True}
+
+        operation_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation"
+        version_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}"
+        version = {"name": operation_path}
+        operation_not_done = {"name": operation_path, "done": False}
+        operation_done = {"name": operation_path, "done": True}
 
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            operations.return_value.
-            get.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.operations.return_value.get.return_value.execute.side_effect
         ) = [operation_not_done, operation_done]
 
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            versions.return_value.
-            delete.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.versions.return_value.delete.return_value.execute.return_value
         ) = version
-        # fmt: on
+
         delete_version_response = self.hook.delete_version(
             model_name=model_name, version_name=version_name, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
         )
@@ -1064,15 +884,11 @@ class TestMLEngineHookWithDefaultProjectId:
             "name": model_name,
         }
         project_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}"
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            create.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.create.return_value.execute.return_value
         ) = model
-        # fmt: on
+
         create_model_response = self.hook.create_model(model=model, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
         assert create_model_response == model
@@ -1093,15 +909,11 @@ class TestMLEngineHookWithDefaultProjectId:
         model_name = "test-model"
         model = {"model": model_name}
         model_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}"
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            get.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.get.return_value.execute.return_value
         ) = model
-        # fmt: on
+
         get_model_response = self.hook.get_model(
             model_name=model_name, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST
         )
@@ -1124,15 +936,11 @@ class TestMLEngineHookWithDefaultProjectId:
         model_name = "test-model"
         model = {"model": model_name}
         model_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}"
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            models.return_value.
-            delete.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.models.return_value.delete.return_value.execute.return_value
         ) = model
-        # fmt: on
+
         self.hook.delete_model(model_name=model_name, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
         mock_get_conn.assert_has_calls(
@@ -1165,22 +973,14 @@ class TestMLEngineHookWithDefaultProjectId:
             "jobId": job_id,
             "state": "QUEUED",
         }
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            create.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.create.return_value.execute.return_value
         ) = job_queued
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            get.return_value.
-            execute.side_effect
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.get.return_value.execute.side_effect
         ) = [job_queued, job_succeeded]
-        # fmt: on
+
         create_job_response = self.hook.create_job(job=new_job, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
         assert create_job_response == job_succeeded
@@ -1204,15 +1004,11 @@ class TestMLEngineHookWithDefaultProjectId:
         job_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/jobs/{job_id}"
 
         job_cancelled = {}
-        # fmt: off
+
         (
-            mock_get_conn.return_value.
-            projects.return_value.
-            jobs.return_value.
-            cancel.return_value.
-            execute.return_value
+            mock_get_conn.return_value.projects.return_value.jobs.return_value.cancel.return_value.execute.return_value
         ) = job_cancelled
-        # fmt: on
+
         cancel_job_response = self.hook.cancel_job(job_id=job_id, project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST)
 
         assert cancel_job_response == job_cancelled

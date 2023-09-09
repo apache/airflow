@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import functools
 import json
 import logging
 import os
-from collections import OrderedDict
 from http import HTTPStatus
 from unittest import mock
 
@@ -37,8 +37,17 @@ from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
 
+@pytest.fixture
+def aioresponse():
+    """
+    Creates mock async API response.
+    """
+    with aioresponses() as async_response:
+        yield async_response
+
+
 def get_airflow_connection(unused_conn_id=None):
-    return Connection(conn_id="http_default", conn_type="http", host="test:8080/", extra='{"bareer": "test"}')
+    return Connection(conn_id="http_default", conn_type="http", host="test:8080/", extra='{"bearer": "test"}')
 
 
 def get_airflow_connection_with_port(unused_conn_id=None):
@@ -82,11 +91,8 @@ class TestHttpHook:
         ):
             expected_url = "http://test.com:1234/some/endpoint"
             for endpoint in ["some/endpoint", "/some/endpoint"]:
-
-                try:
+                with contextlib.suppress(MissingSchema):
                     self.get_hook.run(endpoint)
-                except MissingSchema:
-                    pass
 
                 mock_request.assert_called_once_with(
                     mock.ANY, expected_url, headers=mock.ANY, params=mock.ANY
@@ -111,7 +117,7 @@ class TestHttpHook:
             expected_conn = get_airflow_connection()
             conn = self.get_hook.get_conn()
             assert dict(conn.headers, **json.loads(expected_conn.extra)) == conn.headers
-            assert conn.headers.get("bareer") == "test"
+            assert conn.headers.get("bearer") == "test"
 
     @mock.patch("requests.Request")
     def test_hook_with_method_in_lowercase(self, mock_requests):
@@ -121,24 +127,22 @@ class TestHttpHook:
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
             data = "test params"
-            try:
+            with contextlib.suppress(MissingSchema, InvalidURL):
                 self.get_lowercase_hook.run("v1/test", data=data)
-            except (MissingSchema, InvalidURL):
-                pass
             mock_requests.assert_called_once_with(mock.ANY, mock.ANY, headers=mock.ANY, params=data)
 
     def test_hook_uses_provided_header(self):
-        conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
-        assert conn.headers.get("bareer") == "newT0k3n"
+        conn = self.get_hook.get_conn(headers={"bearer": "newT0k3n"})
+        assert conn.headers.get("bearer") == "newT0k3n"
 
     def test_hook_has_no_header_from_extra(self):
         conn = self.get_hook.get_conn()
-        assert conn.headers.get("bareer") is None
+        assert conn.headers.get("bearer") is None
 
     def test_hooks_header_from_extra_is_overridden(self):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-            conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
-            assert conn.headers.get("bareer") == "newT0k3n"
+            conn = self.get_hook.get_conn(headers={"bearer": "newT0k3n"})
+            assert conn.headers.get("bearer") == "newT0k3n"
 
     def test_post_request(self, requests_mock):
         requests_mock.post(
@@ -175,7 +179,6 @@ class TestHttpHook:
 
     @mock.patch("airflow.providers.http.hooks.http.requests.Session")
     def test_retry_on_conn_error(self, mocked_session):
-
         retry_args = dict(
             wait=tenacity.wait_none(),
             stop=tenacity.stop_after_attempt(7),
@@ -192,7 +195,6 @@ class TestHttpHook:
         assert self.get_hook._retry_obj.stop.max_attempt_number + 1 == mocked_session.call_count
 
     def test_run_with_advanced_retry(self, requests_mock):
-
         requests_mock.get("http://test:8080/v1/test", status_code=200, reason="OK")
 
         retry_args = dict(
@@ -216,7 +218,7 @@ class TestHttpHook:
             with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
                 prepared_request = self.get_hook.run("v1/test", headers={"some_other_header": "test"})
                 actual = dict(prepared_request.headers)
-                assert actual.get("bareer") == "test"
+                assert actual.get("bearer") == "test"
                 assert actual.get("some_other_header") == "test"
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
@@ -286,7 +288,7 @@ class TestHttpHook:
                 mock.ANY,
                 allow_redirects=True,
                 cert=None,
-                proxies=OrderedDict(),
+                proxies={},
                 stream=False,
                 timeout=None,
                 verify=True,
@@ -298,14 +300,13 @@ class TestHttpHook:
         with mock.patch(
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
-
             self.get_hook.run("/some/endpoint")
 
             mock_session_send.assert_called_once_with(
                 mock.ANY,
                 allow_redirects=True,
                 cert=None,
-                proxies=OrderedDict(),
+                proxies={},
                 stream=False,
                 timeout=None,
                 verify="/tmp/test.crt",
@@ -317,14 +318,13 @@ class TestHttpHook:
         with mock.patch(
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ):
-
             self.get_hook.run("/some/endpoint", extra_options={"verify": True})
 
             mock_session_send.assert_called_once_with(
                 mock.ANY,
                 allow_redirects=True,
                 cert=None,
-                proxies=OrderedDict(),
+                proxies={},
                 stream=False,
                 timeout=None,
                 verify="/tmp/test.crt",
@@ -342,7 +342,7 @@ class TestHttpHook:
                 mock.ANY,
                 allow_redirects=True,
                 cert=None,
-                proxies=OrderedDict(),
+                proxies={},
                 stream=False,
                 timeout=None,
                 verify=False,
@@ -400,8 +400,6 @@ class TestHttpHook:
             hook.get_conn()
             auth.assert_not_called()
 
-
-class TestKeepAlive:
     def test_keep_alive_enabled(self):
         with mock.patch(
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
@@ -437,96 +435,93 @@ class TestKeepAlive:
             http_send.assert_called()
 
 
-send_email_test = mock.Mock()
+class TestHttpAsyncHook:
+    @pytest.mark.asyncio
+    async def test_do_api_call_async_non_retryable_error(self, aioresponse):
+        """Test api call asynchronously with non retryable error."""
+        hook = HttpAsyncHook(method="GET")
+        aioresponse.get("http://httpbin.org/non_existent_endpoint", status=400)
 
+        with pytest.raises(AirflowException, match="400:Bad Request"), mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
+        ):
+            await hook.run(endpoint="non_existent_endpoint")
 
-@pytest.fixture
-def aioresponse():
-    """
-    Creates an mock async API response.
-    This comes from a mock library specific to the aiohttp package:
-    https://github.com/pnuckowski/aioresponses
+    @pytest.mark.asyncio
+    async def test_do_api_call_async_retryable_error(self, caplog, aioresponse):
+        """Test api call asynchronously with retryable error."""
+        caplog.set_level(logging.WARNING, logger="airflow.providers.http.hooks.http")
+        hook = HttpAsyncHook(method="GET")
+        aioresponse.get("http://httpbin.org/non_existent_endpoint", status=500, repeat=True)
 
-    """
-    with aioresponses() as async_response:
-        yield async_response
+        with pytest.raises(AirflowException, match="500:Internal Server Error"), mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
+        ):
+            await hook.run(endpoint="non_existent_endpoint")
 
+        assert "[Try 3 of 3] Request to http://httpbin.org/non_existent_endpoint failed" in caplog.text
 
-@pytest.mark.asyncio
-async def test_do_api_call_async_non_retryable_error(aioresponse):
-    """Test api call asynchronously with non retryable error."""
-    hook = HttpAsyncHook(method="GET")
-    aioresponse.get("http://httpbin.org/non_existent_endpoint", status=400)
+    @pytest.mark.asyncio
+    async def test_do_api_call_async_unknown_method(self):
+        """Test api call asynchronously for unknown http method."""
+        hook = HttpAsyncHook(method="NOPE")
+        json = {"existing_cluster_id": "xxxx-xxxxxx-xxxxxx"}
 
-    with pytest.raises(AirflowException) as exc, mock.patch.dict(
-        "os.environ",
-        AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
-    ):
-        await hook.run(endpoint="non_existent_endpoint")
+        with pytest.raises(AirflowException, match="Unexpected HTTP Method: NOPE"):
+            await hook.run(endpoint="non_existent_endpoint", data=json)
 
-    assert str(exc.value) == "400:Bad Request"
+    @pytest.mark.asyncio
+    async def test_async_post_request(self, aioresponse):
+        """Test api call asynchronously for POST request."""
+        hook = HttpAsyncHook()
 
+        aioresponse.post(
+            "http://test:8080/v1/test",
+            status=200,
+            payload='{"status":{"status": 200}}',
+            reason="OK",
+        )
 
-@pytest.mark.asyncio
-async def test_do_api_call_async_retryable_error(caplog, aioresponse):
-    """Test api call asynchronously with retryable error."""
-    caplog.set_level(logging.WARNING, logger="airflow.providers.http.hooks.http")
-    hook = HttpAsyncHook(method="GET")
-    aioresponse.get("http://httpbin.org/non_existent_endpoint", status=500, repeat=True)
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            resp = await hook.run("v1/test")
+            assert resp.status == 200
 
-    with pytest.raises(AirflowException) as exc, mock.patch.dict(
-        "os.environ",
-        AIRFLOW_CONN_HTTP_DEFAULT="http://httpbin.org/",
-    ):
-        await hook.run(endpoint="non_existent_endpoint")
+    @pytest.mark.asyncio
+    async def test_async_post_request_with_error_code(self, aioresponse):
+        """Test api call asynchronously for POST request with error."""
+        hook = HttpAsyncHook()
 
-    assert str(exc.value) == "500:Internal Server Error"
-    assert "[Try 3 of 3] Request to http://httpbin.org/non_existent_endpoint failed" in caplog.text
+        aioresponse.post(
+            "http://test:8080/v1/test",
+            status=418,
+            payload='{"status":{"status": 418}}',
+            reason="I am teapot",
+        )
 
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            with pytest.raises(AirflowException):
+                await hook.run("v1/test")
 
-@pytest.mark.asyncio
-async def test_do_api_call_async_unknown_method():
-    """Test api call asynchronously for unknown method."""
-    hook = HttpAsyncHook(method="NOPE")
-    json = {
-        "existing_cluster_id": "xxxx-xxxxxx-xxxxxx",
-    }
+    @pytest.mark.asyncio
+    async def test_async_request_uses_connection_extra(self, aioresponse):
+        """Test api call asynchronously with a connection that has extra field."""
 
-    with pytest.raises(AirflowException) as exc:
-        await hook.run(endpoint="non_existent_endpoint", data=json)
+        connection_extra = {"bearer": "test"}
 
-    assert str(exc.value) == "Unexpected HTTP Method: NOPE"
+        aioresponse.post(
+            "http://test:8080/v1/test",
+            status=200,
+            payload='{"status":{"status": 200}}',
+            reason="OK",
+        )
 
-
-@pytest.mark.asyncio
-async def test_async_post_request(aioresponse):
-    """Test api call asynchronously for POST request."""
-    hook = HttpAsyncHook()
-
-    aioresponse.post(
-        "http://test:8080/v1/test",
-        status=200,
-        payload='{"status":{"status": 200}}',
-        reason="OK",
-    )
-
-    with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-        resp = await hook.run("v1/test")
-        assert resp.status == 200
-
-
-@pytest.mark.asyncio
-async def test_async_post_request_with_error_code(aioresponse):
-    """Test api call asynchronously for POST request with error."""
-    hook = HttpAsyncHook()
-
-    aioresponse.post(
-        "http://test:8080/v1/test",
-        status=418,
-        payload='{"status":{"status": 418}}',
-        reason="I am teapot",
-    )
-
-    with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
-        with pytest.raises(AirflowException):
-            await hook.run("v1/test")
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            hook = HttpAsyncHook()
+            with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+                await hook.run("v1/test")
+                headers = mocked_function.call_args.kwargs.get("headers")
+                assert all(
+                    key in headers and headers[key] == value for key, value in connection_extra.items()
+                )

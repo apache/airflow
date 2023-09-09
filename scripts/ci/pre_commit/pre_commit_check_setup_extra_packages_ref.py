@@ -24,18 +24,20 @@ from __future__ import annotations
 import os
 import re
 import sys
-from os.path import dirname
+from pathlib import Path
 
 from rich import print
 from rich.console import Console
 from rich.table import Table
 
-AIRFLOW_SOURCES_DIR = os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir)
+AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 SETUP_PY_FILE = "setup.py"
 DOCS_FILE = os.path.join("docs", "apache-airflow", "extra-packages-ref.rst")
 PY_IDENTIFIER = r"[a-zA-Z_][a-zA-Z0-9_\.]*"
 
-sys.path.insert(0, AIRFLOW_SOURCES_DIR)
+sys.path.insert(0, os.fspath(AIRFLOW_SOURCES_DIR))
+
+os.environ["_SKIP_PYTHON_VERSION_CHECK"] = "true"
 
 from setup import (  # noqa # isort:skip
     add_all_provider_packages,
@@ -47,9 +49,8 @@ from setup import (  # noqa # isort:skip
 
 
 def get_file_content(*path_elements: str) -> str:
-    file_path = os.path.join(AIRFLOW_SOURCES_DIR, *path_elements)
-    with open(file_path) as file_to_read:
-        return file_to_read.read()
+    file_path = AIRFLOW_SOURCES_DIR.joinpath(*path_elements)
+    return file_path.read_text()
 
 
 def get_extras_from_setup() -> set[str]:
@@ -207,7 +208,7 @@ def check_preinstalled_extras(console: Console) -> bool:
     :return: True if all ok, False otherwise
     """
     preinstalled_providers_from_docs = get_preinstalled_providers_from_docs()
-    preinstalled_providers_from_setup = PREINSTALLED_PROVIDERS
+    preinstalled_providers_from_setup = [provider.split(">=")[0] for provider in PREINSTALLED_PROVIDERS]
 
     preinstalled_providers_table = Table()
     preinstalled_providers_table.add_column("PREINSTALLED_IN_SETUP", justify="right", style="cyan")

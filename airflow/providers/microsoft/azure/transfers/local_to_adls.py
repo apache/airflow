@@ -16,10 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
@@ -29,7 +28,7 @@ if TYPE_CHECKING:
 
 class LocalFilesystemToADLSOperator(BaseOperator):
     """
-    Upload file(s) to Azure Data Lake
+    Upload file(s) to Azure Data Lake.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -97,20 +96,3 @@ class LocalFilesystemToADLSOperator(BaseOperator):
             blocksize=self.blocksize,
             **self.extra_upload_options,
         )
-
-
-class LocalToAzureDataLakeStorageOperator(LocalFilesystemToADLSOperator):
-    """
-    This class is deprecated.
-    Please use `airflow.providers.microsoft.azure.transfers.local_to_adls.LocalFilesystemToADLSOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-            Please use
-            `airflow.providers.microsoft.azure.transfers.local_to_adls.LocalFilesystemToADLSOperator`.""",
-            AirflowProviderDeprecationWarning,
-            stacklevel=3,
-        )
-        super().__init__(*args, **kwargs)

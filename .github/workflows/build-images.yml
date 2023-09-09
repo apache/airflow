@@ -25,6 +25,7 @@ permissions:
   # all other permissions are set to none
   contents: read
   pull-requests: read
+  packages: read
 env:
   ANSWER: "yes"
   DB_RESET: "true"
@@ -70,6 +71,7 @@ jobs:
           github.event.pull_request.head.sha ||
           github.sha
         }}"
+    if: github.repository == 'apache/airflow'
     steps:
       - name: Discover PR merge commit
         id: discover-pr-merge-commit
@@ -97,7 +99,7 @@ jobs:
             }' --jq '.data.node.labels.nodes[]' | jq --slurp -c '[.[].name]' >> ${GITHUB_OUTPUT}
         if: github.event_name == 'pull_request_target'
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
-      # we checkout the target commit and it's parent to be able to compare them
+      # we checkout the target commit and its parent to be able to compare them
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v3
@@ -157,6 +159,7 @@ jobs:
 
   build-ci-images:
     permissions:
+      contents: read
       packages: write
     timeout-minutes: 80
     name: >
@@ -165,12 +168,14 @@ jobs:
     needs: [build-info]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
+      github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -189,9 +194,11 @@ jobs:
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+          BUILD_TIMEOUT_MINUTES: 70
 
   build-prod-images:
     permissions:
+      contents: read
       packages: write
     timeout-minutes: 80
     name: >
@@ -201,12 +208,14 @@ jobs:
     needs: [build-info, build-ci-images]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
+      github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -238,13 +247,15 @@ jobs:
       needs.build-info.outputs.image-build == 'true' &&
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
-      needs.build-info.outputs.runs-on == 'self-hosted'
+      needs.build-info.outputs.runs-on == 'self-hosted' &&
+      github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"

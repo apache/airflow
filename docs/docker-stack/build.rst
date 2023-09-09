@@ -115,6 +115,19 @@ The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/d
     :start-after: [START dag]
     :end-before: [END dag]
 
+Add Airflow configuration with environment variables
+....................................................
+
+The following example adds airflow configuration to the image. ``airflow.cfg`` file in
+``$AIRFLOW_HOME`` directory contains Airflow's configuration. You can set options with environment variables for those Airflow's configuration by using this format:
+:envvar:`AIRFLOW__{SECTION}__{KEY}` (note the double underscores).
+
+
+.. exampleinclude:: docker-examples/extending/add-airflow-configuration/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
 
 Extending vs. customizing the image
 -----------------------------------
@@ -291,13 +304,13 @@ Naming conventions for the images:
 +----------------+-----------------------+---------------------------------+--------------------------------------+
 | Image          | Python                | Standard image                  | Slim image                           |
 +================+=======================+=================================+======================================+
-| Latest default | 3.7                   | apache/airflow:latest           | apache/airflow:slim-latest           |
+| Latest default | 3.8                   | apache/airflow:latest           | apache/airflow:slim-latest           |
 +----------------+-----------------------+---------------------------------+--------------------------------------+
-| Default        | 3.7                   | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
+| Default        | 3.8                   | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
 +----------------+-----------------------+---------------------------------+--------------------------------------+
-| Latest         | 3.7,3.8,3.9,3.10,3.11 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
+| Latest         | 3.8,3.9,3.10,3.11     | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
 +----------------+-----------------------+---------------------------------+--------------------------------------+
-| Specific       | 3.7,3.8,3.9,3.10,3.11 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
+| Specific       | 3.8,3.9,3.10,3.11     | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
 +----------------+-----------------------+---------------------------------+--------------------------------------+
 
 * The "latest" image is always the latest released stable version available.
@@ -336,7 +349,7 @@ You should be aware, about a few things:
   The DAGs in production image are in ``/opt/airflow/dags`` folder.
 
 * You can build your image without any need for Airflow sources. It is enough that you place the
-  ``Dockerfile`` and any files that are referred to (such as Dag files) in a separate directory and run
+  ``Dockerfile`` and any files that are referred to (such as DAG files) in a separate directory and run
   a command ``docker build . --pull --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
   and ``my-tag`` is the tag you want to tag the image with.
 
@@ -474,6 +487,16 @@ The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/d
     :language: Python
     :start-after: [START dag]
     :end-before: [END dag]
+
+Example of changing airflow configuration using environment variables
+.....................................................................
+
+The following example adds airflow configuration changes to the airflow image.
+
+.. exampleinclude:: docker-examples/extending/add-airflow-configuration/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
 
 Customizing the image
 ---------------------
@@ -668,7 +691,7 @@ Building from PyPI packages
 
 This is the basic way of building the custom images from sources.
 
-The following example builds the production image in version ``3.7`` with latest PyPI-released Airflow,
+The following example builds the production image in version ``3.8`` with latest PyPI-released Airflow,
 with default set of Airflow extras and dependencies. The latest PyPI-released Airflow constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/stable-airflow.sh
@@ -676,7 +699,7 @@ with default set of Airflow extras and dependencies. The latest PyPI-released Ai
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.7`` with default extras from ``2.3.0`` Airflow
+The following example builds the production image in version ``3.8`` with default extras from ``2.3.0`` Airflow
 package. The ``2.3.0`` constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/pypi-selected-version.sh
@@ -711,7 +734,7 @@ have more complex dependencies to build.
 Building optimized images
 .........................
 
-The following example the production image in version ``3.7`` with additional airflow extras from ``2.0.2``
+The following example the production image in version ``3.8`` with additional airflow extras from ``2.0.2``
 PyPI package but it includes additional apt dev and runtime dependencies.
 
 The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling
@@ -739,7 +762,7 @@ a branch or tag in your repository and use the tag or branch in the URL that you
 In case of GitHub builds you need to pass the constraints reference manually in case you want to use
 specific constraints, otherwise the default ``constraints-main`` is used.
 
-The following example builds the production image in version ``3.7`` with default extras from the latest main version and
+The following example builds the production image in version ``3.8`` with default extras from the latest main version and
 constraints are taken from latest version of the constraints-main branch in GitHub.
 
 .. exampleinclude:: docker-examples/customizing/github-main.sh

@@ -44,10 +44,10 @@
             "default": "",
             "x-docsSection": null
         },
-        "kubeVersionOverride": {
-            "description": "Provide a Kubernetes version (used for API Version selection) to override the auto-detected version",
-            "type": "string",
-            "default": "",
+        "useStandardNaming": {
+            "description": "Use standard naming for all resources using airflow.fullname template",
+            "type": "boolean",
+            "default": false,
             "x-docsSection": null
         },
         "uid": {
@@ -77,7 +77,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.6.1",
+            "default": "2.7.1",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -92,11 +92,11 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.6.1",
+            "default": "2.7.1",
             "x-docsSection": "Common"
         },
         "securityContext": {
-            "description": "Pod security context definition. The values in this parameter will be used when `securityContext` is not defined for specific Pods",
+            "description": "Default pod security context definition (deprecated, use `securityContexts` instead). The values in this parameter will be used when `securityContext` is not defined for specific Pods",
             "type": "object",
             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
             "default": {},
@@ -106,6 +106,68 @@
                     "runAsUser": 50000,
                     "runAsGroup": 0,
                     "fsGroup": 0
+                }
+            ]
+        },
+        "securityContexts": {
+            "description": "Default security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container.",
+            "type": "object",
+            "x-docsSection": "Kubernetes",
+            "properties": {
+                "pod": {
+                    "description": "Default pod security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "container": {
+                    "description": "Default container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "allowPrivilegeEscalation": false
+                        }
+                    ]
+                }
+            }
+        },
+        "containerLifecycleHooks": {
+            "description": "Default Container Lifecycle Hooks definition. The values in this parameter will be used when `containerLifecycleHooks` is not defined for specific containers.",
+            "type": "object",
+            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+            "default": {},
+            "x-docsSection": "Kubernetes",
+            "examples": [
+                {
+                    "postStart": {
+                        "exec": {
+                            "command": [
+                                "/bin/sh",
+                                "-c",
+                                "echo postStart handler > /usr/share/message"
+                            ]
+                        }
+                    },
+                    "preStop": {
+                        "exec": {
+                            "command": [
+                                "/bin/sh",
+                                "-c",
+                                "echo preStop handler > /usr/share/message"
+                            ]
+                        }
+                    }
                 }
             ]
         },
@@ -144,6 +206,15 @@
                 "type": "object",
                 "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
             }
+        },
+        "schedulerName": {
+            "description": "Specify kube scheduler name for Pods.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "default": null,
+            "x-docsSection": "Common"
         },
         "labels": {
             "description": "Add common labels to all objects and pods defined in this chart.",
@@ -705,7 +776,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v3.6.3"
+                            "default": "v3.6.9"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -883,6 +954,42 @@
             "examples": [
                 "- secretRef:\n    name: '{{ .Release.Name }}-airflow-connections'",
                 "- configMapRef:\n    name: '{{ .Release.Name }}-airflow-variables'"
+            ]
+        },
+        "priorityClasses": {
+            "description": "Priority Classes created by helm charts",
+            "type": "array",
+            "x-docsSection": "Kubernetes",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "preemptionPolicy": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "value"
+                ],
+                "additionalProperties": false
+            },
+            "default": [],
+            "examples": [
+                {
+                    "name": "class1",
+                    "preemptionPolicy": "PreemptLowerPriority",
+                    "value": 10000
+                },
+                {
+                    "name": "class2",
+                    "preemptionPolicy": "Never",
+                    "value": 100000
+                }
             ]
         },
         "extraSecrets": {
@@ -1325,6 +1432,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -1354,7 +1466,7 @@
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Allow KEDA autoscaling. `Persistence.enabled` must be set to false to use KEDA.",
+                            "description": "Allow KEDA autoscaling.",
                             "type": "boolean",
                             "default": false
                         },
@@ -1406,6 +1518,16 @@
                                     }
                                 }
                             }
+                        },
+                        "query": {
+                            "description": "Query to use for KEDA autoscaling. Must return a single integer.",
+                            "type": "string",
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if eq .Values.executor \"CeleryKubernetesExecutor\" }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
+                        },
+                        "usePgbouncer": {
+                            "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
+                            "type": "boolean",
+                            "default": true
                         }
                     }
                 },
@@ -1444,6 +1566,59 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the persistence. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the persistence.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         }
                     }
                 },
@@ -1474,6 +1649,59 @@
                                 }
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the kerberos sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the kerberos sidecar. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the kerberos sidecar.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         }
                     }
                 },
@@ -1544,6 +1772,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "runtimeClassName": {
+                    "description": "Specify runtime for worker pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "priorityClassName": {
                     "description": "Specify priority for worker pods.",
@@ -1625,10 +1861,10 @@
                 },
                 "logGroomerSidecar": {
                     "$ref": "#/definitions/logGroomerConfigType",
-                    "description": "Configuration for log groomer sidecar"
+                    "description": "Configuration for worker log groomer sidecar"
                 },
                 "securityContext": {
-                    "description": "Security context for the worker pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the worker pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -1640,11 +1876,83 @@
                         }
                     ]
                 },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the worker. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the workers. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the workers.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the workers.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "env": {
                             "description": "Add additional env vars to wait-for-airflow-migrations init container.",
                             "type": "array",
@@ -1664,6 +1972,59 @@
                                     "value"
                                 ],
                                 "additionalProperties": false
+                            }
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the worker. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the wait for migrations.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
                             }
                         }
                     }
@@ -1759,6 +2120,41 @@
                         }
                     }
                 },
+                "startupProbe": {
+                    "description": "Startup probe configuration for scheduler container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
                 "replicas": {
                     "description": "Airflow 2.0 allows users to run multiple schedulers. This feature is only recommended for MySQL 8+ and PostgreSQL",
                     "type": "integer",
@@ -1819,6 +2215,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -1998,10 +2399,10 @@
                 },
                 "logGroomerSidecar": {
                     "$ref": "#/definitions/logGroomerConfigType",
-                    "description": "Configuration for log groomer sidecar"
+                    "description": "Configuration for the schedulers log groomer sidecar."
                 },
                 "securityContext": {
-                    "description": "Security context for the scheduler pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the scheduler pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2012,6 +2413,73 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the scheduler. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the scheduler. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the scheduler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the scheduler.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
@@ -2042,6 +2510,59 @@
                                     "value"
                                 ],
                                 "additionalProperties": false
+                            }
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the wait for migrations.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
                             }
                         }
                     }
@@ -2076,7 +2597,7 @@
             "additionalProperties": false,
             "properties": {
                 "enabled": {
-                    "description": "Enable triggerer (requires Python 3.7+).",
+                    "description": "Enable triggerer",
                     "type": "boolean",
                     "default": true
                 },
@@ -2186,6 +2707,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -2372,7 +2898,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the triggerer pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the triggerer pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2383,6 +2909,73 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the triggerer. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the triggerer. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the triggerer.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the triggerer.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "logGroomerSidecar": {
                     "$ref": "#/definitions/logGroomerConfigType",
@@ -2418,6 +3011,59 @@
                                 ],
                                 "additionalProperties": false
                             }
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the wait for migrations.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         }
                     }
                 },
@@ -2440,6 +3086,72 @@
                             "value"
                         ],
                         "additionalProperties": false
+                    }
+                },
+                "keda": {
+                    "description": "KEDA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow KEDA autoscaling.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "namespaceLabels": {
+                            "description": "Labels used in `matchLabels` for namespace in the PgBouncer NetworkPolicy.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "pollingInterval": {
+                            "description": "How often KEDA polls the airflow DB to report new scale requests to the HPA.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "cooldownPeriod": {
+                            "description": "How many seconds KEDA will wait before scaling to zero.",
+                            "type": "integer",
+                            "default": 30
+                        },
+                        "minReplicaCount": {
+                            "description": "Minimum number of triggerers created by KEDA.",
+                            "type": "integer",
+                            "default": 0
+                        },
+                        "maxReplicaCount": {
+                            "description": "Maximum number of triggerers created by KEDA.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "advanced": {
+                            "description": "Advanced KEDA configuration.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": false,
+                            "properties": {
+                                "horizontalPodAutoscalerConfig": {
+                                    "description": "HorizontalPodAutoscalerConfig specifies horizontal scale config.",
+                                    "type": "object",
+                                    "default": {},
+                                    "properties": {
+                                        "behavior": {
+                                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                                            "type": "object",
+                                            "default": {},
+                                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior"
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "query": {
+                            "description": "Query to use for KEDA autoscaling. Must return a single integer.",
+                            "type": "string",
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }}) FROM trigger"
+                        }
                     }
                 }
             }
@@ -2553,6 +3265,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -2693,7 +3410,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the dag processor pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the dag processor pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2704,6 +3421,73 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the dag processor. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the dag processor. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the dag processor.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the dag processor.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "logGroomerSidecar": {
                     "$ref": "#/definitions/logGroomerConfigType",
@@ -2738,6 +3522,59 @@
                                     "value"
                                 ],
                                 "additionalProperties": false
+                            }
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the wait for migrations.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
                             }
                         }
                     }
@@ -2839,6 +3676,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -2919,7 +3761,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the create user job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the create user job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2930,6 +3772,73 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the create user job. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the create user job. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the  create user job.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the  create user job.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "resources": {
                     "description": "Resources for the create user job pod",
@@ -3047,6 +3956,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -3145,7 +4059,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the migrate database job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the migrate database job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -3156,6 +4070,73 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the migrate database job. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the migrate database job. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the migrate database job.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the migrate database job.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "useHelmHooks": {
                     "description": "Specify if you want to use the default Helm Hook annotations",
@@ -3183,6 +4164,14 @@
             "x-docsSection": "Webserver",
             "additionalProperties": false,
             "properties": {
+                "configMapAnnotations": {
+                    "description": "Extra annotations to apply to the webserver configmap.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "hostAliases": {
                     "description": "HostAliases for the webserver pod.",
                     "items": {
@@ -3274,6 +4263,33 @@
                         }
                     }
                 },
+                "startupProbe": {
+                    "description": "Startup probe configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "timeoutSeconds": {
+                            "description": "Webserver Startup probe timeout seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Webserver Startup probe failure threshold.",
+                            "type": "integer",
+                            "default": 6
+                        },
+                        "periodSeconds": {
+                            "description": "Webserver Startup probe period seconds.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "scheme": {
+                            "description": "Webserver Startup probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
+                        }
+                    }
+                },
                 "replicas": {
                     "description": "How many Airflow webserver replicas should run.",
                     "type": "integer",
@@ -3326,6 +4342,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -3399,12 +4420,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "ingress": {
-                            "description": "Webserver NetworkPolicy ingress configuration",
+                            "description": "Webserver NetworkPolicyingress configuration",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
                                 "from": {
-                                    "description": "Peers for webserver NetworkPolicy ingress.",
+                                    "description": "Peers for webserver NetworkPolicyingress.",
                                     "type": "array",
                                     "default": [],
                                     "items": {
@@ -3412,7 +4433,7 @@
                                     }
                                 },
                                 "ports": {
-                                    "description": "Ports for webserver NetworkPolicy ingress (if `from` is set).",
+                                    "description": "Ports for webserver NetworkPolicyingress (if `from` is set).",
                                     "type": "array",
                                     "items": {
                                         "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPort"
@@ -3433,7 +4454,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the webserver job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the webserver job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -3444,6 +4465,73 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the webserver. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the webserver. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the webserver.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the webserver.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "resources": {
                     "description": "Resources for webserver pods.",
@@ -3748,6 +4836,59 @@
                                 ],
                                 "additionalProperties": false
                             }
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the wait for migrations.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         }
                     }
                 },
@@ -3830,17 +4971,17 @@
                     "default": []
                 },
                 "networkPolicy": {
-                    "description": "Flower NetworkPolicy configuration",
+                    "description": "Flower NetworkPolicyconfiguration",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "ingress": {
-                            "description": "Flower NetworkPolicy ingress configuration",
+                            "description": "Flower NetworkPolicyingress configuration",
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
                                 "from": {
-                                    "description": "Peers for flower NetworkPolicy ingress.",
+                                    "description": "Peers for flower NetworkPolicyingress.",
                                     "type": "array",
                                     "default": [],
                                     "items": {
@@ -3848,7 +4989,7 @@
                                     }
                                 },
                                 "ports": {
-                                    "description": "Ports for flower NetworkPolicy ingress (if `from` is set).",
+                                    "description": "Ports for flower NetworkPolicyingress (if `from` is set).",
                                     "type": "array",
                                     "items": {
                                         "$ref": "#/definitions/io.k8s.api.networking.v1.NetworkPolicyPort"
@@ -3994,6 +5135,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -4106,7 +5252,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the flower pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the flower pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -4117,6 +5263,73 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the network policy. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the network policy. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the network policy.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the network policy.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "env": {
                     "description": "Add additional env vars to flower.",
@@ -4147,6 +5360,14 @@
             "x-docsSection": "StatsD",
             "additionalProperties": false,
             "properties": {
+                "configMapAnnotations": {
+                    "description": "Extra annotations to apply to the statsd configmap.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "enabled": {
                     "description": "Enable StatsD.",
                     "type": "boolean",
@@ -4207,6 +5428,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -4286,7 +5512,7 @@
                     "default": []
                 },
                 "securityContext": {
-                    "description": "Security context for the StatsD pod. If not set, `statsd.uid` will be used.",
+                    "description": "Security context for the StatsD pod (deprecated, use `securityContexts` instead).",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -4297,6 +5523,73 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the statsd. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the statsd.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the statsd.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the statsd.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to the StatsD pods.",
@@ -4326,6 +5619,27 @@
                     "default": [
                         "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
                     ]
+                },
+                "env": {
+                    "description": "Add additional env vars to statsd container.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
                 }
             }
         },
@@ -4335,6 +5649,27 @@
             "x-docsSection": "PgBouncer",
             "additionalProperties": false,
             "properties": {
+                "env": {
+                    "description": "Add additional env vars to `pgbouncer` container.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "value"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
                 "enabled": {
                     "description": "Enable PgBouncer.",
                     "type": "boolean",
@@ -4483,6 +5818,83 @@
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the PgBouncer. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {
+                        "preStop": {
+                            "exec": {
+                                "command": [
+                                    "/bin/sh",
+                                    "-c",
+                                    "killall -INT pgbouncer && sleep 120"
+                                ]
+                            }
+                        }
+                    },
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the PgBouncer.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the PgBouncer.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 65534,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the PgBouncer.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                },
                 "service": {
                     "description": "PgBouncer Service configuration.",
                     "type": "object",
@@ -4611,10 +6023,23 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
                     }
                 },
+                "extraContainers": {
+                    "description": "Launch additional containers into `pgbouncer`.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -4707,6 +6132,22 @@
                             ],
                             "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                         },
+                        "statsSecretName": {
+                            "description": "Name of an existing Secrets object containing PgBouncer Metrics secrets.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "statsSecretKey": {
+                            "description": "Key referencing the PGBouncer Metrics connection URI within an existing Secrets object. Defaults to `connection` if left null.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "sslmode": {
                             "description": "SSL mode for ``metricsExporterSidecar``",
                             "type": "string",
@@ -4717,6 +6158,59 @@
                                 "verify-full"
                             ],
                             "default": "disable"
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the metrics exporter sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the metrics exporter sidecar. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the metrics exporter sidecar.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         },
                         "livenessProbe": {
                             "description": "LivenessProbe configurations for ``metricsExporterSidecar``",
@@ -4890,6 +6384,11 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -4914,17 +6413,84 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the cleanup job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
                     "examples": [
                         {
-                            "runAsUser": 999,
+                            "runAsUser": 50000,
                             "runAsGroup": 0,
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the redis. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the redis.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the redis.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 999,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the redis.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "uid": {
                     "description": "Redis run as user parameter.",
@@ -5145,7 +6711,7 @@
                     "default": false
                 },
                 "schedule": {
-                    "description": "Cleanup schedule.",
+                    "description": "Cleanup schedule (templated).",
                     "type": "string",
                     "default": "*/15 * * * *"
                 },
@@ -5254,6 +6820,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "automountServiceAccountToken": {
+                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
@@ -5278,7 +6849,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the cleanup job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -5289,6 +6860,73 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the cleanup. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the cleanup. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "pod": {
+                            "description": "Pod security context definition for the cleanup.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "runAsUser": 50000,
+                                    "runAsGroup": 0,
+                                    "fsGroup": 0
+                                }
+                            ]
+                        },
+                        "container": {
+                            "description": "Container security context definition for the cleanup.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "env": {
                     "description": "Add additional env vars to cleanup.",
@@ -5542,7 +7180,7 @@
                             "default": "git-sync"
                         },
                         "securityContext": {
-                            "description": "Security context for the gitSync container. If not set, the values from `securityContext` will be used.",
+                            "description": "Security context for the `gitSync` container (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
@@ -5552,6 +7190,59 @@
                                     "runAsGroup": 0
                                 }
                             ]
+                        },
+                        "containerLifecycleHooks": {
+                            "description": "Container Lifecycle Hooks definition for the git sync sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "postStart": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
+                                    },
+                                    "preStop": {
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the git sync sidecar. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "container": {
+                                    "description": "Container security context definition for the git sync sidecar.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         },
                         "uid": {
                             "description": "Git sync container run as user parameter.",
@@ -8475,6 +10166,59 @@
                         }
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
+                "containerLifecycleHooks": {
+                    "description": "Container Lifecycle Hooks definition for the log groomer sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                    "default": {},
+                    "x-docsSection": "Kubernetes",
+                    "examples": [
+                        {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                },
+                "securityContexts": {
+                    "description": "Security context definition for the log groomer sidecar. If not set, the values from global `securityContexts` will be used.",
+                    "type": "object",
+                    "x-docsSection": "Kubernetes",
+                    "properties": {
+                        "container": {
+                            "description": "Container security context definition for the log groomer sidecar.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                            "default": {},
+                            "x-docsSection": "Kubernetes",
+                            "examples": [
+                                {
+                                    "allowPrivilegeEscalation": false,
+                                    "capabilities": {
+                                        "drop": [
+                                            "ALL"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 }
             }
         }

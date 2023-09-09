@@ -67,9 +67,9 @@ class TestDebugExecutor:
         }
 
     def test_trigger_tasks(self):
-        execute_async_mock = MagicMock()
+        execute_mock = MagicMock()
         executor = DebugExecutor()
-        executor.execute_async = execute_async_mock
+        executor.execute_async = execute_mock
 
         executor.queued_tasks = {
             "t1": (None, 1, None, MagicMock(key="t1")),
@@ -80,7 +80,7 @@ class TestDebugExecutor:
         assert not executor.queued_tasks
         assert len(executor.running) == 2
         assert len(executor.tasks_to_run) == 2
-        assert not execute_async_mock.called
+        assert not execute_mock.called
 
     def test_end(self):
         ti = MagicMock(key="ti_key")

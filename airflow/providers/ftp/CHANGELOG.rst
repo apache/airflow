@@ -21,8 +21,69 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-ftp``
+
+
 Changelog
 ---------
+
+3.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/ftp): respect soft_fail argument when exception is raised (#34161)``
+
+Misc
+~~~~
+
+* ``Consolidate importing of os.path.* (#34060)``
+* ``Refactor regex in providers (#33898)``
+
+3.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers - Final Pass (#33303)``
+
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, ftp: add OpenLineage support for FTPFileTransferOperator (#31354)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+3.4.2
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 3.4.1
 .....

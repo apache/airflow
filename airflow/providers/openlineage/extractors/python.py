@@ -20,13 +20,17 @@ from __future__ import annotations
 import inspect
 from typing import Callable
 
+from openlineage.client.facet import SourceCodeJobFacet
+
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.plugins.facets import (
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
-from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys, is_source_enabled
-from openlineage.client.facet import SourceCodeJobFacet
+from airflow.providers.openlineage.utils.utils import (
+    get_filtered_unknown_operator_keys,
+    is_source_enabled,
+)
 
 """
 :meta private:
@@ -35,6 +39,8 @@ from openlineage.client.facet import SourceCodeJobFacet
 
 class PythonExtractor(BaseExtractor):
     """
+    Extract executed source code and put it into SourceCodeJobFacet.
+
     This extractor provides visibility on what particular task does by extracting
     executed source code and putting it into SourceCodeJobFacet. It does not extract
     datasets yet.
@@ -46,7 +52,7 @@ class PythonExtractor(BaseExtractor):
     def get_operator_classnames(cls) -> list[str]:
         return ["PythonOperator"]
 
-    def extract(self) -> OperatorLineage | None:
+    def _execute_extraction(self) -> OperatorLineage | None:
         source_code = self.get_source_code(self.operator.python_callable)
         job_facet: dict = {}
         if is_source_enabled() and source_code:
@@ -81,5 +87,11 @@ class PythonExtractor(BaseExtractor):
             # Trying to extract source code of builtin_function_or_method
             return str(callable)
         except OSError:
-            self.log.exception("Can't get source code facet of PythonOperator %s", self.operator.task_id)
+            self.log.exception(
+                "Can't get source code facet of PythonOperator %s",
+                self.operator.task_id,
+            )
         return None
+
+    def extract(self) -> OperatorLineage | None:
+        return super().extract()

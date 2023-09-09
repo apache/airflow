@@ -43,6 +43,19 @@ Port (optional)
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in JDBC connection. The following parameters out of the standard python parameters are supported:
 
-    * ``conn_prefix`` - Used to build the connection url in ``JdbcOperator``, added in front of host (``conn_prefix`` ``host`` [: ``port`` ] / ``schema``)
-    * ``drv_clsname`` - Full qualified Java class name of the JDBC driver. For ``JdbcOperator``.
-    * ``drv_path`` - Jar filename or sequence of filenames for the JDBC driver libs. For ``JdbcOperator``.
+    - ``driver_class``
+        * Full qualified Java class name of the JDBC driver. For ``JdbcOperator``.
+          Note that this is only considered if ``allow_driver_class_in_extra`` is set to True in airflow config section
+          ``providers.jdbc`` (by default it is not considered).  Note: if setting this config from env vars, use
+          ``AIRFLOW__PROVIDERS_JDBC__ALLOW_DRIVER_CLASS_IN_EXTRA=true``.
+
+    - ``driver_path``
+        * Jar filename or sequence of filenames for the JDBC driver libs. For ``JdbcOperator``.
+          Note that this is only considered if ``allow_driver_path_in_extra`` is set to True in airflow config section
+          ``providers.jdbc`` (by default it is not considered).  Note: if setting this config from env vars, use
+          ``AIRFLOW__PROVIDERS_JDBC__ALLOW_DRIVER_PATH_IN_EXTRA=true``.
+
+    .. note::
+        Setting ``allow_driver_path_in_extra`` or ``allow_driver_class_in_extra`` to True allows users to set the driver
+        via the Airflow Connection's ``extra`` field.  By default this is not allowed.  If enabling this functionality,
+        you should make sure that you trust the users who can edit connections in the UI to not use it maliciously.

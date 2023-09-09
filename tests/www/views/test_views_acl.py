@@ -98,6 +98,7 @@ def acl_app(app):
         "all_dag_role": [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
@@ -121,7 +122,7 @@ def acl_app(app):
 
     yield app
 
-    for username, _ in USER_DATA.items():
+    for username in USER_DATA:
         user = security_manager.find_user(username=username)
         if user:
             security_manager.del_register_user(user)
@@ -251,6 +252,7 @@ def test_dag_autocomplete_success(client_all_dags):
     )
     expected = [
         {"name": "airflow", "type": "owner"},
+        {"name": "example_dynamic_task_mapping_with_no_taskflow_operators", "type": "dag"},
         {"name": "example_setup_teardown_taskflow", "type": "dag"},
         {"name": "test_mapped_taskflow", "type": "dag"},
         {"name": "tutorial_taskflow_api", "type": "dag"},
@@ -334,7 +336,7 @@ def client_all_dags_dagruns(acl_app, user_all_dags_dagruns):
 def test_dag_stats_success(client_all_dags_dagruns):
     resp = client_all_dags_dagruns.post("dag_stats", follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)
-    assert set(list(resp.json.items())[0][1][0].keys()) == {"state", "count"}
+    assert set(next(iter(resp.json.items()))[1][0].keys()) == {"state", "count"}
 
 
 def test_task_stats_failure(dag_test_client):
@@ -640,14 +642,19 @@ def test_failure(dag_faker_client, url, unexpected_content):
 
 
 def test_blocked_success(client_all_dags_dagruns):
-    resp = client_all_dags_dagruns.post("blocked", follow_redirects=True)
+    resp = client_all_dags_dagruns.post("blocked")
     check_content_in_response("example_bash_operator", resp)
 
 
 def test_blocked_success_for_all_dag_user(all_dag_user_client):
-    resp = all_dag_user_client.post("blocked", follow_redirects=True)
+    resp = all_dag_user_client.post("blocked")
     check_content_in_response("example_bash_operator", resp)
     check_content_in_response("example_subdag_operator", resp)
+
+
+def test_blocked_viewer(viewer_client):
+    resp = viewer_client.post("blocked")
+    check_content_in_response("example_bash_operator", resp)
 
 
 @pytest.mark.parametrize(
@@ -669,11 +676,7 @@ def test_blocked_success_when_selecting_dags(
     dags_to_block,
     unexpected_dag_ids,
 ):
-    resp = admin_client.post(
-        "blocked",
-        data={"dag_ids": dags_to_block},
-        follow_redirects=True,
-    )
+    resp = admin_client.post("blocked", data={"dag_ids": dags_to_block})
     assert resp.status_code == 200
     for dag_id in unexpected_dag_ids:
         check_content_not_in_response(dag_id, resp)

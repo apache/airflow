@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Run ephemeral Docker Swarm services"""
+"""Run ephemeral Docker Swarm services."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 class DockerSwarmOperator(DockerOperator):
     """
     Execute a command as an ephemeral docker swarm service.
+
     Example use-case - Using Docker Swarm orchestration to make one-time
     scripts highly available.
 
@@ -160,7 +161,7 @@ class DockerSwarmOperator(DockerOperator):
         if self.service and self._service_status() != "complete":
             if self.auto_remove == "success":
                 self.cli.remove_service(self.service["ID"])
-            raise AirflowException("Service did not complete: " + repr(self.service))
+            raise AirflowException(f"Service did not complete: {self.service!r}")
         elif self.auto_remove == "success":
             if not self.service:
                 raise Exception("The 'service' should be initialized before!")
@@ -182,22 +183,16 @@ class DockerSwarmOperator(DockerOperator):
             self.service["ID"], follow=True, stdout=True, stderr=True, is_tty=self.tty
         )
         line = ""
-        while True:
+        for log in logs:
             try:
-                log = next(logs)
-            except StopIteration:
-                # If the service log stream terminated, stop fetching logs further.
-                break
+                log = log.decode()
+            except UnicodeDecodeError:
+                continue
+            if log == "\n":
+                self.log.info(line)
+                line = ""
             else:
-                try:
-                    log = log.decode()
-                except UnicodeDecodeError:
-                    continue
-                if log == "\n":
-                    self.log.info(line)
-                    line = ""
-                else:
-                    line += log
+                line += log
         # flush any remaining log stream
         if line:
             self.log.info(line)

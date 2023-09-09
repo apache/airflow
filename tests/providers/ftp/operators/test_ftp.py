@@ -17,16 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+import socket
 from unittest import mock
 
 import pytest
+from openlineage.client.run import Dataset
 
-from airflow.models import DAG
+from airflow.models import DAG, Connection
 from airflow.providers.ftp.operators.ftp import (
     FTPFileTransmitOperator,
     FTPOperation,
     FTPSFileTransmitOperator,
 )
+from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2017, 1, 1)
@@ -278,3 +281,63 @@ class TestFTPSFileTransmitOperator:
         assert mock_put.call_count == 2
         for count, (args, _) in enumerate(mock_put.call_args_list):
             assert args == (remote_filepath[count], local_filepath[count])
+
+    @mock.patch("airflow.providers.ftp.hooks.ftp.FTPHook.get_conn", spec=Connection)
+    def test_extract_get(self, get_conn):
+        get_conn.return_value = Connection(
+            conn_id="ftp_conn_id",
+            conn_type="ftp",
+            host="remotehost",
+            port=21,
+        )
+
+        dag_id = "ftp_dag"
+        task_id = "ftp_task"
+
+        task = FTPFileTransmitOperator(
+            task_id=task_id,
+            ftp_conn_id="ftp_conn_id",
+            dag=DAG(dag_id),
+            start_date=timezone.utcnow(),
+            local_filepath="/path/to/local",
+            remote_filepath="/path/to/remote",
+            operation=FTPOperation.GET,
+        )
+        lineage = task.get_openlineage_facets_on_start()
+
+        assert lineage.inputs == [Dataset(namespace="file://remotehost:21", name="/path/to/remote")]
+        assert lineage.outputs == [
+            Dataset(
+                namespace=f"file://{socket.gethostbyname(socket.gethostname())}:21", name="/path/to/local"
+            )
+        ]
+
+    @mock.patch("airflow.providers.ftp.hooks.ftp.FTPHook.get_conn", spec=Connection)
+    def test_extract_put(self, get_conn):
+        get_conn.return_value = Connection(
+            conn_id="ftp_conn_id",
+            conn_type="ftp",
+            host="remotehost",
+            port=21,
+        )
+
+        dag_id = "ftp_dag"
+        task_id = "ftp_task"
+
+        task = FTPFileTransmitOperator(
+            task_id=task_id,
+            ftp_conn_id="ftp_conn_id",
+            dag=DAG(dag_id),
+            start_date=timezone.utcnow(),
+            local_filepath="/path/to/local",
+            remote_filepath="/path/to/remote",
+            operation=FTPOperation.PUT,
+        )
+        lineage = task.get_openlineage_facets_on_start()
+
+        assert lineage.inputs == [
+            Dataset(
+                namespace=f"file://{socket.gethostbyname(socket.gethostname())}:21", name="/path/to/local"
+            )
+        ]
+        assert lineage.outputs == [Dataset(namespace="file://remotehost:21", name="/path/to/remote")]

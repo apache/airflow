@@ -19,12 +19,14 @@ from __future__ import annotations
 
 from abc import ABC
 from datetime import timedelta
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowClusterPolicyViolation
-from airflow.models import DAG, TaskInstance
+from airflow.exceptions import AirflowClusterPolicySkipDag, AirflowClusterPolicyViolation
 from airflow.models.baseoperator import BaseOperator
+
+if TYPE_CHECKING:
+    from airflow.models import DAG, TaskInstance
 
 
 # [START example_cluster_policy_rule]
@@ -73,10 +75,15 @@ def example_task_policy(task: BaseOperator):
 
 # [START example_dag_cluster_policy]
 def dag_policy(dag: DAG):
-    """Ensure that DAG has at least one tag"""
+    """Ensure that DAG has at least one tag and skip the DAG with `only_for_beta` tag."""
     if not dag.tags:
         raise AirflowClusterPolicyViolation(
             f"DAG {dag.dag_id} has no tags. At least one tag required. File path: {dag.fileloc}"
+        )
+
+    if "only_for_beta" in dag.tags:
+        raise AirflowClusterPolicySkipDag(
+            f"DAG {dag.dag_id} is not loaded on the production cluster, due to `only_for_beta` tag."
         )
 
 

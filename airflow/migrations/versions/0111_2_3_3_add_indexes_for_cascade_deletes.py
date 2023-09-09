@@ -27,6 +27,7 @@ Create Date: 2022-06-15 18:04:54.081789
 from __future__ import annotations
 
 from alembic import context, op
+from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
 revision = "f5fcbda3e651"
@@ -49,7 +50,7 @@ def _mysql_tables_where_indexes_already_present(conn):
     ]
     tables = set()
     for tbl, idx in to_check:
-        if conn.execute(f"show indexes from {tbl} where Key_name = '{idx}'").first():
+        if conn.execute(text(f"show indexes from {tbl} where Key_name = '{idx}'")).first():
             tables.add(tbl)
     return tables
 

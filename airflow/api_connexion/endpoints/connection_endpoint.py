@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import os
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from connexion import NoContent
-from flask import request
+from flask import Response, request
 from marshmallow import ValidationError
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.update_mask import extract_update_mask_data
@@ -35,7 +35,7 @@ from airflow.api_connexion.schemas.connection_schema import (
     connection_schema,
     connection_test_schema,
 )
-from airflow.api_connexion.types import APIResponse, UpdateMask
+from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
@@ -44,6 +44,11 @@ from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.strings import get_random_string
 from airflow.www.decorators import action_logging
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.api_connexion.types import APIResponse, UpdateMask
 
 RESOURCE_EVENT_PREFIX = "connection"
 
@@ -58,7 +63,7 @@ RESOURCE_EVENT_PREFIX = "connection"
 )
 def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a connection entry."""
-    connection = session.query(Connection).filter_by(conn_id=connection_id).one_or_none()
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
     if connection is None:
         raise NotFound(
             "Connection not found",
@@ -72,7 +77,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
 @provide_session
 def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a connection entry."""
-    connection = session.query(Connection).filter(Connection.conn_id == connection_id).one_or_none()
+    connection = session.scalar(select(Connection).where(Connection.conn_id == connection_id))
     if connection is None:
         raise NotFound(
             "Connection not found",
@@ -95,10 +100,10 @@ def get_connections(
     to_replace = {"connection_id": "conn_id"}
     allowed_filter_attrs = ["connection_id", "conn_type", "description", "host", "port", "id"]
 
-    total_entries = session.query(func.count(Connection.id)).scalar()
-    query = session.query(Connection)
+    total_entries = session.execute(select(func.count(Connection.id))).scalar_one()
+    query = select(Connection)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    connections = query.offset(offset).limit(limit).all()
+    connections = session.scalars(query.offset(offset).limit(limit)).all()
     return connection_collection_schema.dump(
         ConnectionCollection(connections=connections, total_entries=total_entries)
     )
@@ -125,7 +130,7 @@ def patch_connection(
         # If validation get to here, it is extra field validation.
         raise BadRequest(detail=str(err.messages))
     non_update_fields = ["connection_id", "conn_id"]
-    connection = session.query(Connection).filter_by(conn_id=connection_id).first()
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
     if connection is None:
         raise NotFound(
             "Connection not found",
@@ -162,8 +167,7 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
         helpers.validate_key(conn_id, max_length=200)
     except Exception as e:
         raise BadRequest(detail=str(e))
-    query = session.query(Connection)
-    connection = query.filter_by(conn_id=conn_id).first()
+    connection = session.scalar(select(Connection).filter_by(conn_id=conn_id).limit(1))
     if not connection:
         connection = Connection(**data)
         session.add(connection)
@@ -181,6 +185,13 @@ def test_connection() -> APIResponse:
     env var, as some hook classes tries to find out the conn from their __init__ method & errors out
     if not found. It also deletes the conn id env variable after the test.
     """
+    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+        return Response(
+            "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
+            "enable it.",
+            403,
+        )
+
     body = request.json
     transient_conn_id = get_random_string()
     conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"

@@ -17,20 +17,21 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from botocore.credentials import ReadOnlyCredentials
+if TYPE_CHECKING:
+    from botocore.credentials import ReadOnlyCredentials
 
 log = logging.getLogger(__name__)
 
 
 def build_credentials_block(credentials: ReadOnlyCredentials) -> str:
-    """
-    Generate AWS credentials block for Redshift COPY and UNLOAD
-    commands, as noted in AWS docs
+    """Generate AWS credentials block for Redshift COPY and UNLOAD commands.
+
+    See AWS docs for details:
     https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
 
     :param credentials: ReadOnlyCredentials object from `botocore`
-    :return: str
     """
     if credentials.token:
         log.debug("STS token found in credentials, including it in the command")

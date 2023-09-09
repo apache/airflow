@@ -76,6 +76,7 @@ Create an Amazon EKS cluster and AWS Fargate profile in one step
 
 To create an Amazon EKS cluster and an AWS Fargate profile in one command, you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksCreateClusterOperator`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
 Note: An AWS IAM role with the following permissions is required:
   ``ec2.amazon.aws.com`` must be in the Trusted Relationships
@@ -97,6 +98,7 @@ Delete an Amazon EKS Cluster
 
 To delete an existing Amazon EKS Cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksDeleteClusterOperator`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroups.py
     :language: python
@@ -121,6 +123,7 @@ Create an Amazon EKS managed node group
 
 To create an Amazon EKS managed node group you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksCreateNodegroupOperator`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
 Note:  An AWS IAM role with the following permissions is required:
   ``ec2.amazon.aws.com`` must be in the Trusted Relationships
@@ -140,6 +143,7 @@ Delete an Amazon EKS managed node group
 
 To delete an existing Amazon EKS managed node group you can use
 :class:`~airflow.providers.amazon.aws.operators.eks.EksDeleteNodegroupOperator`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eks_with_nodegroups.py
     :language: python

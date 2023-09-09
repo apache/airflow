@@ -18,17 +18,18 @@
 from __future__ import annotations
 
 import datetime
-from typing import Mapping
+from functools import reduce
+from typing import TYPE_CHECKING, Mapping
 from unittest import mock
 from unittest.mock import call
 
 import pendulum
 import pytest
-from sqlalchemy.orm.session import Session
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
+from airflow.exceptions import AirflowException
 from airflow.models import (
     DAG,
     DagBag,
@@ -40,7 +41,9 @@ from airflow.models import (
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRunNote
+from airflow.models.taskinstance import TaskInstanceNote
 from airflow.models.taskmap import TaskMap
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -51,7 +54,11 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
@@ -331,8 +338,8 @@ class TestDagRun:
         dr.update_state(session=session)
         assert dr.state == DagRunState.FAILED
 
-    def test_dagrun_no_deadlock_with_shutdown(self, session):
-        dag = DAG("test_dagrun_no_deadlock_with_shutdown", start_date=DEFAULT_DATE)
+    def test_dagrun_no_deadlock_with_restarting(self, session):
+        dag = DAG("test_dagrun_no_deadlock_with_restarting", start_date=DEFAULT_DATE)
         with dag:
             op1 = EmptyOperator(task_id="upstream_task")
             op2 = EmptyOperator(task_id="downstream_task")
@@ -346,7 +353,7 @@ class TestDagRun:
             start_date=DEFAULT_DATE,
         )
         upstream_ti = dr.get_task_instance(task_id="upstream_task")
-        upstream_ti.set_state(TaskInstanceState.SHUTDOWN, session=session)
+        upstream_ti.set_state(TaskInstanceState.RESTARTING, session=session)
 
         dr.update_state()
         assert dr.state == DagRunState.RUNNING
@@ -980,8 +987,13 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type,
     tis = dag_run.task_instances
     assert len(tis) == expected_tis
 
-    Stats_incr.assert_called_with(
-        "task_instance_created-EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
+    Stats_incr.assert_any_call(
+        "task_instance_created_EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
+    )
+    Stats_incr.assert_any_call(
+        "task_instance_created",
+        expected_tis,
+        tags={"dag_id": "test", "run_type": run_type, "task_type": "EmptyOperator"},
     )
 
 
@@ -1696,7 +1708,7 @@ def test_calls_to_verify_integrity_with_mapped_task_zero_length_at_runtime(dag_m
         (1, State.NONE),
         (2, State.NONE),
     ]
-    ti1 = [i for i in tis if i.map_index == 0][0]
+    ti1 = next(i for i in tis if i.map_index == 0)
     # Now "clear" and "reduce" the length to empty list
     dag.clear()
     Variable.set(key="arg1", value=[])
@@ -1801,6 +1813,52 @@ def test_mapped_task_group_expands_at_create(dag_maker, session):
     ]
 
 
+def test_mapped_task_group_empty_operator(dag_maker, session):
+    """
+    Test that dynamic task inside a dynamic task group only marks
+    the corresponding downstream EmptyOperator as success.
+    """
+
+    literal = [1, 2, 3]
+
+    with dag_maker(session=session) as dag:
+
+        @task_group
+        def tg(x):
+            @task
+            def t1(x):
+                return x
+
+            t2 = EmptyOperator(task_id="t2")
+
+            @task
+            def t3(x):
+                return x
+
+            t1(x) >> t2 >> t3(x)
+
+        tg.expand(x=literal)
+
+    dr = dag_maker.create_dagrun()
+
+    t2_task = dag.get_task("tg.t2")
+    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    t2_0.refresh_from_task(t2_task)
+    assert t2_0.state is None
+
+    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    t2_1.refresh_from_task(t2_task)
+    assert t2_1.state is None
+
+    dr.schedule_tis([t2_0])
+
+    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    assert t2_0.state == TaskInstanceState.SUCCESS
+
+    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    assert t2_1.state is None
+
+
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     with dag_maker(session=session):
         task = BaseOperator(task_id="task_1")
@@ -1838,7 +1896,7 @@ def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
 
         @dag.task
         def make_list():
-            return list(map(lambda a: f'echo "{a!r}"', [1, 2, {"a": "b"}]))
+            return [f'echo "{a!r}"' for a in [1, 2, {"a": "b"}]]
 
         def consumer(*args):
             print(repr(args))
@@ -2256,9 +2314,9 @@ def test_mapped_task_depends_on_past(dag_maker, session):
 def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     """
     Test that clearing a task and moving from non-mapped to mapped clears existing
-    references in XCom, TaskFail, and RenderedTaskInstanceFields
-    To be able to test this, RenderedTaskInstanceFields was not used in the test
-    since it would require that the task is expanded first.
+    references in XCom, TaskFail, TaskInstanceNote, TaskReschedule and
+    RenderedTaskInstanceFields. To be able to test this, RenderedTaskInstanceFields
+    was not used in the test since it would require that the task is expanded first.
     """
 
     from airflow.models.taskfail import TaskFail
@@ -2273,20 +2331,34 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
 
     dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
     ti = dr1.get_task_instances()[0]
+    filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
+    ti = session.query(TaskInstance).filter_by(**filter_kwargs).one()
+
+    tr = TaskReschedule(
+        task=ti,
+        run_id=ti.run_id,
+        try_number=ti.try_number,
+        start_date=timezone.datetime(2017, 1, 1),
+        end_date=timezone.datetime(2017, 1, 2),
+        reschedule_date=timezone.datetime(2017, 1, 1),
+    )
+
     # mimicking a case where task moved from non-mapped to mapped
     # in that case, it would have map_index of -1 even though mapped
     ti.map_index = -1
+    ti.note = "sample note"
     session.merge(ti)
     session.flush()
     # Purposely omitted RenderedTaskInstanceFields because the ti need
     # to be expanded but here we are mimicking and made it map_index -1
+    session.add(tr)
     session.add(TaskFail(ti))
     XCom.set(key="test", value="value", task_id=ti.task_id, dag_id=dag.dag_id, run_id=ti.run_id)
     session.commit()
-    for table in [TaskFail, XCom]:
+    for table in [TaskFail, TaskInstanceNote, TaskReschedule, XCom]:
         assert session.query(table).count() == 1
     dr1.task_instance_scheduling_decisions(session)
-    for table in [TaskFail, XCom]:
+    for table in [TaskFail, TaskInstanceNote, TaskReschedule, XCom]:
         assert session.query(table).count() == 0
 
 
@@ -2348,7 +2420,7 @@ def test_teardown_failure_behaviour_on_dagrun(dag_maker, session, dag_run_state,
 @pytest.mark.parametrize(
     "dag_run_state, on_failure_fail_dagrun", [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
 )
-def test_teardown_failure_on_non_leave_behaviour_on_dagrun(
+def test_teardown_failure_on_non_leaf_behaviour_on_dagrun(
     dag_maker, session, dag_run_state, on_failure_fail_dagrun
 ):
     with dag_maker():
@@ -2419,7 +2491,7 @@ def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session
     assert dr.state == DagRunState.FAILED
 
 
-def test_failure_of_leave_task_not_connected_to_teardown_task(dag_maker, session):
+def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session):
     with dag_maker():
 
         @setup
@@ -2453,3 +2525,99 @@ def test_failure_of_leave_task_not_connected_to_teardown_task(dag_maker, session
     session.flush()
     dr = session.query(DagRun).one()
     assert dr.state == DagRunState.FAILED
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        (["s1 >> w1 >> t1"], {"w1"}),  # t1 ignored
+        (["s1 >> w1 >> t1", "s1 >> t1"], {"w1"}),  # t1 ignored; properly wired to setup
+        (["s1 >> w1"], {"w1"}),  # no teardown
+        (["s1 >> w1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True;
+        (["s1 >> w1 >> t1_", "s1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True; wired to setup
+        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
+        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
+        (["t1 >> t2"], {"t2"}),  # all teardowns -- default to "leaves"
+        (["w1 >> t1_ >> t2"], {"t1_"}),  # teardown to teardown
+    ],
+)
+def test_tis_considered_for_state(dag_maker, session, input, expected):
+    """
+    We use a convenience notation to wire up test scenarios:
+
+    t<num> -- teardown task
+    t<num>_ -- teardown task with on_failure_fail_dagrun = True
+    s<num> -- setup task
+    w<num> -- work task (a.k.a. normal task)
+
+    In the test input, each line is a statement. We'll automatically create the tasks and wire them up
+    as indicated in the test input.
+    """
+
+    @teardown
+    def teardown_task():
+        print(1)
+
+    @task
+    def work_task():
+        print(1)
+
+    @setup
+    def setup_task():
+        print(1)
+
+    def make_task(task_id, dag):
+        """
+        Task factory helper.
+
+        Will give a setup, teardown, work, or teardown-with-dagrun-failure task depending on input.
+        """
+        if task_id.startswith("s"):
+            factory = setup_task
+        elif task_id.startswith("w"):
+            factory = work_task
+        elif task_id.endswith("_"):
+            factory = teardown_task.override(on_failure_fail_dagrun=True)
+        else:
+            factory = teardown_task
+        return dag.task_dict.get(task_id) or factory.override(task_id=task_id)()
+
+    with dag_maker() as dag:
+        for line in input:
+            tasks = [make_task(x, dag) for x in line.split(" >> ")]
+            reduce(lambda x, y: x >> y, tasks)
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.task_instance_scheduling_decisions(session).tis
+    tis_for_state = {x.task_id for x in dr._tis_for_dagrun_state(dag=dag, tis=tis)}
+    assert tis_for_state == expected
+
+
+@pytest.mark.parametrize(
+    "pattern, run_id, result",
+    [
+        ["^[A-Z]", "ABC", True],
+        ["^[A-Z]", "abc", False],
+        ["^[0-9]", "123", True],
+        # The below params tests that user configuration does not affect internally generated
+        # run_ids
+        ["", "scheduled__2023-01-01T00:00:00+00:00", True],
+        ["", "manual__2023-01-01T00:00:00+00:00", True],
+        ["", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+        ["", "scheduled_2023-01-01T00", False],
+        ["", "manual_2023-01-01T00", False],
+        ["", "dataset_triggered_2023-01-01T00", False],
+        ["^[0-9]", "scheduled__2023-01-01T00:00:00+00:00", True],
+        ["^[0-9]", "manual__2023-01-01T00:00:00+00:00", True],
+        ["^[a-z]", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+    ],
+)
+def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
+    with conf_vars({("scheduler", "allowed_run_id_pattern"): pattern}):
+        with dag_maker():
+            ...
+        if result:
+            dag_maker.create_dagrun(run_id=run_id)
+        else:
+            with pytest.raises(AirflowException):
+                dag_maker.create_dagrun(run_id=run_id)

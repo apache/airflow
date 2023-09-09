@@ -26,7 +26,7 @@ from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
 
 class KafkaAdminClientHook(KafkaBaseHook):
     """
-    A hook for interacting with the Kafka Cluster
+    A hook for interacting with the Kafka Cluster.
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     """
@@ -41,7 +41,7 @@ class KafkaAdminClientHook(KafkaBaseHook):
         self,
         topics: Sequence[Sequence[Any]],
     ) -> None:
-        """Creates a topic
+        """Create a topic.
 
         :param topics: a list of topics to create including the number of partitions for the topic
           and the replication factor. Format: [ ("topic_name", number of partitions, replication factor)]

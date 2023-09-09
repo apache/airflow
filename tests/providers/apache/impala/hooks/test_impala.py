@@ -35,17 +35,47 @@ def impala_hook_fixture() -> ImpalaHook:
     return hook
 
 
-@patch("airflow.providers.apache.impala.hooks.impala.connect")
+@patch("airflow.providers.apache.impala.hooks.impala.connect", autospec=True)
 def test_get_conn(mock_connect):
     hook = ImpalaHook()
     hook.get_connection = MagicMock(
         return_value=Connection(
-            login="login", password="password", host="host", port=21050, schema="test", extra={"ssl": True}
+            login="login",
+            password="password",
+            host="host",
+            port=21050,
+            schema="test",
+            extra={"use_ssl": True},
         )
     )
     hook.get_conn()
     mock_connect.assert_called_once_with(
-        host="host", port=21050, user="login", password="password", database="test", ssl=True
+        host="host", port=21050, user="login", password="password", database="test", use_ssl=True
+    )
+
+
+@patch("airflow.providers.apache.impala.hooks.impala.connect", autospec=True)
+def test_get_conn_kerberos(mock_connect):
+    hook = ImpalaHook()
+    hook.get_connection = MagicMock(
+        return_value=Connection(
+            login="login",
+            password="password",
+            host="host",
+            port=21050,
+            schema="test",
+            extra={"auth_mechanism": "GSSAPI", "use_ssl": True},
+        )
+    )
+    hook.get_conn()
+    mock_connect.assert_called_once_with(
+        host="host",
+        port=21050,
+        user="login",
+        password="password",
+        database="test",
+        use_ssl=True,
+        auth_mechanism="GSSAPI",
     )
 
 

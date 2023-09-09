@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import datetime
 import operator
 import os
@@ -82,11 +83,10 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
@@ -97,7 +97,7 @@ from tests.test_utils.mock_operators import MockOperator
 @pytest.fixture
 def test_pool():
     with create_session() as session:
-        test_pool = Pool(pool="test_pool", slots=1)
+        test_pool = Pool(pool="test_pool", slots=1, include_deferred=False)
         session.add(test_pool)
         session.flush()
         yield test_pool
@@ -594,10 +594,8 @@ class TestTaskInstance:
             )
 
         def run_with_error(ti):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
@@ -633,10 +631,8 @@ class TestTaskInstance:
             )
 
         def run_with_error(ti):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
@@ -1237,18 +1233,36 @@ class TestTaskInstance:
                 2,
                 _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
                 True,
-                None,
+                (True, None),  # is_teardown=True, expect_state=None
                 True,
-                id="one setup failed one setup success --> should run",
+                id="is teardown one setup failed one setup success",
+            ),
+            param(
+                "all_done_setup_success",
+                2,
+                _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
+                True,
+                (False, "upstream_failed"),  # is_teardown=False, expect_state="upstream_failed"
+                True,
+                id="not teardown one setup failed one setup success",
             ),
             param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
                 True,
-                None,
+                (True, None),  # is_teardown=True, expect_state=None
                 True,
-                id="one setup success one setup skipped --> should run",
+                id="is teardown one setup success one setup skipped",
+            ),
+            param(
+                "all_done_setup_success",
+                2,
+                _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
+                True,
+                (False, "skipped"),  # is_teardown=False, expect_state="skipped"
+                True,
+                id="not teardown one setup success one setup skipped",
             ),
             param(
                 "all_done_setup_success",
@@ -1264,18 +1278,36 @@ class TestTaskInstance:
                 1,
                 _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
                 True,
-                None,
+                (True, None),  # is_teardown=True, expect_state=None
                 False,
-                id="not all done, one failed",
+                id="is teardown not all done one failed",
+            ),
+            param(
+                "all_done_setup_success",
+                1,
+                _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
+                True,
+                (False, "upstream_failed"),  # is_teardown=False, expect_state="upstream_failed"
+                False,
+                id="not teardown not all done one failed",
             ),
             param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
                 True,
-                None,
+                (True, None),  # is_teardown=True, expect_state=None
                 False,
-                id="not all done, one skipped",
+                id="not all done one skipped",
+            ),
+            param(
+                "all_done_setup_success",
+                1,
+                _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
+                True,
+                (False, "skipped"),  # is_teardown=False, expect_state="skipped'
+                False,
+                id="not all done one skipped",
             ),
         ],
     )
@@ -1290,6 +1322,13 @@ class TestTaskInstance:
         expect_state: State,
         expect_passed: bool,
     ):
+        # this allows us to change the expected state depending on whether the
+        # task is a teardown
+        set_teardown = False
+        if isinstance(expect_state, tuple):
+            set_teardown, expect_state = expect_state
+            assert isinstance(set_teardown, bool)
+
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
 
         # sanity checks
@@ -1300,11 +1339,13 @@ class TestTaskInstance:
 
         with dag_maker() as dag:
             downstream = EmptyOperator(task_id="downstream", trigger_rule=trigger_rule)
+            if set_teardown:
+                downstream.as_teardown()
             for i in range(5):
                 task = EmptyOperator(task_id=f"work_{i}", dag=dag)
                 task.set_downstream(downstream)
             for i in range(upstream_setups):
-                task = EmptyOperator.as_setup(task_id=f"setup_{i}", dag=dag)
+                task = EmptyOperator(task_id=f"setup_{i}", dag=dag).as_setup()
                 task.set_downstream(downstream)
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
@@ -1770,6 +1811,55 @@ class TestTaskInstance:
         assert 1 == ti2.get_num_running_task_instances(session=session)
         assert 1 == ti3.get_num_running_task_instances(session=session)
 
+    def test_get_num_running_task_instances_per_dagrun(self, create_task_instance, dag_maker):
+        session = settings.Session()
+
+        with dag_maker(dag_id="test_dag"):
+            MockOperator.partial(task_id="task_1").expand_kwargs([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
+            MockOperator.partial(task_id="task_2").expand_kwargs([{"a": 1, "b": 2}])
+            MockOperator.partial(task_id="task_3").expand_kwargs([{"a": 1, "b": 2}])
+
+        dr1 = dag_maker.create_dagrun(
+            execution_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_1", session=session
+        )
+        tis1 = {(ti.task_id, ti.map_index): ti for ti in dr1.task_instances}
+        print(f"tis1: {tis1}")
+
+        dr2 = dag_maker.create_dagrun(
+            execution_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_2", session=session
+        )
+        tis2 = {(ti.task_id, ti.map_index): ti for ti in dr2.task_instances}
+
+        assert tis1[("task_1", 0)] in session
+        assert tis1[("task_1", 1)] in session
+        assert tis1[("task_2", 0)] in session
+        assert tis1[("task_3", 0)] in session
+        assert tis2[("task_1", 0)] in session
+        assert tis2[("task_1", 1)] in session
+        assert tis2[("task_2", 0)] in session
+        assert tis2[("task_3", 0)] in session
+
+        tis1[("task_1", 0)].state = State.RUNNING
+        tis1[("task_1", 1)].state = State.QUEUED
+        tis1[("task_2", 0)].state = State.RUNNING
+        tis1[("task_3", 0)].state = State.RUNNING
+        tis2[("task_1", 0)].state = State.RUNNING
+        tis2[("task_1", 1)].state = State.QUEUED
+        tis2[("task_2", 0)].state = State.RUNNING
+        tis2[("task_3", 0)].state = State.RUNNING
+
+        session.commit()
+
+        assert 1 == tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 1 == tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 2 == tis1[("task_2", 0)].get_num_running_task_instances(session=session)
+        assert 1 == tis1[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+
+        assert 1 == tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 1 == tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 2 == tis2[("task_2", 0)].get_num_running_task_instances(session=session)
+        assert 1 == tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
 
@@ -1825,10 +1915,8 @@ class TestTaskInstance:
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
 
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowException:
-            pass
 
         (email, title, body), _ = mock_send_email.call_args
         assert email == "to"
@@ -1855,10 +1943,8 @@ class TestTaskInstance:
 
         opener = mock_open(read_data="template: {{ti.task_id}}")
         with patch("airflow.models.taskinstance.open", opener, create=True):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         (email, title, body), _ = mock_send_email.call_args
         assert email == "to"
@@ -1880,18 +1966,14 @@ class TestTaskInstance:
         opener = mock_open(read_data="template: {{ti.task_id}}")
         opener.side_effect = FileNotFoundError
         with patch("airflow.models.taskinstance.open", opener, create=True):
-            try:
+            with contextlib.suppress(AirflowException):
                 ti.run()
-            except AirflowException:
-                pass
 
         (email_error, title_error, body_error), _ = mock_send_email.call_args
 
         # Rerun task without any error and no template file
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowException:
-            pass
 
         (email_default, title_default, body_default), _ = mock_send_email.call_args
 
@@ -2597,7 +2679,7 @@ class TestTaskInstance:
         ti1.state = State.FAILED
         ti1.handle_failure("test failure handling")
 
-        context_arg_1 = mock_on_failure_1.call_args[0][0]
+        context_arg_1 = mock_on_failure_1.call_args.args[0]
         assert context_arg_1 and "task_instance" in context_arg_1
         mock_on_retry_1.assert_not_called()
 
@@ -2618,7 +2700,7 @@ class TestTaskInstance:
 
         mock_on_failure_2.assert_not_called()
 
-        context_arg_2 = mock_on_retry_2.call_args[0][0]
+        context_arg_2 = mock_on_retry_2.call_args.args[0]
         assert context_arg_2 and "task_instance" in context_arg_2
 
         # test the scenario where normally we would retry but have been asked to fail
@@ -2637,7 +2719,7 @@ class TestTaskInstance:
         ti3.state = State.FAILED
         ti3.handle_failure("test force_fail handling", force_fail=True)
 
-        context_arg_3 = mock_on_failure_3.call_args[0][0]
+        context_arg_3 = mock_on_failure_3.call_args.args[0]
         assert context_arg_3 and "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
 
@@ -2690,6 +2772,9 @@ class TestTaskInstance:
 
         Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
         Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
+        Stats_incr.assert_any_call(
+            "operator_failures", tags={**expected_stats_tags, "operator": "EmptyOperator"}
+        )
 
     def test_handle_failure_task_undefined(self, create_task_instance):
         """
@@ -2768,10 +2853,8 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowFailException:
-            pass  # expected
         assert State.FAILED == ti.state
 
     def test_retries_on_other_exceptions(self, dag_maker):
@@ -2786,10 +2869,8 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        try:
+        with contextlib.suppress(AirflowException):
             ti.run()
-        except AirflowException:
-            pass  # expected
         assert State.UP_FOR_RETRY == ti.state
 
     def test_stacktrace_on_failure_starts_with_task_execute_method(self, dag_maker):
@@ -2807,8 +2888,8 @@ class TestTaskInstance:
         with patch.object(TI, "log") as log, pytest.raises(AirflowException):
             ti.run()
         log.error.assert_called_once()
-        assert log.error.call_args[0] == ("Task failed with exception",)
-        exc_info = log.error.call_args[1]["exc_info"]
+        assert log.error.call_args.args == ("Task failed with exception",)
+        exc_info = log.error.call_args.kwargs["exc_info"]
         filename = exc_info[2].tb_frame.f_code.co_filename
         formatted_exc = format_exception(*exc_info)
         assert sys.modules[PythonOperator.__module__].__file__ == filename, "".join(formatted_exc)
@@ -2839,6 +2920,33 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    def test_get_current_context_works_in_template(self, dag_maker):
+        def user_defined_macro():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+
+        with dag_maker(
+            "test_context_inside_template",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+            user_defined_macros={"user_defined_macro": user_defined_macro},
+        ):
+
+            def foo(arg):
+                print(arg)
+
+            PythonOperator(
+                task_id="context_inside_template",
+                python_callable=foo,
+                op_kwargs={"arg": "{{ user_defined_macro() }}"},
+            ),
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = next(x for x in tis if x.task_id == "context_inside_template")
+        ti._run_raw_task()
+        assert ti.state == State.SUCCESS
+
     @patch.object(Stats, "incr")
     def test_task_stats(self, stats_mock, create_task_instance):
         ti = create_task_instance(
@@ -2853,9 +2961,13 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        stats_mock.assert_called_with(
+        stats_mock.assert_any_call(
             f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
             tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+        )
+        stats_mock.assert_any_call(
+            "ti.finish",
+            tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": ti.state},
         )
         for state in State.task_states:
             assert (
@@ -2866,11 +2978,20 @@ class TestTaskInstance:
                 )
                 in stats_mock.mock_calls
             )
+            assert (
+                call(
+                    "ti.finish",
+                    count=0,
+                    tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": str(state)},
+                )
+                in stats_mock.mock_calls
+            )
         assert (
             call(f"ti.start.{ti.dag_id}.{ti.task_id}", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
             in stats_mock.mock_calls
         )
-        assert stats_mock.call_count == len(State.task_states) + 4
+        assert call("ti.start", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}) in stats_mock.mock_calls
+        assert stats_mock.call_count == (2 * len(State.task_states)) + 7
 
     def test_command_as_list(self, create_task_instance):
         ti = create_task_instance()
@@ -2935,86 +3056,6 @@ class TestTaskInstance:
         with create_session() as session:
             session.query(RenderedTaskInstanceFields).delete()
 
-    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    @mock.patch("airflow.settings.pod_mutation_hook")
-    def test_render_k8s_pod_yaml(self, pod_mutation_hook, create_task_instance):
-        ti = create_task_instance(
-            dag_id="test_render_k8s_pod_yaml",
-            run_id="test_run_id",
-            task_id="op1",
-            execution_date=DEFAULT_DATE,
-        )
-
-        expected_pod_spec = {
-            "metadata": {
-                "annotations": {
-                    "dag_id": "test_render_k8s_pod_yaml",
-                    "run_id": "test_run_id",
-                    "task_id": "op1",
-                    "try_number": "1",
-                },
-                "labels": {
-                    "airflow-worker": "0",
-                    "airflow_version": version,
-                    "dag_id": "test_render_k8s_pod_yaml",
-                    "run_id": "test_run_id",
-                    "kubernetes_executor": "True",
-                    "task_id": "op1",
-                    "try_number": "1",
-                },
-                "name": mock.ANY,
-                "namespace": "default",
-            },
-            "spec": {
-                "containers": [
-                    {
-                        "args": [
-                            "airflow",
-                            "tasks",
-                            "run",
-                            "test_render_k8s_pod_yaml",
-                            "op1",
-                            "test_run_id",
-                            "--subdir",
-                            __file__,
-                        ],
-                        "name": "base",
-                        "env": [{"name": "AIRFLOW_IS_K8S_EXECUTOR_POD", "value": "True"}],
-                    }
-                ]
-            },
-        }
-
-        assert ti.render_k8s_pod_yaml() == expected_pod_spec
-        pod_mutation_hook.assert_called_once_with(mock.ANY)
-
-    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    @mock.patch.object(RenderedTaskInstanceFields, "get_k8s_pod_yaml")
-    def test_get_rendered_k8s_spec(self, rtif_get_k8s_pod_yaml, create_task_instance):
-        # Create new TI for the same Task
-        ti = create_task_instance()
-
-        patcher = mock.patch.object(ti, "render_k8s_pod_yaml", autospec=True)
-
-        fake_spec = {"ermagawds": "pods"}
-
-        session = mock.Mock()
-
-        with patcher as render_k8s_pod_yaml:
-            rtif_get_k8s_pod_yaml.return_value = fake_spec
-            assert ti.get_rendered_k8s_spec(session) == fake_spec
-
-            rtif_get_k8s_pod_yaml.assert_called_once_with(ti, session=session)
-            render_k8s_pod_yaml.assert_not_called()
-
-            # Now test that when we _dont_ find it in the DB, it calls render_k8s_pod_yaml
-            rtif_get_k8s_pod_yaml.return_value = None
-            render_k8s_pod_yaml.return_value = fake_spec
-
-            assert ti.get_rendered_k8s_spec(session) == fake_spec
-
-            render_k8s_pod_yaml.assert_called_once()
-
     def test_set_state_up_for_retry(self, create_task_instance):
         ti = create_task_instance(state=State.RUNNING)
 
@@ -3049,6 +3090,7 @@ class TestTaskInstance:
             "queue": "some_queue_id",
             "priority_weight": 123,
             "operator": "some_custom_operator",
+            "custom_operator_name": "some_custom_operator",
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "queued_by_job_id": 321,
             "pid": 123,
@@ -3105,6 +3147,8 @@ class TestTaskInstance:
     def test_clear_db_references(self, session, create_task_instance):
         tables = [TaskFail, RenderedTaskInstanceFields, XCom]
         ti = create_task_instance()
+        ti.note = "sample note"
+
         session.merge(ti)
         session.commit()
         for table in [TaskFail, RenderedTaskInstanceFields]:
@@ -3113,9 +3157,16 @@ class TestTaskInstance:
         session.commit()
         for table in tables:
             assert session.query(table).count() == 1
+
+        filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
+        ti_note = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+        assert ti_note.content == "sample note"
+
         ti.clear_db_references(session)
         for table in tables:
             assert session.query(table).count() == 0
+
+        assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

@@ -778,6 +778,36 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                 "test",
                 id="with execution date filter",
             ),
+            pytest.param(
+                [
+                    {"execution_date": DEFAULT_DATETIME_1},
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3)},
+                ],
+                False,
+                {
+                    "dag_run_ids": ["TEST_DAG_RUN_ID_0", "TEST_DAG_RUN_ID_1"],
+                },
+                2,
+                "test",
+                id="test dag run id filter",
+            ),
+            pytest.param(
+                [
+                    {"execution_date": DEFAULT_DATETIME_1},
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3)},
+                ],
+                False,
+                {
+                    "task_ids": ["print_the_context", "log_sql_query"],
+                },
+                2,
+                "test",
+                id="test task id filter",
+            ),
         ],
     )
     def test_should_respond_200(
@@ -1803,14 +1833,16 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dry_run": True,
                     "new_state": "failede",
                 },
-                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'",
+                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']"
+                " - 'new_state'",
             ),
             (
                 {
                     "dry_run": True,
                     "new_state": "queued",
                 },
-                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'",
+                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']"
+                " - 'new_state'",
             ),
         ],
     )

@@ -37,11 +37,17 @@
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.scheduler.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.scheduler) }}
-kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.scheduler) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.scheduler) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.scheduler.waitForMigrations) }}
+{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.scheduler.logGroomerSidecar) }}
+{{- $containerLifecycleHooks := or .Values.scheduler.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksWaitForMigrations := or .Values.scheduler.waitForMigrations.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksLogGroomerSidecar := or .Values.scheduler.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
+kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ .Release.Name }}-scheduler
+  name: {{ include "airflow.fullname" . }}-scheduler
   labels:
     tier: airflow
     component: scheduler
@@ -57,7 +63,7 @@ metadata:
   {{- end }}
 spec:
   {{- if $stateful }}
-  serviceName: {{ .Release.Name }}-scheduler
+  serviceName: {{ include "airflow.fullname" . }}-scheduler
   {{- end }}
   replicas: {{ .Values.scheduler.replicas }}
   {{- if $revisionHistoryLimit }}
@@ -103,6 +109,9 @@ spec:
       {{- if .Values.scheduler.priorityClassName }}
       priorityClassName: {{ .Values.scheduler.priorityClassName }}
       {{- end }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
         {{- if $affinity }}
@@ -136,13 +145,17 @@ spec:
           resources: {{- toYaml .Values.scheduler.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
+          {{- if $containerLifecycleHooksWaitForMigrations  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksWaitForMigrations) . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.scheduler.extraVolumeMounts }}
-              {{- toYaml .Values.scheduler.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -157,7 +170,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.extraInitContainers }}
           {{- toYaml .Values.scheduler.extraInitContainers | nindent 8 }}
@@ -167,6 +180,10 @@ spec:
         - name: scheduler
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.scheduler.command }}
           command: {{ tpl (toYaml .Values.scheduler.command) . | nindent 12 }}
           {{- end }}
@@ -189,6 +206,17 @@ spec:
                   {{- toYaml .Values.scheduler.livenessProbe.command  | nindent 16 }}
                 {{- else }}
                   {{- include "scheduler_liveness_check_command" . | indent 14 }}
+                {{- end }}
+          startupProbe:
+            timeoutSeconds: {{ .Values.scheduler.startupProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.scheduler.startupProbe.failureThreshold }}
+            periodSeconds: {{ .Values.scheduler.startupProbe.periodSeconds }}
+            exec:
+              command:
+                {{- if .Values.scheduler.startupProbe.command }}
+                  {{- toYaml .Values.scheduler.startupProbe.command  | nindent 16 }}
+                {{- else }}
+                  {{- include "scheduler_startup_check_command" . | indent 14 }}
                 {{- end }}
           {{- if and $local (not $elasticsearch) }}
           # Serve logs if we're in local mode and we don't have elasticsearch enabled.
@@ -217,7 +245,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.scheduler.extraVolumeMounts }}
-              {{- toYaml .Values.scheduler.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.scheduler.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
           {{- include "git_sync_container" . | indent 8 }}
@@ -227,6 +255,10 @@ spec:
           resources: {{- toYaml .Values.scheduler.logGroomerSidecar.resources | nindent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
+          {{- if $containerLifecycleHooksLogGroomerSidecar  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.scheduler.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.scheduler.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}

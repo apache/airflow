@@ -19,16 +19,32 @@
 ``apache-airflow-providers-redis``
 ==================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Guides
+
+    Logging <logging/index>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/redis/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -38,6 +54,7 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/redis/index>
@@ -46,6 +63,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -58,7 +76,7 @@ Package apache-airflow-providers-redis
 `Redis <https://redis.io/>`__
 
 
-Release: 3.2.0
+Release: 3.3.2
 
 Provider package
 ----------------
@@ -78,11 +96,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
 
-==================  ==================
+==================  ==========================
 PIP package         Version required
-==================  ==================
+==================  ==========================
 ``apache-airflow``  ``>=2.4.0``
-``redis``           ``>=3.2.0``
-==================  ==================
-
-.. include:: ../../airflow/providers/redis/CHANGELOG.rst
+``redis``           ``>=4.5.2,<5.0.0,!=4.5.5``
+==================  ==========================

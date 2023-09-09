@@ -26,7 +26,7 @@ isort:skip_file
 """
 from __future__ import annotations
 
-__version__ = "2.7.0.dev0"
+__version__ = "2.8.0.dev0"
 
 # flake8: noqa: F401
 
@@ -49,8 +49,7 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
 # very easily cause import cycles in the conf init/validate code (since downstream code from
 # those functions likely import settings).
 # configuration is therefore initted early here, simply by importing it.
-from airflow import configuration
-from airflow import settings
+from airflow import configuration, settings
 
 __all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "XComArg"]
 
@@ -62,6 +61,9 @@ __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
 # Perform side-effects unless someone has explicitly opted out before import
 # WARNING: DO NOT USE THIS UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
+# This environment variable prevents proper initialization, and things like
+# configs, logging, the ORM, etc. will be broken. It is only useful if you only
+# access certain trivial constants and free functions (e.g. `__version__`).
 if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
     settings.initialize()
 
@@ -103,11 +105,6 @@ def __getattr__(name: str):
     return val
 
 
-if not settings.LAZY_LOAD_PLUGINS:
-    from airflow import plugins_manager
-
-    plugins_manager.ensure_plugins_loaded()
-
 if not settings.LAZY_LOAD_PROVIDERS:
     from airflow import providers_manager
 
@@ -115,6 +112,10 @@ if not settings.LAZY_LOAD_PROVIDERS:
     manager.initialize_providers_list()
     manager.initialize_providers_hooks()
     manager.initialize_providers_extra_links()
+if not settings.LAZY_LOAD_PLUGINS:
+    from airflow import plugins_manager
+
+    plugins_manager.ensure_plugins_loaded()
 
 
 # This is never executed, but tricks static analyzers (PyDev, PyCharm,)
@@ -123,7 +124,7 @@ if not settings.LAZY_LOAD_PROVIDERS:
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.models.dag import DAG
-    from airflow.models.xcom_arg import XComArg
     from airflow.exceptions import AirflowException
+    from airflow.models.dag import DAG
     from airflow.models.dataset import Dataset
+    from airflow.models.xcom_arg import XComArg

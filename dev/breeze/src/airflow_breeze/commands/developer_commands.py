@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 import threading
@@ -26,13 +27,13 @@ from typing import Iterable
 
 import click
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_SELECTED,
-    get_available_documentation_packages,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
@@ -41,12 +42,17 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
+    argument_packages_plus_all_providers,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
     option_backend,
+    option_builder,
+    option_celery_broker,
+    option_celery_flower,
     option_db_reset,
     option_dry_run,
+    option_executor,
     option_force_build,
     option_forward_credentials,
     option_github_repository,
@@ -69,9 +75,8 @@ from airflow_breeze.utils.common_options import (
     option_verbose,
 )
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
-    DOCKER_COMPOSE_COMMAND,
     check_docker_resources,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
@@ -92,12 +97,26 @@ from airflow_breeze.utils.run_utils import (
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# Make sure that whatever you add here as an option is also
-# Added in the "main" command in breeze.py. The min command above
-# Is used for a shorthand of shell and except the extra
-# Args it should have the same parameters.
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
+    """
+    Determine which constraints reference to use.
+
+    When use-airflow-version is branch or version, we derive the constraints branch from it, unless
+    someone specified the constraints branch explicitly.
+
+    :param airflow_constraints_reference: the constraint reference specified (or default)
+    :param use_airflow_version: which airflow version we are installing
+    :return: the actual constraints reference to use
+    """
+    if (
+        use_airflow_version
+        and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+        and re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z\.]*|main|v[0-9]_.*", use_airflow_version)
+    ):
+        get_console().print(f"[info]Using constraints {use_airflow_version} - matching airflow version used.")
+        return use_airflow_version
+    return airflow_constraints_reference
 
 
 class TimerThread(threading.Thread):
@@ -112,10 +131,19 @@ class TimerThread(threading.Thread):
         os.killpg(os.getpgid(0), SIGTERM)
 
 
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# Make sure that whatever you add here as an option is also
+# Added in the "main" command in breeze.py. The min command above
+# Is used for a shorthand of shell and except the extra
+# Args it should have the same parameters.
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 @main.command()
 @option_python
 @option_platform_single
 @option_backend
+@option_builder
 @option_postgres_version
 @option_mysql_version
 @option_mssql_version
@@ -137,10 +165,14 @@ class TimerThread(threading.Thread):
 @option_dry_run
 @option_github_repository
 @option_answer
+@option_executor
+@option_celery_broker
+@option_celery_flower
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 def shell(
     python: str,
     backend: str,
+    builder: str,
     integration: tuple[str],
     postgres_version: str,
     mysql_version: str,
@@ -160,6 +192,9 @@ def shell(
     image_tag: str | None,
     platform: str | None,
     github_repository: str,
+    executor: str,
+    celery_broker: str,
+    celery_flower: bool,
     extra_args: tuple,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
@@ -169,15 +204,19 @@ def shell(
     if max_time:
         TimerThread(max_time=max_time).start()
         set_forced_answer("yes")
+    airflow_constraints_reference = _determine_constraint_branch_used(
+        airflow_constraints_reference, use_airflow_version
+    )
     result = enter_shell(
         python=python,
         github_repository=github_repository,
         backend=backend,
+        builder=builder,
         integration=integration,
         postgres_version=postgres_version,
         mysql_version=mysql_version,
         mssql_version=mssql_version,
-        forward_credentials=str(forward_credentials),
+        forward_credentials=forward_credentials,
         mount_sources=mount_sources,
         use_airflow_version=use_airflow_version,
         airflow_extras=airflow_extras,
@@ -191,6 +230,9 @@ def shell(
         extra_args=extra_args if not max_time else ["exit"],
         image_tag=image_tag,
         platform=platform,
+        executor=executor,
+        celery_broker=celery_broker,
+        celery_flower=celery_flower,
     )
     sys.exit(result.returncode)
 
@@ -199,6 +241,7 @@ def shell(
 @option_python
 @option_platform_single
 @option_backend
+@option_builder
 @option_postgres_version
 @option_load_example_dags
 @option_load_default_connection
@@ -232,9 +275,13 @@ def shell(
 @option_dry_run
 @option_answer
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
+@option_executor
+@option_celery_broker
+@option_celery_flower
 def start_airflow(
     python: str,
     backend: str,
+    builder: str,
     integration: tuple[str],
     postgres_version: str,
     load_example_dags: bool,
@@ -256,6 +303,9 @@ def start_airflow(
     platform: str | None,
     extra_args: tuple,
     github_repository: str,
+    executor: str,
+    celery_broker: str,
+    celery_flower: bool,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -268,17 +318,22 @@ def start_airflow(
         skip_asset_compilation = True
     if use_airflow_version is None and not skip_asset_compilation:
         run_compile_www_assets(dev=dev_mode, run_in_background=True)
+    airflow_constraints_reference = _determine_constraint_branch_used(
+        airflow_constraints_reference, use_airflow_version
+    )
+
     result = enter_shell(
         python=python,
         github_repository=github_repository,
         backend=backend,
+        builder=builder,
         integration=integration,
         postgres_version=postgres_version,
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mysql_version=mysql_version,
         mssql_version=mssql_version,
-        forward_credentials=str(forward_credentials),
+        forward_credentials=forward_credentials,
         mount_sources=mount_sources,
         use_airflow_version=use_airflow_version,
         airflow_extras=airflow_extras,
@@ -292,6 +347,9 @@ def start_airflow(
         image_tag=image_tag,
         platform=platform,
         extra_args=extra_args,
+        executor=executor,
+        celery_broker=celery_broker,
+        celery_flower=celery_flower,
     )
     sys.exit(result.returncode)
 
@@ -299,22 +357,20 @@ def start_airflow(
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
+@argument_packages_plus_all_providers
+@option_builder
 @click.option(
     "--package-filter",
-    help="List of packages to consider.",
-    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
+    "the short hand names or the glob pattern matching the full package name. "
+    "The list of short hand names can be found in --help output",
+    type=str,
     multiple=True,
 )
 @click.option(
     "--clean-build",
     help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
     "before the build - useful for a clean build.",
-    is_flag=True,
-)
-@click.option(
-    "--for-production",
-    help="Builds documentation for official release i.e. all links point to stable version. "
-    "Implies --clean-build",
     is_flag=True,
 )
 @click.option(
@@ -326,21 +382,23 @@ def start_airflow(
 @option_verbose
 @option_dry_run
 def build_docs(
+    packages_plus_all_providers: tuple[str],
     docs_only: bool,
     spellcheck_only: bool,
-    for_production: bool,
+    builder: str,
     clean_build: bool,
     one_pass_only: bool,
     package_filter: tuple[str],
     github_repository: str,
 ):
-    """Build documentation in the container."""
-    if for_production and not clean_build:
-        get_console().print("\n[warning]When building docs for production, clean-build is forced\n")
-        clean_build = True
+    """
+    Build documents.
+    """
     perform_environment_checks()
     cleanup_python_generated_files()
-    params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
+    params = BuildCiParams(
+        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+    )
     rebuild_or_pull_ci_image_if_needed(command_params=params)
     if clean_build:
         docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
@@ -353,8 +411,9 @@ def build_docs(
         package_filter=package_filter,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
-        for_production=for_production,
+        one_pass_only=one_pass_only,
         skip_environment_initialization=True,
+        packages_plus_all_providers=packages_plus_all_providers,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = get_env_variables_for_docker_commands(params)
@@ -425,6 +484,14 @@ def build_docs(
     type=click.IntRange(1, 10),
     default=3,
 )
+@click.option(
+    "--skip-image-check",
+    help="Skip checking if the CI image is up to date. Useful if you run non-image checks only",
+    is_flag=True,
+)
+@option_image_tag_for_running
+@option_force_build
+@option_builder
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -438,12 +505,27 @@ def static_checks(
     type_: str,
     file: Iterable[str],
     precommit_args: tuple,
+    skip_image_check: bool,
     initialize_environment: bool,
     max_initialization_attempts: int,
+    image_tag: str,
+    force_build: bool,
+    builder: str,
     github_repository: str,
 ):
     assert_pre_commit_installed()
     perform_environment_checks()
+    build_params = BuildCiParams(
+        builder=builder,
+        force_build=force_build,
+        image_tag=image_tag,
+        github_repository=github_repository,
+        # for static checks we do not want to regenerate dependencies before pre-commits are run
+        # we want the pre-commit to do it for us (and detect the case the dependencies are updated)
+        skip_provider_dependencies_check=True,
+    )
+    if not skip_image_check:
+        rebuild_or_pull_ci_image_if_needed(command_params=build_params)
 
     if initialize_environment:
         get_console().print("[info]Make sure that pre-commit is installed and environment initialized[/]")
@@ -451,9 +533,8 @@ def static_checks(
             f"[info]Trying to install the environments up to {max_initialization_attempts} "
             f"times in case of flakiness[/]"
         )
-        i = 0
-        while True:
-            get_console().print(f"[info]Attempt number {i+1} to install pre-commit environments")
+        for attempt in range(1, 1 + max_initialization_attempts):
+            get_console().print(f"[info]Attempt number {attempt} to install pre-commit environments")
             initialization_result = run_command(
                 [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
                 check=False,
@@ -462,11 +543,10 @@ def static_checks(
             )
             if initialization_result.returncode == 0:
                 break
-            get_console().print(f"[warning]Attempt number {i+1} failed - retrying[/]")
-            if i == max_initialization_attempts - 1:
-                get_console().print("[error]Could not install pre-commit environments[/]")
-                sys.exit(initialization_result.returncode)
-            i += 1
+            get_console().print(f"[warning]Attempt number {attempt} failed - retrying[/]")
+        else:
+            get_console().print("[error]Could not install pre-commit environments[/]")
+            sys.exit(initialization_result.returncode)
 
     command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
     if not one_or_none_set([last_commit, commit_ref, only_my_changes, all_files]):
@@ -521,7 +601,21 @@ def static_checks(
     )
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):
-            get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
+            get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
+            get_console().print("\n[info]Some of the problems might be fixed automatically via pre-commit[/]")
+            get_console().print(
+                "\n[info]You can run it locally with: `pre-commit run --all-files` "
+                "but it might take quite some time.[/]"
+            )
+            get_console().print(
+                "\n[info]If you use breeze you can also run it faster via: "
+                "`breeze static-checks --only-my-changes` but it might produce slightly "
+                "different results.[/]"
+            )
+            get_console().print(
+                "\n[info]To run `pre-commit` as part of git workflow, use "
+                "`pre-commit install`. This will make pre-commit run as you commit changes[/]\n"
+            )
     sys.exit(static_checks_result.returncode)
 
 
@@ -563,7 +657,7 @@ def compile_www_assets(dev: bool):
 @option_dry_run
 def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
-    command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
+    command_to_execute = ["docker", "compose", "down", "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
     shell_params = ShellParams(backend="all", include_mypy_volume=True)
@@ -622,21 +716,44 @@ def enter_shell(**kwargs) -> RunCommandResult:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     shell_params = ShellParams(**filter_out_none(**kwargs))
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+
+    if shell_params.backend == "sqlite":
+        get_console().print(
+            f"\n[warning]backend: sqlite is not "
+            f"compatible with executor: {shell_params.executor}. "
+            f"Changing the executor to SequentialExecutor.\n"
+        )
+        shell_params.executor = "SequentialExecutor"
+
+    if shell_params.executor == "CeleryExecutor" and shell_params.use_airflow_version:
+        if shell_params.airflow_extras and "celery" not in shell_params.airflow_extras.split():
+            get_console().print(
+                f"\n[warning]CeleryExecutor requires airflow_extras: celery. "
+                f"Adding celery to extras: '{shell_params.airflow_extras}'.\n"
+            )
+            shell_params.airflow_extras += ",celery"
+        elif not shell_params.airflow_extras:
+            get_console().print(
+                "\n[warning]CeleryExecutor requires airflow_extras: celery. "
+                "Setting airflow extras to 'celery'.\n"
+            )
+            shell_params.airflow_extras = "celery"
+
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
     shell_params.print_badge_info()
-    cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "-e", "BREEZE", "--rm", "airflow"]
+    cmd = ["docker", "compose", "run", "--service-ports", "-e", "BREEZE", "--rm", "airflow"]
     cmd_added = shell_params.command_passed
     env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            if shell_params.mysql_version == "8":
+            if not shell_params.mysql_version.startswith("5"):
                 get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
             else:
                 get_console().print(
-                    f"\n[error]Only MySQL 8.0 is supported on ARM architecture, "
+                    f"\n[error]Only MySQL 8.x is supported on ARM architecture, "
                     f"but got {shell_params.mysql_version}[/]\n"
                 )
                 sys.exit(1)
@@ -665,7 +782,7 @@ def find_airflow_container() -> str | None:
     check_docker_resources(exec_shell_params.airflow_image_name)
     exec_shell_params.print_badge_info()
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
-    cmd = [*DOCKER_COMPOSE_COMMAND, "ps", "--all", "--filter", "status=running", "airflow"]
+    cmd = ["docker", "compose", "ps", "--all", "--filter", "status=running", "airflow"]
     docker_compose_ps_command = run_command(
         cmd, text=True, capture_output=True, env=env_variables, check=False
     )
@@ -679,7 +796,7 @@ def find_airflow_container() -> str | None:
         return None
 
     output = docker_compose_ps_command.stdout
-    container_info = output.strip().split("\n")
+    container_info = output.strip().splitlines()
     if container_info:
         container_running = container_info[-1].split(" ")[0]
         if container_running.startswith("-"):

@@ -52,7 +52,7 @@ VERTEX_AI_ENDPOINT_LIST_LINK = VERTEX_AI_BASE_LINK + "/endpoints?project={projec
 
 
 class VertexAIModelLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI Model link"""
+    """Helper class for constructing Vertex AI Model link."""
 
     name = "Vertex AI Model"
     key = "model_conf"
@@ -76,7 +76,7 @@ class VertexAIModelLink(BaseGoogleLink):
 
 
 class VertexAIModelListLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI Models Link"""
+    """Helper class for constructing Vertex AI Models Link."""
 
     name = "Model List"
     key = "models_conf"
@@ -97,7 +97,7 @@ class VertexAIModelListLink(BaseGoogleLink):
 
 
 class VertexAIModelExportLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI Model Export Link"""
+    """Helper class for constructing Vertex AI Model Export Link."""
 
     name = "Export Model"
     key = "export_conf"
@@ -125,7 +125,7 @@ class VertexAIModelExportLink(BaseGoogleLink):
 
 
 class VertexAITrainingLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI Training link"""
+    """Helper class for constructing Vertex AI Training link."""
 
     name = "Vertex AI Training"
     key = "training_conf"
@@ -149,7 +149,7 @@ class VertexAITrainingLink(BaseGoogleLink):
 
 
 class VertexAITrainingPipelinesLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI Training Pipelines link"""
+    """Helper class for constructing Vertex AI Training Pipelines link."""
 
     name = "Vertex AI Training Pipelines"
     key = "pipelines_conf"
@@ -170,7 +170,7 @@ class VertexAITrainingPipelinesLink(BaseGoogleLink):
 
 
 class VertexAIDatasetLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI Dataset link"""
+    """Helper class for constructing Vertex AI Dataset link."""
 
     name = "Dataset"
     key = "dataset_conf"
@@ -190,7 +190,7 @@ class VertexAIDatasetLink(BaseGoogleLink):
 
 
 class VertexAIDatasetListLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI Datasets Link"""
+    """Helper class for constructing Vertex AI Datasets Link."""
 
     name = "Dataset List"
     key = "datasets_conf"
@@ -211,7 +211,7 @@ class VertexAIDatasetListLink(BaseGoogleLink):
 
 
 class VertexAIHyperparameterTuningJobListLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI HyperparameterTuningJobs Link"""
+    """Helper class for constructing Vertex AI HyperparameterTuningJobs Link."""
 
     name = "Hyperparameter Tuning Job List"
     key = "hyperparameter_tuning_jobs_conf"
@@ -232,7 +232,7 @@ class VertexAIHyperparameterTuningJobListLink(BaseGoogleLink):
 
 
 class VertexAIBatchPredictionJobLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI BatchPredictionJob link"""
+    """Helper class for constructing Vertex AI BatchPredictionJob link."""
 
     name = "Batch Prediction Job"
     key = "batch_prediction_job_conf"
@@ -256,7 +256,7 @@ class VertexAIBatchPredictionJobLink(BaseGoogleLink):
 
 
 class VertexAIBatchPredictionJobListLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI BatchPredictionJobList link"""
+    """Helper class for constructing Vertex AI BatchPredictionJobList link."""
 
     name = "Batch Prediction Job List"
     key = "batch_prediction_jobs_conf"
@@ -277,7 +277,7 @@ class VertexAIBatchPredictionJobListLink(BaseGoogleLink):
 
 
 class VertexAIEndpointLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI Endpoint link"""
+    """Helper class for constructing Vertex AI Endpoint link."""
 
     name = "Endpoint"
     key = "endpoint_conf"
@@ -301,7 +301,7 @@ class VertexAIEndpointLink(BaseGoogleLink):
 
 
 class VertexAIEndpointListLink(BaseGoogleLink):
-    """Helper class for constructing Vertex AI EndpointList link"""
+    """Helper class for constructing Vertex AI EndpointList link."""
 
     name = "Endpoint List"
     key = "endpoints_conf"

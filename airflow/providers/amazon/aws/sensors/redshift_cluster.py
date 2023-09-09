@@ -16,11 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -67,7 +67,7 @@ class RedshiftClusterSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> RedshiftHook:
-        """Create and return a RedshiftHook"""
+        """Create and return a RedshiftHook."""
         return self.hook
 
     @cached_property

@@ -39,6 +39,9 @@ class TestS3ListOperator:
         files = operator.execute(None)
 
         mock_hook.return_value.list_keys.assert_called_once_with(
-            bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER
+            bucket_name=BUCKET,
+            prefix=PREFIX,
+            delimiter=DELIMITER,
+            apply_wildcard=False,
         )
         assert sorted(files) == sorted(MOCK_FILES)

@@ -18,15 +18,17 @@
 """Class responsible for colouring logs based on log level."""
 from __future__ import annotations
 
-import re
 import sys
-from logging import LogRecord
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import re2
 from colorlog import TTYColoredFormatter
 from colorlog.escape_codes import esc, escape_codes
 
 from airflow.utils.log.timezone_aware import TimezoneAware
+
+if TYPE_CHECKING:
+    from logging import LogRecord
 
 DEFAULT_COLORS = {
     "DEBUG": "green",
@@ -42,9 +44,10 @@ BOLD_OFF = esc("22")
 
 class CustomTTYColoredFormatter(TTYColoredFormatter, TimezoneAware):
     """
-    Custom log formatter which extends `colored.TTYColoredFormatter`
-    by adding attributes to message arguments and coloring error
-    traceback.
+    Custom log formatter.
+
+    Extends `colored.TTYColoredFormatter` by adding attributes
+    to message arguments and coloring error traceback.
     """
 
     def __init__(self, *args, **kwargs):
@@ -61,7 +64,7 @@ class CustomTTYColoredFormatter(TTYColoredFormatter, TimezoneAware):
 
     @staticmethod
     def _count_number_of_arguments_in_message(record: LogRecord) -> int:
-        matches = re.findall(r"%.", record.msg)
+        matches = re2.findall(r"%.", record.msg)
         return len(matches) if matches else 0
 
     def _color_record_args(self, record: LogRecord) -> LogRecord:

@@ -18,11 +18,15 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Sequence
+from datetime import timedelta
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.compat.functools import cached_property
+from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
+from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -50,6 +54,11 @@ class LambdaCreateFunctionOperator(BaseOperator):
     :param timeout: The amount of time (in seconds) that Lambda allows a function to run before stopping it.
     :param config: Optional dictionary for arbitrary parameters to the boto API create_lambda call.
     :param wait_for_completion: If True, the operator will wait until the function is active.
+    :param waiter_max_attempts: Maximum number of attempts to poll the creation.
+    :param waiter_delay: Number of seconds between polling the state of the creation.
+    :param deferrable: If True, the operator will wait asynchronously for the creation to complete.
+        This implies waiting for creation complete. This mode requires aiobotocore module to be installed.
+        (default: False, but can be overridden in config file by setting default_deferrable to True)
     :param aws_conn_id: The AWS connection ID to use
     """
 
@@ -75,6 +84,9 @@ class LambdaCreateFunctionOperator(BaseOperator):
         timeout: int | None = None,
         config: dict = {},
         wait_for_completion: bool = False,
+        waiter_max_attempts: int = 60,
+        waiter_delay: int = 15,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -88,6 +100,9 @@ class LambdaCreateFunctionOperator(BaseOperator):
         self.timeout = timeout
         self.config = config
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
         self.aws_conn_id = aws_conn_id
 
     @cached_property
@@ -108,6 +123,18 @@ class LambdaCreateFunctionOperator(BaseOperator):
         )
         self.log.info("Lambda response: %r", response)
 
+        if self.deferrable:
+            self.defer(
+                trigger=LambdaCreateFunctionCompleteTrigger(
+                    function_name=self.function_name,
+                    function_arn=response["FunctionArn"],
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+            )
         if self.wait_for_completion:
             self.log.info("Wait for Lambda function to be active")
             waiter = self.hook.conn.get_waiter("function_active_v2")
@@ -117,11 +144,19 @@ class LambdaCreateFunctionOperator(BaseOperator):
 
         return response.get("FunctionArn")
 
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
+        if not event or event["status"] != "success":
+            raise AirflowException(f"Trigger error: event is {event}")
+
+        self.log.info("Lambda function created successfully")
+        return event["function_arn"]
+
 
 class LambdaInvokeFunctionOperator(BaseOperator):
     """
-    Invokes an AWS Lambda function. You can invoke a function synchronously (and wait for the response),
-    or asynchronously.
+    Invokes an AWS Lambda function.
+
+    You can invoke a function synchronously (and wait for the response), or asynchronously.
     To invoke a function asynchronously, set `invocation_type` to `Event`. For more details,
     review the boto3 Lambda invoke docs.
 
@@ -149,7 +184,7 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         qualifier: str | None = None,
         invocation_type: str | None = None,
         client_context: str | None = None,
-        payload: str | None = None,
+        payload: bytes | str | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -168,7 +203,7 @@ class LambdaInvokeFunctionOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Invokes the target AWS Lambda function from Airflow.
+        Invoke the target AWS Lambda function from Airflow.
 
         :return: The response payload from the function, or an error object.
         """

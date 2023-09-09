@@ -29,8 +29,7 @@ if TYPE_CHECKING:
 
 class SparkSubmitOperator(BaseOperator):
     """
-    This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH.
+    Wrap the spark-submit binary to kick off a spark-submit job; requires "spark-submit" binary in the PATH.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -38,7 +37,7 @@ class SparkSubmitOperator(BaseOperator):
 
     :param application: The application that submitted as a job, either jar or py file. (templated)
     :param conf: Arbitrary Spark configuration properties (templated)
-    :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
+    :param conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
         in Airflow administration. When an invalid connection_id is supplied, it will default to yarn.
     :param files: Upload additional files to the executor running the job, separated by a
                   comma. Files will be placed in the working directory of each executor.
@@ -151,7 +150,7 @@ class SparkSubmitOperator(BaseOperator):
         self._conn_id = conn_id
 
     def execute(self, context: Context) -> None:
-        """Call the SparkSubmitHook to run the provided spark job"""
+        """Call the SparkSubmitHook to run the provided spark job."""
         if self._hook is None:
             self._hook = self._get_hook()
         self._hook.submit(self._application)

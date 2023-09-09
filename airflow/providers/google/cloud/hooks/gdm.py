@@ -28,6 +28,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class GoogleDeploymentManagerHook(GoogleBaseHook):
     """
     Interact with Google Cloud Deployment Manager using the Google Cloud connection.
+
     This allows for scheduled and programmatic inspection and deletion of resources managed by GDM.
     """
 

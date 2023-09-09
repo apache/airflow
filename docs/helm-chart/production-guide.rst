@@ -25,13 +25,15 @@ Database
 
 It is advised to set up an external database for the Airflow metastore. The default Helm chart deploys a
 Postgres database running in a container. For production usage, a database running on a dedicated machine or
-leveraging a cloud provider's database service such as AWS RDS is advised. Supported databases and versions
-can be found at :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
+leveraging a cloud provider's database service such as AWS RDS should be used because the embedded Postgres
+lacks stability, monitoring and persistence features that you need for a production database. It is only there to
+make it easier to test the Helm Chart in a "standalone" version but you might experience data loss when you
+are using it. Supported databases and versions can be found at :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
 
 
 .. note::
 
-    When using the helm chart, you do not need to initialize the db with ``airflow db init``
+    When using the helm chart, you do not need to initialize the db with ``airflow db migrate``
     as outlined in :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
 
 First disable Postgres so the chart won't deploy its own Postgres container:
@@ -331,34 +333,40 @@ In the Airflow Helm chart, the ``securityContext`` can be configured in several 
 
   * :ref:`uid <parameters:Airflow>` (configures the global uid or RunAsUser)
   * :ref:`gid <parameters:Airflow>` (configures the global gid or fsGroup)
-  * :ref:`securityContext <parameters:Kubernetes>` (same as ``uid`` but allows for setting all `Pod securityContext options <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podsecuritycontext-v1-core>`_)
+  * :ref:`securityContexts <parameters:Kubernetes>` (same as ``uid`` but allows for setting all `Pod securityContext options <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podsecuritycontext-v1-core>`_ and `Container securityContext options <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#securitycontext-v1-core>`_)
 
-The same way one can configure the global :ref:`securityContext <parameters:Kubernetes>`, it is also possible to configure different values for specific workloads by setting their local ``securityContext`` as follows:
+The same way one can configure the global :ref:`securityContexts <parameters:Kubernetes>`, it is also possible to configure different values for specific workloads by setting their local ``securityContexts`` as follows:
 
 .. code-block:: yaml
 
   workers:
-    securityContext:
-      runAsUser: 5000
-      fsGroup: 0
+    securityContexts:
+      pod:
+        runAsUser: 5000
+        fsGroup: 0
+      containers:
+        allowPrivilegeEscalation: false
 
-In the example above, the workers Pod ``securityContext`` will be set to ``runAsUser: 5000`` and ``runAsGroup: 0``.
 
-As one can see, the local setting will take precedence over the global setting when defined. The following explains the precedence rule for ``securityContext`` options in this chart:
+In the example above, the workers Pod ``securityContexts`` will be set to ``runAsUser: 5000`` and ``fsGroup: 0``.  The containers pod will be set to ``allowPrivilegeEscalation: false``.
+
+As one can see, the local setting will take precedence over the global setting when defined. The following explains the precedence rule for ``securityContexts`` options in this chart:
 
 .. code-block:: yaml
 
   uid: 40000
   gid: 0
 
-  securityContext:
-    runAsUser: 50000
-    fsGroup: 0
+  securityContexts:
+    pod:
+      runAsUser: 50000
+      fsGroup: 0
 
   workers:
-    securityContext:
-      runAsUser: 1001
-      fsGroup: 0
+    securityContexts:
+      pod:
+        runAsUser: 1001
+        fsGroup: 0
 
 This will generate the following worker deployment:
 
@@ -372,21 +380,21 @@ This will generate the following worker deployment:
     serviceName: airflow-worker
     template:
       spec:
-        securityContext:    # As the securityContext was defined in ``workers``, its value will take priority
+        securityContext:    # As the securityContexts was defined in ``workers``, its value will take priority
           runAsUser: 1001
           fsGroup: 0
 
-If we remove both the ``securityContext`` and ``workers.securityContext`` from the example above, the output will be the following:
+If we remove both the ``securityContexts`` and ``workers.securityContexts`` from the example above, the output will be the following:
 
 .. code-block:: yaml
 
   uid: 40000
   gid: 0
 
-  securityContext: {}
+  securityContexts: {}
 
   workers:
-    securityContext: {}
+    securityContexts: {}
 
 This will generate the following worker deployment:
 
@@ -410,19 +418,20 @@ This will generate the following worker deployment:
           - name: worker
         ...
 
-And finally if we set ``securityContext`` but not ``workers.securityContext``:
+And finally if we set ``securityContexts`` but not ``workers.securityContexts``:
 
 .. code-block:: yaml
 
   uid: 40000
   gid: 0
 
-  securityContext:
-    runAsUser: 50000
-    fsGroup: 0
+  securityContexts:
+    pod:
+      runAsUser: 50000
+      fsGroup: 0
 
   workers:
-    securityContext: {}
+    securityContexts: {}
 
 This will generate the following worker deployment:
 
@@ -436,7 +445,7 @@ This will generate the following worker deployment:
     serviceName: airflow-worker
     template:
       spec:
-        securityContext:     # As the securityContext was not defined in ``workers``, the values from securityContext will take priority
+        securityContext:     # As the securityContexts was not defined in ``workers``, the values from securityContexts will take priority
           runAsUser: 50000
           fsGroup: 0
         initContainers:

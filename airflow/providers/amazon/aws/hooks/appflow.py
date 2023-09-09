@@ -16,19 +16,20 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.client import AppflowClient
-    from mypy_boto3_appflow.type_defs import TaskTypeDef
 
 
 class AppflowHook(AwsBaseHook):
     """
     Interact with Amazon Appflow.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("appflow") <Appflow.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -45,16 +46,23 @@ class AppflowHook(AwsBaseHook):
 
     @cached_property
     def conn(self) -> AppflowClient:
-        """Get the underlying boto3 Appflow client (cached)"""
+        """Get the underlying boto3 Appflow client (cached)."""
         return super().conn
 
-    def run_flow(self, flow_name: str, poll_interval: int = 20, wait_for_completion: bool = True) -> str:
+    def run_flow(
+        self,
+        flow_name: str,
+        poll_interval: int = 20,
+        wait_for_completion: bool = True,
+        max_attempts: int = 60,
+    ) -> str:
         """
         Execute an AppFlow run.
 
         :param flow_name: The flow name
         :param poll_interval: Time (seconds) to wait between two consecutive calls to check the run status
         :param wait_for_completion: whether to wait for the run to end to return
+        :param max_attempts: the number of polls to do before timing out/returning a failure.
         :return: The run execution ID
         """
         response_start = self.conn.start_flow(flowName=flow_name)
@@ -62,9 +70,17 @@ class AppflowHook(AwsBaseHook):
         self.log.info("executionId: %s", execution_id)
 
         if wait_for_completion:
-            self.get_waiter("run_complete", {"EXECUTION_ID": execution_id}).wait(
-                flowName=flow_name,
-                WaiterConfig={"Delay": poll_interval},
+            wait(
+                waiter=self.get_waiter("run_complete", {"EXECUTION_ID": execution_id}),
+                waiter_delay=poll_interval,
+                waiter_max_attempts=max_attempts,
+                args={"flowName": flow_name},
+                failure_message="error while waiting for flow to complete",
+                status_message="waiting for flow completion, status",
+                status_args=[
+                    f"flowExecutions[?executionId=='{execution_id}'].executionStatus",
+                    f"flowExecutions[?executionId=='{execution_id}'].executionResult.errorInfo",
+                ],
             )
             self._log_execution_description(flow_name, execution_id)
 
@@ -76,12 +92,9 @@ class AppflowHook(AwsBaseHook):
         exec_details = last_execs[execution_id]
         self.log.info("Run complete, execution details: %s", exec_details)
 
-    def update_flow_filter(
-        self, flow_name: str, filter_tasks: list[TaskTypeDef], set_trigger_ondemand: bool = False
-    ) -> None:
+    def update_flow_filter(self, flow_name: str, filter_tasks, set_trigger_ondemand: bool = False) -> None:
         """
-        Update the flow task filter.
-        All filters will be removed if an empty array is passed to filter_tasks.
+        Update the flow task filter; all filters will be removed if an empty array is passed to filter_tasks.
 
         :param flow_name: The flow name
         :param filter_tasks: List flow tasks to be added
@@ -90,7 +103,7 @@ class AppflowHook(AwsBaseHook):
         """
         response = self.conn.describe_flow(flowName=flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
-        tasks: list[TaskTypeDef] = []
+        tasks = []
 
         # cleanup old filter tasks
         for task in response["tasks"]:

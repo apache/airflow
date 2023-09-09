@@ -30,9 +30,9 @@ if TYPE_CHECKING:
 
 
 class GithubOperator(BaseOperator):
-    """
-    GithubOperator to interact and perform action on GitHub API.
-    This operator is designed to use GitHub Python SDK: https://github.com/PyGithub/PyGithub
+    """Interact and perform actions on GitHub API.
+
+    This operator is designed to use GitHub's Python SDK: https://github.com/PyGithub/PyGithub
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -74,6 +74,6 @@ class GithubOperator(BaseOperator):
             return github_result
 
         except GithubException as github_error:
-            raise AirflowException(f"Failed to execute GithubOperator, error: {str(github_error)}")
+            raise AirflowException(f"Failed to execute GithubOperator, error: {github_error}")
         except Exception as e:
-            raise AirflowException(f"GitHub operator error: {str(e)}")
+            raise AirflowException(f"GitHub operator error: {e}")

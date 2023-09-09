@@ -23,11 +23,11 @@ Builds documentation and runs spell checking
 from __future__ import annotations
 
 import argparse
+import itertools
 import multiprocessing
 import os
 import sys
 from collections import defaultdict
-from itertools import filterfalse, tee
 from typing import Callable, Iterable, NamedTuple, TypeVar
 
 from rich.console import Console
@@ -74,8 +74,8 @@ T = TypeVar("T")
 
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries"""
-    iter_1, iter_2 = tee(iterable)
-    return filterfalse(pred, iter_1), filter(pred, iter_2)
+    iter_1, iter_2 = itertools.tee(iterable)
+    return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
 
 
 def _promote_new_flags():
@@ -89,7 +89,7 @@ def _promote_new_flags():
         console.print("[yellow]Still too slow?[/]")
         console.print()
     console.print("You can only build one documentation package:")
-    console.print("    [info]breeze build-docs --package-filter <PACKAGE-NAME>[/]")
+    console.print("    [info]breeze build-docs <PACKAGES>[/]")
     console.print()
     console.print("This usually takes from [yellow]20 seconds[/] to [yellow]2 minutes[/].")
     console.print()
@@ -136,12 +136,6 @@ def _get_parser():
         "--spellcheck-only", dest="spellcheck_only", action="store_true", help="Only perform spellchecking"
     )
     parser.add_argument(
-        "--for-production",
-        dest="for_production",
-        action="store_true",
-        help="Builds documentation for official release i.e. all links point to stable version",
-    )
-    parser.add_argument(
         "-j",
         "--jobs",
         dest="jobs",
@@ -173,7 +167,6 @@ class BuildSpecification(NamedTuple):
     """Specification of single build."""
 
     package_name: str
-    for_production: bool
     verbose: bool
 
 
@@ -195,9 +188,7 @@ class SpellCheckResult(NamedTuple):
 
 def perform_docs_build_for_single_package(build_specification: BuildSpecification) -> BuildDocsResult:
     """Performs single package docs build."""
-    builder = AirflowDocsBuilder(
-        package_name=build_specification.package_name, for_production=build_specification.for_production
-    )
+    builder = AirflowDocsBuilder(package_name=build_specification.package_name)
     console.print(f"[info]{build_specification.package_name:60}:[/] Building documentation")
     result = BuildDocsResult(
         package_name=build_specification.package_name,
@@ -211,9 +202,7 @@ def perform_docs_build_for_single_package(build_specification: BuildSpecificatio
 
 def perform_spell_check_for_single_package(build_specification: BuildSpecification) -> SpellCheckResult:
     """Performs single package spell check."""
-    builder = AirflowDocsBuilder(
-        package_name=build_specification.package_name, for_production=build_specification.for_production
-    )
+    builder = AirflowDocsBuilder(package_name=build_specification.package_name)
     console.print(f"[info]{build_specification.package_name:60}:[/] Checking spelling started")
     result = SpellCheckResult(
         package_name=build_specification.package_name,
@@ -230,7 +219,6 @@ def build_docs_for_packages(
     current_packages: list[str],
     docs_only: bool,
     spellcheck_only: bool,
-    for_production: bool,
     jobs: int,
     verbose: bool,
 ) -> tuple[dict[str, list[DocBuildError]], dict[str, list[SpellingError]]]:
@@ -240,7 +228,7 @@ def build_docs_for_packages(
     with with_group("Cleaning documentation files"):
         for package_name in current_packages:
             console.print(f"[info]{package_name:60}:[/] Cleaning files")
-            builder = AirflowDocsBuilder(package_name=package_name, for_production=for_production)
+            builder = AirflowDocsBuilder(package_name=package_name)
             builder.clean_files()
     if jobs > 1:
         run_in_parallel(
@@ -248,7 +236,6 @@ def build_docs_for_packages(
             all_spelling_errors,
             current_packages,
             docs_only,
-            for_production,
             jobs,
             spellcheck_only,
             verbose,
@@ -259,7 +246,6 @@ def build_docs_for_packages(
             all_spelling_errors,
             current_packages,
             docs_only,
-            for_production,
             spellcheck_only,
             verbose,
         )
@@ -271,7 +257,6 @@ def run_sequentially(
     all_spelling_errors,
     current_packages,
     docs_only,
-    for_production,
     spellcheck_only,
     verbose,
 ):
@@ -281,7 +266,6 @@ def run_sequentially(
             build_result = perform_docs_build_for_single_package(
                 build_specification=BuildSpecification(
                     package_name=package_name,
-                    for_production=for_production,
                     verbose=verbose,
                 )
             )
@@ -293,7 +277,6 @@ def run_sequentially(
             spellcheck_result = perform_spell_check_for_single_package(
                 build_specification=BuildSpecification(
                     package_name=package_name,
-                    for_production=for_production,
                     verbose=verbose,
                 )
             )
@@ -307,7 +290,6 @@ def run_in_parallel(
     all_spelling_errors,
     current_packages,
     docs_only,
-    for_production,
     jobs,
     spellcheck_only,
     verbose,
@@ -317,7 +299,6 @@ def run_in_parallel(
         if not spellcheck_only:
             run_docs_build_in_parallel(
                 all_build_errors=all_build_errors,
-                for_production=for_production,
                 current_packages=current_packages,
                 verbose=verbose,
                 pool=pool,
@@ -325,7 +306,6 @@ def run_in_parallel(
         if not docs_only:
             run_spell_check_in_parallel(
                 all_spelling_errors=all_spelling_errors,
-                for_production=for_production,
                 current_packages=current_packages,
                 verbose=verbose,
                 pool=pool,
@@ -345,7 +325,6 @@ def print_build_output(result: BuildDocsResult):
 
 def run_docs_build_in_parallel(
     all_build_errors: dict[str, list[DocBuildError]],
-    for_production: bool,
     current_packages: list[str],
     verbose: bool,
     pool,
@@ -358,7 +337,6 @@ def run_docs_build_in_parallel(
             doc_build_specifications.append(
                 BuildSpecification(
                     package_name=package_name,
-                    for_production=for_production,
                     verbose=verbose,
                 )
             )
@@ -385,7 +363,6 @@ def print_spelling_output(result: SpellCheckResult):
 
 def run_spell_check_in_parallel(
     all_spelling_errors: dict[str, list[SpellingError]],
-    for_production: bool,
     current_packages: list[str],
     verbose: bool,
     pool,
@@ -395,9 +372,7 @@ def run_spell_check_in_parallel(
     with with_group("Scheduling spell checking of documentation"):
         for package_name in current_packages:
             console.print(f"[info]{package_name:60}:[/] Scheduling spellchecking")
-            spell_check_specifications.append(
-                BuildSpecification(package_name=package_name, for_production=for_production, verbose=verbose)
-            )
+            spell_check_specifications.append(BuildSpecification(package_name=package_name, verbose=verbose))
     with with_group("Running spell checking of documentation"):
         console.print()
         result_list = pool.map(perform_spell_check_for_single_package, spell_check_specifications)
@@ -455,7 +430,6 @@ def main():
     disable_provider_checks = args.disable_provider_checks
     disable_checks = args.disable_checks
     package_filters = args.package_filter
-    for_production = args.for_production
 
     with with_group("Available packages"):
         for pkg in sorted(available_packages):
@@ -489,7 +463,6 @@ def main():
             current_packages=priority_packages,
             docs_only=docs_only,
             spellcheck_only=spellcheck_only,
-            for_production=for_production,
             jobs=jobs,
             verbose=args.verbose,
         )
@@ -506,7 +479,6 @@ def main():
         current_packages=current_packages if len(priority_packages) > 1 else normal_packages,
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
-        for_production=for_production,
         jobs=jobs,
         verbose=args.verbose,
     )
@@ -522,7 +494,6 @@ def main():
             all_spelling_errors,
             args,
             docs_only,
-            for_production,
             jobs,
             package_build_errors,
             package_spelling_errors,
@@ -535,7 +506,6 @@ def main():
             all_spelling_errors,
             args,
             docs_only,
-            for_production,
             jobs,
             package_build_errors,
             package_spelling_errors,
@@ -566,7 +536,6 @@ def retry_building_docs_if_needed(
     all_spelling_errors,
     args,
     docs_only,
-    for_production,
     jobs,
     package_build_errors,
     package_spelling_errors,
@@ -588,7 +557,6 @@ def retry_building_docs_if_needed(
             current_packages=to_retry_packages,
             docs_only=docs_only,
             spellcheck_only=spellcheck_only,
-            for_production=for_production,
             jobs=jobs,
             verbose=args.verbose,
         )

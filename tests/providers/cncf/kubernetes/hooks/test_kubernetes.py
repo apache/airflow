@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import tempfile
 from asyncio import Future
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import kubernetes
@@ -38,11 +38,6 @@ from airflow.utils import db
 from airflow.utils.db import merge_conn
 from tests.test_utils.db import clear_db_connections
 from tests.test_utils.providers import get_provider_min_airflow_version
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 KUBE_CONFIG_PATH = os.getenv("KUBECONFIG", "~/.kube/config")
 HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"
@@ -93,6 +88,20 @@ class TestKubernetesHook:
             ("disable_verify_ssl_empty", {"disable_verify_ssl": ""}),
             ("disable_tcp_keepalive", {"disable_tcp_keepalive": True}),
             ("disable_tcp_keepalive_empty", {"disable_tcp_keepalive": ""}),
+            ("sidecar_container_image", {"xcom_sidecar_container_image": "private.repo.com/alpine:3.16"}),
+            ("sidecar_container_image_empty", {"xcom_sidecar_container_image": ""}),
+            (
+                "sidecar_container_resources",
+                {
+                    "xcom_sidecar_container_resources": json.dumps(
+                        {
+                            "requests": {"cpu": "1m", "memory": "10Mi"},
+                            "limits": {"cpu": "1m", "memory": "50Mi"},
+                        }
+                    ),
+                },
+            ),
+            ("sidecar_container_resources_empty", {"xcom_sidecar_container_resources": ""}),
         ]:
             db.merge_conn(Connection(conn_type="kubernetes", conn_id=conn_id, extra=json.dumps(extra)))
 
@@ -346,6 +355,38 @@ class TestKubernetesHook:
                 "in the connection, then None is returned. To do so, remove get_namespace "
                 "and rename _get_namespace to get_namespace."
             )
+
+    @pytest.mark.parametrize(
+        "conn_id, expected",
+        (
+            pytest.param("sidecar_container_image", "private.repo.com/alpine:3.16", id="sidecar-with-image"),
+            pytest.param("sidecar_container_image_empty", None, id="sidecar-without-image"),
+        ),
+    )
+    def test_get_xcom_sidecar_container_image(self, conn_id, expected):
+        hook = KubernetesHook(conn_id=conn_id)
+        assert hook.get_xcom_sidecar_container_image() == expected
+
+    @pytest.mark.parametrize(
+        "conn_id, expected",
+        (
+            pytest.param(
+                "sidecar_container_resources",
+                {
+                    "requests": {"cpu": "1m", "memory": "10Mi"},
+                    "limits": {
+                        "cpu": "1m",
+                        "memory": "50Mi",
+                    },
+                },
+                id="sidecar-with-resources",
+            ),
+            pytest.param("sidecar_container_resources_empty", None, id="sidecar-without-resources"),
+        ),
+    )
+    def test_get_xcom_sidecar_container_resources(self, conn_id, expected):
+        hook = KubernetesHook(conn_id=conn_id)
+        assert hook.get_xcom_sidecar_container_resources() == expected
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")

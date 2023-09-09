@@ -21,8 +21,31 @@ Setting Configuration Options
 =============================
 
 The first time you run Airflow, it will create a file called ``airflow.cfg`` in
-your ``$AIRFLOW_HOME`` directory (``~/airflow`` by default). This file contains Airflow's configuration and you
-can edit it to change any of the settings. You can also set options with environment variables by using this format:
+your ``$AIRFLOW_HOME`` directory (``~/airflow`` by default). This is in order to make it easy to
+"play" with airflow configuration.
+
+However, for production case you are advised to generate the configuration using command line:
+
+.. code-block:: bash
+
+    airflow config list --defaults
+
+This command will produce the output that you can copy to your configuration file and edit.
+
+It will contain all the default configuration options, with examples, nicely commented out
+so you need only un-comment and modify those that you want to change.
+This way you can easily keep track of all the configuration options that you changed from default
+and you can also easily upgrade your installation to new versions of Airflow when they come out and
+automatically use the defaults for existing options if they changed there.
+
+You can redirect it to your configuration file and edit it:
+
+.. code-block:: bash
+
+    airflow config list --defaults > "${AIRFLOW_HOME}/airflow.cfg"
+
+
+You can also set options with environment variables by using this format:
 :envvar:`AIRFLOW__{SECTION}__{KEY}` (note the double underscores).
 
 For example, the metadata database connection string can either be set in ``airflow.cfg`` like this:
@@ -37,6 +60,19 @@ or by creating a corresponding environment variable:
 .. code-block:: bash
 
     export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_string
+
+Note that when the section name has a dot in it, you must replace it with an underscore when setting the env var.
+For example consider the pretend section ``providers.some_provider``:
+
+.. code-block:: ini
+
+    [providers.some_provider>]
+    this_param = true
+
+.. code-block:: bash
+
+    export AIRFLOW__PROVIDERS_SOME_PROVIDER__THIS_PARAM=true
+
 
 You can also derive the connection string at run time by appending ``_cmd`` to
 the key like this:
@@ -142,3 +178,15 @@ and add any extra settings however by adding flask configuration to ``webserver_
 
 For example if you would like to change rate limit strategy to "moving window", you can set the
 ``RATELIMIT_STRATEGY`` to ``moving-window``.
+
+You could also enhance / modify the underlying flask app directly,
+as the `app context <https://flask.palletsprojects.com/en/2.3.x/appcontext/>`_ is pushed to ``webserver_config.py``:
+
+.. code-block:: python
+
+    from flask import current_app as app
+
+
+    @app.before_request
+    def print_custom_message() -> None:
+        print("Executing before every request")

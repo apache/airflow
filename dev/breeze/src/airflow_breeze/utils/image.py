@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import subprocess
 import time
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -26,8 +26,6 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
-from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
@@ -38,10 +36,13 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+
+if TYPE_CHECKING:
+    from airflow_breeze.params.build_prod_params import BuildProdParams
+    from airflow_breeze.params.common_build_params import CommonBuildParams
 
 
 def run_pull_in_parallel(
@@ -77,7 +78,7 @@ def run_pull_in_parallel(
                     "image_params": image_param,
                     "wait_for_image": wait_for_image,
                     "tag_as_latest": tag_as_latest,
-                    "poll_time": 10.0,
+                    "poll_time_seconds": 10.0,
                     "output": outputs[index],
                 }
                 if verify:
@@ -102,7 +103,8 @@ def run_pull_image(
     wait_for_image: bool,
     tag_as_latest: bool,
     output: Output | None,
-    poll_time: float = 10.0,
+    poll_time_seconds: float = 10.0,
+    max_time_minutes: float = 70,
 ) -> tuple[int, str]:
     """
     Pull image specified.
@@ -112,20 +114,18 @@ def run_pull_image(
     :param output: output to write to
     :param wait_for_image: whether we should wait for the image to be available
     :param tag_as_latest: tag the image as latest
-    :param poll_time: what's the polling time between checks if images are there (default 10 s)
+    :param poll_time_seconds: what's the polling time between checks if images are there (default 10 s)
+    :param max_time_minutes: what's the maximum time to wait for the image to be pulled (default 70 minutes)
     :return: Tuple of return code and description of the image pulled
     """
     get_console(output=output).print(
         f"\n[info]Pulling {image_params.image_type} image of airflow python version: "
         f"{image_params.python} image: {image_params.airflow_image_name_with_tag} "
-        f"with wait for image: {wait_for_image}[/]\n"
+        f"with wait for image: {wait_for_image} and max time to poll {max_time_minutes} minutes[/]\n"
     )
     current_loop = 1
+    start_time = time.time()
     while True:
-        login_to_github_docker_registry(
-            image_params=image_params,
-            output=output,
-        )
         command_to_run = ["docker", "pull", image_params.airflow_image_name_with_tag]
         command_result = run_command(command_to_run, check=False, output=output)
         if command_result.returncode == 0:
@@ -162,8 +162,15 @@ def run_pull_image(
                 get_console(output=output).print(
                     f"\n[info]Waiting: #{current_loop} {image_params.airflow_image_name_with_tag}.[/]\n"
                 )
-            time.sleep(poll_time)
+            time.sleep(poll_time_seconds)
             current_loop += 1
+            current_time = time.time()
+            if (current_time - start_time) / 60 > max_time_minutes:
+                get_console(output=output).print(
+                    f"\n[error]The image {image_params.airflow_image_name_with_tag} "
+                    f"did not appear in {max_time_minutes} minutes. Failing.[/]\n"
+                )
+                return 1, f"Image Python {image_params.python}"
             continue
         else:
             get_console(output=output).print(
@@ -209,7 +216,7 @@ def run_pull_and_verify_image(
     image_params: CommonBuildParams,
     wait_for_image: bool,
     tag_as_latest: bool,
-    poll_time: float,
+    poll_time_seconds: float,
     extra_pytest_args: tuple,
     output: Output | None,
 ) -> tuple[int, str]:
@@ -218,7 +225,7 @@ def run_pull_and_verify_image(
         wait_for_image=wait_for_image,
         tag_as_latest=tag_as_latest,
         output=output,
-        poll_time=poll_time,
+        poll_time_seconds=poll_time_seconds,
     )
     if return_code != 0:
         get_console(output=output).print(

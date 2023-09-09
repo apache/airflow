@@ -26,12 +26,13 @@ from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.helpers import prune_dict
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 
 class EmrHook(AwsBaseHook):
     """
     Interact with Amazon Elastic MapReduce Service (EMR).
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("emr") <EMR.Client>`.
 
     :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
@@ -57,8 +58,7 @@ class EmrHook(AwsBaseHook):
 
     def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: list[str]) -> str | None:
         """
-        Fetch id of EMR cluster with given name and (optional) states.
-        Will return only if single id is found.
+        Fetch id of EMR cluster with given name and (optional) states; returns only if single id is found.
 
         .. seealso::
             - :external+boto3:py:meth:`EMR.Client.list_clusters`
@@ -158,6 +158,9 @@ class EmrHook(AwsBaseHook):
         :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
         """
         config = {}
+        waiter_delay = waiter_delay or 30
+        waiter_max_attempts = waiter_max_attempts or 60
+
         if execution_role_arn:
             config["ExecutionRoleArn"] = execution_role_arn
         response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps, **config)
@@ -169,22 +172,28 @@ class EmrHook(AwsBaseHook):
         if wait_for_completion:
             waiter = self.get_conn().get_waiter("step_complete")
             for step_id in response["StepIds"]:
-                waiter.wait(
-                    ClusterId=job_flow_id,
-                    StepId=step_id,
-                    WaiterConfig=prune_dict(
-                        {
-                            "Delay": waiter_delay,
-                            "MaxAttempts": waiter_max_attempts,
-                        }
-                    ),
-                )
+                try:
+                    wait(
+                        waiter=waiter,
+                        waiter_max_attempts=waiter_max_attempts,
+                        waiter_delay=waiter_delay,
+                        args={"ClusterId": job_flow_id, "StepId": step_id},
+                        failure_message=f"EMR Steps failed: {step_id}",
+                        status_message="EMR Step status is",
+                        status_args=["Step.Status.State", "Step.Status.StateChangeReason"],
+                    )
+                except AirflowException as ex:
+                    if "EMR Steps failed" in str(ex):
+                        resp = self.get_conn().describe_step(ClusterId=job_flow_id, StepId=step_id)
+                        failure_details = resp["Step"]["Status"].get("FailureDetails", None)
+                        if failure_details:
+                            self.log.error("EMR Steps failed: %s", failure_details)
+                    raise
         return response["StepIds"]
 
     def test_connection(self):
         """
         Return failed state for test Amazon Elastic MapReduce Connection (untestable).
-
 
         We need to overwrite this method because this hook is based on
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
@@ -198,7 +207,7 @@ class EmrHook(AwsBaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom UI field behaviour for Amazon Elastic MapReduce Connection."""
+        """Return custom UI field behaviour for Amazon Elastic MapReduce Connection."""
         return {
             "hidden_fields": ["host", "schema", "port", "login", "password"],
             "relabeling": {
@@ -234,6 +243,7 @@ class EmrHook(AwsBaseHook):
 class EmrServerlessHook(AwsBaseHook):
     """
     Interact with Amazon EMR Serverless.
+
     Provide thin wrapper around :py:class:`boto3.client("emr-serverless") <EMRServerless.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -256,10 +266,15 @@ class EmrServerlessHook(AwsBaseHook):
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
 
-    def cancel_running_jobs(self, application_id: str, waiter_config: dict = {}):
+    def cancel_running_jobs(
+        self, application_id: str, waiter_config: dict | None = None, wait_for_completion: bool = True
+    ) -> int:
         """
-        List all jobs in an intermediate state and cancel them.
-        Then wait for those jobs to reach a terminal state.
+        Cancel jobs in an intermediate state, and return the number of cancelled jobs.
+
+        If wait_for_completion is True, then the method will wait until all jobs are
+        cancelled before returning.
+
         Note: if new jobs are triggered while this operation is ongoing,
         it's going to time out and return an error.
         """
@@ -276,7 +291,7 @@ class EmrServerlessHook(AwsBaseHook):
         for r in iterator:
             job_ids = [jr["id"] for jr in r["jobRuns"]]
             count += len(job_ids)
-            if len(job_ids) > 0:
+            if job_ids:
                 self.log.info(
                     "Cancelling %s pending job(s) for the application %s so that it can be stopped",
                     len(job_ids),
@@ -284,18 +299,22 @@ class EmrServerlessHook(AwsBaseHook):
                 )
                 for job_id in job_ids:
                     self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
-        if count > 0:
-            self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
-            self.get_waiter("no_job_running").wait(
-                applicationId=application_id,
-                states=list(self.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
-                WaiterConfig=waiter_config,
-            )
+        if wait_for_completion:
+            if count > 0:
+                self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
+                self.get_waiter("no_job_running").wait(
+                    applicationId=application_id,
+                    states=list(self.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
+                    WaiterConfig=waiter_config or {},
+                )
+
+        return count
 
 
 class EmrContainerHook(AwsBaseHook):
     """
     Interact with Amazon EMR Containers (Amazon EMR on EKS).
+
     Provide thick wrapper around :py:class:`boto3.client("emr-containers") <EMRContainers.Client>`.
 
     :param virtual_cluster_id: Cluster ID of the EMR on EKS virtual cluster
@@ -367,6 +386,7 @@ class EmrContainerHook(AwsBaseHook):
     ) -> str:
         """
         Submit a job to the EMR Containers API and return the job ID.
+
         A job run is a unit of work, such as a Spark jar, PySpark script,
         or SparkSQL query, that you submit to Amazon EMR on EKS.
 
@@ -464,8 +484,7 @@ class EmrContainerHook(AwsBaseHook):
         max_polling_attempts: int | None = None,
     ) -> str | None:
         """
-        Poll the status of submitted job run until query state reaches final state.
-        Returns one of the final states.
+        Poll the status of submitted job run until query state reaches final state; returns the final state.
 
         :param job_id: The ID of the job run request.
         :param poll_interval: Time (in seconds) to wait between calls to check query status on EMR
@@ -495,7 +514,7 @@ class EmrContainerHook(AwsBaseHook):
 
     def stop_query(self, job_id: str) -> dict:
         """
-        Cancel the submitted job_run
+        Cancel the submitted job_run.
 
         .. seealso::
             - :external+boto3:py:meth:`EMRContainers.Client.cancel_job_run`

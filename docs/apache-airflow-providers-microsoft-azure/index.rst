@@ -19,19 +19,30 @@
 ``apache-airflow-providers-microsoft-azure``
 ============================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
     Connection types <connections/index>
     Operators <operators/index>
+    Transfers <transfer/index>
     Secrets backends <secrets-backends/azure-key-vault>
     Logging for Tasks <logging/index>
+    Sensors <sensors/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -39,11 +50,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/microsoft/azure/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -55,6 +68,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -67,7 +81,7 @@ Package apache-airflow-providers-microsoft-azure
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 6.1.1
+Release: 7.0.0
 
 Provider package
 ----------------
@@ -93,21 +107,23 @@ PIP package                       Version required
 ``apache-airflow``                ``>=2.4.0``
 ``azure-batch``                   ``>=8.0.0``
 ``azure-cosmos``                  ``>=4.0.0``
+``azure-mgmt-cosmosdb``
 ``azure-datalake-store``          ``>=0.0.45``
 ``azure-identity``                ``>=1.3.1``
 ``azure-keyvault-secrets``        ``>=4.1.0``
 ``azure-mgmt-datalake-store``     ``>=0.5.0``
 ``azure-mgmt-resource``           ``>=2.2.0``
 ``azure-storage-blob``            ``>=12.14.0``
-``azure-storage-common``          ``>=2.1.0``
-``azure-storage-file``            ``>=2.1.0``
+``azure-mgmt-storage``            ``>=16.0.0``
+``azure-storage-file-share``
 ``azure-servicebus``              ``>=7.6.1``
 ``azure-synapse-spark``
 ``adal``                          ``>=1.2.7``
 ``azure-storage-file-datalake``   ``>=12.9.1``
-``azure-mgmt-containerinstance``  ``>=1.5.0,<2.0``
+``azure-kusto-data``              ``>=4.1.0``
+``azure-mgmt-containerregistry``  ``>=8.0.0``
+``azure-mgmt-containerinstance``  ``>=7.0.0,<9.0.0``
 ``azure-mgmt-datafactory``        ``>=1.0.0,<2.0``
-``azure-kusto-data``              ``>=0.0.43,<0.1``
 ================================  ==================
 
 Cross provider package dependencies
@@ -137,7 +153,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 6.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.1.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 6.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.1.1-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/microsoft/azure/CHANGELOG.rst
+* `The apache-airflow-providers-microsoft-azure 7.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-7.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-7.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-7.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 7.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-7.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-7.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-7.0.0-py3-none-any.whl.sha512>`__)

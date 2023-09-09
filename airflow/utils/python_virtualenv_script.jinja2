@@ -49,7 +49,12 @@ with open(sys.argv[3], "r") as file:
 
 # Script
 {{ python_callable_source }}
-res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
+try:
+    res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
+except Exception as e:
+    with open(sys.argv[4], "w") as file:
+        file.write(str(e))
+    raise
 
 # Write output
 with open(sys.argv[2], "wb") as file:

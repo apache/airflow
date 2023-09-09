@@ -32,7 +32,6 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildAsyncHook, CloudBuildHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
-from tests.providers.google.cloud.utils.compat import async_mock
 
 PROJECT_ID = "cloud-build-project"
 LOCATION = "test-location"
@@ -362,11 +361,11 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(
+    @mock.patch.object(
         CloudBuildAsyncClient, "__init__", lambda self, credentials, client_info, client_options: None
     )
-    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_credentials"))
-    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
+    @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_credentials"))
+    @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
     async def test_async_cloud_build_service_client_creation_should_execute_successfully(
         self, mocked_get_build, mock_get_creds, hook
     ):

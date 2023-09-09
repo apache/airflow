@@ -330,7 +330,7 @@ class TestBigQueryTableExistencePartitionAsyncSensor:
     depcrecation_message = (
         "Class `BigQueryTableExistencePartitionAsyncSensor` is deprecated and "
         "will be removed in a future release. "
-        "Please use `BigQueryTableExistencePartitionSensor` and "
+        "Please use `BigQueryTablePartitionExistenceSensor` and "
         "set `deferrable` attribute to `True` instead"
     )
 

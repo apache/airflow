@@ -27,7 +27,9 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class BigQueryDataTransferRunTrigger(BaseTrigger):
-    """Triggers class to watch the Transfer Run state to define when the job is done.
+    """
+    Triggers class to watch the Transfer Run state to define when the job is done.
+
     :param project_id: The BigQuery project id where the transfer configuration should be
     :param config_id: ID of the config of the Transfer Run which should be watched.
     :param run_id: ID of the Transfer Run which should be watched.
@@ -35,13 +37,13 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param location: BigQuery Transfer Service location for regional transfers.
     :param impersonation_chain: Optional service account to impersonate using short-term
-    credentials, or chained list of accounts required to get the access_token
-    of the last account in the list, which will be impersonated in the request.
-    If set as a string, the account must grant the originating account
-    the Service Account Token Creator IAM role.
-    If set as a sequence, the identities from the list must grant
-    Service Account Token Creator IAM role to the directly preceding identity, with first
-    account from the list granting this role to the originating account (templated).
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     def __init__(
@@ -79,13 +81,10 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """
-        Get Transfer Run status and if it one of the statuses which mean end of the job
-        then yield TriggerEvent object.
-        """
+        """If the Transfer Run is in a terminal state, then yield TriggerEvent object."""
         hook = self._get_async_hook()
-        while True:
-            try:
+        try:
+            while True:
                 transfer_run: TransferRun = await hook.get_transfer_run(
                     project_id=self.project_id,
                     config_id=self.config_id,
@@ -96,7 +95,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                 self.log.info("Current state is %s", state)
 
                 if state == TransferState.SUCCEEDED:
-                    self.log.info("Job has completed it's work.")
+                    self.log.info("Job has completed its work.")
                     yield TriggerEvent(
                         {
                             "status": "success",
@@ -106,7 +105,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         }
                     )
                     return
-
                 elif state == TransferState.FAILED:
                     self.log.info("Job has failed")
                     yield TriggerEvent(
@@ -117,7 +115,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         }
                     )
                     return
-
                 if state == TransferState.CANCELLED:
                     self.log.info("Job has been cancelled.")
                     yield TriggerEvent(
@@ -128,20 +125,17 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         }
                     )
                     return
-
                 else:
                     self.log.info("Job is still working...")
                     self.log.info("Waiting for %s seconds", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
-
-            except Exception as e:
-                yield TriggerEvent(
-                    {
-                        "status": "failed",
-                        "message": f"Trigger failed with exception: {str(e)}",
-                    }
-                )
-                return
+        except Exception as e:
+            yield TriggerEvent(
+                {
+                    "status": "failed",
+                    "message": f"Trigger failed with exception: {e}",
+                }
+            )
 
     def _get_async_hook(self) -> AsyncBiqQueryDataTransferServiceHook:
         return AsyncBiqQueryDataTransferServiceHook(

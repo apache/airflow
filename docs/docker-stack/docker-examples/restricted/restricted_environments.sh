@@ -26,11 +26,11 @@ cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START download]
 mkdir -p docker-context-files
-export AIRFLOW_VERSION="2.2.4"
+export AIRFLOW_VERSION="2.5.3"
 rm docker-context-files/*.whl docker-context-files/*.tar.gz docker-context-files/*.txt || true
 
-curl -Lo "docker-context-files/constraints-3.7.txt" \
-    "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.7.txt"
+curl -Lo "docker-context-files/constraints-3.8.txt" \
+    "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-3.8.txt"
 
 echo
 echo "Make sure you use the right python version here (should be same as in constraints)!"
@@ -38,7 +38,7 @@ echo
 python --version
 
 pip download --dest docker-context-files \
-    --constraint docker-context-files/constraints-3.7.txt  \
+    --constraint docker-context-files/constraints-3.8.txt  \
     "apache-airflow[async,celery,elasticsearch,kubernetes,postgres,redis,ssh,statsd,virtualenv]==${AIRFLOW_VERSION}"
 # [END download]
 
@@ -47,7 +47,7 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \
@@ -56,7 +56,7 @@ docker build . \
     --build-arg AIRFLOW_PRE_CACHED_PIP_PACKAGES="false" \
     --build-arg DOCKER_CONTEXT_FILES="docker-context-files" \
     --build-arg INSTALL_PACKAGES_FROM_CONTEXT="true" \
-    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.7.txt" \
+    --build-arg AIRFLOW_CONSTRAINTS_LOCATION="/docker-context-files/constraints-3.8.txt" \
     --tag airflow-my-restricted-environment:0.0.1
 # [END build]
 

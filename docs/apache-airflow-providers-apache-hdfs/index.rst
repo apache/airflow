@@ -19,17 +19,27 @@
 ========================================
 
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
     Connection types <connections>
     Operators <operators/index>
+    Logging for Tasks <logging/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -41,6 +51,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -54,7 +65,7 @@ Package apache-airflow-providers-apache-hdfs
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 4.0.0
+Release: 4.1.1
 
 Provider package
 ----------------
@@ -80,5 +91,3 @@ PIP package                        Version required
 ``apache-airflow``                 ``>=2.4.0``
 ``hdfs[avro,dataframe,kerberos]``  ``>=2.0.4``
 =================================  ==================
-
-.. include:: ../../airflow/providers/apache/hdfs/CHANGELOG.rst

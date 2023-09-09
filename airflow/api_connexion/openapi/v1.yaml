@@ -231,7 +231,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.7.0.dev0'
+  version: '2.8.0.dev0'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -735,7 +735,10 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
 
     post:
-      summary: Trigger a new DAG run
+      summary: Trigger a new DAG run.
+      description: >
+        This will initiate a dagrun.
+        If DAG is paused then dagrun state will remain queued, and the task won't run.
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
       operationId: post_dag_run
       tags: [DAGRun]
@@ -1573,6 +1576,8 @@ paths:
       operationId: get_xcom_entries
       tags: [XCom]
       parameters:
+        - $ref: '#/components/parameters/FilterMapIndex'
+        - $ref: '#/components/parameters/FilterXcomKey'
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
       responses:
@@ -1600,6 +1605,7 @@ paths:
       operationId: get_xcom_entry
       tags: [XCom]
       parameters:
+        - $ref: '#/components/parameters/FilterMapIndex'
         - in: query
           name: deserialize
           schema:
@@ -2050,8 +2056,8 @@ paths:
     get:
       summary: Get instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler. It includes info about
-        metadatabase and last heartbeat of scheduler.
+        Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+        metadatabase and last heartbeat of scheduler and triggerer.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
@@ -2889,7 +2895,6 @@ components:
           $ref: '#/components/schemas/DagState'
         external_trigger:
           type: boolean
-          default: true
           readOnly: true
         conf:
           type: object
@@ -3082,6 +3087,10 @@ components:
           $ref: '#/components/schemas/MetadatabaseStatus'
         scheduler:
           $ref: '#/components/schemas/SchedulerStatus'
+        triggerer:
+          $ref: '#/components/schemas/TriggererStatus'
+        dag_processor:
+          $ref: '#/components/schemas/DagProcessorStatus'
 
     MetadatabaseStatus:
       type: object
@@ -3097,7 +3106,39 @@ components:
         status:
           $ref: '#/components/schemas/HealthStatus'
         latest_scheduler_heartbeat:
-          description: The time the scheduler last do a heartbeat.
+          description: The time the scheduler last did a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    TriggererStatus:
+      type: object
+      description: |
+        The status and the latest triggerer heartbeat.
+
+        *New in version 2.6.2*
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_triggerer_heartbeat:
+          description: The time the triggerer last did a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    DagProcessorStatus:
+      type: object
+      description: |
+        The status and the latest dag processor heartbeat.
+
+        *New in version 2.6.3*
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_dag_processor_heartbeat:
+          description: The time the dag processor last did a heartbeat.
           type: string
           format: datetime
           readOnly: true
@@ -3117,7 +3158,7 @@ components:
         occupied_slots:
           type: integer
           readOnly: true
-          description: The number of slots used by running/queued tasks at the moment.
+          description: The number of slots used by running/queued tasks at the moment. May include deferred tasks if 'include_deferred' is set to true.
         running_slots:
           type: integer
           readOnly: true
@@ -3134,6 +3175,13 @@ components:
           type: integer
           readOnly: true
           description: The number of slots used by scheduled tasks at the moment.
+        deferred_slots:
+          type: integer
+          readOnly: true
+          description: |
+            The number of slots used by deferred tasks at the moment. Relevant if 'include_deferred' is set to true.
+
+            *New in version 2.7.0*
         description:
           type: string
           description: |
@@ -3141,6 +3189,12 @@ components:
 
             *New in version 2.3.0*
           nullable: true
+        include_deferred:
+          type: boolean
+          description: |
+            If set to true, deferred tasks are considered when calculating open pool slots.
+
+            *New in version 2.7.0*
 
     PoolCollection:
       type: object
@@ -3187,7 +3241,6 @@ components:
           items:
             $ref: '#/components/schemas/Provider'
 
-
     SLAMiss:
       type: object
       properties:
@@ -3215,6 +3268,7 @@ components:
 
     Trigger:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3231,6 +3285,7 @@ components:
 
     Job:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3294,7 +3349,6 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
-          nullable: true
         try_number:
           type: integer
         map_index:
@@ -3330,7 +3384,6 @@ components:
           type: string
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
-          nullable: true
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3339,10 +3392,8 @@ components:
           type: object
         trigger:
           $ref: '#/components/schemas/Trigger'
-          nullable: true
         triggerer_job:
           $ref: '#/components/schemas/Job'
-          nullable: true
         note:
           type: string
           description: |
@@ -3453,6 +3504,8 @@ components:
         execution_date:
           type: string
           format: datetime
+        map_index:
+          type: integer
         task_id:
           type: string
         dag_id:
@@ -3492,7 +3545,7 @@ components:
         DAG details.
 
         For details see:
-        [airflow.models.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG)
+        [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -3518,7 +3571,6 @@ components:
 
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
-              nullable: true
               $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
@@ -3603,7 +3655,7 @@ components:
       type: object
       description: |
         For details see:
-        [airflow.models.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator)
+        [airflow.models.baseoperator.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/baseoperator/index.html#airflow.models.baseoperator.BaseOperator)
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -3656,10 +3708,8 @@ components:
           readOnly: true
         execution_timeout:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_delay:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -4242,11 +4292,7 @@ components:
           type: boolean
 
         new_state:
-          description: Expected new state.
-          type: string
-          enum:
-            - success
-            - failed
+          $ref: '#/components/schemas/UpdateTaskState'
 
     UpdateTaskInstance:
       type: object
@@ -4259,11 +4305,8 @@ components:
           default: false
 
         new_state:
-          description: Expected new state.
-          type: string
-          enum:
-            - success
-            - failed
+          $ref: '#/components/schemas/UpdateTaskState'
+
     SetTaskInstanceNote:
       type: object
       required:
@@ -4370,6 +4413,26 @@ components:
             Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
+        dag_run_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific DAG Run IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
+        task_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific task IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
         execution_date_gte:
           type: string
           format: date-time
@@ -4460,6 +4523,7 @@ components:
     TimeDelta:
       description: Time delta
       type: object
+      nullable: true
       required:
         - __type
         - days
@@ -4600,8 +4664,14 @@ components:
 
         *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
         *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
+
+        *Changed in version 2.7.0*&#58; Field becomes nullable and null primitive is added as a possible value.
+        *Changed in version 2.7.0*&#58; 'none' state is deprecated in favor of null.
+
       type: string
+      nullable: true
       enum:
+        - null
         - success
         - running
         - failed
@@ -4615,6 +4685,19 @@ components:
         - deferred
         - removed
         - restarting
+
+
+    UpdateTaskState:
+      description: |
+        Expected new state. Only a subset of TaskState are available.
+
+        Other states are managed directly by the scheduler or the workers and cannot be updated manually through the REST API.
+
+      type: string
+      enum:
+        - success
+        - failed
+        - skipped
 
     DagState:
       description: |
@@ -4658,6 +4741,7 @@ components:
     HealthStatus:
       description: Health status
       type: string
+      nullable: true
       enum:
         - healthy
         - unhealthy
@@ -5054,6 +5138,14 @@ components:
         Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
 
         *New in version 2.6.0*
+
+    FilterXcomKey:
+      in: query
+      name: xcom_key
+      schema:
+        type: string
+      required: false
+      description: Only filter the XCom records which have the provided key.
 
     # Other parameters
     FileToken:

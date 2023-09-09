@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,18 +15,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 import argparse
 import contextlib
 import io
+import os
 import re
+import subprocess
+import sys
+import timeit
 from collections import Counter
-from unittest.mock import patch
+from importlib import reload
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.cli import cli_config, cli_parser
+from airflow.cli.cli_config import ActionCommand, core_commands, lazy_load_command
+from airflow.cli.utils import CliConflictError
+from airflow.configuration import AIRFLOW_HOME
+from airflow.executors.local_executor import LocalExecutor
 from tests.test_utils.config import conf_vars
 
 # Can not be `--snake_case` or contain uppercase letter
@@ -125,8 +135,30 @@ class TestCli:
                     f"short option flags {conflict_short_option}"
                 )
 
+    @patch.object(LocalExecutor, "get_cli_commands")
+    def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock):
+        core_commands.append(
+            ActionCommand(
+                name="test_command",
+                help="does nothing",
+                func=lambda: None,
+                args=[],
+            )
+        )
+        cli_commands_mock.return_value = [
+            ActionCommand(
+                name="test_command",
+                help="just a command that'll conflict with one defined in core",
+                func=lambda: None,
+                args=[],
+            )
+        ]
+        with pytest.raises(CliConflictError, match="test_command"):
+            # force re-evaluation of cli commands (done in top level code)
+            reload(cli_parser)
+
     def test_falsy_default_value(self):
-        arg = cli_parser.Arg(("--test",), default=0, type=int)
+        arg = cli_config.Arg(("--test",), default=0, type=int)
         parser = argparse.ArgumentParser()
         arg.add_to_parser(parser)
 
@@ -196,46 +228,54 @@ class TestCli:
             cli_config.positive_int(allow_zero=False)("0")
             cli_config.positive_int(allow_zero=True)("-1")
 
-    def test_dag_parser_celery_command_require_celery_executor(self):
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "celery",
+            "kubernetes",
+        ],
+    )
+    def test_executor_specific_commands_not_accessible(self, command):
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
             io.StringIO()
         ) as stderr:
+            reload(cli_parser)
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args(["celery"])
+                parser.parse_args([command])
             stderr = stderr.getvalue()
-        assert (
-            "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
-            "works only with CeleryExecutor, CeleryKubernetesExecutor and executors derived from them, "
-            "your current executor: SequentialExecutor, subclassed from: BaseExecutor, see help above."
-        ) in stderr
+        assert (f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{command}'") in stderr
 
     @pytest.mark.parametrize(
-        "executor",
+        "executor,expected_args",
         [
-            "CeleryExecutor",
-            "CeleryKubernetesExecutor",
-            "custom_executor.CustomCeleryExecutor",
-            "custom_executor.CustomCeleryKubernetesExecutor",
+            ("CeleryExecutor", ["celery"]),
+            ("CeleryKubernetesExecutor", ["celery", "kubernetes"]),
+            ("KubernetesExecutor", ["kubernetes"]),
+            ("LocalExecutor", []),
+            ("LocalKubernetesExecutor", ["kubernetes"]),
+            ("SequentialExecutor", []),
+            # custom executors are mapped to the regular ones in `conftest.py`
+            ("custom_executor.CustomLocalExecutor", []),
+            ("custom_executor.CustomLocalKubernetesExecutor", ["kubernetes"]),
+            ("custom_executor.CustomCeleryExecutor", ["celery"]),
+            ("custom_executor.CustomCeleryKubernetesExecutor", ["celery", "kubernetes"]),
+            ("custom_executor.CustomKubernetesExecutor", ["kubernetes"]),
         ],
     )
-    def test_dag_parser_celery_command_accept_celery_executor(self, executor):
-        with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
-            parser = cli_parser.get_parser()
-            with pytest.raises(SystemExit):
-                parser.parse_args(["celery"])
-            stderr = stderr.getvalue()
-        assert (
-            "airflow celery command error: the following arguments are required: COMMAND, see help above."
-        ) in stderr
-
-    def test_dag_parser_config_command_dont_required_celery_executor(self):
-        with conf_vars({("core", "executor"): "CeleryExecutor"}), contextlib.redirect_stderr(
-            io.StringIO()
-        ) as stdout:
-            parser = cli_parser.get_parser()
-            parser.parse_args(["config", "get-value", "celery", "broker-url"])
-        assert stdout is not None
+    def test_cli_parser_executors(self, executor, expected_args):
+        """Test that CLI commands for the configured executor are present"""
+        for expected_arg in expected_args:
+            with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(
+                io.StringIO()
+            ) as stderr:
+                reload(cli_parser)
+                parser = cli_parser.get_parser()
+                with pytest.raises(SystemExit) as e:  # running the help command exits, so we prevent that
+                    parser.parse_args([expected_arg, "--help"])
+                assert e.value.code == 0, stderr.getvalue()  # return code 0 == no problem
+                stderr = stderr.getvalue()
+                assert "airflow command error" not in stderr
 
     def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
         """Test that the error message is correct when the directory does not exist."""
@@ -268,3 +308,112 @@ class TestCli:
             f"--export-format: invalid choice: '{export_format}' "
             "(choose from 'csv'), see help above.\n"
         )
+
+    @pytest.mark.parametrize(
+        "action_cmd",
+        [
+            ActionCommand(name="name", help="help", func=lazy_load_command(""), args=(), hide=True),
+            ActionCommand(name="name", help="help", func=lazy_load_command(""), args=(), hide=False),
+        ],
+    )
+    @patch("argparse._SubParsersAction")
+    def test_add_command_with_hide(self, mock_subparser_actions, action_cmd):
+        cli_parser._add_command(mock_subparser_actions, action_cmd)
+        if action_cmd.hide:
+            mock_subparser_actions.add_parser.assert_called_once_with(
+                action_cmd.name, epilog=action_cmd.epilog
+            )
+        else:
+            mock_subparser_actions.add_parser.assert_called_once_with(
+                action_cmd.name, help=action_cmd.help, description=action_cmd.help, epilog=action_cmd.epilog
+            )
+
+
+# We need to run it from sources with PYTHONPATH, not command line tool,
+# because we need to make sure that we have providers configured from source provider.yaml files
+
+CONFIG_FILE = Path(AIRFLOW_HOME) / "airflow.cfg"
+
+
+class TestCliSubprocess:
+    """
+    We need to run it from sources using "__main__" and setting the PYTHONPATH, not command line tool,
+    because we need to make sure that we have providers loaded from source provider.yaml files rather
+    than from provider packages which might not be installed in the test environment.
+    """
+
+    def test_cli_run_time(self):
+        setup_code = "import subprocess"
+        command = [sys.executable, "-m", "airflow", "--help"]
+        env = {"PYTHONPATH": os.pathsep.join(sys.path)}
+        timing_code = f"subprocess.run({command},env={env})"
+        # Limit the number of samples otherwise the test will take a very long time
+        num_samples = 3
+        threshold = 3.5
+        timing_result = timeit.timeit(stmt=timing_code, number=num_samples, setup=setup_code) / num_samples
+        # Average run time of Airflow CLI should at least be within 3.5s
+        assert timing_result < threshold
+
+    def test_cli_parsing_does_not_initialize_providers_manager(self):
+        """Test that CLI parsing does not initialize providers manager.
+
+        This test is here to make sure that we do not initialize providers manager - it is run as a
+        separate subprocess, to make sure we do not have providers manager initialized in the main
+        process from other tests.
+        """
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_FILE.touch(exist_ok=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "airflow", "providers", "lazy-loaded"],
+            env={"PYTHONPATH": os.pathsep.join(sys.path)},
+            check=False,
+            text=True,
+        )
+        assert result.returncode == 0
+
+    def test_airflow_config_contains_providers(self):
+        """Test that airflow config has providers included by default.
+
+        This test is run as a separate subprocess, to make sure we do not have providers manager
+        initialized in the main process from other tests.
+        """
+        CONFIG_FILE.unlink(missing_ok=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "airflow", "config", "list"],
+            env={"PYTHONPATH": os.pathsep.join(sys.path)},
+            check=False,
+            text=True,
+        )
+        assert result.returncode == 0
+        assert CONFIG_FILE.exists()
+        assert "celery_config_options" in CONFIG_FILE.read_text()
+
+    def test_airflow_config_output_contains_providers_by_default(self):
+        """Test that airflow config has providers excluded in config list when asked for it."""
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_FILE.touch(exist_ok=True)
+
+        result = subprocess.run(
+            [sys.executable, "-m", "airflow", "config", "list"],
+            env={"PYTHONPATH": os.pathsep.join(sys.path)},
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        assert result.returncode == 0
+        assert "celery_config_options" in result.stdout
+
+    def test_airflow_config_output_does_not_contain_providers_when_excluded(self):
+        """Test that airflow config has providers excluded in config list when asked for it."""
+        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_FILE.unlink(missing_ok=True)
+        CONFIG_FILE.touch(exist_ok=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "airflow", "config", "list", "--exclude-providers"],
+            env={"PYTHONPATH": os.pathsep.join(sys.path)},
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        assert result.returncode == 0
+        assert "celery_config_options" not in result.stdout

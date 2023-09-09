@@ -20,7 +20,7 @@ from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, B
 
 
 class GlueJobRunDetailsLink(BaseAwsLink):
-    """Helper class for constructing AWS Glue Job Run Details Link"""
+    """Helper class for constructing AWS Glue Job Run Details Link."""
 
     name = "AWS Glue Job Run Details"
     key = "glue_job_run_details"

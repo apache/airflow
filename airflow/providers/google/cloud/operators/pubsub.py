@@ -18,7 +18,7 @@
 """
 This module contains Google PubSub operators.
 
-.. spelling::
+.. spelling:word-list::
 
     MessageStoragePolicy
 """
@@ -27,7 +27,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.pubsub_v1.types import (
     DeadLetterPolicy,
     Duration,
@@ -43,6 +42,8 @@ from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, 
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 
@@ -678,7 +679,9 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
 
 
 class PubSubPullOperator(GoogleCloudBaseOperator):
-    """Pulls messages from a PubSub subscription and passes them through XCom.
+    """
+    Pulls messages from a PubSub subscription and passes them through XCom.
+
     If the queue is empty, returns empty list - never waits for messages.
     If you do need to wait, please use :class:`airflow.providers.google.cloud.sensors.PubSubPullSensor`
     instead.
@@ -707,7 +710,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
     :param messages_callback: (Optional) Callback to process received messages.
-        It's return value will be saved to XCom.
+        Its return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
         If not provided, the default implementation will convert `ReceivedMessage` objects
         into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
@@ -781,6 +784,7 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     ) -> list:
         """
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
+
         This default implementation converts `ReceivedMessage` objects into JSON-serializable dicts.
 
         :param pulled_messages: messages received from the topic.

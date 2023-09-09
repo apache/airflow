@@ -26,10 +26,11 @@ The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.Kubernet
 you to create and run Pods on a Kubernetes cluster.
 
 .. note::
-  If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__, consider
-  using the
-  :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator as it
-  simplifies the Kubernetes authorization process.
+  If you use a managed Kubernetes consider using a specialize KPO operator as it simplifies the Kubernetes authorization process :
+
+  - :ref:`GKEStartPodOperator <howto/operator:GKEStartPodOperator>` operator for `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__,
+
+  - :ref:`EksPodOperator <howto/operator:EksPodOperator>` operator for `AWS Elastic Kubernetes Engine <https://aws.amazon.com/eks/>`__.
 
 .. note::
   The :doc:`Kubernetes executor <apache-airflow:core-concepts/executor/kubernetes>` is **not** required to use this operator.
@@ -57,7 +58,7 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
 .. code-block:: python
 
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 
     k = KubernetesPodOperator(
         name="hello-dry-run",
@@ -97,7 +98,7 @@ like this:
 With this API object, you can have access to all Kubernetes API objects in the form of python classes.
 Using this method will ensure correctness
 and type safety. While we have removed almost all Kubernetes convenience classes, we have kept the
-:class:`~airflow.kubernetes.secret.Secret` class to simplify the process of generating secret volumes/env variables.
+:class:`~airflow.providers.cncf.kubernetes.secret.Secret` class to simplify the process of generating secret volumes/env variables.
 
 .. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes.py
     :language: python
@@ -151,6 +152,10 @@ XCom values differently than other operators. In order to pass a XCom value
 from your Pod you must specify the ``do_xcom_push`` as ``True``. This will create a sidecar container that runs
 alongside the Pod. The Pod must write the XCom value into this location at the ``/airflow/xcom/return.json`` path.
 
+.. note::
+  An invalid json content will fail, example ``echo 'hello' > /airflow/xcom/return.json`` fail and  ``echo '\"hello\"' > /airflow/xcom/return.json`` work
+
+
 See the following example on how this occurs:
 
 .. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes.py
@@ -166,6 +171,27 @@ Also for this action you can use operator in the deferrable mode:
     :language: python
     :start-after: [START howto_operator_k8s_write_xcom_async]
     :end-before: [END howto_operator_k8s_write_xcom_async]
+
+Include error message in email alert
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Any content written to ``/dev/termination-log`` will be retrieved by Kubernetes and
+included in the exception message if the task fails.
+
+.. code-block:: python
+
+    k = KubernetesPodOperator(
+        task_id="test_error_message",
+        image="alpine",
+        cmds=["/bin/sh"],
+        arguments=["-c", "echo hello world; echo Custom error > /dev/termination-log; exit 1;"],
+        name="test-error-message",
+        email="airflow@example.com",
+        email_on_failure=True,
+    )
+
+
+Read more on termination-log `here <https://kubernetes.io/docs/tasks/debug/debug-application/determine-reason-pod-failure/>`__.
 
 Reference
 ^^^^^^^^^

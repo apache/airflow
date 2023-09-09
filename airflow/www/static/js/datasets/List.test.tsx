@@ -25,6 +25,8 @@ import { render } from "@testing-library/react";
 import * as useDatasetsModule from "src/api/useDatasets";
 import { Wrapper } from "src/utils/testUtils";
 
+import type { UseQueryResult } from "react-query";
+import type { DatasetListItem } from "src/types";
 import DatasetsList from "./List";
 
 const datasets = [
@@ -57,22 +59,26 @@ const datasets = [
   },
 ];
 
+type UseDatasetsReturn = UseQueryResult<useDatasetsModule.DatasetsData> & {
+  data: useDatasetsModule.DatasetsData;
+};
+
 const returnValue = {
   data: {
     datasets,
     totalEntries: datasets.length,
   },
   isSuccess: true,
-} as any;
+} as UseDatasetsReturn;
 
 const emptyReturnValue = {
   data: {
-    datasets: [],
+    datasets: [] as DatasetListItem[],
     totalEntries: 0,
   },
   isSuccess: true,
   isLoading: false,
-} as any;
+} as UseDatasetsReturn;
 
 describe("Test Datasets List", () => {
   test("Displays a list of datasets", () => {

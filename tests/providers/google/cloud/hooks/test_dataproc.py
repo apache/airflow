@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import ANY
+from unittest.mock import ANY, AsyncMock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
@@ -35,7 +35,6 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook, DataProcJobBuilder
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.version import version
-from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 AIRFLOW_VERSION = "v" + version.replace(".", "-").replace("+", "-")
 
@@ -55,7 +54,7 @@ CLUSTER = {
 }
 BATCH = {"batch": "test-batch"}
 BATCH_ID = "batch-id"
-BATCH_NAME = "projects/{}/regions/{}/batches/{}"
+BATCH_NAME = "projects/{}/locations/{}/batches/{}"
 PARENT = "projects/{}/regions/{}"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
@@ -492,6 +491,8 @@ class TestDataprocHook:
                 parent=PARENT.format(GCP_PROJECT, GCP_LOCATION),
                 page_size=None,
                 page_token=None,
+                filter=None,
+                order_by=None,
             ),
             metadata=(),
             retry=DEFAULT,
@@ -587,7 +588,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
     async def test_create_cluster(self, mock_client):
         mock_cluster_client = AsyncMock(ClusterControllerAsyncClient)
         mock_client.return_value = mock_cluster_client
@@ -612,7 +613,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
     async def test_delete_cluster(self, mock_client):
         mock_cluster_client = AsyncMock(ClusterControllerAsyncClient)
         mock_client.return_value = mock_cluster_client
@@ -632,7 +633,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
     async def test_diagnose_cluster(self, mock_client):
         mock_cluster_client = AsyncMock(ClusterControllerAsyncClient)
         mock_client.return_value = mock_cluster_client
@@ -653,7 +654,7 @@ class TestDataprocAsyncHook:
         mock_client.return_value.diagnose_cluster.return_value.result.assert_called_once_with()
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
     async def test_get_cluster(self, mock_client):
         mock_cluster_client = AsyncMock(ClusterControllerAsyncClient)
         mock_client.return_value = mock_cluster_client
@@ -671,7 +672,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
     async def test_list_clusters(self, mock_client):
         filter_ = "filter"
         mock_cluster_client = AsyncMock(ClusterControllerAsyncClient)
@@ -691,7 +692,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_cluster_client"))
     async def test_update_cluster(self, mock_client):
         update_mask = "update-mask"
         mock_cluster_client = AsyncMock(ClusterControllerAsyncClient)
@@ -730,7 +731,7 @@ class TestDataprocAsyncHook:
             )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     async def test_create_workflow_template(self, mock_client):
         template = {"test": "test"}
         parent = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}"
@@ -744,7 +745,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     async def test_instantiate_workflow_template(self, mock_client):
         template_name = "template_name"
         name = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}/workflowTemplates/{template_name}"
@@ -761,7 +762,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_operation"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_operation"))
     async def test_get_operation(self, mock_client):
         mock_client.return_value = None
         hook = DataprocAsyncHook(gcp_conn_id="google_cloud_default", impersonation_chain=None)
@@ -775,7 +776,7 @@ class TestDataprocAsyncHook:
             self.hook.instantiate_workflow_template(template_name="template_name", project_id=GCP_PROJECT)
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_template_client"))
     async def test_instantiate_inline_workflow_template(self, mock_client):
         template = {"test": "test"}
         parent = f"projects/{GCP_PROJECT}/regions/{GCP_LOCATION}"
@@ -797,7 +798,7 @@ class TestDataprocAsyncHook:
             self.hook.instantiate_inline_workflow_template(template={"test": "test"}, project_id=GCP_PROJECT)
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_job_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_job_client"))
     async def test_get_job(self, mock_client):
         mock_job_client = AsyncMock(JobControllerAsyncClient)
         mock_client.return_value = mock_job_client
@@ -820,7 +821,7 @@ class TestDataprocAsyncHook:
             self.hook.get_job(job_id=JOB_ID, project_id=GCP_PROJECT)
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_job_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_job_client"))
     async def test_submit_job(self, mock_client):
         mock_job_client = AsyncMock(JobControllerAsyncClient)
         mock_client.return_value = mock_job_client
@@ -844,7 +845,7 @@ class TestDataprocAsyncHook:
             self.hook.submit_job(job=JOB, project_id=GCP_PROJECT)
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_job_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_job_client"))
     async def test_cancel_job(self, mock_client):
         mock_job_client = AsyncMock(JobControllerAsyncClient)
         mock_client.return_value = mock_job_client
@@ -862,7 +863,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
     async def test_create_batch(self, mock_client):
         mock_batch_client = AsyncMock(BatchControllerAsyncClient)
         mock_client.return_value = mock_batch_client
@@ -886,7 +887,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
     async def test_delete_batch(self, mock_client):
         mock_batch_client = AsyncMock(BatchControllerAsyncClient)
         mock_client.return_value = mock_batch_client
@@ -906,7 +907,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
     async def test_get_batch(self, mock_client):
         mock_batch_client = AsyncMock(BatchControllerAsyncClient)
         mock_client.return_value = mock_batch_client
@@ -926,7 +927,7 @@ class TestDataprocAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
+    @mock.patch(DATAPROC_STRING.format("DataprocAsyncHook.get_batch_client"))
     async def test_list_batches(self, mock_client):
         mock_batch_client = AsyncMock(BatchControllerAsyncClient)
         mock_client.return_value = mock_batch_client
@@ -940,6 +941,8 @@ class TestDataprocAsyncHook:
                 parent=PARENT.format(GCP_PROJECT, GCP_LOCATION),
                 page_size=None,
                 page_token=None,
+                filter=None,
+                order_by=None,
             ),
             metadata=(),
             retry=DEFAULT,

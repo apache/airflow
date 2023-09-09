@@ -28,6 +28,7 @@ from airflow.providers.http.hooks.http import HttpHook
 class DiscordWebhookHook(HttpHook):
     """
     This hook allows you to post messages to Discord using incoming webhooks.
+
     Takes a Discord connection ID with a default relative webhook endpoint. The
     default endpoint can be overridden using the webhook_endpoint parameter
     (https://discordapp.com/developers/docs/resources/webhook).
@@ -76,8 +77,7 @@ class DiscordWebhookHook(HttpHook):
 
     def _get_webhook_endpoint(self, http_conn_id: str | None, webhook_endpoint: str | None) -> str:
         """
-        Given a Discord http_conn_id, return the default webhook endpoint or override if a
-        webhook_endpoint is manually supplied.
+        Return the default webhook endpoint or override if a webhook_endpoint is manually supplied.
 
         :param http_conn_id: The provided connection ID
         :param webhook_endpoint: The manually provided webhook endpoint
@@ -95,7 +95,7 @@ class DiscordWebhookHook(HttpHook):
             )
 
         # make sure endpoint matches the expected Discord webhook format
-        if not re.match("^webhooks/[0-9]+/[a-zA-Z0-9_-]+$", endpoint):
+        if not re.fullmatch("webhooks/[0-9]+/[a-zA-Z0-9_-]+", endpoint):
             raise AirflowException(
                 'Expected Discord webhook endpoint in the form of "webhooks/{webhook.id}/{webhook.token}".'
             )
@@ -104,8 +104,7 @@ class DiscordWebhookHook(HttpHook):
 
     def _build_discord_payload(self) -> str:
         """
-        Construct the Discord JSON payload. All relevant parameters are combined here
-        to a valid Discord JSON payload.
+        Combine all relevant parameters into a valid Discord JSON payload.
 
         :return: Discord payload (str) to send
         """
@@ -126,7 +125,7 @@ class DiscordWebhookHook(HttpHook):
         return json.dumps(payload)
 
     def execute(self) -> None:
-        """Execute the Discord webhook call"""
+        """Execute the Discord webhook call."""
         proxies = {}
         if self.proxy:
             # we only need https proxy for Discord

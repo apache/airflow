@@ -407,6 +407,15 @@ class TestLocalTaskJob:
         mock_stats_incr.assert_has_calls(
             [
                 mock.call("local_task_job.task_exit.95.test_localtaskjob_code.op1.-9"),
+                mock.call(
+                    "local_task_job.task_exit",
+                    tags={
+                        "job_id": 95,
+                        "dag_id": "test_localtaskjob_code",
+                        "task_id": "op1",
+                        "return_code": -9,
+                    },
+                ),
             ]
         )
 
@@ -855,15 +864,20 @@ class TestSigtermOnRunner:
         "daemon", [pytest.param(True, id="daemon"), pytest.param(False, id="non-daemon")]
     )
     @pytest.mark.parametrize(
-        "mp_method",
+        "mp_method, wait_timeout",
         [
             pytest.param(
-                "fork", marks=pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
+                "fork",
+                10,
+                marks=pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available"),
+                id="fork",
             ),
-            pytest.param("spawn"),
+            pytest.param("spawn", 30, id="spawn"),
         ],
     )
-    def test_process_sigterm_works_with_retries(self, mp_method, daemon, clear_db, request, capfd):
+    def test_process_sigterm_works_with_retries(
+        self, mp_method, wait_timeout, daemon, clear_db, request, capfd
+    ):
         """Test that ensures that task runner sets tasks to retry when task runner receive SIGTERM."""
         mp_context = mp.get_context(mp_method)
 
@@ -887,12 +901,12 @@ class TestSigtermOnRunner:
         proc.start()
 
         try:
-            with timeout(10, "Timeout during waiting start LocalTaskJob"):
+            with timeout(wait_timeout, "Timeout during waiting start LocalTaskJob"):
                 while task_started.value == 0:
                     time.sleep(0.2)
             os.kill(proc.pid, signal.SIGTERM)
 
-            with timeout(10, "Timeout during waiting callback"):
+            with timeout(wait_timeout, "Timeout during waiting callback"):
                 while retry_callback_called.value == 0:
                     time.sleep(0.2)
         finally:
@@ -945,7 +959,7 @@ class TestSigtermOnRunner:
                 is_started.value = 1
 
             while True:
-                time.sleep(0.1)
+                time.sleep(0.25)
 
         with DAG(dag_id=dag_id, schedule=None, start_date=execution_date) as dag:
             task = PythonOperator(

@@ -49,14 +49,14 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
 DAG_ID = "async_example_gcp_mlengine"
 PREDICT_FILE_NAME = "async_predict.json"
-MODEL_NAME = f"example_async_ml_model_{ENV_ID}"
-BUCKET_NAME = f"example_async_ml_bucket_{ENV_ID}"
+MODEL_NAME = f"model_{DAG_ID}_{ENV_ID}".replace("-", "_")
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 BUCKET_PATH = f"gs://{BUCKET_NAME}"
 JOB_DIR = f"{BUCKET_PATH}/job-dir"
 SAVED_MODEL_PATH = f"{JOB_DIR}/"
 PREDICTION_INPUT = f"{BUCKET_PATH}/{PREDICT_FILE_NAME}"
 PREDICTION_OUTPUT = f"{BUCKET_PATH}/prediction_output/"
-TRAINER_URI = "gs://system-tests-resources/example_gcp_mlengine/async-trainer-0.2.tar.gz"
+TRAINER_URI = "gs://airflow-system-tests-resources/ml-engine/async-trainer-0.2.tar.gz"
 TRAINER_PY_MODULE = "trainer.task"
 SUMMARY_TMP = f"{BUCKET_PATH}/tmp/"
 SUMMARY_STAGING = f"{BUCKET_PATH}/staging/"
@@ -74,7 +74,7 @@ with models.DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "ml_engine"],
+    tags=["example", "ml_engine", "deferrable"],
     params={"model_name": MODEL_NAME},
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
@@ -104,7 +104,7 @@ with models.DAG(
         project_id=PROJECT_ID,
         region="us-central1",
         job_id="async_training-job-{{ ts_nodash }}-{{ params.model_name }}",
-        runtime_version="2.1",
+        runtime_version="1.15",
         python_version="3.7",
         job_dir=JOB_DIR,
         package_uris=[TRAINER_URI],
@@ -149,7 +149,7 @@ with models.DAG(
             "name": "v1",
             "description": "First-version",
             "deployment_uri": JOB_DIR,
-            "runtime_version": "2.1",
+            "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
             "pythonVersion": "3.7",
@@ -166,7 +166,7 @@ with models.DAG(
             "name": "v2",
             "description": "Second version",
             "deployment_uri": JOB_DIR,
-            "runtime_version": "2.1",
+            "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
             "pythonVersion": "3.7",

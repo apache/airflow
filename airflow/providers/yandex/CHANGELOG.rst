@@ -21,8 +21,36 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-yandex``
+
+
 Changelog
 ---------
+
+3.4.0
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Features
+~~~~~~~~
+
+* ``add support for Yandex Dataproc cluster labels (#29811)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Resume yandex provider (#33574)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Bump minimum Airflow version in providers (#30917)``
+   * ``Suspend Yandex provider due to protobuf limitation (#30667)``
 
 3.3.0
 .....

@@ -20,11 +20,12 @@ import json
 import warnings
 from copy import deepcopy
 from dataclasses import MISSING, InitVar, dataclass, field, fields
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from botocore import UNSIGNED
 from botocore.config import Config
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -74,11 +75,11 @@ class _ConnectionMetadata:
 
 @dataclass
 class AwsConnectionWrapper(LoggingMixin):
-    """
-    AWS Connection Wrapper class helper.
+    """AWS Connection Wrapper class helper.
+
     Use for validate and resolve AWS Connection parameters.
 
-    ``conn`` reference to Airflow Connection object or AwsConnectionWrapper
+    ``conn`` references an Airflow Connection object or AwsConnectionWrapper
         if it set to ``None`` than default values would use.
 
     The precedence rules for ``region_name``
@@ -236,6 +237,8 @@ class AwsConnectionWrapper(LoggingMixin):
         if not self.botocore_config and config_kwargs:
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
             self.log.debug("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
+            if config_kwargs.get("signature_version") == "unsigned":
+                config_kwargs["signature_version"] = UNSIGNED
             self.botocore_config = Config(**config_kwargs)
 
         if conn.host:
@@ -316,17 +319,17 @@ class AwsConnectionWrapper(LoggingMixin):
         session_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> tuple[str | None, str | None, str | None]:
-        """
-        Get AWS credentials from connection login/password and extra.
+        """Get AWS credentials from connection login/password and extra.
 
-        ``aws_access_key_id`` and ``aws_secret_access_key`` order
+        ``aws_access_key_id`` and ``aws_secret_access_key`` order:
+
         1. From Connection login and password
-        2. From Connection extra['aws_access_key_id'] and extra['aws_access_key_id']
-        3. (deprecated) Form Connection extra['session_kwargs']
-        4. (deprecated) From local credentials file
+        2. From Connection ``extra['aws_access_key_id']`` and
+           ``extra['aws_access_key_id']``
+        3. (deprecated) Form Connection ``extra['session_kwargs']``
+        4. (deprecated) From a local credentials file
 
-        Get ``aws_session_token`` from extra['aws_access_key_id']
-
+        Get ``aws_session_token`` from ``extra['aws_access_key_id']``.
         """
         session_kwargs = session_kwargs or {}
         session_aws_access_key_id = session_kwargs.get("aws_access_key_id")
@@ -424,9 +427,9 @@ class AwsConnectionWrapper(LoggingMixin):
 def _parse_s3_config(
     config_file_name: str, config_format: str | None = "boto", profile: str | None = None
 ) -> tuple[str | None, str | None]:
-    """
-    Parses a config file for s3 credentials. Can currently
-    parse boto, s3cmd.conf and AWS SDK config formats
+    """Parse a config file for S3 credentials.
+
+    Can currently parse boto, s3cmd.conf and AWS SDK config formats.
 
     :param config_file_name: path to the config file
     :param config_format: config type. One of "boto", "s3cmd" or "aws".

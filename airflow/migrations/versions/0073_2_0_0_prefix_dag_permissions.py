@@ -28,7 +28,7 @@ from flask_appbuilder import SQLA
 
 from airflow import settings
 from airflow.security import permissions
-from airflow.www.fab_security.sqla.models import Action, Permission, Resource
+from airflow.auth.managers.fab.models import Action, Permission, Resource
 
 # revision identifiers, used by Alembic.
 revision = "849da589634d"

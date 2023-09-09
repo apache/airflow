@@ -36,8 +36,7 @@ if TYPE_CHECKING:
 
 
 class HttpHook(BaseHook):
-    """
-    Interact with HTTP servers.
+    """Interact with HTTP servers.
 
     :param method: the API method to be called
     :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
@@ -89,8 +88,7 @@ class HttpHook(BaseHook):
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
-        """
-        Returns http session for use with requests
+        """Create a Requests HTTP session.
 
         :param headers: additional headers to be passed through as a dictionary
         """
@@ -131,8 +129,7 @@ class HttpHook(BaseHook):
         extra_options: dict[str, Any] | None = None,
         **request_kwargs: Any,
     ) -> Any:
-        r"""
-        Performs the request
+        r"""Perform the request.
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :param data: payload to be uploaded or request parameters
@@ -169,11 +166,11 @@ class HttpHook(BaseHook):
         return self.run_and_check(session, prepped_request, extra_options)
 
     def check_response(self, response: requests.Response) -> None:
-        """
-        Checks the status code and raise an AirflowException exception on non 2XX or 3XX
-        status codes
+        """Check the status code and raise on failure.
 
-        :param response: A requests response object
+        :param response: A requests response object.
+        :raise AirflowException: If the response contains a status code not
+            in the 2xx and 3xx range.
         """
         try:
             response.raise_for_status()
@@ -188,9 +185,7 @@ class HttpHook(BaseHook):
         prepped_request: requests.PreparedRequest,
         extra_options: dict[Any, Any],
     ) -> Any:
-        """
-        Grabs extra options like timeout and actually runs the request,
-        checking for the result
+        """Grab extra options, actually run the request, and check the result.
 
         :param session: the session to be used to execute the request
         :param prepped_request: the prepared request generated in run()
@@ -227,10 +222,10 @@ class HttpHook(BaseHook):
             raise ex
 
     def run_with_advanced_retry(self, _retry_args: dict[Any, Any], *args: Any, **kwargs: Any) -> Any:
-        """
-        Runs Hook.run() with a Tenacity decorator attached to it. This is useful for
-        connectors which might be disturbed by intermittent issues and should not
-        instantly fail.
+        """Run the hook with retry.
+
+        This is useful for connectors which might be disturbed by intermittent
+        issues and should not instantly fail.
 
         :param _retry_args: Arguments which define the retry behaviour.
             See Tenacity documentation at https://github.com/jd/tenacity
@@ -252,13 +247,13 @@ class HttpHook(BaseHook):
         return self._retry_obj(self.run, *args, **kwargs)
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
-        """Combine base url with endpoint"""
+        """Combine base url with endpoint."""
         if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
             return self.base_url + "/" + endpoint
         return (self.base_url or "") + (endpoint or "")
 
     def test_connection(self):
-        """Test HTTP Connection"""
+        """Test HTTP Connection."""
         try:
             self.run()
             return True, "Connection successfully tested"
@@ -267,8 +262,7 @@ class HttpHook(BaseHook):
 
 
 class HttpAsyncHook(BaseHook):
-    """
-    Interact with HTTP servers using Python Async.
+    """Interact with HTTP servers asynchronously.
 
     :param method: the API method to be called
     :param http_conn_id: http connection id that has the base
@@ -307,14 +301,14 @@ class HttpAsyncHook(BaseHook):
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> ClientResponse:
-        r"""
-        Performs an asynchronous HTTP request call
+        """Perform an asynchronous HTTP request call.
 
-        :param endpoint: the endpoint to be called i.e. resource/v1/query?
-        :param data: payload to be uploaded or request parameters
-        :param headers: additional headers to be passed through as a dictionary
+        :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
+        :param data: Payload to be uploaded or request parameters.
+        :param headers: Additional headers to be passed through as a dict.
         :param extra_options: Additional kwargs to pass when creating a request.
-            For example, ``run(json=obj)`` is passed as ``aiohttp.ClientSession().get(json=obj)``
+            For example, ``run(json=obj)`` is passed as
+            ``aiohttp.ClientSession().get(json=obj)``.
         """
         extra_options = extra_options or {}
 
@@ -346,10 +340,9 @@ class HttpAsyncHook(BaseHook):
         if headers:
             _headers.update(headers)
 
-        if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
-            url = self.base_url + "/" + endpoint
-        else:
-            url = (self.base_url or "") + (endpoint or "")
+        base_url = (self.base_url or "").rstrip("/")
+        endpoint = (endpoint or "").lstrip("/")
+        url = f"{base_url}/{endpoint}"
 
         async with aiohttp.ClientSession() as session:
             if self.method == "GET":
@@ -369,39 +362,38 @@ class HttpAsyncHook(BaseHook):
             else:
                 raise AirflowException(f"Unexpected HTTP Method: {self.method}")
 
-            attempt_num = 1
-            while True:
+            for attempt in range(1, 1 + self.retry_limit):
                 response = await request_func(
                     url,
                     json=data if self.method in ("POST", "PATCH") else None,
                     params=data if self.method == "GET" else None,
-                    headers=headers,
+                    headers=_headers,
                     auth=auth,
                     **extra_options,
                 )
                 try:
                     response.raise_for_status()
-                    return response
                 except ClientResponseError as e:
                     self.log.warning(
                         "[Try %d of %d] Request to %s failed.",
-                        attempt_num,
+                        attempt,
                         self.retry_limit,
                         url,
                     )
-                    if not self._retryable_error_async(e) or attempt_num == self.retry_limit:
+                    if not self._retryable_error_async(e) or attempt == self.retry_limit:
                         self.log.exception("HTTP error with status: %s", e.status)
                         # In this case, the user probably made a mistake.
                         # Don't retry.
                         raise AirflowException(f"{e.status}:{e.message}")
-
-                attempt_num += 1
-                await asyncio.sleep(self.retry_delay)
+                    else:
+                        await asyncio.sleep(self.retry_delay)
+                else:
+                    return response
+            else:
+                raise NotImplementedError  # should not reach this, but makes mypy happy
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
-        """
-        Determines whether or not an exception that was thrown might be successful
-        on a subsequent attempt.
+        """Determine whether an exception may successful on a subsequent attempt.
 
         It considers the following to be retryable:
             - requests_exceptions.ConnectionError

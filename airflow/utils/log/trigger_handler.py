@@ -22,8 +22,10 @@ import logging
 from contextvars import ContextVar
 from copy import copy
 from logging.handlers import QueueHandler
+from typing import TYPE_CHECKING
 
-from airflow.utils.log.file_task_handler import FileTaskHandler
+if TYPE_CHECKING:
+    from airflow.utils.log.file_task_handler import FileTaskHandler
 
 ctx_task_instance: ContextVar = ContextVar("task_instance")
 ctx_trigger_id: ContextVar = ContextVar("trigger_id")
@@ -67,8 +69,7 @@ class DropTriggerLogsFilter(logging.Filter):
 
 class TriggererHandlerWrapper(logging.Handler):
     """
-    Wrap inheritors of FileTaskHandler and direct log messages
-    to them based on trigger_id.
+    Wrap inheritors of FileTaskHandler and direct log messages to them based on trigger_id.
 
     :meta private:
     """
@@ -112,7 +113,7 @@ class TriggererHandlerWrapper(logging.Handler):
             del self.handlers[trigger_id]
 
     def flush(self):
-        for _, h in self.handlers.items():
+        for h in self.handlers.values():
             h.flush()
 
     def close(self):

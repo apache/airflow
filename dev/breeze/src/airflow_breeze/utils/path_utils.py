@@ -87,7 +87,7 @@ def get_package_setup_metadata_hash() -> str:
     try:
         from importlib.metadata import distribution  # type: ignore[attr-defined]
     except ImportError:
-        from importlib_metadata import distribution  # type: ignore[no-redef]
+        from importlib_metadata import distribution  # type: ignore[no-redef, assignment]
 
     prefix = "Package config hash: "
 
@@ -266,8 +266,12 @@ TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
 SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / ".build"
-DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
+GENERATED_DIR = AIRFLOW_SOURCES_ROOT / "generated"
+CONSTRAINTS_CACHE_DIR = BUILD_CACHE_DIR / "constraints"
+PROVIDER_DEPENDENCIES_JSON_FILE_PATH = GENERATED_DIR / "provider_dependencies.json"
+PROVIDER_METADATA_JSON_FILE_PATH = GENERATED_DIR / "provider_metadata.json"
 WWW_CACHE_DIR = BUILD_CACHE_DIR / "www"
+AIRFLOW_TMP_DIR_PATH = AIRFLOW_SOURCES_ROOT / "tmp"
 WWW_ASSET_COMPILE_LOCK = WWW_CACHE_DIR / ".asset_compile.lock"
 WWW_ASSET_OUT_FILE = WWW_CACHE_DIR / "asset_compile.out"
 WWW_ASSET_OUT_DEV_MODE_FILE = WWW_CACHE_DIR / "asset_compile_dev_mode.out"

@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
@@ -30,10 +30,10 @@ if TYPE_CHECKING:
 
 
 class S3ToSqlOperator(BaseOperator):
-    """
-        Loads Data from S3 into a SQL Database.
-        You need to provide a parser function that takes a filename as an input
-        and returns an iterable of rows
+    """Load Data from S3 into a SQL Database.
+
+    You need to provide a parser function that takes a filename as an input
+    and returns an iterable of rows
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -44,6 +44,8 @@ class S3ToSqlOperator(BaseOperator):
     :param s3_bucket: reference to a specific S3 bucket
     :param s3_key: reference to a specific S3 key
     :param sql_conn_id: reference to a specific SQL database. Must be of type DBApiHook
+    :param sql_hook_params: Extra config params to be passed to the underlying hook.
+        Should match the desired hook constructor params.
     :param aws_conn_id: reference to a specific S3 / AWS connection
     :param column_list: list of column names to use in the insert SQL.
     :param commit_every: The maximum number of rows to insert in one
@@ -52,12 +54,13 @@ class S3ToSqlOperator(BaseOperator):
         e.g. to use a CSV parser that yields rows line-by-line, pass the following
         function:
 
-        def parse_csv(filepath):
-            import csv
+        .. code-block:: python
 
-            with open(filepath, newline="") as file:
-                yield from csv.reader(file)
+            def parse_csv(filepath):
+                import csv
 
+                with open(filepath, newline="") as file:
+                    yield from csv.reader(file)
     """
 
     template_fields: Sequence[str] = (
@@ -82,6 +85,7 @@ class S3ToSqlOperator(BaseOperator):
         commit_every: int = 1000,
         schema: str | None = None,
         sql_conn_id: str = "sql_default",
+        sql_hook_params: dict | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
@@ -95,9 +99,9 @@ class S3ToSqlOperator(BaseOperator):
         self.column_list = column_list
         self.commit_every = commit_every
         self.parser = parser
+        self.sql_hook_params = sql_hook_params
 
     def execute(self, context: Context) -> None:
-
         self.log.info("Loading %s to SQL table %s...", self.s3_key, self.table)
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
@@ -120,7 +124,8 @@ class S3ToSqlOperator(BaseOperator):
     @cached_property
     def db_hook(self):
         self.log.debug("Get connection for %s", self.sql_conn_id)
-        hook = BaseHook.get_hook(self.sql_conn_id)
+        conn = BaseHook.get_connection(self.sql_conn_id)
+        hook = conn.get_hook(hook_params=self.sql_hook_params)
         if not callable(getattr(hook, "insert_rows", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have an `insert_rows` method."

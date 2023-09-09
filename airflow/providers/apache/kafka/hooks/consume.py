@@ -25,7 +25,7 @@ from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
 
 class KafkaConsumerHook(KafkaBaseHook):
     """
-    A hook for creating a Kafka Consumer
+    A hook for creating a Kafka Consumer.
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: A list of topics to subscribe to.
@@ -40,7 +40,7 @@ class KafkaConsumerHook(KafkaBaseHook):
         return Consumer(config)
 
     def get_consumer(self) -> Consumer:
-        """Returns a Consumer that has been subscribed to topics."""
+        """Return a Consumer that has been subscribed to topics."""
         consumer = self.get_conn
         consumer.subscribe(self.topics)
 

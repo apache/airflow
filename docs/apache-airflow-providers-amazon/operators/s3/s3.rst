@@ -150,7 +150,7 @@ Transform an Amazon S3 object
 
 To transform the data from one Amazon S3 object and save it to another object you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3FileTransformOperator`.
-You can also apply an optional [Amazon S3 Select expression](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html)
+You can also apply an optional `Amazon S3 Select expression <https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html>`_
 to select the data you want to retrieve from ``source_s3_key`` using ``select_expression``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
@@ -248,6 +248,26 @@ multiple files can match one key. The list of matched S3 object attributes conta
     :start-after: [START howto_sensor_s3_key_function]
     :end-before: [END howto_sensor_s3_key_function]
 
+You can also run this operator in deferrable mode by setting the parameter ``deferrable`` to True.
+This will lead to efficient utilization of Airflow workers as polling for job status happens on
+the triggerer asynchronously. Note that this will need triggerer to be available on your Airflow deployment.
+
+To check one file:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_single_key_deferrable]
+    :end-before: [END howto_sensor_s3_key_single_key_deferrable]
+
+To check multiple files:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_multiple_keys_deferrable]
+    :end-before: [END howto_sensor_s3_key_multiple_keys_deferrable]
+
 .. _howto/sensor:S3KeysUnchangedSensor:
 
 Wait on Amazon S3 prefix changes
@@ -264,6 +284,10 @@ as the state of the listed objects in the Amazon S3 bucket will be lost between 
     :dedent: 4
     :start-after: [START howto_sensor_s3_keys_unchanged]
     :end-before: [END howto_sensor_s3_keys_unchanged]
+
+You can also run this sensor in deferrable mode by setting the parameter ``deferrable`` to True.
+This will lead to efficient utilization of Airflow workers as polling for job status happens on
+the triggerer asynchronously. Note that this will need triggerer to be available on your Airflow deployment.
 
 Reference
 ---------

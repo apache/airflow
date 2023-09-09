@@ -18,16 +18,55 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
+from urllib import parse
 
 from elasticsearch import Elasticsearch
-from es.elastic.api import Connection as ESConnection, connect
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection as AirflowConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection as AirflowConnection
+
+
+def connect(
+    host: str = "localhost",
+    port: int = 9200,
+    user: str | None = None,
+    password: str | None = None,
+    scheme: str = "http",
+    **kwargs: Any,
+) -> ESConnection:
+    return ESConnection(host, port, user, password, scheme, **kwargs)
+
+
+class ESConnection:
+    """wrapper class for elasticsearch.Elasticsearch."""
+
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 9200,
+        user: str | None = None,
+        password: str | None = None,
+        scheme: str = "http",
+        **kwargs: Any,
+    ):
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.scheme = scheme
+        self.kwargs = kwargs
+        netloc = f"{host}:{port}"
+        self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
+        if user and password:
+            self.es = Elasticsearch(self.url, http_auth=(user, password), **self.kwargs)
+        else:
+            self.es = Elasticsearch(self.url, **self.kwargs)
 
 
 class ElasticsearchSQLHook(DbApiHook):
@@ -51,17 +90,17 @@ class ElasticsearchSQLHook(DbApiHook):
         self.connection = connection
 
     def get_conn(self) -> ESConnection:
-        """Returns a elasticsearch connection object"""
+        """Returns a elasticsearch connection object."""
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 
-        conn_args = dict(
-            host=conn.host,
-            port=conn.port,
-            user=conn.login or None,
-            password=conn.password or None,
-            scheme=conn.schema or "http",
-        )
+        conn_args = {
+            "host": conn.host,
+            "port": conn.port,
+            "user": conn.login or None,
+            "password": conn.password or None,
+            "scheme": conn.schema or "http",
+        }
 
         if conn.extra_dejson.get("http_compress", False):
             conn_args["http_compress"] = bool(["http_compress"])
@@ -79,11 +118,11 @@ class ElasticsearchSQLHook(DbApiHook):
 
         login = ""
         if conn.login:
-            login = "{conn.login}:{conn.password}@".format(conn=conn)
+            login = f"{conn.login}:{conn.password}@"
         host = conn.host
         if conn.port is not None:
             host += f":{conn.port}"
-        uri = "{conn.conn_type}+{conn.schema}://{login}{host}/".format(conn=conn, login=login, host=host)
+        uri = f"{conn.conn_type}+{conn.schema}://{login}{host}/"
 
         extras_length = len(conn.extra_dejson)
         if not extras_length:
@@ -104,7 +143,8 @@ class ElasticsearchSQLHook(DbApiHook):
 class ElasticsearchHook(ElasticsearchSQLHook):
     """
     This class is deprecated and was renamed to ElasticsearchSQLHook.
-    Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.
+
+    Please use :class:`airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.
     """
 
     def __init__(self, *args, **kwargs):
@@ -132,19 +172,19 @@ class ElasticsearchPythonHook(BaseHook):
         self.es_conn_args = es_conn_args if es_conn_args else {}
 
     def _get_elastic_connection(self):
-        """Returns the Elasticsearch client"""
+        """Returns the Elasticsearch client."""
         client = Elasticsearch(self.hosts, **self.es_conn_args)
 
         return client
 
     @cached_property
     def get_conn(self):
-        """Returns the Elasticsearch client (cached)"""
+        """Returns the Elasticsearch client (cached)."""
         return self._get_elastic_connection()
 
     def search(self, query: dict[Any, Any], index: str = "_all") -> dict:
         """
-        Returns results matching a query using Elasticsearch DSL
+        Returns results matching a query using Elasticsearch DSL.
 
         :param index: str: The index you want to query
         :param query: dict: The query you want to run

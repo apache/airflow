@@ -40,11 +40,13 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.7}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.8}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
 : "${AIRFLOW_SOURCES:?"ERROR: AIRFLOW_SOURCES not set !!!!"}"
+
+ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
 function wait_for_asset_compilation() {
     if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
@@ -58,7 +60,7 @@ function wait_for_asset_compilation() {
             fi
             sleep 1
             ((counter=counter+1))
-            if [[ ${counter} == "30" ]]; then
+            if [[ ${counter} == 30*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
                 echo
                 echo "${COLOR_YELLOW}The asset compilation is taking too long.${COLOR_YELLOW}"
                 echo """
@@ -67,9 +69,10 @@ If it does not complete soon, you might want to stop it and remove file lock:
    * run 'rm ${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock'
 """
             fi
-            if [[ ${counter} == "60" ]]; then
+            if [[ ${counter} == 60*$ASSET_COMPILATION_WAIT_MULTIPLIER ]]; then
                 echo
                 echo "${COLOR_RED}The asset compilation is taking too long. Exiting.${COLOR_RED}"
+                echo "${COLOR_RED}refer to BREEZE.rst for resolution steps.${COLOR_RED}"
                 echo
                 exit 1
             fi
@@ -262,7 +265,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     unset AIRFLOW__CORE__UNIT_TEST_MODE
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
-    cp -f "${IN_CONTAINER_DIR}/airflow_ci.cfg" "${AIRFLOW_HOME}/unittests.cfg"
 
     # Change the default worker_concurrency for tests
     export AIRFLOW__CELERY__WORKER_CONCURRENCY=8
@@ -314,7 +316,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     cd "${AIRFLOW_SOURCES}"
 
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
-        export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         wait_for_asset_compilation
         # shellcheck source=scripts/in_container/bin/run_tmux
@@ -322,9 +323,11 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
-# Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
+# Remove pytest.ini and .coveragerc from the current directory if it exists. It has been removed from the source tree
 # but may still be present in the local directory if the user has old breeze image
 rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+rm -f "${AIRFLOW_SOURCES}/.coveragerc"
+
 
 set +u
 # If we do not want to run tests, we simply drop into bash
@@ -397,10 +400,11 @@ else
 fi
 
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
+    _suffix="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)"
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow"
-        "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+        "--cov-config=pyproject.toml"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}-${_suffix}.xml"
     )
 fi
 
@@ -461,7 +465,7 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("tests/charts")
+    HELM_CHART_TESTS=("helm_tests")
     INTEGRATION_TESTS=("tests/integration")
     SYSTEM_TESTS=("tests/system")
     ALL_TESTS=("tests")
@@ -498,7 +502,7 @@ else
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
-            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+            SELECTED_TESTS=("helm_tests/${HELM_TEST_PACKAGE}")
         else
             SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
         fi

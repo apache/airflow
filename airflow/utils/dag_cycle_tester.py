@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import TYPE_CHECKING, Deque
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowDagCycleException, RemovedInAirflow3Warning
 
@@ -33,8 +33,9 @@ CYCLE_DONE = 2
 def test_cycle(dag: DAG) -> None:
     """
     A wrapper function of `check_cycle` for backward compatibility purpose.
-    New code should use `check_cycle` instead since this function name `test_cycle` starts with 'test_' and
-    will be considered as a unit test by pytest, resulting in failure.
+
+    New code should use `check_cycle` instead since this function name `test_cycle` starts
+    with 'test_' and will be considered as a unit test by pytest, resulting in failure.
     """
     from warnings import warn
 
@@ -53,11 +54,11 @@ def check_cycle(dag: DAG) -> None:
     """
     # default of int is 0 which corresponds to CYCLE_NEW
     visited: dict[str, int] = defaultdict(int)
-    path_stack: Deque[str] = deque()
+    path_stack: deque[str] = deque()
     task_dict = dag.task_dict
 
     def _check_adjacent_tasks(task_id, current_task):
-        """Returns first untraversed child task, else None if all tasks traversed."""
+        """Return first untraversed child task, else None if all tasks traversed."""
         for adjacent_task in current_task.get_direct_relative_ids():
             if visited[adjacent_task] == CYCLE_IN_PROGRESS:
                 msg = f"Cycle detected in DAG: {dag.dag_id}. Faulty task: {task_id}"

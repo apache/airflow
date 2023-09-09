@@ -21,12 +21,11 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.orchestration.airflow.service_v1 import ImageVersion
 from google.cloud.orchestration.airflow.service_v1.types import Environment
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -34,6 +33,9 @@ from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposer
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 CLOUD_COMPOSER_BASE_LINK = "https://console.cloud.google.com/composer/environments"
@@ -44,7 +46,7 @@ CLOUD_COMPOSER_ENVIRONMENTS_LINK = CLOUD_COMPOSER_BASE_LINK + "?project={project
 
 
 class CloudComposerEnvironmentLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Composer Environment Link"""
+    """Helper class for constructing Cloud Composer Environment Link."""
 
     name = "Cloud Composer Environment"
     key = "composer_conf"
@@ -71,7 +73,7 @@ class CloudComposerEnvironmentLink(BaseGoogleLink):
 
 
 class CloudComposerEnvironmentsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Composer Environment Link"""
+    """Helper class for constructing Cloud Composer Environment Link."""
 
     name = "Cloud Composer Environment List"
     key = "composer_conf"
@@ -135,7 +137,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -264,7 +266,7 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -509,7 +511,7 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:

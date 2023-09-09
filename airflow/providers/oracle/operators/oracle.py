@@ -36,6 +36,10 @@ class OracleOperator(SQLExecuteQueryOperator):
     """
     Executes sql code in a specific Oracle database.
 
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+
     :param sql: the sql code to be executed. Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'

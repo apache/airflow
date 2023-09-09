@@ -18,13 +18,12 @@
 """This module contains an operator to move data from MySQL to Hive."""
 from __future__ import annotations
 
-from collections import OrderedDict
+import csv
 from contextlib import closing
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 import MySQLdb
-import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
@@ -36,8 +35,11 @@ if TYPE_CHECKING:
 
 class MySqlToHiveOperator(BaseOperator):
     """
-    Moves data from MySql to Hive. The operator runs your query against
-    MySQL, stores the file locally before loading it into a Hive table.
+    Moves data from MySql to Hive.
+
+    The operator runs your query against MySQL, stores the file locally
+    before loading it into a Hive table.
+
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
     Hive data types are inferred from the cursor's metadata. Note that the
@@ -84,7 +86,7 @@ class MySqlToHiveOperator(BaseOperator):
         recreate: bool = False,
         partition: dict | None = None,
         delimiter: str = chr(1),
-        quoting: str | None = None,
+        quoting: int | None = None,
         quotechar: str = '"',
         escapechar: str | None = None,
         mysql_conn_id: str = "mysql_default",
@@ -111,7 +113,7 @@ class MySqlToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, mysql_type: int) -> str:
-        """Maps MySQL type to Hive type."""
+        """Map MySQL type to Hive type."""
         types = MySQLdb.constants.FIELD_TYPE
         type_map = {
             types.BIT: "INT",
@@ -133,23 +135,21 @@ class MySqlToHiveOperator(BaseOperator):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         self.log.info("Dumping MySQL query results to local file")
-        with NamedTemporaryFile("wb") as f:
-            with closing(mysql.get_conn()) as conn:
-                with closing(conn.cursor()) as cursor:
-                    cursor.execute(self.sql)
-                    csv_writer = csv.writer(
-                        f,
-                        delimiter=self.delimiter,
-                        quoting=self.quoting,
-                        quotechar=self.quotechar if self.quoting != csv.QUOTE_NONE else None,
-                        escapechar=self.escapechar,
-                        encoding="utf-8",
-                    )
-                    field_dict = OrderedDict()
-                    if cursor.description is not None:
-                        for field in cursor.description:
-                            field_dict[field[0]] = self.type_map(field[1])
-                    csv_writer.writerows(cursor)
+        with NamedTemporaryFile(mode="w", encoding="utf-8") as f:
+            with closing(mysql.get_conn()) as conn, closing(conn.cursor()) as cursor:
+                cursor.execute(self.sql)
+                csv_writer = csv.writer(
+                    f,
+                    delimiter=self.delimiter,
+                    quoting=self.quoting,
+                    quotechar=self.quotechar if self.quoting != csv.QUOTE_NONE else None,
+                    escapechar=self.escapechar,
+                )
+                field_dict = {}
+                if cursor.description is not None:
+                    for field in cursor.description:
+                        field_dict[field[0]] = self.type_map(field[1])
+                csv_writer.writerows(cursor)  # type: ignore[arg-type]
             f.flush()
             self.log.info("Loading file into Hive")
             hive.load_file(

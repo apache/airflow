@@ -18,12 +18,16 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import TYPE_CHECKING
 from unittest import mock
 
 from moto import mock_sts
 from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
 
 mock_crawler_name = "test-crawler"
 mock_role_name = "test-role"
@@ -161,12 +165,22 @@ class TestGlueCrawlerHook:
 
     @mock_sts
     @mock.patch.object(GlueCrawlerHook, "get_conn")
+    def test_update_missing_tags(self, mock_get_conn):
+        mock_config_missing_tags = deepcopy(mock_config)
+        mock_config_missing_tags.pop("Tags")
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config_missing_tags}
+
+        assert self.hook.update_crawler(**mock_config_missing_tags) is False
+        mock_get_conn.return_value.get_tags.assert_not_called()
+        mock_get_conn.return_value.tag_resource.assert_not_called()
+        mock_get_conn.return_value.untag_resource.assert_not_called()
+
+    @mock_sts
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_replace_tag(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
         mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
 
-        mock_config_two = deepcopy(mock_config)
-        mock_config_two.pop("Tags")
         assert self.hook.update_tags(mock_crawler_name, {"test": "bla", "bar": "test"}) is True
         mock_get_conn.return_value.get_tags.assert_called_once_with(ResourceArn=self.crawler_arn)
         mock_get_conn.return_value.untag_resource.assert_not_called()
@@ -198,10 +212,11 @@ class TestGlueCrawlerHook:
 
     @mock.patch.object(GlueCrawlerHook, "get_crawler")
     @mock.patch.object(GlueCrawlerHook, "get_conn")
-    def test_wait_for_crawler_completion_instant_ready(self, mock_get_conn, mock_get_crawler):
-        mock_get_crawler.side_effect = [
-            {"State": "READY", "LastCrawl": {"Status": "MOCK_STATUS"}},
-        ]
+    @mock.patch.object(GlueCrawlerHook, "get_waiter")
+    def test_wait_for_crawler_completion_instant_ready(
+        self, _, mock_get_conn: MagicMock, mock_get_crawler: MagicMock
+    ):
+        mock_get_crawler.return_value = {"State": "READY", "LastCrawl": {"Status": "MOCK_STATUS"}}
         mock_get_conn.return_value.get_crawler_metrics.return_value = {
             "CrawlerMetricsList": [
                 {
@@ -220,44 +235,4 @@ class TestGlueCrawlerHook:
                 mock.call().get_crawler_metrics(CrawlerNameList=[mock_crawler_name]),
             ]
         )
-        mock_get_crawler.assert_has_calls(
-            [
-                mock.call(mock_crawler_name),
-            ]
-        )
-
-    @mock.patch.object(GlueCrawlerHook, "get_conn")
-    @mock.patch.object(GlueCrawlerHook, "get_crawler")
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue_crawler.sleep")
-    def test_wait_for_crawler_completion_retry_two_times(self, mock_sleep, mock_get_crawler, mock_get_conn):
-        mock_get_crawler.side_effect = [
-            {"State": "RUNNING"},
-            {"State": "READY", "LastCrawl": {"Status": "MOCK_STATUS"}},
-        ]
-        mock_get_conn.return_value.get_crawler_metrics.side_effect = [
-            {"CrawlerMetricsList": [{"TimeLeftSeconds": 12}]},
-            {
-                "CrawlerMetricsList": [
-                    {
-                        "LastRuntimeSeconds": "TEST-A",
-                        "MedianRuntimeSeconds": "TEST-B",
-                        "TablesCreated": "TEST-C",
-                        "TablesUpdated": "TEST-D",
-                        "TablesDeleted": "TEST-E",
-                    }
-                ]
-            },
-        ]
-        assert self.hook.wait_for_crawler_completion(mock_crawler_name) == "MOCK_STATUS"
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call(),
-                mock.call().get_crawler_metrics(CrawlerNameList=[mock_crawler_name]),
-            ]
-        )
-        mock_get_crawler.assert_has_calls(
-            [
-                mock.call(mock_crawler_name),
-                mock.call(mock_crawler_name),
-            ]
-        )
+        mock_get_crawler.assert_called_once_with(mock_crawler_name)

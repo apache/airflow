@@ -10,7 +10,6 @@
 .airflowignore
 .babelrc
 .coverage
-.coveragerc
 .codecov.yml
 .codespellignorelines
 .eslintignore
@@ -38,7 +37,6 @@ metastore_db
 .*md5
 .*zip
 .*lock
-unittests.cfg
 logs
 .bash_aliases
 venv
@@ -134,3 +132,6 @@ chart/*.iml
 
 # Sha files
 .*sha256
+
+# DOAP file
+doap_airflow.rdf

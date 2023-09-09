@@ -19,13 +19,15 @@
 from __future__ import annotations
 
 import warnings
-from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pdpyras
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class PagerdutyEventsHook(BaseHook):
@@ -47,7 +49,7 @@ class PagerdutyEventsHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port", "login", "schema", "host", "extra"],
             "relabeling": {

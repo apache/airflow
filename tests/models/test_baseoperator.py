@@ -20,26 +20,36 @@ from __future__ import annotations
 import copy
 import logging
 import uuid
+from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 from unittest import mock
 
 import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
-from airflow.models import DAG
-from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
-from airflow.utils.context import Context
+from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.baseoperator import (
+    BaseOperator,
+    BaseOperatorMeta,
+    chain,
+    chain_linear,
+    cross_downstream,
+)
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class ClassWithCustomAttributes:
@@ -178,7 +188,7 @@ class TestBaseOperator:
             BaseOperator(
                 task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE
             )
-        except DagInvalidTriggerRule as exception:
+        except FailStopDagInvalidTriggerRule as exception:
             assert (
                 False
             ), f"BaseOperator raises exception with fail-stop dag & default trigger rule: {exception}"
@@ -188,13 +198,13 @@ class TestBaseOperator:
             BaseOperator(
                 task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.DUMMY
             )
-        except DagInvalidTriggerRule as exception:
+        except FailStopDagInvalidTriggerRule as exception:
             assert (
                 False
             ), f"BaseOperator raises exception with non fail-stop dag & non-default trigger rule: {exception}"
 
         # An operator with non default trigger rule and a fail stop dag should not be allowed
-        with pytest.raises(DagInvalidTriggerRule):
+        with pytest.raises(FailStopDagInvalidTriggerRule):
             BaseOperator(
                 task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.DUMMY
             )
@@ -514,6 +524,55 @@ class TestBaseOperator:
         assert {tgop3, tgop4} == set(tgop2.get_direct_relatives(upstream=False))
         assert [op2] == tgop3.get_direct_relatives(upstream=False)
         assert [op2] == tgop4.get_direct_relatives(upstream=False)
+
+    def test_chain_linear(self):
+        dag = DAG(dag_id="test_chain_linear", start_date=datetime.now())
+
+        t1, t2, t3, t4, t5, t6, t7 = (BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 8))
+        chain_linear(t1, [t2, t3, t4], [t5, t6], t7)
+
+        assert set(t1.get_direct_relatives(upstream=False)) == {t2, t3, t4}
+        assert set(t2.get_direct_relatives(upstream=False)) == {t5, t6}
+        assert set(t3.get_direct_relatives(upstream=False)) == {t5, t6}
+        assert set(t7.get_direct_relatives(upstream=True)) == {t5, t6}
+
+        t1, t2, t3, t4, t5, t6 = (
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 7)
+        )
+        chain_linear(t1, [t2, t3], [t4, t5], t6)
+
+        assert set(t1.operator.get_direct_relatives(upstream=False)) == {t2.operator, t3.operator}
+        assert set(t2.operator.get_direct_relatives(upstream=False)) == {t4.operator, t5.operator}
+        assert set(t3.operator.get_direct_relatives(upstream=False)) == {t4.operator, t5.operator}
+        assert set(t6.operator.get_direct_relatives(upstream=True)) == {t4.operator, t5.operator}
+
+        # Begin test for `TaskGroups`
+        tg1, tg2 = (TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3))
+        op1, op2 = (BaseOperator(task_id=f"task{i}", dag=dag) for i in range(1, 3))
+        tgop1, tgop2 = (
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg1, dag=dag) for i in range(1, 3)
+        )
+        tgop3, tgop4 = (
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag) for i in range(1, 3)
+        )
+        chain_linear(op1, tg1, tg2, op2)
+
+        assert set(op1.get_direct_relatives(upstream=False)) == {tgop1, tgop2}
+        assert set(tgop1.get_direct_relatives(upstream=False)) == {tgop3, tgop4}
+        assert set(tgop2.get_direct_relatives(upstream=False)) == {tgop3, tgop4}
+        assert set(tgop3.get_direct_relatives(upstream=False)) == {op2}
+        assert set(tgop4.get_direct_relatives(upstream=False)) == {op2}
+
+        t1, t2 = (BaseOperator(task_id=f"t-{i}", dag=dag) for i in range(1, 3))
+        with pytest.raises(ValueError, match="Labels are not supported"):
+            chain_linear(t1, Label("hi"), t2)
+
+        with pytest.raises(ValueError, match="nothing to do"):
+            chain_linear()
+
+        with pytest.raises(ValueError, match="Did you forget to expand"):
+            chain_linear(t1)
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id="test_chain", start_date=datetime.now())
@@ -864,6 +923,7 @@ def test_render_template_fields_logging(
     caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
 ):
     """Verify if operator attributes are correctly templated."""
+
     # Trigger templating and verify results
     def _do_render():
         task.render_template_fields(context=context)
@@ -902,3 +962,102 @@ def test_find_mapped_dependants_in_another_group(dag_maker):
 
     dependants = list(gen_result.operator.iter_mapped_dependants())
     assert dependants == [add_result.operator]
+
+
+def get_states(dr):
+    """
+    For a given dag run, get a dict of states.
+
+    Example::
+        {
+            "my_setup": "success",
+            "my_teardown": {0: "success", 1: "success", 2: "success"},
+            "my_work": "failed",
+        }
+    """
+    ti_dict = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        if ti.map_index == -1:
+            ti_dict[ti.task_id] = ti.state
+        else:
+            ti_dict[ti.task_id][ti.map_index] = ti.state
+    return dict(ti_dict)
+
+
+def test_teardown_and_fail_stop(dag_maker):
+    """
+    when fail_stop enabled, teardowns should run according to their setups.
+    in this case, the second teardown skips because its setup skips.
+    """
+
+    with dag_maker(fail_stop=True) as dag:
+        for num in (1, 2):
+            with TaskGroup(f"tg_{num}"):
+
+                @task_decorator
+                def my_setup():
+                    print("setting up multiple things")
+                    return [1, 2, 3]
+
+                @task_decorator
+                def my_work(val):
+                    print(f"doing work with multiple things: {val}")
+                    raise ValueError("this fails")
+                    return val
+
+                @task_decorator
+                def my_teardown():
+                    print("teardown")
+
+                s = my_setup()
+                t = my_teardown().as_teardown(setups=s)
+                with t:
+                    my_work(s)
+    tg1, tg2 = dag.task_group.children.values()
+    tg1 >> tg2
+    dr = dag.test()
+    states = get_states(dr)
+    expected = {
+        "tg_1.my_setup": "success",
+        "tg_1.my_teardown": "success",
+        "tg_1.my_work": "failed",
+        "tg_2.my_setup": "skipped",
+        "tg_2.my_teardown": "skipped",
+        "tg_2.my_work": "skipped",
+    }
+    assert states == expected
+
+
+def test_get_task_instances(session):
+    import pendulum
+
+    first_execution_date = pendulum.datetime(2023, 1, 1)
+    second_execution_date = pendulum.datetime(2023, 1, 2)
+    third_execution_date = pendulum.datetime(2023, 1, 3)
+
+    test_dag = DAG(dag_id="test_dag", start_date=first_execution_date)
+    task = BaseOperator(task_id="test_task", dag=test_dag)
+
+    common_dr_kwargs = {
+        "dag_id": test_dag.dag_id,
+        "run_type": DagRunType.MANUAL,
+    }
+    dr1 = DagRun(execution_date=first_execution_date, run_id="test_run_id_1", **common_dr_kwargs)
+    ti_1 = TaskInstance(run_id=dr1.run_id, task=task, execution_date=first_execution_date)
+    dr2 = DagRun(execution_date=second_execution_date, run_id="test_run_id_2", **common_dr_kwargs)
+    ti_2 = TaskInstance(run_id=dr2.run_id, task=task, execution_date=second_execution_date)
+    dr3 = DagRun(execution_date=third_execution_date, run_id="test_run_id_3", **common_dr_kwargs)
+    ti_3 = TaskInstance(run_id=dr3.run_id, task=task, execution_date=third_execution_date)
+    session.add_all([dr1, dr2, dr3, ti_1, ti_2, ti_3])
+    session.commit()
+
+    # get all task instances
+    assert task.get_task_instances(session=session) == [ti_1, ti_2, ti_3]
+    # get task instances with start_date
+    assert task.get_task_instances(session=session, start_date=second_execution_date) == [ti_2, ti_3]
+    # get task instances with end_date
+    assert task.get_task_instances(session=session, end_date=second_execution_date) == [ti_1, ti_2]
+    # get task instances with start_date and end_date
+    assert task.get_task_instances(
+        session=session, start_date=second_execution_date, end_date=second_execution_date
+    ) == [ti_2]

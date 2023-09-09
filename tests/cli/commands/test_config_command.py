@@ -37,7 +37,15 @@ class TestCliConfigList:
     def test_cli_show_config_should_write_data(self, mock_conf, mock_stringio):
         config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         mock_conf.write.assert_called_once_with(
-            mock_stringio.return_value.__enter__.return_value, section=None
+            mock_stringio.return_value.__enter__.return_value,
+            section=None,
+            include_examples=False,
+            include_descriptions=False,
+            include_sources=False,
+            include_env_vars=False,
+            include_providers=True,
+            comment_out_everything=False,
+            only_defaults=False,
         )
 
     @mock.patch("airflow.cli.commands.config_command.io.StringIO")
@@ -47,15 +55,146 @@ class TestCliConfigList:
             self.parser.parse_args(["config", "list", "--section", "core", "--color", "off"])
         )
         mock_conf.write.assert_called_once_with(
-            mock_stringio.return_value.__enter__.return_value, section="core"
+            mock_stringio.return_value.__enter__.return_value,
+            section="core",
+            include_examples=False,
+            include_descriptions=False,
+            include_sources=False,
+            include_env_vars=False,
+            include_providers=True,
+            comment_out_everything=False,
+            only_defaults=False,
         )
 
     @conf_vars({("core", "testkey"): "test_value"})
     def test_cli_show_config_should_display_key(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
-        assert "[core]" in temp_stdout.getvalue()
+        output = temp_stdout.getvalue()
+        assert "[core]" in output
         assert "testkey = test_value" in temp_stdout.getvalue()
+
+    def test_cli_show_config_should_only_show_comments_when_no_defaults(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert all(not line.startswith("#") or line.endswith("= ") for line in lines if line)
+
+    def test_cli_show_config_shows_descriptions(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--include-descriptions"])
+            )
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        # comes from metrics description
+        assert all(not line.startswith("# Source: ") for line in lines if line)
+        assert any(line.startswith("# StatsD") for line in lines if line)
+        assert all(not line.startswith("# Example:") for line in lines if line)
+        assert all(not line.startswith("# Variable:") for line in lines if line)
+
+    def test_cli_show_config_shows_examples(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--include-examples"])
+            )
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert all(not line.startswith("# Source: ") for line in lines if line)
+        assert all(not line.startswith("# StatsD") for line in lines if line)
+        assert any(line.startswith("# Example:") for line in lines if line)
+        assert all(not line.startswith("# Variable:") for line in lines if line)
+
+    def test_cli_show_config_shows_variables(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--include-env-vars"])
+            )
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert all(not line.startswith("# Source: ") for line in lines if line)
+        assert all(not line.startswith("# StatsD") for line in lines if line)
+        assert all(not line.startswith("# Example:") for line in lines if line)
+        assert any(line.startswith("# Variable:") for line in lines if line)
+
+    def test_cli_show_config_shows_sources(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--include-sources"])
+            )
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert any(line.startswith("# Source: ") for line in lines if line)
+        assert all(not line.startswith("# StatsD") for line in lines if line)
+        assert all(not line.startswith("# Example:") for line in lines if line)
+        assert all(not line.startswith("# Variable:") for line in lines if line)
+
+    def test_cli_show_config_defaults(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
+            )
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert all(not line.startswith("# Source: ") for line in lines if line)
+        assert any(line.startswith("# StatsD") for line in lines if line)
+        assert any(not line.startswith("# Example:") for line in lines if line)
+        assert any(not line.startswith("# Example:") for line in lines if line)
+        assert any(line.startswith("# Variable:") for line in lines if line)
+        assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
+
+    @conf_vars({("core", "task_runner"): "test-runner"})
+    def test_cli_show_config_defaults_not_show_conf_changes(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
+            )
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
+
+    @mock.patch("os.environ", {"AIRFLOW__CORE__TASK_RUNNER": "test-env-runner"})
+    def test_cli_show_config_defaults_do_not_show_env_changes(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
+            )
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
+
+    @conf_vars({("core", "task_runner"): "test-runner"})
+    def test_cli_show_changed_defaults_when_overridden_in_conf(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert any(line.startswith("task_runner = test-runner") for line in lines if line)
+
+    @mock.patch("os.environ", {"AIRFLOW__CORE__TASK_RUNNER": "test-env-runner"})
+    def test_cli_show_changed_defaults_when_overridden_in_env(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert any(line.startswith("task_runner = test-env-runner") for line in lines if line)
+
+    def test_cli_has_providers(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert any(line.startswith("celery_config_options") for line in lines if line)
+
+    def test_cli_comment_out_everything(self):
+        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--comment-out-everything"])
+            )
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert all(not line.strip() or line.startswith(("#", "[")) for line in lines if line)
 
 
 class TestCliConfigGetValue:

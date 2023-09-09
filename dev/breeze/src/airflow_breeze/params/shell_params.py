@@ -32,11 +32,13 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    DEFAULT_CELERY_BROKER,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
     MOUNT_SKIP,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
     TESTABLE_INTEGRATIONS,
     get_airflow_version,
 )
@@ -76,6 +78,7 @@ class ShellParams:
     airflow_extras: str = ""
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
+    builder: str = "autodetect"
     ci: bool = False
     collect_only: bool = False
     db_reset: bool = False
@@ -117,7 +120,12 @@ class ShellParams:
     dry_run: bool = False
     verbose: bool = False
     upgrade_boto: bool = False
+    executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS
+    celery_broker: str = DEFAULT_CELERY_BROKER
+    celery_flower: bool = False
     only_min_version_update: bool = False
+    regenerate_missing_docs: bool = False
+    skip_provider_dependencies_check: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
@@ -214,6 +222,9 @@ class ShellParams:
                 backend_files.extend(self.get_backend_compose_files(backend))
             add_mssql_compose_file(compose_file_list)
 
+        if self.executor == "CeleryExecutor":
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-celery.yml")
+
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
         compose_file_list.extend(backend_files)
         compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
@@ -250,9 +261,8 @@ class ShellParams:
             integrations = ALL_INTEGRATIONS
         else:
             integrations = self.integration
-        if len(integrations) > 0:
-            for integration in integrations:
-                compose_file_list.append(DOCKER_COMPOSE_DIR / f"integration-{integration}.yml")
+        for integration in integrations:
+            compose_file_list.append(DOCKER_COMPOSE_DIR / f"integration-{integration}.yml")
         if "trino" in integrations and "kerberos" not in integrations:
             get_console().print(
                 "[warning]Adding `kerberos` integration as it is implicitly needed by trino",
@@ -262,9 +272,7 @@ class ShellParams:
 
     @property
     def command_passed(self):
-        cmd = None
-        if len(self.extra_args) > 0:
-            cmd = str(self.extra_args[0])
+        cmd = str(self.extra_args[0]) if self.extra_args else None
         return cmd
 
     @property

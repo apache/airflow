@@ -90,7 +90,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> list[SpellingEr
     :return: list of SpellingError.
     """
     sphinx_spelling_errors = []
-    for sphinx_warning in warning_text.split("\n"):
+    for sphinx_warning in warning_text.splitlines():
         if not sphinx_warning:
             continue
         warning_parts = None

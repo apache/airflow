@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 import json
 import os
 from base64 import b64encode
@@ -294,6 +295,7 @@ class TestSessionFactory:
         conn = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=extra)
         sf = BaseSessionFactory(conn=conn)
         session = sf.create_session()
+
         assert session.region_name == region_name
         # Validate method of botocore credentials provider.
         # It shouldn't be 'explicit' which refers in this case to initial credentials.
@@ -332,6 +334,9 @@ class TestSessionFactory:
             # Validate method of botocore credentials provider.
             # It shouldn't be 'explicit' which refers in this case to initial credentials.
             credentials = await session.get_credentials()
+
+            assert inspect.iscoroutinefunction(credentials.get_frozen_credentials)
+
             assert credentials.method == "sts-assume-role"
 
 
@@ -603,7 +608,7 @@ class TestAwsBaseHook:
         _, mock_creds_fetcher_kwargs = mock_credentials_fetcher.call_args
         assert isinstance(mock_creds_fetcher_kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader)
         assert mock_creds_fetcher_kwargs["web_identity_token_loader"]() == "TOKEN"
-        assert mock_open_.call_args[0][0] == "/my-token-path"
+        assert mock_open_.call_args.args[0] == "/my-token-path"
 
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts
@@ -854,7 +859,7 @@ class TestAwsBaseHook:
         result, message = hook.test_connection()
         assert not result
         assert message == json.dumps(response_metadata)
-        mock_sts_client.assert_called_once_with("sts")
+        mock_sts_client.assert_called_once_with("sts", endpoint_url=None)
 
         def mock_error():
             raise ConnectionError("Test Error")
@@ -867,6 +872,23 @@ class TestAwsBaseHook:
         assert message == "'ConnectionError' error occurred while testing connection: Test Error"
 
         assert hook.client_type == "ec2"
+
+    @mock_sts
+    @pytest.mark.parametrize(
+        "test_endpoint_url, result_url",
+        [
+            (None, "https://sts.amazonaws.com"),
+            ("https://sts.us-east-1.amazonaws.com", "https://sts.us-east-1.amazonaws.com"),
+        ],
+    )
+    def test_hook_connection_endpoint_url_valid(self, test_endpoint_url, result_url):
+        """Test if test_endpoint_url is valid in test connection"""
+        conn = AwsConnectionWrapper.from_connection_metadata(conn_id=MOCK_AWS_CONN_ID)
+        sf = BaseSessionFactory(conn=conn)
+        session = sf.create_session()
+        client = session.client("sts", endpoint_url=test_endpoint_url)
+
+        assert client._endpoint.host == result_url
 
     @mock.patch.dict(os.environ, {f"AIRFLOW_CONN_{MOCK_AWS_CONN_ID.upper()}": "aws://"})
     def test_conn_config_conn_id_exists(self):
@@ -1092,4 +1114,4 @@ def test_custom_waiter_with_resource_type(waiter_path_mock: MagicMock):
     with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter") as BaseBotoWaiter:
         hook.get_waiter("other_wait")
 
-    assert isinstance(BaseBotoWaiter.call_args[1]["client"], botocore.client.BaseClient)
+    assert isinstance(BaseBotoWaiter.call_args.kwargs["client"], botocore.client.BaseClient)

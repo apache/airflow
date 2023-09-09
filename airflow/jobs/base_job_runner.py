@@ -46,8 +46,9 @@ class BaseJobRunner(Generic[J]):
 
     def _execute(self) -> int | None:
         """
-        Executes the logic connected to the runner. This method should be
-        overridden by subclasses.
+        Execute the logic connected to the runner.
+
+        This method should be overridden by subclasses.
 
         :meta private:
         :return: return code if available, otherwise None
@@ -56,12 +57,16 @@ class BaseJobRunner(Generic[J]):
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
-        """Callback that is called during heartbeat. This method can be overwritten by the runners."""
+        """
+        Execute callback during heartbeat.
+
+        This method can be overwritten by the runners.
+        """
 
     @classmethod
     @provide_session
     def most_recent_job(cls, session: Session = NEW_SESSION) -> Job | None:
-        """Returns the most recent job of this type, if any, based on last heartbeat received."""
+        """Return the most recent job of this type, if any, based on last heartbeat received."""
         from airflow.jobs.job import most_recent_job
 
         return most_recent_job(cls.job_type, session=session)

@@ -192,7 +192,7 @@ DAGs do not *require* a schedule, but it's very common to define one. You define
 
 The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
 
-    with DAG("my_daily_dag", schedule="0 * * * *"):
+    with DAG("my_daily_dag", schedule="0 0 * * *"):
         ...
 
 .. tip::
@@ -299,11 +299,11 @@ Control Flow
 
 By default, a DAG will only run a Task when all the Tasks it depends on are successful. There are several ways of modifying this, however:
 
-* :ref:`concepts:branching`, where you can select which Task to move onto based on a condition
-* :ref:`concepts:latest-only`, a special form of branching that only runs on DAGs running against the present
-* :ref:`concepts:depends-on-past`, where tasks can depend on themselves *from a previous run*
-* :ref:`concepts:trigger-rules`, which let you set the conditions under which a DAG will run a task.
-
+* :ref:`concepts:branching` - select which Task to move onto based on a condition
+* :ref:`concepts:trigger-rules` - set the conditions under which a DAG will run a task
+* :doc:`/howto/setup-and-teardown` - define setup and teardown relationships
+* :ref:`concepts:latest-only` - a special form of branching that only runs on DAGs running against the present
+* :ref:`concepts:depends-on-past` - tasks can depend on themselves *from a previous run*
 
 .. _concepts:branching:
 
@@ -341,7 +341,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
     start_op = BashOperator(
         task_id="start_task",
         bash_command="echo 5",
-        xcom_push=True,
+        do_xcom_push=True,
         dag=dag,
     )
 
@@ -482,6 +482,14 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
     By setting ``trigger_rule`` to ``none_failed_min_one_success`` in the ``join`` task, we can instead get the intended behaviour:
 
     .. image:: /img/branch_with_trigger.png
+
+
+Setup and teardown
+------------------
+
+In data workflows it's common to create a resource (such as a compute resource), use it to do some work, and then tear it down. Airflow provides setup and teardown tasks to support this need.
+
+Please see main article :doc:`/howto/setup-and-teardown` for details on how to use this feature.
 
 
 Dynamic DAGs

@@ -319,4 +319,4 @@ class TestGetEventLogPagination(TestEventLogEndpoint):
         assert len(response.json["event_logs"]) == 150
 
     def _create_event_logs(self, task_instance, count):
-        return [Log(event="TEST_EVENT_" + str(i), task_instance=task_instance) for i in range(1, count + 1)]
+        return [Log(event=f"TEST_EVENT_{i}", task_instance=task_instance) for i in range(1, count + 1)]

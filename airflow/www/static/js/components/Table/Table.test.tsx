@@ -28,7 +28,7 @@ import type { SortingRule } from "react-table";
 import { ChakraWrapper } from "src/utils/testUtils";
 import { Table } from ".";
 
-const data: Record<string, any>[] = [
+const data: Record<string, string>[] = [
   { firstName: "Lamont", lastName: "Grimes", country: "United States" },
   { firstName: "Alysa", lastName: "Armstrong", country: "Spain" },
   { firstName: "Petra", lastName: "Blick", country: "France" },

@@ -53,7 +53,9 @@ try:
 except ImportError:
     from airflow.version import version as airflow_version
 
-if packaging.version.parse(airflow_version) < packaging.version.parse("{{ MIN_AIRFLOW_VERSION }}"):
+if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
+    "{{ MIN_AIRFLOW_VERSION }}"
+):
     raise RuntimeError(
         f"The package `{{ PACKAGE_PIP_NAME }}:{__version__}` requires Apache Airflow {{ MIN_AIRFLOW_VERSION }}+"  # NOQA: E501
     )

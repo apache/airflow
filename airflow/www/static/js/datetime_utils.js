@@ -104,6 +104,7 @@ export function updateAllDateTimes() {
   // Since we have set the default timezone for moment, it will automatically
   // convert it to the new target for us
   $(".datetime input").each((_, el) => {
+    // eslint-disable-next-line no-param-reassign
     el.value = moment(el.value).format();
   });
 }
@@ -119,7 +120,8 @@ export const getDuration = (startDate, endDate) =>
 
 export const formatDuration = (dur) => {
   const duration = moment.duration(dur);
-  const days = duration.days();
+  const totalDays = duration.asDays();
+  const days = Math.floor(totalDays);
   // .as('milliseconds') is necessary for .format() to work correctly
   return `${days > 0 ? `${days}d` : ""}${moment
     .utc(duration.as("milliseconds"))

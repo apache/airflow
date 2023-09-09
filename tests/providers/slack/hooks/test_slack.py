@@ -24,12 +24,12 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from pytest import param
+from pytest import MonkeyPatch, param
 from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.web.slack_response import SlackResponse
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack import SlackHook
 from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
@@ -69,50 +69,13 @@ def slack_api_connections():
         ),
     ]
 
-    conn_uris = {f"AIRFLOW_CONN_{c.conn_id.upper()}": c.get_uri() for c in connections}
-
-    with mock.patch.dict("os.environ", values=conn_uris):
+    with MonkeyPatch.context() as mp:
+        for conn in connections:
+            mp.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.get_uri())
         yield
 
 
 class TestSlackHook:
-    def test_token_arg_deprecated(self):
-        """Test deprecation warning if token provided as hook argument."""
-        warning_message = (
-            "Provide token as hook argument deprecated by security reason and will be removed "
-            r"in a future releases. Please specify token in `Slack API` connection\."
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, token="foo-bar")
-
-    def test_token_property_deprecated(self):
-        """Test deprecation warning if access to ``SlackHook.token`` property."""
-        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
-        warning_message = r"`SlackHook.token` property deprecated and will be removed in a future releases\."
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            assert hook.token == MOCK_SLACK_API_TOKEN
-
-    def test_optional_conn_id_deprecated(self):
-        """Test deprecation warning if not set connection ID."""
-        warning_message = (
-            r"You have not set parameter `slack_conn_id`\. Currently `Slack API` connection id optional "
-            r"but in a future release it will mandatory\."
-        )
-        with pytest.warns(FutureWarning, match=warning_message):
-            SlackHook(token="foo-bar")
-
-    def test_use_session_has_no_affect(self):
-        """Test that specified previously in docstring `use_session` take no affect."""
-        warning_message = r"`use_session` has no affect in slack_sdk\.WebClient\."
-        with pytest.warns(UserWarning, match=warning_message):
-            hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, use_session="foo-bar")
-        assert "use_session" not in hook.extra_client_args
-
-    def test_get_token_with_token_only(self):
-        """Test retrieve token when only hook arg provided without Slack API Connection ID."""
-        test_hook_arg_token = "xapp-1-arg-token"
-        assert SlackHook(test_hook_arg_token, None)._get_conn_params()["token"] == test_hook_arg_token
-
     @pytest.mark.parametrize(
         "conn_id",
         [
@@ -126,15 +89,11 @@ class TestSlackHook:
         assert hook._get_conn_params()["token"] == MOCK_SLACK_API_TOKEN
 
     def test_resolve_token(self):
-        """Test retrieve token when both hook arg and Slack API Connection ID provided."""
-        test_hook_arg_token = "xapp-1-arg-token"
-        hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, token=test_hook_arg_token)
-        assert hook._get_conn_params()["token"] == test_hook_arg_token
-
-    def test_nor_token_and_nor_conn_id_provided(self):
-        """Test neither hook arg and Slack API Connection ID provided."""
-        with pytest.raises(AirflowException, match=r"Either `slack_conn_id` or `token` should be provided\."):
-            SlackHook(slack_conn_id=None, token=None)
+        """Test that we only use token from Slack API Connection ID."""
+        with pytest.warns(UserWarning, match="Provide `token` as part of .* parameters is disallowed"):
+            hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, token="foo-bar")
+            assert "token" not in hook.extra_client_args
+            assert hook._get_conn_params()["token"] == MOCK_SLACK_API_TOKEN
 
     def test_empty_password(self):
         """Test password field defined in the connection."""
@@ -370,7 +329,7 @@ class TestSlackHook:
 
         tmp = tmp_path_factory.mktemp("test_send_file_path")
         file = tmp / "test.json"
-        file.write_bytes(b'{"foo": "bar"}')
+        file.write_text('{"foo": "bar"}')
 
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         hook.send_file(
@@ -392,7 +351,7 @@ class TestSlackHook:
         )
 
         # Validate file properties
-        mock_file = mock_files_upload.call_args[1]["file"]
+        mock_file = mock_files_upload.call_args.kwargs["file"]
         assert mock_file.mode == "rb"
         assert mock_file.name == str(file)
 
@@ -405,13 +364,13 @@ class TestSlackHook:
 
         tmp = tmp_path_factory.mktemp("test_send_file_path_set_filename")
         file = tmp / filename
-        file.write_bytes(b'{"foo": "bar"}')
+        file.write_text('{"foo": "bar"}')
 
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         hook.send_file(file=file)
 
         assert mock_files_upload.call_count == 1
-        call_args = mock_files_upload.call_args[1]
+        call_args = mock_files_upload.call_args.kwargs
         assert "filename" in call_args
         assert call_args["filename"] == filename
 

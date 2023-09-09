@@ -21,12 +21,13 @@ from typing import TYPE_CHECKING, Any, Collection
 
 from pendulum import DateTime
 
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
 if TYPE_CHECKING:
     from sqlalchemy import Session
 
     from airflow.models.dataset import DatasetEvent
+    from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
 
@@ -34,7 +35,6 @@ class _TrivialTimetable(Timetable):
     """Some code reuse for "trivial" timetables that has nothing complex."""
 
     periodic = False
-    can_run = False
     run_ordering = ("execution_date",)
 
     @classmethod
@@ -63,6 +63,7 @@ class NullTimetable(_TrivialTimetable):
     This corresponds to ``schedule=None``.
     """
 
+    can_be_scheduled = False
     description: str = "Never, external triggers only"
 
     @property
@@ -144,7 +145,7 @@ class ContinuousTimetable(_TrivialTimetable):
         return DagRunInfo.interval(start, end)
 
 
-class DatasetTriggeredTimetable(NullTimetable):
+class DatasetTriggeredTimetable(_TrivialTimetable):
     """Timetable that never schedules anything.
 
     This should not be directly used anywhere, but only set if a DAG is triggered by datasets.
@@ -188,3 +189,11 @@ class DatasetTriggeredTimetable(NullTimetable):
             events, key=operator.attrgetter("source_dag_run.data_interval_end")
         ).source_dag_run.data_interval_end
         return DataInterval(start, end)
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval: DataInterval | None,
+        restriction: TimeRestriction,
+    ) -> DagRunInfo | None:
+        return None

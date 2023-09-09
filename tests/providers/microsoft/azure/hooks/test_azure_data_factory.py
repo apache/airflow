@@ -16,18 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import os
-import sys
+from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import FactoryListResponse
-from pytest import fixture, param
+from pytest import param
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryAsyncHook,
@@ -37,13 +36,6 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
     get_field,
     provide_targeted_factory,
 )
-from airflow.utils import db
-
-if sys.version_info < (3, 8):
-    # For compatibility with Python 3.7
-    from asynctest import mock as async_mock
-else:
-    from unittest import mock as async_mock
 
 DEFAULT_RESOURCE_GROUP = "defaultResourceGroup"
 AZURE_DATA_FACTORY_CONN_ID = "azure_data_factory_default"
@@ -65,66 +57,60 @@ NAME = "testName"
 ID = "testId"
 
 
-def setup_module():
-    connection_client_secret = Connection(
-        conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
-        conn_type="azure_data_factory",
-        login="clientId",
-        password="clientSecret",
-        extra=json.dumps(
-            {
+@pytest.fixture(autouse=True)
+def setup_connections(create_mock_connections):
+    create_mock_connections(
+        # connection_client_secret
+        Connection(
+            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+            conn_type="azure_data_factory",
+            login="clientId",
+            password="clientSecret",
+            extra={
                 "tenantId": "tenantId",
                 "subscriptionId": "subscriptionId",
                 "resource_group_name": DEFAULT_RESOURCE_GROUP,
                 "factory_name": DEFAULT_FACTORY,
-            }
+            },
         ),
-    )
-    connection_default_credential = Connection(
-        conn_id=DEFAULT_CONNECTION_DEFAULT_CREDENTIAL,
-        conn_type="azure_data_factory",
-        extra=json.dumps(
-            {
+        # connection_default_credential
+        Connection(
+            conn_id=DEFAULT_CONNECTION_DEFAULT_CREDENTIAL,
+            conn_type="azure_data_factory",
+            extra={
                 "subscriptionId": "subscriptionId",
                 "resource_group_name": DEFAULT_RESOURCE_GROUP,
                 "factory_name": DEFAULT_FACTORY,
-            }
+            },
         ),
-    )
-    connection_missing_subscription_id = Connection(
-        conn_id="azure_data_factory_missing_subscription_id",
-        conn_type="azure_data_factory",
-        login="clientId",
-        password="clientSecret",
-        extra=json.dumps(
-            {
+        Connection(
+            # connection_missing_subscription_id
+            conn_id="azure_data_factory_missing_subscription_id",
+            conn_type="azure_data_factory",
+            login="clientId",
+            password="clientSecret",
+            extra={
                 "tenantId": "tenantId",
                 "resource_group_name": DEFAULT_RESOURCE_GROUP,
                 "factory_name": DEFAULT_FACTORY,
-            }
+            },
         ),
-    )
-    connection_missing_tenant_id = Connection(
-        conn_id="azure_data_factory_missing_tenant_id",
-        conn_type="azure_data_factory",
-        login="clientId",
-        password="clientSecret",
-        extra=json.dumps(
-            {
+        # connection_missing_tenant_id
+        Connection(
+            conn_id="azure_data_factory_missing_tenant_id",
+            conn_type="azure_data_factory",
+            login="clientId",
+            password="clientSecret",
+            extra={
                 "subscriptionId": "subscriptionId",
                 "resource_group_name": DEFAULT_RESOURCE_GROUP,
                 "factory_name": DEFAULT_FACTORY,
-            }
+            },
         ),
     )
 
-    db.merge_conn(connection_client_secret)
-    db.merge_conn(connection_default_credential)
-    db.merge_conn(connection_missing_subscription_id)
-    db.merge_conn(connection_missing_tenant_id)
 
-
-@fixture
+@pytest.fixture
 def hook():
     client = AzureDataFactoryHook(azure_data_factory_conn_id=DEFAULT_CONNECTION_CLIENT_SECRET)
     client._conn = MagicMock(
@@ -194,8 +180,8 @@ def test_get_connection_by_credential_client_secret(connection_id: str, credenti
         connection = hook.get_conn()
         assert connection is not None
         mock_create_client.assert_called_once()
-        assert isinstance(mock_create_client.call_args[0][0], credential_type)
-        assert mock_create_client.call_args[0][1] == "subscriptionId"
+        assert isinstance(mock_create_client.call_args.args[0], credential_type)
+        assert mock_create_client.call_args.args[1] == "subscriptionId"
 
 
 @parametrize(
@@ -726,10 +712,18 @@ def test_backcompat_prefix_both_prefers_short(mock_connect):
         mock_connect.return_value.factories.delete.assert_called_with("non-prefixed", "n/a")
 
 
+def test_refresh_conn(hook):
+    """Test refresh_conn method _conn is reset and get_conn is called"""
+    with patch.object(hook, "get_conn") as mock_get_conn:
+        hook.refresh_conn()
+        assert not hook._conn
+        assert mock_get_conn.called
+
+
 class TestAzureDataFactoryAsyncHook:
     @pytest.mark.asyncio
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_queued(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Queued"
@@ -739,8 +733,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_inprogress(
         self,
         mock_get_pipeline_run,
@@ -754,8 +748,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_success(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Succeeded"
@@ -765,8 +759,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_failed(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Failed"
@@ -776,8 +770,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_cancelled(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Cancelled"
@@ -787,19 +781,9 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
-    async def test_get_adf_pipeline_run_status_exception(self, mock_get_pipeline_run, mock_conn):
-        """Test get_adf_pipeline_run_status function with exception"""
-        mock_get_pipeline_run.side_effect = Exception("Test exception")
-        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
-        with pytest.raises(AirflowException):
-            await hook.get_adf_pipeline_run_status(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
-
-    @pytest.mark.asyncio
-    @async_mock.patch("azure.mgmt.datafactory.models._models_py3.PipelineRun")
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch("azure.mgmt.datafactory.models._models_py3.PipelineRun")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
     async def test_get_pipeline_run_exception_without_resource(
         self, mock_conn, mock_get_connection, mock_pipeline_run
     ):
@@ -807,9 +791,7 @@ class TestAzureDataFactoryAsyncHook:
         Test get_pipeline_run function without passing the resource name to check the decorator function and
         raise exception
         """
-        mock_connection = Connection(
-            extra=json.dumps({"extra__azure_data_factory__factory_name": DATAFACTORY_NAME})
-        )
+        mock_connection = Connection(extra={"factory_name": DATAFACTORY_NAME})
         mock_get_connection.return_value = mock_connection
         mock_conn.return_value.pipeline_runs.get.return_value = mock_pipeline_run
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
@@ -817,107 +799,98 @@ class TestAzureDataFactoryAsyncHook:
             await hook.get_pipeline_run(RUN_ID, None, DATAFACTORY_NAME)
 
     @pytest.mark.asyncio
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    async def test_get_pipeline_run_exception(self, mock_conn):
-        """Test get_pipeline_run function with exception"""
-        mock_conn.return_value.pipeline_runs.get.side_effect = Exception("Test exception")
-        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
-        with pytest.raises(AirflowException):
-            await hook.get_pipeline_run(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)
-
-    @pytest.mark.asyncio
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
-    async def test_get_async_conn(self, mock_connection):
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+                conn_type="azure_data_factory",
+                login="clientId",
+                password="clientSecret",
+                extra={
+                    "tenantId": "tenantId",
+                    "subscriptionId": "subscriptionId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
+                },
+            )
+        ],
+        indirect=True,
+    )
+    async def test_get_async_conn(self, mocked_connection):
         """"""
-        mock_conn = Connection(
-            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
-            conn_type="azure_data_factory",
-            login="clientId",
-            password="clientSecret",
-            extra=json.dumps(
-                {
-                    "extra__azure_data_factory__tenantId": "tenantId",
-                    "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                    "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                    "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
-                }
-            ),
-        )
-        mock_connection.return_value = mock_conn
-        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
-        response = await hook.get_async_conn()
-        assert isinstance(response, DataFactoryManagementClient)
-
-    @pytest.mark.asyncio
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
-    async def test_get_async_conn_without_login_id(self, mock_connection):
-        """Test get_async_conn function without login id"""
-        mock_conn = Connection(
-            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
-            conn_type="azure_data_factory",
-            extra=json.dumps(
-                {
-                    "extra__azure_data_factory__tenantId": "tenantId",
-                    "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                    "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                    "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
-                }
-            ),
-        )
-        mock_connection.return_value = mock_conn
-        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        hook = AzureDataFactoryAsyncHook(mocked_connection.conn_id)
         response = await hook.get_async_conn()
         assert isinstance(response, DataFactoryManagementClient)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_connection_params",
+        "mocked_connection",
         [
-            {
-                "extra__azure_data_factory__tenantId": "tenantId",
-                "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
-            }
+            Connection(
+                conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+                conn_type="azure_data_factory",
+                extra={
+                    "tenantId": "tenantId",
+                    "subscriptionId": "subscriptionId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
+                },
+            ),
         ],
+        indirect=True,
     )
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
-    async def test_get_async_conn_key_error_subscription_id(self, mock_connection, mock_connection_params):
+    async def test_get_async_conn_without_login_id(self, mocked_connection):
+        """Test get_async_conn function without login id"""
+        hook = AzureDataFactoryAsyncHook(mocked_connection.conn_id)
+        response = await hook.get_async_conn()
+        assert isinstance(response, DataFactoryManagementClient)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+                conn_type="azure_data_factory",
+                login="clientId",
+                password="clientSecret",
+                extra={
+                    "tenantId": "tenantId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
+                },
+            )
+        ],
+        indirect=True,
+    )
+    async def test_get_async_conn_key_error_subscription_id(self, mocked_connection):
         """Test get_async_conn function when subscription_id is missing in the connection"""
-        mock_conn = Connection(
-            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
-            conn_type="azure_data_factory",
-            login="clientId",
-            password="clientSecret",
-            extra=json.dumps(mock_connection_params),
-        )
-        mock_connection.return_value = mock_conn
-        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        hook = AzureDataFactoryAsyncHook(mocked_connection.conn_id)
         with pytest.raises(ValueError):
             await hook.get_async_conn()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_connection_params",
+        "mocked_connection",
         [
-            {
-                "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
-            },
+            Connection(
+                conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+                conn_type="azure_data_factory",
+                login="clientId",
+                password="clientSecret",
+                extra={
+                    "subscriptionId": "subscriptionId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
+                },
+            )
         ],
+        indirect=True,
     )
-    @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
-    async def test_get_async_conn_key_error_tenant_id(self, mock_connection, mock_connection_params):
+    async def test_get_async_conn_key_error_tenant_id(self, mocked_connection):
         """Test get_async_conn function when tenant id is missing in the connection"""
-        mock_conn = Connection(
-            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
-            conn_type="azure_data_factory",
-            login="clientId",
-            password="clientSecret",
-            extra=json.dumps(mock_connection_params),
-        )
-        mock_connection.return_value = mock_conn
-        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        hook = AzureDataFactoryAsyncHook(mocked_connection.conn_id)
         with pytest.raises(ValueError):
             await hook.get_async_conn()
 
@@ -926,14 +899,12 @@ class TestAzureDataFactoryAsyncHook:
         mock_conn = Connection(
             conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
             conn_type="azure_data_factory",
-            extra=json.dumps(
-                {
-                    "extra__azure_data_factory__tenantId": "tenantId",
-                    "extra__azure_data_factory__subscriptionId": "subscriptionId",
-                    "extra__azure_data_factory__resource_group_name": RESOURCE_GROUP_NAME,
-                    "extra__azure_data_factory__factory_name": DATAFACTORY_NAME,
-                }
-            ),
+            extra={
+                "tenantId": "tenantId",
+                "subscriptionId": "subscriptionId",
+                "resource_group_name": RESOURCE_GROUP_NAME,
+                "factory_name": DATAFACTORY_NAME,
+            },
         )
         extras = mock_conn.extra_dejson
         assert get_field(extras, "tenantId", strict=True) == "tenantId"
@@ -948,14 +919,12 @@ class TestAzureDataFactoryAsyncHook:
         mock_conn = Connection(
             conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
             conn_type="azure_data_factory",
-            extra=json.dumps(
-                {
-                    "tenantId": "tenantId",
-                    "subscriptionId": "subscriptionId",
-                    "resource_group_name": RESOURCE_GROUP_NAME,
-                    "factory_name": DATAFACTORY_NAME,
-                }
-            ),
+            extra={
+                "tenantId": "tenantId",
+                "subscriptionId": "subscriptionId",
+                "resource_group_name": RESOURCE_GROUP_NAME,
+                "factory_name": DATAFACTORY_NAME,
+            },
         )
         extras = mock_conn.extra_dejson
         assert get_field(extras, "tenantId", strict=True) == "tenantId"
@@ -964,3 +933,12 @@ class TestAzureDataFactoryAsyncHook:
         assert get_field(extras, "factory_name", strict=True) == DATAFACTORY_NAME
         with pytest.raises(KeyError):
             get_field(extras, "non-existent-field", strict=True)
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    async def test_refresh_conn(self, mock_get_async_conn):
+        """Test refresh_conn method _conn is reset and get_async_conn is called"""
+        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        await hook.refresh_conn()
+        assert not hook._conn
+        assert mock_get_async_conn.called

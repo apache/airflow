@@ -37,8 +37,8 @@ runs:
         path: ~/.local/pipx
         # README has the latest breeze's hash and python location is used to distinguish between
         # different minor versions of python
-        key: "breeze-${{ env.pythonLocation }}-${{ hashFiles('dev/breeze/README.md') }}"
-        restore-keys: breeze-${{ env.pythonLocation }}
+        key: "breeze-3.8-${{ env.pythonLocation }}-${{ hashFiles('dev/breeze/README.md') }}"
+        restore-keys: breeze-3.8-${{ env.pythonLocation }}
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh

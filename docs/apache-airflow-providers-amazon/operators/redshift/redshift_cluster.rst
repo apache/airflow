@@ -53,7 +53,8 @@ Resume an Amazon Redshift cluster
 
 To resume a 'paused' Amazon Redshift cluster you can use
 :class:`RedshiftResumeClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
-You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
+This will ensure that the task is deferred from the Airflow worker slot and polling for the task status happens on the trigger.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift.py
     :language: python
@@ -110,7 +111,8 @@ Delete an Amazon Redshift cluster
 =================================
 
 To delete an Amazon Redshift cluster you can use
-:class:`RedshiftDeleteClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
+:class:`RedshiftDeleteClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`.
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift.py
     :language: python

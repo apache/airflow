@@ -49,7 +49,7 @@ Default Connection IDs
 -----------------------
 
 The default connection ID is ``aws_default``. If the environment/machine where you are running Airflow has the
-file credentials in ``/home/.aws/``, and the default connection has user and pass fields empty, it will take
+file credentials in ``${HOME}/.aws/``, and the default connection has user and pass fields empty, it will take
 automatically the credentials from there.
 
 .. important:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}``
@@ -57,13 +57,13 @@ automatically the credentials from there.
     This is no longer the case and the region needs to be set manually, either in the connection screens in Airflow,
     or via the ``AWS_DEFAULT_REGION`` environment variable.
 
-.. caution:: If you do not set ``[database] load_default_connections`` to ``True``
+.. caution:: If you do not run "airflow connections create-default-connections" command,
     most probably you do not have ``aws_default``. For historical reasons, the Amazon Provider
     components (Hooks, Operators, Sensors, etc.) fallback to the default boto3 credentials strategy
-    in case of a missing Connection ID. This behaviour is deprecated and will be removed in a future releases.
+    in case of a missing Connection ID.
 
     If you need to use the default boto3 credential strategy (credentials in environment variables, IAM Profile, etc.)
-    please provide ``None`` instead of a connection ID.
+    please provide ``None``, instead of a missing connection ID, to avoid getting a warning in your logs.
 
 .. _howto/connection:aws:configuring-the-connection:
 
@@ -121,6 +121,7 @@ Extra (optional)
 
     * ``config_kwargs``: Additional **kwargs** used to construct a
       `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__.
+      To anonymously access public AWS resources (equivalent of `signature_version=botocore.UNSGINED`), set `"signature_version"="unsigned"` within `config_kwargs`.
     * ``endpoint_url``: Endpoint URL for the connection.
     * ``verify``: Whether or not to verify SSL certificates.
 
@@ -745,7 +746,7 @@ Using IAM Roles for Service Accounts (IRSA) on EKS
 
 If you are running Airflow on `Amazon EKS <https://aws.amazon.com/eks/>`_,
 you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service
-by granting the IAM role to it's service account.
+by granting the IAM role to its service account.
 IRSA provides fine-grained permission management for apps(e.g., pods) that run on EKS and use other AWS services.
 These could be apps that use S3, any other AWS services like Secrets Manager, CloudWatch, DynamoDB etc.
 
@@ -778,7 +779,7 @@ Create IAM Role for Service Account(IRSA) using eksctl
 
     eksctl utils associate-iam-oidc-provider --cluster="<EKS_CLUSTER_ID>" --approve
 
-4. Replace ``EKS_CLUSTER_ID``, ``SERVICE_ACCOUNT_NAME`` and ``NAMESPACE`` and execute the the following command.
+4. Replace ``EKS_CLUSTER_ID``, ``SERVICE_ACCOUNT_NAME`` and ``NAMESPACE`` and execute the following command.
 This command will use an existing EKS Cluster ID and create an IAM role, service account and namespace.
 
 .. code-block:: bash

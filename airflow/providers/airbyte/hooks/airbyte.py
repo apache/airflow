@@ -26,7 +26,7 @@ from airflow.providers.http.hooks.http import HttpHook
 
 class AirbyteHook(HttpHook):
     """
-    Hook for Airbyte API
+    Hook for Airbyte API.
 
     :param airbyte_conn_id: Optional. The name of the Airflow connection to get
         connection information for Airbyte. Defaults to "airbyte_default".
@@ -52,7 +52,7 @@ class AirbyteHook(HttpHook):
 
     def wait_for_job(self, job_id: str | int, wait_seconds: float = 3, timeout: float | None = 3600) -> None:
         """
-        Helper method which polls a job to check if it finishes.
+        Poll a job to check if it finishes.
 
         :param job_id: Required. Id of the Airbyte job
         :param wait_seconds: Optional. Number of seconds between checks.
@@ -85,7 +85,7 @@ class AirbyteHook(HttpHook):
 
     def submit_sync_connection(self, connection_id: str) -> Any:
         """
-        Submits a job to a Airbyte server.
+        Submit a job to a Airbyte server.
 
         :param connection_id: Required. The ConnectionId of the Airbyte Connection.
         """
@@ -97,7 +97,7 @@ class AirbyteHook(HttpHook):
 
     def get_job(self, job_id: int) -> Any:
         """
-        Gets the resource representation for a job in Airbyte.
+        Get the resource representation for a job in Airbyte.
 
         :param job_id: Required. Id of the Airbyte job
         """
@@ -109,7 +109,7 @@ class AirbyteHook(HttpHook):
 
     def cancel_job(self, job_id: int) -> Any:
         """
-        Cancel the job when task is cancelled
+        Cancel the job when task is cancelled.
 
         :param job_id: Required. Id of the Airbyte job
         """
@@ -120,7 +120,7 @@ class AirbyteHook(HttpHook):
         )
 
     def test_connection(self):
-        """Tests the Airbyte connection by hitting the health API"""
+        """Tests the Airbyte connection by hitting the health API."""
         self.method = "GET"
         try:
             res = self.run(

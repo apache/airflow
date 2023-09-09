@@ -163,7 +163,16 @@ function install_airflow_from_wheel() {
         exit 4
     fi
     if [[ ${constraints_reference} == "none" ]]; then
+        set +e
         pip install "${airflow_package}${extras}"
+        res=$?
+        set -e
+        if [[ ${res} != "0" ]]; then
+            >&2 echo
+            >&2 echo "WARNING! Could not install airflow without constraints, trying to install it without dependencies in case some of the required providers are not yet released"
+            >&2 echo
+            pip install "${airflow_package}${extras}" --no-deps
+        fi
     else
         set +e
         pip install "${airflow_package}${extras}" --constraint \
@@ -253,7 +262,18 @@ function install_released_airflow_version() {
     if [[ ${constraints_reference} == "none" ]]; then
         pip install "${airflow_package}${extras}"
     else
-        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" \
+        local dependency_fix=""
+        # The pyopenssl is needed to downgrade pyopenssl for older airflow versions when using constraints
+        # Flask app builder has an optional pyopenssl transitive dependency, that causes import error when
+        # Pyopenssl is installed in a wrong version for Flask App Builder 4.1 and older. Adding PyOpenSSL
+        # directly as the dependency, forces downgrading of pyopenssl to the right version. Our constraint
+        # version has it pinned to the right version, but since it is not directly required, it is not
+        # downgraded when installing airflow and it is already installed in a newer version
+        if [[ ${USE_AIRFLOW_VERSION=} != "" ]]; then
+            dependency_fix="pyopenssl"
+        fi
+
+        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" ${dependency_fix} \
             --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     fi
 }
@@ -264,7 +284,7 @@ function install_local_airflow_with_eager_upgrade() {
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers
     # shellcheck disable=SC2086
-    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
 }
 
@@ -277,6 +297,18 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     local res
     for provider_package in ${ALL_PROVIDERS_PACKAGES}
     do
+        # Until we release "yandex" provider with protobuf support we need to remove it from the list of providers
+        # to install, because it is impossible to find common requirements for already released yandex provider
+        # and current airflow
+        if [[ ${provider_package} == "apache-airflow-providers-yandex" ]]; then
+            continue
+        fi
+        # Until we release latest `hive` provider with pure-sasl support, we need to remove it from the
+        # list of providers to install for Python 3.11 because we cannot build sasl it for Python 3.11
+        if [[ ${provider_package} == "apache-airflow-providers-apache-hive" \
+            && ${PYTHON_MAJOR_MINOR_VERSION} == "3.11" ]]; then
+            continue
+        fi
         echo -n "Checking if ${provider_package} is available in PyPI: "
         res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
         if [[ ${res} == "200" ]]; then
@@ -286,14 +318,18 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
             echo "${COLOR_YELLOW}Skipped${COLOR_RESET}"
         fi
     done
+
+
     echo "Installing provider packages: ${packages_to_install[*]}"
+
+
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers. We install only those packages that are available in PyPI - we might
     # Have some new providers in the works and they might not yet be simply available in PyPI
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
 
 }

@@ -127,6 +127,55 @@ def test_import_variables_success(session, admin_client):
     _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
 
 
+def test_import_variables_override_existing_variables_if_set(session, admin_client, caplog):
+    assert session.query(Variable).count() == 0
+    Variable.set("str_key", "str_value")
+    content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
+    bytes_content = io.BytesIO(bytes(content, encoding="utf-8"))
+
+    resp = admin_client.post(
+        "/variable/varimport",
+        data={"file": (bytes_content, "test.json"), "action_if_exist": "overwrite"},
+        follow_redirects=True,
+    )
+    check_content_in_response("2 variable(s) successfully updated.", resp)
+    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+
+
+def test_import_variables_skips_update_if_set(session, admin_client, caplog):
+    assert session.query(Variable).count() == 0
+    Variable.set("str_key", "str_value")
+    content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
+    bytes_content = io.BytesIO(bytes(content, encoding="utf-8"))
+
+    resp = admin_client.post(
+        "/variable/varimport",
+        data={"file": (bytes_content, "test.json"), "action_if_exists": "skip"},
+        follow_redirects=True,
+    )
+    check_content_in_response("1 variable(s) successfully updated.", resp)
+
+    check_content_in_response(
+        "The variables with these keys: &#39;str_key&#39; were skipped because they already exists", resp
+    )
+    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    assert "Variable: str_key already exists, skipping." in caplog.text
+
+
+def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_client, caplog):
+    assert session.query(Variable).count() == 0
+    Variable.set("str_key", "str_value")
+    content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
+    bytes_content = io.BytesIO(bytes(content, encoding="utf-8"))
+
+    admin_client.post(
+        "/variable/varimport",
+        data={"file": (bytes_content, "test.json"), "action_if_exists": "fail"},
+        follow_redirects=True,
+    )
+    assert "Failed. The variables with these keys: 'str_key'  already exists." in caplog.text
+
+
 def test_import_variables_anon(session, app):
     assert session.query(Variable).count() == 0
 

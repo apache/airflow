@@ -23,6 +23,11 @@ description: |
 
 suspended: false
 versions:
+  - 5.2.3
+  - 5.2.2
+  - 5.2.1
+  - 5.2.0
+  - 5.1.1
   - 5.1.0
   - 5.0.0
   - 4.3.0
@@ -61,6 +66,11 @@ hooks:
   - integration-name: Apache Beam
     python-modules:
       - airflow.providers.apache.beam.hooks.beam
+
+triggers:
+  - integration-name: Apache Beam
+    python-modules:
+      - airflow.providers.apache.beam.triggers.beam
 
 additional-extras:
   - name: google

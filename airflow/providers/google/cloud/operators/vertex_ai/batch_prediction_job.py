@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google Vertex AI operators.
 
-.. spelling::
+.. spelling:word-list::
 
     jsonl
     codepoints
@@ -30,8 +30,6 @@ from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
-from google.cloud.aiplatform import Model, explain
 from google.cloud.aiplatform_v1.types import BatchPredictionJob
 
 from airflow.providers.google.cloud.hooks.vertex_ai.batch_prediction_job import BatchPredictionJobHook
@@ -42,6 +40,9 @@ from airflow.providers.google.cloud.links.vertex_ai import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform import Model, explain
+
     from airflow.utils.context import Context
 
 
@@ -268,10 +269,7 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         return batch_prediction_job
 
     def on_kill(self) -> None:
-        """
-        Callback called when the operator is killed.
-        Cancel any running job.
-        """
+        """Callback called when the operator is killed; cancel any running job."""
         if self.hook:
             self.hook.cancel_batch_prediction_job()
 
@@ -346,7 +344,7 @@ class DeleteBatchPredictionJobOperator(GoogleCloudBaseOperator):
 
 class GetBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
-    Gets a BatchPredictionJob
+    Gets a BatchPredictionJob.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.

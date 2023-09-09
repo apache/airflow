@@ -21,7 +21,6 @@ import datetime
 from unittest.mock import patch
 
 import pytest
-import pytz
 
 from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -110,7 +109,7 @@ class TestPostgresToGoogleCloudStorageOperator:
             (datetime.date(1000, 1, 2), "1000-01-02"),
             (datetime.datetime(1970, 1, 1, 1, 0, tzinfo=None), "1970-01-01T01:00:00"),
             (
-                datetime.datetime(2022, 1, 1, 2, 0, tzinfo=pytz.UTC),
+                datetime.datetime(2022, 1, 1, 2, 0, tzinfo=datetime.timezone.utc),
                 1641002400.0,
             ),
             (datetime.time(hour=0, minute=0, second=0), "0:00:00"),

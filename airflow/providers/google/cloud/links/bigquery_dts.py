@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.utils.context import Context
 
 BIGQUERY_BASE_LINK = "/bigquery/transfers"
@@ -31,7 +31,7 @@ BIGQUERY_DTS_LINK = BIGQUERY_BASE_LINK + "/locations/{region}/configs/{config_id
 
 
 class BigQueryDataTransferConfigLink(BaseGoogleLink):
-    """Helper class for constructing BigQuery Data Transfer Config Link"""
+    """Helper class for constructing BigQuery Data Transfer Config Link."""
 
     name = "BigQuery Data Transfer Config"
     key = "bigquery_dts_config"

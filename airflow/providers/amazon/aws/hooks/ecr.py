@@ -20,10 +20,13 @@ from __future__ import annotations
 import base64
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.log.secrets_masker import mask_secret
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ class EcrCredentials:
 class EcrHook(AwsBaseHook):
     """
     Interact with Amazon Elastic Container Registry (ECR).
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("ecr") <ECR.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and

@@ -21,8 +21,29 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-jira``
+
+
 Changelog
 ---------
+
+2.1.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: JiraOperator support any return response from Jira client (#31672)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 2.1.0
 .....

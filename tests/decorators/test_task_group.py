@@ -17,11 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pendulum
 import pytest
 
 from airflow.decorators import dag, task_group
 from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput, MappedArgument
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.task_group import MappedTaskGroup
 
 
@@ -186,3 +189,120 @@ def test_expand_kwargs_create_mapped():
     assert tg._expand_input == ListOfDictsExpandInput([{"b": "x"}, {"b": None}])
 
     assert saved == {"a": 1, "b": MappedArgument(input=tg._expand_input, key="b")}
+
+
+def test_task_group_expand_kwargs_with_upstream(dag_maker, session, caplog):
+    with dag_maker() as dag:
+
+        @dag.task
+        def t1():
+            return [{"a": 1}, {"a": 2}]
+
+        @task_group("tg1")
+        def tg1(a, b):
+            @dag.task()
+            def t2():
+                return [a, b]
+
+            t2()
+
+        tg1.expand_kwargs(t1())
+
+    dr = dag_maker.create_dagrun()
+    dr.task_instance_scheduling_decisions()
+    assert "Cannot expand" not in caplog.text
+    assert "missing upstream values: ['expand_kwargs() argument']" not in caplog.text
+
+
+def test_task_group_expand_with_upstream(dag_maker, session, caplog):
+    with dag_maker() as dag:
+
+        @dag.task
+        def t1():
+            return [1, 2, 3]
+
+        @task_group("tg1")
+        def tg1(a, b):
+            @dag.task()
+            def t2():
+                return [a, b]
+
+            t2()
+
+        tg1.partial(a=1).expand(b=t1())
+
+    dr = dag_maker.create_dagrun()
+    dr.task_instance_scheduling_decisions()
+    assert "Cannot expand" not in caplog.text
+    assert "missing upstream values: ['b']" not in caplog.text
+
+
+def test_override_dag_default_args():
+    @dag(
+        dag_id="test_dag",
+        start_date=pendulum.parse("20200101"),
+        default_args={
+            "retries": 1,
+            "owner": "x",
+        },
+    )
+    def pipeline():
+        @task_group(
+            group_id="task_group",
+            default_args={
+                "owner": "y",
+                "execution_timeout": timedelta(seconds=10),
+            },
+        )
+        def tg():
+            EmptyOperator(task_id="task")
+
+        tg()
+
+    test_dag = pipeline()
+    test_task = test_dag.task_group_dict["task_group"].children["task_group.task"]
+    assert test_task.retries == 1
+    assert test_task.owner == "y"
+    assert test_task.execution_timeout == timedelta(seconds=10)
+
+
+def test_override_dag_default_args_nested_tg():
+    @dag(
+        dag_id="test_dag",
+        start_date=pendulum.parse("20200101"),
+        default_args={
+            "retries": 1,
+            "owner": "x",
+        },
+    )
+    def pipeline():
+        @task_group(
+            group_id="task_group",
+            default_args={
+                "owner": "y",
+                "execution_timeout": timedelta(seconds=10),
+            },
+        )
+        def tg():
+            @task_group(group_id="nested_task_group")
+            def nested_tg():
+                @task_group(group_id="another_task_group")
+                def another_tg():
+                    EmptyOperator(task_id="task")
+
+                another_tg()
+
+            nested_tg()
+
+        tg()
+
+    test_dag = pipeline()
+    test_task = (
+        test_dag.task_group_dict["task_group"]
+        .children["task_group.nested_task_group"]
+        .children["task_group.nested_task_group.another_task_group"]
+        .children["task_group.nested_task_group.another_task_group.task"]
+    )
+    assert test_task.retries == 1
+    assert test_task.owner == "y"
+    assert test_task.execution_timeout == timedelta(seconds=10)

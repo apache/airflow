@@ -15,22 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains operators to replicate records from
-DynamoDB table to S3.
-"""
+
 from __future__ import annotations
 
 import json
+import os
 from copy import copy
 from datetime import datetime
 from decimal import Decimal
-from os.path import getsize
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -41,7 +38,7 @@ if TYPE_CHECKING:
 
 
 class JSONEncoder(json.JSONEncoder):
-    """Custom json encoder implementation"""
+    """Custom json encoder implementation."""
 
     def default(self, obj):
         """Convert decimal objects in a json serializable format."""
@@ -72,6 +69,7 @@ def _upload_file_to_s3(
 class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     """
     Replicates records from a DynamoDB table to S3.
+
     It scans a DynamoDB table and writes the received records to a file
     on the local filesystem. It flushes the file to S3 once the file size
     exceeds the file size limit specified by the user.
@@ -86,9 +84,10 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     :param dynamodb_table_name: Dynamodb table to replicate data from
     :param s3_bucket_name: S3 bucket to replicate data to
     :param file_size: Flush file to s3 if file size >= file_size
-    :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
+    :param dynamodb_scan_kwargs: kwargs pass to
+        <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
     :param s3_key_prefix: Prefix of s3 object key
-    :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
+    :param process_func: How we transform a dynamodb item to bytes. By default, we dump the json
     :param export_time: Time in the past from which to export table data, counted in seconds from the start of
      the Unix epoch. The table export will be a snapshot of the table's state at this point in time.
     :param export_format: The format for the exported data. Valid values for ExportFormat are DYNAMODB_JSON
@@ -136,7 +135,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     @cached_property
     def hook(self):
-        """Create DynamoDBHook"""
+        """Create DynamoDBHook."""
         return DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
 
     def execute(self, context: Context) -> None:
@@ -147,8 +146,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     def _export_table_to_point_in_time(self):
         """
-        Export data from start of epoc till `export_time`. Table export will be a snapshot of the table's
-         state at this point in time.
+        Export data from start of epoc till `export_time`.
+
+        Table export will be a snapshot of the table's state at this point in time.
         """
         if self.export_time and self.export_time > datetime.now(self.export_time.tzinfo):
             raise ValueError("The export_time parameter cannot be a future time.")
@@ -197,7 +197,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
             scan_kwargs["ExclusiveStartKey"] = last_evaluated_key
 
             # Upload the file to S3 if reach file size limit
-            if getsize(temp_file.name) >= self.file_size:
+            if os.path.getsize(temp_file.name) >= self.file_size:
                 _upload_file_to_s3(temp_file, self.s3_bucket_name, self.s3_key_prefix, self.dest_aws_conn_id)
                 temp_file.close()
 

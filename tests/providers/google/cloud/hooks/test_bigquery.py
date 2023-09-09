@@ -20,6 +20,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
 from gcloud.aio.bigquery import Job, Table as Table_async
@@ -42,7 +43,6 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     _validate_value,
     split_tablename,
 )
-from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 PROJECT_ID = "bq-project"
 CREDENTIALS = "bq-credentials"
@@ -147,7 +147,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         self.hook.get_pandas_df("select 1")
 
         mock_read_gbq.assert_called_once_with(
-            "select 1", credentials=CREDENTIALS, dialect="legacy", project_id=PROJECT_ID, verbose=False
+            "select 1", credentials=CREDENTIALS, dialect="legacy", project_id=PROJECT_ID
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2052,8 +2052,8 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning:
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook")
     def test_deprecation_warning(self, mock_bq_hook, func_name):
         args, kwargs = [1], {"param1": "val1"}
-        new_path = re.escape(f"`airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}`")
-        message_pattern = rf"This method is deprecated\.\s+Please use {new_path}"
+        new_path = re.escape(f"airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}")
+        message_pattern = rf"This method is deprecated\.\s+Please use `{new_path}`"
         message_regex = re.compile(message_pattern, re.MULTILINE)
 
         mocked_func = getattr(mock_bq_hook, func_name)
@@ -2064,7 +2064,8 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning:
             _ = func(*args, **kwargs)
 
         mocked_func.assert_called_once_with(*args, **kwargs)
-        assert re.search(f".*{new_path}.*", func.__doc__)
+
+        assert re.search(f".*:func:`~{new_path}`.*", func.__doc__)
 
 
 class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
@@ -2132,43 +2133,32 @@ class _BigQueryBaseAsyncTestClass:
 
 class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
     async def test_get_job_instance(self, mock_session):
         hook = BigQueryAsyncHook()
         result = await hook.get_job_instance(project_id=PROJECT_ID, job_id=JOB_ID, session=mock_session)
         assert isinstance(result, Job)
 
+    @pytest.mark.parametrize(
+        "job_status, expected",
+        [
+            ({"status": {"state": "DONE"}}, "success"),
+            ({"status": {"state": "DONE", "errorResult": "Timeout"}}, "error"),
+            ({"status": {"state": "running"}}, "running"),
+        ],
+    )
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
-    async def test_get_job_status_success(self, mock_job_instance):
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    async def test_get_job_status(self, mock_job_instance, job_status, expected):
         hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
-        response = "success"
-        mock_job_instance.return_value.result.return_value = response
+        mock_job_instance.return_value.get_job.return_value = job_status
         resp = await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
-        assert resp == response
+        assert resp == expected
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
-    async def test_get_job_status_oserror(self, mock_job_instance):
-        """Assets that the BigQueryAsyncHook returns a pending response when OSError is raised"""
-        mock_job_instance.return_value.result.side_effect = OSError()
-        hook = BigQueryAsyncHook()
-        job_status = await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
-        assert job_status == "pending"
-
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
-    async def test_get_job_status_exception(self, mock_job_instance, caplog):
-        """Assets that the logging is done correctly when BigQueryAsyncHook raises Exception"""
-        mock_job_instance.return_value.result.side_effect = Exception()
-        hook = BigQueryAsyncHook()
-        await hook.get_job_status(job_id=JOB_ID, project_id=PROJECT_ID)
-        assert "Query execution finished with errors..." in caplog.text
-
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_output_assert_once_with(self, mock_job_instance):
         hook = BigQueryAsyncHook()
         mock_job_client = AsyncMock(Job)
@@ -2231,7 +2221,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert response is None
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_instance")
     async def test_get_job_output(self, mock_job_instance):
         """
         Tests to check if a particular object in Google Cloud Storage
@@ -2311,7 +2301,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert BigQueryAsyncHook._convert_to_float_if_possible(test_input) == expected
 
     @pytest.mark.asyncio
-    @async_mock.patch("aiohttp.client.ClientSession")
+    @mock.patch("aiohttp.client.ClientSession")
     async def test_get_table_client(self, mock_session):
         """Test get_table_client async function and check whether the return value is a
         Table instance object"""

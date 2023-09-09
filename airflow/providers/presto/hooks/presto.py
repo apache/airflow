@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Callable, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
 
 import prestodb
 from prestodb.exceptions import DatabaseError
@@ -27,13 +27,17 @@ from prestodb.transaction import IsolationLevel
 
 from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
 
+if TYPE_CHECKING:
+    from airflow.models import Connection
+
+T = TypeVar("T")
+
 
 def generate_presto_client_info() -> str:
-    """Return json string with dag_id, task_id, execution_date and try_number"""
+    """Return json string with dag_id, task_id, execution_date and try_number."""
     context_var = {
         format_map["default"].replace(DEFAULT_FORMAT_PREFIX, ""): os.environ.get(
             format_map["env_var_format"], ""
@@ -52,7 +56,7 @@ def generate_presto_client_info() -> str:
 
 
 class PrestoException(Exception):
-    """Presto exception"""
+    """Presto exception."""
 
 
 def _boolify(value):
@@ -83,7 +87,7 @@ class PrestoHook(DbApiHook):
     placeholder = "?"
 
     def get_conn(self) -> Connection:
-        """Returns a connection object"""
+        """Returns a connection object."""
         db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
@@ -128,7 +132,7 @@ class PrestoHook(DbApiHook):
         return presto_conn
 
     def get_isolation_level(self) -> Any:
-        """Returns an isolation level"""
+        """Returns an isolation level."""
         db = self.get_connection(self.presto_conn_id)  # type: ignore[attr-defined]
         isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
@@ -136,7 +140,7 @@ class PrestoHook(DbApiHook):
     def get_records(
         self,
         sql: str | list[str] = "",
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
@@ -145,7 +149,9 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(e)
 
-    def get_first(self, sql: str | list[str] = "", parameters: Iterable | Mapping | None = None) -> Any:
+    def get_first(
+        self, sql: str | list[str] = "", parameters: Iterable | Mapping[str, Any] | None = None
+    ) -> Any:
         if not isinstance(sql, str):
             raise ValueError(f"The sql in Presto Hook must be a string and is {sql}!")
         try:
@@ -154,7 +160,7 @@ class PrestoHook(DbApiHook):
             raise PrestoException(e)
 
     def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
-        import pandas
+        import pandas as pd
 
         cursor = self.get_cursor()
         try:
@@ -164,29 +170,11 @@ class PrestoHook(DbApiHook):
             raise PrestoException(e)
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data, **kwargs)
+            df = pd.DataFrame(data, **kwargs)
             df.columns = [c[0] for c in column_descriptions]
         else:
-            df = pandas.DataFrame(**kwargs)
+            df = pd.DataFrame(**kwargs)
         return df
-
-    def run(
-        self,
-        sql: str | Iterable[str],
-        autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
-        handler: Callable | None = None,
-        split_statements: bool = False,
-        return_last: bool = True,
-    ) -> Any | list[Any] | None:
-        return super().run(
-            sql=sql,
-            autocommit=autocommit,
-            parameters=parameters,
-            handler=handler,
-            split_statements=split_statements,
-            return_last=return_last,
-        )
 
     def insert_rows(
         self,
@@ -220,8 +208,7 @@ class PrestoHook(DbApiHook):
     @staticmethod
     def _serialize_cell(cell: Any, conn: Connection | None = None) -> Any:
         """
-        Presto will adapt all arguments to the execute() method internally,
-        hence we return cell without any conversion.
+        Presto will adapt all execute() args internally, hence we return cell without any conversion.
 
         :param cell: The cell to insert into the table
         :param conn: The database connection

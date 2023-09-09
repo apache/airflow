@@ -715,7 +715,7 @@ class TestSageMakerHook:
 
         assert arn == "hellotest"
 
-        args_passed = mock_conn().start_pipeline_execution.call_args[1]
+        args_passed = mock_conn().start_pipeline_execution.call_args.kwargs
         assert args_passed["PipelineName"] == "test_name"
 
         # check conversion to the weird format for passing parameters (list of tuples)
@@ -878,7 +878,7 @@ class TestSageMakerHook:
             wait_for_completion=False,
         )
 
-        assert conn_mock().create_auto_ml_job.call_args[1] == {
+        assert conn_mock().create_auto_ml_job.call_args.kwargs == {
             "AutoMLJobConfig": {"CompletionCriteria": {"MaxAutoMLJobRuntimeInSeconds": 30}},
             "AutoMLJobName": "a",
             "InputDataConfig": [

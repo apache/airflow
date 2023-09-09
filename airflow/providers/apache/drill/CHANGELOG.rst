@@ -21,8 +21,62 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-apache-drill``
+
 Changelog
 ---------
+
+
+2.4.4
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+2.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate database URL passed to create_engine of Drill hook's connection (#33074)``
+
+2.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+2.4.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Add note about dropping Python 3.7 for providers (#32015)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
 
 2.4.0
 .....

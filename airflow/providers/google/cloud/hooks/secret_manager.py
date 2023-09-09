@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Secrets Manager service"""
+"""Hook for Secrets Manager service."""
 from __future__ import annotations
 
 from typing import Sequence

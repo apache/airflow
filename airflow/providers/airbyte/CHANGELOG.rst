@@ -21,8 +21,45 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-airbyte``
+
 Changelog
 ---------
+
+
+3.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/airbyte): respect soft_fail argument when exception is raised (#34156)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+   * ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Airbyte and Alibaba (#32214)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+3.3.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Add note about dropping Python 3.7 for providers (#32015)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Providers (#31427)``
 
 3.3.0
 .....

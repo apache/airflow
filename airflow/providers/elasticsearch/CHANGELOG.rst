@@ -21,8 +21,102 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-elasticsearch``
+
+
 Changelog
 ---------
+
+.. note::
+  Upgrade to Elasticsearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use Elasticsearch 8 package.
+  As explained https://elasticsearch-py.readthedocs.io/en/stable , Elasticsearch language clients are only backwards
+  compatible with default distributions and without guarantees made, we recommend upgrading the version of
+  Elasticsearch database to 8 to ensure compatibility with the language client.
+
+5.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make sure that only valid elasticsearch keys are passed to handler (#34119)``
+
+Misc
+~~~~
+
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+* ``Use f-string instead of  in Airflow providers (#33752)``
+
+5.0.1
+.....
+
+.. note::
+  This release added support for elasticsearch 8
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add backward compatibility for elasticsearch<8 (#33281)``
+* ``Fix urlparse schemaless-behaviour on Python 3.9+ (#33289)``
+
+Misc
+~~~~
+
+* ``Upgrade Elasticsearch to 8 (#33135)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace strftime with f-strings where nicer (#33455)``
+   * ``D205 Support - Providers - Final Pass (#33303)``
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  Deprecate non-official elasticsearch libraries. Only the official elasticsearch library was used
+
+* ``Deprecate the 2 non-official elasticsearch libraries (#31920)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix unsound type hint in ElasticsearchTaskHandler.es_read (#32509)``
+
+Misc
+~~~~
+
+* ``Fix Failing ES Remote Logging (#32438)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Add deprecation info to the providers modules and classes docstring (#32536)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+
+4.5.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.5.0
 .....

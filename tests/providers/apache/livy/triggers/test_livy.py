@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+from unittest import mock
 
 import pytest
 from aiohttp import ClientConnectionError
@@ -24,7 +25,6 @@ from aiohttp import ClientConnectionError
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
 from airflow.triggers.base import TriggerEvent
-from tests.providers.apache.livy.compat import async_mock
 
 
 class TestLivyTrigger:
@@ -49,7 +49,7 @@ class TestLivyTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.apache.livy.triggers.livy.LivyTrigger.poll_for_termination")
+    @mock.patch("airflow.providers.apache.livy.triggers.livy.LivyTrigger.poll_for_termination")
     async def test_livy_trigger_run_with_no_poll_interval(self, mock_poll_for_termination):
         """
         Test if the task ran in the triggerer successfully with poll interval=0.
@@ -69,7 +69,7 @@ class TestLivyTrigger:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.apache.livy.triggers.livy.LivyTrigger.poll_for_termination")
+    @mock.patch("airflow.providers.apache.livy.triggers.livy.LivyTrigger.poll_for_termination")
     async def test_livy_trigger_run_with_poll_interval_success(self, mock_poll_for_termination):
         """
         Test if the task ran in the triggerer successfully with poll interval>0. In the case when
@@ -85,7 +85,7 @@ class TestLivyTrigger:
         assert TriggerEvent({"status": "success"}) == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.apache.livy.triggers.livy.LivyTrigger.poll_for_termination")
+    @mock.patch("airflow.providers.apache.livy.triggers.livy.LivyTrigger.poll_for_termination")
     async def test_livy_trigger_run_with_poll_interval_error(self, mock_poll_for_termination):
         """Test if the task in the trigger returned an error when poll_for_termination returned error."""
         mock_poll_for_termination.return_value = {"status": "error"}
@@ -133,8 +133,8 @@ class TestLivyTrigger:
             await trigger.poll_for_termination(1)
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
-    @async_mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.dump_batch_logs")
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.dump_batch_logs")
     async def test_livy_trigger_poll_for_termination_success(
         self, mock_dump_batch_logs, mock_get_batch_state
     ):
@@ -158,8 +158,8 @@ class TestLivyTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
-    @async_mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.dump_batch_logs")
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.dump_batch_logs")
     async def test_livy_trigger_poll_for_termination_error(self, mock_dump_batch_logs, mock_get_batch_state):
         """
         Test if the poll_for_termination() in the trigger returned error response when get_batch_state()
@@ -181,8 +181,8 @@ class TestLivyTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
-    @async_mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.dump_batch_logs")
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.dump_batch_logs")
     async def test_livy_trigger_poll_for_termination_state(self, mock_dump_batch_logs, mock_get_batch_state):
         """
         Test if the poll_for_termination() in the trigger is still polling when get_batch_state() returned

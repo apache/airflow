@@ -21,6 +21,7 @@
 
 {% block head_css %}
 {{ super() }}
+<meta name="config_test_connection" content="{{ config_test_connection }}">
 <meta name="rest_api_enabled" content="{{ rest_api_enabled }}">
 <meta name="test_url"
   content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_connection_endpoint_test_connection') }}">

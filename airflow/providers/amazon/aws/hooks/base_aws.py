@@ -29,10 +29,9 @@ import inspect
 import json
 import logging
 import os
-import uuid
+import warnings
 from copy import deepcopy
-from functools import wraps
-from os import PathLike
+from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
@@ -42,21 +41,21 @@ import botocore.session
 import jinja2
 import requests
 import tenacity
-from botocore.client import ClientMeta
 from botocore.config import Config
-from botocore.credentials import ReadOnlyCredentials
 from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
+    AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
+from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -65,19 +64,24 @@ from airflow.utils.log.secrets_masker import mask_secret
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 
 if TYPE_CHECKING:
+    from botocore.client import ClientMeta
+    from botocore.credentials import ReadOnlyCredentials
+
     from airflow.models.connection import Connection  # Avoid circular imports.
 
 
 class BaseSessionFactory(LoggingMixin):
-    """
-    Base AWS Session Factory class to handle synchronous and async boto session creation.
-    It can handle most of the AWS supported authentication methods.
+    """Base AWS Session Factory class.
+
+    This handles synchronous and async boto session creation. It can handle most
+    of the AWS supported authentication methods.
 
     User can also derive from this class to have full control of boto3 session
     creation or to support custom federation.
 
-    Note: Not all features implemented for synchronous sessions are available for async
-    sessions.
+    .. note::
+        Not all features implemented for synchronous sessions are available
+        for async sessions.
 
     .. seealso::
         - :ref:`howto/connection:aws:session-factory`
@@ -125,7 +129,7 @@ class BaseSessionFactory(LoggingMixin):
 
     @property
     def role_arn(self) -> str | None:
-        """Assume Role ARN from AWS Connection"""
+        """Assume Role ARN from AWS Connection."""
         return self.conn.role_arn
 
     def _apply_session_kwargs(self, session):
@@ -194,22 +198,35 @@ class BaseSessionFactory(LoggingMixin):
     def _create_session_with_assume_role(
         self, session_kwargs: dict[str, Any], deferrable: bool = False
     ) -> boto3.session.Session:
-
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
-            credentials = botocore.credentials.DeferredRefreshableCredentials(
-                method="assume-role-with-web-identity",
-                refresh_using=credential_fetcher.fetch_credentials,
-                time_fetcher=lambda: datetime.datetime.now(tz=tzlocal()),
-            )
+
+            params = {
+                "method": "assume-role-with-web-identity",
+                "refresh_using": credential_fetcher.fetch_credentials,
+                "time_fetcher": lambda: datetime.datetime.now(tz=tzlocal()),
+            }
+
+            if deferrable:
+                from aiobotocore.credentials import AioDeferredRefreshableCredentials
+
+                credentials = AioDeferredRefreshableCredentials(**params)
+            else:
+                credentials = botocore.credentials.DeferredRefreshableCredentials(**params)
         else:
             # Refreshable credentials do have initial credentials
-            credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(
-                metadata=self._refresh_credentials(),
-                refresh_using=self._refresh_credentials,
-                method="sts-assume-role",
-            )
+            params = {
+                "metadata": self._refresh_credentials(),
+                "refresh_using": self._refresh_credentials,
+                "method": "sts-assume-role",
+            }
+            if deferrable:
+                from aiobotocore.credentials import AioRefreshableCredentials
+
+                credentials = AioRefreshableCredentials.create_from_metadata(**params)
+            else:
+                credentials = botocore.credentials.RefreshableCredentials.create_from_metadata(**params)
 
         if deferrable:
             from aiobotocore.session import get_session as async_get_session
@@ -408,9 +425,9 @@ class BaseSessionFactory(LoggingMixin):
 
 
 class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
-    """
-    Generic class for interact with AWS.
-    This class provide a thin wrapper around the boto3 python library.
+    """Generic class for interact with AWS.
+
+    This class provide a thin wrapper around the boto3 Python library.
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
@@ -454,34 +471,29 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self._verify = verify
 
     @classmethod
+    @return_on_error("Unknown")
     def _get_provider_version(cls) -> str:
-        """Checks the Providers Manager for the package version."""
-        try:
-            manager = ProvidersManager()
-            hook = manager.hooks[cls.conn_type]
-            if not hook:
-                # This gets caught immediately, but without it MyPy complains
-                # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
-                # on the following line and static checks fail.
-                raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
-            provider = manager.providers[hook.package_name]
-            return provider.version
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "Unknown"
+        """Check the Providers Manager for the package version."""
+        manager = ProvidersManager()
+        hook = manager.hooks[cls.conn_type]
+        if not hook:
+            # This gets caught immediately, but without it MyPy complains
+            # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
+            # on the following line and static checks fail.
+            raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
+        return manager.providers[hook.package_name].version
 
     @staticmethod
     def _find_class_name(target_function_name: str) -> str:
-        """
-        Given a frame off the stack, return the name of the class which made the call.
-        Note: This method may raise a ValueError or an IndexError, but the calling
-        method is catching and handling those.
+        """Given a frame off the stack, return the name of the class that made the call.
+
+        This method may raise a ValueError or an IndexError. The caller is
+        responsible with catching and handling those.
         """
         stack = inspect.stack()
-        # Find the index of the most recent frame which called the provided function name.
-        target_frame_index = [frame.function for frame in stack].index(target_function_name)
-        # Pull that frame off the stack.
-        target_frame = stack[target_frame_index][0]
+        # Find the index of the most recent frame which called the provided function name
+        # and pull that frame off the stack.
+        target_frame = next(frame for frame in stack if frame.function == target_function_name)[0]
         # Get the local variables for that frame.
         frame_variables = target_frame.f_locals["self"]
         # Get the class object for that frame.
@@ -489,45 +501,36 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # Return the name of the class object.
         return frame_class_object.__name__
 
+    @return_on_error("Unknown")
     def _get_caller(self, target_function_name: str = "execute") -> str:
         """Given a function name, walk the stack and return the name of the class which called it last."""
-        try:
-            caller = self._find_class_name(target_function_name)
-            if caller == "BaseSensorOperator":
-                # If the result is a BaseSensorOperator, then look for whatever last called "poke".
-                return self._get_caller("poke")
-            return caller
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "Unknown"
+        caller = self._find_class_name(target_function_name)
+        if caller == "BaseSensorOperator":
+            # If the result is a BaseSensorOperator, then look for whatever last called "poke".
+            return self._get_caller("poke")
+        return caller
 
     @staticmethod
+    @return_on_error("00000000-0000-0000-0000-000000000000")
     def _generate_dag_key() -> str:
-        """
+        """Generate a DAG key.
+
         The Object Identifier (OID) namespace is used to salt the dag_id value.
         That salted value is used to generate a SHA-1 hash which, by definition,
         can not (reasonably) be reversed.  No personal data can be inferred or
         extracted from the resulting UUID.
         """
-        try:
-            dag_id = os.environ["AIRFLOW_CTX_DAG_ID"]
-            return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "00000000-0000-0000-0000-000000000000"
+        return generate_uuid(os.environ.get("AIRFLOW_CTX_DAG_ID"))
 
     @staticmethod
+    @return_on_error("Unknown")
     def _get_airflow_version() -> str:
         """Fetch and return the current Airflow version."""
-        try:
-            # This can be a circular import under specific configurations.
-            # Importing locally to either avoid or catch it if it does happen.
-            from airflow import __version__ as airflow_version
+        # This can be a circular import under specific configurations.
+        # Importing locally to either avoid or catch it if it does happen.
+        from airflow import __version__ as airflow_version
 
-            return airflow_version
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "Unknown"
+        return airflow_version
 
     def _generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
         user_agent_extra_values = [
@@ -584,7 +587,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     def _get_config(self, config: Config | None = None) -> Config:
         """
         No AWS Operators use the config argument to this method.
-        Keep backward compatibility with other users who might use it
+
+        Keep backward compatibility with other users who might use it.
         """
         if config is None:
             config = deepcopy(self.config)
@@ -604,7 +608,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         config: Config | None = None,
         deferrable: bool = False,
     ) -> boto3.client:
-        """Get the underlying boto3 client using boto3 session"""
+        """Get the underlying boto3 client using boto3 session."""
         client_type = self.client_type
         session = self.get_session(region_name=region_name, deferrable=deferrable)
         if not isinstance(session, boto3.session.Session):
@@ -627,7 +631,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         region_name: str | None = None,
         config: Config | None = None,
     ) -> boto3.resource:
-        """Get the underlying boto3 resource using boto3 session"""
+        """Get the underlying boto3 resource using boto3 session."""
         resource_type = self.resource_type
         session = self.get_session(region_name=region_name)
         return session.resource(
@@ -640,7 +644,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     @cached_property
     def conn(self) -> BaseAwsConnection:
         """
-        Get the underlying boto3 client/resource (cached)
+        Get the underlying boto3 client/resource (cached).
 
         :return: boto3.client or boto3.resource
         """
@@ -663,12 +667,16 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return self.get_client_type(region_name=self.region_name, deferrable=True)
 
     @cached_property
-    def conn_client_meta(self) -> ClientMeta:
-        """Get botocore client metadata from Hook connection (cached)."""
+    def _client(self) -> botocore.client.BaseClient:
         conn = self.conn
         if isinstance(conn, botocore.client.BaseClient):
-            return conn.meta
-        return conn.meta.client.meta
+            return conn
+        return conn.meta.client
+
+    @property
+    def conn_client_meta(self) -> ClientMeta:
+        """Get botocore client metadata from Hook connection (cached)."""
+        return self._client.meta
 
     @property
     def conn_region_name(self) -> str:
@@ -682,7 +690,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     def get_conn(self) -> BaseAwsConnection:
         """
-        Get the underlying boto3 client/resource (cached)
+        Get the underlying boto3 client/resource (cached).
 
         Implemented so that caching works as intended. It exists for compatibility
         with subclasses that rely on a super().get_conn() method.
@@ -709,9 +717,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return creds
 
     def expand_role(self, role: str, region_name: str | None = None) -> str:
-        """
-        If the IAM role is a role name, get the Amazon Resource Name (ARN) for the role.
-        If IAM role is already an IAM role ARN, no change is made.
+        """Get the Amazon Resource Name (ARN) for the role.
+
+        If IAM role is already an IAM role ARN, the value is returned unchanged.
 
         :param role: IAM role name or ARN
         :param region_name: Optional region name to get credentials for
@@ -728,10 +736,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @staticmethod
     def retry(should_retry: Callable[[Exception], bool]):
-        """
-        A decorator that provides a mechanism to repeat requests in response to exceeding a temporary quote
-        limit.
-        """
+        """Repeat requests in response to exceeding a temporary quote limit."""
 
         def retry_decorator(fun: Callable):
             @wraps(fun)
@@ -760,7 +765,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom UI field behaviour for AWS Connection."""
+        """Return custom UI field behaviour for AWS Connection."""
         return {
             "hidden_fields": ["host", "schema", "port"],
             "relabeling": {
@@ -787,15 +792,18 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         }
 
     def test_connection(self):
-        """
-        Tests the AWS connection by call AWS STS (Security Token Service) GetCallerIdentity API.
+        """Test the AWS connection by call AWS STS (Security Token Service) GetCallerIdentity API.
 
         .. seealso::
             https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html
         """
         try:
             session = self.get_session()
-            conn_info = session.client("sts").get_caller_identity()
+            test_endpoint_url = self.conn_config.extra_config.get("test_endpoint_url")
+            conn_info = session.client(
+                "sts",
+                endpoint_url=test_endpoint_url,
+            ).get_caller_identity()
             metadata = conn_info.pop("ResponseMetadata", {})
             if metadata.get("HTTPStatusCode") != 200:
                 try:
@@ -810,7 +818,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return False, str(f"{type(e).__name__!r} error occurred while testing connection: {e}")
 
     @cached_property
-    def waiter_path(self) -> PathLike[str] | None:
+    def waiter_path(self) -> os.PathLike[str] | None:
         filename = self.client_type if self.client_type else self.resource_type
         path = Path(__file__).parents[1].joinpath(f"waiters/{filename}.json").resolve()
         return path if path.exists() else None
@@ -822,7 +830,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         deferrable: bool = False,
         client=None,
     ) -> Waiter:
-        """
+        """Get a waiter by name.
+
         First checks if there is a custom waiter with the provided waiter_name and
         uses that if it exists, otherwise it will check the service client for a
         waiter that matches the name and pass that through.
@@ -833,29 +842,20 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         :param waiter_name: The name of the waiter.  The name should exactly match the
             name of the key in the waiter model file (typically this is CamelCase).
-        :param parameters: will scan the waiter config for the keys of that dict, and replace them with the
-            corresponding value. If a custom waiter has such keys to be expanded, they need to be provided
-            here.
+        :param parameters: will scan the waiter config for the keys of that dict,
+            and replace them with the corresponding value. If a custom waiter has
+            such keys to be expanded, they need to be provided here.
         :param deferrable: If True, the waiter is going to be an async custom waiter.
-
+            An async client must be provided in that case.
+        :param client: The client to use for the waiter's operations
         """
         from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 
         if deferrable and not client:
             raise ValueError("client must be provided for a deferrable waiter.")
-        client = client or self.conn
+        # Currently, the custom waiter doesn't work with resource_type, only client_type is supported.
+        client = client or self._client
         if self.waiter_path and (waiter_name in self._list_custom_waiters()):
-            # Currently, the custom waiter doesn't work with resource_type, only client_type is supported.
-            if self.resource_type:
-                credentials = self.get_credentials()
-                client = boto3.client(
-                    self.resource_type,
-                    region_name=self.region_name,
-                    aws_access_key_id=credentials.access_key,
-                    aws_secret_access_key=credentials.secret_key,
-                    aws_session_token=credentials.token,
-                )
-
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
             # exist but MyPy doesn't like the fact that self.waiter_path could be None.
             with open(self.waiter_path) as config_file:
@@ -867,11 +867,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             )
         # If there is no custom waiter found for the provided name,
         # then try checking the service's official waiters.
-        return self.conn.get_waiter(waiter_name)
+        return client.get_waiter(waiter_name)
 
     @staticmethod
     def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str] | None) -> dict:
-        """Replaces potential jinja templates in acceptors definition"""
+        """Replace potential jinja templates in acceptors definition."""
         # only process the waiter we're going to use to not raise errors for missing params for other waiters.
         acceptors = config["waiters"][waiter_name]["acceptors"]
         for a in acceptors:
@@ -886,11 +886,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return config
 
     def list_waiters(self) -> list[str]:
-        """Returns a list containing the names of all waiters for the service, official and custom."""
+        """Return a list containing the names of all waiters for the service, official and custom."""
         return [*self._list_official_waiters(), *self._list_custom_waiters()]
 
     def _list_official_waiters(self) -> list[str]:
-        return self.conn.waiter_names
+        return self._client.waiter_names
 
     def _list_custom_waiters(self) -> list[str]:
         if not self.waiter_path:
@@ -901,9 +901,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
 
 class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
-    """
-    Base class for interact with AWS.
-    This class provide a thin wrapper around the boto3 python library.
+    """Base class for interact with AWS.
+
+    This class provide a thin wrapper around the boto3 Python library.
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
@@ -925,7 +925,7 @@ class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
 
 
 def resolve_session_factory() -> type[BaseSessionFactory]:
-    """Resolves custom SessionFactory class"""
+    """Resolve custom SessionFactory class."""
     clazz = conf.getimport("aws", "session_factory", fallback=None)
     if not clazz:
         return BaseSessionFactory
@@ -941,7 +941,7 @@ SessionFactory = resolve_session_factory()
 
 
 def _parse_s3_config(config_file_name: str, config_format: str | None = "boto", profile: str | None = None):
-    """For compatibility with airflow.contrib.hooks.aws_hook"""
+    """For compatibility with airflow.contrib.hooks.aws_hook."""
     from airflow.providers.amazon.aws.utils.connection_wrapper import _parse_s3_config
 
     return _parse_s3_config(
@@ -966,8 +966,17 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
     provided in Airflow connection
     """
 
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory has been deprecated and "
+            "will be removed in future",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
     async def get_role_credentials(self) -> dict:
-        """Get the role_arn, method credentials from connection details and get the role credentials detail"""
+        """Get the role_arn, method credentials from connection and get the role credentials."""
         async with self._basic_session.create_client("sts", region_name=self.region_name) as client:
             response = await client.assume_role(
                 RoleArn=self.role_arn,
@@ -995,7 +1004,6 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
         return credentials
 
     def _get_session_with_assume_role(self) -> AioSession:
-
         assume_role_method = self.conn.assume_role_method
         if assume_role_method != "assume_role":
             raise NotImplementedError(f"assume_role_method={assume_role_method} not expected")
@@ -1044,8 +1052,7 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
 
 
 class AwsBaseAsyncHook(AwsBaseHook):
-    """
-    Interacts with AWS using aiobotocore asynchronously.
+    """Interacts with AWS using aiobotocore asynchronously.
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default botocore behaviour is used. If
@@ -1059,6 +1066,15 @@ class AwsBaseAsyncHook(AwsBaseHook):
     :param config: Configuration for botocore client.
     """
 
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook has been deprecated and "
+            "will be removed in future",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
     def get_async_session(self) -> AioSession:
         """Get the underlying aiobotocore.session.AioSession(...)."""
         return BaseAsyncSessionFactory(
@@ -1066,7 +1082,7 @@ class AwsBaseAsyncHook(AwsBaseHook):
         ).create_session()
 
     async def get_client_async(self):
-        """Get the underlying aiobotocore client using aiobotocore session"""
+        """Get the underlying aiobotocore client using aiobotocore session."""
         return self.get_async_session().create_client(
             self.client_type,
             region_name=self.region_name,

@@ -32,9 +32,10 @@ if TYPE_CHECKING:
 
 class HiveToMySqlOperator(BaseOperator):
     """
-    Moves data from Hive to MySQL, note that for now the data is loaded
-    into memory before being pushed to MySQL, so this operator should
-    be used for smallish amount of data.
+    Moves data from Hive to MySQL.
+
+    Note that for now the data is loaded into memory before being pushed
+    to MySQL, so this operator should be used for smallish amount of data.
 
     :param sql: SQL query to execute against Hive server. (templated)
     :param mysql_table: target MySQL table, use dot notation to target a

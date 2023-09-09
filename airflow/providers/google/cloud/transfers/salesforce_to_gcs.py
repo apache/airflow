@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 class SalesforceToGcsOperator(BaseOperator):
     """
-    Submits Salesforce query and uploads results to Google Cloud Storage
+    Submits Salesforce query and uploads results to Google Cloud Storage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

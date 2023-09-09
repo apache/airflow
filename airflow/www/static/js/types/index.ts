@@ -17,6 +17,15 @@
  * under the License.
  */
 
+import type { CamelCase } from "type-fest";
+import type {
+  ElkExtendedEdge,
+  ElkEdgeSection,
+  ElkLabel,
+  ElkPoint,
+  ElkShape,
+  LayoutOptions,
+} from "elkjs";
 import type * as API from "./api-generated";
 
 type RunState = "success" | "running" | "queued" | "failed";
@@ -25,7 +34,6 @@ type TaskState =
   | RunState
   | "removed"
   | "scheduled"
-  | "shutdown"
   | "restarting"
   | "up_for_retry"
   | "up_for_reschedule"
@@ -69,6 +77,7 @@ interface TaskInstance {
   mappedStates?: {
     [key: string]: number;
   };
+  queuedDttm?: string | null;
   mapIndex?: number;
   tryNumber?: number;
   triggererJob?: Job;
@@ -97,6 +106,7 @@ interface Task {
   operator?: string;
   hasOutletDatasets?: boolean;
   triggerRule?: API.TriggerRule;
+  setupTeardownType?: "setup" | "teardown";
 }
 
 type RunOrdering = (
@@ -104,6 +114,20 @@ type RunOrdering = (
   | "executionDate"
   | "dataIntervalEnd"
 )[];
+
+export interface MidEdge {
+  id: string;
+  sources: string[];
+  targets: string[];
+  isSetupTeardown: boolean | undefined;
+  parentNode: string | undefined;
+  labels: {
+    id: string;
+    text: string;
+    height: number;
+    width: number;
+  }[];
+}
 
 interface DepNode {
   id: string;
@@ -116,13 +140,46 @@ interface DepNode {
     isOpen?: boolean;
     isJoinNode?: boolean;
     childCount?: number;
+    labelStyle: string;
+    style: string;
+    setupTeardownType?: "setup" | "teardown";
   };
   children?: DepNode[];
+  edges?: MidEdge[];
 }
 
 interface DepEdge {
   source: string;
   target: string;
+}
+
+export interface EdgeData {
+  rest: {
+    isSelected: boolean;
+    sources: string[];
+    targets: string[];
+    sections: ElkEdgeSection[];
+    junctionPoints?: ElkPoint[];
+    id: string;
+    labels?: ElkLabel[];
+    layoutOptions?: LayoutOptions;
+    isSetupTeardown?: boolean;
+    parentNode?: string;
+  };
+}
+
+export interface NodeType extends ElkShape {
+  value: DepNode["value"];
+  children?: NodeType[];
+  edges?: ElkExtendedEdge[];
+}
+
+export interface WebserverEdge {
+  label?: string;
+  sourceId: string;
+  targetId: string;
+  isSetupTeardown?: boolean;
+  parentNode?: string;
 }
 
 interface DatasetListItem extends API.Dataset {
@@ -132,17 +189,44 @@ interface DatasetListItem extends API.Dataset {
 
 type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
 
+type PrimaryShortcutKey = "ctrlKey" | "shiftKey" | "altKey" | "metaKey";
+
+interface KeyboardShortcutKeys {
+  primaryKey: PrimaryShortcutKey;
+  secondaryKey: Array<string>;
+  detail: string;
+}
+
+interface KeyboardShortcutIdentifier {
+  [name: string]: KeyboardShortcutKeys;
+}
+
+interface HistoricalMetricsData {
+  dagRunStates: {
+    [K in CamelCase<RunState>]: number;
+  };
+  dagRunTypes: {
+    [K in CamelCase<DagRun["runType"]>]: number;
+  };
+  taskInstanceStates: {
+    [K in TaskState extends string ? CamelCase<K> : never]: number;
+  };
+}
+
 export type {
   API,
-  MinimalTaskInstance,
   Dag,
   DagRun,
   DatasetListItem,
   DepEdge,
   DepNode,
+  HistoricalMetricsData,
+  MinimalTaskInstance,
   RunOrdering,
   RunState,
   Task,
   TaskInstance,
   TaskState,
+  KeyboardShortcutKeys,
+  KeyboardShortcutIdentifier,
 };

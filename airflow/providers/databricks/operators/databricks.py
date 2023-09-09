@@ -20,10 +20,10 @@ from __future__ import annotations
 
 import time
 import warnings
-from logging import Logger
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.compat.functools import cached_property
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
@@ -31,6 +31,8 @@ from airflow.providers.databricks.triggers.databricks import DatabricksExecution
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
+    from logging import Logger
+
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -42,7 +44,7 @@ XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for a Databricks operator
+    Handles the Airflow + Databricks lifecycle logic for a Databricks operator.
 
     :param operator: Databricks operator being handled
     :param context: Airflow context
@@ -100,7 +102,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 
 def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators
+    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators.
 
     :param operator: Databricks async operator being handled
     :param context: Airflow context
@@ -162,10 +164,9 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
-    Submits a Spark job run to Databricks using the
-    `api/2.1/jobs/runs/submit
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_
-    API endpoint.
+    Submits a Spark job run to Databricks using the api/2.1/jobs/runs/submit API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
 
     There are three ways to instantiate this operator.
 
@@ -303,7 +304,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         dbt_task: dict[str, str | list[str]] | None = None,
         new_cluster: dict[str, object] | None = None,
         existing_cluster_id: str | None = None,
-        libraries: list[dict[str, str]] | None = None,
+        libraries: list[dict[str, Any]] | None = None,
         run_name: str | None = None,
         timeout_seconds: int | None = None,
         databricks_conn_id: str = "databricks_default",
@@ -316,7 +317,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -364,6 +365,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         if "dbt_task" in self.json and "git_source" not in self.json:
             raise AirflowException("git_source is required for dbt_task")
+        if pipeline_task is not None and "pipeline_id" in pipeline_task and "pipeline_name" in pipeline_task:
+            raise AirflowException("'pipeline_name' is not allowed in conjunction with 'pipeline_id'")
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -383,6 +386,15 @@ class DatabricksSubmitRunOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
+        if (
+            "pipeline_task" in self.json
+            and self.json["pipeline_task"].get("pipeline_id") is None
+            and self.json["pipeline_task"].get("pipeline_name")
+        ):
+            # If pipeline_id is not provided, we need to fetch it from the pipeline_name
+            pipeline_name = self.json["pipeline_task"]["pipeline_name"]
+            self.json["pipeline_task"]["pipeline_id"] = self._hook.get_pipeline_id(pipeline_name)
+            del self.json["pipeline_task"]["pipeline_name"]
         json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
         if self.deferrable:
@@ -404,7 +416,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
 
 class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
-    """Deferrable version of ``DatabricksSubmitRunOperator``"""
+    """Deferrable version of ``DatabricksSubmitRunOperator``."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
@@ -428,10 +440,9 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
 
 class DatabricksRunNowOperator(BaseOperator):
     """
-    Runs an existing Spark job run to Databricks using the
-    `api/2.1/jobs/run-now
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>`_
-    API endpoint.
+    Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
 
     There are two ways to instantiate this operator.
 
@@ -607,7 +618,7 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksRunNowOperator``."""
@@ -672,6 +683,10 @@ class DatabricksRunNowOperator(BaseOperator):
         else:
             _handle_databricks_operator_execution(self, hook, self.log, context)
 
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event:
+            _handle_deferrable_databricks_operator_completion(event, self.log)
+
     def on_kill(self):
         if self.run_id:
             self._hook.cancel_run(self.run_id)
@@ -683,7 +698,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
 
 class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
-    """Deferrable version of ``DatabricksRunNowOperator``"""
+    """Deferrable version of ``DatabricksRunNowOperator``."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
@@ -694,11 +709,3 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
             stacklevel=2,
         )
         super().__init__(deferrable=True, *args, **kwargs)
-
-    def execute(self, context):
-        hook = self._get_hook(caller="DatabricksRunNowDeferrableOperator")
-        self.run_id = hook.run_now(self.json)
-        _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
-
-    def execute_complete(self, context: dict | None, event: dict):
-        _handle_deferrable_databricks_operator_completion(event, self.log)

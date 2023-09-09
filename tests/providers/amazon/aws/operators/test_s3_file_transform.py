@@ -109,7 +109,7 @@ class TestS3FileTransformOperator:
         )
         op.execute(None)
 
-        assert script_args == mock_popen.call_args[0][0][3:]
+        assert script_args == mock_popen.call_args.args[0][3:]
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key", return_value="input")
     @mock_s3

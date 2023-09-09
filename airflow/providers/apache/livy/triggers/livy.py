@@ -27,7 +27,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class LivyTrigger(BaseTrigger):
     """
-    Check for the state of a previously submitted job with batch_id
+    Check for the state of a previously submitted job with batch_id.
 
     :param batch_id: Batch job id
     :param spark_params: Spark parameters; for example,
@@ -64,7 +64,7 @@ class LivyTrigger(BaseTrigger):
         self._livy_hook_async = livy_hook_async
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes LivyTrigger arguments and classpath."""
+        """Serialize LivyTrigger arguments and classpath."""
         return (
             "airflow.providers.apache.livy.triggers.livy.LivyTrigger",
             {
@@ -79,10 +79,10 @@ class LivyTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """
-        Checks if the _polling_interval > 0, in that case it pools Livy for
-        batch termination asynchronously.
-        else returns the success response
+        """Run the trigger.
+
+        If ``_polling_interval > 0``, this pools Livy for batch termination
+        asynchronously. Otherwise the success response is created immediately.
         """
         try:
             if self._polling_interval > 0:
@@ -101,7 +101,7 @@ class LivyTrigger(BaseTrigger):
                 {
                     "status": "error",
                     "batch_id": self._batch_id,
-                    "response": f"Batch {self._batch_id} did not succeed with {str(exc)}",
+                    "response": f"Batch {self._batch_id} did not succeed with {exc}",
                     "log_lines": None,
                 }
             )

@@ -28,7 +28,7 @@ DAGs View
 .........
 List of the DAGs in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
-running at a glance. To hide completed tasks set show_recent_stats_for_completed_runs = False
+running at a glance. To hide completed tasks set ``show_recent_stats_for_completed_runs = False``
 
 In order to filter DAGs (e.g by team), you can add tags in each DAG.
 The filter is saved in a cookie and can be reset by the reset button.
@@ -91,7 +91,7 @@ Task groups are indicated by a caret and can be opened or closed:
 
 .. image:: img/grid_task_group.png
 
-Mapped Tasks are indicated by square brackets and will show a table of each mapped task instance in the details panel:
+Mapped Tasks are indicated by square brackets and will show a table of each mapped task instance in the Mapped Tasks panel:
 
 .. image:: img/grid_mapped_task.png
 
@@ -185,15 +185,3 @@ provide yet more context.
 ------------
 
 .. image:: img/code.png
-
-------------
-
-Task Instance Context Menu
-..........................
-From the pages seen above (grid view, graph view, gantt, ...), it is always
-possible to click on a task instance, and get to this rich context menu
-that can take you to more detailed metadata, and perform some actions.
-
-------------
-
-.. image:: img/context.png

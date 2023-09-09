@@ -18,12 +18,10 @@
 """This module contains a Google Cloud Vertex AI hook."""
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.aiplatform import (
     CustomContainerTrainingJob,
     CustomPythonPackageTrainingJob,
@@ -32,16 +30,20 @@ from google.cloud.aiplatform import (
     models,
 )
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
-from google.cloud.aiplatform_v1.services.job_service.pagers import ListCustomJobsPager
-from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
-    ListPipelineJobsPager,
-    ListTrainingPipelinesPager,
-)
-from google.cloud.aiplatform_v1.types import CustomJob, PipelineJob, TrainingPipeline
 
 from airflow import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1.services.job_service.pagers import ListCustomJobsPager
+    from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
+        ListPipelineJobsPager,
+        ListTrainingPipelinesPager,
+    )
+    from google.cloud.aiplatform_v1.types import CustomJob, PipelineJob, TrainingPipeline
 
 
 class CustomJobHook(GoogleBaseHook):
@@ -83,7 +85,7 @@ class CustomJobHook(GoogleBaseHook):
         self,
         region: str | None = None,
     ) -> JobServiceClient:
-        """Returns JobServiceClient"""
+        """Returns JobServiceClient."""
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
@@ -116,7 +118,7 @@ class CustomJobHook(GoogleBaseHook):
         model_encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ) -> CustomContainerTrainingJob:
-        """Returns CustomContainerTrainingJob object"""
+        """Returns CustomContainerTrainingJob object."""
         return CustomContainerTrainingJob(
             display_name=display_name,
             container_uri=container_uri,
@@ -165,7 +167,7 @@ class CustomJobHook(GoogleBaseHook):
         model_encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ):
-        """Returns CustomPythonPackageTrainingJob object"""
+        """Returns CustomPythonPackageTrainingJob object."""
         return CustomPythonPackageTrainingJob(
             display_name=display_name,
             container_uri=container_uri,
@@ -215,7 +217,7 @@ class CustomJobHook(GoogleBaseHook):
         model_encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ):
-        """Returns CustomTrainingJob object"""
+        """Returns CustomTrainingJob object."""
         return CustomTrainingJob(
             display_name=display_name,
             script_path=script_path,
@@ -265,7 +267,7 @@ class CustomJobHook(GoogleBaseHook):
             raise AirflowException(error)
 
     def cancel_job(self) -> None:
-        """Cancel Job for training pipeline"""
+        """Cancel Job for training pipeline."""
         if self._job:
             self._job.cancel()
 
@@ -302,7 +304,7 @@ class CustomJobHook(GoogleBaseHook):
         tensorboard: str | None = None,
         sync=True,
     ) -> tuple[models.Model | None, str, str]:
-        """Run Job for training pipeline"""
+        """Run Job for training pipeline."""
         model = job.run(
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
@@ -357,7 +359,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a PipelineJob. Starts asynchronous cancellation on the PipelineJob. The server makes a best
+        Cancels a PipelineJob.
+
+        Starts asynchronous cancellation on the PipelineJob. The server makes a best
         effort to cancel the pipeline, but success is not guaranteed. Clients can use
         [PipelineService.GetPipelineJob][google.cloud.aiplatform.v1.PipelineService.GetPipelineJob] or other
         methods to check whether the cancellation succeeded or whether the pipeline completed despite
@@ -396,7 +400,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a TrainingPipeline. Starts asynchronous cancellation on the TrainingPipeline. The server makes
+        Cancels a TrainingPipeline.
+
+        Starts asynchronous cancellation on the TrainingPipeline. The server makes
         a best effort to cancel the pipeline, but success is not guaranteed. Clients can use
         [PipelineService.GetTrainingPipeline][google.cloud.aiplatform.v1.PipelineService.GetTrainingPipeline]
         or other methods to check whether the cancellation succeeded or whether the pipeline completed despite
@@ -435,7 +441,9 @@ class CustomJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
-        Cancels a CustomJob. Starts asynchronous cancellation on the CustomJob. The server makes a best effort
+        Cancels a CustomJob.
+
+        Starts asynchronous cancellation on the CustomJob. The server makes a best effort
         to cancel the job, but success is not guaranteed. Clients can use
         [JobService.GetCustomJob][google.cloud.aiplatform.v1.JobService.GetCustomJob] or other methods to
         check whether the cancellation succeeded or whether the job completed despite cancellation. On
@@ -627,7 +635,7 @@ class CustomJobHook(GoogleBaseHook):
         sync=True,
     ) -> tuple[models.Model | None, str, str]:
         """
-        Create Custom Container Training Job
+        Create Custom Container Training Job.
 
         :param display_name: Required. The user-defined name of this TrainingPipeline.
         :param command: The command to be invoked when the container is started.
@@ -985,7 +993,7 @@ class CustomJobHook(GoogleBaseHook):
         sync=True,
     ) -> tuple[models.Model | None, str, str]:
         """
-        Create Custom Python Package Training Job
+        Create Custom Python Package Training Job.
 
         :param display_name: Required. The user-defined name of this TrainingPipeline.
         :param python_package_gcs_uri: Required: GCS location of the training python package.
@@ -1343,7 +1351,7 @@ class CustomJobHook(GoogleBaseHook):
         sync=True,
     ) -> tuple[models.Model | None, str, str]:
         """
-        Create Custom Training Job
+        Create Custom Training Job.
 
         :param display_name: Required. The user-defined name of this TrainingPipeline.
         :param script_path: Required. Local path to training script.

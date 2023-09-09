@@ -43,6 +43,8 @@ TEMPLATED_NOTEBOOK_TASK = {"notebook_path": "/test-{{ ds }}"}
 RENDERED_TEMPLATED_NOTEBOOK_TASK = {"notebook_path": f"/test-{DATE}"}
 SPARK_JAR_TASK = {"main_class_name": "com.databricks.Test"}
 SPARK_PYTHON_TASK = {"python_file": "test.py", "parameters": ["--param", "123"]}
+PIPELINE_ID_TASK = {"pipeline_id": "1234abcd"}
+PIPELINE_NAME_TASK = {"pipeline_name": "This is a test pipeline"}
 SPARK_SUBMIT_TASK = {
     "parameters": ["--class", "org.apache.spark.examples.SparkPi", "dbfs:/path/to/examples.jar", "10"]
 }
@@ -117,6 +119,24 @@ class TestDatabricksSubmitRunOperator:
         expected = utils.normalise_json_content(
             {"new_cluster": NEW_CLUSTER, "spark_python_task": SPARK_PYTHON_TASK, "run_name": TASK_ID}
         )
+
+        assert expected == utils.normalise_json_content(op.json)
+
+    def test_init_with_pipeline_name_task_named_parameters(self):
+        """
+        Test the initializer with the named parameters.
+        """
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, pipeline_task=PIPELINE_NAME_TASK)
+        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_NAME_TASK, "run_name": TASK_ID})
+
+        assert expected == utils.normalise_json_content(op.json)
+
+    def test_init_with_pipeline_id_task_named_parameters(self):
+        """
+        Test the initializer with the named parameters.
+        """
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, pipeline_task=PIPELINE_ID_TASK)
+        expected = utils.normalise_json_content({"pipeline_task": PIPELINE_ID_TASK, "run_name": TASK_ID})
 
         assert expected == utils.normalise_json_content(op.json)
 
@@ -517,7 +537,7 @@ class TestDatabricksSubmitRunDeferrableOperator:
             op.execute_complete(context=None, event=event)
 
     def test_execute_complete_incorrect_event_validation_failure(self):
-        event = {}
+        event = {"event_id": "no such column"}
         op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID)
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)
@@ -905,7 +925,7 @@ class TestDatabricksRunNowDeferrableOperator:
             retry_limit=op.databricks_retry_limit,
             retry_delay=op.databricks_retry_delay,
             retry_args=None,
-            caller="DatabricksRunNowDeferrableOperator",
+            caller="DatabricksRunNowOperator",
         )
 
         db_mock.run_now.assert_called_once_with(expected)
@@ -951,7 +971,7 @@ class TestDatabricksRunNowDeferrableOperator:
             op.execute_complete(context=None, event=event)
 
     def test_execute_complete_incorrect_event_validation_failure(self):
-        event = {}
+        event = {"event_id": "no such column"}
         op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID)
         with pytest.raises(AirflowException):
             op.execute_complete(context=None, event=event)

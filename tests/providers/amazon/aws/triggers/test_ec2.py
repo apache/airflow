@@ -16,18 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import sys
+from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
 
 from airflow.providers.amazon.aws.triggers.ec2 import EC2StateSensorTrigger
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import CoroutineMock as AsyncMock, mock as async_mock
-else:
-    from unittest import mock as async_mock
-    from unittest.mock import AsyncMock
 
 TEST_INSTANCE_ID = "test-instance-id"
 TEST_TARGET_STATE = "test_state"
@@ -55,8 +50,8 @@ class TestEC2StateSensorTrigger:
         assert args["poll_interval"] == TEST_POLL_INTERVAL
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_instance_state_async")
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_instance_state_async")
+    @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.async_conn")
     async def test_ec2_state_sensor_run(self, mock_async_conn, mock_get_instance_state_async):
         mock = AsyncMock()
         mock_async_conn.__aenter__.return_value = mock
@@ -76,9 +71,9 @@ class TestEC2StateSensorTrigger:
         assert response == TriggerEvent({"status": "success", "message": "target state met"})
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_instance_state_async")
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.get_instance_state_async")
+    @mock.patch("airflow.providers.amazon.aws.hooks.ec2.EC2Hook.async_conn")
     async def test_ec2_state_sensor_run_multiple(
         self, mock_async_conn, mock_get_instance_state_async, mock_sleep
     ):

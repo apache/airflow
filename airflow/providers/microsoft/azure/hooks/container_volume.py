@@ -19,10 +19,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from azure.identity import DefaultAzureCredential
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
+from azure.mgmt.storage import StorageManagementClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import _ensure_prefixes, get_field
+from airflow.providers.microsoft.azure.utils import get_field
 
 
 class AzureContainerVolumeHook(BaseHook):
@@ -53,21 +55,28 @@ class AzureContainerVolumeHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
+        """Returns connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import PasswordField
+        from wtforms import PasswordField, StringField
 
         return {
             "connection_string": PasswordField(
                 lazy_gettext("Blob Storage Connection String (optional)"), widget=BS3PasswordFieldWidget()
             ),
+            "subscription_id": StringField(
+                lazy_gettext("Subscription ID (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
+            "resource_group": StringField(
+                lazy_gettext("Resource group name (optional)"),
+                widget=BS3TextFieldWidget(),
+            ),
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="azure_container_volume")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -78,11 +87,13 @@ class AzureContainerVolumeHook(BaseHook):
                 "login": "client_id (token credentials auth)",
                 "password": "secret (token credentials auth)",
                 "connection_string": "connection string auth",
+                "subscription_id": "Subscription id (required for Azure AD authentication)",
+                "resource_group": "Resource group name (required for Azure AD authentication)",
             },
         }
 
-    def get_storagekey(self) -> str:
-        """Get Azure File Volume storage key"""
+    def get_storagekey(self, *, storage_account_name: str | None = None) -> str:
+        """Get Azure File Volume storage key."""
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
         connection_string = self._get_field(extras, "connection_string")
@@ -91,18 +102,29 @@ class AzureContainerVolumeHook(BaseHook):
                 key, value = keyvalue.split("=", 1)
                 if key == "AccountKey":
                     return value
+
+        subscription_id = self._get_field(extras, "subscription_id")
+        resource_group = self._get_field(extras, "resource_group")
+        if subscription_id and storage_account_name and resource_group:
+            credentials = DefaultAzureCredential()
+            storage_client = StorageManagementClient(credentials, subscription_id)
+            storage_account_list_keys_result = storage_client.storage_accounts.list_keys(
+                resource_group, storage_account_name
+            )
+            return storage_account_list_keys_result.as_dict()["keys"][0]["value"]
+
         return conn.password
 
     def get_file_volume(
         self, mount_name: str, share_name: str, storage_account_name: str, read_only: bool = False
     ) -> Volume:
-        """Get Azure File Volume"""
+        """Get Azure File Volume."""
         return Volume(
             name=mount_name,
             azure_file=AzureFileVolume(
                 share_name=share_name,
                 storage_account_name=storage_account_name,
                 read_only=read_only,
-                storage_account_key=self.get_storagekey(),
+                storage_account_key=self.get_storagekey(storage_account_name=storage_account_name),
             ),
         )

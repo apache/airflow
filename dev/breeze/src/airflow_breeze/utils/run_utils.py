@@ -97,7 +97,7 @@ def run_command(
             return False
         if _arg.startswith("-"):
             return True
-        if len(_arg) == 0:
+        if not _arg:
             return True
         if _arg.startswith("/"):
             # Skip any absolute paths
@@ -250,8 +250,7 @@ def get_filesystem_type(filepath: str):
     for part in psutil.disk_partitions(all=True):
         if part.mountpoint == "/":
             root_type = part.fstype
-            continue
-        if filepath.startswith(part.mountpoint):
+        elif filepath.startswith(part.mountpoint):
             return part.fstype
 
     return root_type
@@ -302,14 +301,14 @@ def fix_group_permissions():
         get_console().print("[info]Fixing group permissions[/]")
     files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
-        files_to_fix = files_to_fix_result.stdout.strip().split("\n")
+        files_to_fix = files_to_fix_result.stdout.strip().splitlines()
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
         ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
     )
     if directories_to_fix_result.returncode == 0:
-        directories_to_fix = directories_to_fix_result.stdout.strip().split("\n")
+        directories_to_fix = directories_to_fix_result.stdout.strip().splitlines()
         for directory_to_fix in directories_to_fix:
             change_directory_permission(Path(directory_to_fix))
 
@@ -361,10 +360,7 @@ def commit_sha():
 
 def filter_out_none(**kwargs) -> dict:
     """Filters out all None values from parameters passed."""
-    for key in list(kwargs):
-        if kwargs[key] is None:
-            kwargs.pop(key)
-    return kwargs
+    return {key: val for key, val in kwargs.items() if val is not None}
 
 
 def check_if_image_exists(image: str) -> bool:
@@ -379,7 +375,7 @@ def check_if_image_exists(image: str) -> bool:
 
 def get_ci_image_for_pre_commits() -> str:
     github_repository = os.environ.get("GITHUB_REPOSITORY", APACHE_AIRFLOW_GITHUB_REPOSITORY)
-    python_version = "3.7"
+    python_version = "3.8"
     airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
     skip_image_pre_commits = os.environ.get("SKIP_IMAGE_PRE_COMMITS", "false")
     if skip_image_pre_commits[0].lower() == "t":
@@ -413,10 +409,7 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
         )
     else:
         WWW_ASSET_COMPILE_LOCK.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            WWW_ASSET_COMPILE_LOCK.unlink()
-        except FileNotFoundError:
-            pass
+        WWW_ASSET_COMPILE_LOCK.unlink(missing_ok=True)
         try:
             with SoftFileLock(WWW_ASSET_COMPILE_LOCK, timeout=5):
                 with open(WWW_ASSET_OUT_FILE, "w") as output_file:
@@ -430,10 +423,7 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
                         stdout=output_file,
                     )
                 if result.returncode == 0:
-                    try:
-                        WWW_ASSET_OUT_FILE.unlink()
-                    except FileNotFoundError:
-                        pass
+                    WWW_ASSET_OUT_FILE.unlink(missing_ok=True)
                 return result
         except Timeout:
             get_console().print("[error]Another asset compilation is running. Exiting[/]\n")
@@ -442,6 +432,18 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
             get_console().print(WWW_ASSET_COMPILE_LOCK)
             get_console().print()
             sys.exit(1)
+
+
+def kill_process_group(gid: int):
+    """
+    Kills all processes in the process group and ignore if the group is missing.
+
+    :param gid: process group id
+    """
+    try:
+        os.killpg(gid, signal.SIGTERM)
+    except OSError:
+        pass
 
 
 def run_compile_www_assets(
@@ -474,12 +476,13 @@ def run_compile_www_assets(
         pid = os.fork()
         if pid:
             # Parent process - send signal to process group of the child process
-            atexit.register(os.killpg, pid, signal.SIGTERM)
+            atexit.register(kill_process_group, pid)
         else:
             # Check if we are not a group leader already (We should not be)
             if os.getpid() != os.getsid(0):
                 # and create a new process group where we are the leader
                 os.setpgid(0, 0)
             _run_compile_internally(command_to_execute, dev)
+            sys.exit(0)
     else:
         return _run_compile_internally(command_to_execute, dev)

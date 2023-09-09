@@ -29,7 +29,6 @@ do
 done
 
 .breeze build-docs \
-    --for-production \
     --clean-build \
     "${provider_filters[@]}"
 cd "${AIRFLOW_SITE_DIRECTORY}"

@@ -34,8 +34,9 @@ from __future__ import annotations
 # limitations under the License.
 #
 """Various security-related utils."""
-import re
 import socket
+
+import re2
 
 from airflow.utils.net import get_hostname
 
@@ -49,11 +50,11 @@ def get_components(principal) -> list[str] | None:
     """
     if not principal:
         return None
-    return re.split(r"[/@]", str(principal))
+    return re2.split(r"[/@]", str(principal))
 
 
 def replace_hostname_pattern(components, host=None):
-    """Replaces hostname with the right pattern including lowercase of the name."""
+    """Replace hostname with the right pattern including lowercase of the name."""
     fqdn = host
     if not fqdn or fqdn == "0.0.0.0":
         fqdn = get_hostname()
@@ -61,7 +62,7 @@ def replace_hostname_pattern(components, host=None):
 
 
 def get_fqdn(hostname_or_ip=None):
-    """Retrieves FQDN - hostname for the IP or hostname."""
+    """Retrieve FQDN - hostname for the IP or hostname."""
     try:
         if hostname_or_ip:
             fqdn = socket.gethostbyaddr(hostname_or_ip)[0]
@@ -76,7 +77,7 @@ def get_fqdn(hostname_or_ip=None):
 
 
 def principal_from_username(username, realm):
-    """Retrieves principal from the user name and realm."""
+    """Retrieve principal from the username and realm."""
     if ("@" not in username) and realm:
         username = f"{username}@{realm}"
 

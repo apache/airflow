@@ -18,29 +18,29 @@
 Prerequisites
 -------------
 
-Airflow is tested with:
+Airflow™ is tested with:
 
-* Python: 3.7, 3.8, 3.9, 3.10, 3.11
+* Python: 3.8, 3.9, 3.10, 3.11
 
 * Databases:
 
   * PostgreSQL: 11, 12, 13, 14, 15
-  * MySQL: 5.7, 8
+  * MySQL: 5.7, 8.0, 8.1
   * SQLite: 3.15.0+
   * MSSQL(Experimental): 2017, 2019
 
 * Kubernetes: 1.23, 1.24, 1.25, 1.26, 1.27
 
-The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depends
+The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depend
 wildly on the deployment options you have
 
 .. warning::
 
-  Despite big similarities between MariaDB and MySQL, we DO NOT support MariaDB as a backend for Airflow.
+  Despite significant similarities between MariaDB and MySQL, we DO NOT support MariaDB as a backend for Airflow.
   There are known problems (for example index handling) between MariaDB and MySQL and we do not test
   our migration scripts nor application execution on Maria DB. We know there were people who used
   MariaDB for Airflow and that cause a lot of operational headache for them so we strongly discourage
-  attempts of using MariaDB as a backend and users cannot expect any community support for it
+  attempts to use MariaDB as a backend and users cannot expect any community support for it
   because the number of users who tried to use MariaDB for Airflow is very small.
 
 .. warning::
@@ -55,7 +55,7 @@ wildly on the deployment options you have
 
 .. warning::
 
-  Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
+  Airflow™ currently can be run on POSIX-compliant Operating Systems. For development it is regularly
   tested on fairly modern Linux Distros and recent versions of MacOS.
   On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
   The work to add Windows support is tracked via `#10388 <https://github.com/apache/airflow/issues/10388>`__

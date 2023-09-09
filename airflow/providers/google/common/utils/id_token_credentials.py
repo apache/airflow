@@ -24,7 +24,7 @@ To obtain info about this token, run the following commands:
     ID_TOKEN="$(python -m airflow.providers.google.common.utils.id_token_credentials)"
     curl "https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${ID_TOKEN}" -v
 
-.. spelling::
+.. spelling:word-list::
 
     RefreshError
 """
@@ -32,11 +32,14 @@ from __future__ import annotations
 
 import json
 import os
+from typing import TYPE_CHECKING
 
 import google.auth.transport
-import google.oauth2
 from google.auth import credentials as google_auth_credentials, environment_vars, exceptions
 from google.oauth2 import credentials as oauth2_credentials, service_account
+
+if TYPE_CHECKING:
+    import google.oauth2
 
 # Valid types accepted for file-based credentials.
 # They are taken  from "google.auth._default" and since they are all "protected" and the imports might

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Operator for Telegram"""
+"""Operator for Telegram."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 class TelegramOperator(BaseOperator):
     """
     This operator allows you to post messages to Telegram using Telegram Bot API.
+
     Takes both Telegram Bot API token directly or connection that has Telegram token in password field.
     If both supplied, token parameter will be given precedence.
 
@@ -71,7 +72,7 @@ class TelegramOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> None:
-        """Calls the TelegramHook to post the provided Telegram message"""
+        """Calls the TelegramHook to post the provided Telegram message."""
         if self.text:
             self.telegram_kwargs["text"] = self.text
 

@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
-    and insert that data into a MSSQL table.
+    Fetch data from a BigQuery table (alternatively fetch selected columns) and insert it into a MSSQL table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -46,7 +45,8 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     :param mssql_conn_id: reference to a specific mssql hook
     """
 
-    template_fields: Sequence[str] = tuple(BigQueryToSqlBaseOperator.template_fields) + (
+    template_fields: Sequence[str] = (
+        *BigQueryToSqlBaseOperator.template_fields,
         "source_project_dataset_table",
     )
     operator_extra_links = (BigQueryTableLink(),)

@@ -360,11 +360,51 @@ Notes on using the operator:
 
 Using the TaskFlow API with Sensor operators
 --------------------------------------------
+
 You can apply the ``@task.sensor`` decorator to convert a regular Python function to an instance of the
 BaseSensorOperator class. The Python function implements the poke logic and returns an instance of
-the ``PokeReturnValue`` class as the ``poke()`` method in the BaseSensorOperator does. The ``PokeReturnValue`` is
-a new feature in Airflow 2.3 that allows a sensor operator to push an XCom value as described in
-section "Having sensors return XCOM values" of :doc:`apache-airflow-providers:howto/create-update-providers`.
+the ``PokeReturnValue`` class as the ``poke()`` method in the BaseSensorOperator does.
+In Airflow 2.3, sensor operators will be able to return XCOM values. This is achieved by returning
+an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` method:
+
+  .. code-block:: python
+
+    from airflow.sensors.base import PokeReturnValue
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> Union[bool, PokeReturnValue]:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            return PokeReturnValue(is_done, xcom_value)
+
+
+To implement a sensor operator that pushes a XCOM value and supports both version 2.3 and
+pre-2.3, you need to explicitly push the XCOM value if the version is pre-2.3.
+
+  .. code-block:: python
+
+    try:
+        from airflow.sensors.base import PokeReturnValue
+    except ImportError:
+        PokeReturnValue = None
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> bool:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            if PokeReturnValue is not None:
+                return PokeReturnValue(is_done, xcom_value)
+            else:
+                if is_done:
+                    context["ti"].xcom_push(key="xcom_key", value=xcom_value)
+                return is_done
+
+
+
 
 Alternatively in cases where the sensor doesn't need to push XCOM values:  both ``poke()`` and the wrapped
 function can return a boolean-like value where ``True`` designates the sensor's operation as complete and
@@ -538,23 +578,29 @@ task to copy the same file to a date-partitioned storage location in S3 for long
 Accessing context variables in decorated tasks
 ----------------------------------------------
 
-When running your callable, Airflow will pass a set of keyword arguments that can be used in your
-function. This set of kwargs correspond exactly to what you can use in your Jinja templates.
-For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
-keyword arguments you would like to get - for example with the below code your callable will get
-the values of ``ti`` and ``next_ds`` context variables. Note that when explicit keyword arguments are used,
-they must be made optional in the function header to avoid ``TypeError`` exceptions during DAG parsing as
-these values are not available until task execution.
+When running your callable, Airflow will pass a set of keyword arguments that
+can be used in your function. This set of kwargs correspond exactly to what you
+can use in your Jinja templates. For this to work, you can add context keys you
+would like to receive in the function as keyword arguments.
 
-With explicit arguments:
+For example, the callable in the code block below will get values of the ``ti``
+and ``next_ds`` context variables:
 
 .. code-block:: python
 
    @task
-   def my_python_callable(ti=None, next_ds=None):
+   def my_python_callable(*, ti, next_ds):
        pass
 
-With kwargs:
+.. versionchanged:: 2.8
+    Previously the context key arguments must provide a default, e.g. ``ti=None``.
+    This is no longer needed.
+
+You can also choose to receive the entire context with ``**kwargs``. Note that
+this can incur a slight performance penalty since Airflow will need to
+expand the entire context that likely contains many things you don't actually
+need. It is therefore more recommended for you to use explicit arguments, as
+demonstrated in the previous paragraph.
 
 .. code-block:: python
 

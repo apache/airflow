@@ -19,8 +19,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
@@ -31,6 +30,9 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _PASSWORD = "snowflake42"
 
@@ -393,6 +395,24 @@ class TestPytestSnowflakeHook:
         ), pytest.raises(TypeError, match="Password was given but private key is not encrypted."):
             SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
 
+    def test_get_conn_params_should_fail_on_invalid_key(self):
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "password": None,
+            "extra": {
+                "database": "db",
+                "account": "airflow",
+                "warehouse": "af_wh",
+                "region": "af_region",
+                "role": "af_role",
+                "private_key_file": "/dev/urandom",
+            },
+        }
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
+        ), pytest.raises(ValueError, match="The private_key_file path points to an empty or invalid file."):
+            SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
+
     def test_should_add_partner_info(self):
         with mock.patch.dict(
             "os.environ",
@@ -467,7 +487,7 @@ class TestPytestSnowflakeHook:
         ), mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_sqlalchemy_engine()
-            assert "private_key" in mock_create_engine.call_args[1]["connect_args"]
+            assert "private_key" in mock_create_engine.call_args.kwargs["connect_args"]
             assert mock_create_engine.return_value == conn
 
     def test_hook_parameters_should_take_precedence(self):
@@ -603,3 +623,33 @@ class TestPytestSnowflakeHook:
             "extra__snowflake__private_key_content",
             "extra__snowflake__insecure_mode",
         ]
+
+    @pytest.mark.parametrize(
+        "returned_schema,expected_schema",
+        [([None], ""), (["DATABASE.SCHEMA"], "SCHEMA")],
+    )
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")
+    def test_get_openlineage_default_schema_with_no_schema_set(
+        self, mock_get_first, returned_schema, expected_schema
+    ):
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "schema": None,
+        }
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            mock_get_first.return_value = returned_schema
+            assert hook.get_openlineage_default_schema() == expected_schema
+
+    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")
+    def test_get_openlineage_default_schema_with_schema_set(self, mock_get_first):
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            assert hook.get_openlineage_default_schema() == BASE_CONNECTION_KWARGS["schema"]
+            mock_get_first.assert_not_called()
+
+            hook_with_schema_param = SnowflakeHook(snowflake_conn_id="test_conn", schema="my_schema")
+            assert hook_with_schema_param.get_openlineage_default_schema() == "my_schema"
+            mock_get_first.assert_not_called()

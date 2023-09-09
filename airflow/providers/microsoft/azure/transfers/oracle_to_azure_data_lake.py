@@ -17,11 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import csv
 import os
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Sequence
-
-import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
@@ -33,9 +32,7 @@ if TYPE_CHECKING:
 
 class OracleToAzureDataLakeOperator(BaseOperator):
     """
-    Moves data from Oracle to Azure Data Lake. The operator runs the query against
-    Oracle and stores the file locally before loading it into Azure Data Lake.
-
+    Runs the query against Oracle and stores the file locally before loading it into Azure Data Lake.
 
     :param filename: file name to be used by the csv file.
     :param azure_data_lake_conn_id: destination azure data lake connection.
@@ -46,7 +43,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :param delimiter: field delimiter in the file.
     :param encoding: encoding type for the file.
     :param quotechar: Character to use in quoting.
-    :param quoting: Quoting strategy. See unicodecsv quoting for more information.
+    :param quoting: Quoting strategy. See csv library for more information.
     """
 
     template_fields: Sequence[str] = ("filename", "sql", "sql_params")
@@ -65,7 +62,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         delimiter: str = ",",
         encoding: str = "utf-8",
         quotechar: str = '"',
-        quoting: str = csv.QUOTE_MINIMAL,
+        quoting: int = csv.QUOTE_MINIMAL,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -83,15 +80,14 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         self.quoting = quoting
 
     def _write_temp_file(self, cursor: Any, path_to_save: str | bytes | int) -> None:
-        with open(path_to_save, "wb") as csvfile:
+        with open(path_to_save, "w", encoding=self.encoding) as csvfile:
             csv_writer = csv.writer(
                 csvfile,
                 delimiter=self.delimiter,
-                encoding=self.encoding,
                 quotechar=self.quotechar,
                 quoting=self.quoting,
             )
-            csv_writer.writerow(map(lambda field: field[0], cursor.description))
+            csv_writer.writerow(field[0] for field in cursor.description)
             csv_writer.writerows(cursor)
             csvfile.flush()
 

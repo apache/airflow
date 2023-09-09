@@ -16,17 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy.orm.session import Session
+from typing import TYPE_CHECKING
 
-from airflow import DAG
+from sqlalchemy import select
+
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
-from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
-from airflow.models.dagbag import DagBag
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
+    from airflow import DAG
+    from airflow.api_connexion.types import APIResponse
+    from airflow.models.dagbag import DagBag
 
 
 @security.requires_access(
@@ -57,14 +63,12 @@ def get_extra_links(
     except TaskNotFound:
         raise NotFound("Task not found", detail=f'Task with ID = "{task_id}" not found')
 
-    ti = (
-        session.query(TaskInstance)
-        .filter(
+    ti = session.scalar(
+        select(TaskInstance).where(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
             TaskInstance.task_id == task_id,
         )
-        .one_or_none()
     )
 
     if not ti:

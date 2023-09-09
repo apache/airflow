@@ -27,6 +27,7 @@ from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount
 
 from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator
 
 TEST_CONN_ID = "docker_test_connection"
@@ -164,9 +165,9 @@ class TestDockerOperator:
         def dotenv_mock_return_value(**kwargs):
             env_dict = {}
             env_str = kwargs["stream"]
-            for env_var in env_str.split("\n"):
-                kv = env_var.split("=")
-                env_dict[kv[0]] = kv[1]
+            for env_var in env_str.splitlines():
+                key, _, val = env_var.partition("=")
+                env_dict[key] = val
             return env_dict
 
         self.dotenv_patcher = mock.patch("airflow.providers.docker.operators.docker.dotenv_values")
@@ -553,19 +554,19 @@ class TestDockerOperator:
     def test_execute_container_fails(self):
         failed_msg = {"StatusCode": 1}
         log_line = ["unicode container log 😁   ", b"byte string container log"]
-        expected_message = "Docker container failed: {failed_msg} lines {expected_log_output}"
+        expected_message = "Docker container failed: {failed_msg}"
         self.client_mock.attach.return_value = log_line
         self.client_mock.wait.return_value = failed_msg
 
         operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest")
 
-        with pytest.raises(AirflowException) as raised_exception:
+        with pytest.raises(DockerContainerFailedException) as raised_exception:
             operator.execute(None)
 
         assert str(raised_exception.value) == expected_message.format(
             failed_msg=failed_msg,
-            expected_log_output=f'{log_line[0].strip()}\n{log_line[1].decode("utf-8")}',
         )
+        assert raised_exception.value.logs == [log_line[0].strip(), log_line[1].decode("utf-8")]
 
     def test_auto_remove_container_fails(self):
         self.client_mock.wait.return_value = {"StatusCode": 1}
@@ -687,24 +688,24 @@ class TestDockerOperator:
         operator = DockerOperator(task_id="test", image="test", extra_hosts=hosts_obj)
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
-        assert "host_config" in self.client_mock.create_container.call_args[1]
-        assert "extra_hosts" in self.client_mock.create_host_config.call_args[1]
-        assert hosts_obj is self.client_mock.create_host_config.call_args[1]["extra_hosts"]
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "extra_hosts" in self.client_mock.create_host_config.call_args.kwargs
+        assert hosts_obj is self.client_mock.create_host_config.call_args.kwargs["extra_hosts"]
 
     def test_privileged(self):
         privileged = mock.Mock()
         operator = DockerOperator(task_id="test", image="test", privileged=privileged)
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
-        assert "host_config" in self.client_mock.create_container.call_args[1]
-        assert "privileged" in self.client_mock.create_host_config.call_args[1]
-        assert privileged is self.client_mock.create_host_config.call_args[1]["privileged"]
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "privileged" in self.client_mock.create_host_config.call_args.kwargs
+        assert privileged is self.client_mock.create_host_config.call_args.kwargs["privileged"]
 
     def test_port_bindings(self):
         port_bindings = {8000: 8080}
         operator = DockerOperator(task_id="test", image="test", port_bindings=port_bindings)
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
-        assert "host_config" in self.client_mock.create_container.call_args[1]
-        assert "port_bindings" in self.client_mock.create_host_config.call_args[1]
-        assert port_bindings == self.client_mock.create_host_config.call_args[1]["port_bindings"]
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "port_bindings" in self.client_mock.create_host_config.call_args.kwargs
+        assert port_bindings == self.client_mock.create_host_config.call_args.kwargs["port_bindings"]

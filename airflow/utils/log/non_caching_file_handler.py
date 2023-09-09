@@ -36,12 +36,13 @@ def make_file_io_non_caching(io: IO[str]) -> IO[str]:
 
 class NonCachingFileHandler(FileHandler):
     """
-    This is an extension of the python FileHandler that advises the Kernel to not cache the file
-    in PageCache when it is written. While there is nothing wrong with such cache (it will be cleaned
-    when memory is needed), it causes ever-growing memory usage when scheduler is running as it keeps
-    on writing new log files and the files are not rotated later on. This might lead to confusion
-    for our users, who are monitoring memory usage of Scheduler - without realising that it is
-    harmless and expected in this case.
+    An extension of FileHandler, advises the Kernel to not cache the file in PageCache when it is written.
+
+    While there is nothing wrong with such cache (it will be cleaned when memory is needed), it
+    causes ever-growing memory usage when scheduler is running as it keeps on writing new log
+    files and the files are not rotated later on. This might lead to confusion for our users,
+    who are monitoring memory usage of Scheduler - without realising that it is harmless and
+    expected in this case.
 
     See https://github.com/apache/airflow/issues/14924
 
@@ -54,12 +55,13 @@ class NonCachingFileHandler(FileHandler):
 
 class NonCachingRotatingFileHandler(RotatingFileHandler):
     """
-    This is an extension of the python RotatingFileHandler that advises the Kernel to not cache the file
-    in PageCache when it is written. While there is nothing wrong with such cache (it will be cleaned
-    when memory is needed), it causes ever-growing memory usage when scheduler is running as it keeps
-    on writing new log files and the files are not rotated later on. This might lead to confusion
-    for our users, who are monitoring memory usage of Scheduler - without realising that it is
-    harmless and expected in this case.
+    An extension of RotatingFileHandler, advises the Kernel to not cache the file in PageCache when written.
+
+    While there is nothing wrong with such cache (it will be cleaned when memory is needed), it
+    causes ever-growing memory usage when scheduler is running as it keeps on writing new log
+    files and the files are not rotated later on. This might lead to confusion for our users,
+    who are monitoring memory usage of Scheduler - without realising that it is harmless and
+    expected in this case.
 
     See https://github.com/apache/airflow/issues/27065
 

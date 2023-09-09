@@ -15,15 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a mechanism for providing temporary
-Google Cloud authentication.
-"""
+"""This module contains a mechanism for providing temporary Google Cloud authentication."""
+
 from __future__ import annotations
 
 import json
 import logging
-import os.path
+import os
 import tempfile
 from contextlib import ExitStack, contextmanager
 from typing import Collection, Generator, Sequence
@@ -52,8 +50,7 @@ def build_gcp_conn(
     project_id: str | None = None,
 ) -> str:
     """
-    Builds a uri that can be used as :envvar:`AIRFLOW_CONN_{CONN_ID}` with provided service key,
-    scopes and project id.
+    Build a uri that can be used as :envvar:`AIRFLOW_CONN_{CONN_ID}` with provided values.
 
     :param key_file_path: Path to service key.
     :param scopes: Required OAuth scopes.
@@ -80,8 +77,10 @@ def provide_gcp_credentials(
     key_file_dict: dict | None = None,
 ) -> Generator[None, None, None]:
     """
-    Context manager that provides a Google Cloud credentials for application supporting
-    `Application Default Credentials (ADC) strategy`__.
+    Context manager that provides Google Cloud credentials for Application Default Credentials (ADC).
+
+    .. seealso::
+        `Application Default Credentials (ADC) strategy`__.
 
     It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
     file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
@@ -117,9 +116,9 @@ def provide_gcp_connection(
     project_id: str | None = None,
 ) -> Generator[None, None, None]:
     """
-    Context manager that provides a temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`
-    connection. It build a new connection that includes path to provided service json,
-    required scopes and project id.
+    Context manager that provides a temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` connection.
+
+    It builds a new connection that includes path to provided service json, required scopes and project id.
 
     :param key_file_path: Path to file with Google Cloud Service Account .json file.
     :param scopes: OAuth scopes for the connection
@@ -141,7 +140,9 @@ def provide_gcp_conn_and_credentials(
     project_id: str | None = None,
 ) -> Generator[None, None, None]:
     """
-    Context manager that provides both:
+    Context manager that provides GPC connection and credentials.
+
+     It provides both:
 
     - Google Cloud credentials for application supporting `Application Default Credentials (ADC)
       strategy`__.
@@ -167,7 +168,7 @@ def provide_gcp_conn_and_credentials(
 
 class _CredentialProvider(LoggingMixin):
     """
-    Prepare the Credentials object for Google API and the associated project_id
+    Prepare the Credentials object for Google API and the associated project_id.
 
     Only either `key_path` or `keyfile_dict` should be provided, or an exception will
     occur. If neither of them are provided, return default credentials for the current environment
@@ -363,8 +364,7 @@ def get_credentials_and_project_id(*args, **kwargs) -> tuple[google.auth.credent
 
 def _get_scopes(scopes: str | None = None) -> Sequence[str]:
     """
-    Parse a comma-separated string containing OAuth2 scopes if `scopes` is provided.
-    Otherwise, default scope will be returned.
+    Parse a comma-separated string containing OAuth2 scopes if `scopes` is provided; otherwise return default.
 
     :param scopes: A comma-separated string containing OAuth2 scopes
     :return: Returns the scope defined in the connection configuration, or the default scope
@@ -376,6 +376,8 @@ def _get_target_principal_and_delegates(
     impersonation_chain: str | Sequence[str] | None = None,
 ) -> tuple[str | None, Sequence[str] | None]:
     """
+    Get the target_principal and optional list of delegates from impersonation_chain.
+
     Analyze contents of impersonation_chain and return target_principal (the service account
     to directly impersonate using short-term credentials, if any) and optional list of delegates
     required to get the access_token of target_principal.

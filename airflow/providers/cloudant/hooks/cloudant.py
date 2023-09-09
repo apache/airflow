@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Cloudant"""
+"""Hook for Cloudant."""
 from __future__ import annotations
 
 from typing import Any
@@ -42,7 +42,7 @@ class CloudantHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port", "extra"],
             "relabeling": {"host": "Account", "login": "Username (or API Key)", "schema": "Database"},

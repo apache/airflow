@@ -84,7 +84,10 @@ if __name__ == "__main__":
         flag = " --upgrade-to-newer-dependencies" if upgrading else ""
         get_console().print(
             "[warning]If you see strange stacktraces above, "
-            f"run `breeze ci-image build --python 3.7{flag}` and try again. "
-            "You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used."
+            f"run `breeze ci-image build --python 3.8{flag}` and try again. "
+            "You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used. "
+            "Still sometimes diff heuristic in mypy is behaving abnormal, to double check you can "
+            "call `breeze static-checks --type mypy-[dev|core|providers|docs] --all-files` "
+            'and then commit via `git commit --no-verify -m "commit message"`. CI will do a full check.'
         )
     sys.exit(cmd_result.returncode)

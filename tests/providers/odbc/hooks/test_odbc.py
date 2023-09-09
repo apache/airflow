@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest import mock
+from unittest.mock import patch
 from urllib.parse import quote_plus, urlsplit
 
 import pyodbc
@@ -43,11 +45,12 @@ class TestOdbcHook:
         hook.get_connection.return_value = connection
         return hook
 
-    def test_driver_in_extra(self):
+    def test_driver_in_extra_not_used(self):
         conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
-        hook = self.get_hook(conn_params=conn_params)
+        hook_params = {"driver": "ParamDriver"}
+        hook = self.get_hook(conn_params=conn_params, hook_params=hook_params)
         expected = (
-            "DRIVER={Fake Driver};"
+            "DRIVER={ParamDriver};"
             "SERVER=host;"
             "DATABASE=schema;"
             "UID=login;"
@@ -177,10 +180,40 @@ class TestOdbcHook:
         assert hook.driver == "Blah driver"
         hook = self.get_hook(hook_params=dict(driver="{Blah driver}"))
         assert hook.driver == "Blah driver"
-        hook = self.get_hook(conn_params=dict(extra='{"driver": "Blah driver"}'))
+
+    def test_driver_extra_raises_warning_by_default(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="airflow.providers.odbc.hooks.test_odbc"):
+            driver = self.get_hook(conn_params=dict(extra='{"driver": "Blah driver"}')).driver
+            assert "You have supplied 'driver' via connection extra but it will not be used" in caplog.text
+            assert driver is None
+
+    @mock.patch.dict("os.environ", {"AIRFLOW__PROVIDERS_ODBC__ALLOW_DRIVER_IN_EXTRA": "TRUE"})
+    def test_driver_extra_works_when_allow_driver_extra(self):
+        hook = self.get_hook(
+            conn_params=dict(extra='{"driver": "Blah driver"}'), hook_params=dict(allow_driver_extra=True)
+        )
         assert hook.driver == "Blah driver"
-        hook = self.get_hook(conn_params=dict(extra='{"driver": "{Blah driver}"}'))
-        assert hook.driver == "Blah driver"
+
+    def test_default_driver_set(self):
+        with patch.object(OdbcHook, "default_driver", "Blah driver"):
+            hook = self.get_hook()
+            assert hook.driver == "Blah driver"
+
+    def test_driver_extra_works_when_default_driver_set(self):
+        with patch.object(OdbcHook, "default_driver", "Blah driver"):
+            hook = self.get_hook()
+            assert hook.driver == "Blah driver"
+
+    def test_driver_none_by_default(self):
+        hook = self.get_hook()
+        assert hook.driver is None
+
+    def test_driver_extra_raises_warning_and_returns_default_driver_by_default(self, caplog):
+        with patch.object(OdbcHook, "default_driver", "Blah driver"):
+            with caplog.at_level(logging.WARNING, logger="airflow.providers.odbc.hooks.test_odbc"):
+                driver = self.get_hook(conn_params=dict(extra='{"driver": "Blah driver2"}')).driver
+                assert "have supplied 'driver' via connection extra but it will not be used" in caplog.text
+                assert driver == "Blah driver"
 
     def test_database(self):
         hook = self.get_hook(hook_params=dict(database="abc"))

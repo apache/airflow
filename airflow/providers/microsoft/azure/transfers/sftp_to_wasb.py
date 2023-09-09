@@ -20,13 +20,13 @@ from __future__ import annotations
 
 import os
 from collections import namedtuple
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -134,7 +134,7 @@ class SFTPToWasbOperator(BaseOperator):
         return sftp_files
 
     def get_tree_behavior(self) -> tuple[str, str | None, str | None]:
-        """Extracts from source path the tree behavior to interact with the remote folder"""
+        """Extracts from source path the tree behavior to interact with the remote folder."""
         self.check_wildcards_limit()
 
         if self.source_path_contains_wildcard:
@@ -167,7 +167,7 @@ class SFTPToWasbOperator(BaseOperator):
         return SFTPHook(self.sftp_conn_id)
 
     def get_full_path_blob(self, file: str) -> str:
-        """Get a blob name based on the previous name and a blob_prefix variable"""
+        """Get a blob name based on the previous name and a blob_prefix variable."""
         return self.blob_prefix + os.path.basename(file)
 
     def copy_files_to_wasb(self, sftp_files: list[SftpFile]) -> list[str]:

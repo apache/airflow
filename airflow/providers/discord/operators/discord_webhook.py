@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 class DiscordWebhookOperator(SimpleHttpOperator):
     """
     This operator allows you to post messages to Discord using incoming webhooks.
+
     Takes a Discord connection ID with a default relative webhook endpoint. The
     default endpoint can be overridden using the webhook_endpoint parameter
     (https://discordapp.com/developers/docs/resources/webhook).
@@ -79,7 +80,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
         self.hook: DiscordWebhookHook | None = None
 
     def execute(self, context: Context) -> None:
-        """Call the DiscordWebhookHook to post message"""
+        """Call the DiscordWebhookHook to post message."""
         self.hook = DiscordWebhookHook(
             self.http_conn_id,
             self.webhook_endpoint,

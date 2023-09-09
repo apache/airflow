@@ -34,7 +34,7 @@ For more information check `official documentation <https://developers.google.co
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GoogleSheetsCreateSpreadsheetOperator:
 

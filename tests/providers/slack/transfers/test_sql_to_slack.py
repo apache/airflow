@@ -138,10 +138,7 @@ class TestSqlToSlackOperator:
         sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # Test that the Slack hook is instantiated with the right parameters
-        mock_slack_hook_class.assert_called_once_with(
-            slack_webhook_conn_id="slack_connection",
-            webhook_token=None,
-        )
+        mock_slack_hook_class.assert_called_once_with(slack_webhook_conn_id="slack_connection")
 
         # Test that the `SlackWebhookHook.send` method gets run once
         slack_webhook_hook.send.assert_called_once_with(
@@ -160,7 +157,6 @@ class TestSqlToSlackOperator:
         operator_args = {
             "sql_conn_id": "snowflake_connection",
             "slack_conn_id": "slack_connection",
-            "slack_webhook_token": "test_token",
             "slack_message": "message: {{ ds }}, {{ results_df }}",
             "slack_channel": "#test",
             "sql": "sql {{ ds }}",
@@ -173,10 +169,7 @@ class TestSqlToSlackOperator:
         sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # Test that the Slack hook is instantiated with the right parameters
-        mock_slack_hook_class.assert_called_once_with(
-            slack_webhook_conn_id="slack_connection",
-            webhook_token="test_token",
-        )
+        mock_slack_hook_class.assert_called_once_with(slack_webhook_conn_id="slack_connection")
 
         # Test that the `SlackWebhookHook.send` method gets run once
         slack_webhook_hook.send.assert_called_once_with(
@@ -217,10 +210,7 @@ class TestSqlToSlackOperator:
         sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # Test that the Slack hook is instantiated with the right parameters
-        mock_slack_hook_class.assert_called_once_with(
-            slack_webhook_conn_id="slack_connection",
-            webhook_token=None,
-        )
+        mock_slack_hook_class.assert_called_once_with(slack_webhook_conn_id="slack_connection")
 
         # Test that the `SlackWebhookHook.send` method gets run once
         slack_webhook_hook.send.assert_called_once_with(
@@ -242,9 +232,9 @@ class TestSqlToSlackOperator:
             "sql": "sql {{ ds }}",
             "results_df_name": "xxxx",
             "sql_hook_params": hook_params,
+            "slack_conn_id": "slack_connection",
             "parameters": ["1", "2", "3"],
             "slack_message": "message: {{ ds }}, {{ xxxx }}",
-            "slack_webhook_token": "test_token",
             "dag": self.example_dag,
         }
         sql_to_slack_operator = SqlToSlackOperator(task_id=TEST_TASK_ID, **operator_args)
@@ -257,7 +247,7 @@ class TestSqlToSlackOperator:
         op = SqlToSlackOperator(
             task_id="sql_hook_params",
             sql_conn_id="postgres_test",
-            slack_webhook_token="slack_token",
+            slack_conn_id="slack_connection",
             sql="SELECT 1",
             slack_message="message: {{ ds }}, {{ xxxx }}",
             sql_hook_params={

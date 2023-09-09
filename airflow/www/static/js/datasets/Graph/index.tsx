@@ -17,28 +17,50 @@
  * under the License.
  */
 
-import React, { RefObject } from "react";
-import { Box, Spinner } from "@chakra-ui/react";
-import { Zoom } from "@visx/zoom";
-import { Group } from "@visx/group";
+import React, { useEffect } from "react";
+import ReactFlow, {
+  ReactFlowProvider,
+  Controls,
+  Background,
+  MiniMap,
+  Node as ReactFlowNode,
+  useReactFlow,
+  ControlButton,
+  Panel,
+} from "reactflow";
+import { Box, Tooltip, useTheme } from "@chakra-ui/react";
+import { RiFocus3Line } from "react-icons/ri";
 
 import { useDatasetDependencies } from "src/api";
+import Edge from "src/components/Graph/Edge";
+import { useContainerRef } from "src/context/containerRef";
 
-import Node from "./Node";
-import Edge from "./Edge";
+import Node, { CustomNodeProps } from "./Node";
 import Legend from "./Legend";
 
 interface Props {
   onSelect: (datasetId: string) => void;
   selectedUri: string | null;
-  height: number;
-  width: number;
 }
 
-const Graph = ({ onSelect, selectedUri, height, width }: Props) => {
-  const { data, isLoading } = useDatasetDependencies();
+const nodeTypes = { custom: Node };
+const edgeTypes = { custom: Edge };
 
-  if (isLoading && !data) return <Spinner />;
+const Graph = ({ onSelect, selectedUri }: Props) => {
+  const { data } = useDatasetDependencies();
+  const { colors } = useTheme();
+  const { setCenter, setViewport } = useReactFlow();
+  const containerRef = useContainerRef();
+
+  useEffect(() => {
+    setViewport({ x: 0, y: 0, zoom: 1 });
+  }, [selectedUri, setViewport]);
+
+  const nodeColor = ({
+    data: { isSelected },
+  }: ReactFlowNode<CustomNodeProps>) =>
+    isSelected ? colors.blue["300"] : colors.gray["300"];
+
   if (!data || !data.fullGraph || !data.subGraphs) return null;
   const graph = selectedUri
     ? data.subGraphs.find((g) =>
@@ -46,91 +68,102 @@ const Graph = ({ onSelect, selectedUri, height, width }: Props) => {
       )
     : data.fullGraph;
   if (!graph) return null;
-  const { edges, children, width: graphWidth, height: graphHeight } = graph;
 
-  const initialTransform = {
-    scaleX: 1,
-    scaleY: 1,
-    translateX: 0,
-    translateY: 0,
-    skewX: 0,
-    skewY: 0,
+  const edges = graph.edges.map((e) => ({
+    id: e.id,
+    source: e.sources[0],
+    target: e.targets[0],
+    type: "custom",
+    data: {
+      rest: {
+        ...e,
+        isSelected: selectedUri && e.id.includes(selectedUri),
+      },
+    },
+  }));
+
+  const nodes: ReactFlowNode<CustomNodeProps>[] = graph.children.map((c) => ({
+    id: c.id,
+    data: {
+      label: c.value.label,
+      type: c.value.class,
+      width: c.width,
+      height: c.height,
+      onSelect,
+      isSelected: selectedUri === c.value.label,
+      isHighlighted: edges.some(
+        (e) => e.data.rest.isSelected && e.id.includes(c.id)
+      ),
+    },
+    type: "custom",
+    position: {
+      x: c.x || 0,
+      y: c.y || 0,
+    },
+  }));
+
+  const focusNode = () => {
+    if (selectedUri) {
+      const node = nodes.find((n) => n.data.label === selectedUri);
+      if (!node || !node.position) return;
+      const { x, y } = node.position;
+      setCenter(
+        x + (node.data.width || 0) / 2,
+        y + (node.data.height || 0) / 2,
+        {
+          duration: 1000,
+        }
+      );
+    }
   };
 
-  const selectedEdges = selectedUri
-    ? edges?.filter(
-        ({ sources, targets }) =>
-          sources[0].includes(selectedUri) || targets[0].includes(selectedUri)
-      )
-    : [];
-  const highlightedNodes = children.filter((n) =>
-    selectedEdges.some(
-      ({ sources, targets }) => sources[0] === n.id || targets[0] === n.id
-    )
-  );
-
   return (
-    <Zoom
-      width={width}
-      height={height}
-      scaleXMin={1 / 4}
-      scaleXMax={1}
-      scaleYMin={1 / 4}
-      scaleYMax={1}
-      initialTransformMatrix={initialTransform}
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      nodesDraggable={false}
+      minZoom={0.25}
+      maxZoom={1}
+      onlyRenderVisibleElements
+      defaultEdgeOptions={{ zIndex: 1 }}
     >
-      {(zoom) => (
-        <Box>
-          <svg
-            id="GRAPH"
-            width={width}
-            height={height}
-            ref={zoom.containerRef as RefObject<SVGSVGElement>}
-            style={{
-              cursor: zoom.isDragging ? "grabbing" : "grab",
-              touchAction: "none",
-            }}
+      <Background />
+      <Controls showInteractive={false}>
+        <ControlButton onClick={focusNode} disabled={!selectedUri}>
+          <Tooltip
+            portalProps={{ containerRef }}
+            label="Center selected dataset"
+            placement="right"
           >
-            <g transform={zoom.toString()}>
-              <g height={graphHeight} width={graphWidth}>
-                {edges.map((edge) => (
-                  <Edge
-                    key={edge.id}
-                    edge={edge}
-                    isSelected={selectedEdges.some((e) => e.id === edge.id)}
-                  />
-                ))}
-                {children.map((node) => (
-                  <Node
-                    key={node.id}
-                    node={node}
-                    onSelect={onSelect}
-                    isSelected={node.id === `dataset:${selectedUri}`}
-                    isHighlighted={highlightedNodes.some(
-                      (n) => n.id === node.id
-                    )}
-                  />
-                ))}
-              </g>
-            </g>
-            <Group top={height - 100} left={0} height={100} width={width}>
-              <foreignObject width={150} height={100}>
-                <Legend
-                  zoom={zoom}
-                  center={() =>
-                    zoom.translateTo({
-                      x: (width - (graphWidth ?? 0)) / 2,
-                      y: (height - (graphHeight ?? 0)) / 2,
-                    })
-                  }
-                />
-              </foreignObject>
-            </Group>
-          </svg>
-        </Box>
-      )}
-    </Zoom>
+            <Box>
+              <RiFocus3Line
+                size={16}
+                style={{
+                  // override react-flow css
+                  maxWidth: "16px",
+                  maxHeight: "16px",
+                  color: colors.gray[800],
+                }}
+                aria-label="Center selected dataset"
+              />
+            </Box>
+          </Tooltip>
+        </ControlButton>
+      </Controls>
+      <Panel position="top-right">
+        <Legend />
+      </Panel>
+      <MiniMap nodeStrokeWidth={15} nodeColor={nodeColor} zoomable pannable />
+    </ReactFlow>
   );
 };
 
-export default Graph;
+const GraphWrapper = (props: Props) => (
+  <ReactFlowProvider>
+    <Graph {...props} />
+  </ReactFlowProvider>
+);
+
+export default GraphWrapper;

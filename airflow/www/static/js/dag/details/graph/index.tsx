@@ -17,30 +17,24 @@
  * under the License.
  */
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { Box, useTheme, Select, Text } from "@chakra-ui/react";
 import ReactFlow, {
   ReactFlowProvider,
   Controls,
   Background,
   MiniMap,
-  Node as ReactFlowNode,
   useReactFlow,
-  ControlButton,
   Panel,
 } from "reactflow";
-import { RiFocus3Line } from "react-icons/ri";
 
 import { useGraphData, useGridData } from "src/api";
 import useSelection from "src/dag/useSelection";
 import { useOffsetTop } from "src/utils";
 import { useGraphLayout } from "src/utils/graph";
-import Tooltip from "src/components/Tooltip";
-import { useContainerRef } from "src/context/containerRef";
-import useFilters from "src/dag/useFilters";
+import Edge from "src/components/Graph/Edge";
 
-import Edge from "./Edge";
-import Node, { CustomNodeProps } from "./Node";
+import Node from "./Node";
 import { buildEdges, nodeStrokeColor, nodeColor, flattenNodes } from "./utils";
 
 const nodeTypes = { custom: Node };
@@ -54,13 +48,9 @@ interface Props {
 
 const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const graphRef = useRef(null);
-  const containerRef = useContainerRef();
   const { data } = useGraphData();
   const [arrange, setArrange] = useState(data?.arrange || "LR");
-
-  const {
-    filters: { root, filterDownstream, filterUpstream },
-  } = useFilters();
+  const [hasRendered, setHasRendered] = useState(false);
 
   useEffect(() => {
     setArrange(data?.arrange || "LR");
@@ -77,48 +67,53 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     data: { dagRuns, groups },
   } = useGridData();
   const { colors } = useTheme();
-  const { setCenter, setViewport } = useReactFlow();
+  const { getZoom, fitView } = useReactFlow();
   const latestDagRunId = dagRuns[dagRuns.length - 1]?.runId;
-
-  // Reset viewport when tasks are filtered
-  useEffect(() => {
-    setViewport({ x: 0, y: 0, zoom: 1 });
-  }, [root, filterDownstream, filterUpstream, setViewport]);
-
   const offsetTop = useOffsetTop(graphRef);
 
-  let nodes: ReactFlowNode<CustomNodeProps>[] = [];
-
-  if (graphData?.children) {
-    nodes = flattenNodes({
-      children: graphData.children,
+  const { nodes, edges: nodeEdges } = useMemo(
+    () =>
+      flattenNodes({
+        children: graphData?.children,
+        selected,
+        openGroupIds,
+        onToggleGroups,
+        latestDagRunId,
+        groups,
+        hoveredTaskState,
+      }),
+    [
+      graphData?.children,
       selected,
       openGroupIds,
       onToggleGroups,
       latestDagRunId,
       groups,
       hoveredTaskState,
-    });
-  }
+    ]
+  );
 
-  const focusNode = () => {
-    if (selected.taskId) {
-      const node = nodes.find((n) => n.id === selected.taskId);
-      const x = node?.positionAbsolute?.x || node?.position.x;
-      const y = node?.positionAbsolute?.y || node?.position.y;
-      if (!x || !y) return;
-      setCenter(
-        x + (node.data.width || 0) / 2,
-        y + (node.data.height || 0) / 2,
-        {
-          duration: 1000,
-        }
-      );
+  // Zoom to/from nodes when changing selection, maintain zoom level when changing task selection
+  useEffect(() => {
+    if (hasRendered) {
+      const zoom = getZoom();
+      fitView({
+        duration: 750,
+        nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
+        minZoom: selected.taskId ? zoom : undefined,
+        maxZoom: selected.taskId ? zoom : undefined,
+      });
     }
-  };
+    setHasRendered(true);
+  }, [fitView, hasRendered, selected.taskId, getZoom]);
+
+  // merge & dedupe edges
+  const flatEdges = [...(graphData?.edges || []), ...(nodeEdges || [])].filter(
+    (value, index, self) => index === self.findIndex((t) => t.id === value.id)
+  );
 
   const edges = buildEdges({
-    edges: graphData?.edges,
+    edges: flatEdges,
     nodes,
     selectedTaskId: selected.taskId,
   });
@@ -141,6 +136,11 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           maxZoom={1}
           onlyRenderVisibleElements
           defaultEdgeOptions={{ zIndex: 1 }}
+          // Fit view to selected task or the whole graph on render
+          fitView
+          fitViewOptions={{
+            nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
+          }}
         >
           <Panel position="top-right">
             <Box bg="#ffffffdd" p={1}>
@@ -157,28 +157,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
             </Box>
           </Panel>
           <Background />
-          <Controls showInteractive={false}>
-            <ControlButton onClick={focusNode} disabled={!selected.taskId}>
-              <Tooltip
-                portalProps={{ containerRef }}
-                label="Center selected task"
-                placement="right"
-              >
-                <Box>
-                  <RiFocus3Line
-                    size={16}
-                    style={{
-                      // override react-flow css
-                      maxWidth: "16px",
-                      maxHeight: "16px",
-                      color: colors.gray[800],
-                    }}
-                    aria-label="Center selected task"
-                  />
-                </Box>
-              </Tooltip>
-            </ControlButton>
-          </Controls>
+          <Controls showInteractive={false} />
           <MiniMap
             nodeStrokeWidth={15}
             nodeStrokeColor={(props) => nodeStrokeColor(props, colors)}

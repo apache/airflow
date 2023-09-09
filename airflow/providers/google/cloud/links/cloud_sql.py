@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.utils.context import Context
 
 
@@ -35,7 +35,7 @@ CLOUD_SQL_INSTANCE_DATABASE_LINK = (
 
 
 class CloudSQLInstanceLink(BaseGoogleLink):
-    """Helper class for constructing Cloud SQL Instance Link"""
+    """Helper class for constructing Cloud SQL Instance Link."""
 
     name = "Cloud SQL Instance"
     key = "cloud_sql_instance"
@@ -56,7 +56,7 @@ class CloudSQLInstanceLink(BaseGoogleLink):
 
 
 class CloudSQLInstanceDatabaseLink(BaseGoogleLink):
-    """Helper class for constructing Cloud SQL Instance Database Link"""
+    """Helper class for constructing Cloud SQL Instance Database Link."""
 
     name = "Cloud SQL Instance Database"
     key = "cloud_sql_instance_database"

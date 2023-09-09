@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.utils.context import Context
 
 SPANNER_BASE_LINK = "/spanner/instances"
@@ -34,7 +34,7 @@ SPANNER_DATABASE_LINK = (
 
 
 class SpannerInstanceLink(BaseGoogleLink):
-    """Helper class for constructing Spanner Instance Link"""
+    """Helper class for constructing Spanner Instance Link."""
 
     name = "Spanner Instance"
     key = "spanner_instance"
@@ -55,7 +55,7 @@ class SpannerInstanceLink(BaseGoogleLink):
 
 
 class SpannerDatabaseLink(BaseGoogleLink):
-    """Helper class for constructing Spanner Database Link"""
+    """Helper class for constructing Spanner Database Link."""
 
     name = "Spanner Database"
     key = "spanner_database"

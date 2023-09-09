@@ -31,7 +31,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class DataprocBaseTrigger(BaseTrigger):
-    """Base class for Dataproc triggers"""
+    """Base class for Dataproc triggers."""
 
     def __init__(
         self,
@@ -57,7 +57,7 @@ class DataprocBaseTrigger(BaseTrigger):
 
 class DataprocSubmitTrigger(DataprocBaseTrigger):
     """
-    DataprocSubmitTrigger run on the trigger worker to perform create Build operation
+    DataprocSubmitTrigger run on the trigger worker to perform create Build operation.
 
     :param job_id: The ID of a Dataproc job.
     :param project_id: Google Cloud Project where the job is running
@@ -109,7 +109,7 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
 
 class DataprocClusterTrigger(DataprocBaseTrigger):
     """
-    DataprocClusterTrigger run on the trigger worker to perform create Build operation
+    DataprocClusterTrigger run on the trigger worker to perform create Build operation.
 
     :param cluster_name: The name of the cluster.
     :param project_id: Google Cloud Project where the job is running
@@ -162,7 +162,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
 
 class DataprocBatchTrigger(DataprocBaseTrigger):
     """
-    DataprocCreateBatchTrigger run on the trigger worker to perform create Build operation
+    DataprocCreateBatchTrigger run on the trigger worker to perform create Build operation.
 
     :param batch_id: The ID of the build.
     :param project_id: Google Cloud Project where the job is running
@@ -262,9 +262,9 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Wait until cluster is deleted completely"""
-        while self.end_time > time.time():
-            try:
+        """Wait until cluster is deleted completely."""
+        try:
+            while self.end_time > time.time():
                 cluster = await self.get_async_hook().get_cluster(
                     region=self.region,  # type: ignore[arg-type]
                     cluster_name=self.cluster_name,
@@ -277,16 +277,18 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
                     self.polling_interval_seconds,
                 )
                 await asyncio.sleep(self.polling_interval_seconds)
-            except NotFound:
-                yield TriggerEvent({"status": "success", "message": ""})
-            except Exception as e:
-                yield TriggerEvent({"status": "error", "message": str(e)})
-        yield TriggerEvent({"status": "error", "message": "Timeout"})
+        except NotFound:
+            yield TriggerEvent({"status": "success", "message": ""})
+        except Exception as e:
+            yield TriggerEvent({"status": "error", "message": str(e)})
+        else:
+            yield TriggerEvent({"status": "error", "message": "Timeout"})
 
 
 class DataprocWorkflowTrigger(DataprocBaseTrigger):
     """
     Trigger that periodically polls information from Dataproc API to verify status.
+
     Implementation leverages asynchronous transport.
     """
 
@@ -309,8 +311,8 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.get_async_hook()
-        while True:
-            try:
+        try:
+            while True:
                 operation = await hook.get_operation(region=self.region, operation_name=self.name)
                 if operation.done:
                     if operation.error.message:
@@ -335,11 +337,11 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                 else:
                     self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
                     await asyncio.sleep(self.polling_interval_seconds)
-            except Exception as e:
-                self.log.exception("Exception occurred while checking operation status.")
-                yield TriggerEvent(
-                    {
-                        "status": "failed",
-                        "message": str(e),
-                    }
-                )
+        except Exception as e:
+            self.log.exception("Exception occurred while checking operation status.")
+            yield TriggerEvent(
+                {
+                    "status": "failed",
+                    "message": str(e),
+                }
+            )

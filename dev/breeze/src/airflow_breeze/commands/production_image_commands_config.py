@@ -31,12 +31,10 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             "options": [
                 "--python",
                 "--install-airflow-version",
-                "--upgrade-to-newer-dependencies",
-                "--upgrade-on-failure",
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",
-                "--github-repository",
+                "--build-progress",
             ],
         },
         {
@@ -53,7 +51,6 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
         {
             "name": "Options for customizing images",
             "options": [
-                "--builder",
                 "--install-providers-from-sources",
                 "--airflow-extras",
                 "--airflow-constraints-location",
@@ -73,12 +70,15 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--runtime-apt-command",
                 "--dev-apt-deps",
                 "--dev-apt-command",
+                "--version-suffix-for-pypi",
+                "--commit-sha",
             ],
         },
         {
             "name": "Customization options (for specific customization needs)",
             "options": [
                 "--install-packages-from-context",
+                "--use-constraints-for-context-packages",
                 "--cleanup-context",
                 "--disable-mysql-client-installation",
                 "--disable-mssql-client-installation",
@@ -91,12 +91,17 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
-                "--github-token",
-                "--github-username",
+                "--builder",
                 "--platform",
                 "--push",
-                "--empty-image",
                 "--prepare-buildx-cache",
+            ],
+        },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
             ],
         },
     ],
@@ -106,11 +111,9 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             "options": [
                 "--image-tag",
                 "--python",
-                "--github-token",
                 "--verify",
                 "--wait-for-image",
                 "--tag-as-latest",
-                "--github-repository",
             ],
         },
         {
@@ -124,6 +127,13 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--include-success-outputs",
             ],
         },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
+            ],
+        },
     ],
     "breeze prod-image verify": [
         {
@@ -134,8 +144,14 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--slim-image",
                 "--image-tag",
                 "--pull",
-                "--github-repository",
             ],
-        }
+        },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
+            ],
+        },
     ],
 }

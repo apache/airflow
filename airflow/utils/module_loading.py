@@ -19,14 +19,17 @@ from __future__ import annotations
 
 import pkgutil
 from importlib import import_module
-from types import ModuleType
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 def import_string(dotted_path: str):
     """
-    Import a dotted module path and return the attribute/class designated by the
-    last name in the path. Raise ImportError if the import failed.
+    Import a dotted module path and return the attribute/class designated by the last name in the path.
+
+    Raise ImportError if the import failed.
     """
     try:
         module_path, class_name = dotted_path.rsplit(".", 1)
@@ -43,7 +46,7 @@ def import_string(dotted_path: str):
 
 def qualname(o: object | Callable) -> str:
     """Convert an attribute/class/function to a string importable by ``import_string``."""
-    if callable(o):
+    if callable(o) and hasattr(o, "__module__") and hasattr(o, "__name__"):
         return f"{o.__module__}.{o.__name__}"
 
     cls = o

@@ -44,7 +44,7 @@ How package/modules loading in Python works
 The list of directories from which Python tries to load the module is given
 by the variable ``sys.path``. Python really tries to
 `intelligently determine the contents <https://stackoverflow.com/a/38403654>`_
-of this variable, including depending on the operating system and how Python
+of this variable, depending on the operating system and how Python
 is installed and which Python version is used.
 
 You can check the contents of this variable for the current Python environment
@@ -56,10 +56,10 @@ by running an interactive terminal as in the example below:
     >>> from pprint import pprint
     >>> pprint(sys.path)
     ['',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python37.zip',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python3.7',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python3.7/lib-dynload',
-     '/home/arch/venvs/airflow/lib/python3.7/site-packages']
+     '/home/arch/.pyenv/versions/3.8.4/lib/python37.zip',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8/lib-dynload',
+     '/home/arch/venvs/airflow/lib/python3.8/site-packages']
 
 ``sys.path`` is initialized during program startup. The first precedence is
 given to the current directory, i.e, ``path[0]`` is the directory containing
@@ -290,10 +290,10 @@ The ``sys.path`` variable will look like below:
     >>> pprint(sys.path)
     ['',
      '/home/arch/projects/airflow_operators'
-     '/home/arch/.pyenv/versions/3.7.4/lib/python37.zip',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python3.7',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python3.7/lib-dynload',
-     '/home/arch/venvs/airflow/lib/python3.7/site-packages']
+     '/home/arch/.pyenv/versions/3.8.4/lib/python37.zip',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8/lib-dynload',
+     '/home/arch/venvs/airflow/lib/python3.8/site-packages']
 
 As we can see that our provided directory is now added to the path, let's
 try to import the package now:
@@ -338,7 +338,7 @@ for creating and distributing Python packages.
 
 ``wheel``: The wheel package provides a bdist_wheel command for setuptools. It
 creates .whl file which is directly installable through the ``pip install``
-command. We can then upload the same file to `PyPI <pypi.org>`_.
+command. We can then upload the same file to `PyPI <https://pypi.org>`_.
 
 .. code-block:: bash
 

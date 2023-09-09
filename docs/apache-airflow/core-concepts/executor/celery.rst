@@ -21,6 +21,13 @@
 Celery Executor
 ===============
 
+.. note::
+
+    As of Airflow 2.7.0, you need to install the ``celery`` provider package to use this executor.
+    This can be done by installing ``apache-airflow-providers-celery>=3.3.0`` or by installing Airflow
+    with the ``celery`` extra: ``pip install 'apache-airflow[celery]'``.
+
+
 ``CeleryExecutor`` is one of the ways you can scale out the number of workers. For this
 to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, **Redis Sentinel** ...) and
 change your ``airflow.cfg`` to point the executor parameter to
@@ -28,6 +35,8 @@ change your ``airflow.cfg`` to point the executor parameter to
 
 For more information about setting up a Celery broker, refer to the
 exhaustive `Celery documentation on the topic <https://docs.celeryq.dev/en/latest/getting-started/>`_.
+
+The configuration parameters of the Celery Executor can be found in :doc:`apache-airflow-providers-celery:configurations-ref`.
 
 Here are a few imperative requirements for your workers:
 

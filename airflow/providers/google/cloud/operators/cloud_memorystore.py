@@ -18,7 +18,7 @@
 """
 Operators for Google Cloud Memorystore service.
 
-.. spelling::
+.. spelling:word-list::
 
     FieldMask
     memcache
@@ -28,10 +28,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest, InputConfig, Instance, OutputConfig
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.providers.google.cloud.hooks.cloud_memorystore import (
     CloudMemorystoreHook,
@@ -46,6 +44,9 @@ from airflow.providers.google.cloud.links.cloud_memorystore import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 
@@ -325,8 +326,9 @@ class CloudMemorystoreExportInstanceOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreFailoverInstanceOperator(GoogleCloudBaseOperator):
     """
-    Initiates a failover of the primary node to current replica node for a specific STANDARD tier Cloud
-    Memorystore for Redis instance.
+    Initiate a failover of the primary node for a specific STANDARD tier Cloud Memorystore for Redis instance.
+
+    Uses the current replica node.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -886,8 +888,7 @@ class CloudMemorystoreScaleInstanceOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreCreateInstanceAndImportOperator(GoogleCloudBaseOperator):
     """
-    Creates a Redis instance based on the specified tier and memory size and import a Redis RDB snapshot file
-    from Cloud Storage into a this instance.
+    Create a Redis instance and import a Redis RDB snapshot file from Cloud Storage into this instance.
 
     By default, the instance is accessible from the project's `default network
     <https://cloud.google.com/compute/docs/networks-and-firewalls#networks>`__.
@@ -1007,8 +1008,9 @@ class CloudMemorystoreCreateInstanceAndImportOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreExportAndDeleteInstanceOperator(GoogleCloudBaseOperator):
     """
-    Export Redis instance data into a Redis RDB format file in Cloud Storage. In next step, deletes a this
-    instance.
+    Export Redis instance data into a Redis RDB format file in Cloud Storage.
+
+    In next step, deletes this instance.
 
     Redis will continue serving during this operation.
 
@@ -1429,8 +1431,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreMemcachedListInstancesOperator(GoogleCloudBaseOperator):
     """
-    Lists all Memcached instances owned by a project in either the specified location (region) or all
-        locations.
+    List all Memcached instances owned by a project in either the specified location/region or all locations.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1617,9 +1618,10 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(GoogleCloudBaseOperator):
 
 class CloudMemorystoreMemcachedUpdateParametersOperator(GoogleCloudBaseOperator):
     """
-    Updates the defined Memcached Parameters for an existing Instance. This method only stages the
-        parameters, it must be followed by apply_parameters to apply the parameters to nodes of
-        the Memcached Instance.
+    Updates the defined Memcached Parameters for an existing Instance.
+
+    This method only stages the parameters, it must be followed by apply_parameters
+    to apply the parameters to nodes of the Memcached Instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

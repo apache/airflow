@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+from functools import cached_property
 from pathlib import Path
 from typing import Collection
 
@@ -27,7 +28,6 @@ from typing import Collection
 from google.cloud import storage  # type: ignore[attr-defined]
 from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
@@ -46,8 +46,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
-    TODO: delete this function when min airflow version >= 2.6
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
+
+    TODO: delete this function when min airflow version >= 2.6.
     """
     from airflow.version import version
 
@@ -58,10 +59,10 @@ def get_default_delete_local_copy():
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     """
-    GCSTaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
-    uploads to and reads from GCS remote storage. Upon log reading
-    failure, it reads from host machine's local disk.
+    GCSTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It extends airflow FileTaskHandler and uploads to and reads from GCS remote
+    storage. Upon log reading failure, it reads from host machine's local disk.
 
     :param base_log_folder: Base log folder to place logs.
     :param gcs_log_folder: Path to a remote location where logs will be saved. It must have the prefix
@@ -208,6 +209,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from GCS.
+
         If failed, read the log from task instance host machine.
 
         todo: when min airflow version >= 2.6, remove this method
@@ -230,8 +232,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def gcs_write(self, log, remote_log_location) -> bool:
         """
-        Writes the log to the remote_log_location and return `True` when done. Fails silently
-         and return `False` if no log was created.
+        Write the log to the remote location and return `True`; fail silently and return `False` on error.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage
@@ -240,13 +241,11 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             old_log = blob.download_as_bytes().decode()
-            log = "\n".join([old_log, log]) if old_log else log
+            log = f"{old_log}\n{log}" if old_log else log
         except Exception as e:
-            if self.no_log_found(e):
-                pass
-            else:
+            if not self.no_log_found(e):
                 log += self._add_message(
-                    f"Error checking for previous log; if exists, may be overwritten: {str(e)}"
+                    f"Error checking for previous log; if exists, may be overwritten: {e}"
                 )
                 self.log.warning("Error checking for previous log: %s", e)
         try:
@@ -264,8 +263,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
 
         :meta private:
         """
-        if exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]:
-            return True
-        elif getattr(exc, "resp", {}).get("status") == "404":
+        if (exc.args and isinstance(exc.args[0], str) and "No such object" in exc.args[0]) or getattr(
+            exc, "resp", {}
+        ).get("status") == "404":
             return True
         return False

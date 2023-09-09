@@ -28,8 +28,7 @@ if TYPE_CHECKING:
 
 class AQLSensor(BaseSensorOperator):
     """
-    Checks for the existence of a document which
-    matches the given query in ArangoDB. Example:
+    Checks for the existence of a document which matches the given query in ArangoDB.
 
     :param collection: Target DB collection.
     :param query: The query to poke, or you can provide .sql file having the query

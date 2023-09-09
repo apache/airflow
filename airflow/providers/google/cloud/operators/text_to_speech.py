@@ -22,8 +22,6 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
-from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -32,12 +30,15 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
+
     from airflow.utils.context import Context
 
 
 class CloudTextToSpeechSynthesizeOperator(GoogleCloudBaseOperator):
     """
-    Synthesizes text to speech and stores it in Google Cloud Storage
+    Synthesizes text to speech and stores it in Google Cloud Storage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

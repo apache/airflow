@@ -83,7 +83,7 @@ In the following example, failures in any task call the ``task_failure_alert`` f
         on_success_callback=None,
         on_failure_callback=task_failure_alert,
         tags=["example"],
-    ) as dag:
+    ):
 
         task1 = EmptyOperator(task_id="task1")
         task2 = EmptyOperator(task_id="task2")

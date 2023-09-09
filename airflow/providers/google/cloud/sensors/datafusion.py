@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
     """
-    Check the status of the pipeline in the Google Cloud Data Fusion
+    Check the status of the pipeline in the Google Cloud Data Fusion.
 
     :param pipeline_name: Your pipeline name.
     :param pipeline_id: Your pipeline ID.

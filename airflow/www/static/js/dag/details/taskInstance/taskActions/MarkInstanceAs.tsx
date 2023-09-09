@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Alert,
   AlertIcon,
@@ -37,7 +37,9 @@ import { MdArrowDropDown } from "react-icons/md";
 import { capitalize } from "lodash";
 
 import { getMetaValue } from "src/utils";
+import { useKeysPress } from "src/utils/useKeysPress";
 import type { TaskState } from "src/types";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 import {
   useMarkFailedTask,
   useMarkSuccessTask,
@@ -51,7 +53,7 @@ import ActionModal from "./ActionModal";
 const canEdit = getMetaValue("can_edit") === "True";
 const dagId = getMetaValue("dag_id");
 
-interface Props extends MenuButtonProps {
+interface Props {
   runId: string;
   taskId: string;
   state?: TaskState;
@@ -60,19 +62,22 @@ interface Props extends MenuButtonProps {
   isMapped?: boolean;
 }
 
-const MarkInstanceAs = ({
+interface ModalProps extends Props {
+  isOpen: boolean;
+  onClose: () => void;
+  state: TaskState;
+}
+
+const MarkAsModal = ({
   runId,
   taskId,
   isGroup,
   mapIndex,
   isMapped,
-  state: currentState,
-  ...otherProps
-}: Props) => {
-  const { onOpen, onClose, isOpen } = useDisclosure();
-
-  const [newState, setNewState] = useState<"failed" | "success">("success");
-
+  state,
+  isOpen,
+  onClose,
+}: ModalProps) => {
   const [past, setPast] = useState(false);
   const onTogglePast = () => setPast(!past);
 
@@ -85,15 +90,7 @@ const MarkInstanceAs = ({
   const [downstream, setDownstream] = useState(false);
   const onToggleDownstream = () => setDownstream(!downstream);
 
-  const markAsFailed = () => {
-    setNewState("failed");
-    onOpen();
-  };
-
-  const markAsSuccess = () => {
-    setNewState("success");
-    onOpen();
-  };
+  const initialMarkAsButtonFocusRef = useRef<HTMLButtonElement>(null);
 
   const mapIndexes =
     mapIndex !== undefined && mapIndex !== -1 ? [mapIndex] : undefined;
@@ -103,7 +100,7 @@ const MarkInstanceAs = ({
       dagId,
       runId,
       taskId,
-      state: newState,
+      state,
       isGroup: !!isGroup,
       past,
       future,
@@ -138,7 +135,7 @@ const MarkInstanceAs = ({
   };
 
   const onMarkState = () => {
-    if (newState === "success") {
+    if (state === "success") {
       markSuccessMutation({
         past,
         future,
@@ -146,7 +143,7 @@ const MarkInstanceAs = ({
         downstream,
         mapIndexes,
       });
-    } else if (newState === "failed") {
+    } else if (state === "failed") {
       markFailedMutation({
         past,
         future,
@@ -158,8 +155,128 @@ const MarkInstanceAs = ({
     resetModal();
   };
 
+  return (
+    <ActionModal
+      isOpen={isOpen}
+      onClose={resetModal}
+      header={`Mark as ${capitalize(state || "")}`}
+      subheader={
+        <>
+          <Text>
+            <Text as="strong" mr={1}>
+              Task:
+            </Text>
+            {taskId}
+          </Text>
+          <Text>
+            <Text as="strong" mr={1}>
+              Run:
+            </Text>
+            {runId}
+          </Text>
+          {isMapped && (
+            <Text>
+              <Text as="strong" mr={1}>
+                Map Index:
+              </Text>
+              {mapIndex !== undefined ? mapIndex : `All mapped tasks`}
+            </Text>
+          )}
+        </>
+      }
+      affectedTasks={affectedTasks}
+      submitButton={
+        <Button
+          ref={initialMarkAsButtonFocusRef}
+          colorScheme={
+            (state === "success" && "green") ||
+            (state === "failed" && "red") ||
+            "grey"
+          }
+          isLoading={
+            isLoadingDryRun || isMarkSuccessLoading || isMarkFailedLoading
+          }
+          isDisabled={!affectedTasks?.length || !state}
+          onClick={onMarkState}
+        >
+          Mark as {state}
+        </Button>
+      }
+      initialFocusRef={initialMarkAsButtonFocusRef}
+    >
+      <Box>
+        <Text>Include: </Text>
+        <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
+          <ActionButton
+            bg={past ? "gray.100" : undefined}
+            onClick={onTogglePast}
+            name="Past"
+          />
+          <ActionButton
+            bg={future ? "gray.100" : undefined}
+            onClick={onToggleFuture}
+            name="Future"
+          />
+          <ActionButton
+            bg={upstream ? "gray.100" : undefined}
+            onClick={onToggleUpstream}
+            name="Upstream"
+          />
+          <ActionButton
+            bg={downstream ? "gray.100" : undefined}
+            onClick={onToggleDownstream}
+            name="Downstream"
+          />
+        </ButtonGroup>
+      </Box>
+      {isGroup && (past || future) && (
+        <Alert status="warning" my={3}>
+          <AlertIcon />
+          Marking a TaskGroup as {capitalize(state || "")} in the future and/or
+          past will affect all the tasks of this group across multiple dag runs.
+          <br />
+          This can take a while to complete.
+        </Alert>
+      )}
+    </ActionModal>
+  );
+};
+
+const MarkInstanceAs = ({
+  runId,
+  taskId,
+  isGroup,
+  mapIndex,
+  isMapped,
+  state: currentState,
+  ...otherProps
+}: Props & MenuButtonProps) => {
+  const { onOpen, onClose, isOpen } = useDisclosure();
+
+  const [newState, setNewState] = useState<"failed" | "success">("success");
+
+  const markAsFailed = () => {
+    setNewState("failed");
+    onOpen();
+  };
+
+  const markAsSuccess = () => {
+    setNewState("success");
+    onOpen();
+  };
+
   const markLabel = "Manually set task instance state";
   const isMappedSummary = isMapped && mapIndex === undefined;
+
+  useKeysPress(keyboardShortcutIdentifier.taskMarkSuccess, () => {
+    if (1 - Number(!isMappedSummary && currentState === "success"))
+      markAsSuccess();
+  });
+
+  useKeysPress(keyboardShortcutIdentifier.taskMarkFailed, () => {
+    if (1 - Number(!isMappedSummary && currentState === "failed"))
+      markAsFailed();
+  });
 
   return (
     <>
@@ -195,88 +312,19 @@ const MarkInstanceAs = ({
           </MenuItem>
         </MenuList>
       </Menu>
-      <ActionModal
-        isOpen={isOpen}
-        onClose={resetModal}
-        header={`Mark as ${capitalize(newState)}`}
-        subheader={
-          <>
-            <Text>
-              <Text as="strong" mr={1}>
-                Task:
-              </Text>
-              {taskId}
-            </Text>
-            <Text>
-              <Text as="strong" mr={1}>
-                Run:
-              </Text>
-              {runId}
-            </Text>
-            {isMapped && (
-              <Text>
-                <Text as="strong" mr={1}>
-                  Map Index:
-                </Text>
-                {mapIndex !== undefined ? mapIndex : `All mapped tasks`}
-              </Text>
-            )}
-          </>
-        }
-        affectedTasks={affectedTasks}
-        submitButton={
-          <Button
-            colorScheme={
-              (newState === "success" && "green") ||
-              (newState === "failed" && "red") ||
-              "grey"
-            }
-            isLoading={
-              isLoadingDryRun || isMarkSuccessLoading || isMarkFailedLoading
-            }
-            isDisabled={!affectedTasks?.length || !newState}
-            onClick={onMarkState}
-          >
-            Mark as {newState}
-          </Button>
-        }
-      >
-        <Box>
-          <Text>Include: </Text>
-          <ButtonGroup isAttached variant="outline" isDisabled={!canEdit}>
-            <ActionButton
-              bg={past ? "gray.100" : undefined}
-              onClick={onTogglePast}
-              name="Past"
-            />
-            <ActionButton
-              bg={future ? "gray.100" : undefined}
-              onClick={onToggleFuture}
-              name="Future"
-            />
-            <ActionButton
-              bg={upstream ? "gray.100" : undefined}
-              onClick={onToggleUpstream}
-              name="Upstream"
-            />
-            <ActionButton
-              bg={downstream ? "gray.100" : undefined}
-              onClick={onToggleDownstream}
-              name="Downstream"
-            />
-          </ButtonGroup>
-        </Box>
-        {isGroup && (past || future) && (
-          <Alert status="warning" my={3}>
-            <AlertIcon />
-            Marking a TaskGroup as {capitalize(newState)} in the future and/or
-            past will affect all the tasks of this group across multiple dag
-            runs.
-            <br />
-            This can take a while to complete.
-          </Alert>
-        )}
-      </ActionModal>
+      {/* Only load modal is user can edit */}
+      {canEdit && (
+        <MarkAsModal
+          runId={runId}
+          taskId={taskId}
+          isGroup={isGroup}
+          mapIndex={mapIndex}
+          isMapped={isMapped}
+          state={newState}
+          isOpen={isOpen}
+          onClose={onClose}
+        />
+      )}
     </>
   );
 };

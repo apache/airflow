@@ -59,6 +59,6 @@ class TestEmailOperator:
         with conf_vars({("email", "email_backend"): "tests.operators.test_email.send_email_test"}):
             self._run_as_operator()
         assert send_email_test.call_count == 1
-        call_args = send_email_test.call_args[1]
+        call_args = send_email_test.call_args.kwargs
         assert call_args["files"] == ["/tmp/Report-A-2016-01-01.csv"]
         assert call_args["custom_headers"] == {"Reply-To": "reply_to@example.com"}

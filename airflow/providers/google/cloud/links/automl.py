@@ -44,7 +44,7 @@ AUTOML_MODEL_PREDICT_LINK = (
 
 
 class AutoMLDatasetLink(BaseGoogleLink):
-    """Helper class for constructing AutoML Dataset link"""
+    """Helper class for constructing AutoML Dataset link."""
 
     name = "AutoML Dataset"
     key = "automl_dataset"
@@ -65,7 +65,7 @@ class AutoMLDatasetLink(BaseGoogleLink):
 
 
 class AutoMLDatasetListLink(BaseGoogleLink):
-    """Helper class for constructing AutoML Dataset List link"""
+    """Helper class for constructing AutoML Dataset List link."""
 
     name = "AutoML Dataset List"
     key = "automl_dataset_list"
@@ -87,7 +87,7 @@ class AutoMLDatasetListLink(BaseGoogleLink):
 
 
 class AutoMLModelLink(BaseGoogleLink):
-    """Helper class for constructing AutoML Model link"""
+    """Helper class for constructing AutoML Model link."""
 
     name = "AutoML Model"
     key = "automl_model"
@@ -114,7 +114,7 @@ class AutoMLModelLink(BaseGoogleLink):
 
 
 class AutoMLModelTrainLink(BaseGoogleLink):
-    """Helper class for constructing AutoML Model Train link"""
+    """Helper class for constructing AutoML Model Train link."""
 
     name = "AutoML Model Train"
     key = "automl_model_train"
@@ -138,7 +138,7 @@ class AutoMLModelTrainLink(BaseGoogleLink):
 
 
 class AutoMLModelPredictLink(BaseGoogleLink):
-    """Helper class for constructing AutoML Model Predict link"""
+    """Helper class for constructing AutoML Model Predict link."""
 
     name = "AutoML Model Predict"
     key = "automl_model_predict"

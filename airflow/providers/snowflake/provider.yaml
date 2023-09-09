@@ -23,6 +23,14 @@ description: |
 
 suspended: false
 versions:
+  - 5.0.1
+  - 5.0.0
+  - 4.4.2
+  - 4.4.1
+  - 4.4.0
+  - 4.3.1
+  - 4.3.0
+  - 4.2.0
   - 4.1.0
   - 4.0.5
   - 4.0.4
@@ -76,20 +84,12 @@ hooks:
     python-modules:
       - airflow.providers.snowflake.hooks.snowflake
       - airflow.providers.snowflake.hooks.snowflake_sql_api
-      - airflow.providers.snowflake.hooks.sql_api_generate_jwt
 
 transfers:
   - source-integration-name: Amazon Simple Storage Service (S3)
     target-integration-name: Snowflake
-    python-module: airflow.providers.snowflake.transfers.s3_to_snowflake
-    how-to-guide: /docs/apache-airflow-providers-snowflake/operators/s3_to_snowflake.rst
-  - source-integration-name: Snowflake
-    target-integration-name: Slack
-    python-module: airflow.providers.snowflake.transfers.snowflake_to_slack
-    how-to-guide: /docs/apache-airflow-providers-snowflake/operators/snowflake_to_slack.rst
-  - source-integration-name: Amazon Simple Storage Service (S3)
-    target-integration-name: Snowflake
     python-module: airflow.providers.snowflake.transfers.copy_into_snowflake
+    how-to-guide: /docs/apache-airflow-providers-snowflake/operators/copy_into_snowflake.rst
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Snowflake
     python-module: airflow.providers.snowflake.transfers.copy_into_snowflake
@@ -100,3 +100,8 @@ transfers:
 connection-types:
   - hook-class-name: airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
     connection-type: snowflake
+
+triggers:
+  - integration-name: Snowflake
+    python-modules:
+      - airflow.providers.snowflake.triggers.snowflake_trigger

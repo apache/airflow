@@ -58,6 +58,7 @@ class TestSqlAlchemySettings:
             pool_recycle=1800,
             pool_size=5,
             isolation_level="READ COMMITTED",
+            future=True,
         )
 
     @patch("airflow.settings.setup_event_handlers")
@@ -85,6 +86,7 @@ class TestSqlAlchemySettings:
                 connect_args=SQL_ALCHEMY_CONNECT_ARGS,
                 poolclass=NullPool,
                 encoding="utf-8",
+                future=True,
                 **engine_args,
             )
 

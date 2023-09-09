@@ -21,8 +21,43 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-microsoft-psrp``
+
+
 Changelog
 ---------
+
+2.3.2
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use str.splitlines() to split lines in providers (#33593)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+2.3.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Add note about dropping Python 3.7 for providers (#32015)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 2.3.0
 .....

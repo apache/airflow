@@ -77,6 +77,15 @@ use :class:`~airflow.providers.amazon.aws.sensors.batch.BatchSensor`.
     :start-after: [START howto_sensor_batch]
     :end-before: [END howto_sensor_batch]
 
+In order to monitor the state of the AWS Batch Job asynchronously, use
+:class:`~airflow.providers.amazon.aws.sensors.batch.BatchSensor` with the
+parameter ``deferrable`` set to True.
+
+Since this will release the Airflow worker slot , it will lead to efficient
+utilization of available resources on your Airflow deployment.
+This will also need the triggerer component to be available in your
+Airflow deployment.
+
 .. _howto/sensor:BatchComputeEnvironmentSensor:
 
 Wait on an AWS Batch compute environment status

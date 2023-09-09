@@ -23,7 +23,9 @@ import boto3
 from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.providers.amazon.aws.hooks.ecs import EcsTaskStates
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
+from airflow.providers.amazon.aws.sensors.ecs import EcsTaskStateSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -123,6 +125,23 @@ with DAG(
     )
     # [END howto_operator_ecs]
 
+    # EcsRunTaskOperator waits by default, setting as False to test the Sensor below.
+    hello_world.wait_for_completion = False
+
+    # [START howto_sensor_ecs_task_state]
+    # By default, EcsTaskStateSensor waits until the task has started, but the
+    # demo task runs so fast that the sensor misses it.  This sensor instead
+    # demonstrates how to wait until the ECS Task has completed by providing
+    # the target_state and failure_states parameters.
+    await_task_finish = EcsTaskStateSensor(
+        task_id="await_task_finish",
+        cluster=cluster_name,
+        task=hello_world.output["ecs_task_arn"],
+        target_state=EcsTaskStates.STOPPED,
+        failure_states={EcsTaskStates.NONE},
+    )
+    # [END howto_sensor_ecs_task_state]
+
     chain(
         # TEST SETUP
         test_context,
@@ -130,6 +149,7 @@ with DAG(
         create_task_definition,
         # TEST BODY
         hello_world,
+        await_task_finish,
         # TEST TEARDOWN
         delete_task_definition(create_task_definition),
         delete_cluster(cluster_name),

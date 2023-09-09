@@ -27,9 +27,10 @@ if TYPE_CHECKING:
 
 
 class JiraOperator(BaseOperator):
-    """
-    JiraOperator to interact and perform action on Jira issue tracking system.
-    This operator is designed to use Atlassian Jira SDK: https://atlassian-python-api.readthedocs.io/jira.html
+    """JiraOperator to interact and perform action on Jira issue tracking system.
+
+    This operator is designed to use Atlassian Jira SDK. For more information:
+    https://atlassian-python-api.readthedocs.io/jira.html
 
     :param jira_conn_id: Reference to a pre-defined Jira Connection.
     :param jira_method: Method name from Atlassian Jira Python SDK to be called.
@@ -74,9 +75,9 @@ class JiraOperator(BaseOperator):
             hook = JiraHook(jira_conn_id=self.jira_conn_id)
             resource = hook.client
 
-        jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
+        jira_result: Any = getattr(resource, self.method_name)(**self.jira_method_args)
 
-        output = jira_result.get("id", None) if jira_result is not None else None
+        output = jira_result.get("id", None) if isinstance(jira_result, dict) else None
         self.xcom_push(context, key="id", value=output)
 
         if self.result_processor:

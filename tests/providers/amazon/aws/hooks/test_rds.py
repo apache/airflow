@@ -153,7 +153,6 @@ class TestRdsHook:
                 mock.return_value.wait.assert_called_once_with(
                     DBInstanceIdentifier=db_instance_id,
                     WaiterConfig={
-                        "Delay": self.waiter_args["check_interval"],
                         "MaxAttempts": self.waiter_args["max_attempts"],
                     },
                 )

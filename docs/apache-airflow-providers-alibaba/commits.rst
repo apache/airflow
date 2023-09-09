@@ -28,14 +28,82 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.5.3
+.....
+
+Latest change: 2023-09-07
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`7696e416ae <https://github.com/apache/airflow/commit/7696e416aef95295bdb360a8bf5ce68f9fd41e3e>`_  2023-09-07   ``fix(providers/alibaba): respect soft_fail argument when exception is raised (#34157)``
+=================================================================================================  ===========  ========================================================================================
+
+2.5.2
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`32feab4100 <https://github.com/apache/airflow/commit/32feab41006897de182bfa684813be230027aca1>`_  2023-08-22   ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+`af0a4a0698 <https://github.com/apache/airflow/commit/af0a4a0698040c1b61cdeafc135d99dcb182c9ef>`_  2023-08-21   ``Simplify conditions on len() in providers/apache (#33564)``
+`c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+=================================================================================================  ===========  =======================================================================
+
+2.5.1
+.....
+
+Latest change: 2023-08-11
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`4e83660f4c <https://github.com/apache/airflow/commit/4e83660f4c713d5a00ad9a583ba3a56c374d7e92>`_  2023-08-08   ``Refactor: Simplify code in providers/alibaba (#33225)``
+=================================================================================================  ===========  ============================================================
+
+2.5.0
+.....
+
+Latest change: 2023-07-06
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`0bc689ee6d <https://github.com/apache/airflow/commit/0bc689ee6d4b6967d7ae99a202031aac14d181a2>`_  2023-06-28   ``D205 Support - Providers: Airbyte and Alibaba (#32214)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+`f05beb7219 <https://github.com/apache/airflow/commit/f05beb721940c36f2c501ea8657516262b99c01e>`_  2023-06-27   ``Add Alibaba Cloud AnalyticDB Spark Support (#31787)``
+=================================================================================================  ===========  ================================================================
+
+2.4.1
+.....
+
+Latest change: 2023-06-20
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``
+`9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``
+=================================================================================================  ===========  =============================================================
+
 2.4.0
 .....
 
-Latest change: 2023-05-18
+Latest change: 2023-05-19
 
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``

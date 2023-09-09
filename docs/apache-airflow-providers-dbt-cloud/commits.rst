@@ -28,14 +28,74 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2023-09-07
+
+=================================================================================================  ===========  ======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================
+`0ecbbacd21 <https://github.com/apache/airflow/commit/0ecbbacd211184eaf8943ba2e58205a0b2dd108e>`_  2023-09-07   ``fix(providers/redis): respect soft_fail argument when exception is raised (#34164)``
+`5eea4e632c <https://github.com/apache/airflow/commit/5eea4e632c8ae50812e07b1d844ea4f52e0d6fe1>`_  2023-09-07   ``Add OpenLineage support for DBT Cloud. (#33959)``
+`0a5e2281e0 <https://github.com/apache/airflow/commit/0a5e2281e084b228e697ffdd5d825b927fce9483>`_  2023-08-31   ``Remove some useless try/except from providers code (#33967)``
+`6d182beec6 <https://github.com/apache/airflow/commit/6d182beec6e86b372c37fb164a31c2f8811d8c03>`_  2023-08-26   ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+=================================================================================================  ===========  ======================================================================================================
+
+3.2.3
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
+`a91ee7ac2f <https://github.com/apache/airflow/commit/a91ee7ac2fe29f460a4e4b0d8c1346f40672be43>`_  2023-08-20   ``Refactor: Simplify code in smaller providers (#33234)``
+=================================================================================================  ===========  ============================================================
+
+3.2.2
+.....
+
+Latest change: 2023-07-06
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``
+`d1aa509bbd <https://github.com/apache/airflow/commit/d1aa509bbd1941ceb3fe31789efeebbddd58d32f>`_  2023-06-28   ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+=================================================================================================  ===========  =======================================================================
+
+3.2.1
+.....
+
+Latest change: 2023-06-20
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`9276310a43 <https://github.com/apache/airflow/commit/9276310a43d17a9e9e38c2cb83686a15656896b2>`_  2023-06-05   ``Improve docstrings in providers (#31681)``
+`dc5bf3fd02 <https://github.com/apache/airflow/commit/dc5bf3fd02c589578209cb0dd5b7d005b1516ae9>`_  2023-06-02   ``Add discoverability for triggers in provider.yaml (#31576)``
+`a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``
+`9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``
+=================================================================================================  ===========  ==============================================================
+
 3.2.0
 .....
 
-Latest change: 2023-05-18
+Latest change: 2023-05-19
 
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``

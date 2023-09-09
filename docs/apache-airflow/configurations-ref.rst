@@ -17,7 +17,7 @@
 
 
 Configuration Reference
-=======================
+.......................
 
 This page contains the list of all the available Airflow configurations that you
 can set in ``airflow.cfg`` file or using environment variables.
@@ -32,79 +32,18 @@ generated using the secret key has a short expiry time though - make sure that t
 that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
 "forbidden" errors when the logs are accessed.
 
+Some of the providers have their own configuration options, you will find details of their configuration
+in the provider's documentation. The pre-installed providers that you may want to configure are:
+
+* :doc:`Configuration Reference for Celery Provider <apache-airflow-providers-celery:configurations-ref>`
+* :doc:`Configuration Reference for Apache Hive Provider <apache-airflow-providers-apache-hive:configurations-ref>`
+* :doc:`Configuration Reference for CNCF Kubernetes Provider <apache-airflow-providers-cncf-kubernetes:configurations-ref>`
+* :doc:`Configuration Reference for SMTP Provider <apache-airflow-providers-smtp:configurations-ref>`
+* :doc:`Configuration Reference for IMAP Provider <apache-airflow-providers-imap:configurations-ref>`
+* :doc:`Configuration Reference for OpenLineage Provider <apache-airflow-providers-openlineage:configurations-ref>`
+* :doc:`Configuration Reference for Elasticsearch Provider <apache-airflow-providers-elasticsearch:configurations-ref>`
+
 .. note::
-    For more information on setting the configuration, see :doc:`howto/set-config`
+    For more information see :doc:`/howto/set-config`.
 
-.. contents:: Sections:
-   :local:
-   :depth: 1
-
-.. jinja:: config_ctx
-
-    {% for section_name, section in configs.items() %}
-
-    .. _config:{{ section_name }}:
-
-    [{{ section_name }}]
-    {{ "=" * (section_name|length + 2) }}
-
-    {% if 'renamed' in section %}
-    *Renamed in version {{ section['renamed']['version'] }}, previous name was {{ section['renamed']['previous_name'] }}*
-    {% endif %}
-
-    {% if section["description"] %}
-    {{ section["description"] }}
-    {% endif %}
-
-    {% for option_name, option in section["options"].items() %}
-
-    .. _config:{{ section_name }}__{{ option_name }}:
-
-    {{ option_name }}
-    {{ "-" * option_name|length }}
-
-    {% if option["version_added"] %}
-    .. versionadded:: {{ option["version_added"] }}
-    {% endif %}
-
-    {% if option["description"] %}
-    {{ option["description"] }}
-    {% endif %}
-
-    {% if option.get("see_also") %}
-    .. seealso:: {{ option["see_also"] }}
-    {% endif %}
-
-    :Type: {{ option["type"] }}
-    :Default: ``{{ "''" if option["default"] == "" else option["default"] }}``
-    {% if option.get("sensitive") %}
-    :Environment Variables:
-        ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
-
-        ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_CMD``
-
-        ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_SECRET``
-    {% else %}
-    :Environment Variable: ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
-    {% endif %}
-    {% if option["example"] %}
-    :Example:
-        ``{{ option["example"] }}``
-    {% endif %}
-
-    {% endfor %}
-
-    {% if section_name in deprecated_options %}
-
-    {% for deprecated_option_name, (new_section_name, new_option_name, since_version) in deprecated_options[section_name].items() %}
-    .. _config:{{ section_name }}__{{ deprecated_option_name }}:
-
-    {{ deprecated_option_name }} (Deprecated)
-    {{ "-" * (deprecated_option_name + " (Deprecated)")|length }}
-
-    .. deprecated:: {{ since_version }}
-       The option has been moved to :ref:`{{ new_section_name }}.{{ new_option_name }} <config:{{ new_section_name }}__{{ new_option_name }}>`
-    {% endfor %}
-    {% endif %}
-
-    {% endfor %}
+.. include:: ../exts/includes/sections-and-options.rst

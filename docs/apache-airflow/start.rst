@@ -24,8 +24,8 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 .. note::
 
-   Successful installation requires a Python 3 environment. Starting with Airflow 2.3.0, Airflow is tested with Python 3.7, 3.8, 3.9, 3.10. Note that
-   Python 3.11 is not yet supported.
+   Successful installation requires a Python 3 environment. Starting with Airflow 2.3.0, Airflow is tested with Python 3.8, 3.9, 3.10.
+   Note that Python 3.11 is not yet supported.
 
    Only ``pip`` installation is currently officially supported.
 
@@ -42,7 +42,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    If you wish to install Airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
-The installation of Airflow is painless if you follow the instructions below. Airflow uses
+The installation of Airflow is straightforward if you follow the instructions below. Airflow uses
 constraint files to enable reproducible installation, so using ``pip`` and constraint files is recommended.
 
 1. Set Airflow Home (optional):
@@ -65,7 +65,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
       PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
 
       CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-      # For example this would install |version| with python 3.7: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.7.txt
+      # For example this would install |version| with python 3.8: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt
 
       pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
@@ -119,7 +119,7 @@ the all-in-one ``standalone`` command, you can instead run:
 
 .. code-block:: bash
 
-    airflow db init
+    airflow db migrate
 
     airflow users create \
         --username admin \

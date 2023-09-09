@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Telegram"""
+"""Hook for Telegram."""
 from __future__ import annotations
 
 import asyncio
@@ -71,7 +71,7 @@ class TelegramHook(BaseHook):
 
     def get_conn(self) -> telegram.Bot:
         """
-        Returns the telegram bot client
+        Returns the telegram bot client.
 
         :return: telegram bot client
         """
@@ -79,7 +79,7 @@ class TelegramHook(BaseHook):
 
     def __get_token(self, token: str | None, telegram_conn_id: str | None) -> str:
         """
-        Returns the telegram API token
+        Returns the telegram API token.
 
         :param token: telegram API token
         :param telegram_conn_id: telegram connection name
@@ -100,7 +100,7 @@ class TelegramHook(BaseHook):
 
     def __get_chat_id(self, chat_id: str | None, telegram_conn_id: str | None) -> str | None:
         """
-        Returns the telegram chat ID for a chat/channel/group
+        Returns the telegram chat ID for a chat/channel/group.
 
         :param chat_id: optional chat ID
         :param telegram_conn_id: telegram connection name

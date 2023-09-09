@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models import Operator
+from typing import TYPE_CHECKING
+
 from airflow.models.abstractoperator import AbstractOperator
-from airflow.models.dag import DAG
+
+if TYPE_CHECKING:
+    from airflow.models import Operator
+    from airflow.models.dag import DAG
 
 
 def dag_edges(dag: DAG):
@@ -101,6 +105,7 @@ def dag_edges(dag: DAG):
 
     # Collect all the edges between individual tasks
     edges = set()
+    setup_teardown_edges = set()
 
     tasks_to_trace: list[Operator] = dag.roots
     while tasks_to_trace:
@@ -108,10 +113,11 @@ def dag_edges(dag: DAG):
         for task in tasks_to_trace:
             for child in task.downstream_list:
                 edge = (task.task_id, child.task_id)
-                if edge in edges:
-                    continue
-                edges.add(edge)
-                tasks_to_trace_next.append(child)
+                if task.is_setup and child.is_teardown:
+                    setup_teardown_edges.add(edge)
+                if edge not in edges:
+                    edges.add(edge)
+                    tasks_to_trace_next.append(child)
         tasks_to_trace = tasks_to_trace_next
 
     result = []
@@ -120,6 +126,8 @@ def dag_edges(dag: DAG):
     for source_id, target_id in sorted(edges.union(edges_to_add) - edges_to_skip):
         record = {"source_id": source_id, "target_id": target_id}
         label = dag.get_edge_info(source_id, target_id).get("label")
+        if (source_id, target_id) in setup_teardown_edges:
+            record["is_setup_teardown"] = True
         if label:
             record["label"] = label
         result.append(record)

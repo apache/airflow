@@ -128,6 +128,7 @@ with DAG(
     )
     # [END howto_operator_rds_cancel_export]
     cancel_export.check_interval = 10
+    cancel_export.max_attempts = 120
 
     # [START howto_sensor_rds_export_task_existence]
     export_sensor = RdsExportTaskExistenceSensor(

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import json
-from tempfile import NamedTemporaryFile
+import os
 from unittest import mock
 
 import psycopg2.extras
@@ -99,6 +99,20 @@ class TestPostgresHookConn:
         hook.get_conn()
         mock_connect.assert_called_once_with(
             user="login-conn", password="password-conn", host="host", dbname="database-override", port=None
+        )
+
+    @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
+    def test_get_conn_from_connection_with_options(self, mock_connect):
+        conn = Connection(login="login-conn", password="password-conn", host="host", schema="database")
+        hook = PostgresHook(connection=conn, options="-c statement_timeout=3000ms")
+        hook.get_conn()
+        mock_connect.assert_called_once_with(
+            user="login-conn",
+            password="password-conn",
+            host="host",
+            dbname="database",
+            port=None,
+            options="-c statement_timeout=3000ms",
         )
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
@@ -255,6 +269,55 @@ class TestPostgresHookConn:
         hook = PostgresHook(schema=database)
         assert hook.database == database
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
+    @pytest.mark.parametrize("aws_conn_id", [NOTSET, None, "mock_aws_conn"])
+    @pytest.mark.parametrize("port", [5432, 5439, None])
+    @pytest.mark.parametrize(
+        "host,conn_cluster_identifier,expected_host",
+        [
+            (
+                "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
+                NOTSET,
+                "cluster-identifier.us-east-1",
+            ),
+            (
+                "cluster-identifier.ccdfre4hpd39h.us-east-1.redshift.amazonaws.com",
+                "different-identifier",
+                "different-identifier.us-east-1",
+            ),
+        ],
+    )
+    def test_openlineage_methods_with_redshift(
+        self,
+        mock_aws_hook_class,
+        aws_conn_id,
+        port,
+        host,
+        conn_cluster_identifier,
+        expected_host,
+    ):
+        mock_conn_extra = {
+            "iam": True,
+            "redshift": True,
+        }
+        if aws_conn_id is not NOTSET:
+            mock_conn_extra["aws_conn_id"] = aws_conn_id
+        if conn_cluster_identifier is not NOTSET:
+            mock_conn_extra["cluster-identifier"] = conn_cluster_identifier
+
+        self.connection.extra = json.dumps(mock_conn_extra)
+        self.connection.host = host
+        self.connection.port = port
+
+        # Mock AWS Connection
+        mock_aws_hook_instance = mock_aws_hook_class.return_value
+        mock_aws_hook_instance.region_name = "us-east-1"
+
+        assert (
+            self.db_hook._get_openlineage_redshift_authority_part(self.connection)
+            == f"{expected_host}:{port or 5439}"
+        )
+
 
 @pytest.mark.backend("postgres")
 class TestPostgresHook:
@@ -292,42 +355,38 @@ class TestPostgresHook:
             assert self.cur.close.call_count == 1
             assert self.conn.commit.call_count == 1
             self.cur.copy_expert.assert_called_once_with(statement, open_mock.return_value)
-            assert open_mock.call_args[0] == (filename, "r+")
+            assert open_mock.call_args.args == (filename, "r+")
 
-    def test_bulk_load(self):
+    def test_bulk_load(self, tmp_path):
         hook = PostgresHook()
         input_data = ["foo", "bar", "baz"]
 
-        with hook.get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
-                conn.commit()
+        with hook.get_conn() as conn, conn.cursor() as cur:
+            cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
+            conn.commit()
 
-                with NamedTemporaryFile() as f:
-                    f.write("\n".join(input_data).encode("utf-8"))
-                    f.flush()
-                    hook.bulk_load(self.table, f.name)
+            path = tmp_path / "testfile"
+            path.write_text("\n".join(input_data))
+            hook.bulk_load(self.table, os.fspath(path))
 
-                cur.execute(f"SELECT * FROM {self.table}")
-                results = [row[0] for row in cur.fetchall()]
+            cur.execute(f"SELECT * FROM {self.table}")
+            results = [row[0] for row in cur.fetchall()]
 
         assert sorted(input_data) == sorted(results)
 
-    def test_bulk_dump(self):
+    def test_bulk_dump(self, tmp_path):
         hook = PostgresHook()
         input_data = ["foo", "bar", "baz"]
 
-        with hook.get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
-                values = ",".join(f"('{data}')" for data in input_data)
-                cur.execute(f"INSERT INTO {self.table} VALUES {values}")
-                conn.commit()
+        with hook.get_conn() as conn, conn.cursor() as cur:
+            cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
+            values = ",".join(f"('{data}')" for data in input_data)
+            cur.execute(f"INSERT INTO {self.table} VALUES {values}")
+            conn.commit()
 
-                with NamedTemporaryFile() as f:
-                    hook.bulk_dump(self.table, f.name)
-                    f.seek(0)
-                    results = [line.rstrip().decode("utf-8") for line in f.readlines()]
+        path = tmp_path / "testfile"
+        hook.bulk_dump(self.table, os.fspath(path))
+        results = [line.rstrip() for line in path.read_text().splitlines()]
 
         assert sorted(input_data) == sorted(results)
 

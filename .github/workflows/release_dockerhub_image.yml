@@ -29,9 +29,12 @@ on:  # yamllint disable-line rule:truthy
         required: false
 permissions:
   contents: read
+  packages: read
 concurrency:
   group: ${{ github.event.inputs.airflowVersion }}
   cancel-in-progress: true
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   build-info:
     timeout-minutes: 10
@@ -45,6 +48,7 @@ jobs:
       limitPlatform: ${{ github.repository == 'apache/airflow' && ' ' || '--limit-platform linux/amd64' }}
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
+      VERBOSE: true
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -73,6 +77,7 @@ jobs:
       RUNS_ON: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-22.04' }}
     if: contains(fromJSON('[
       "ashb",
+      "eladkal",
       "ephraimbuddy",
       "jedcunningham",
       "kaxil",
@@ -88,10 +93,13 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+      - name: Free space
+        run: breeze ci free-space --answer yes
       - name: Build CI image for PROD build ${{ needs.build-info.outputs.defaultPythonVersion }}
         run: breeze ci-image build
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          COMMIT_SHA: ${{ github.sha }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
       - name: "Start ARM instance"
@@ -110,6 +118,8 @@ jobs:
           ${{ needs.build-info.outputs.skipLatest }}
           ${{ needs.build-info.outputs.limitPlatform }}
           --limit-python ${{ matrix.python-version }}
+        env:
+          COMMIT_SHA: ${{ github.sha }}
       - name: >
           Release slim images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         run: >
@@ -119,6 +129,8 @@ jobs:
           ${{ needs.build-info.outputs.skipLatest }}
           ${{ needs.build-info.outputs.limitPlatform }}
           --limit-python ${{ matrix.python-version }} --slim-images
+        env:
+          COMMIT_SHA: ${{ github.sha }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always() && github.repository == 'apache/airflow'

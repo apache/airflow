@@ -21,8 +21,64 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-oracle``
+
+
 Changelog
 ---------
+
+3.7.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Consolidate "import numpy as np" (#34111)``
+* ``Combine similar if logics in providers (#33987)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+
+3.7.3
+.....
+
+Misc
+~~~~~
+
+* ``Replace strftime with f-strings where nicer (#33455)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+* ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+
+3.7.2
+.....
+
+Misc
+~~~~
+
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``D205 Support - Auto-fixes and Stragglers (#32212)``
+
+3.7.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Add note about dropping Python 3.7 for providers (#32015)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
 
 3.7.0
 .....

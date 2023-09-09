@@ -27,11 +27,13 @@
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.dagProcessor.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.dagProcessor.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.dagProcessor) }}
-kind: Deployment
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.dagProcessor) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.dagProcessor) }}
+{{- $containerLifecycleHooks := or .Values.dagProcessor.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-dag-processor
+  name: {{ include "airflow.fullname" . }}-dag-processor
   labels:
     tier: airflow
     component: dag-processor
@@ -99,6 +101,9 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 100
       {{- end }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.dagProcessor.terminationGracePeriodSeconds }}
@@ -120,7 +125,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
-              {{- toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
@@ -133,7 +138,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraInitContainers }}
           {{- toYaml .Values.dagProcessor.extraInitContainers | nindent 8 }}
@@ -142,6 +147,10 @@ spec:
         - name: dag-processor
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks  }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.dagProcessor.command }}
           command: {{ tpl (toYaml .Values.dagProcessor.command) . | nindent 12 }}
           {{- end }}
@@ -154,7 +163,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
-              {{ toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -218,6 +227,11 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+        - name: webserver-config
+          configMap:
+            name: {{ template "airflow_webserver_config_configmap_name" . }}
+        {{- end }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:
@@ -233,7 +247,7 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.dagProcessor.extraVolumes }}
-          {{- toYaml .Values.dagProcessor.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.dagProcessor.extraVolumes) . | nindent 8 }}
         {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs

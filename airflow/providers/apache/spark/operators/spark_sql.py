@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class SparkSqlOperator(BaseOperator):
     """
-    Execute Spark SQL query
+    Execute Spark SQL query.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -91,7 +91,7 @@ class SparkSqlOperator(BaseOperator):
         self._hook: SparkSqlHook | None = None
 
     def execute(self, context: Context) -> None:
-        """Call the SparkSqlHook to run the provided sql query"""
+        """Call the SparkSqlHook to run the provided sql query."""
         if self._hook is None:
             self._hook = self._get_hook()
         self._hook.run_query()
@@ -102,7 +102,7 @@ class SparkSqlOperator(BaseOperator):
         self._hook.kill()
 
     def _get_hook(self) -> SparkSqlHook:
-        """Get SparkSqlHook"""
+        """Get SparkSqlHook."""
         return SparkSqlHook(
             sql=self._sql,
             conf=self._conf,

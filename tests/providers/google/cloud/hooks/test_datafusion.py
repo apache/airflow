@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-import sys
+from unittest import mock
 
 import aiohttp
 import pytest
@@ -27,11 +27,6 @@ from yarl import URL
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 API_VERSION = "v1beta1"
 GCP_CONN_ID = "google_cloud_default"
@@ -55,6 +50,12 @@ CONSTRUCTED_PIPELINE_URL_GET = (
     f"googleusercontent.com/api/v3/namespaces/{NAMESPACE}/apps/{PIPELINE_NAME}"
     f"/workflows/DataPipelineWorkflow/runs/{PIPELINE_ID}"
 )
+
+
+class MockResponse:
+    def __init__(self, status, data=None):
+        self.status = status
+        self.data = data
 
 
 @pytest.fixture
@@ -167,6 +168,24 @@ class TestDataFusionHook:
         assert result == "value"
         method_mock.assert_called_once_with(name=hook._name(PROJECT_ID, LOCATION, INSTANCE_NAME))
 
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_get_instance_artifacts(self, mock_request, hook):
+        scope = "SYSTEM"
+        artifact = {
+            "name": "test-artifact",
+            "version": "1.2.3",
+            "scope": scope,
+        }
+        mock_request.return_value = mock.MagicMock(status=200, data=json.dumps([artifact]))
+
+        hook.get_instance_artifacts(instance_url=INSTANCE_URL, scope=scope)
+
+        mock_request.assert_called_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/artifacts",
+            method="GET",
+            params={"scope": scope},
+        )
+
     @mock.patch("google.auth.transport.requests.Request")
     @mock.patch(HOOK_STR.format("DataFusionHook.get_credentials"))
     def test_cdap_request(self, get_credentials_mock, mock_request, hook):
@@ -176,14 +195,17 @@ class TestDataFusionHook:
         request = mock_request.return_value
         request.return_value = mock.MagicMock()
         body = {"data": "value"}
+        params = {"param_key": "param_value"}
 
-        result = hook._cdap_request(url=url, method=method, body=body)
+        result = hook._cdap_request(url=url, method=method, body=body, params=params)
         mock_request.assert_called_once_with()
         get_credentials_mock.assert_called_once_with()
         get_credentials_mock.return_value.before_request.assert_called_once_with(
             request=request, method=method, url=url, headers=headers
         )
-        request.assert_called_once_with(method=method, url=url, headers=headers, body=json.dumps(body))
+        request.assert_called_once_with(
+            method=method, url=url, headers=headers, body=json.dumps(body), params=params
+        )
         assert result == request.return_value
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
@@ -255,6 +277,22 @@ class TestDataFusionHook:
         with pytest.raises(AirflowException, match=r"Deleting a pipeline failed with code 404"):
             hook.delete_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
         mock_request.assert_called_once_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}",
+            method="DELETE",
+            body=None,
+        )
+
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_delete_pipeline_should_fail_if_status_409(self, mock_request, hook, caplog):
+        mock_request.side_effect = [
+            MockResponse(status=409, data="Conflict: Resource is still in use."),
+            MockResponse(status=200, data="Success"),
+        ]
+        hook.delete_pipeline(pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL)
+
+        assert mock_request.call_count == 2
+        assert "Conflict: Resource is still in use." in caplog.text
+        mock_request.assert_called_with(
             url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}",
             method="DELETE",
             body=None,

@@ -27,7 +27,7 @@ consists of multiple machines (specifically, Compute Engine instances) grouped t
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 Manage GKE cluster
 ^^^^^^^^^^^^^^^^^^
@@ -111,7 +111,7 @@ Run a Pod on a GKE cluster
 
 There are two operators available in order to run a pod on a GKE cluster:
 
-* :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+* :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 * :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`
 
 ``GKEStartPodOperator`` extends ``KubernetesPodOperator`` to provide authorization using Google Cloud credentials.
@@ -143,7 +143,7 @@ Use of XCom
 '''''''''''
 
 We can enable the usage of :ref:`XCom <concepts:xcom>` on the operator. This works by launching a sidecar container
-with the pod specified. The sidecar is automatically mounted when the XCom usage is specified and it's mount point
+with the pod specified. The sidecar is automatically mounted when the XCom usage is specified and its mount point
 is the path ``/airflow/xcom``. To provide values to the XCom, ensure your Pod writes it into a file called
 ``return.json`` in the sidecar. The contents of this can then be used downstream in your DAG.
 Here is an example of it being used:

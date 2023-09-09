@@ -125,6 +125,14 @@ class TestGCSDeleteObjectsOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_delete_empty_list_of_objects(self, mock_hook):
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=[])
+
+        operator.execute(None)
+        mock_hook.return_value.list.assert_not_called()
+        mock_hook.return_value.delete.assert_not_called()
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_prefix(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES[1:4]
         operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX)
@@ -159,14 +167,26 @@ class TestGCSDeleteObjectsOperator:
 
 class TestGoogleCloudStorageListOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
-    def test_execute(self, mock_hook):
+    def test_execute__delimiter(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
         operator = GCSListObjectsOperator(
             task_id=TASK_ID, bucket=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
         files = operator.execute(context=mock.MagicMock())
         mock_hook.return_value.list.assert_called_once_with(
-            bucket_name=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
+            bucket_name=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER, match_glob=None
+        )
+        assert sorted(files) == sorted(MOCK_FILES)
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_execute__match_glob(self, mock_hook):
+        mock_hook.return_value.list.return_value = MOCK_FILES
+        operator = GCSListObjectsOperator(
+            task_id=TASK_ID, bucket=TEST_BUCKET, prefix=PREFIX, match_glob=f"**/*{DELIMITER}", delimiter=None
+        )
+        files = operator.execute(context=mock.MagicMock())
+        mock_hook.return_value.list.assert_called_once_with(
+            bucket_name=TEST_BUCKET, prefix=PREFIX, match_glob=f"**/*{DELIMITER}", delimiter=None
         )
         assert sorted(files) == sorted(MOCK_FILES)
 
@@ -176,7 +196,6 @@ class TestGCSFileTransformOperator:
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_execute(self, mock_hook, mock_subprocess, mock_tempfile):
-
         source_bucket = TEST_BUCKET
         source_object = "test.txt"
         destination_bucket = TEST_BUCKET + "-dest"
@@ -396,7 +415,9 @@ class TestGCSDeleteBucketOperator:
         operator = GCSDeleteBucketOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET)
 
         operator.execute(None)
-        mock_hook.return_value.delete_bucket.assert_called_once_with(bucket_name=TEST_BUCKET, force=True)
+        mock_hook.return_value.delete_bucket.assert_called_once_with(
+            bucket_name=TEST_BUCKET, force=True, user_project=None
+        )
 
 
 class TestGoogleCloudStorageSync:

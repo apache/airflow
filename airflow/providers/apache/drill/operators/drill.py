@@ -28,6 +28,10 @@ class DrillOperator(SQLExecuteQueryOperator):
     """
     Executes the provided SQL in the identified Drill environment.
 
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DrillOperator`

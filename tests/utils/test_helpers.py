@@ -17,15 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import re
-from itertools import product
+from typing import TYPE_CHECKING
 
 import pytest
 
 from airflow import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job
-from airflow.serialization.pydantic.job import JobPydantic
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
     at_most_one,
@@ -39,6 +38,10 @@ from airflow.utils.helpers import (
 from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+if TYPE_CHECKING:
+    from airflow.jobs.job import Job
+    from airflow.serialization.pydantic.job import JobPydantic
 
 
 @pytest.fixture()
@@ -80,9 +83,9 @@ class TestHelpers:
         assert list(helpers.chunks([1, 2, 3], 2)) == [[1, 2], [3]]
 
     def test_reduce_in_chunks(self):
-        assert helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], []) == [[1, 2, 3, 4, 5]]
+        assert helpers.reduce_in_chunks(lambda x, y: [*x, y], [1, 2, 3, 4, 5], []) == [[1, 2, 3, 4, 5]]
 
-        assert helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], [], 2) == [[1, 2], [3, 4], [5]]
+        assert helpers.reduce_in_chunks(lambda x, y: [*x, y], [1, 2, 3, 4, 5], [], 2) == [[1, 2], [3, 4], [5]]
 
         assert helpers.reduce_in_chunks(lambda x, y: x + y[0] * y[1], [1, 2, 3, 4], 0, 2) == 14
 
@@ -264,7 +267,7 @@ class TestHelpers:
                 expected = True if true + truthy == 1 else False
                 assert exactly_one(*sample) is expected
 
-        for row in product(range(4), range(4), range(4), range(4)):
+        for row in itertools.product(range(4), repeat=4):
             assert_exactly_one(*row)
 
     def test_exactly_one_should_fail(self):
@@ -295,7 +298,7 @@ class TestHelpers:
                 expected = True if true + truthy in (0, 1) else False
                 assert at_most_one(*sample) is expected
 
-        for row in product(range(4), range(4), range(4), range(4), range(4)):
+        for row in itertools.product(range(4), repeat=4):
             print(row)
             assert_at_most_one(*row)
 
@@ -309,6 +312,8 @@ class TestHelpers:
                     "c": {"b": "", "c": "hi", "d": ["", 0, "1"]},
                     "d": ["", 0, "1"],
                     "e": ["", 0, {"b": "", "c": "hi", "d": ["", 0, "1"]}, ["", 0, "1"], [""]],
+                    "f": {},
+                    "g": [""],
                 },
             ),
             (
@@ -324,7 +329,7 @@ class TestHelpers:
     def test_prune_dict(self, mode, expected):
         l1 = ["", 0, "1", None]
         d1 = {"a": None, "b": "", "c": "hi", "d": l1}
-        d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]]}
+        d2 = {"a": None, "b": "", "c": d1, "d": l1, "e": [None, "", 0, d1, l1, [""]], "f": {}, "g": [""]}
         assert prune_dict(d2, mode=mode) == expected
 
 
@@ -341,3 +346,11 @@ class MockJobRunner(BaseJobRunner):
         if self.func is not None:
             return self.func()
         return None
+
+
+class SchedulerJobRunner(MockJobRunner):
+    job_type = "SchedulerJob"
+
+
+class TriggererJobRunner(MockJobRunner):
+    job_type = "TriggererJob"

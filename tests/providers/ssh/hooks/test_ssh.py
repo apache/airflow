@@ -77,7 +77,7 @@ TEST_CMD_TIMEOUT = 5
 TEST_CMD_TIMEOUT_NOT_SET = "NOT SET"
 TEST_CMD_TIMEOUT_EXTRA = 15
 
-PASSPHRASE = "".join(random.choice(string.ascii_letters) for i in range(10))
+PASSPHRASE = "".join(random.choices(string.ascii_letters, k=10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
 
 TEST_DISABLED_ALGORITHMS = {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
@@ -1034,7 +1034,7 @@ class TestSSHHook:
         with hook.get_conn():
             assert ssh_mock.return_value.set_missing_host_key_policy.called is True
             assert isinstance(
-                ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
+                ssh_mock.return_value.set_missing_host_key_policy.call_args.args[0], paramiko.AutoAddPolicy
             )
             assert ssh_mock.return_value.load_host_keys.called is False
 
@@ -1046,7 +1046,8 @@ class TestSSHHook:
             with hook.get_conn():
                 assert ssh_mock.return_value.set_missing_host_key_policy.called is True
                 assert isinstance(
-                    ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
+                    ssh_mock.return_value.set_missing_host_key_policy.call_args.args[0],
+                    paramiko.AutoAddPolicy,
                 )
                 assert ssh_mock.return_value.load_host_keys.called is True
 
@@ -1055,7 +1056,8 @@ class TestSSHHook:
             with hook.get_conn():
                 assert ssh_mock.return_value.set_missing_host_key_policy.called is True
                 assert isinstance(
-                    ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
+                    ssh_mock.return_value.set_missing_host_key_policy.call_args.args[0],
+                    paramiko.AutoAddPolicy,
                 )
                 assert ssh_mock.return_value.load_host_keys.called is False
 

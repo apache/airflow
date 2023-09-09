@@ -41,6 +41,7 @@ body:
         - apache-pinot
         - apache-spark
         - apache-sqoop
+        - apprise
         - arangodb
         - asana
         - atlassian-jira
@@ -48,6 +49,7 @@ body:
         - cloudant
         - cncf-kubernetes
         - common-sql
+        - daskexecutor
         - databricks
         - datadog
         - dbt-cloud

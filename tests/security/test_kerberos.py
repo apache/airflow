@@ -100,7 +100,7 @@ class TestKerberos:
             "Renewing kerberos ticket to work around kerberos 1.8.1: kinit -c /tmp/airflow_krb5_ccache -R",
         ]
 
-        assert mock_subprocess.Popen.call_args[0][0] == expected_cmd
+        assert mock_subprocess.Popen.call_args.args[0] == expected_cmd
         assert mock_subprocess.mock_calls == [
             mock.call.Popen(
                 expected_cmd,

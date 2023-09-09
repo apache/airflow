@@ -28,12 +28,10 @@ from airflow import PY39
 
 def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
     """
-    Safely allows calling the hashlib.md5 function with the "usedforsecurity" disabled
-    when specified in the configuration.
-    :param string: The data to hash.
-        Default to empty str byte.
+    Safely allows calling the ``hashlib.md5`` function when ``usedforsecurity`` is disabled in configuration.
+
+    :param __string: The data to hash. Default to empty str byte.
     :return: The hashed value.
-    :rtype: _Hash
     """
     if PY39:
         return hashlib.md5(__string, usedforsecurity=False)  # type: ignore

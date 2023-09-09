@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -80,11 +80,11 @@ class DynamoDBValueSensor(BaseSensorOperator):
         self.region_name = region_name
 
     def poke(self, context: Context) -> bool:
-        """Test DynamoDB item for matching attribute value"""
+        """Test DynamoDB item for matching attribute value."""
         key = {self.partition_key_name: self.partition_key_value}
         msg = (
             f"Checking table {self.table_name} for "
-            + f"item Partition Key: {self.partition_key_name}={self.partition_key_value}"
+            f"item Partition Key: {self.partition_key_name}={self.partition_key_value}"
         )
 
         if self.sort_key_name and self.sort_key_value:
@@ -110,5 +110,5 @@ class DynamoDBValueSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> DynamoDBHook:
-        """Create and return a DynamoDBHook"""
+        """Create and return a DynamoDBHook."""
         return DynamoDBHook(self.aws_conn_id, region_name=self.region_name)

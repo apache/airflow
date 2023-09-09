@@ -16,8 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module contains a Salesforce Hook which allows you to connect to your Salesforce instance,
-retrieve data from it, and write that data to a file for other uses.
+Connect to your Salesforce instance, retrieve data from it, and write that data to a file for other uses.
 
 .. note:: this hook also relies on the simple_salesforce package:
       https://github.com/simple-salesforce/simple-salesforce
@@ -26,14 +25,16 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Iterable
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Iterable
 
-import pandas as pd
-from requests import Session
 from simple_salesforce import Salesforce, api
 
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    import pandas as pd
+    from requests import Session
 
 log = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class SalesforceHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -115,7 +116,7 @@ class SalesforceHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra", "host"],
             "relabeling": {
@@ -125,7 +126,7 @@ class SalesforceHook(BaseHook):
 
     @cached_property
     def conn(self) -> api.Salesforce:
-        """Returns a Salesforce instance. (cached)"""
+        """Returns a Salesforce instance. (cached)."""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
         # all extras below (besides the version one) are explicitly defaulted to None
@@ -153,7 +154,7 @@ class SalesforceHook(BaseHook):
         return conn
 
     def get_conn(self) -> api.Salesforce:
-        """Returns a Salesforce instance. (cached)"""
+        """Returns a Salesforce instance. (cached)."""
         return self.conn
 
     def make_query(self, query: str, include_deleted: bool = False, query_params: dict | None = None) -> dict:
@@ -180,6 +181,7 @@ class SalesforceHook(BaseHook):
     def describe_object(self, obj: str) -> dict:
         """
         Get the description of an object from Salesforce.
+
         This description is the object's schema and
         some extra metadata that Salesforce stores for each object.
 
@@ -204,6 +206,7 @@ class SalesforceHook(BaseHook):
     def get_object_from_salesforce(self, obj: str, fields: Iterable[str]) -> dict:
         """
         Get all instances of the `object` from Salesforce.
+
         For each model, only get the fields specified in fields.
 
         All we really do underneath the hood is run:
@@ -225,7 +228,7 @@ class SalesforceHook(BaseHook):
     @classmethod
     def _to_timestamp(cls, column: pd.Series) -> pd.Series:
         """
-        Convert a column of a dataframe to UNIX timestamps if applicable
+        Convert a column of a dataframe to UNIX timestamps if applicable.
 
         :param column: A Series object representing a column of a dataframe.
         :return: a new series that maintains the same index as the original
@@ -239,6 +242,8 @@ class SalesforceHook(BaseHook):
         # between 0 and 10 are turned into timestamps
         # if the column cannot be converted,
         # just return the original column untouched
+        import pandas as pd
+
         try:
             column = pd.to_datetime(column)
         except ValueError:
@@ -354,6 +359,8 @@ class SalesforceHook(BaseHook):
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :return: the dataframe.
         """
+        import pandas as pd
+
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column
         # that's because None/np.nan cannot exist in an integer column
@@ -393,7 +400,7 @@ class SalesforceHook(BaseHook):
         return df
 
     def test_connection(self):
-        """Test the Salesforce connectivity"""
+        """Test the Salesforce connectivity."""
         try:
             self.describe_object("Account")
             status = True

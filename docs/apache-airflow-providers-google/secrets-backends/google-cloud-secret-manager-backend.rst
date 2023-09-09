@@ -73,6 +73,7 @@ the following parameters:
 * ``variables_prefix``: Specifies the prefix of the secret to read to get Variables. Default: ``"airflow-variables"``
 * ``gcp_key_path``: Path to Google Cloud Service Account Key file (JSON).
 * ``gcp_keyfile_dict``: Dictionary of keyfile parameters.
+* ``gcp_credential_config_file``: File path to or content of a GCP credential configuration file.
 * ``gcp_scopes``: Comma-separated string containing OAuth2 scopes.
 * ``sep``: Separator used to concatenate connections_prefix and conn_id. Default: ``"-"``
 * ``project_id``: Project ID to read the secrets from. If not passed, the project ID from credentials will be used.
@@ -95,6 +96,8 @@ You can configure the credentials in three ways:
 * By default, Application Default Credentials (ADC) is used obtain credentials.
 * ``gcp_key_path`` option in ``backend_kwargs`` option - allows you to configure authorizations with a service account stored in local file.
 * ``gcp_keyfile_dict`` option in ``backend_kwargs`` option - allows you to configure authorizations with a service account stored in Airflow configuration.
+* ``gcp_credential_config_file`` option in ``backend_kwargs`` option - allows you to configure authentication with a credential configuration file.
+  A credential configuration file is a configuration file that typically contains non-sensitive metadata to instruct the ``google-auth`` library on how to retrieve external subject tokens and exchange them for service account access tokens.
 
 .. note::
 

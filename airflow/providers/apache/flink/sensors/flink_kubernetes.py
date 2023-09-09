@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class FlinkKubernetesSensor(BaseSensorOperator):
     """
-    Checks flinkDeployment object in kubernetes cluster:
+    Checks flinkDeployment object in kubernetes cluster.
 
     .. seealso::
         For more detail about Flink Deployment Object have a look at the reference:
@@ -91,24 +91,23 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         )
 
         namespace = response["metadata"]["namespace"]
-        if len(all_pods.items) > 0:
-            for task_manager in all_pods.items:
-                task_manager_pod_name = task_manager.metadata.name
+        for task_manager in all_pods.items:
+            task_manager_pod_name = task_manager.metadata.name
 
-                self.log.info("Starting logging of task manager pod %s ", task_manager_pod_name)
-                try:
-                    log = ""
-                    for line in self.hook.get_pod_logs(task_manager_pod_name, namespace=namespace):
-                        log += line.decode()
-                    log_method(log)
-                except client.rest.ApiException as e:
-                    self.log.warning(
-                        "Could not read logs for pod %s. It may have been disposed.\n"
-                        "Make sure timeToLiveSeconds is set on your flinkDeployment spec.\n"
-                        "underlying exception: %s",
-                        task_manager_pod_name,
-                        e,
-                    )
+            self.log.info("Starting logging of task manager pod %s ", task_manager_pod_name)
+            try:
+                log = ""
+                for line in self.hook.get_pod_logs(task_manager_pod_name, namespace=namespace):
+                    log += line.decode()
+                log_method(log)
+            except client.rest.ApiException as e:
+                self.log.warning(
+                    "Could not read logs for pod %s. It may have been disposed.\n"
+                    "Make sure timeToLiveSeconds is set on your flinkDeployment spec.\n"
+                    "underlying exception: %s",
+                    task_manager_pod_name,
+                    e,
+                )
 
     def poke(self, context: Context) -> bool:
         self.log.info("Poking: %s", self.application_name)

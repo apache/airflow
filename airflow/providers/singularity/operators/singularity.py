@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 class SingularityOperator(BaseOperator):
     """
-    Execute a command inside a Singularity container
+    Execute a command inside a Singularity container.
 
     Singularity has more seamless connection to the host than Docker, so
     no special binds are needed to ensure binding content in the user $HOME
@@ -167,7 +167,7 @@ class SingularityOperator(BaseOperator):
         self.log.info("Output from command %s", result["message"])
 
     def _get_command(self) -> Any | None:
-        if self.command is not None and self.command.strip().find("[") == 0:  # type: ignore
+        if self.command is not None and self.command.strip().startswith("["):  # type: ignore
             commands = ast.literal_eval(self.command)
         else:
             commands = self.command

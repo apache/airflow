@@ -53,7 +53,7 @@ S3_KEY_PREFIX = "dynamodb-segmented-file"
 # Sometimes the API returns the error "Backups are being enabled for the table: <...>. Please retry later"
 # Using a retry strategy with exponential backoff to remediate that
 @tenacity.retry(
-    stop=tenacity.stop_after_attempt(5),
+    stop=tenacity.stop_after_attempt(20),
     wait=tenacity.wait_exponential(min=5),
     before=before_log(log, logging.INFO),
     before_sleep=before_sleep_log(log, logging.WARNING),

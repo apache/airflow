@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import importlib
 import inspect
+import logging
 import os
 import pickle
 import shutil
@@ -30,7 +32,7 @@ from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
 
 import dill
 
@@ -44,14 +46,30 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
-from airflow.utils.context import Context, context_copy_partial, context_merge
+from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
+if TYPE_CHECKING:
+    from pendulum.datetime import DateTime
+
+    from airflow.utils.context import Context
+
+
+def is_venv_installed() -> bool:
+    """
+    Check if the virtualenv package is installed via checking if it is on the path or installed as package.
+
+    :return: True if it is. Whichever way of checking it works, is fine.
+    """
+    if shutil.which("virtualenv") or importlib.util.find_spec("virtualenv"):
+        return True
+    return False
+
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """Deprecated. Use :func:`airflow.decorators.task` instead.
+    """Use :func:`airflow.decorators.task` instead, this is deprecated.
 
     Calls ``@task.python`` and allows users to turn a Python function into
     an Airflow task.
@@ -186,7 +204,7 @@ class PythonOperator(BaseOperator):
 
     def execute_callable(self) -> Any:
         """
-        Calls the python callable with the given arguments.
+        Call the python callable with the given arguments.
 
         :return: the return value of the call.
         """
@@ -251,23 +269,38 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.info("Proceeding with downstream tasks...")
             return condition
 
-        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task IDs %s", downstream_tasks)
+        if not self.downstream_task_ids:
+            self.log.info("No downstream tasks; nothing to do.")
+            return condition
 
-        if downstream_tasks:
-            dag_run = context["dag_run"]
-            execution_date = dag_run.execution_date
+        dag_run = context["dag_run"]
 
+        def get_tasks_to_skip():
             if self.ignore_downstream_trigger_rules is True:
-                self.log.info("Skipping all downstream tasks...")
-                self.skip(dag_run, execution_date, downstream_tasks)
+                tasks = context["task"].get_flat_relatives(upstream=False)
             else:
-                self.log.info("Skipping downstream tasks while respecting trigger rules...")
-                # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
-                # Scheduler handle the remaining downstream task(s) appropriately.
-                self.skip(dag_run, execution_date, context["task"].get_direct_relatives(upstream=False))
+                tasks = context["task"].get_direct_relatives(upstream=False)
+            for t in tasks:
+                if not t.is_teardown:
+                    yield t
 
+        to_skip = get_tasks_to_skip()
+
+        # this let's us avoid an intermediate list unless debug logging
+        if self.log.getEffectiveLevel() <= logging.DEBUG:
+            self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
+
+        self.log.info("Skipping downstream tasks")
+
+        self.skip(
+            dag_run=dag_run,
+            execution_date=cast("DateTime", dag_run.execution_date),
+            tasks=to_skip,
+            map_index=context["ti"].map_index,
+        )
         self.log.info("Done.")
+        # returns the result of the super execute method as it is instead of returning None
+        return condition
 
 
 class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
@@ -395,17 +428,18 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         output_path = tmp_dir / "script.out"
         string_args_path = tmp_dir / "string_args.txt"
         script_path = tmp_dir / "script.py"
+        termination_log_path = tmp_dir / "termination.log"
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
-            jinja_context=dict(
-                op_args=self.op_args,
-                op_kwargs=op_kwargs,
-                expect_airflow=self.expect_airflow,
-                pickling_library=self.pickling_library.__name__,
-                python_callable=self.python_callable.__name__,
-                python_callable_source=self.get_python_source(),
-            ),
+            jinja_context={
+                "op_args": self.op_args,
+                "op_kwargs": op_kwargs,
+                "expect_airflow": self.expect_airflow,
+                "pickling_library": self.pickling_library.__name__,
+                "python_callable": self.python_callable.__name__,
+                "python_callable_source": self.get_python_source(),
+            },
             filename=os.fspath(script_path),
             render_template_as_native_obj=self.dag.render_template_as_native_obj,
         )
@@ -418,11 +452,17 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     os.fspath(input_path),
                     os.fspath(output_path),
                     os.fspath(string_args_path),
+                    os.fspath(termination_log_path),
                 ]
             )
         except subprocess.CalledProcessError as e:
             if e.returncode in self.skip_on_exit_code:
                 raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
+            elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
+                with open(termination_log_path) as file:
+                    error_msg += file.read()
+                raise AirflowException(error_msg) from None
             else:
                 raise
 
@@ -481,6 +521,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
+    :param index_urls: an optional list of index urls to load Python packages from.
+        If not provided the system pip conf will be used to source packages from.
     """
 
     template_fields: Sequence[str] = tuple({"requirements"} | set(PythonOperator.template_fields))
@@ -502,6 +544,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
+        index_urls: None | Collection[str] | str = None,
         **kwargs,
     ):
         if (
@@ -514,17 +557,23 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "major versions for PythonVirtualenvOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
             )
-        if not shutil.which("virtualenv"):
+        if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if not requirements:
-            self.requirements: list[str] | str = []
+            self.requirements: list[str] = []
         elif isinstance(requirements, str):
-            self.requirements = requirements
+            self.requirements = [requirements]
         else:
             self.requirements = list(requirements)
         self.python_version = python_version
         self.system_site_packages = system_site_packages
         self.pip_install_options = pip_install_options
+        if isinstance(index_urls, str):
+            self.index_urls: list[str] | None = [index_urls]
+        elif isinstance(index_urls, Collection):
+            self.index_urls = list(index_urls)
+        else:
+            self.index_urls = None
         super().__init__(
             python_callable=python_callable,
             use_dill=use_dill,
@@ -538,28 +587,31 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             **kwargs,
         )
 
+    def _requirements_list(self) -> list[str]:
+        """Prepare a list of requirements that need to be installed for the venv."""
+        requirements = [str(dependency) for dependency in self.requirements]
+        if not self.system_site_packages and self.use_dill and "dill" not in requirements:
+            requirements.append("dill")
+        requirements.sort()  # Ensure a hash is stable
+        return requirements
+
+    def _prepare_venv(self, venv_path: Path) -> None:
+        """Prepare the requirements and installs the venv."""
+        requirements_file = venv_path / "requirements.txt"
+        requirements_file.write_text("\n".join(self._requirements_list()))
+        prepare_virtualenv(
+            venv_directory=str(venv_path),
+            python_bin=f"python{self.python_version}" if self.python_version else "python",
+            system_site_packages=self.system_site_packages,
+            requirements_file_path=str(requirements_file),
+            pip_install_options=self.pip_install_options,
+            index_urls=self.index_urls,
+        )
+
     def execute_callable(self):
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
-            requirements_file_name = f"{tmp_dir}/requirements.txt"
-
-            if not isinstance(self.requirements, str):
-                requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
-            else:
-                requirements_file_contents = self.requirements
-
-            if not self.system_site_packages and self.use_dill:
-                requirements_file_contents += "\ndill"
-
-            with open(requirements_file_name, "w") as file:
-                file.write(requirements_file_contents)
-            prepare_virtualenv(
-                venv_directory=tmp_dir,
-                python_bin=f"python{self.python_version}" if self.python_version else None,
-                system_site_packages=self.system_site_packages,
-                requirements_file_path=requirements_file_name,
-                pip_install_options=self.pip_install_options,
-            )
+            self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
             result = self._execute_python_callable_in_subprocess(python_path, tmp_path)
             return result
@@ -715,7 +767,10 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
 
         try:
             result = subprocess.check_output(
-                [self.python, "-c", "from airflow import __version__; print(__version__)"], text=True
+                [self.python, "-c", "from airflow import __version__; print(__version__)"],
+                text=True,
+                # Avoid Airflow logs polluting stdout.
+                env={**os.environ, "_AIRFLOW__AS_LIBRARY": "true"},
             )
             target_airflow_version = result.strip()
             if target_airflow_version != airflow_version:
@@ -737,9 +792,26 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
+class BranchExternalPythonOperator(ExternalPythonOperator, SkipMixin):
+    """
+    A workflow can "branch" or follow a path after the execution of this task.
+
+    Extends ExternalPythonOperator, so expects to get Python:
+    virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path,
+    so it can run on separate virtualenv similarly to ExternalPythonOperator.
+    """
+
+    def execute(self, context: Context) -> Any:
+        branch = super().execute(context)
+        self.log.info("Branch callable return %s", branch)
+        self.skip_all_except(context["ti"], branch)
+        return branch
+
+
 def get_current_context() -> Context:
     """
     Retrieve the execution context dictionary without altering user method's signature.
+
     This is the simplest method of retrieving the execution context dictionary.
 
     **Old style:**

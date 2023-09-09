@@ -42,8 +42,8 @@ with DAG(
         python_callable=lambda: False,
     )
 
-    ds_true = [EmptyOperator(task_id="true_" + str(i)) for i in [1, 2]]
-    ds_false = [EmptyOperator(task_id="false_" + str(i)) for i in [1, 2]]
+    ds_true = [EmptyOperator(task_id=f"true_{i}") for i in [1, 2]]
+    ds_false = [EmptyOperator(task_id=f"false_{i}") for i in [1, 2]]
 
     chain(cond_true, *ds_true)
     chain(cond_false, *ds_false)

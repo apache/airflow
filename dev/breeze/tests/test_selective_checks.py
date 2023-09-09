@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import pytest
 
-from airflow_breeze.global_constants import GithubEvents
+from airflow_breeze.global_constants import COMMITTERS, GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 
 ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
@@ -55,10 +56,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("INTHEWILD.md",),
                 {
                     "affected-providers-list-as-string": None,
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "false",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -75,10 +76,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("airflow/api/file.py",),
                 {
                     "affected-providers-list-as-string": None,
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -97,11 +98,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/postgres/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "amazon common.sql google postgres",
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": "amazon common.sql google openlineage postgres",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -109,7 +110,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Providers[amazon] "
-                    "API Always Providers[common.sql,postgres] Providers[google]",
+                    "API Always Providers[common.sql,openlineage,postgres] Providers[google]",
                 },
                 id="API and providers tests and docs should run",
             )
@@ -119,10 +120,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("tests/providers/apache/beam/file.py",),
                 {
                     "affected-providers-list-as-string": "apache.beam google",
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -140,10 +141,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("docs/file.rst",),
                 {
                     "affected-providers-list-as-string": None,
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -163,11 +164,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/postgres/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "amazon common.sql google postgres",
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": "amazon common.sql google openlineage postgres",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -176,7 +177,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Providers[amazon] "
-                    "Always Providers[common.sql,postgres] Providers[google]",
+                    "Always Providers[common.sql,openlineage,postgres] Providers[google]",
                 },
                 id="Helm tests, providers (both upstream and downstream),"
                 "kubernetes tests and docs should run",
@@ -190,20 +191,20 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/http/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "airbyte apache.livy "
+                    "affected-providers-list-as-string": "airbyte amazon apache.livy "
                     "dbt.cloud dingding discord http",
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "false",
+                    "run-amazon-tests": "true",
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always "
+                    "parallel-test-types-list-as-string": "Providers[amazon] Always "
                     "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http]",
                 },
                 id="Helm tests, http and all relevant providers, kubernetes tests and "
@@ -219,10 +220,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ),
                 {
                     "affected-providers-list-as-string": "airbyte http",
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -245,10 +246,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ),
                 {
                     "affected-providers-list-as-string": None,
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -266,10 +267,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("setup.py",),
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -289,10 +290,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("generated/provider_dependencies.json",),
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -310,12 +311,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("airflow/providers/amazon/__init__.py",),
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.sql exasol ftp google imap "
-                "mongo mysql postgres salesforce ssh",
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
-                "python-versions": "['3.7']",
-                "python-versions-list-as-string": "3.7",
+                "common.sql exasol ftp google http imap microsoft.azure "
+                "mongo mysql openlineage postgres salesforce ssh",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
+                "python-versions": "['3.8']",
+                "python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -324,8 +325,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always "
-                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,imap,"
-                "mongo,mysql,postgres,salesforce,ssh] Providers[google]",
+                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,imap,microsoft.azure,"
+                "mongo,mysql,openlineage,postgres,salesforce,ssh] Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -333,10 +334,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("tests/providers/airbyte/__init__.py",),
             {
                 "affected-providers-list-as-string": "airbyte http",
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
-                "python-versions": "['3.7']",
-                "python-versions-list-as-string": "3.7",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
+                "python-versions": "['3.8']",
+                "python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -346,18 +347,18 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
             },
-            id="Providers tests tests run without amazon tests if no amazon file changed",
+            id="Providers tests run without amazon tests if no amazon file changed",
         ),
         pytest.param(
             ("airflow/providers/amazon/file.py",),
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.sql exasol ftp google imap "
-                "mongo mysql postgres salesforce ssh",
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
-                "python-versions": "['3.7']",
-                "python-versions-list-as-string": "3.7",
+                "common.sql exasol ftp google http imap microsoft.azure "
+                "mongo mysql openlineage postgres salesforce ssh",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
+                "python-versions": "['3.8']",
+                "python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -367,7 +368,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always "
                 "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,"
-                "imap,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
+                "http,imap,microsoft.azure,mongo,mysql,openlineage,postgres,salesforce,ssh] "
+                "Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -397,10 +399,10 @@ def test_expected_output_pull_request_main(
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -424,10 +426,10 @@ def test_expected_output_pull_request_main(
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -449,10 +451,10 @@ def test_expected_output_pull_request_main(
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -474,16 +476,17 @@ def test_expected_output_pull_request_main(
                 "v2-3-stable",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
                     "docs-filter-list-as-string": "--package-filter apache-airflow "
                     "--package-filter docker-stack",
                     "full-tests-needed": "true",
+                    "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
                 },
@@ -515,8 +518,8 @@ def test_expected_output_full_tests_needed(
             ("INTHEWILD.md",),
             {
                 "affected-providers-list-as-string": None,
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "false",
@@ -537,9 +540,9 @@ def test_expected_output_full_tests_needed(
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
                 "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
-                "mysql oracle postgres presto salesforce sftp ssh trino",
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "mysql openlineage oracle postgres presto salesforce sftp ssh trino",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "needs-helm-tests": "false",
                 "image-build": "true",
                 "run-tests": "true",
@@ -562,10 +565,10 @@ def test_expected_output_full_tests_needed(
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.sql facebook google "
-                "hashicorp microsoft.azure microsoft.mssql mysql oracle postgres presto "
-                "salesforce sftp ssh trino",
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "hashicorp microsoft.azure microsoft.mssql mysql openlineage oracle postgres "
+                "presto salesforce sftp ssh trino",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -586,8 +589,8 @@ def test_expected_output_full_tests_needed(
             ),
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -624,8 +627,8 @@ def test_expected_output_pull_request_v2_3(
             ("INTHEWILD.md",),
             {
                 "affected-providers-list-as-string": None,
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "false",
@@ -641,8 +644,8 @@ def test_expected_output_pull_request_v2_3(
             ("tests/system/any_file.py",),
             {
                 "affected-providers-list-as-string": None,
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -664,9 +667,9 @@ def test_expected_output_pull_request_v2_3(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
-                "oracle postgres presto salesforce sftp ssh trino",
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "openlineage oracle postgres presto salesforce sftp ssh trino",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
@@ -683,6 +686,7 @@ def test_expected_output_pull_request_v2_3(
                 "--package-filter apache-airflow-providers-microsoft-azure "
                 "--package-filter apache-airflow-providers-microsoft-mssql "
                 "--package-filter apache-airflow-providers-mysql "
+                "--package-filter apache-airflow-providers-openlineage "
                 "--package-filter apache-airflow-providers-oracle "
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
@@ -695,7 +699,7 @@ def test_expected_output_pull_request_v2_3(
                 "skip-provider-tests": "false",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always CLI "
                 "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,"
-                "hashicorp,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,"
+                "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
                 "salesforce,sftp,ssh,trino] Providers[google]",
             },
             id="CLI tests and Google-related provider tests should run if cli/chart files changed",
@@ -708,8 +712,8 @@ def test_expected_output_pull_request_v2_3(
             ),
             {
                 "affected-providers-list-as-string": None,
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -726,8 +730,8 @@ def test_expected_output_pull_request_v2_3(
             ("airflow/models/test.py",),
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -746,8 +750,8 @@ def test_expected_output_pull_request_v2_3(
             ("airflow/file.py",),
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -787,8 +791,8 @@ def test_expected_output_pull_request_target(
             "main",
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
@@ -807,8 +811,8 @@ def test_expected_output_pull_request_target(
             "v2-3-stable",
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -826,8 +830,8 @@ def test_expected_output_pull_request_target(
             "main",
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
@@ -878,8 +882,8 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     )
     assert_outputs_are_printed(
         {
-            "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
-            "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+            "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+            "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
             "image-build": "true",
             "needs-helm-tests": "true",
             "run-tests": "true",
@@ -896,13 +900,14 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    "files, expected_outputs, pr_labels",
     [
         pytest.param(
             ("airflow/models/dag.py",),
             {
                 "upgrade-to-newer-dependencies": "false",
             },
+            (),
             id="Regular source changed",
         ),
         pytest.param(
@@ -910,6 +915,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "true",
             },
+            (),
             id="Setup.py changed",
         ),
         pytest.param(
@@ -917,13 +923,15 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "true",
             },
+            (),
             id="Setup.cfg changed",
         ),
         pytest.param(
             ("airflow/providers/microsoft/azure/provider.yaml",),
             {
-                "upgrade-to-newer-dependencies": "true",
+                "upgrade-to-newer-dependencies": "false",
             },
+            (),
             id="Provider.yaml changed",
         ),
         pytest.param(
@@ -931,17 +939,28 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "true",
             },
+            (),
             id="Generated provider_dependencies changed",
+        ),
+        pytest.param(
+            ("airflow/models/dag.py",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            ("upgrade to newer dependencies",),
+            id="Regular source changed",
         ),
     ],
 )
-def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs: dict[str, str]):
+def test_upgrade_to_newer_dependencies(
+    files: tuple[str, ...], expected_outputs: dict[str, str], pr_labels: tuple[str]
+):
     stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
-        pr_labels=(),
         default_branch="main",
+        pr_labels=pr_labels,
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
@@ -963,6 +982,7 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
                 "--package-filter apache-airflow-providers-microsoft-azure "
                 "--package-filter apache-airflow-providers-microsoft-mssql "
                 "--package-filter apache-airflow-providers-mysql "
+                "--package-filter apache-airflow-providers-openlineage "
                 "--package-filter apache-airflow-providers-oracle "
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
@@ -992,10 +1012,10 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
                 "--package-filter apache-airflow-providers-microsoft-mssql "
                 "--package-filter apache-airflow-providers-mysql "
                 "--package-filter apache-airflow-providers-odbc "
+                "--package-filter apache-airflow-providers-openlineage "
                 "--package-filter apache-airflow-providers-oracle "
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-qubole "
                 "--package-filter apache-airflow-providers-slack "
                 "--package-filter apache-airflow-providers-snowflake "
                 "--package-filter apache-airflow-providers-sqlite "
@@ -1013,10 +1033,41 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
             id="Airbyte provider docs changed",
         ),
         pytest.param(
+            ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
+            {
+                "docs-filter-list-as-string": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers-airbyte "
+                "--package-filter apache-airflow-providers-http",
+            },
+            id="Airbyte provider and airflow core docs changed",
+        ),
+        pytest.param(
+            (
+                "docs/apache-airflow-providers-airbyte/docs.rst",
+                "docs/apache-airflow/docs.rst",
+                "docs/apache-airflow-providers/docs.rst",
+            ),
+            {
+                "docs-filter-list-as-string": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers "
+                "--package-filter apache-airflow-providers-airbyte "
+                "--package-filter apache-airflow-providers-http",
+            },
+            id="Airbyte provider and airflow core and common provider docs changed",
+        ),
+        pytest.param(
+            ("docs/apache-airflow/docs.rst",),
+            {
+                "docs-filter-list-as-string": "--package-filter apache-airflow",
+            },
+            id="Only Airflow docs changed",
+        ),
+        pytest.param(
             ("airflow/providers/celery/file.py",),
             {
                 "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-celery",
+                "--package-filter apache-airflow-providers-celery "
+                "--package-filter apache-airflow-providers-cncf-kubernetes"
             },
             id="Celery python files changed",
         ),
@@ -1074,47 +1125,171 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
 
 
 @pytest.mark.parametrize(
-    "files, labels, expected_outputs, should_fail",
+    "files, expected_outputs,",
     [
         pytest.param(
-            ("airflow/providers/yandex/test.py",),
-            (),
-            None,
-            True,
-            id="Suspended provider changes should fail",
+            ("helm_tests/random_helm_test.py",),
+            {
+                "image-build": "true",
+                "needs-helm-tests": "true",
+            },
+            id="Only helm test files changed",
+        )
+    ],
+)
+def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: dict[str, str]):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "github_event, github_actor, github_repository, pr_labels, github_context_dict, runs_on",
+    [
+        pytest.param(GithubEvents.PUSH, "user", "apache/airflow", [], dict(), "self-hosted", id="Push event"),
+        pytest.param(
+            GithubEvents.PUSH,
+            "user",
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Push event for private repo",
         ),
         pytest.param(
-            ("airflow/providers/yandex/test.py",),
-            ("allow suspended provider changes",),
-            {"affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED},
-            False,
-            id="Suspended provider changes should not fail if appropriate label is set",
+            GithubEvents.PULL_REQUEST, "user", "apache/airflow", [], dict(), "ubuntu-22.04", id="Pull request"
         ),
         pytest.param(
-            ("airflow/providers/yandex/test.py", "airflow/providers/airbyte/test.py"),
-            ("allow suspended provider changes",),
-            {"affected-providers-list-as-string": "airbyte http"},
-            False,
-            id="Only non-suspended provider changes should be listed",
+            GithubEvents.PULL_REQUEST,
+            "user",
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request private repo",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(),
+            "self-hosted",
+            id="Pull request committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(event=dict(pull_request=dict(user=dict(login="user")))),
+            "ubuntu-22.04",
+            id="Pull request committer pr non-committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request private repo committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            "user",
+            "apache/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request target",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            "user",
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request target private repo",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(),
+            "self-hosted",
+            id="Pull request target committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(event=dict(pull_request=dict(user=dict(login="user")))),
+            "ubuntu-22.04",
+            id="Pull request target committer pr non-committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            COMMITTERS[0],
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request targe private repo committer",
         ),
     ],
 )
-def test_suspended_providers(
-    files: tuple[str, ...], labels: tuple[str], expected_outputs: dict[str, str], should_fail: bool
+def test_runs_on(
+    github_event: GithubEvents,
+    github_actor: str,
+    github_repository: str,
+    pr_labels: list[str],
+    github_context_dict: dict[str, Any],
+    runs_on: str,
 ):
-    failed = False
-    try:
-        stderr = str(
-            SelectiveChecks(
-                files=files,
-                commit_ref="HEAD",
-                github_event=GithubEvents.PULL_REQUEST,
-                pr_labels=labels,
-                default_branch="main",
-            )
+    stderr = SelectiveChecks(
+        files=(),
+        commit_ref="",
+        github_repository=github_repository,
+        github_event=github_event,
+        github_actor=github_actor,
+        github_context_dict=github_context_dict,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed({"runs-on": runs_on}, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, has_migrations",
+    [
+        pytest.param(
+            ("airflow/test.py",),
+            False,
+            id="No migrations",
+        ),
+        pytest.param(
+            ("airflow/migrations/test_sql", "aiflow/test.py"),
+            True,
+            id="With migrations",
+        ),
+    ],
+)
+def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
+    stderr = str(
+        SelectiveChecks(
+            files=files,
+            commit_ref="HEAD",
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
         )
-    except SystemExit:
-        failed = True
-    assert failed == should_fail
-    if not failed:
-        assert_outputs_are_printed(expected_outputs, str(stderr))
+    )
+    assert_outputs_are_printed({"has-migrations": str(has_migrations).lower()}, str(stderr))

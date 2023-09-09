@@ -19,21 +19,27 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-from airflow.compat.functools import cache, cached_property
+from sqlalchemy import select
+
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
-from airflow.models.taskmixin import DAGNode
+from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.template.templater import Templater
 from airflow.utils.context import Context
+from airflow.utils.db import exists_query
 from airflow.utils.log.secrets_masker import redact
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.weight_rule import WeightRule
 
 TaskStateChangeCallback = Callable[[Context], None]
@@ -47,6 +53,7 @@ if TYPE_CHECKING:
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.task_group import TaskGroup
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
@@ -101,6 +108,9 @@ class AbstractOperator(Templater, DAGNode):
 
     outlets: list
     inlets: list
+    trigger_rule: TriggerRule
+
+    _on_failure_fail_dagrun = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (
@@ -148,43 +158,151 @@ class AbstractOperator(Templater, DAGNode):
     def node_id(self) -> str:
         return self.task_id
 
+    @property
+    def is_setup(self) -> bool:
+        raise NotImplementedError()
+
+    @is_setup.setter
+    def is_setup(self, value: bool) -> None:
+        raise NotImplementedError()
+
+    @property
+    def is_teardown(self) -> bool:
+        raise NotImplementedError()
+
+    @is_teardown.setter
+    def is_teardown(self, value: bool) -> None:
+        raise NotImplementedError()
+
+    @property
+    def on_failure_fail_dagrun(self):
+        """
+        Whether the operator should fail the dagrun on failure.
+
+        :meta private:
+        """
+        return self._on_failure_fail_dagrun
+
+    @on_failure_fail_dagrun.setter
+    def on_failure_fail_dagrun(self, value):
+        """
+        Setter for on_failure_fail_dagrun property.
+
+        :meta private:
+        """
+        if value is True and self.is_teardown is not True:
+            raise ValueError(
+                f"Cannot set task on_failure_fail_dagrun for "
+                f"'{self.task_id}' because it is not a teardown task."
+            )
+        self._on_failure_fail_dagrun = value
+
+    def as_setup(self):
+        self.is_setup = True
+        return self
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ):
+        self.is_teardown = True
+        self.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+        if on_failure_fail_dagrun is not NOTSET:
+            self.on_failure_fail_dagrun = on_failure_fail_dagrun
+        if not isinstance(setups, ArgNotSet):
+            setups = [setups] if isinstance(setups, DependencyMixin) else setups
+            for s in setups:
+                s.is_setup = True
+                s >> self
+        return self
+
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
         """Get direct relative IDs to the current task, upstream or downstream."""
         if upstream:
             return self.upstream_task_ids
         return self.downstream_task_ids
 
-    def get_flat_relative_ids(
-        self,
-        upstream: bool = False,
-        found_descendants: set[str] | None = None,
-    ) -> set[str]:
-        """Get a flat set of relative IDs, upstream or downstream."""
+    def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
+        """Get a flat set of relative IDs, upstream or downstream.
+
+        Will recurse each relative found in the direction specified.
+
+        :param upstream: Whether to look for upstream or downstream relatives.
+        """
         dag = self.get_dag()
         if not dag:
             return set()
 
-        if found_descendants is None:
-            found_descendants = set()
+        relatives: set[str] = set()
 
+        # This is intentionally implemented as a loop, instead of calling
+        # get_direct_relative_ids() recursively, since Python has significant
+        # limitation on stack level, and a recursive implementation can blow up
+        # if a DAG contains very long routes.
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
             task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
-                if task_id in found_descendants:
+                if task_id in relatives:
                     continue
                 task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
-                found_descendants.add(task_id)
+                relatives.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
 
-        return found_descendants
+        return relatives
 
     def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
         dag = self.get_dag()
         if not dag:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
+        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
+
+    def get_upstreams_follow_setups(self) -> Iterable[Operator]:
+        """All upstreams and, for each upstream setup, its respective teardowns."""
+        for task in self.get_flat_relatives(upstream=True):
+            yield task
+            if task.is_setup:
+                for t in task.downstream_list:
+                    if t.is_teardown and not t == self:
+                        yield t
+
+    def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
+        """
+        Only *relevant* upstream setups and their teardowns.
+
+        This method is meant to be used when we are clearing the task (non-upstream) and we need
+        to add in the *relevant* setups and their teardowns.
+
+        Relevant in this case means, the setup has a teardown that is downstream of ``self``,
+        or the setup has no teardowns.
+        """
+        downstream_teardown_ids = {
+            x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
+        }
+        for task in self.get_flat_relatives(upstream=True):
+            if not task.is_setup:
+                continue
+            has_no_teardowns = not any(True for x in task.downstream_list if x.is_teardown)
+            # if task has no teardowns or has teardowns downstream of self
+            if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
+                yield task
+                for t in task.downstream_list:
+                    if t.is_teardown and not t == self:
+                        yield t
+
+    def get_upstreams_only_setups(self) -> Iterable[Operator]:
+        """
+        Return relevant upstream setups.
+
+        This method is meant to be used when we are checking task dependencies where we need
+        to wait for all the upstream setups to complete before we can run the task.
+        """
+        for task in self.get_upstreams_only_setups_and_teardowns():
+            if task.is_setup:
+                yield task
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
@@ -328,7 +446,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @cached_property
     def extra_links(self) -> list[str]:
-        return list(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
+        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
 
     def get_extra_links(self, ti: TaskInstance, link_name: str) -> str | None:
         """For an operator, gets the URLs that the ``extra_links`` entry points to.
@@ -356,7 +474,8 @@ class AbstractOperator(Templater, DAGNode):
 
     @cache
     def get_parse_time_mapped_ti_count(self) -> int:
-        """Number of mapped task instances that can be created on DAG run creation.
+        """
+        Return the number of mapped task instances that can be created on DAG run creation.
 
         This only considers literal mapped arguments, and would return *None*
         when any non-literal values are used for mapping.
@@ -372,7 +491,8 @@ class AbstractOperator(Templater, DAGNode):
         return group.get_parse_time_mapped_ti_count()
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        """Number of mapped TaskInstances that can be created at run time.
+        """
+        Return the number of mapped TaskInstances that can be created at run time.
 
         This considers both literal and non-literal mapped arguments, and the
         result is therefore available when all depended tasks have finished. The
@@ -422,17 +542,15 @@ class AbstractOperator(Templater, DAGNode):
             total_length = None
 
         state: TaskInstanceState | None = None
-        unmapped_ti: TaskInstance | None = (
-            session.query(TaskInstance)
-            .filter(
+        unmapped_ti: TaskInstance | None = session.scalars(
+            select(TaskInstance).where(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.map_index == -1,
                 or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
             )
-            .one_or_none()
-        )
+        ).one_or_none()
 
         all_expanded_tis: list[TaskInstance] = []
 
@@ -454,16 +572,12 @@ class AbstractOperator(Templater, DAGNode):
                 )
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
-                zero_index_ti_exists = (
-                    session.query(TaskInstance)
-                    .filter(
-                        TaskInstance.dag_id == self.dag_id,
-                        TaskInstance.task_id == self.task_id,
-                        TaskInstance.run_id == run_id,
-                        TaskInstance.map_index == 0,
-                    )
-                    .count()
-                    > 0
+                zero_index_ti_exists = exists_query(
+                    TaskInstance.dag_id == self.dag_id,
+                    TaskInstance.task_id == self.task_id,
+                    TaskInstance.run_id == run_id,
+                    TaskInstance.map_index == 0,
+                    session=session,
                 )
                 if not zero_index_ti_exists:
                     # Otherwise convert this into the first mapped index, and create
@@ -482,14 +596,12 @@ class AbstractOperator(Templater, DAGNode):
             indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
-            current_max_mapping = (
-                session.query(func.max(TaskInstance.map_index))
-                .filter(
+            current_max_mapping = session.scalar(
+                select(func.max(TaskInstance.map_index)).where(
                     TaskInstance.dag_id == self.dag_id,
                     TaskInstance.task_id == self.task_id,
                     TaskInstance.run_id == run_id,
                 )
-                .scalar()
             )
             indexes_to_map = range(current_max_mapping + 1, total_length)
 
@@ -508,13 +620,14 @@ class AbstractOperator(Templater, DAGNode):
 
         # Any (old) task instances with inapplicable indexes (>= the total
         # number we need) are set to "REMOVED".
-        query = session.query(TaskInstance).filter(
+        query = select(TaskInstance).where(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        to_update = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        query = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        to_update = session.scalars(query)
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
         session.flush()
@@ -602,3 +715,12 @@ class AbstractOperator(Templater, DAGNode):
                 raise
             else:
                 setattr(parent, attr_name, rendered_content)
+
+    def __enter__(self):
+        if not self.is_setup and not self.is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self)
+        return SetupTeardownContext
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()

@@ -20,8 +20,8 @@ import base64
 import inspect
 import os
 import pickle
+import textwrap
 from tempfile import TemporaryDirectory
-from textwrap import dedent
 from typing import TYPE_CHECKING, Callable, Sequence
 
 import dill
@@ -112,15 +112,15 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
                     self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
             py_source = self.get_python_source()
             write_python_script(
-                jinja_context=dict(
-                    op_args=self.op_args,
-                    op_kwargs=self.op_kwargs,
-                    pickling_library=self.pickling_library.__name__,
-                    python_callable=self.python_callable.__name__,
-                    python_callable_source=py_source,
-                    expect_airflow=self.expect_airflow,
-                    string_args_global=False,
-                ),
+                jinja_context={
+                    "op_args": self.op_args,
+                    "op_kwargs": self.op_kwargs,
+                    "pickling_library": self.pickling_library.__name__,
+                    "python_callable": self.python_callable.__name__,
+                    "python_callable_source": py_source,
+                    "expect_airflow": self.expect_airflow,
+                    "string_args_global": False,
+                },
                 filename=script_filename,
             )
 
@@ -139,7 +139,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
     # TODO: Remove me once this provider min supported Airflow version is 2.6
     def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
-        res = dedent(raw_source)
+        res = textwrap.dedent(raw_source)
         res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
@@ -150,7 +150,8 @@ def docker_task(
     **kwargs,
 ) -> TaskDecorator:
     """
-    Python operator decorator. Wraps a function into an Airflow operator.
+    Python operator decorator; wraps a function into an Airflow operator.
+
     Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate

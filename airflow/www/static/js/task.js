@@ -27,6 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const value = attr.innerHTML;
     if (value.length === 32 && moment(value, "YYYY-MM-DD").isValid()) {
       // 32 is the length of our timestamps
+      // eslint-disable-next-line no-param-reassign
       attr.innerHTML = "";
       const timeElement = document.createElement("time");
       timeElement.setAttribute("datetime", value);
@@ -35,6 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
       attr.appendChild(timeElement);
     } else if (validator.isURL(value)) {
       // very basic url detection
+      // eslint-disable-next-line no-param-reassign
       attr.innerHTML = "";
       const linkElement = document.createElement("a");
       linkElement.setAttribute("href", value);

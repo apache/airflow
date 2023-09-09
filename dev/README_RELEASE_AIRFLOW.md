@@ -29,12 +29,14 @@
   - [Build RC artifacts](#build-rc-artifacts)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
-- [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
+- [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
   - [SVN check](#svn-check)
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
-- [Verify release candidates by Contributors](#verify-release-candidates-by-contributors)
+  - [Source code check](#source-code-check)
+- [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
+  - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
@@ -116,6 +118,9 @@ Those changes that are "doc-only" changes should be marked with `type:doc-only` 
 land in documentation part of the changelog. The tool to review and assign the labels is described below.
 
 ## Making the cherry picking
+
+It is recommended to clone Airflow upstream (not your fork) and run the commands on
+the relevant test branch in this clone. That way origin points to the upstream repo.
 
 To see cherry picking candidates (unmerged PR with the appropriate milestone), from the test
 branch you can run:
@@ -210,6 +215,11 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set environment variables
 
     ```shell script
+
+    # You can avoid repeating this command for every release if you will set it in .zshrc
+    # see https://unix.stackexchange.com/questions/608842/zshrc-export-gpg-tty-tty-says-not-a-tty
+    export GPG_TTY=$(tty)
+
     # Set Version
     export VERSION=2.1.2rc3
     export VERSION_SUFFIX=rc3
@@ -270,7 +280,6 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
   ./dev/airflow-github changelog v2-3-stable v2-3-test
   ```
 
-- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
 
 - PR from the 'test' branch to the 'stable' branch
@@ -281,7 +290,12 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     pip install -e ./dev/breeze
     ```
 
-- Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC
+- Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC.
+    You can generate the token by following [this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
+
+    ```shell script
+    export GITHUB_TOKEN="my_token"
+    ```
 
 - Start the release candidate process by running the below command (If you have not generated a key yet, generate it by following instructions on
     http://www.apache.org/dev/openpgp.html#key-gen-generate-key):
@@ -305,10 +319,11 @@ to have an environment prepared to build multi-platform images. You can achieve 
 Building the image is triggered by running the
 [Release PROD Images](https://github.com/apache/airflow/actions/workflows/release_dockerhub_image.yml) workflow.
 
-When you trigger it you need to pass:
+When you trigger it you need to pass Airflow Version (including the right rc suffix). Make sure to use the
+``v2-*-stable`` branch for the workflow.
 
-* Airflow Version (including the right rc suffix)
-* Optional "true" in the "Skip latest:" field if you do not want to re-tag the latest image
+You can leave the "skip latest" field empty.
+
 
 ![Release prod image](images/release_prod_image_rc.png)
 
@@ -361,8 +376,12 @@ Please vote accordingly:
 Only votes from PMC members are binding, but all members of the community
 are encouraged to test the release and vote with "(non-binding)".
 
-The test procedure for PMCs and Contributors who would like to test this RC are described in
-https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmcs
+The test procedure for PMC members is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmc-members
+
+The test procedure for and Contributors who would like to test this RC is described in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-contributors
+
 
 Please note that the version number excludes the \`rcX\` string, so it's now
 simply ${VERSION_WITHOUT_RC}. This will allow us to rename the artifact without modifying
@@ -401,9 +420,9 @@ EOF
 
 Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
 
-# Verify the release candidate by PMCs
+# Verify the release candidate by PMC members
 
-The PMCs should verify the releases in order to make sure the release is following the
+PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
 
 At least 3 (+1) votes should be recorded in accordance to
@@ -555,13 +574,93 @@ Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
 Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
 ```
 
-# Verify release candidates by Contributors
+## Source code check
+
+You should check if the sources in the packages produced are the same as coming from the tag in git.
+
+In checked out sources of Airflow:
+
+```bash
+git checkout X.Y.Zrc1
+export SOURCE_DIR=$(pwd)
+```
+
+Change to the directory where you have the packages from svn:
+
+Check if sources are the same as in the tag:
+
+```bash
+cd X.Y.Zrc1
+tar -xvzf *-source.tar.gz
+pushd apache-airflow-X.Y.Z
+diff -r airflow "${SOURCE_DIR}"
+popd && rm -rf apache-airflow-X.Y.Z
+```
+
+The output should only miss some files - but they should not show any differences in the files:
+
+```
+Only in /Users/jarek/code/airflow: .DS_Store
+Only in /Users/jarek/code/airflow: .asf.yaml
+Only in /Users/jarek/code/airflow: .bash_aliases
+Only in /Users/jarek/code/airflow: .bash_completion
+Only in /Users/jarek/code/airflow: .bash_history
+...
+```
+
+
+Check if .whl is the same as in tag:
+
+```
+unzip -d a *.whl
+pushd a
+diff -r airflow "${SOURCE_DIR}"
+popd && rm -rf a
+```
+
+The output should only miss some files - but they should not show any differences in the files:
+
+```
+Only in /Users/jarek/code/airflow: .DS_Store
+Only in /Users/jarek/code/airflow: .asf.yaml
+Only in /Users/jarek/code/airflow: .bash_aliases
+Only in /Users/jarek/code/airflow: .bash_completion
+Only in /Users/jarek/code/airflow: .bash_history
+...
+```
+
+Check if sdist are the same as in the tag:
+
+```bash
+cd X.Y.Zrc1
+tar -xvzf apache-airflow-X.Y.Z.tar.gz
+pushd apache-airflow-X.Y.Z
+diff -r airflow "${SOURCE_DIR}"
+popd && rm -rf apache-airflow-X.Y.Z
+```
+
+The output should only miss some files - but they should not show any differences in the files:
+
+```
+Only in /Users/jarek/code/airflow: .DS_Store
+Only in /Users/jarek/code/airflow: .asf.yaml
+Only in /Users/jarek/code/airflow: .bash_aliases
+Only in /Users/jarek/code/airflow: .bash_completion
+Only in /Users/jarek/code/airflow: .bash_history
+...
+```
+
+# Verify the release candidate by Contributors
 
 This can be done (and we encourage to) by any of the Contributors. In fact, it's best if the
 actual users of Apache Airflow test it in their own staging/test installations. Each release candidate
 is available on PyPI apart from SVN packages, so everyone should be able to install
-the release candidate version of Airflow via simply (<VERSION> is 2.0.2 for example, and <X> is
-release candidate number 1,2,3,....).
+the release candidate version.
+
+But you can use any of the installation methods you prefer (you can even install it via the binary wheels
+downloaded from the SVN).
+
+## Installing release candidate in your local virtual environment
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X>
@@ -571,7 +670,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.7.txt"`
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.8.txt"`
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -583,11 +682,25 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres
 ```
+
+You can also choose different executors and extras to install when you are installing airflow this way. For
+example in order to run Airflow with CeleryExecutor and install celery, google and amazon provider (as of
+Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
+
+```shell script
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres \
+  --executor CeleryExecutor --airflow-extras "celery,google,amazon"
+```
+
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
 that the Airflow works as you expected.
+
+Breeze also allows you to easily build and install pre-release candidates including providers by following
+simple instructions described in
+[Manually testing release candidate packages](https://github.com/apache/airflow/blob/main/TESTING.rst#manually-testing-release-candidate-packages)
 
 # Publish the final Apache Airflow release
 
@@ -656,7 +769,9 @@ Building the image is triggered by running the
 When you trigger it you need to pass:
 
 * Airflow Version
-* Optional "true" in skip latest field if you do not want to retag the latest image
+* Optional "true" in skip latest field if you do not want to re-tag the latest image
+
+Make sure you use v2-*-stable branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 
@@ -670,7 +785,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.7 3.8 3.9 3.10 3.11
+for PYTHON in 3.8 3.9 3.10 3.11
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -699,7 +814,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build --for-production
+    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build
     ```
 
 - Now you can preview the documentation.
@@ -711,13 +826,15 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 - Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
 
     ```shell script
-    ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
+    breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
+    breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
     # and finally open a PR
     ```
+
 
 ## Notify developers of release
 
@@ -828,7 +945,9 @@ Announcement is done from official Apache-Airflow accounts.
 
 * Twitter: https://twitter.com/ApacheAirflow
 * Linkedin: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
 
+Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------
@@ -854,10 +973,9 @@ This includes:
 
 - Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
-- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
-- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
 - Updating `Dockerfile` with the new version.
+- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
 
 ## Update default Airflow version in the helm chart
 

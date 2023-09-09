@@ -16,17 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any
 
 from confluent_kafka.admin import AdminClient
 
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 
 class KafkaBaseHook(BaseHook):
     """
-    A base hook for interacting with Apache Kafka
+    A base hook for interacting with Apache Kafka.
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     """
@@ -37,14 +37,14 @@ class KafkaBaseHook(BaseHook):
     hook_name = "Apache Kafka"
 
     def __init__(self, kafka_config_id=default_conn_name, *args, **kwargs):
-        """Initialize our Base"""
+        """Initialize our Base."""
         super().__init__()
         self.kafka_config_id = kafka_config_id
         self.get_conn
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "login", "password", "port", "host"],
             "relabeling": {"extra": "Config Dict"},
@@ -58,7 +58,7 @@ class KafkaBaseHook(BaseHook):
 
     @cached_property
     def get_conn(self) -> Any:
-        """Get the configuration object"""
+        """Get the configuration object."""
         config = self.get_connection(self.kafka_config_id).extra_dejson
 
         if not (config.get("bootstrap.servers", None)):
@@ -67,7 +67,7 @@ class KafkaBaseHook(BaseHook):
         return self._get_client(config)
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test Connectivity from the UI"""
+        """Test Connectivity from the UI."""
         try:
             config = self.get_connection(self.kafka_config_id).extra_dejson
             t = AdminClient(config, timeout=10).list_topics()

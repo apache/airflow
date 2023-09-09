@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 import json
+from functools import cached_property
 from typing import Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 try:
@@ -37,7 +37,7 @@ ICON_URL: str = "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/
 
 class SlackNotifier(BaseNotifier):
     """
-    Slack BaseNotifier
+    Slack BaseNotifier.
 
     :param slack_conn_id: Slack API token (https://api.slack.com/web).
     :param text: The content of the message
@@ -76,7 +76,7 @@ class SlackNotifier(BaseNotifier):
         return SlackHook(slack_conn_id=self.slack_conn_id)
 
     def notify(self, context):
-        """Send a message to a Slack Channel"""
+        """Send a message to a Slack Channel."""
         api_call_params = {
             "channel": self.channel,
             "username": self.username,

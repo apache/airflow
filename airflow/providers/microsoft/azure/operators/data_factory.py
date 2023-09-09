@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import time
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
@@ -91,7 +93,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         ``AzureDataFactoryHook`` will attempt to use the resource group name provided in the corresponding
         connection.
     :param factory_name: The data factory name. If a value is not passed in to the operator, the
-        ``AzureDataFactoryHook`` will attempt to use the factory name name provided in the corresponding
+        ``AzureDataFactoryHook`` will attempt to use the factory name provided in the corresponding
         connection.
     :param reference_pipeline_run_id: The pipeline run identifier. If this run ID is specified the parameters
         of the specified run will be used to create a new run.
@@ -140,7 +142,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         parameters: dict[str, Any] | None = None,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -158,8 +160,12 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         self.check_interval = check_interval
         self.deferrable = deferrable
 
+    @cached_property
+    def hook(self) -> AzureDataFactoryHook:
+        """Create and return an AzureDataFactoryHook (cached)."""
+        return AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
+
     def execute(self, context: Context) -> None:
-        self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
         self.log.info("Executing the %s pipeline.", self.pipeline_name)
         response = self.hook.run_pipeline(
             pipeline_name=self.pipeline_name,
@@ -232,8 +238,8 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
             if event["status"] == "error":

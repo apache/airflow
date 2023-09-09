@@ -40,6 +40,8 @@ Create an AWS Lambda function
 
 To create an AWS lambda function you can use
 :class:`~airflow.providers.amazon.aws.operators.lambda_function.LambdaCreateFunctionOperator`.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
+the aiobotocore module to be installed.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
     :language: python
