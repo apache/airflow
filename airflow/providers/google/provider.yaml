@@ -30,6 +30,7 @@ description: |
 
 suspended: false
 versions:
+  - 10.8.0
   - 10.7.0
   - 10.6.0
   - 10.5.0
@@ -905,6 +906,9 @@ triggers:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.triggers.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataplex
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.triggers.dataproc

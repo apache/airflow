@@ -206,9 +206,8 @@ class SecretsMasker(logging.Filter):
 
         if self.replacer:
             for k, v in record.__dict__.items():
-                if k in self._record_attrs_to_ignore:
-                    continue
-                record.__dict__[k] = self.redact(v)
+                if k not in self._record_attrs_to_ignore:
+                    record.__dict__[k] = self.redact(v)
             if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
                 self._redact_exception_with_context(exc)

@@ -2206,26 +2206,24 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             if param_name == "schemaUpdateOptions" and param:
                 self.log.info("Adding experimental 'schemaUpdateOptions': %s", schema_update_options)
 
-            if param_name != "destinationTable":
-                continue
-
-            for key in ["projectId", "datasetId", "tableId"]:
-                if key not in configuration["query"]["destinationTable"]:
-                    raise ValueError(
-                        "Not correct 'destinationTable' in "
-                        "api_resource_configs. 'destinationTable' "
-                        "must be a dict with {'projectId':'', "
-                        "'datasetId':'', 'tableId':''}"
+            if param_name == "destinationTable":
+                for key in ["projectId", "datasetId", "tableId"]:
+                    if key not in configuration["query"]["destinationTable"]:
+                        raise ValueError(
+                            "Not correct 'destinationTable' in "
+                            "api_resource_configs. 'destinationTable' "
+                            "must be a dict with {'projectId':'', "
+                            "'datasetId':'', 'tableId':''}"
+                        )
+                else:
+                    configuration["query"].update(
+                        {
+                            "allowLargeResults": allow_large_results,
+                            "flattenResults": flatten_results,
+                            "writeDisposition": write_disposition,
+                            "createDisposition": create_disposition,
+                        }
                     )
-
-            configuration["query"].update(
-                {
-                    "allowLargeResults": allow_large_results,
-                    "flattenResults": flatten_results,
-                    "writeDisposition": write_disposition,
-                    "createDisposition": create_disposition,
-                }
-            )
 
         if (
             "useLegacySql" in configuration["query"]
@@ -3101,16 +3099,16 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         with await self.service_file_as_context() as f:
             return Job(job_id=job_id, project=project_id, service_file=f, session=cast(Session, session))
 
-    async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> str:
+    async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> dict[str, str]:
         async with ClientSession() as s:
             job_client = await self.get_job_instance(project_id, job_id, s)
             job = await job_client.get_job()
             status = job.get("status", {})
             if status["state"] == "DONE":
                 if "errorResult" in status:
-                    return "error"
-                return "success"
-            return status["state"].lower()
+                    return {"status": "error", "message": status["errorResult"]["message"]}
+                return {"status": "success", "message": "Job completed"}
+            return {"status": status["state"].lower(), "message": "Job running"}
 
     async def get_job_output(
         self,

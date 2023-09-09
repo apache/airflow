@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.7.0
   - 8.6.0
   - 8.5.1
   - 8.5.0
@@ -711,3 +712,17 @@ additional-extras:
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
+
+config:
+  aws:
+    description: This section contains settings for Amazon Web Services (AWS) integration.
+    options:
+      session_factory:
+        description: |
+          Full import path to the class which implements a custom session factory for
+          ``boto3.session.Session``. For more details please have a look at
+          :ref:`howto/connection:aws:session-factory`.
+        default: ~
+        example: my_company.aws.MyCustomSessionFactory
+        type: string
+        version_added: 3.1.1

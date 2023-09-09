@@ -21,7 +21,6 @@ import json
 import math
 import time
 import warnings
-from datetime import datetime as dt
 from typing import TYPE_CHECKING
 
 import pendulum
@@ -132,12 +131,11 @@ class PodLauncher(LoggingMixin):
         :return:
         """
         resp = self.run_pod_async(pod)
-        curr_time = dt.now()
+        start_time = time.monotonic()
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
                 self.log.warning("Pod not yet started: %s", pod.metadata.name)
-                delta = dt.now() - curr_time
-                if delta.total_seconds() >= startup_timeout:
+                if time.monotonic() >= start_time + startup_timeout:
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
 

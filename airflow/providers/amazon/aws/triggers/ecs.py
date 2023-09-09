@@ -161,10 +161,11 @@ class TaskDoneTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        # fmt: off
-        async with EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as ecs_client,\
-                AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as logs_client:
-            # fmt: on
+        async with EcsHook(
+            aws_conn_id=self.aws_conn_id, region_name=self.region
+        ).async_conn as ecs_client, AwsLogsHook(
+            aws_conn_id=self.aws_conn_id, region_name=self.region
+        ).async_conn as logs_client:
             waiter = ecs_client.get_waiter("tasks_stopped")
             logs_token = None
             while self.waiter_max_attempts:

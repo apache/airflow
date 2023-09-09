@@ -1087,16 +1087,19 @@ def release_prod_images(
                     f"{dockerhub_repo}:{airflow_version}-python{python}",
                     f"{dockerhub_repo}:latest-python{python}",
                 )
-        if slim_images:
-            alias_image(
-                f"{dockerhub_repo}:slim-{airflow_version}",
-                f"{dockerhub_repo}:slim-latest",
-            )
-        else:
-            alias_image(
-                f"{dockerhub_repo}:{airflow_version}",
-                f"{dockerhub_repo}:latest",
-            )
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            # only tag latest  "default" image when we build default python version
+            # otherwise if the non-default images complete before the default one, their jobs will fail
+            if slim_images:
+                alias_image(
+                    f"{dockerhub_repo}:slim-{airflow_version}",
+                    f"{dockerhub_repo}:slim-latest",
+                )
+            else:
+                alias_image(
+                    f"{dockerhub_repo}:{airflow_version}",
+                    f"{dockerhub_repo}:latest",
+                )
 
 
 def is_package_in_dist(dist_files: list[str], package: str) -> bool:
@@ -1139,12 +1142,10 @@ def get_prs_for_package(package_id: str) -> list[int]:
             if skip_line:
                 # Skip first "....." header
                 skip_line = False
-                continue
-            if line.strip() == current_release_version:
+            elif line.strip() == current_release_version:
                 extract_prs = True
                 skip_line = True
-                continue
-            if extract_prs:
+            elif extract_prs:
                 if len(line) > 1 and all(c == "." for c in line.strip()):
                     # Header for next version reached
                     break

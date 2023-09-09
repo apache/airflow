@@ -561,7 +561,7 @@ def get_key_paths(input_dict):
     for key, value in input_dict.items():
         if isinstance(value, dict):
             for sub_key in get_key_paths(value):
-                yield ".".join((key, sub_key))
+                yield f"{key}.{sub_key}"
         else:
             yield key
 
@@ -971,12 +971,10 @@ class Airflow(AirflowBaseView):
         def _iter_parsed_moved_data_table_names():
             for table_name in inspect(session.get_bind()).get_table_names():
                 segments = table_name.split("__", 3)
-                if len(segments) < 3:
-                    continue
-                if segments[0] != settings.AIRFLOW_MOVED_TABLE_PREFIX:
-                    continue
-                # Second segment is a version marker that we don't need to show.
-                yield segments[-1], table_name
+                if len(segments) >= 3:
+                    if segments[0] == settings.AIRFLOW_MOVED_TABLE_PREFIX:
+                        # Second segment is a version marker that we don't need to show.
+                        yield segments[-1], table_name
 
         if (
             permissions.ACTION_CAN_ACCESS_MENU,
@@ -1062,10 +1060,12 @@ class Airflow(AirflowBaseView):
         """Cluster Activity view."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["no_status"] = state_color_mapping.pop(None)
+        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         return self.render_template(
             "airflow/cluster_activity.html",
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
+            standalone_dag_processor=standalone_dag_processor,
         )
 
     @expose("/next_run_datasets_summary", methods=["POST"])
@@ -1087,8 +1087,8 @@ class Airflow(AirflowBaseView):
             filter_dag_ids = allowed_dag_ids
 
         dataset_triggered_dag_ids = [
-            dag.dag_id
-            for dag in (
+            dag_id
+            for dag_id in (
                 session.scalars(
                     select(DagModel.dag_id)
                     .where(DagModel.dag_id.in_(filter_dag_ids))
@@ -1528,16 +1528,16 @@ class Airflow(AirflowBaseView):
                     for key, value in content.items():
                         renderer = task.template_fields_renderers.get(key, key)
                         if renderer in renderers:
-                            html_dict[".".join([template_field, key])] = (
+                            html_dict[f"{template_field}.{key}"] = (
                                 renderers[renderer](value) if not no_dagrun else ""
                             )
                         else:
-                            html_dict[".".join([template_field, key])] = Markup(
+                            html_dict[f"{template_field}.{key}"] = Markup(
                                 "<pre><code>{}</pre></code>"
                             ).format(pformat(value) if not no_dagrun else "")
                 else:
                     for dict_keys in get_key_paths(content):
-                        template_path = ".".join((template_field, dict_keys))
+                        template_path = f"{template_field}.{dict_keys}"
                         renderer = task.template_fields_renderers.get(template_path, template_path)
                         if renderer in renderers:
                             content_value = get_value_from_path(dict_keys, content)
@@ -2310,7 +2310,7 @@ class Airflow(AirflowBaseView):
     @auth.has_access(
         [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -2405,7 +2405,7 @@ class Airflow(AirflowBaseView):
     @auth.has_access(
         [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3379,12 +3379,11 @@ class Airflow(AirflowBaseView):
             y_points = []
             x_points = []
             for ti in tis:
-                if ti.task_id != task.task_id:
-                    continue
-                dttm = wwwutils.epoch(ti.execution_date)
-                x_points.append(dttm)
-                # y value should reflect completed tries to have a 0 baseline.
-                y_points.append(ti.prev_attempted_tries)
+                if ti.task_id == task.task_id:
+                    dttm = wwwutils.epoch(ti.execution_date)
+                    x_points.append(dttm)
+                    # y value should reflect completed tries to have a 0 baseline.
+                    y_points.append(ti.prev_attempted_tries)
             if x_points:
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
@@ -3476,14 +3475,13 @@ class Airflow(AirflowBaseView):
         for task in dag.tasks:
             task_id = task.task_id
             for ti in tis:
-                if ti.task_id != task.task_id:
-                    continue
-                ts = dag.get_run_data_interval(ti.dag_run).end
-                if ti.end_date:
-                    dttm = wwwutils.epoch(ti.execution_date)
-                    secs = (ti.end_date - ts).total_seconds()
-                    x_points[task_id].append(dttm)
-                    y_points[task_id].append(secs)
+                if ti.task_id == task.task_id:
+                    ts = dag.get_run_data_interval(ti.dag_run).end
+                    if ti.end_date:
+                        dttm = wwwutils.epoch(ti.execution_date)
+                        secs = (ti.end_date - ts).total_seconds()
+                        x_points[task_id].append(dttm)
+                        y_points[task_id].append(secs)
 
         # determine the most relevant time unit for the set of landing times
         # for the DAG
@@ -5137,17 +5135,34 @@ class VariableModelView(AirflowModelView):
     @expose("/varimport", methods=["POST"])
     @auth.has_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
     @action_logging(event=f"{permissions.RESOURCE_VARIABLE.lower()}.varimport")
-    def varimport(self):
+    @provide_session
+    def varimport(self, session):
         """Import variables."""
         try:
             variable_dict = json.loads(request.files["file"].read())
+            action_on_existing = request.form.get("action_if_exists", "overwrite").lower()
         except Exception:
             self.update_redirect()
             flash("Missing file or syntax error.", "error")
             return redirect(self.get_redirect())
         else:
+            existing_keys = set()
+            if action_on_existing != "overwrite":
+                existing_keys = set(
+                    session.scalars(select(models.Variable.key).where(models.Variable.key.in_(variable_dict)))
+                )
+            if action_on_existing == "fail" and existing_keys:
+                failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
+                flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                return redirect(location=request.referrer)
+            skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
+                if action_on_existing == "skip" and k in existing_keys:
+                    logging.warning("Variable: %s already exists, skipping.", k)
+                    skipped.add(k)
+                    continue
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:
@@ -5158,6 +5173,13 @@ class VariableModelView(AirflowModelView):
             flash(f"{suc_count} variable(s) successfully updated.")
             if fail_count:
                 flash(f"{fail_count} variable(s) failed to be updated.", "error")
+            if skipped:
+                skipped_repr = ", ".join(repr(k) for k in sorted(skipped))
+                flash(
+                    f"The variables with these keys: {skipped_repr} were skipped "
+                    "because they already exists",
+                    "warning",
+                )
             self.update_redirect()
             return redirect(self.get_redirect())
 
@@ -5225,6 +5247,8 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
+        "delete": "delete",
+        "edit": "edit",
         "list": "read",
         "action_clear": "edit",
         "action_muldelete": "delete",
@@ -5603,6 +5627,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_TASK_INSTANCE
     method_permission_name = {
         "list": "read",
+        "delete": "delete",
         "action_clear": "edit",
         "action_muldelete": "delete",
         "action_set_running": "edit",

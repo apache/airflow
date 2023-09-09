@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import logging
@@ -660,10 +661,8 @@ class TestLogsfromTaskRunCommand:
         self.root_filters = root.filters.copy()
         self.root_level = root.level
 
-        try:
+        with contextlib.suppress(OSError):
             os.remove(self.ti_log_file_path)
-        except OSError:
-            pass
 
     def teardown_method(self) -> None:
         root = self.root_logger
@@ -672,10 +671,8 @@ class TestLogsfromTaskRunCommand:
         root.filters[:] = self.root_filters
 
         reset(self.dag_id)
-        try:
+        with contextlib.suppress(OSError):
             os.remove(self.ti_log_file_path)
-        except OSError:
-            pass
 
     def assert_log_line(self, text, logs_list, expect_from_logging_mixin=False):
         """
@@ -864,10 +861,8 @@ class TestLogsfromTaskRunCommand:
 
                 assert os.path.exists(log_file_path)
             finally:
-                try:
+                with contextlib.suppress(OSError):
                     os.remove(log_file_path)
-                except OSError:
-                    pass
 
     @mock.patch.object(task_command, "_run_task_by_selected_method")
     def test_root_logger_restored(self, run_task_mock, caplog):

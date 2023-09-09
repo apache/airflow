@@ -435,19 +435,19 @@ def run_cleanup(
         _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
     existing_tables = reflect_tables(tables=None, session=session).tables
     for table_name, table_config in effective_config_dict.items():
-        if table_name not in existing_tables:
+        if table_name in existing_tables:
+            with _suppress_with_logging(table_name, session):
+                _cleanup_table(
+                    clean_before_timestamp=clean_before_timestamp,
+                    dry_run=dry_run,
+                    verbose=verbose,
+                    **table_config.__dict__,
+                    skip_archive=skip_archive,
+                    session=session,
+                )
+                session.commit()
+        else:
             logger.warning("Table %s not found.  Skipping.", table_name)
-            continue
-        with _suppress_with_logging(table_name, session):
-            _cleanup_table(
-                clean_before_timestamp=clean_before_timestamp,
-                dry_run=dry_run,
-                verbose=verbose,
-                **table_config.__dict__,
-                skip_archive=skip_archive,
-                session=session,
-            )
-            session.commit()
 
 
 @provide_session

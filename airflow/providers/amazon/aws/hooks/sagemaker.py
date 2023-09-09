@@ -252,12 +252,12 @@ class SageMakerHook(AwsBaseHook):
         ]
         events: list[Any | None] = []
         for event_stream in event_iters:
-            if not event_stream:
-                events.append(None)
-                continue
-            try:
-                events.append(next(event_stream))
-            except StopIteration:
+            if event_stream:
+                try:
+                    events.append(next(event_stream))
+                except StopIteration:
+                    events.append(None)
+            else:
                 events.append(None)
 
         while any(events):
@@ -979,8 +979,7 @@ class SageMakerHook(AwsBaseHook):
         found_name: str,
         job_name_suffix: str | None = None,
     ) -> bool:
-        pattern = re.compile(f"^{processing_job_name}({job_name_suffix})?$")
-        return pattern.fullmatch(found_name) is not None
+        return re.fullmatch(f"{processing_job_name}({job_name_suffix})?", found_name) is not None
 
     def count_processing_jobs_by_name(
         self,

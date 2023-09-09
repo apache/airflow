@@ -26,6 +26,7 @@ import glob
 import json
 import logging
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -37,9 +38,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import lru_cache
-from os.path import dirname, relpath
 from pathlib import Path
-from random import choice
 from shutil import copyfile
 from typing import Any, Generator, Iterable, NamedTuple
 
@@ -261,7 +260,7 @@ def get_target_folder() -> str:
 
     :return: the folder path
     """
-    return os.path.abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, "provider_packages"))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "provider_packages"))
 
 
 def get_target_providers_folder() -> str:
@@ -870,8 +869,7 @@ def get_additional_package_info(provider_package_path: str) -> str:
         for line in additional_info_lines:
             if line.startswith(" -->"):
                 skip_comment = False
-                continue
-            if not skip_comment:
+            elif not skip_comment:
                 result += line
         return result
     return ""
@@ -1155,7 +1153,7 @@ def get_provider_jinja_context(
         "PIP_REQUIREMENTS_TABLE": pip_requirements_table,
         "PIP_REQUIREMENTS_TABLE_RST": pip_requirements_table_rst,
         "PROVIDER_INFO": provider_info,
-        "CHANGELOG_RELATIVE_PATH": relpath(
+        "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.source_provider_package_path,
             provider_details.documentation_provider_package_path,
         ),
@@ -1215,7 +1213,7 @@ def get_type_of_changes(answer: str | None) -> TypeOfChange:
     given_answer = ""
     if answer and answer.lower() in ["yes", "y"]:
         # Simulate all possible non-terminal answers
-        return choice(
+        return random.choice(
             [
                 TypeOfChange.DOCUMENTATION,
                 TypeOfChange.BUGFIX,
@@ -1679,9 +1677,8 @@ def list_providers_packages():
     # this is useful for cases where provider is WIP for a long period thus we don't want to release it yet.
     providers_to_remove_from_release = []
     for provider in providers:
-        if provider in providers_to_remove_from_release:
-            continue
-        console.print(provider)
+        if provider not in providers_to_remove_from_release:
+            console.print(provider)
 
 
 @cli.command()

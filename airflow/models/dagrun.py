@@ -72,10 +72,10 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from sqlalchemy.orm import Query, Session
-    from typing_extensions import Literal
 
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
@@ -1410,7 +1410,11 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(
+        Integer,
+        nullable=True,
+        foreign_key=ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
+    )
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
@@ -1425,11 +1429,6 @@ class DagRunNote(Base):
             ["dag_run.id"],
             name="dag_run_note_dr_fkey",
             ondelete="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            (user_id,),
-            ["ab_user.id"],
-            name="dag_run_note_user_fkey",
         ),
     )
 

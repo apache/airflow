@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import collections
+import contextlib
+import itertools
 import logging
 import multiprocessing
 import os
@@ -832,14 +834,13 @@ class TestDagProcessorJobRunner:
         # To test this behaviour we need something that continually fills the
         # parent pipe's buffer (and keeps it full).
         def keep_pipe_full(pipe, exit_event):
-            n = 0
-            while True:
+            for n in itertools.count(1):
                 if exit_event.is_set():
                     break
 
                 req = CallbackRequest(str(dag_filepath))
+                logging.info("Sending CallbackRequests %d", n)
                 try:
-                    logging.info("Sending CallbackRequests %d", n + 1)
                     pipe.send(req)
                 except TypeError:
                     # This is actually the error you get when the parent pipe
@@ -847,7 +848,6 @@ class TestDagProcessorJobRunner:
                     break
                 except OSError:
                     break
-                n += 1
                 logging.debug("   Sent %d CallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
@@ -1343,10 +1343,8 @@ class TestDagFileProcessorAgent:
             async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
             log_file_loc = conf.get("logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION")
 
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(log_file_loc)
-            except OSError:
-                pass
 
             # Starting dag processing with 0 max_runs to avoid redundant operations.
             processor_agent = DagFileProcessorAgent(
@@ -1393,10 +1391,8 @@ class TestDagFileProcessorAgent:
         async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
 
         log_file_loc = conf.get("logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION")
-        try:
+        with contextlib.suppress(OSError):
             os.remove(log_file_loc)
-        except OSError:
-            pass
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
         processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], False, async_mode)

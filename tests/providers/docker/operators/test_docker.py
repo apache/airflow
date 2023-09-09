@@ -27,6 +27,7 @@ from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount
 
 from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator
 
 TEST_CONN_ID = "docker_test_connection"
@@ -553,19 +554,19 @@ class TestDockerOperator:
     def test_execute_container_fails(self):
         failed_msg = {"StatusCode": 1}
         log_line = ["unicode container log 😁   ", b"byte string container log"]
-        expected_message = "Docker container failed: {failed_msg} lines {expected_log_output}"
+        expected_message = "Docker container failed: {failed_msg}"
         self.client_mock.attach.return_value = log_line
         self.client_mock.wait.return_value = failed_msg
 
         operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest")
 
-        with pytest.raises(AirflowException) as raised_exception:
+        with pytest.raises(DockerContainerFailedException) as raised_exception:
             operator.execute(None)
 
         assert str(raised_exception.value) == expected_message.format(
             failed_msg=failed_msg,
-            expected_log_output=f'{log_line[0].strip()}\n{log_line[1].decode("utf-8")}',
         )
+        assert raised_exception.value.logs == [log_line[0].strip(), log_line[1].decode("utf-8")]
 
     def test_auto_remove_container_fails(self):
         self.client_mock.wait.return_value = {"StatusCode": 1}

@@ -239,7 +239,7 @@
   "celery": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "celery>=5.3.0,<6",
+      "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
       "flower>=1.0.0",
       "google-re2>=1.0"
     ],
@@ -317,7 +317,8 @@
       "asgiref"
     ],
     "cross-providers-deps": [
-      "http"
+      "http",
+      "openlineage"
     ],
     "excluded-python-versions": []
   },
@@ -564,9 +565,8 @@
       "azure-mgmt-storage>=16.0.0",
       "azure-servicebus>=7.6.1",
       "azure-storage-blob>=12.14.0",
-      "azure-storage-common>=2.1.0",
       "azure-storage-file-datalake>=12.9.1",
-      "azure-storage-file>=2.1.0",
+      "azure-storage-file-share",
       "azure-synapse-spark"
     ],
     "cross-providers-deps": [

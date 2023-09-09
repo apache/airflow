@@ -168,6 +168,24 @@ class TestDataFusionHook:
         assert result == "value"
         method_mock.assert_called_once_with(name=hook._name(PROJECT_ID, LOCATION, INSTANCE_NAME))
 
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_get_instance_artifacts(self, mock_request, hook):
+        scope = "SYSTEM"
+        artifact = {
+            "name": "test-artifact",
+            "version": "1.2.3",
+            "scope": scope,
+        }
+        mock_request.return_value = mock.MagicMock(status=200, data=json.dumps([artifact]))
+
+        hook.get_instance_artifacts(instance_url=INSTANCE_URL, scope=scope)
+
+        mock_request.assert_called_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/artifacts",
+            method="GET",
+            params={"scope": scope},
+        )
+
     @mock.patch("google.auth.transport.requests.Request")
     @mock.patch(HOOK_STR.format("DataFusionHook.get_credentials"))
     def test_cdap_request(self, get_credentials_mock, mock_request, hook):
@@ -177,14 +195,17 @@ class TestDataFusionHook:
         request = mock_request.return_value
         request.return_value = mock.MagicMock()
         body = {"data": "value"}
+        params = {"param_key": "param_value"}
 
-        result = hook._cdap_request(url=url, method=method, body=body)
+        result = hook._cdap_request(url=url, method=method, body=body, params=params)
         mock_request.assert_called_once_with()
         get_credentials_mock.assert_called_once_with()
         get_credentials_mock.return_value.before_request.assert_called_once_with(
             request=request, method=method, url=url, headers=headers
         )
-        request.assert_called_once_with(method=method, url=url, headers=headers, body=json.dumps(body))
+        request.assert_called_once_with(
+            method=method, url=url, headers=headers, body=json.dumps(body), params=params
+        )
         assert result == request.return_value
 
     @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))

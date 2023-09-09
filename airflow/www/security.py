@@ -235,12 +235,10 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         # This is needed to support the "hack" where we had to edit
         # FieldConverter.conversion_table in place in airflow.www.utils
         for attr in dir(self):
-            if not attr.endswith("view"):
-                continue
-            view = getattr(self, attr, None)
-            if not view or not getattr(view, "datamodel", None):
-                continue
-            view.datamodel = CustomSQLAInterface(view.datamodel.obj)
+            if attr.endswith("view"):
+                view = getattr(self, attr, None)
+                if view and getattr(view, "datamodel", None):
+                    view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
     def _get_root_dag_id(self, dag_id: str) -> str:
@@ -374,17 +372,15 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
         for role in roles:
             for permission in role.permissions:
                 action = permission.action.name
-                if action not in user_actions:
-                    continue
+                if action in user_actions:
+                    resource = permission.resource.name
+                    if resource == permissions.RESOURCE_DAG:
+                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
 
-                resource = permission.resource.name
-                if resource == permissions.RESOURCE_DAG:
-                    return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-
-                if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
-                    resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
-                else:
-                    resources.add(resource)
+                    if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
+                        resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+                    else:
+                        resources.add(resource)
         return {
             dag.dag_id
             for dag in session.execute(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))
@@ -607,7 +603,7 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
                 if (action_name, dag_resource_name) not in perms:
                     self._merge_perm(action_name, dag_resource_name)
 
-            if dag.access_control:
+            if dag.access_control is not None:
                 self.sync_perm_for_dag(dag_resource_name, dag.access_control)
 
     def update_admin_permission(self) -> None:
@@ -775,14 +771,10 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
                 (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
             ):
                 can_access_all_dags = self.has_access(*perm)
-                if can_access_all_dags:
-                    continue
-
-                action = perm[0]
-                if self.can_access_some_dags(action, dag_id):
-                    continue
-                return False
-
+                if not can_access_all_dags:
+                    action = perm[0]
+                    if not self.can_access_some_dags(action, dag_id):
+                        return False
             elif not self.has_access(*perm):
                 return False
 

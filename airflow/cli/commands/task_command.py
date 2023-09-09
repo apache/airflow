@@ -31,7 +31,6 @@ import pendulum
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
-from typing_extensions import Literal
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
@@ -50,6 +49,7 @@ from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
+from airflow.typing_compat import Literal
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,
@@ -67,6 +67,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.task_instance_session import set_current_task_instance_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -649,7 +650,8 @@ def task_render(args, dag: DAG | None = None) -> None:
     ti, _ = _get_ti(
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
     )
-    ti.render_templates()
+    with create_session() as session, set_current_task_instance_session(session=session):
+        ti.render_templates()
     for attr in task.template_fields:
         print(
             textwrap.dedent(
