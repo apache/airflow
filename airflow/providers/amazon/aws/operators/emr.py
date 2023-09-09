@@ -30,6 +30,7 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
 from airflow.providers.amazon.aws.triggers.emr import (
+    EmrAddStepsTrigger,
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
     EmrServerlessCancelJobsTrigger,
@@ -38,7 +39,6 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessStartApplicationTrigger,
     EmrServerlessStartJobTrigger,
     EmrServerlessStopApplicationTrigger,
-    EmrStepsTrigger,
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils.waiter import waiter
@@ -168,7 +168,7 @@ class EmrAddStepsOperator(BaseOperator):
         )
         if self.deferrable:
             self.defer(
-                trigger=EmrStepsTrigger(
+                trigger=EmrAddStepsTrigger(
                     job_flow_id=job_flow_id,
                     step_ids=step_ids,
                     aws_conn_id=self.aws_conn_id,
