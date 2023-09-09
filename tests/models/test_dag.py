@@ -1717,6 +1717,22 @@ class TestDag:
         dr = dag.create_dagrun(run_id="custom_is_set_to_manual", state=State.NONE)
         assert dr.run_type == DagRunType.MANUAL
 
+    def test_create_dagrun_custom_run_id_template_is_generated(self):
+        def run_id_template(run_type, logical_date, data_interval, conf):
+            return f"custom_runid__{logical_date.isoformat()}"
+
+        dag = DAG(dag_id="run_id_is_generated", default_run_id=run_id_template)
+        dr = dag.create_dagrun(execution_date=DEFAULT_DATE, state=State.NONE)
+        assert dr.run_id == f"custom_template__{DEFAULT_DATE.isoformat()}"
+
+        def run_id_template_from_config(run_type, logical_date, data_interval, conf):
+            return f"{conf['param1']}_{logical_date.isoformat()}"
+
+        dag = DAG(dag_id="run_id_is_generated", default_run_id=run_id_template_from_config)
+        conf = {"param1": "test_run"}
+        dr = dag.create_dagrun(execution_date=DEFAULT_DATE, state=State.NONE, conf=conf)
+        assert dr.run_id == f"test_run__{DEFAULT_DATE.isoformat()}"
+
     def test_create_dagrun_job_id_is_set(self):
         job_id = 42
         dag = DAG(dag_id="test_create_dagrun_job_id_is_set")

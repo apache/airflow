@@ -447,6 +447,7 @@ class DAG(LoggingMixin):
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_stop: bool = False,
+        default_run_id: Callable | None = None,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -615,6 +616,7 @@ class DAG(LoggingMixin):
         self.partial: bool = False
         self.on_success_callback = on_success_callback
         self.on_failure_callback = on_failure_callback
+        self.default_run_id = default_run_id
 
         # Keeps track of any extra edge metadata (sparse; will not contain all
         # edges, so do not iterate over it for that). Outer key is upstream
@@ -2833,9 +2835,14 @@ class DAG(LoggingMixin):
                     f"is reserved for {inferred_run_type.value} runs"
                 )
         elif run_type and logical_date is not None:  # Generate run_id from run_type and execution_date.
-            run_id = self.timetable.generate_run_id(
-                run_type=run_type, logical_date=logical_date, data_interval=data_interval
-            )
+            if self.default_run_id:
+                run_id = self.default_run_id(
+                    run_type=run_type, logical_date=logical_date, data_interval=data_interval, conf=conf
+                )
+            else:
+                run_id = self.timetable.generate_run_id(
+                    run_type=run_type, logical_date=logical_date, data_interval=data_interval
+                )
         else:
             raise AirflowException(
                 "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
@@ -3745,6 +3752,7 @@ def dag(
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
     fail_stop: bool = False,
+    default_run_id: Callable | None = None,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator which wraps a function into an Airflow DAG.
@@ -3800,6 +3808,7 @@ def dag(
                 owner_links=owner_links,
                 auto_register=auto_register,
                 fail_stop=fail_stop,
+                default_run_id=default_run_id,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:
