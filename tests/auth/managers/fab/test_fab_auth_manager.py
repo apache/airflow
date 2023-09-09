@@ -41,8 +41,8 @@ class TestFabAuthManager:
     @pytest.mark.parametrize(
         "id,first_name,last_name,username,email,expected",
         [
-            (1, "First", "Last", None, None, 1),
-            (1, None, None, None, None, 1),
+            (1, "First", "Last", None, None, "1"),
+            (1, None, None, None, None, "1"),
             (1, "First", "Last", "user", None, "user"),
             (1, "First", "Last", "user", "email", "user"),
             (1, None, None, None, "email", "email"),
@@ -69,8 +69,8 @@ class TestFabAuthManager:
             (1, "First", "Last", None, None, "First Last"),
             (1, "First", None, "user", None, "First"),
             (1, None, "Last", "user", "email", "Last"),
-            (1, None, None, None, "email", None),
-            (1, None, None, None, "email", False),
+            (1, None, None, None, "email", ""),
+            (1, None, None, None, "email", ""),
         ],
     )
     @mock.patch.object(FabAuthManager, "get_user")

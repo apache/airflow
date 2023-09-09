@@ -65,8 +65,8 @@ class FabAuthManager(BaseAuthManager):
     def get_user_display_name(self) -> str:
         """Return the user's display name associated to the user in session."""
         user = self.get_user()
-        first_name = user.first_name.strip() or ""
-        last_name = user.last_name.strip() or ""
+        first_name = user.first_name.strip() if isinstance(user.first_name, str) else ""
+        last_name = user.last_name.strip() if isinstance(user.last_name, str) else ""
         return f"{first_name} {last_name}".strip()
 
     def get_user_name(self) -> str:
