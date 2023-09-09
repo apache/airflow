@@ -100,6 +100,8 @@ Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
 Example:
 If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
+Note: For building docs for apache-airflow-providers index, use dot``(.)`` as short hand operator.
+
 Cross-referencing syntax
 ========================
 
