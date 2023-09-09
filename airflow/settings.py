@@ -47,8 +47,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-
-TIMEZONE = pendulum.tz.timezone("UTC")
 try:
     tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
@@ -56,7 +54,8 @@ try:
     else:
         TIMEZONE = pendulum.tz.timezone(tz)
 except Exception:
-    pass
+    TIMEZONE = pendulum.tz.timezone("UTC")
+
 log.info("Configured default timezone %s", TIMEZONE)
 
 
