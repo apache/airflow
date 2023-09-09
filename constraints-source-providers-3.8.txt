@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-08T20:57:13Z
+# This constraints file was automatically generated on 2023-09-09T20:20:21Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -116,7 +116,7 @@ bcrypt==4.0.1
 beautifulsoup4==4.12.2
 billiard==4.1.0
 bitarray==2.8.1
-black==23.7.0
+black==23.9.0
 blinker==1.6.2
 boto3==1.28.17
 botocore==1.31.17
@@ -258,7 +258,7 @@ httpcore==0.16.3
 httplib2==0.22.0
 httpx==0.23.3
 humanize==4.8.0
-hvac==1.2.0
+hvac==1.2.1
 identify==2.5.27
 idna==3.4
 ijson==3.2.3
