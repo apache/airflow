@@ -27,6 +27,16 @@
 Changelog
 ---------
 
+3.7.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Consolidate "import numpy as np" (#34111)``
+* ``Combine similar if logics in providers (#33987)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+
 3.7.3
 .....
 

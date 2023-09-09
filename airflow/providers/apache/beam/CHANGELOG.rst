@@ -26,6 +26,15 @@
 Changelog
 ---------
 
+5.2.3
+.....
+
+Misc
+~~~~
+
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 5.2.2
 .....
 

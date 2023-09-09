@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/sftp): respect soft_fail argument when exception is raised (#34169)``
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 4.6.0
 .....
 
