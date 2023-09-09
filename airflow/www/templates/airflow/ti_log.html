@@ -57,7 +57,56 @@
       <a class="btn btn-default" id="ti_log_download_active">Download</a>
     </div>
   </div>
-  <div class="tab-content">
+  <div class="tab-content" id="log-tab-content">
+    <script>
+
+      /* View in fullscreen */
+      function openFullscreen() {
+      /* Get the documentElement (<html>) to display the page in fullscreen */
+        const elem = document.getElementById('log-tab-content');
+        if(elem){
+          if (elem.requestFullscreen) {
+            elem.requestFullscreen();
+          } else if (elem.webkitRequestFullscreen) { /* Safari */
+            elem.webkitRequestFullscreen();
+          } else if (elem.msRequestFullscreen) { /* IE11 */
+            elem.msRequestFullscreen();
+          }
+          elem.style.overflow = 'auto'
+        }
+      }
+
+      /* Close fullscreen */
+      function closeFullscreen() {
+      /* Get the documentElement (<html>) to display the page in fullscreen */
+        const elem = document.getElementById('log-tab-content');
+        if(elem){
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          } else if (document.webkitExitFullscreen) { /* Safari */
+            document.webkitExitFullscreen();
+          } else if (document.msExitFullscreen) { /* IE11 */
+            document.msExitFullscreen();
+          }
+        }
+      }
+
+      function toggleFull_Screen_Logs() {
+        var fullScreenElement = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement
+        if(fullScreenElement){
+          closeFullscreen()
+        }
+        else{
+          openFullscreen()
+        }
+      }
+
+    </script>
+    <div class="text-right" onclick="toggleFull_Screen_Logs()">
+      <button>
+        &#x26F6;
+      </button>
+    </div>
     {% for log in logs %}
       <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
         <img id="loading-{{ loop.index }}" style="margin-top:0%; margin-left:50%; height:50px; width:50px; position: absolute;"
