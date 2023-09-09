@@ -27,8 +27,11 @@ providers_prefix = "apache-airflow-providers-"
 def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
     providers = []
     for short_form_provider in short_form_providers:
-        short_form_provider.split(".")
+        if short_form_provider == ".":
+            providers.append("apache-airflow-providers")
+            continue
 
+        short_form_provider.split(".")
         parts = "-".join(short_form_provider.split("."))
         providers.append(providers_prefix + parts)
     return tuple(providers)
