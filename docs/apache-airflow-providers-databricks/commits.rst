@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.5.0
+.....
+
+Latest change: 2023-09-07
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`c45617c4d5 <https://github.com/apache/airflow/commit/c45617c4d5988555f2f52684e082b96b65ca6c17>`_  2023-09-07   ``allow DatabricksSubmitRunOperator to accept a pipeline name for a pipeline_task (#32903)``
+`55976af32e <https://github.com/apache/airflow/commit/55976af32ea7d09831e2bcd21c0f3814d9b0eb3f>`_  2023-08-31   ``Replace sequence concatination by unpacking in Airflow providers (#33933)``
+`f7a005db8c <https://github.com/apache/airflow/commit/f7a005db8c5b47fe86196374e3e857b40e9ea5ac>`_  2023-08-30   ``Add "QUEUED" to RUN_LIFE_CYCLE_STATES following deployement of … (#33886)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+`b11525702c <https://github.com/apache/airflow/commit/b11525702c72cb53034aa29ccd6d0e1161ac475c>`_  2023-08-26   ``Use literal dict instead of calling dict() in providers (#33761)``
+`c90eec9365 <https://github.com/apache/airflow/commit/c90eec936583d482a35f0dc8bfc13afc58a9c322>`_  2023-08-26   ``Use f-string instead of  in Airflow providers (#33752)``
+=================================================================================================  ===========  ===================================================================================================
+
 4.4.0
 .....
 
-Latest change: 2023-08-24
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `dc47c460dc <https://github.com/apache/airflow/commit/dc47c460dc0edfbfe0e692eac1d07b42280e0810>`_  2023-08-24   ``Update docs in databricks.py - we use 2.1 now (#32340)``
 `4154cc04ce <https://github.com/apache/airflow/commit/4154cc04ce9702b09e6f13d423686fdf4cb7b877>`_  2023-08-24   ``Do not create lists we don't need (#33519)``
 `2dbb963324 <https://github.com/apache/airflow/commit/2dbb9633240777d658031d32217255849150684b>`_  2023-08-24   ``Refactor: Improve detection of duplicates and list sorting (#33675)``

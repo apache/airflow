@@ -2142,9 +2142,12 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     @pytest.mark.parametrize(
         "job_status, expected",
         [
-            ({"status": {"state": "DONE"}}, "success"),
-            ({"status": {"state": "DONE", "errorResult": "Timeout"}}, "error"),
-            ({"status": {"state": "running"}}, "running"),
+            ({"status": {"state": "DONE"}}, {"status": "success", "message": "Job completed"}),
+            (
+                {"status": {"state": "DONE", "errorResult": {"message": "Timeout"}}},
+                {"status": "error", "message": "Timeout"},
+            ),
+            ({"status": {"state": "running"}}, {"status": "running", "message": "Job running"}),
         ],
     )
     @pytest.mark.asyncio

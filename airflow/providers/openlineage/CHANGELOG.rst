@@ -26,6 +26,28 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow to disable openlineage at operator level (#33685)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix import in 'get_custom_facets'. (#34122)``
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Add OpenLineage support for DBT Cloud. (#33959)``
+* ``Refactor unneeded  jumps in providers (#33833)``
+* ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+
 1.0.2
 .....
 

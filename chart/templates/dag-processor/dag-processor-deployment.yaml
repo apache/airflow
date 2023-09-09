@@ -101,6 +101,9 @@ spec:
               topologyKey: kubernetes.io/hostname
             weight: 100
       {{- end }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       terminationGracePeriodSeconds: {{ .Values.dagProcessor.terminationGracePeriodSeconds }}

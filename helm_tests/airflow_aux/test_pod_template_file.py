@@ -506,6 +506,18 @@ class TestPodTemplateFile:
             "spec.topologySpreadConstraints[0]", docs[0]
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.schedulerName",
+            docs[0],
+        )
+
     def test_should_not_create_default_affinity(self):
         docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
 
