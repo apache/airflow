@@ -455,7 +455,9 @@ argument_packages_plus_all_providers_for_shorthand = click.argument(
     "packages_plus_all_providers",
     nargs=-1,
     required=False,
-    type=BetterChoice(["all-providers"] + get_available_documentation_packages(short_version=True) + ["."]),
+    type=BetterChoice(
+        ["all-providers"] + get_available_documentation_packages(short_version=True) + ["providers-index"]
+    ),
 )
 
 option_airflow_constraints_reference = click.option(
