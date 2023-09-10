@@ -335,7 +335,9 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         self.source_instance_template = source_instance_template
         self.body = body
         self.zone = zone
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        # NOTICE: don't use self.resource_id until execution, as it can be overridden by body["name"],
+        #   which can be determined only during execution
+        self.resource_id = resource_id if resource_id else ""
         self.request_id = request_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
@@ -376,6 +378,9 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
             impersonation_chain=self.impersonation_chain,
         )
         self._validate_all_body_fields()
+        # name field in body should override resource_id but only after it has been jinja-resolved
+        if "name" in self.body:
+            self.resource_id = self.body["name"]
         try:
             # Idempotence check (sort of) - we want to check if the new Instance
             # is already created and if is, then we assume it was created - we do
@@ -895,7 +900,9 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
     ) -> None:
         self.body = body
         self.request_id = request_id
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        # NOTICE: don't use self.resource_id until execution, as it can be overridden by body["name"],
+        #   which can be determined only during execution
+        self.resource_id = resource_id if resource_id else ""
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -948,6 +955,9 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         self._validate_all_body_fields()
         self.check_body_fields()
         self._field_sanitizer.sanitize(self.body)
+        # name field in body should override resource_id but only after it has been jinja-resolved
+        if "name" in self.body:
+            self.resource_id = self.body["name"]
         try:
             # Idempotence check (sort of) - we want to check if the new Template
             # is already created and if is, then we assume it was created by previous run
@@ -1480,7 +1490,9 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         self.body = body
         self.zone = zone
         self.request_id = request_id
-        self.resource_id = self.body["name"] if "name" in body else resource_id
+        # NOTICE: don't use self.resource_id until execution, as it can be overridden by body["name"],
+        #   which can be determined only during execution
+        self.resource_id = resource_id if resource_id else ""
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
         self.retry = retry
         self.timeout = timeout
@@ -1531,6 +1543,9 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         )
         self._validate_all_body_fields()
         self.check_body_fields()
+        # name field in body should override resource_id but only after it has been jinja-resolved
+        if "name" in self.body:
+            self.resource_id = self.body["name"]
         try:
             # Idempotence check (sort of) - we want to check if the new Instance Group Manager
             # is already created and if isn't, we create new one
