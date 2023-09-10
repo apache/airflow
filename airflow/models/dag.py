@@ -3288,8 +3288,8 @@ class DAG(LoggingMixin):
             self.params.validate()
         except ParamValidationError as pverr:
             raise AirflowException(
-                "There are either required params without default values or default values are not valid "
-                f"in DAG {self.dag_id}. This is not allowed if the DAG defines a Schedule."
+                "DAG is not allowed to define a Schedule, "
+                "if there are any required params without default values or default values are not valid."
             ) from pverr
 
     def iter_invalid_owner_links(self) -> Iterator[tuple[str, str]]:
