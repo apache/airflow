@@ -184,7 +184,8 @@ class KubernetesPodTrigger(BaseTrigger):
                                 }
                             )
                             return
-
+                        else:
+                            await asyncio.sleep(self.startup_check_interval)
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
