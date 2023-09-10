@@ -659,7 +659,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
-        if source_format in src_fmt_to_param_mapping.keys():
+        if source_format in src_fmt_to_param_mapping:
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[source_format]]
             src_fmt_configs = _validate_src_fmt_configs(
                 source_format, src_fmt_configs, valid_configs, backward_compatibility_configs
