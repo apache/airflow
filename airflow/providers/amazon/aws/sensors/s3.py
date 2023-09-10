@@ -157,7 +157,7 @@ class S3KeySensor(BaseSensorOperator):
                 aws_conn_id=self.aws_conn_id,
                 verify=self.verify,
                 poke_interval=self.poke_interval,
-                should_check_fn=True if self.check_fn else False,
+                should_check_fn=bool(self.check_fn),
             ),
             method_name="execute_complete",
         )
