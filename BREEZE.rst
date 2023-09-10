@@ -2080,6 +2080,9 @@ while publishing the documentation.
 
      breeze release-management publish-docs --airflow-site-directory
 
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
+
 The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
 not proceed if this is an invalid path.
 
@@ -2092,6 +2095,17 @@ These are all available flags of ``release-management publish-docs`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_publish-docs.svg
   :width: 100%
   :alt: Breeze Publish documentation
+
+.. _generating_short_form_names:
+
+Generating short form names for Providers
+-----------------------------------------
+
+Skip the ``apache-airflow-providers-`` from the usual provider full names.
+Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
+
+Example:
+If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
 Adding back referencing HTML for the documentation
 """"""""""""""""""""""""""""""""""""""""""""""""""
