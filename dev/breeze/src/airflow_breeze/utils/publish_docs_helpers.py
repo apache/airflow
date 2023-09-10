@@ -31,6 +31,22 @@ CONSOLE_WIDTH = 180
 ROOT_DIR = Path(__file__).parents[5].resolve()
 PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow" / "provider.yaml.schema.json"
 
+providers_prefix = "apache-airflow-providers-"
+
+
+def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
+    providers = []
+    for short_form_provider in short_form_providers:
+        short_form_provider.split(".")
+        if short_form_provider == "providers-index":
+            providers.append("apache-airflow-providers")
+            continue
+
+        short_form_provider.split(".")
+        parts = "-".join(short_form_provider.split("."))
+        providers.append(providers_prefix + parts)
+    return tuple(providers)
+
 
 def _load_schema() -> dict[str, Any]:
     with open(PROVIDER_DATA_SCHEMA_PATH) as schema_file:
@@ -99,13 +115,18 @@ def get_available_packages():
     ]
 
 
-def process_package_filters(available_packages: list[str], package_filters: list[str] | None):
+def process_package_filters(
+    available_packages: list[str], package_filters: list[str] | None, packages_short_form: tuple[str]
+):
     """Filters the package list against a set of filters.
 
     A packet is returned if it matches at least one filter. The function keeps the order of the packages.
     """
-    if not package_filters:
+    if not package_filters and not packages_short_form:
         return available_packages
+
+    expanded_short_form_packages = get_provider_name_from_short_hand(packages_short_form)
+    package_filters = list(package_filters + expanded_short_form_packages)
 
     invalid_filters = [
         f for f in package_filters if not any(fnmatch.fnmatch(p, f) for p in available_packages)
