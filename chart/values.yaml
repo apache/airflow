@@ -499,10 +499,11 @@ workers:
   args:
     - "bash"
     - "-c"
-    # The format below is necessary to get `helm lint` happy
-    - |-
+    - >-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion
+      | ternary "celery worker" "worker" }}
 
   # If the worker stops responding for 5 minutes (5*60s) kill the
   # worker and let Kubernetes restart it
@@ -916,10 +917,11 @@ createUserJob:
   args:
     - "bash"
     - "-c"
-    # The format below is necessary to get `helm lint` happy
-    - |-
+    - >-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"
+
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion
+      | ternary "users create" "create_user" }} "$@"
     - --
     - "-r"
     - "{{ .Values.webserver.defaultUser.role }}"
@@ -1661,10 +1663,11 @@ flower:
   args:
     - "bash"
     - "-c"
-    # The format below is necessary to get `helm lint` happy
-    - |-
+    - >-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery flower" "flower" }}
+
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion
+      | ternary "celery flower" "flower" }}
 
   # Additional network policies as needed (Deprecated - renamed to `flower.networkPolicy.ingress.from`)
   extraNetworkPolicies: []
