@@ -87,7 +87,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "login", "password"],
             "relabeling": {},
@@ -445,7 +445,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _process_spark_submit_log(self, itr: Iterator[Any]) -> None:
         """
-        Processes the log files and extracts useful information out of it.
+        Process the log files and extract useful information out of it.
 
         If the deploy-mode is 'client', log the output of the submit command as those
         are the output logs of the Spark worker directly.
@@ -461,9 +461,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # If we run yarn cluster mode, we want to extract the application id from
             # the logs so we can kill the application when we stop it unexpectedly
             if self._is_yarn and self._connection["deploy_mode"] == "cluster":
-                match = re.search("(application[0-9_]+)", line)
+                match = re.search("application[0-9_]+", line)
                 if match:
-                    self._yarn_application_id = match.groups()[0]
+                    self._yarn_application_id = match.group(0)
                     self.log.info("Identified spark driver id: %s", self._yarn_application_id)
 
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
@@ -471,28 +471,28 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             elif self._is_kubernetes:
                 match = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver)", line)
                 if match:
-                    self._kubernetes_driver_pod = match.groups()[0]
+                    self._kubernetes_driver_pod = match.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
 
                 # Store the Spark Exit code
                 match_exit_code = re.search(r"\s*[eE]xit code: (\d+)", line)
                 if match_exit_code:
-                    self._spark_exit_code = int(match_exit_code.groups()[0])
+                    self._spark_exit_code = int(match_exit_code.group(1))
 
             # if we run in standalone cluster mode and we want to track the driver status
             # we need to extract the driver id from the logs. This allows us to poll for
             # the status using the driver id. Also, we can kill the driver when needed.
             elif self._should_track_driver_status and not self._driver_id:
-                match_driver_id = re.search(r"(driver-[0-9\-]+)", line)
+                match_driver_id = re.search(r"driver-[0-9\-]+", line)
                 if match_driver_id:
-                    self._driver_id = match_driver_id.groups()[0]
+                    self._driver_id = match_driver_id.group(0)
                     self.log.info("identified spark driver id: %s", self._driver_id)
 
             self.log.info(line)
 
     def _process_spark_status_log(self, itr: Iterator[Any]) -> None:
         """
-        Parses the logs of the spark driver status query process.
+        Parse the logs of the spark driver status query process.
 
         :param itr: An iterator which iterates over the input of the subprocess
         """
@@ -518,7 +518,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _start_driver_status_tracking(self) -> None:
         """
-        Polls the driver based on self._driver_id to get the status.
+        Poll the driver based on self._driver_id to get the status.
 
         Finish successfully when the status is FINISHED.
         Finish failed when the status is ERROR/UNKNOWN/KILLED/FAILED.

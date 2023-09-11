@@ -378,7 +378,7 @@ After configuring the database and connecting to it in Airflow configuration, yo
 
 .. code-block:: bash
 
-    airflow db init
+    airflow db migrate
 
 What's next?
 ------------

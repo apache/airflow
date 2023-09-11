@@ -27,6 +27,27 @@ Changelog
 ---------
 
 
+2.4.4
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+2.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate database URL passed to create_engine of Drill hook's connection (#33074)``
+
 2.4.2
 .....
 

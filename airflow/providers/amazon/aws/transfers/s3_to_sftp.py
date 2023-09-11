@@ -69,7 +69,7 @@ class S3ToSFTPOperator(BaseOperator):
 
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
-        """This parses the correct format for S3 keys regardless of how the S3 url is passed."""
+        """Parse the correct format for S3 keys regardless of how the S3 url is passed."""
         parsed_s3_key = urlsplit(s3_key)
         return parsed_s3_key.path.lstrip("/")
 

@@ -46,7 +46,7 @@ class ListenerManager:
 
     @property
     def has_listeners(self) -> bool:
-        return len(self.pm.get_plugins()) > 0
+        return bool(self.pm.get_plugins())
 
     @property
     def hook(self) -> _HookRelay:

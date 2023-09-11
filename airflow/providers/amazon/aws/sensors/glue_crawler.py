@@ -69,7 +69,7 @@ class GlueCrawlerSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> GlueCrawlerHook:
-        """Returns a new or pre-existing GlueCrawlerHook."""
+        """Return a new or pre-existing GlueCrawlerHook."""
         return self.hook
 
     @cached_property

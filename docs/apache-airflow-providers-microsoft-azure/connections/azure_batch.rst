@@ -32,6 +32,10 @@ There is one way to connect to Azure Batch using Airflow.
 1. Use `Azure Shared Key Credential
    <https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-with-shared-key>`_
    i.e. add shared key credentials to the Airflow connection.
+2. Fallback on `DefaultAzureCredential
+   <https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential>`_.
+   This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
+
 
 Default Connection IDs
 ----------------------
@@ -41,11 +45,13 @@ All hooks and operators related to Microsoft Azure Batch use ``azure_batch_defau
 Configuring the Connection
 --------------------------
 
-Batch Account Name
+Batch Account Name (optional)
     Specify the Azure Batch Account Name used for the initial connection.
+    It can be left out to fall back on ``DefaultAzureCredential``.
 
-Batch Account Access Key
+Batch Account Access Key (optional)
     Specify the access key used for the initial connection.
+    It can be left out to fall back on ``DefaultAzureCredential``.
 
 Batch Account URL
     Specify the batch account URL you would like to use.

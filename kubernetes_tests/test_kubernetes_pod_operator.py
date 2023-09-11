@@ -29,12 +29,12 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from kubernetes.client import models as k8s
+from kubernetes import client
+from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
-from pytest import param
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -43,6 +43,7 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
+from kubernetes_tests.test_base import BaseK8STest
 
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
@@ -78,7 +79,7 @@ def kubeconfig_path():
 
 @pytest.fixture
 def test_label(request):
-    label = "".join(filter(str.isalnum, f"{request.node.cls.__name__}.{request.node.name}")).lower()
+    label = "".join(c for c in f"{request.node.cls.__name__}.{request.node.name}" if c.isalnum()).lower()
     return label[-63:]
 
 
@@ -223,6 +224,22 @@ class TestKubernetesPodOperatorSystem:
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
 
+    def test_skip_on_specified_exit_code(self, mock_get_connection):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["exit 42"],
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=True,
+            skip_on_exit_code=42,
+        )
+        context = create_context(k)
+        with pytest.raises(AirflowSkipException):
+            k.execute(context)
+
     def test_already_checked_on_success(self, mock_get_connection):
         """
         When ``is_delete_operator_pod=False``, pod should have 'already_checked'
@@ -266,7 +283,7 @@ class TestKubernetesPodOperatorSystem:
             k.execute(context)
         actual_pod = k.find_pod("default", context, exclude_checked=False)
         actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
-        status = next(iter(filter(lambda x: x["name"] == "base", actual_pod["status"]["containerStatuses"])))
+        status = next(x for x in actual_pod["status"]["containerStatuses"] if x["name"] == "base")
         assert status["state"]["terminated"]["reason"] == "Error"
         assert actual_pod["metadata"]["labels"]["already_checked"] == "True"
 
@@ -377,7 +394,7 @@ class TestKubernetesPodOperatorSystem:
     @pytest.mark.parametrize(
         "val",
         [
-            param(
+            pytest.param(
                 k8s.V1Affinity(
                     node_affinity=k8s.V1NodeAffinity(
                         required_during_scheduling_ignored_during_execution=k8s.V1NodeSelector(
@@ -397,7 +414,7 @@ class TestKubernetesPodOperatorSystem:
                 ),
                 id="current",
             ),
-            param(
+            pytest.param(
                 {
                     "nodeAffinity": {
                         "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -514,7 +531,7 @@ class TestKubernetesPodOperatorSystem:
 
     @pytest.mark.parametrize("uid", [0, 1000])
     def test_run_as_user(self, uid, mock_get_connection):
-        security_context = {"runAsUser": uid}
+        security_context = V1PodSecurityContext(run_as_user=uid)
         name = str(uuid4())
         k = KubernetesPodOperator(
             namespace="default",
@@ -539,7 +556,7 @@ class TestKubernetesPodOperatorSystem:
 
     @pytest.mark.parametrize("gid", [0, 1000])
     def test_fs_group(self, gid, mock_get_connection):
-        security_context = {"fsGroup": gid}
+        security_context = V1PodSecurityContext(fs_group=gid)
         name = str(uuid4())
         k = KubernetesPodOperator(
             namespace="default",
@@ -563,7 +580,7 @@ class TestKubernetesPodOperatorSystem:
         assert pod.to_dict()["spec"]["security_context"]["fs_group"] == gid
 
     def test_disable_privilege_escalation(self, mock_get_connection):
-        container_security_context = {"allowPrivilegeEscalation": False}
+        container_security_context = V1SecurityContext(allow_privilege_escalation=False)
 
         k = KubernetesPodOperator(
             namespace="default",
@@ -579,7 +596,9 @@ class TestKubernetesPodOperatorSystem:
         context = create_context(k)
         k.execute(context)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        self.expected_pod["spec"]["containers"][0]["securityContext"] = container_security_context
+        self.expected_pod["spec"]["containers"][0]["securityContext"] = {
+            "allowPrivilegeEscalation": container_security_context.allow_privilege_escalation
+        }
         assert self.expected_pod == actual_pod
 
     def test_faulty_image(self, mock_get_connection):
@@ -709,8 +728,8 @@ class TestKubernetesPodOperatorSystem:
     @pytest.mark.parametrize(
         "env_vars",
         [
-            param([k8s.V1EnvVar(name="env_name", value="value")], id="current"),
-            param({"env_name": "value"}, id="backcompat"),  # todo: remove?
+            pytest.param([k8s.V1EnvVar(name="env_name", value="value")], id="current"),
+            pytest.param({"env_name": "value"}, id="backcompat"),  # todo: remove?
         ],
     )
     def test_pod_template_file_with_overrides_system(self, env_vars, test_label, mock_get_connection):
@@ -897,6 +916,8 @@ class TestKubernetesPodOperatorSystem:
         # todo: This isn't really a system test
         await_xcom_sidecar_container_start_mock.return_value = None
         hook_mock.return_value.is_in_cluster = False
+        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
         hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
         path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod.yaml"
@@ -925,7 +946,7 @@ class TestKubernetesPodOperatorSystem:
                 "  creation_timestamp: null",
                 "  deletion_grace_period_seconds: null",
             ]
-            actual = [x.getMessage() for x in caplog.records if x.msg == "Starting pod:\n%s"][0].splitlines()
+            actual = next(x.getMessage() for x in caplog.records if x.msg == "Starting pod:\n%s").splitlines()
             assert actual[: len(expected_lines)] == expected_lines
 
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
@@ -1189,6 +1210,24 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["containers"][0]["name"] = "apple-sauce"
         assert self.expected_pod["spec"] == actual_pod["spec"]
 
+    def test_progess_call(self, mock_get_connection):
+        progress_callback = MagicMock()
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+            get_logs=True,
+            progress_callback=progress_callback,
+        )
+        context = create_context(k)
+        k.execute(context)
+        progress_callback.assert_called()
+
     def test_changing_base_container_name_no_logs(self, mock_get_connection):
         """
         This test checks BOTH a modified base container name AND the get_logs=False flow,
@@ -1318,12 +1357,41 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
         name="hello-dry-run",
         image="python:3.8-slim-buster",
         cmds=["printenv"],
-        env_vars={
-            "password": "{{ password }}",
-            "VAR2": "{{ var.value.nonexisting}}",
-        },
+        env_vars=[
+            V1EnvVar(name="password", value="{{ password }}"),
+            V1EnvVar(name="VAR2", value="{{ var.value.nonexisting}}"),
+        ],
     )
     with pytest.raises(KeyError):
         task.render_template_fields(context=context)
     assert "password" in caplog.text
     assert "secretpassword" not in caplog.text
+
+
+class TestKubernetesPodOperator(BaseK8STest):
+    @pytest.mark.parametrize("active_deadline_seconds", [10, 20])
+    def test_kubernetes_pod_operator_active_deadline_seconds(self, active_deadline_seconds):
+        k = KubernetesPodOperator(
+            task_id=f"test_task_{active_deadline_seconds}",
+            active_deadline_seconds=active_deadline_seconds,
+            image="busybox",
+            cmds=["sh", "-c", "echo 'hello world' && sleep 60"],
+            namespace="default",
+            on_finish_action="keep_pod",
+        )
+
+        context = create_context(k)
+
+        with pytest.raises(AirflowException):
+            k.execute(context)
+
+        pod = k.find_pod("default", context, exclude_checked=False)
+
+        k8s_client = client.CoreV1Api()
+
+        pod_status = k8s_client.read_namespaced_pod_status(name=pod.metadata.name, namespace="default")
+        phase = pod_status.status.phase
+        reason = pod_status.status.reason
+
+        assert phase == "Failed"
+        assert reason == "DeadlineExceeded"

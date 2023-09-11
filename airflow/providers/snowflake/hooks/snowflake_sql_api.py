@@ -271,8 +271,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """
         self.log.info("Retrieving status for query id %s", query_id)
         header, params, url = self.get_request_url_header_params(query_id)
-        async with aiohttp.ClientSession(headers=header) as session:
-            async with session.get(url, params=params) as response:
-                status_code = response.status
-                resp = await response.json()
-                return self._process_response(status_code, resp)
+        async with aiohttp.ClientSession(headers=header) as session, session.get(
+            url, params=params
+        ) as response:
+            status_code = response.status
+            resp = await response.json()
+            return self._process_response(status_code, resp)

@@ -42,7 +42,7 @@ class NullFernet:
 
     The purpose of this is to make the rest of the code not have to know the
     difference, and to only display the message once, not 20 times when
-    `airflow db init` is ran.
+    `airflow db migrate` is run.
     """
 
     is_encrypted = False

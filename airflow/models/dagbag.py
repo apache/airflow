@@ -31,7 +31,6 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 from airflow import settings
@@ -53,12 +52,15 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.timeout import timeout
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import pathlib
 
+    from sqlalchemy.orm import Session
+
     from airflow.models.dag import DAG
+    from airflow.utils.types import ArgNotSet
 
 
 class FileLoadStat(NamedTuple):
@@ -169,12 +171,12 @@ class DagBag(LoggingMixin):
 
         :return: a list of DAG IDs in this bag
         """
-        return list(self.dags.keys())
+        return list(self.dags)
 
     @provide_session
     def get_dag(self, dag_id, session: Session = None):
         """
-        Gets the DAG out of the dictionary, and refreshes it if expired.
+        Get the DAG out of the dictionary, and refreshes it if expired.
 
         :param dag_id: DAG ID
         """
@@ -453,7 +455,7 @@ class DagBag(LoggingMixin):
 
     def bag_dag(self, dag, root_dag):
         """
-        Adds the DAG into the bag, recurses into sub dags.
+        Add the DAG into the bag, recurses into sub dags.
 
         :raises: AirflowDagCycleException if a cycle is detected in this dag or its subdags.
         :raises: AirflowDagDuplicatedIdException if this dag or its subdags already exists in the bag.
@@ -568,7 +570,7 @@ class DagBag(LoggingMixin):
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
 
     def collect_dags_from_db(self):
-        """Collects DAGs from database."""
+        """Collect DAGs from database."""
         from airflow.models.serialized_dag import SerializedDagModel
 
         with Stats.timer("collect_db_dags"):
@@ -588,7 +590,7 @@ class DagBag(LoggingMixin):
             self.dags.update(subdags)
 
     def dagbag_report(self):
-        """Prints a report around DagBag loading stats."""
+        """Print a report around DagBag loading stats."""
         stats = self.dagbag_stats
         dag_folder = self.dag_folder
         duration = sum((o.duration for o in stats), timedelta()).total_seconds()

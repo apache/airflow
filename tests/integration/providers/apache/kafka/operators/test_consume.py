@@ -39,14 +39,16 @@ def _batch_tester(messages, test_string=None):
     assert len(messages) == 10
 
     for x in messages:
-        assert x.value() == test_string
+        # Confluent Kafka converts messages to bytes
+        assert x.value().decode(encoding="utf-8") == test_string
 
 
 def _basic_message_tester(message, test=None) -> Any:
     """a function that tests the message received"""
 
     assert test
-    assert message.value() == test
+    # Confluent Kafka converts messages to bytes
+    assert message.value().decode(encoding="utf-8") == test
 
 
 @pytest.mark.integration("kafka")
@@ -65,7 +67,7 @@ class TestConsumeFromTopic:
                     extra=json.dumps(
                         {
                             "socket.timeout.ms": 10,
-                            "bootstrap.servers": "localhost:9092",
+                            "bootstrap.servers": "broker:29092",
                             "group.id": f"operator.consumer.test.integration.test_{num}",
                             "enable.auto.commit": False,
                             "auto.offset.reset": "beginning",
@@ -91,7 +93,7 @@ class TestConsumeFromTopic:
             apply_function="tests.integration.providers.apache.kafka.operators.test_consume._basic_message_tester",
             apply_function_kwargs={"test": TOPIC},
             task_id="test",
-            poll_timeout=0.0001,
+            poll_timeout=10,
         )
 
         x = operator.execute(context={})
@@ -113,7 +115,7 @@ class TestConsumeFromTopic:
             apply_function=_basic_message_tester,
             apply_function_kwargs={"test": TOPIC},
             task_id="test",
-            poll_timeout=0.0001,
+            poll_timeout=10,
         )
 
         x = operator.execute(context={})
@@ -135,10 +137,10 @@ class TestConsumeFromTopic:
         operator = ConsumeFromTopicOperator(
             kafka_config_id=TOPIC,
             topics=[TOPIC],
-            apply_function=_batch_tester,
+            apply_function_batch=_batch_tester,
             apply_function_kwargs={"test_string": TOPIC},
             task_id="test",
-            poll_timeout=0.0001,
+            poll_timeout=10,
             commit_cadence="end_of_batch",
             max_messages=30,
             max_batch_size=10,

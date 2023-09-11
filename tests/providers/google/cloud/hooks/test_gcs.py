@@ -311,10 +311,11 @@ class TestGCSHook:
         test_object = "test_object"
 
         # Given
-        # fmt: off
-        mock_service.return_value.bucket.return_value.get_blob \
-            .return_value.updated = timezone.utcnow() + timedelta(days=2)
-        # fmt: on
+
+        mock_service.return_value.bucket.return_value.get_blob.return_value.updated = (
+            timezone.utcnow() + timedelta(days=2)
+        )
+
         # When
         response = self.gcs_hook.is_older_than(
             bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
@@ -370,10 +371,7 @@ class TestGCSHook:
 
         assert str(ctx.value) == (
             "Either source/destination bucket or source/destination object must be different, "
-            "not both the same: bucket={}, object={}"
-        ).format(
-            source_bucket,
-            source_object,
+            f"not both the same: bucket={source_bucket}, object={source_object}"
         )
 
     def test_copy_empty_source_bucket(self):
@@ -503,7 +501,7 @@ class TestGCSHook:
 
         self.gcs_hook.delete_bucket(bucket_name=test_bucket)
 
-        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -514,7 +512,7 @@ class TestGCSHook:
         test_bucket = "test bucket"
         with caplog.at_level(logging.INFO):
             self.gcs_hook.delete_bucket(bucket_name=test_bucket)
-        mock_service.return_value.bucket.assert_called_once_with(test_bucket)
+        mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
         assert "Bucket test bucket not exist" in caplog.text
 
@@ -784,7 +782,7 @@ class TestGCSHook:
             fhandle.write()
 
         mock_upload.assert_called_once_with(
-            bucket_name=test_bucket, object_name=test_object, filename=test_file
+            bucket_name=test_bucket, object_name=test_object, filename=test_file, user_project=None
         )
         mock_temp_file.assert_has_calls(
             [

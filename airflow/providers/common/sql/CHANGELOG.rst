@@ -23,6 +23,49 @@
 
 ------
 
+1.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BigQueryValueCheckOperator deferrable mode optimisation (#34018)``
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Better percentage formatting (#33595)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos (double words and it's/its) (#33623)``
+
+1.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+1.6.2
+.....
+
+Misc
+~~~~
+
+* ``Make SQLExecute Query signature consistent with other SQL operators (#32974)``
+* ``Get rid of Python2 numeric relics (#33050)``
+
 1.6.1
 .....
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.apache.druid.hooks.druid import DruidHook
+from airflow.providers.apache.druid.hooks.druid import DruidHook, IngestionType
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -36,6 +36,7 @@ class DruidOperator(BaseOperator):
     :param timeout: The interval (in seconds) between polling the Druid job for the status
         of the ingestion job. Must be greater than or equal to 1
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
+    :param ingestion_type: The ingestion type of the job. Could be IngestionType.Batch or IngestionType.MSQ
     """
 
     template_fields: Sequence[str] = ("json_index_file",)
@@ -49,6 +50,7 @@ class DruidOperator(BaseOperator):
         druid_ingest_conn_id: str = "druid_ingest_default",
         timeout: int = 1,
         max_ingestion_time: int | None = None,
+        ingestion_type: IngestionType = IngestionType.BATCH,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -56,6 +58,7 @@ class DruidOperator(BaseOperator):
         self.conn_id = druid_ingest_conn_id
         self.timeout = timeout
         self.max_ingestion_time = max_ingestion_time
+        self.ingestion_type = ingestion_type
 
     def execute(self, context: Context) -> None:
         hook = DruidHook(
@@ -64,4 +67,4 @@ class DruidOperator(BaseOperator):
             max_ingestion_time=self.max_ingestion_time,
         )
         self.log.info("Submitting %s", self.json_index_file)
-        hook.submit_indexing_job(self.json_index_file)
+        hook.submit_indexing_job(self.json_index_file, self.ingestion_type)

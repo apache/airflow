@@ -36,7 +36,6 @@ from celery import states as celery_states
 
 try:
     from airflow.cli.cli_config import (
-        ARG_AUTOSCALE,
         ARG_DAEMON,
         ARG_LOG_FILE,
         ARG_PID,
@@ -74,7 +73,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.stats import Stats
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 log = logging.getLogger(__name__)
 
@@ -83,6 +82,8 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 
 
 if TYPE_CHECKING:
+    import argparse
+
     from celery import Task
 
     from airflow.executors.base_executor import CommandType, TaskTuple
@@ -142,6 +143,7 @@ ARG_FLOWER_BASIC_AUTH = Arg(
 )
 
 # worker cli args
+ARG_AUTOSCALE = Arg(("-a", "--autoscale"), help="Minimum and Maximum number of worker to autoscale")
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
@@ -264,7 +266,7 @@ class CeleryExecutor(BaseExecutor):
 
         :return: Number of tasks that should be sent per process
         """
-        return max(1, int(math.ceil(1.0 * to_send_count / self._sync_parallelism)))
+        return max(1, math.ceil(to_send_count / self._sync_parallelism))
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         from airflow.providers.celery.executors.celery_executor_utils import execute_command
@@ -299,7 +301,7 @@ class CeleryExecutor(BaseExecutor):
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
                 self.log.error(CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback)
-                self.event_buffer[key] = (State.FAILED, None)
+                self.event_buffer[key] = (TaskInstanceState.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend
                 self.running.add(key)
@@ -308,7 +310,7 @@ class CeleryExecutor(BaseExecutor):
                 # Store the Celery task_id in the event buffer. This will get "overwritten" if the task
                 # has another event, but that is fine, because the only other events are success/failed at
                 # which point we don't need the ID anymore anyway
-                self.event_buffer[key] = (State.QUEUED, result.task_id)
+                self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
                 # If the task runs _really quickly_ we may already have a result!
                 self.update_task_state(key, result.state, getattr(result, "info", None))
@@ -355,7 +357,7 @@ class CeleryExecutor(BaseExecutor):
             if state:
                 self.update_task_state(key, state, info)
 
-    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
+    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
         super().change_state(key, state, info)
         self.tasks.pop(key, None)
 
@@ -366,9 +368,7 @@ class CeleryExecutor(BaseExecutor):
                 self.success(key, info)
             elif state in (celery_states.FAILURE, celery_states.REVOKED):
                 self.fail(key, info)
-            elif state == celery_states.STARTED:
-                pass
-            elif state == celery_states.PENDING:
+            elif state in (celery_states.STARTED, celery_states.PENDING):
                 pass
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)
@@ -480,3 +480,11 @@ class CeleryExecutor(BaseExecutor):
                 subcommands=CELERY_COMMANDS,
             ),
         ]
+
+
+def _get_parser() -> argparse.ArgumentParser:
+    """This method is used by Sphinx to generate documentation.
+
+    :meta private:
+    """
+    return CeleryExecutor._get_parser()

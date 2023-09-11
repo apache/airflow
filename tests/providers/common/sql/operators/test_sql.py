@@ -1158,9 +1158,7 @@ class TestSqlBranch:
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
-            elif ti.task_id == "branch_1":
-                assert ti.state == State.NONE
-            elif ti.task_id == "branch_2":
+            elif ti.task_id in ("branch_1", "branch_2"):
                 assert ti.state == State.NONE
             elif ti.task_id == "branch_3":
                 assert ti.state == State.SKIPPED
@@ -1231,9 +1229,7 @@ class TestSqlBranch:
             for ti in tis:
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
-                elif ti.task_id == "branch_1":
-                    assert ti.state == State.NONE
-                elif ti.task_id == "branch_2":
+                elif ti.task_id in ("branch_1", "branch_2"):
                     assert ti.state == State.NONE
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
@@ -1278,3 +1274,35 @@ class TestSqlBranch:
                     assert ti.state == State.NONE
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
+
+
+class TestBaseSQLOperatorSubClass:
+
+    from airflow.providers.common.sql.operators.sql import BaseSQLOperator
+
+    class NewStyleBaseSQLOperatorSubClass(BaseSQLOperator):
+        """New style subclass of BaseSQLOperator"""
+
+        conn_id_field = "custom_conn_id_field"
+
+        def __init__(self, custom_conn_id_field="test_conn", **kwargs):
+            super().__init__(**kwargs)
+            self.custom_conn_id_field = custom_conn_id_field
+
+    class OldStyleBaseSQLOperatorSubClass(BaseSQLOperator):
+        """Old style subclass of BaseSQLOperator"""
+
+        def __init__(self, custom_conn_id_field="test_conn", **kwargs):
+            super().__init__(conn_id=custom_conn_id_field, **kwargs)
+
+    @pytest.mark.parametrize(
+        "operator_class", [NewStyleBaseSQLOperatorSubClass, OldStyleBaseSQLOperatorSubClass]
+    )
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    def test_new_style_subclass(self, mock_get_connection, operator_class):
+        from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+        op = operator_class(task_id="test_task")
+        mock_get_connection.return_value.get_hook.return_value = MagicMock(spec=DbApiHook)
+        op.get_db_hook()
+        mock_get_connection.assert_called_once_with("test_conn")

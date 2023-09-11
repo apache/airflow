@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import MagicMock, patch
 
+from airflow.providers.apache.druid.hooks.druid import IngestionType
 from airflow.providers.apache.druid.operators.druid import DruidOperator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -104,3 +106,28 @@ def test_init_default_timeout():
     )
     expected_default_timeout = 1
     assert expected_default_timeout == operator.timeout
+
+
+@patch("airflow.providers.apache.druid.operators.druid.DruidHook")
+def test_execute_calls_druid_hook_with_the_right_parameters(mock_druid_hook):
+    mock_druid_hook_instance = MagicMock()
+    mock_druid_hook.return_value = mock_druid_hook_instance
+    json_index_file = "sql.json"
+    druid_ingest_conn_id = "druid_ingest_default"
+    max_ingestion_time = 5
+    timeout = 5
+    operator = DruidOperator(
+        task_id="spark_submit_job",
+        json_index_file=json_index_file,
+        druid_ingest_conn_id=druid_ingest_conn_id,
+        timeout=timeout,
+        ingestion_type=IngestionType.MSQ,
+        max_ingestion_time=max_ingestion_time,
+    )
+    operator.execute(context={})
+    mock_druid_hook.assert_called_once_with(
+        druid_ingest_conn_id=druid_ingest_conn_id,
+        timeout=timeout,
+        max_ingestion_time=max_ingestion_time,
+    )
+    mock_druid_hook_instance.submit_indexing_job.assert_called_once_with(json_index_file, IngestionType.MSQ)

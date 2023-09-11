@@ -27,6 +27,51 @@
 Changelog
 ---------
 
+3.7.5
+.....
+
+Misc
+~~~~
+
+* ``Cleanup Docker operator logging (#33914)``
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``Replace type func by isinstance in DockerOperator (#33759)``
+
+3.7.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Improve detection of duplicates and list sorting (#33675)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Replace repr() with proper formatting (#33520)``
+
+3.7.3
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in providers/docker (#33232)``
+
+3.7.2
+.....
+
+Misc
+~~~~
+
+* ``Get rid of Python2 numeric relics (#33050)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 3.7.1
 .....
 

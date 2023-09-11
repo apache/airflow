@@ -100,8 +100,8 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
         execution_role_arn: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
@@ -172,8 +172,8 @@ class EmrAddStepsOperator(BaseOperator):
                     job_flow_id=job_flow_id,
                     step_ids=step_ids,
                     aws_conn_id=self.aws_conn_id,
-                    max_attempts=self.waiter_max_attempts,
-                    poll_interval=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    waiter_delay=self.waiter_delay,
                 ),
                 method_name="execute_complete",
             )
@@ -182,10 +182,10 @@ class EmrAddStepsOperator(BaseOperator):
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
-            raise AirflowException(f"Error resuming cluster: {event}")
+            raise AirflowException(f"Error while running steps: {event}")
         else:
             self.log.info("Steps completed successfully")
-        return event["step_ids"]
+        return event["value"]
 
 
 class EmrStartNotebookExecutionOperator(BaseOperator):

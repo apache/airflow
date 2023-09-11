@@ -22,6 +22,7 @@ from typing import Generator
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.utils.helpers import prune_dict
 
 # Guidance received from the AWS team regarding the correct way to check for the end of a stream is that the
 # value of the nextForwardToken is the same in subsequent calls.
@@ -63,22 +64,25 @@ class AwsLogsHook(AwsBaseHook):
         skip: int = 0,
         start_from_head: bool | None = None,
         continuation_token: ContinuationToken | None = None,
+        end_time: int | None = None,
     ) -> Generator:
         """
-        A generator for log items in a single stream; yields all items available at the current moment.
+        Return a generator for log items in a single stream; yields all items available at the current moment.
 
         .. seealso::
             - :external+boto3:py:meth:`CloudWatchLogs.Client.get_log_events`
 
         :param log_group: The name of the log group.
         :param log_stream_name: The name of the specific stream.
-        :param start_time: The time stamp value to start reading the logs from (default: 0).
+        :param start_time: The timestamp value in ms to start reading the logs from (default: 0).
         :param skip: The number of log entries to skip at the start (default: 0).
             This is for when there are multiple entries at the same timestamp.
         :param start_from_head: Deprecated. Do not use with False, logs would be retrieved out of order.
             If possible, retrieve logs in one query, or implement pagination yourself.
         :param continuation_token: a token indicating where to read logs from.
             Will be updated as this method reads new logs, to be reused in subsequent calls.
+        :param end_time: The timestamp value in ms to stop reading the logs from (default: None).
+            If None is provided, reads it until the end of the log stream
         :return: | A CloudWatch log event with the following key-value pairs:
                  |   'timestamp' (int): The time in milliseconds of the event.
                  |   'message' (str): The log event data.
@@ -110,11 +114,16 @@ class AwsLogsHook(AwsBaseHook):
                 token_arg = {}
 
             response = self.conn.get_log_events(
-                logGroupName=log_group,
-                logStreamName=log_stream_name,
-                startTime=start_time,
-                startFromHead=start_from_head,
-                **token_arg,
+                **prune_dict(
+                    {
+                        "logGroupName": log_group,
+                        "logStreamName": log_stream_name,
+                        "startTime": start_time,
+                        "endTime": end_time,
+                        "startFromHead": start_from_head,
+                        **token_arg,
+                    }
+                )
             )
 
             events = response["events"]

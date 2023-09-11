@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 import os
-import tempfile
 from unittest.mock import patch
 
 import pytest
+from databricks.sql.types import Row
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator, Row
+from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
 from airflow.serialization.serde import serialize
 
 DATE = "2017-04-20"
@@ -268,16 +268,18 @@ def test_return_value_serialization():
         ),
     ],
 )
-def test_exec_write_file(return_last, split_statements, sql, descriptions, hook_results, do_xcom_push):
+def test_exec_write_file(
+    return_last, split_statements, sql, descriptions, hook_results, do_xcom_push, tmp_path
+):
     """
     Test the execute function in case where SQL query was successful and data is written as CSV
     """
     with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
-        tempfile_path = tempfile.mkstemp()[1]
+        path = tmp_path / "testfile"
         op = DatabricksSqlOperator(
             task_id=TASK_ID,
             sql=sql,
-            output_path=tempfile_path,
+            output_path=os.fspath(path),
             return_last=return_last,
             do_xcom_push=do_xcom_push,
             split_statements=split_statements,
@@ -287,11 +289,8 @@ def test_exec_write_file(return_last, split_statements, sql, descriptions, hook_
         db_mock.run.return_value = mock_results
         db_mock.descriptions = descriptions
 
-        try:
-            op.execute(None)
-            results = [line.strip() for line in open(tempfile_path)]
-        finally:
-            os.remove(tempfile_path)
+        op.execute(None)
+        results = path.read_text().splitlines()
         # In all cases only result of last query i output as file
         assert results == ["id,value", "1,value1", "2,value2"]
         db_mock_class.assert_called_once_with(

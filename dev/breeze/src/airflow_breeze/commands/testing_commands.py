@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 import sys
 from datetime import datetime
+from time import sleep
 
 import click
 from click import IntRange
@@ -57,7 +58,6 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
-    DOCKER_COMPOSE_COMMAND,
     get_env_variables_for_docker_commands,
     perform_environment_checks,
     remove_docker_networks,
@@ -97,14 +97,6 @@ def group_for_testing():
     envvar="SKIP_DOCKER_COMPOSE_DELETION",
     is_flag=True,
 )
-@click.option(
-    "--wait-for-containers-timeout",
-    help="Time to wait (in seconds) for all containers to start",
-    envvar="WAIT_FOR_CONTAINERS_TIMEOUT",
-    show_default=True,
-    type=IntRange(0, 600),
-    default=300,
-)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -114,7 +106,6 @@ def docker_compose_tests(
     image_name: str,
     image_tag: str | None,
     skip_docker_compose_deletion: bool,
-    wait_for_containers_timeout: int,
     github_repository: str,
     extra_pytest_args: tuple,
 ):
@@ -130,7 +121,6 @@ def docker_compose_tests(
         image_name=image_name,
         extra_pytest_args=extra_pytest_args,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
-        wait_for_containers_timeout=wait_for_containers_timeout,
     )
     sys.exit(return_code)
 
@@ -165,18 +155,23 @@ def _run_test(
         )
         sys.exit(1)
     project_name = file_name_from_test_type(exec_shell_params.test_type)
+    compose_project_name = f"airflow-test-{project_name}"
+    # This is needed for Docker-compose 1 compatibility
+    env_variables["COMPOSE_PROJECT_NAME"] = compose_project_name
     down_cmd = [
-        *DOCKER_COMPOSE_COMMAND,
+        "docker",
+        "compose",
         "--project-name",
-        f"airflow-test-{project_name}",
+        compose_project_name,
         "down",
         "--remove-orphans",
     ]
     run_command(down_cmd, env=env_variables, output=output, check=False)
     run_cmd = [
-        *DOCKER_COMPOSE_COMMAND,
+        "docker",
+        "compose",
         "--project-name",
-        f"airflow-test-{project_name}",
+        compose_project_name,
         "run",
         "-T",
         "--service-ports",
@@ -185,7 +180,7 @@ def _run_test(
     ]
     run_cmd.extend(list(extra_pytest_args))
     try:
-        remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
+        remove_docker_networks(networks=[f"{compose_project_name}_default"])
         result = run_command(
             run_cmd,
             env=env_variables,
@@ -201,22 +196,31 @@ def _run_test(
                 text=True,
             )
             container_ids = ps_result.stdout.splitlines()
+            get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
+            sleep(10)
             get_console(output=output).print(
-                f"[info]Error {ps_result.returncode}. Dumping containers: {container_ids}."
+                f"[info]Error {result.returncode}. Dumping containers: {container_ids} for {project_name}.\n"
             )
             date_str = datetime.now().strftime("%Y_%d_%m_%H_%M_%S")
             for container_id in container_ids:
+                if compose_project_name not in container_id:
+                    continue
                 dump_path = FILES_DIR / f"container_logs_{container_id}_{date_str}.log"
-                get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}")
+                get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
                 with open(dump_path, "w") as outfile:
-                    run_command(["docker", "logs", container_id], check=False, stdout=outfile)
+                    run_command(
+                        ["docker", "logs", "--details", "--timestamps", container_id],
+                        check=False,
+                        stdout=outfile,
+                    )
     finally:
         if not skip_docker_compose_down:
             run_command(
                 [
-                    *DOCKER_COMPOSE_COMMAND,
+                    "docker",
+                    "compose",
                     "--project-name",
-                    f"airflow-test-{project_name}",
+                    compose_project_name,
                     "rm",
                     "--stop",
                     "--force",
@@ -227,7 +231,7 @@ def _run_test(
                 check=False,
                 verbose_override=False,
             )
-            remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
+            remove_docker_networks(networks=[f"{compose_project_name}_default"])
     return result.returncode, f"Test: {exec_shell_params.test_type}"
 
 
@@ -452,6 +456,7 @@ def command_for_tests(
             db_reset=db_reset,
             output=None,
             test_timeout=test_timeout,
+            output_outside_the_group=True,
             skip_docker_compose_down=skip_docker_compose_down,
         )
         sys.exit(returncode)
@@ -574,7 +579,6 @@ def helm_tests(
         env_variables["HELM_TEST_PACKAGE"] = helm_test_package
     perform_environment_checks()
     cleanup_python_generated_files()
-    cmd = [*DOCKER_COMPOSE_COMMAND, "run", "--service-ports", "--rm", "airflow"]
-    cmd.extend(list(extra_pytest_args))
+    cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *extra_pytest_args]
     result = run_command(cmd, env=env_variables, check=False, output_outside_the_group=True)
     sys.exit(result.returncode)

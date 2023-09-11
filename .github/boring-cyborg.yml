@@ -580,15 +580,17 @@ labelPRBasedOnFilePath:
     - tests/plugins/**/*
     - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
-  area:Scheduler/Executor:
-    - airflow/executors/**/*
+  area:Scheduler:
     - airflow/jobs/**/*
     - airflow/task/task_runner/**/*
     - airflow/dag_processing/**/*
-    - docs/apache-airflow/core-concepts/executor/**/*
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
-    - tests/executors/**/*
     - tests/jobs/**/*
+
+  area:Executors-core:
+    - airflow/executors/**/*
+    - docs/apache-airflow/core-concepts/executor/**/*
+    - tests/executors/**/*
 
   area:Secrets:
     - airflow/secrets/**/*
@@ -669,6 +671,9 @@ firstPRWelcomeComment: >
 
   - Be sure to read the [Airflow Coding style](
   https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#coding-style-and-best-practices).
+
+  - Always keep your Pull Requests rebased, otherwise your build might fail due to changes not related
+  to your commits.
 
   Apache Airflow is a community-driven project and together we are making it better 🚀.
 

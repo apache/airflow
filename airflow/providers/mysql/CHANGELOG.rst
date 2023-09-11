@@ -26,6 +26,36 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add init_command parameter to MySqlHook (#33359)``
+* ``Add 'local_infile' parameter to 'S3ToMySqlOperator' (#33459)``
+
+5.2.1
+.....
+
+This release brings back mysql-connector-python as required dependency of the provider - since 8.1.0
+version has been released with Protobuf 4 support, removing dependency conflicts with other providers.
+
+Misc
+~~~~
+
+* ``Bring back mysql-connector-python as required depednency (#32989)``
+
+
 5.2.0
 .....
 

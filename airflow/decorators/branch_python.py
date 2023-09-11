@@ -16,45 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
+from airflow.decorators.base import task_decorator_factory
+from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.operators.python import BranchPythonOperator
 
+if TYPE_CHECKING:
+    from airflow.decorators.base import TaskDecorator
 
-class _BranchPythonDecoratedOperator(DecoratedOperator, BranchPythonOperator):
-    """
-    Wraps a Python callable and captures args/kwargs when called for execution.
 
-    :param python_callable: A reference to an object that is callable
-    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function (templated)
-    :param op_args: a list of positional arguments that will get unpacked when
-        calling your callable (templated)
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
-        Defaults to False.
-    """
+class _BranchPythonDecoratedOperator(_PythonDecoratedOperator, BranchPythonOperator):
+    """Wraps a Python callable and captures args/kwargs when called for execution."""
 
     custom_operator_name: str = "@task.branch"
-
-    def __init__(
-        self,
-        **kwargs,
-    ) -> None:
-        kwargs_to_upstream = {
-            "python_callable": kwargs["python_callable"],
-            "op_args": kwargs["op_args"],
-            "op_kwargs": kwargs["op_kwargs"],
-        }
-        super().__init__(kwargs_to_upstream=kwargs_to_upstream, **kwargs)
 
 
 def branch_task(
     python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs
 ) -> TaskDecorator:
     """
-    Wraps a python function into a BranchPythonOperator.
+    Wrap a python function into a BranchPythonOperator.
 
     For more information on how to use this operator, take a look at the guide:
     :ref:`concepts:branching`

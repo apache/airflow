@@ -25,7 +25,7 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ .Release.Name }}-flower-ingress
+  name: {{ include "airflow.fullname" . }}-flower-ingress
   labels:
     tier: airflow
     component: flower-ingress
@@ -84,7 +84,7 @@ spec:
       {{- $hostname = .name -}}
       {{- end }}
       {{- if $hostname }}
-      host: {{ $hostname | quote }}
+      host: {{ tpl $hostname $ | quote }}
       {{- end }}
     {{- end }}
   {{- if .Values.ingress.flower.ingressClassName }}

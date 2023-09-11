@@ -33,8 +33,12 @@ from docker.errors import APIError
 from docker.types import LogConfig, Mount
 from dotenv import dotenv_values
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.providers.docker.exceptions import (
+    DockerContainerFailedException,
+    DockerContainerFailedSkipException,
+)
 from airflow.providers.docker.hooks.docker import DockerHook
 
 if TYPE_CHECKING:
@@ -225,7 +229,7 @@ class DockerOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.api_version = api_version
-        if type(auto_remove) == bool:
+        if isinstance(auto_remove, bool):
             warnings.warn(
                 "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
                 AirflowProviderDeprecationWarning,
@@ -335,7 +339,7 @@ class DockerOperator(BaseOperator):
             with TemporaryDirectory(prefix="airflowtmp", dir=self.host_tmp_dir) as host_tmp_dir_generated:
                 tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
                 try:
-                    return self._run_image_with_mounts(self.mounts + [tmp_mount], add_tmp_variable=True)
+                    return self._run_image_with_mounts([*self.mounts, tmp_mount], add_tmp_variable=True)
                 except APIError as e:
                     if host_tmp_dir_generated in str(e):
                         self.log.warning(
@@ -374,7 +378,7 @@ class DockerOperator(BaseOperator):
                 shm_size=self.shm_size,
                 dns=self.dns,
                 dns_search=self.dns_search,
-                cpu_shares=int(round(self.cpus * 1024)),
+                cpu_shares=round(self.cpus * 1024),
                 port_bindings=self.port_bindings,
                 mem_limit=self.mem_limit,
                 cap_add=self.cap_add,
@@ -403,17 +407,16 @@ class DockerOperator(BaseOperator):
 
             result = self.cli.wait(self.container["Id"])
             if result["StatusCode"] in self.skip_on_exit_code:
-                raise AirflowSkipException(
-                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping."
+                raise DockerContainerFailedSkipException(
+                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping.", logs=log_lines
                 )
             elif result["StatusCode"] != 0:
-                joined_log_lines = "\n".join(log_lines)
-                raise AirflowException(f"Docker container failed: {repr(result)} lines {joined_log_lines}")
+                raise DockerContainerFailedException(f"Docker container failed: {result!r}", logs=log_lines)
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
             elif self.do_xcom_push:
-                if len(log_lines) == 0:
+                if not log_lines:
                     return None
                 try:
                     if self.xcom_all:
@@ -486,7 +489,7 @@ class DockerOperator(BaseOperator):
 
         :return: the command (or commands)
         """
-        if isinstance(command, str) and command.strip().find("[") == 0:
+        if isinstance(command, str) and command.strip().startswith("["):
             command = ast.literal_eval(command)
         return command
 

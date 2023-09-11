@@ -61,7 +61,7 @@ app: Flask | None = None
 @cli_utils.action_cli
 @providers_configuration_loaded
 def internal_api(args):
-    """Starts Airflow Internal API."""
+    """Start Airflow Internal API."""
     print(settings.HEADER)
 
     access_logfile = args.access_logfile or "-"
@@ -187,11 +187,10 @@ def internal_api(args):
 
                     # Reading pid of gunicorn main process as it will be different that
                     # the one of process spawned above.
-                    while True:
+                    gunicorn_master_proc_pid = None
+                    while not gunicorn_master_proc_pid:
                         sleep(0.1)
                         gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
-                        if gunicorn_master_proc_pid:
-                            break
 
                     # Run Gunicorn monitor
                     gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)

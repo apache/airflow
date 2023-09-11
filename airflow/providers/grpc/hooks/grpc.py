@@ -112,7 +112,7 @@ class GrpcHook(BaseHook):
         else:
             raise AirflowConfigException(
                 "auth_type not supported or not provided, channel cannot be established, "
-                f"given value: {str(auth_type)}"
+                f"given value: {auth_type}"
             )
 
         if self.interceptors:

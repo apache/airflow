@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+3.3.2
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Limit Redis dependencies to match celery limits (#33773)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``D205 Support - Providers - Final Pass (#33303)``
+
+3.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move redis subscribe to poke() method in Redis Sensor (#32984)``
+* ``Fix oversubsription of Redis pubsub sensor (#33139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+
 3.3.0
 .....
 

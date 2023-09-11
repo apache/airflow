@@ -52,7 +52,7 @@ def _run_scheduler_job(job_runner: SchedulerJobRunner, *, skip_serve_logs: bool)
 @cli_utils.action_cli
 @providers_configuration_loaded
 def scheduler(args):
-    """Starts Airflow Scheduler."""
+    """Start Airflow Scheduler."""
     print(settings.HEADER)
 
     job_runner = SchedulerJobRunner(
@@ -87,7 +87,7 @@ def scheduler(args):
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False):
-    """Starts serve_logs sub-process."""
+    """Start serve_logs sub-process."""
     from airflow.utils.serve_logs import serve_logs
 
     sub_proc = None
@@ -103,7 +103,7 @@ def _serve_logs(skip_serve_logs: bool = False):
 
 @contextmanager
 def _serve_health_check(enable_health_check: bool = False):
-    """Starts serve_health_check sub-process."""
+    """Start serve_health_check sub-process."""
     sub_proc = None
     if enable_health_check:
         sub_proc = Process(target=serve_health_check)

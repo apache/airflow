@@ -26,6 +26,35 @@
 Changelog
 ---------
 
+2.5.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/alibaba): respect soft_fail argument when exception is raised (#34157)``
+
+2.5.2
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+* ``Simplify conditions on len() in providers/apache (#33564)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+2.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in providers/alibaba (#33225)``
+
 2.5.0
 .....
 

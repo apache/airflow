@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.providers.amazon.aws.triggers.emr import (
+    EmrAddStepsTrigger,
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
     EmrStepSensorTrigger,
@@ -31,7 +32,6 @@ TEST_MAX_ATTEMPTS = 10
 TEST_AWS_CONN_ID = "test-aws-id"
 VIRTUAL_CLUSTER_ID = "vzwemreks"
 JOB_ID = "job-1234"
-AWS_CONN_ID = "aws_emr_conn"
 POLL_INTERVAL = 60
 TARGET_STATE = ["TERMINATED"]
 STEP_ID = "s-1234"
@@ -41,6 +41,13 @@ class TestEmrTriggers:
     @pytest.mark.parametrize(
         "trigger",
         [
+            EmrAddStepsTrigger(
+                job_flow_id=TEST_JOB_FLOW_ID,
+                step_ids=["my_step1", "my_step2"],
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_POLL_INTERVAL,
+                waiter_max_attempts=TEST_MAX_ATTEMPTS,
+            ),
             EmrCreateJobFlowTrigger(
                 job_flow_id=TEST_JOB_FLOW_ID,
                 aws_conn_id=TEST_AWS_CONN_ID,
@@ -56,13 +63,13 @@ class TestEmrTriggers:
             EmrContainerTrigger(
                 virtual_cluster_id=VIRTUAL_CLUSTER_ID,
                 job_id=JOB_ID,
-                aws_conn_id=AWS_CONN_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
                 poll_interval=POLL_INTERVAL,
             ),
             EmrStepSensorTrigger(
                 job_flow_id=TEST_JOB_FLOW_ID,
                 step_id=STEP_ID,
-                aws_conn_id=AWS_CONN_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
                 waiter_delay=POLL_INTERVAL,
             ),
         ],
@@ -78,3 +85,4 @@ class TestEmrTriggers:
 
         assert class_path == class_path2
         assert args == args2
+        assert instance.hook().aws_conn_id == TEST_AWS_CONN_ID

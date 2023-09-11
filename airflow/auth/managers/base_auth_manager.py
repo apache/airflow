@@ -20,11 +20,12 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from airflow.auth.managers.model.base_user import BaseUser
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.cli.cli_config import CLICommand
     from airflow.www.security import AirflowSecurityManager
 
 
@@ -38,35 +39,41 @@ class BaseAuthManager(LoggingMixin):
     def __init__(self):
         self._security_manager: AirflowSecurityManager | None = None
 
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
+        """Vends CLI commands to be included in Airflow CLI.
+
+        Override this method to expose commands via Airflow CLI to manage this auth manager.
+        """
+        return []
+
     @abstractmethod
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
-        ...
 
     @abstractmethod
     def get_user(self) -> BaseUser:
         """Return the user associated to the user in session."""
-        ...
 
     @abstractmethod
     def get_user_id(self) -> str:
         """Return the user ID associated to the user in session."""
-        ...
 
     @abstractmethod
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
-        ...
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
-        ...
+
+    @abstractmethod
+    def get_url_logout(self) -> str:
+        """Return the logout page url."""
 
     @abstractmethod
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
-        ...
 
     def get_security_manager_override_class(self) -> type:
         """

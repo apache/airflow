@@ -280,7 +280,6 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
   ./dev/airflow-github changelog v2-3-stable v2-3-test
   ```
 
-- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
 
 - PR from the 'test' branch to the 'stable' branch
@@ -613,7 +612,7 @@ Only in /Users/jarek/code/airflow: .bash_history
 Check if .whl is the same as in tag:
 
 ```
-unzip -d a *-.whl
+unzip -d a *.whl
 pushd a
 diff -r airflow "${SOURCE_DIR}"
 popd && rm -rf a
@@ -683,8 +682,18 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.8 --backend postgres
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres
 ```
+
+You can also choose different executors and extras to install when you are installing airflow this way. For
+example in order to run Airflow with CeleryExecutor and install celery, google and amazon provider (as of
+Airflow 2.7.0, you need to have celery provider installed to run Airflow with CeleryExecutor) you can run:
+
+```shell script
+breeze start-airflow --use-airflow-version 2.7.0rc1 --python 3.8 --backend postgres \
+  --executor CeleryExecutor --airflow-extras "celery,google,amazon"
+```
+
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
 that the Airflow works as you expected.
@@ -818,7 +827,9 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
-    breeze release-management add-back-references --gen-type airflow
+    breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
+    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force
+    cd "${AIRFLOW_SITE_DIRECTORY}"
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
@@ -962,8 +973,7 @@ EOF
 This includes:
 
 - Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
-- For major/minor release, update version in `airflow/__main__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
-- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
+- For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `Dockerfile` with the new version.
 - Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.

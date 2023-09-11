@@ -280,7 +280,7 @@ now represented as ``can_read`` on ``DAG:example_dag_id``.
 There is a special view called ``DAGs`` (it was called ``all_dags`` in versions 1.10.x) which allows the role to access
 all the DAGs. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access the ``DAGs`` view.
 
-*As part of running ``airflow db upgrade``, existing permissions will be migrated for you.*
+*As part of running ``airflow db migrate``, existing permissions will be migrated for you.*
 
 When DAGs are initialized with the ``access_control`` variable set, any usage of the old permission names will automatically be updated in the database, so this won't be a breaking change. A DeprecationWarning will be raised.
 
@@ -541,7 +541,7 @@ At this point, just follow the standard Airflow version upgrade process:
   * Please note that you may have to uninstall the backport providers before installing the new providers, if you are installing using pip. This would not apply if you are installing using an Airflow Docker image with a set of specified requirements, where the change automatically gets a fresh set of modules.
   * You can read more about providers at :doc:`apache-airflow-providers:index`.
 
-* Upgrade the Airflow meta database using ``airflow db upgrade``.
+* Migrate the Airflow meta database using ``airflow db migrate``.
 
   * The above command may be unfamiliar, since it is shown using the Airflow 2.0 CLI syntax.
   * The database upgrade may modify the database schema as needed and also map the existing data to be compliant with the update database schema.
@@ -1062,7 +1062,7 @@ Old command                                          New command
 ``airflow flower [-ba, --basic_auth]``               ``airflow celery flower [-A, --basic-auth]``
 ==================================================== ====================================================
 
-For Airflow long option, use [kebab-case](https://en.wikipedia.org/wiki/Letter_case) instead of [snake_case](https://en.wikipedia.org/wiki/Snake_case)
+For Airflow long option, use `kebab-case <https://en.wikipedia.org/wiki/Letter_case>`_ instead of `snake_case <https://en.wikipedia.org/wiki/Snake_case>`_
 
 ================================== ===================================
 Old option                         New option

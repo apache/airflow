@@ -59,7 +59,7 @@ class SageMakerTrigger(BaseTrigger):
         self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes SagemakerTrigger arguments and classpath."""
+        """Serialize SagemakerTrigger arguments and classpath."""
         return (
             "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger",
             {
@@ -164,12 +164,10 @@ class SageMakerPipelineTrigger(BaseTrigger):
     }
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        attempts = 0
         hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         async with hook.async_conn as conn:
             waiter = hook.get_waiter(self._waiter_name[self.waiter_type], deferrable=True, client=conn)
-            while attempts < self.waiter_max_attempts:
-                attempts = attempts + 1
+            for _ in range(self.waiter_max_attempts):
                 try:
                     await waiter.wait(
                         PipelineExecutionArn=self.pipeline_execution_arn, WaiterConfig={"MaxAttempts": 1}

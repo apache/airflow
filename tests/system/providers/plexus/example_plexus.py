@@ -23,7 +23,7 @@ from airflow import DAG
 from airflow.providers.plexus.operators.job import PlexusJobOperator
 
 HOME = "/home/acc"
-T3_PRERUN_SCRIPT = "cp {home}/imdb/run_scripts/mlflow.sh {home}/ && chmod +x mlflow.sh".format(home=HOME)
+T3_PRERUN_SCRIPT = f"cp {HOME}/imdb/run_scripts/mlflow.sh {HOME}/ && chmod +x mlflow.sh"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "test"
 

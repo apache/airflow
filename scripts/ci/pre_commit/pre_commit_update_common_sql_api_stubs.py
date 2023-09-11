@@ -69,25 +69,11 @@ def summarize_changes(results: list[str]) -> tuple[int, int]:
     """
     removals, additions = 0, 0
     for line in results:
-        if (
-            line.startswith("+")
-            or line.startswith("[green]+")
-            and not (
-                # Skip additions of comments in counting removals
-                line.startswith("+#")
-                or line.startswith("[green]+#")
-            )
-        ):
+        if line.startswith(("+", "[green]+")) and not line.startswith(("+#", "[green]+#")):
+            # Skip additions of comments in counting removals
             additions += 1
-        if (
-            line.startswith("-")
-            or line.startswith("[red]-")
-            and not (
-                # Skip removals of comments in counting removals
-                line.startswith("-#")
-                or line.startswith("[red]-#")
-            )
-        ):
+        if line.startswith(("-", "[red]+")) and not line.startswith(("-#", "[red]+#")):
+            # Skip removals of comments in counting removals
             removals += 1
     return removals, additions
 
@@ -200,8 +186,7 @@ def read_pyi_file_content(
     for line in lines_no_comments:
         if line.strip().startswith('"""'):
             remove_docstring = not remove_docstring
-            continue
-        if not remove_docstring:
+        elif not remove_docstring:
             lines.append(line)
     if (pyi_file_path.name == "__init__.pyi") and lines == []:
         console.print(f"[yellow]Skip {pyi_file_path} as it is an empty stub for __init__.py file")
@@ -226,7 +211,7 @@ def compare_stub_files(generated_stub_path: Path, force_override: bool) -> tuple
         module_name, generated_stub_path, patch_generated_files=True
     )
     if generated_pyi_content is None:
-        os.unlink(generated_stub_path)
+        generated_stub_path.unlink()
         if stub_file_target_path.exists():
             console.print(
                 f"[red]The {stub_file_target_path} file is missing in generated files: "
@@ -237,7 +222,7 @@ def compare_stub_files(generated_stub_path: Path, force_override: bool) -> tuple
                     f"[yellow]The file {stub_file_target_path} has been removed "
                     "as changes are force-overridden"
                 )
-                os.unlink(stub_file_target_path)
+                stub_file_target_path.unlink()
             return 1, 0
         else:
             console.print(
@@ -313,7 +298,7 @@ PREAMBLE = """# Licensed to the Apache Software Foundation (ASF) under one
 # This is automatically generated stub for the `common.sql` provider
 #
 # This file is generated automatically by the `update-common-sql-api stubs` pre-commit
-# and the .pyi file represents part of the the "public" API that the
+# and the .pyi file represents part of the "public" API that the
 # `common.sql` provider exposes to other providers.
 #
 # Any, potentially breaking change in the stubs will require deliberate manual action from the contributor
@@ -333,7 +318,7 @@ if __name__ == "__main__":
     shutil.rmtree(OUT_DIR, ignore_errors=True)
 
     subprocess.run(
-        ["stubgen", *[os.fspath(path) for path in COMMON_SQL_ROOT.rglob("**/*.py")]],
+        ["stubgen", *[os.fspath(path) for path in COMMON_SQL_ROOT.rglob("*.py")]],
         cwd=AIRFLOW_SOURCES_ROOT_PATH,
     )
     total_removals, total_additions = 0, 0
@@ -341,9 +326,9 @@ if __name__ == "__main__":
     if _force_override:
         console.print("\n[yellow]The committed stub APIs are force-updated\n")
     # reformat the generated stubs first
-    for stub_path in OUT_DIR.rglob("**/*.pyi"):
+    for stub_path in OUT_DIR.rglob("*.pyi"):
         write_pyi_file(stub_path, stub_path.read_text(encoding="utf-8"))
-    for stub_path in OUT_DIR.rglob("**/*.pyi"):
+    for stub_path in OUT_DIR.rglob("*.pyi"):
         _new_removals, _new_additions = compare_stub_files(stub_path, force_override=_force_override)
         total_removals += _new_removals
         total_additions += _new_additions
@@ -359,7 +344,7 @@ if __name__ == "__main__":
                 console.print(
                     f"[yellow]The file {target_path} has been removed as changes are force-overridden"
                 )
-                os.unlink(target_path)
+                target_path.unlink()
     if not total_removals and not total_additions:
         console.print("\n[green]All OK. The common.sql APIs did not change[/]")
         sys.exit(0)

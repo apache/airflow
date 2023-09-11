@@ -68,5 +68,5 @@ if __name__ == "__main__":
                 line = "1." + line.split(".", maxsplit=1)[1]
                 print(f"{old_line.strip()} => {line.strip()}")
             companies.append(line)
-    companies = sorted(companies, key=stable_sort)
+    companies.sort(key=stable_sort)
     inthewild_path.write_text("".join(header) + "\n" + "".join(companies))

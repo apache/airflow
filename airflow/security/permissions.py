@@ -70,7 +70,7 @@ DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
 
 
 def resource_name_for_dag(root_dag_id: str) -> str:
-    """Returns the resource name for a DAG id.
+    """Return the resource name for a DAG id.
 
     Note that since a sub-DAG should follow the permission of its
     parent DAG, you should pass ``DagModel.root_dag_id`` to this function,

@@ -27,7 +27,7 @@ def get_suspended_providers_folders() -> list[str]:
     skipped when running tests (without any prefix - for example apache/beam, yandex, google etc.).
     """
     suspended_providers = []
-    for provider_path in AIRFLOW_PROVIDERS_ROOT.glob("**/provider.yaml"):
+    for provider_path in AIRFLOW_PROVIDERS_ROOT.rglob("provider.yaml"):
         provider_yaml = yaml.safe_load(provider_path.read_text())
         if provider_yaml.get("suspended"):
             suspended_providers.append(
@@ -43,7 +43,7 @@ def get_suspended_provider_ids() -> list[str]:
     Yields the ids of suspended providers.
     """
     suspended_provider_ids = []
-    for provider_path in AIRFLOW_PROVIDERS_ROOT.glob("**/provider.yaml"):
+    for provider_path in AIRFLOW_PROVIDERS_ROOT.rglob("provider.yaml"):
         provider_yaml = yaml.safe_load(provider_path.read_text())
         if provider_yaml.get("suspended"):
             suspended_provider_ids.append(

@@ -95,7 +95,7 @@ class DiscordWebhookHook(HttpHook):
             )
 
         # make sure endpoint matches the expected Discord webhook format
-        if not re.match("^webhooks/[0-9]+/[a-zA-Z0-9_-]+$", endpoint):
+        if not re.fullmatch("webhooks/[0-9]+/[a-zA-Z0-9_-]+", endpoint):
             raise AirflowException(
                 'Expected Discord webhook endpoint in the form of "webhooks/{webhook.id}/{webhook.token}".'
             )

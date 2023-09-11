@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime
 import ftplib
-import os.path
+import os
 from typing import Any, Callable
 
 from airflow.hooks.base import BaseHook

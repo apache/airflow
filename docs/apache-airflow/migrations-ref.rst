@@ -18,7 +18,7 @@
 Reference for Database Migrations
 '''''''''''''''''''''''''''''''''
 
-Here's the list of all the Database Migrations that are executed via when you run ``airflow db upgrade``.
+Here's the list of all the Database Migrations that are executed via when you run ``airflow db migrate``.
 
 .. warning::
 
@@ -39,7 +39,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``0646b768db47`` (head)         | ``788397e78828``  | ``2.7.0``         | Add is_setup to task_instance                                |
+| ``405de8318b3a`` (head)         | ``788397e78828``  | ``2.7.0``         | add include_deferred column to pool                          |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``788397e78828``                | ``937cbd173ca1``  | ``2.7.0``         | Add custom_operator_name column                              |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+

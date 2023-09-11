@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import functools
 import gzip
+import itertools
 import json
 import logging
 from io import BytesIO as IO
-from itertools import chain
 from typing import Callable, TypeVar, cast
 
 import pendulum
@@ -41,9 +41,10 @@ logger = logging.getLogger(__name__)
 
 def _mask_variable_fields(extra_fields):
     """
+    Mask the 'val_content' field if 'key_content' is in the mask list.
+
     The variable requests values and args comes in this form:
     [('key', 'key_content'),('val', 'val_content'), ('description', 'description_content')]
-    So we need to mask the 'val_content' field if 'key_content' is in the mask list.
     """
     result = []
     keyname = None
@@ -93,7 +94,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 fields_skip_logging = {"csrf_token", "_csrf_token"}
                 extra_fields = [
                     (k, secrets_masker.redact(v, k))
-                    for k, v in chain(request.values.items(multi=True), request.view_args.items())
+                    for k, v in itertools.chain(request.values.items(multi=True), request.view_args.items())
                     if k not in fields_skip_logging
                 ]
                 if event and event.startswith("variable."):
@@ -101,7 +102,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 if event and event.startswith("connection."):
                     extra_fields = _mask_connection_fields(extra_fields)
 
-                params = {k: v for k, v in chain(request.values.items(), request.view_args.items())}
+                params = {**request.values, **request.view_args}
 
                 log = Log(
                     event=event or f.__name__,

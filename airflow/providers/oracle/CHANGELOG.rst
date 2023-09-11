@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+3.7.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Consolidate "import numpy as np" (#34111)``
+* ``Combine similar if logics in providers (#33987)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+
+3.7.3
+.....
+
+Misc
+~~~~~
+
+* ``Replace strftime with f-strings where nicer (#33455)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+* ``Avoid importing pandas and numpy in runtime and module level (#33483)``
+
 3.7.2
 .....
 

@@ -83,6 +83,6 @@ class TaskQueueEmptySensor(BaseSensorOperator):
             # page_size=1
         )
 
-        self.log.info("tasks exhausted in cloud task queue?: %s" % (len(tasks) == 0))
+        self.log.info("tasks exhausted in cloud task queue?: %s", (len(tasks) == 0))
 
         return len(tasks) == 0
