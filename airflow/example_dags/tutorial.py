@@ -24,8 +24,8 @@ from __future__ import annotations
 
 # [START tutorial]
 # [START import_module]
+import textwrap
 from datetime import datetime, timedelta
-from textwrap import dedent
 
 # The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
@@ -87,7 +87,7 @@ with DAG(
     # [END basic_task]
 
     # [START documentation]
-    t1.doc_md = dedent(
+    t1.doc_md = textwrap.dedent(
         """\
     #### Task Documentation
     You can document your task using the attributes `doc_md` (markdown),
@@ -105,7 +105,7 @@ with DAG(
     # [END documentation]
 
     # [START jinja_template]
-    templated_command = dedent(
+    templated_command = textwrap.dedent(
         """
     {% for i in range(5) %}
         echo "{{ ds }}"

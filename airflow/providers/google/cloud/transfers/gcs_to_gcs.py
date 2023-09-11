@@ -307,7 +307,7 @@ class GCSToGCSOperator(BaseOperator):
             ]
 
         objects = set(objects) - set(existing_objects)
-        if len(objects) > 0:
+        if objects:
             self.log.info("%s files are going to be synced: %s.", len(objects), objects)
         else:
             self.log.info("There are no new files to sync. Have a nice day!")

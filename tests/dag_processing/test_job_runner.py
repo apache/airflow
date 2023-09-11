@@ -27,11 +27,11 @@ import pathlib
 import random
 import socket
 import sys
+import textwrap
 import threading
 import time
 from datetime import datetime, timedelta
 from logging.config import dictConfig
-from textwrap import dedent
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -892,7 +892,7 @@ class TestDagProcessorJobRunner:
     @mock.patch("airflow.dag_processing.manager.Stats.timing")
     def test_send_file_processing_statsd_timing(self, statsd_timing_mock, tmp_path):
         path_to_parse = tmp_path / "temp_dag.py"
-        dag_code = dedent(
+        dag_code = textwrap.dedent(
             """
         from airflow import DAG
         dag = DAG(dag_id='temp_dag', schedule='0 0 * * *')

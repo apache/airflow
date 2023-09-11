@@ -277,6 +277,7 @@ class TestMigrateDatabaseJob:
         [
             ("1.10.14", "airflow upgradedb"),
             ("2.0.2", "airflow db upgrade"),
+            ("2.7.1", "airflow db migrate"),
         ],
     )
     def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):

@@ -97,14 +97,6 @@ def group_for_testing():
     envvar="SKIP_DOCKER_COMPOSE_DELETION",
     is_flag=True,
 )
-@click.option(
-    "--wait-for-containers-timeout",
-    help="Time to wait (in seconds) for all containers to start",
-    envvar="WAIT_FOR_CONTAINERS_TIMEOUT",
-    show_default=True,
-    type=IntRange(0, 600),
-    default=300,
-)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -114,7 +106,6 @@ def docker_compose_tests(
     image_name: str,
     image_tag: str | None,
     skip_docker_compose_deletion: bool,
-    wait_for_containers_timeout: int,
     github_repository: str,
     extra_pytest_args: tuple,
 ):
@@ -130,7 +121,6 @@ def docker_compose_tests(
         image_name=image_name,
         extra_pytest_args=extra_pytest_args,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
-        wait_for_containers_timeout=wait_for_containers_timeout,
     )
     sys.exit(return_code)
 

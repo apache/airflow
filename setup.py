@@ -28,10 +28,10 @@ import logging
 import os
 import subprocess
 import sys
+import textwrap
 import unittest
 from copy import deepcopy
 from pathlib import Path
-from textwrap import wrap
 from typing import Iterable
 
 from setuptools import Command, Distribution, find_namespace_packages, setup
@@ -206,7 +206,7 @@ class ListExtras(Command):
 
     def run(self) -> None:
         """List extras."""
-        print("\n".join(wrap(", ".join(EXTRAS_DEPENDENCIES.keys()), 100)))
+        print("\n".join(textwrap.wrap(", ".join(EXTRAS_DEPENDENCIES.keys()), 100)))
 
 
 def git_version() -> str:
