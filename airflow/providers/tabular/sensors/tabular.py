@@ -33,6 +33,10 @@ class TabularVttsSensor(BaseSensorOperator):
     """
     Sensor to block on tables written by the Kafka Connect to Iceberg sink.
 
+    :param identifier: The identifier of the table.
+    :param tabular_conn_id: The connection used to connect to Tabular.
+    :param num_snapshots: Number of most recent snapshots to check
+
     https://github.com/tabular-io/iceberg-kafka-connect
 
     Every Iceberg commit performed by the sink includes some snapshot
