@@ -21,7 +21,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.spark import SparkClient
-from pytest import fixture
 
 from airflow.models.connection import Connection
 from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
@@ -80,7 +79,7 @@ def setup_connections(create_mock_connections):
     )
 
 
-@fixture
+@pytest.fixture
 def hook():
     client = AzureSynapseHook(azure_synapse_conn_id=DEFAULT_CONNECTION_CLIENT_SECRET)
     client._conn = MagicMock(spec=["spark_batch"])
