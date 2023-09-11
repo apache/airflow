@@ -643,7 +643,7 @@ def create_default_connections(session: Session = NEW_SESSION):
         Connection(
             conn_id="tabular_default",
             conn_type="tabular",
-            host="https://api.tabulardata.io/ws/v1",
+            host="https://api.tabular.io/ws",
         ),
         session,
     )

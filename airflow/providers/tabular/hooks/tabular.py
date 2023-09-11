@@ -23,7 +23,7 @@ from requests import HTTPError
 
 from airflow.hooks.base import BaseHook
 
-DEFAULT_TABULAR_URL = "https://api.tabulardata.io/ws/v1"
+DEFAULT_TABULAR_URL = "https://api.tabular.io/ws"
 
 TOKENS_ENDPOINT = "oauth/tokens"
 
@@ -45,7 +45,7 @@ class TabularHook(BaseHook):
     hook_name = "Tabular"
 
     @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port"],

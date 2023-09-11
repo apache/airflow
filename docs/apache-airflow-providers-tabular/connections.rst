@@ -39,4 +39,4 @@ Client Secret
     The Client Secret from Tabular
 
 Host
-    Sets the URL to the Tabular environment. By default `https://api.tabulardata.io/ws/v1`
+    Sets the URL to the Tabular environment. By default `https://api.tabular.io/ws`
