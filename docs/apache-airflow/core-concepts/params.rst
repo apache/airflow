@@ -166,51 +166,106 @@ Use Params to Provide a Trigger UI Form
 ---------------------------------------
 
 :class:`~airflow.models.dag.DAG` level params are used to render a user friendly trigger form.
-This form is provided when a user clicks on the "Trigger DAG w/ config" button.
+This form is provided when a user clicks on the "Trigger DAG" button.
 
-The Trigger UI Form is rendered based on the pre-defined DAG Prams. If the DAG has no params defined, a JSON entry mask is shown.
+The Trigger UI Form is rendered based on the pre-defined DAG Params. If the DAG has no params defined, the trigger form is skipped.
 The form elements can be defined with the :class:`~airflow.modules.param.Param` class and attributes define how a form field is displayed.
 
 The following features are supported in the Trigger UI Form:
 
-- Direct scalar values (boolean, int, string, lists, dicts) from top-level DAG params are interpreted and render a corresponding field type.
+- Direct scalar values (boolean, int, string, lists, dicts) from top-level DAG params are auto-boxed into ``Param`` objects.
+  From the native Python data type the ``type`` attribute is auto detected. So these simple types render to a corresponding field type.
   The name of the param is used as label and no further validation is made, all values are treated as optional.
-- If you use the :class:`~airflow.modules.param.Param` class as definition of the param value, the following parameters can be added:
+- If you use the :class:`~airflow.modules.param.Param` class as definition of the param value, the following attributes can be added:
 
-  - The Param attribute ``title`` is used to render the form field label of the entry box
+  - The Param attribute ``title`` is used to render the form field label of the entry box. If no ``title`` is defined the param name/key
+    is used instead.
   - The Param attribute ``description`` is rendered below an entry field as help text in gray color.
-    Note that if you want to provide HTML tags for special formatting or links you need to use the Param attribute
+    If you want to provide HTML tags for special formatting or links you need to use the Param attribute
     ``description_html``, see tutorial DAG ``example_params_ui_tutorial`` for an example.
   - The Param attribute ``type`` influences how a field is rendered. The following types are supported:
 
-    - ``string``: Generates a text box to edit text.
-      You can add the parameters ``minLength`` and ``maxLength`` to restrict the text length.
-    - ``number`` or ``integer``: Generates a field which restricts adding numeric values only.
-      You can add the parameters ``minimum`` and ``maximum`` to restrict number range accepted.
-    - ``boolean``: Generates a toggle button to be used as ``True`` or ``False``.
-    - ``date``, ``datetime`` and ``time``: Generate date and/or time picker
-    - ``array``: Generates a HTML multi line text field, every line edited will be made into a string array as value.
-      If you add the attribute ``example`` with a list, a multi-value select option will be generated.
-      If you add the attribute ``items``, a JSON entry field will be generated for more array types
-      and additional type validation as described in
-      `JSON Schema Array Items <https://json-schema.org/understanding-json-schema/reference/array.html#items>`_.
-    - ``object``: Generates a JSON entry field
-    - Note: Per default if you specify a type, a field will be made required with input - because of JSON validation.
-      If you want to have a field value being added optional only, you must allow JSON schema validation allowing null values via:
-      ``type=["null", "string"]``
+      .. list-table::
+        :widths: 15 20 40 25
+        :header-rows: 1
 
-- The Param attribute ``enum`` generates a drop-down select list for scalar values. As of JSON validation, a value must be selected or
-  the field must be marked as optional explicit.
-- If you want to present proposals for scalar values (not restricting the user to a fixed ``enum`` as above) you can make use of
-  ``examples`` which is a list of items.
-- For select drop-downs generated via ``enum`` or multi-value selects you can add the attribute ``values_display`` with a dict and
-  map data values to display labels.
+        * - Param type
+          - Form element type
+          - Additional supported attributes
+          - Example
+
+        * - ``string``
+          - Generates a single-line text box to edit text.
+          - * ``minLength``: Minimum text length
+            * ``maxLength``: Maximum text length
+            * ``format="date"``: Generate a date-picker with calendar pop-up
+            * ``format="datetime"``: Generate a date and time-picker with calendar pop-up
+            * ``format="time"``: Generate a time-picker
+            * ``enum=["a", "b", "c"]``: Generates a drop-down select list for scalar values. As of JSON validation,
+              a value must be selected or the field must be marked as optional explicit.
+            * ``values_display={"a": "Alpha", "b": "Beta"}``: For select drop-downs generated via ``enum`` you can add
+              the attribute ``values_display`` with a dict and map data values to display labels.
+            * ``examples=["One", "Two", "Three"]``: If you want to present proposals for values
+              (not restricting the user to a fixed ``enum`` as above) you can make use of ``examples``
+              which is a list of items.
+
+            Also see `further JSON Schema string type validation options <https://json-schema.org/understanding-json-schema/reference/string.html>`_
+            which are checked before DAG trigger in the backend.
+          - ``Param("default", type="string", maxLength=10)``
+
+            ``Param(f"{datetime.date.today()}", type="string", format="date")``
+
+        * - ``number`` or
+
+            ``integer``
+          - Generates a field which restricts adding numeric values only. The HTML browser typically also adds a spinner on the right side
+            to increase or decrease the value. ``integer`` only permits int numbers, number allows also fractional values.
+          - * ``minimum``: Minimum number value
+            * ``maximum``: Maximum number value
+
+            Also see `further JSON Schema numeric type validation options <https://json-schema.org/understanding-json-schema/reference/numeric.html>`_
+            which are checked before DAG trigger in the backend.
+          - ``Param(42, type="integer", minimum=14, multipleOf=7)``
+
+        * - ``boolean``
+          - Generates a toggle button to be used as ``True`` or ``False``.
+          - none.
+          - ``Param(True, type="boolean")``
+
+        * - ``array``
+          - Generates a HTML multi line text field, every line edited will be made into a string array as value.
+          - * If you add the attribute ``example`` with a list, a multi-value select option will be generated instead of a free text field.
+            * ``values_display={"a": "Alpha", "b": "Beta"}``: For multi-value selects ``example`` you can add the attribute ``values_display``
+              with a dict and map data values to display labels.
+            * If you add the attribute ``items``, a JSON entry field will be generated for more array types
+              and additional type validation as described in
+              `JSON Schema Array Items <https://json-schema.org/understanding-json-schema/reference/array.html#items>`_.
+          - ``Param(["a", "b", "c"], type="array")``
+
+            ``Param(["two", "three"], type="array", examples=["one", "two", "three", "four", "five"])``
+
+        * - ``object``
+          - Generates a JSON entry field with text validation.
+          -
+          - ``Param({"key": "value"}, type=["object", "null"])``
+
+        * - ``null``
+          - Specifies that no content is expected. Standalone this does not make much sense but it is useful for type combinations
+            like ``type=["null", "string"]`` as the type attribute also accepts a list of types.
+
+            Per default if you specify a type, a field will be made required with input - because of JSON validation.
+            If you want to have a field value being added optional only, you must allow JSON schema validation allowing null values.
+          -
+          - ``Param(None, type=["null", "string"])``
+
+
 - If a form field is left empty, it is passed as ``None`` value to the params dict.
-- Form fields are rendered in the order of definition.
+- Form fields are rendered in the order of definition of ``params`` in the DAG.
 - If you want to add sections to the Form, add the parameter ``section`` to each field. The text will be used as section label.
   Fields w/o ``section`` will be rendered in the default area.
   Additional sections will be collapsed per default.
 - If you want to have params not being displayed, use the ``const`` attribute. These Params will be submitted but hidden in the Form.
+  The ``const`` value must match the default value to pass JSON validation.
 - On the bottom of the form the generated JSON configuration can be expanded.
   If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
 - If you want to render custom HTML as form on top of the provided features, you can use the ``custom_html_form`` attribute.
@@ -218,6 +273,9 @@ The following features are supported in the Trigger UI Form:
 For examples also please take a look to two example DAGs provided: ``example_params_trigger_ui`` and ``example_params_ui_tutorial``.
 
 .. image:: ../img/trigger-dag-tutorial-form.png
+
+The trigger form can also be forced to be displayed also if no params are defined using the configuration switch
+``webserver.show_trigger_form_if_no_params``.
 
 Disabling Runtime Param Modification
 ------------------------------------
