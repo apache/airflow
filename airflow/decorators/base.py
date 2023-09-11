@@ -330,7 +330,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         except TypeError:  # Can't evaluate return type.
             return False
         ttype = getattr(return_type, "__origin__", return_type)
-        return ttype == dict or ttype == Dict
+        return ttype is dict or ttype is Dict
 
     def __attrs_post_init__(self):
         if "self" in self.function_signature.parameters:
