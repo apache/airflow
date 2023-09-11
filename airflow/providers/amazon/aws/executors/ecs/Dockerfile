@@ -22,6 +22,20 @@ EOF
 RUN chmod +x /entrypoint.sh
 
 USER airflow
+
+## Installing Python Dependencies
+# Python dependencies can be installed by providing a requirements.txt.
+# If the file is in a different location, use the requirements_path build argument to specify
+# the file path.
+ARG requirements_path=./requirements.txt
+ENV REQUIREMENTS_PATH=$requirements_path
+
+# Uncomment the two lines below to copy the requirements.txt file to the container, and
+# install the dependencies.
+# COPY --chown=airflow:root $REQUIREMENTS_PATH /opt/airflow/requirements.txt
+# RUN pip install --no-cache-dir -r /opt/airflow/requirements.txt
+
+
 ## AWS Authentication
 # The image requires access to AWS services. This Dockerfile supports 2 ways to authenticate with AWS.
 # The first is using build arguments where you can provide the AWS credentials as arguments
@@ -42,9 +56,9 @@ ENV AWS_DEFAULT_REGION=$aws_default_region
 ENV AWS_SESSION_TOKEN=$aws_session_token
 
 # Uncomment the line below to authenticate to AWS using the ~/.aws folder
-# If the .aws folder is not in the same folder as the Dockerfile, use the absolute path
-# of the .aws folder.
+# Keep in mind the docker build context when placing .aws folder
 # COPY --chown=airflow:root ./.aws /home/airflow/.aws
+
 
 ## Loading DAGs
 # This Dockerfile supports 2 ways to load DAGs onto the container.
@@ -58,6 +72,7 @@ ARG host_dag_path=./dags
 ENV HOST_DAG_PATH=$host_dag_path
 # Set host_dag_path to the path of the DAGs on the host
 # COPY --chown=airflow:root $HOST_DAG_PATH $CONTAINER_DAG_PATH
+
 
 # If using S3 bucket as source of DAGs, uncommenting the next ENTRYPOINT command will overwrite this one.
 ENTRYPOINT []

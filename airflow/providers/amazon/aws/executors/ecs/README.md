@@ -122,7 +122,7 @@ docker build -t my-airflow-image \
  --build-arg aws_secret_access_key=YOUR_SECRET_KEY \
  --build-arg aws_default_region=YOUR_DEFAULT_REGION \
  --build-arg aws_session_token=YOUR_SESSION_TOKEN \
- --build-arg s3_url=YOUR_S3_URL -t my-airflow-image .
+ --build-arg s3_url=YOUR_S3_URL .
 ```
 
 
@@ -145,6 +145,10 @@ docker run --volume /abs/path/to/local/dir:/abs/path/to/remote/dir <image_name>
 ```
 
 Note: Doing this will overwrite the contents of the directory on the container with the contents of the local directory.
+
+### Installing Python Dependencies
+
+This Dockerfile supports installing Python dependencies via `pip` from a `requirements.txt` file. Place your `requirements.txt` file in the same directory as the Dockerfile. If it is in a different location, it can be specified using the `requirements_path` build-argument. Keep in mind the Docker context when copying the `requirements.txt` file. Uncomment the two appropriate lines in the Dockerfile that copy the `requirements.txt` file to the container, and run `pip install` to install the dependencies on the container.
 
 ### Building Image for ECS Executor
 
