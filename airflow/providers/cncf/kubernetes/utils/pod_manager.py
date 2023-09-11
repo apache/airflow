@@ -390,7 +390,13 @@ class PodManager(LoggingMixin):
             wait=tenacity.wait_fixed(1),
             before=before_log(self.log, logging.INFO),
         )
-        def consume_logs(*, logs: PodLogsConsumer) -> DateTime | None:
+        def consume_logs(
+            *,
+            since_time: DateTime | None = None,
+            follow: bool = True,
+            termination_timeout: int = 120,
+            logs: PodLogsConsumer | None,
+        ) -> tuple[DateTime | None, PodLogsConsumer | None]:
             """
             Tries to follow container logs until container completes.
 
@@ -401,6 +407,17 @@ class PodManager(LoggingMixin):
             """
             last_captured_timestamp = None
             try:
+                if not logs:
+                    logs = self.read_pod_logs(
+                        pod=pod,
+                        container_name=container_name,
+                        timestamps=True,
+                        since_seconds=(
+                            math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
+                        ),
+                        follow=follow,
+                        post_termination_timeout=post_termination_timeout,
+                    )
                 for raw_line in logs:
                     line = raw_line.decode("utf-8", errors="backslashreplace")
                     line_timestamp, message = self.parse_log_line(line)
@@ -421,22 +438,20 @@ class PodManager(LoggingMixin):
                     pod.metadata.name,
                     exc_info=True,
                 )
-            return last_captured_timestamp or since_time
+            return last_captured_timestamp or since_time, logs
 
         # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
         # loop as we do here. But in a long-running process we might temporarily lose connectivity.
         # So the looping logic is there to let us resume following the logs.
-        logs = self.read_pod_logs(
-            pod=pod,
-            container_name=container_name,
-            timestamps=True,
-            since_seconds=(math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None),
-            follow=follow,
-            post_termination_timeout=post_termination_timeout,
-        )
+        logs = None
         last_log_time = since_time
         while True:
-            last_log_time = consume_logs(logs=logs)
+            last_log_time, logs = consume_logs(
+                since_time=last_log_time,
+                follow=follow,
+                termination_timeout=post_termination_timeout,
+                logs=logs,
+            )
             if not self.container_is_running(pod, container_name=container_name):
                 return PodLoggingStatus(running=False, last_log_time=last_log_time)
             if not follow:
