@@ -331,10 +331,10 @@ class S3CreateObjectOperator(BaseOperator):
         :ref:`howto/operator:S3CreateObjectOperator`
 
     :param s3_bucket: Name of the S3 bucket where to save the object. (templated)
-        It should be omitted when `bucket_key` is provided as a full s3:// url.
+        It should be omitted when `s3_key` is provided as a full s3:// url.
     :param s3_key: The key of the object to be created. (templated)
         It can be either full s3:// style url or relative path from root level.
-        When it's specified as a full s3:// url, please omit bucket_name.
+        When it's specified as a full s3:// url, please omit `s3_bucket`.
     :param data: string or bytes to save as content.
     :param replace: If True, it will overwrite the key if it already exists
     :param encrypt: If True, the file will be encrypted on the server-side
