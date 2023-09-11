@@ -140,7 +140,7 @@ class DagRun(Base, LoggingMixin):
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
-    clear_number = Column(Integer, default=0)
+    clear_number = Column(Integer, default=0, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
