@@ -867,7 +867,7 @@ def resolve_xcom_backend() -> type[BaseXCom]:
         )
     base_xcom_params = _get_function_params(BaseXCom.serialize_value)
     xcom_params = _get_function_params(clazz.serialize_value)
-    if not set(base_xcom_params) == set(xcom_params):
+    if set(base_xcom_params) != set(xcom_params):
         _patch_outdated_serializer(clazz=clazz, params=xcom_params)
     return clazz
 

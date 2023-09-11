@@ -541,7 +541,7 @@ def __set_dag_run_state_to_running_or_queued(
     """
     res: list[TaskInstance] = []
 
-    if not (execution_date is None) ^ (run_id is None):
+    if not exactly_one(execution_date, run_id):
         return res
 
     if not dag:
