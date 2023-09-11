@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from enum import Enum
 from functools import cached_property, lru_cache
-from re import match
 from typing import Any, Dict, List, TypeVar
 
 from typing_extensions import Literal
@@ -471,7 +471,7 @@ class SelectiveChecks:
     def _match_files_with_regexps(self, matched_files, regexps):
         for file in self._files:
             for regexp in regexps:
-                if match(regexp, file):
+                if re.match(regexp, file):
                     matched_files.append(file)
                     break
 
