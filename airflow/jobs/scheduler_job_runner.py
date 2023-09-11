@@ -1348,7 +1348,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         def _update_state(dag: DAG, dag_run: DagRun):
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
-            if dag.timetable.periodic and not dag_run.external_trigger and dag_run.clear_number == 0:
+            if dag.timetable.periodic and not dag_run.external_trigger and dag_run.clear_number < 1:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
                 # information is not stored on a DagRun, only before the actual
                 # execution on DagModel.next_dagrun_create_after. We should add
