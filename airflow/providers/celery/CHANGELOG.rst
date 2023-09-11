@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix condition of update_task_state in celery executor (#34192)``
+
+Misc
+~~~~
+
+* ``Combine similar if logics in providers (#33987)``
+* ``Limit celery by excluding 5.3.2 and 5.3.3 (#34031)``
+* ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 3.3.3
 .....
 

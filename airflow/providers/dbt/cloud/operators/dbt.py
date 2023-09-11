@@ -117,7 +117,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
         self.additional_run_config = additional_run_config or {}
-        self.run_id: int
+        self.run_id: int | None = None
         self.deferrable = deferrable
 
     def execute(self, context: Context):
@@ -135,12 +135,13 @@ class DbtCloudRunJobOperator(BaseOperator):
             additional_run_config=self.additional_run_config,
         )
         self.run_id = trigger_job_response.json()["data"]["id"]
+        print(self.run_id)
         job_run_url = trigger_job_response.json()["data"]["href"]
         # Push the ``job_run_url`` value to XCom regardless of what happens during execution so that the job
         # run can be monitored via the operator link.
         context["ti"].xcom_push(key="job_run_url", value=job_run_url)
 
-        if self.wait_for_termination:
+        if self.wait_for_termination and isinstance(self.run_id, int):
             if self.deferrable is False:
                 self.log.info("Waiting for job run %s to terminate.", str(self.run_id))
 
@@ -197,6 +198,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
         self.log.info(event["message"])
+        self.run_id = event["run_id"]
         return int(event["run_id"])
 
     def on_kill(self) -> None:
@@ -225,7 +227,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         """
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        if self.wait_for_termination is True:
+        if isinstance(self.run_id, int) and self.wait_for_termination is True:
             return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
         return OperatorLineage()
 

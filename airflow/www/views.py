@@ -2195,7 +2195,11 @@ class Airflow(AirflowBaseView):
         except AirflowException as ex:
             return redirect_or_json(origin, msg=str(ex), status="error", status_code=500)
 
-        assert isinstance(tis, collections.abc.Iterable)
+        if not isinstance(tis, collections.abc.Iterable):
+            raise AssertionError(
+                f"Expected dag.clear() to return an iterable for dry runs, got {tis} instead."
+            )
+
         details = [str(t) for t in tis]
 
         if not details:
@@ -3539,11 +3543,11 @@ class Airflow(AirflowBaseView):
             data = {
                 "dag_run_types": {
                     **{dag_run_type.value: 0 for dag_run_type in DagRunType},
-                    **{run_type: sum_value for run_type, sum_value in dag_run_types},
+                    **dict(dag_run_types),
                 },
                 "dag_run_states": {
                     **{dag_run_state.value: 0 for dag_run_state in DagRunState},
-                    **{run_state: sum_value for run_state, sum_value in dag_run_states},
+                    **dict(dag_run_states),
                 },
                 "task_instance_states": {
                     "no_status": 0,
@@ -4363,7 +4367,7 @@ class ConnectionModelView(AirflowModelView):
                 select(Connection.conn_id).where(Connection.conn_id.in_(potential_connection_ids))
             )
 
-            found_conn_id_set = {conn_id for conn_id in query}
+            found_conn_id_set = set(query)
 
             possible_conn_id_iter = (
                 connection_id

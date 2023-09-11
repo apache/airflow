@@ -43,7 +43,7 @@ from airflow.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
-from airflow.www.security import ApplessAirflowSecurityManager
+from airflow.www.security_appless import ApplessAirflowSecurityManager
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
@@ -56,7 +56,9 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
 
 @pytest.fixture
 def auth_manager():
-    auth_manager = FabAuthManager()
+    app_mock = Mock(name="flask_app")
+    app_mock.config.get.return_value = None  # this is called to get the security manager override (if any)
+    auth_manager = FabAuthManager(app_mock)
     auth_manager.security_manager = ApplessAirflowSecurityManager()
     return auth_manager
 

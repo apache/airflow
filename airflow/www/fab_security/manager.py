@@ -196,6 +196,9 @@ class BaseSecurityManager:
                         log.warning("Can't find role specified in AUTH_ROLES_MAPPING: %s", fab_role_name)
         return _roles
 
+    def add_role(self, name: str) -> Role:
+        raise NotImplementedError
+
     @property
     def auth_type_provider_name(self):
         provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
@@ -1073,6 +1076,12 @@ class BaseSecurityManager:
         if self.auth_role_admin not in self.builtin_roles:
             role_admin = self.find_role(self.auth_role_admin)
             self.add_permission_to_role(role_admin, perm)
+
+    def get_resource(self, name: str) -> Resource:
+        raise NotImplementedError
+
+    def get_action(self, name: str) -> Action:
+        raise NotImplementedError
 
     def security_cleanup(self, baseviews, menus):
         """

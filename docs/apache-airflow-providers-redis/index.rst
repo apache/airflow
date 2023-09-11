@@ -76,7 +76,7 @@ Package apache-airflow-providers-redis
 `Redis <https://redis.io/>`__
 
 
-Release: 3.3.1
+Release: 3.3.2
 
 Provider package
 ----------------
@@ -96,9 +96,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
 
-==================  ==================
+==================  ==========================
 PIP package         Version required
-==================  ==================
+==================  ==========================
 ``apache-airflow``  ``>=2.4.0``
-``redis``           ``>=3.2.0``
-==================  ==================
+``redis``           ``>=4.5.2,<5.0.0,!=4.5.5``
+==================  ==========================

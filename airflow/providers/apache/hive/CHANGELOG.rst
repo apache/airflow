@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+6.1.6
+.....
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Replace single element slice by next() in hive provider (#33937)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+* ``Use startswith once with a tuple in Hive hook (#33765)``
+* ``Refactor: Simplify a few loops (#33736)``
+* ``E731: replace lambda by a def method in Airflow providers (#33757)``
+* ``Use f-string instead of  in Airflow providers (#33752)``
+
 6.1.5
 .....
 

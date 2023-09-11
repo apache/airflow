@@ -24,7 +24,6 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1PodSecurityContext, V1PodStatus, models as k8s
-from pytest import param
 from urllib3 import HTTPResponse
 from urllib3.packages.six import BytesIO
 
@@ -205,8 +204,8 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(
         "input",
         [
-            param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
-            param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
+            pytest.param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
+            pytest.param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
         ],
     )
     def test_env_vars(self, input):
@@ -377,8 +376,8 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(
         "val",
         [
-            param([k8s.V1LocalObjectReference("fakeSecret")], id="current"),
-            param("fakeSecret", id="backcompat"),
+            pytest.param([k8s.V1LocalObjectReference("fakeSecret")], id="current"),
+            pytest.param("fakeSecret", id="backcompat"),
         ],
     )
     def test_image_pull_secrets_correctly_set(self, val):
@@ -1471,12 +1470,15 @@ class TestKubernetesPodOperatorAsync:
         )
         return remote_pod_mock
 
+    @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj):
+    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, do_xcom_push):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
+
+        pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar
         """
 
         k = KubernetesPodOperator(
@@ -1491,10 +1493,23 @@ class TestKubernetesPodOperatorAsync:
             in_cluster=True,
             get_logs=True,
             deferrable=True,
+            do_xcom_push=do_xcom_push,
         )
         k.config_file_in_dict_representation = {"a": "b"}
+
+        mocked_pod.return_value.metadata.name = TEST_NAME
+        mocked_pod.return_value.metadata.namespace = TEST_NAMESPACE
+
+        context = create_context(k)
+        ti_mock = MagicMock()
+        context["ti"] = ti_mock
+
         with pytest.raises(TaskDeferred) as exc:
-            k.execute(create_context(k))
+            k.execute(context)
+
+        assert ti_mock.xcom_push.call_count == 2
+        ti_mock.xcom_push.assert_any_call(key="pod_name", value=TEST_NAME)
+        ti_mock.xcom_push.assert_any_call(key="pod_namespace", value=TEST_NAMESPACE)
         assert isinstance(exc.value.trigger, KubernetesPodTrigger)
 
     @patch(KUB_OP_PATH.format("cleanup"))
@@ -1655,34 +1670,6 @@ class TestKubernetesPodOperatorAsync:
             },
         )
 
-    @pytest.mark.parametrize("do_xcom_push", [True, False])
-    @patch(KUB_OP_PATH.format("post_complete_action"))
-    @patch(KUB_OP_PATH.format("extract_xcom"))
-    @patch(POD_MANAGER_CLASS)
-    @patch(HOOK_CLASS)
-    def test_async_push_xcom_check_xcom_values_should_execute_successfully(
-        self, mocked_hook, mock_manager, mock_extract_xcom, post_complete_action, do_xcom_push
-    ):
-        """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
-
-        mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
-        )
-        mock_manager.return_value.await_pod_completion.return_value = {}
-        mock_extract_xcom.return_value = "{}"
-        k = KubernetesPodOperator(
-            task_id="task",
-            do_xcom_push=do_xcom_push,
-            deferrable=True,
-        )
-
-        pod = self.run_pod_async(k)
-
-        pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
-        pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
-        assert pod_name == pod.metadata.name
-        assert pod_namespace == pod.metadata.namespace
-
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
     @patch(KUB_OP_PATH.format("write_logs"))
@@ -1780,8 +1767,6 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
         succeeded_state,
     ]
 
-    ti_mock = MagicMock()
-
     success_event = {
         "status": "success",
         "message": TEST_SUCCESS_MESSAGE,
@@ -1790,15 +1775,10 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     }
 
     k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
-    k.execute_complete({"ti": ti_mock}, success_event)
+    k.execute_complete({}, success_event)
 
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
-
-    # check if it pushes the xcom
-    assert ti_mock.xcom_push.call_count == 2
-    ti_mock.xcom_push.assert_any_call(key="pod_name", value=TEST_NAME)
-    ti_mock.xcom_push.assert_any_call(key="pod_namespace", value=TEST_NAMESPACE)
 
     # assert that the xcom are extracted/not extracted
     if do_xcom_push:

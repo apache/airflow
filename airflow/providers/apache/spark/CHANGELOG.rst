@@ -29,6 +29,14 @@
 Changelog
 ---------
 
+4.1.5
+.....
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+
 4.1.4
 .....
 

@@ -81,7 +81,7 @@ class TestDagCode:
         """Dg code can be bulk written into database."""
         example_dags = make_example_dags(example_dags_module)
         files = [dag.fileloc for dag in example_dags.values()]
-        half_files = files[: int(len(files) / 2)]
+        half_files = files[: len(files) // 2]
         with create_session() as session:
             DagCode.bulk_sync_to_db(half_files, session=session)
             session.commit()

@@ -28,7 +28,7 @@ from collections.abc import Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Generator, Protocol, cast
+from typing import TYPE_CHECKING, Callable, Generator, Protocol, cast
 
 import pendulum
 import tenacity
@@ -282,14 +282,17 @@ class PodManager(LoggingMixin):
     def __init__(
         self,
         kube_client: client.CoreV1Api,
+        progress_callback: Callable[[str], None] | None = None,
     ):
         """
         Creates the launcher.
 
         :param kube_client: kubernetes client
+        :param progress_callback: Callback function invoked when fetching container log.
         """
         super().__init__()
         self._client = kube_client
+        self._progress_callback = progress_callback
         self._watch = watch.Watch()
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
@@ -413,6 +416,8 @@ class PodManager(LoggingMixin):
                 for raw_line in logs:
                     line = raw_line.decode("utf-8", errors="backslashreplace")
                     line_timestamp, message = self.parse_log_line(line)
+                    if self._progress_callback:
+                        self._progress_callback(line)
                     if line_timestamp is not None:
                         last_captured_timestamp = line_timestamp
                     self.log.info("[%s] %s", container_name, message)

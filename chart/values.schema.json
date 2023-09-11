@@ -207,6 +207,15 @@
                 "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
             }
         },
+        "schedulerName": {
+            "description": "Specify kube scheduler name for Pods.",
+            "type": [
+                "string",
+                "null"
+            ],
+            "default": null,
+            "x-docsSection": "Common"
+        },
         "labels": {
             "description": "Add common labels to all objects and pods defined in this chart.",
             "type": "object",
@@ -3924,7 +3933,7 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"db upgrade\" \"upgradedb\" }}"
+                        "exec \\\nairflow {{ semverCompare \">=2.7.0\" .Values.airflowVersion | ternary \"db migrate\" (semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"db upgrade\" \"upgradedb\") }}"
                     ]
                 },
                 "annotations": {
