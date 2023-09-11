@@ -135,6 +135,7 @@ class DbtCloudRunJobOperator(BaseOperator):
             additional_run_config=self.additional_run_config,
         )
         self.run_id = trigger_job_response.json()["data"]["id"]
+        print(self.run_id)
         job_run_url = trigger_job_response.json()["data"]["href"]
         # Push the ``job_run_url`` value to XCom regardless of what happens during execution so that the job
         # run can be monitored via the operator link.
