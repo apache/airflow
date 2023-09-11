@@ -53,6 +53,7 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.common_options import (
     argument_packages,
     argument_packages_plus_all_providers,
+    argument_packages_plus_all_providers_for_shorthand,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
@@ -82,7 +83,7 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
     get_env_variables_for_docker_commands,
@@ -837,10 +838,13 @@ def run_publish_docs_in_parallel(
 )
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @option_airflow_site_directory
+@argument_packages_plus_all_providers_for_shorthand
 @click.option(
     "--package-filter",
-    help="List of packages to consider.",
-    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
+    "the short hand names or the glob pattern matching the full package name. "
+    "The list of short hand names can be found in --help output",
+    type=str,
     multiple=True,
 )
 @option_run_in_parallel
@@ -853,6 +857,7 @@ def run_publish_docs_in_parallel(
 def publish_docs(
     override_versioned: bool,
     airflow_site_directory: str,
+    packages_plus_all_providers: tuple[str],
     package_filter: tuple[str],
     run_in_parallel: bool,
     parallelism: int,
@@ -869,8 +874,10 @@ def publish_docs(
 
     available_packages = get_available_packages()
     package_filters = package_filter
+    current_packages = process_package_filters(
+        available_packages, package_filters, packages_plus_all_providers
+    )
 
-    current_packages = process_package_filters(available_packages, package_filters)
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
         print(f" - {pkg}")

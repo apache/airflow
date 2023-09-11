@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteNodegroupTrigger,
 )
 from airflow.providers.amazon.aws.triggers.emr import (
+    EmrAddStepsTrigger,
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
     EmrServerlessCancelJobsTrigger,
@@ -191,6 +192,13 @@ class TestRdsTriggers:
                 aws_conn_id=AWS_CONN_ID,
                 region_name=AWS_REGION,
                 force_delete_compute=True,
+            ),
+            EmrAddStepsTrigger(
+                job_flow_id=TEST_JOB_FLOW_ID,
+                step_ids=["my_step1", "my_step2"],
+                aws_conn_id=AWS_CONN_ID,
+                waiter_delay=WAITER_DELAY,
+                waiter_max_attempts=MAX_ATTEMPTS,
             ),
             EmrCreateJobFlowTrigger(
                 job_flow_id=TEST_JOB_FLOW_ID,

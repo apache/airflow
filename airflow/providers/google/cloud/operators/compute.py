@@ -127,6 +127,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_insert_fields]
 
@@ -306,6 +307,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_insert_from_template_fields]
 
@@ -869,6 +871,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_template_insert_fields]
 
@@ -1452,6 +1455,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_igm_insert_fields]
 
