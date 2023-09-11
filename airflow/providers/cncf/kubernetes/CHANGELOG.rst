@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+7.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/spark-kubernetes): respect soft_fail argument when exception is raised (#34167)``
+* ``Use 'cached_property' for hook in SparkKubernetesSensor (#34106)``
+* ``Use cached property for hook in SparkKubernetesOperator (#34130)``
+
+Misc
+~~~~
+
+* ``Combine similar if logics in providers (#33987)``
+* ``Remove useless string join from providers (#33968)``
+* ``Refactor unneeded  jumps in providers (#33833)``
+* ``replace loop by any when looking for a positive value in providers (#33984)``
+* ``Move the try outside the loop when this is possible in kubernetes provider (#33977)``
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Replace dict.items by values when key is not used in providers (#33939)``
+* ``Refactor: Consolidate import datetime (#34110)``
+
 7.5.0
 .....
 

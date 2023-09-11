@@ -460,7 +460,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_CREATE_DB.format(e))
+            log.error(const.LOGMSG_ERR_SEC_CREATE_DB, e)
             exit(1)
 
     """
@@ -478,9 +478,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             role.name = name
             self.get_session.merge(role)
             self.get_session.commit()
-            log.info(const.LOGMSG_INF_SEC_UPD_ROLE.format(role))
+            log.info(const.LOGMSG_INF_SEC_UPD_ROLE, role)
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_UPD_ROLE.format(e))
+            log.error(const.LOGMSG_ERR_SEC_UPD_ROLE, e)
             self.get_session.rollback()
             return None
         return role
@@ -494,10 +494,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 role.name = name
                 self.get_session.add(role)
                 self.get_session.commit()
-                log.info(const.LOGMSG_INF_SEC_ADD_ROLE.format(name))
+                log.info(const.LOGMSG_INF_SEC_ADD_ROLE, name)
                 return role
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_ADD_ROLE.format(e))
+                log.error(const.LOGMSG_ERR_SEC_ADD_ROLE, e)
                 self.get_session.rollback()
         return role
 
@@ -561,10 +561,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 user.password = generate_password_hash(password)
             self.get_session.add(user)
             self.get_session.commit()
-            log.info(const.LOGMSG_INF_SEC_ADD_USER.format(username))
+            log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
             return user
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_ADD_USER.format(e))
+            log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
             self.get_session.rollback()
             return False
 
@@ -600,7 +600,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.get_session.commit()
             return register_user
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_ADD_REGISTER_USER.format(e))
+            log.error(const.LOGMSG_ERR_SEC_ADD_REGISTER_USER, e)
             self.get_session.rollback()
             return None
 
@@ -641,9 +641,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         try:
             self.get_session.merge(user)
             self.get_session.commit()
-            log.info(const.LOGMSG_INF_SEC_UPD_USER.format(user))
+            log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_UPD_USER.format(e))
+            log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.get_session.rollback()
             return False
 
@@ -658,7 +658,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.get_session.commit()
             return True
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_DEL_REGISTER_USER.format(e))
+            log.error(const.LOGMSG_ERR_SEC_DEL_REGISTER_USER, e)
             self.get_session.rollback()
             return False
 
@@ -696,7 +696,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.get_session.commit()
                 return action
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_ADD_PERMISSION.format(e))
+                log.error(const.LOGMSG_ERR_SEC_ADD_PERMISSION, e)
                 self.get_session.rollback()
         return action
 
@@ -708,7 +708,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         action = self.get_action(name)
         if not action:
-            log.warning(const.LOGMSG_WAR_SEC_DEL_PERMISSION.format(name))
+            log.warning(const.LOGMSG_WAR_SEC_DEL_PERMISSION, name)
             return False
         try:
             perms = (
@@ -717,13 +717,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 .all()
             )
             if perms:
-                log.warning(const.LOGMSG_WAR_SEC_DEL_PERM_PVM.format(action, perms))
+                log.warning(const.LOGMSG_WAR_SEC_DEL_PERM_PVM, action, perms)
                 return False
             self.get_session.delete(action)
             self.get_session.commit()
             return True
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION.format(e))
+            log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION, e)
             self.get_session.rollback()
             return False
 
@@ -757,7 +757,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.get_session.commit()
                 return resource
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(e))
+                log.error(const.LOGMSG_ERR_SEC_ADD_VIEWMENU, e)
                 self.get_session.rollback()
         return resource
 
@@ -778,7 +778,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """
         resource = self.get_resource(name)
         if not resource:
-            log.warning(const.LOGMSG_WAR_SEC_DEL_VIEWMENU.format(name))
+            log.warning(const.LOGMSG_WAR_SEC_DEL_VIEWMENU, name)
             return False
         try:
             perms = (
@@ -787,13 +787,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 .all()
             )
             if perms:
-                log.warning(const.LOGMSG_WAR_SEC_DEL_VIEWMENU_PVM.format(resource, perms))
+                log.warning(const.LOGMSG_WAR_SEC_DEL_VIEWMENU_PVM, resource, perms)
                 return False
             self.get_session.delete(resource)
             self.get_session.commit()
             return True
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION.format(e))
+            log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION, e)
             self.get_session.rollback()
             return False
 
@@ -855,10 +855,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         try:
             self.get_session.add(perm)
             self.get_session.commit()
-            log.info(const.LOGMSG_INF_SEC_ADD_PERMVIEW.format(perm))
+            log.info(const.LOGMSG_INF_SEC_ADD_PERMVIEW, perm)
             return perm
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(e))
+            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, e)
             self.get_session.rollback()
             return None
 
@@ -881,7 +881,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.get_session.query(self.role_model).filter(self.role_model.permissions.contains(perm)).first()
         )
         if roles:
-            log.warning(const.LOGMSG_WAR_SEC_DEL_PERMVIEW.format(resource_name, action_name, roles))
+            log.warning(const.LOGMSG_WAR_SEC_DEL_PERMVIEW, resource_name, action_name, roles)
             return
         try:
             # delete permission on resource
@@ -890,9 +890,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             # if no more permission on permission view, delete permission
             if not self.get_session.query(self.permission_model).filter_by(action=perm.action).all():
                 self.delete_action(perm.action.name)
-            log.info(const.LOGMSG_INF_SEC_DEL_PERMVIEW.format(action_name, resource_name))
+            log.info(const.LOGMSG_INF_SEC_DEL_PERMVIEW, action_name, resource_name)
         except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_DEL_PERMVIEW.format(e))
+            log.error(const.LOGMSG_ERR_SEC_DEL_PERMVIEW, e)
             self.get_session.rollback()
 
     def add_permission_to_role(self, role: Role, permission: Permission | None) -> None:
@@ -908,9 +908,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 role.permissions.append(permission)
                 self.get_session.merge(role)
                 self.get_session.commit()
-                log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE.format(permission, role.name))
+                log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE, permission, role.name)
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE.format(e))
+                log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, e)
                 self.get_session.rollback()
 
     def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
@@ -925,9 +925,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 role.permissions.remove(permission)
                 self.get_session.merge(role)
                 self.get_session.commit()
-                log.info(const.LOGMSG_INF_SEC_DEL_PERMROLE.format(permission, role.name))
+                log.info(const.LOGMSG_INF_SEC_DEL_PERMROLE, permission, role.name)
             except Exception as e:
-                log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE.format(e))
+                log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE, e)
                 self.get_session.rollback()
 
     def get_oauth_user_info(self, provider, resp):

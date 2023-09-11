@@ -23,6 +23,19 @@
 
 ------
 
+1.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BigQueryValueCheckOperator deferrable mode optimisation (#34018)``
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+
 1.7.1
 .....
 

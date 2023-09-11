@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import inspect
 import logging
 import sys
 import warnings
@@ -30,6 +32,7 @@ from urllib.parse import quote, urlparse
 import elasticsearch
 import pendulum
 from elasticsearch.exceptions import NotFoundError
+from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -54,6 +57,32 @@ EsLogMsgType = List[Tuple[str, str]]
 # LogTemplate model to record the log ID template used. If this function does
 # not exist, the task handler should use the log_id_template attribute instead.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
+
+
+VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
+# Remove `self` from the valid set of kwargs
+VALID_ES_CONFIG_KEYS.remove("self")
+
+
+def get_es_kwargs_from_config() -> dict[str, Any]:
+    elastic_search_config = conf.getsection("elasticsearch_configs")
+    kwargs_dict = (
+        {key: value for key, value in elastic_search_config.items() if key in VALID_ES_CONFIG_KEYS}
+        if elastic_search_config
+        else {}
+    )
+    # For elasticsearch>8 retry_timeout have changed for elasticsearch to retry_on_timeout
+    # in Elasticsearch() compared to previous versions.
+    # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
+    if (
+        elastic_search_config
+        and "retry_timeout" in elastic_search_config
+        and not kwargs_dict.get("retry_on_timeout")
+    ):
+        retry_timeout = elastic_search_config.get("retry_timeout")
+        if retry_timeout is not None:
+            kwargs_dict["retry_on_timeout"] = retry_timeout
+    return kwargs_dict
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -95,17 +124,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         host: str = "http://localhost:9200",
         frontend: str = "localhost:5601",
         index_patterns: str | None = conf.get("elasticsearch", "index_patterns", fallback="_all"),
-        es_kwargs: dict | None = conf.getsection("elasticsearch_configs"),
+        es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
         *,
         filename_template: str | None = None,
         log_id_template: str | None = None,
     ):
         es_kwargs = es_kwargs or {}
-        # For elasticsearch>8,arguments like retry_timeout have changed for elasticsearch to retry_on_timeout
-        # in Elasticsearch() compared to previous versions.
-        # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
-        if es_kwargs.get("retry_timeout"):
-            es_kwargs["retry_on_timeout"] = es_kwargs.pop("retry_timeout")
+        if es_kwargs == "default_es_kwargs":
+            es_kwargs = get_es_kwargs_from_config()
         host = self.format_url(host)
         super().__init__(base_log_folder, filename_template)
         self.closed = False
@@ -297,12 +323,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Using formatter._style.format makes it future proof i.e.
         # if we change the formatter style from '%' to '{' or '$', this will still work
         if self.json_format:
-            try:
+            with contextlib.suppress(Exception):
                 return self.formatter._style.format(
                     logging.makeLogRecord({**LOG_LINE_DEFAULTS, **log_line.to_dict()})
                 )
-            except Exception:
-                pass
 
         # Just a safe-guard to preserve backwards-compatibility
         return log_line.message

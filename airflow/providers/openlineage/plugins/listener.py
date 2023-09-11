@@ -37,6 +37,8 @@ if TYPE_CHECKING:
 
     from airflow.models import DagRun, TaskInstance
 
+_openlineage_listener: OpenLineageListener | None = None
+
 
 class OpenLineageListener:
     """OpenLineage listener sends events on task instance and dag run starts, completes and failures."""
@@ -202,3 +204,11 @@ class OpenLineageListener:
             self.log.error("Executor have not started before `on_dag_run_failed`")
             return
         self.executor.submit(self.adapter.dag_failed, dag_run=dag_run, msg=msg)
+
+
+def get_openlineage_listener() -> OpenLineageListener:
+    """Get singleton listener manager."""
+    global _openlineage_listener
+    if not _openlineage_listener:
+        _openlineage_listener = OpenLineageListener()
+    return _openlineage_listener

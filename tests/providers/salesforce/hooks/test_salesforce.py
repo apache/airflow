@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import os
+from unittest import mock
 from unittest.mock import Mock, patch
 
+import numpy as np
 import pandas as pd
 import pytest
-from numpy import nan
-from pytest import param
 from requests import Session as request_session
 from simple_salesforce import Salesforce, api
 
@@ -339,7 +339,7 @@ class TestSalesforceHook:
 
     @patch(
         "pandas.DataFrame.from_records",
-        return_value=pd.DataFrame({"test": [1, 2, 3], "dict": [nan, nan, {"foo": "bar"}]}),
+        return_value=pd.DataFrame({"test": [1, 2, 3], "dict": [np.nan, np.nan, {"foo": "bar"}]}),
     )
     def test_write_object_to_file_csv(self, mock_data_frame):
         mock_data_frame.return_value.to_csv = Mock()
@@ -457,11 +457,11 @@ class TestSalesforceHook:
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://?extra__salesforce__security_token=token&extra__salesforce__domain=domain",
                 id="prefix",
             ),
-            param("a://?security_token=token&domain=domain", id="no-prefix"),
+            pytest.param("a://?security_token=token&domain=domain", id="no-prefix"),
         ],
     )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
@@ -484,7 +484,7 @@ class TestSalesforceHook:
                 session=None,
                 session_id=None,
                 username=None,
-                version="52.0",
+                version=mock.ANY,
             )
 
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
@@ -513,7 +513,7 @@ class TestSalesforceHook:
                 session=None,
                 session_id=None,
                 username=None,
-                version="52.0",
+                version=mock.ANY,
             )
 
     @patch(

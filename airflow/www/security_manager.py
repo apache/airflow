@@ -575,7 +575,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
                 if (action_name, dag_resource_name) not in perms:
                     self._merge_perm(action_name, dag_resource_name)
 
-            if dag.access_control:
+            if dag.access_control is not None:
                 self.sync_perm_for_dag(dag_resource_name, dag.access_control)
 
     def update_admin_permission(self) -> None:
@@ -653,10 +653,10 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             self.create_permission(dag_action_name, dag_resource_name)
 
         if access_control is not None:
-            self.log.info("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
+            self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
             self._sync_dag_view_permissions(dag_resource_name, access_control)
         else:
-            self.log.info(
+            self.log.debug(
                 "Not syncing DAG-level permissions for DAG '%s' as access control is unset.",
                 dag_resource_name,
             )

@@ -33,7 +33,7 @@ related to workflow automation and scheduling that can be used to author and
 manage data pipelines.
 </description>
     <bug-database rdf:resource="https://github.com/apache/airflow/issues" />
-    <mailing-list rdf:resource="https://lists.apache.org/list.html?dev@airflow.apache.org" />
+    <mailing-list rdf:resource="dev@airflow.apache.org" />
     <download-page rdf:resource="https://airflow.apache.org/docs/apache-airflow/stable/installation/index.html" />
     <programming-language>Python</programming-language>
     <programming-language>JavaScript</programming-language>

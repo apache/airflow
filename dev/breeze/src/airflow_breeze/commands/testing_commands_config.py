@@ -104,7 +104,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--python",
                 "--skip-docker-compose-deletion",
-                "--wait-for-containers-timeout",
                 "--github-repository",
             ],
         }

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
-import os.path
+import os
 import tempfile
 from contextlib import ExitStack, contextmanager
 from typing import Collection, Generator, Sequence

@@ -42,7 +42,7 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
-    argument_packages_plus_all_providers,
+    argument_packages_plus_all_providers_for_shorthand,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -357,7 +357,7 @@ def start_airflow(
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
-@argument_packages_plus_all_providers
+@argument_packages_plus_all_providers_for_shorthand
 @option_builder
 @click.option(
     "--package-filter",
@@ -533,9 +533,8 @@ def static_checks(
             f"[info]Trying to install the environments up to {max_initialization_attempts} "
             f"times in case of flakiness[/]"
         )
-        i = 0
-        while True:
-            get_console().print(f"[info]Attempt number {i + 1} to install pre-commit environments")
+        for attempt in range(1, 1 + max_initialization_attempts):
+            get_console().print(f"[info]Attempt number {attempt} to install pre-commit environments")
             initialization_result = run_command(
                 [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
                 check=False,
@@ -544,11 +543,10 @@ def static_checks(
             )
             if initialization_result.returncode == 0:
                 break
-            get_console().print(f"[warning]Attempt number {i + 1} failed - retrying[/]")
-            if i == max_initialization_attempts - 1:
-                get_console().print("[error]Could not install pre-commit environments[/]")
-                sys.exit(initialization_result.returncode)
-            i += 1
+            get_console().print(f"[warning]Attempt number {attempt} failed - retrying[/]")
+        else:
+            get_console().print("[error]Could not install pre-commit environments[/]")
+            sys.exit(initialization_result.returncode)
 
     command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
     if not one_or_none_set([last_commit, commit_ref, only_my_changes, all_files]):

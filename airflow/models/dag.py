@@ -84,6 +84,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
+    ParamValidationError,
     RemovedInAirflow3Warning,
     TaskNotFound,
 )
@@ -779,7 +780,7 @@ class DAG(LoggingMixin):
         will be replaced with 'can_read', in {'role2': {'can_dag_read', 'can_dag_edit'}}
         'can_dag_edit' will be replaced with 'can_edit', etc.
         """
-        if not access_control:
+        if access_control is None:
             return None
         new_perm_mapping = {
             permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
@@ -3276,20 +3277,20 @@ class DAG(LoggingMixin):
 
     def validate_schedule_and_params(self):
         """
-        Validate Param values when the schedule_interval is not None.
+        Validate Param values when the DAG has schedule defined.
 
-        Raise exception if there are any Params in the DAG which neither have a default value nor
-        have the null in schema['type'] list, but the DAG have a schedule_interval which is not None.
+        Raise exception if there are any Params which can not be resolved by their schema definition.
         """
         if not self.timetable.can_be_scheduled:
             return
 
-        for v in self.params.values():
-            # As type can be an array, we would check if `null` is an allowed type or not
-            if not v.has_value and ("type" not in v.schema or "null" not in v.schema["type"]):
-                raise AirflowException(
-                    "DAG Schedule must be None, if there are any required params without default values"
-                )
+        try:
+            self.params.validate()
+        except ParamValidationError as pverr:
+            raise AirflowException(
+                "DAG is not allowed to define a Schedule, "
+                "if there are any required params without default values or default values are not valid."
+            ) from pverr
 
     def iter_invalid_owner_links(self) -> Iterator[tuple[str, str]]:
         """

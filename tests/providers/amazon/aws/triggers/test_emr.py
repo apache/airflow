@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.providers.amazon.aws.triggers.emr import (
+    EmrAddStepsTrigger,
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
     EmrStepSensorTrigger,
@@ -40,6 +41,13 @@ class TestEmrTriggers:
     @pytest.mark.parametrize(
         "trigger",
         [
+            EmrAddStepsTrigger(
+                job_flow_id=TEST_JOB_FLOW_ID,
+                step_ids=["my_step1", "my_step2"],
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_POLL_INTERVAL,
+                waiter_max_attempts=TEST_MAX_ATTEMPTS,
+            ),
             EmrCreateJobFlowTrigger(
                 job_flow_id=TEST_JOB_FLOW_ID,
                 aws_conn_id=TEST_AWS_CONN_ID,

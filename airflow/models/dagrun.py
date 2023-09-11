@@ -307,7 +307,7 @@ class DagRun(Base, LoggingMixin):
         else:
             query = query.where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
         query = query.group_by(cls.dag_id)
-        return {dag_id: count for dag_id, count in session.execute(query)}
+        return dict(iter(session.execute(query)))
 
     @classmethod
     def next_dagruns_to_examine(
@@ -1410,7 +1410,11 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(
+        Integer,
+        nullable=True,
+        foreign_key=ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
+    )
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
@@ -1425,11 +1429,6 @@ class DagRunNote(Base):
             ["dag_run.id"],
             name="dag_run_note_dr_fkey",
             ondelete="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            (user_id,),
-            ["ab_user.id"],
-            name="dag_run_note_user_fkey",
         ),
     )
 
