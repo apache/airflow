@@ -20,9 +20,9 @@ Deferrable Operators & Triggers
 
 Standard :doc:`Operators </core-concepts/operators>` and :doc:`Sensors <../core-concepts/sensors>` take up a full *worker slot* for the entire time they are running, even if they are idle. For example, if you only have 100 worker slots available to run tasks, and you have 100 DAGs waiting on a sensor that's currently running but idle, then you *cannot run anything else* - even though your entire Airflow cluster is essentially idle. ``reschedule`` mode for sensors solves some of this, by allowing sensors to only run at fixed intervals, but it is inflexible and only allows using time as the reason to resume, not other criteria.
 
-This is where *Deferrable Operators* can be used. A deferrable operator can suspend itself and free up the worker for other processes when certain conditions are met. A pre-defined *Trigger* then resumes the deferred operator. As a result, while it is suspended (deferred) and isn't using worker slot, your cluster has fewer resources wasted on idle operators or sensors. By default, deferred tasks don't use pool slots. If you would like them to, you can change this by editing the pool in question.
+This is where *Deferrable Operators* can be used. When it has nothing to do but wait, a deferrable operator can suspend itself and free up the worker for other processes. When an operator defers, execution moves to the triggerer, where the trigger specified by the operator will run, and the trigger can do the polling or waiting required by the operator. Then, when the trigger finishes polling or waiting, it sends a signal for the operator to resume its execution. During the deferred phase of execution, since work has been offloaded to the triggerer, the task no longer occupies a worker slot, and you have more free workload capacity. By default, deferred tasks don't use pool slots. If you would like them to, you can change this by editing the pool in question.
 
-*Triggers* are small, asynchronous pieces of Python code designed to run in a single Python process. Because they are asynchronous, they can all co-exist efficiently in a *triggerer*, an Airflow service similar to a scheduler or worker.
+*Triggers* are small, asynchronous pieces of Python code designed to run in a single Python process. Because they are asynchronous, they can all co-exist efficiently in the *triggerer* Airflow component.
 
 An overview of how this process works:
 
@@ -52,10 +52,10 @@ Note that you can't use the deferral ability from inside custom PythonOperator o
 Writing Deferrable Operators
 ----------------------------
 
-Writing a deferrable operator requires more configuration than updating your DAGs with pre-written operators. There are some main points to consider:
+When writing a deferrable operators these are the main points to consider:
 
 * Your operator must defer itself with a trigger. You can use a trigger included in core Airflow, or you can write a custom one.
-* Your operator will be stopped and removed from its worker while deferred, and no state persists automatically. You can persist state by instructing Airflow to resume the operation at a certain method or by passing certain kwargs.
+* Your operator will be stopped and removed from its worker while deferred, and no state persists automatically. You can persist state by instructing Airflow to resume the operator at a certain method or by passing certain kwargs.
 * You can defer multiple times, and you can defer before or after your operator does significant work. Or, you can defer if certain conditions are met. For example, if a system does not have an immediate answer. Deferral is entirely under your control.
 * Any operator can defer; no special marking on its class is needed, and it's not limited to sensors.
 * In order for any changes to a trigger to be reflected, the *triggerer* needs to be restarted whenever the trigger is modified.
@@ -102,8 +102,8 @@ Triggering Deferral
 
 If you want to trigger deferral, at any place in your operator, you can call ``self.defer(trigger, method_name, kwargs, timeout)``. This raises a special exception for Airflow. The arguments are:
 
-* ``trigger``: An instance of a trigger that you want to defer. It will be serialized into the database.
-* ``method_name``: The method name of your operator that you want Airflow to call when it resumes.
+* ``trigger``: An instance of a trigger that you want to defer to. It will be serialized into the database.
+* ``method_name``: The method name on your operator that you want Airflow to call when it resumes.
 * ``kwargs``: (Optional) Additional keyword arguments to pass to the method when it is called. Defaults to ``{}``.
 * ``timeout``: (Optional) A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Defaults to ``None``, which means no timeout.
 
@@ -200,7 +200,7 @@ If you are new to writing asynchronous Python, be very careful when writing your
 High Availability
 -----------------
 
-Triggers are designed to work in high availability (HA) architecture. If you want to run a high availability setup, run multiple copies of ``triggerer`` on multiple hosts. Much like ``scheduler``, they automatically co-exist with correct locking and HA.
+Triggers are designed to work in a high availability (HA) architecture. If you want to run a high availability setup, run multiple copies of ``triggerer`` on multiple hosts. Much like ``scheduler``, they automatically co-exist with correct locking and HA.
 
 Depending on how much work the triggers are doing, you can fit hundreds to tens of thousands of triggers on a single ``triggerer`` host. By default, every ``triggerer`` has a capacity of 1000 triggers that it can try to run at once. You can change the number of triggers that can run simultaneously with the ``--capacity`` argument. If you have more triggers trying to run than you have capacity across all of your ``triggerer`` processes, some triggers will be delayed from running until others have completed.
 
