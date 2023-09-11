@@ -135,22 +135,18 @@ def update_docs(revisions: Iterable[Script]):
     )
 
 
-def num_to_prefix(idx: int) -> str:
-    return f"000{idx+1}"[-4:] + "_"
-
-
 def ensure_mod_prefix(mod_name, idx, version):
-    prefix = num_to_prefix(idx) + "_".join(version) + "_"
+    parts = [f"{idx + 1:04}", *version]
     match = re.match(r"([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_(.+)", mod_name)
     if match:
         # previously standardized file, rebuild the name
-        mod_name = match.group(5)
+        parts.append(match.group(5))
     else:
         # new migration file, standard format
         match = re.match(r"([a-z0-9]+)_(.+)", mod_name)
         if match:
-            mod_name = match.group(2)
-    return prefix + mod_name
+            parts.append(match.group(2))
+    return "_".join(parts)
 
 
 def ensure_filenames_are_sorted(revisions):
