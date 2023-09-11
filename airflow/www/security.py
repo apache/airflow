@@ -681,10 +681,10 @@ class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMi
             self.create_permission(dag_action_name, dag_resource_name)
 
         if access_control is not None:
-            self.log.info("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
+            self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
             self._sync_dag_view_permissions(dag_resource_name, access_control)
         else:
-            self.log.info(
+            self.log.debug(
                 "Not syncing DAG-level permissions for DAG '%s' as access control is unset.",
                 dag_resource_name,
             )

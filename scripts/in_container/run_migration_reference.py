@@ -23,8 +23,8 @@ from __future__ import annotations
 
 import os
 import re
+import textwrap
 from pathlib import Path
-from textwrap import wrap
 from typing import TYPE_CHECKING, Iterable
 
 from alembic.script import ScriptDirectory
@@ -125,7 +125,7 @@ def update_docs(revisions: Iterable[Script]):
                 revision=wrap_backticks(rev.revision) + revision_suffix(rev),
                 down_revision=wrap_backticks(rev.down_revision),
                 version=wrap_backticks(rev.module.airflow_version),  # type: ignore
-                description="\n".join(wrap(rev.doc, width=60)),
+                description="\n".join(textwrap.wrap(rev.doc, width=60)),
             )
         )
 
