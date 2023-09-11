@@ -1078,7 +1078,7 @@ class DagFileProcessorManager(LoggingMixin):
         # needs to be done before this process is forked to create the DAG parsing processes.
         SecretCache.init()
 
-        while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
+        while self._parallelism > len(self._processors) and self._file_path_queue:
             file_path = self._file_path_queue.popleft()
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file_path in self._processors:

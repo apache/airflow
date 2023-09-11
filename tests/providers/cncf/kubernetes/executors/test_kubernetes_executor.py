@@ -92,7 +92,7 @@ class TestAirflowKubernetesScheduler:
     @staticmethod
     def _is_valid_pod_id(name):
         regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-        return len(name) <= 253 and all(ch.lower() == ch for ch in name) and re.match(regex, name)
+        return len(name) <= 253 and name.islower() and re.match(regex, name)
 
     @staticmethod
     def _is_safe_label_value(value):
