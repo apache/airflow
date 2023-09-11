@@ -39,9 +39,9 @@ from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_jo
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_hyperparameter_tuning_job_operations"
+DAG_ID = "example_vertex_ai_hyperparameter_tuning_job_operations"
 REGION = "us-central1"
 DISPLAY_NAME = f"hyperparameter-tuning-job-{ENV_ID}"
 
@@ -111,7 +111,8 @@ with models.DAG(
         task_id="get_hyperparameter_tuning_job",
         project_id=PROJECT_ID,
         region=REGION,
-        hyperparameter_tuning_job_id=create_hyperparameter_tuning_job.output["hyperparameter_tuning_job_id"],
+        hyperparameter_tuning_job_id="{{ task_instance.xcom_pull("
+        "task_ids='create_hyperparameter_tuning_job', key='hyperparameter_tuning_job_id') }}",
     )
     # [END how_to_cloud_vertex_ai_get_hyperparameter_tuning_job_operator]
 
@@ -120,7 +121,8 @@ with models.DAG(
         task_id="delete_hyperparameter_tuning_job",
         project_id=PROJECT_ID,
         region=REGION,
-        hyperparameter_tuning_job_id=create_hyperparameter_tuning_job.output["hyperparameter_tuning_job_id"],
+        hyperparameter_tuning_job_id="{{ task_instance.xcom_pull("
+        "task_ids='create_hyperparameter_tuning_job', key='hyperparameter_tuning_job_id') }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_hyperparameter_tuning_job_operator]
