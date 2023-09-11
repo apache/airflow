@@ -28,7 +28,7 @@ PREFIX = "test/"
 MOCK_SUBFOLDERS = ["test/"]
 
 
-class TestS3ListOperator:
+class TestS3ListPrefixesOperator:
     @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
     def test_execute(self, mock_hook):
 
