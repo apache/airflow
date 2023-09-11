@@ -47,4 +47,4 @@ def get_lineage(
     for meta in outlets:
         lineage[meta.task_id]["outlets"] = meta.value
 
-    return {"task_ids": {k: v for k, v in lineage.items()}}
+    return {"task_ids": dict(lineage)}

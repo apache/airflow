@@ -419,7 +419,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         return super().__deepcopy__(memo)
 
     def _execute_python_callable_in_subprocess(self, python_path: Path, tmp_dir: Path):
-        op_kwargs: dict[str, Any] = {k: v for k, v in self.op_kwargs.items()}
+        op_kwargs: dict[str, Any] = dict(self.op_kwargs)
         if self.templates_dict:
             op_kwargs["templates_dict"] = self.templates_dict
         input_path = tmp_dir / "script.in"
