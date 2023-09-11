@@ -202,7 +202,8 @@ The following features are supported in the Trigger UI Form:
             * ``format="datetime"``: Generate a date and time-picker with calendar pop-up
             * ``format="time"``: Generate a time-picker
             * ``enum=["a", "b", "c"]``: Generates a drop-down select list for scalar values. As of JSON validation,
-              a value must be selected or the field must be marked as optional explicit.
+              a value must be selected or the field must be marked as optional explicit. See also details inside the
+              `JSON Schema Description for Enum <https://json-schema.org/understanding-json-schema/reference/generic.html#enumerated-values>`_.
             * ``values_display={"a": "Alpha", "b": "Beta"}``: For select drop-downs generated via ``enum`` you can add
               the attribute ``values_display`` with a dict and map data values to display labels.
             * ``examples=["One", "Two", "Three"]``: If you want to present proposals for values
@@ -246,7 +247,9 @@ The following features are supported in the Trigger UI Form:
 
         * - ``object``
           - Generates a JSON entry field with text validation.
-          -
+          - The HTML form does only validate the syntax of the JSON input. In order to validate the content
+            for specific structures take a look to the
+            `JSON Schema Object details <https://json-schema.org/understanding-json-schema/reference/object.html>`_.
           - ``Param({"key": "value"}, type=["object", "null"])``
 
         * - ``null``
@@ -265,7 +268,7 @@ The following features are supported in the Trigger UI Form:
   Fields w/o ``section`` will be rendered in the default area.
   Additional sections will be collapsed per default.
 - If you want to have params not being displayed, use the ``const`` attribute. These Params will be submitted but hidden in the Form.
-  The ``const`` value must match the default value to pass JSON validation.
+  The ``const`` value must match the default value to pass `JSON Schema validation <https://json-schema.org/understanding-json-schema/reference/generic.html#constant-values>`_.
 - On the bottom of the form the generated JSON configuration can be expanded.
   If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
 - If you want to render custom HTML as form on top of the provided features, you can use the ``custom_html_form`` attribute.
