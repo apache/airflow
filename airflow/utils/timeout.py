@@ -36,11 +36,11 @@ class TimeoutWindows(_timeout, LoggingMixin):
         super().__init__()
         self._timer: Timer | None = None
         self.seconds = seconds
-        self.error_message = error_message + ", PID: " + str(os.getpid())
+        self.error_message = f"{error_message}, PID: {os.getpid()}"
 
     def handle_timeout(self, *args):
         """Log information and raises AirflowTaskTimeout."""
-        self.log.error("Process timed out, PID: %s", str(os.getpid()))
+        self.log.error("Process timed out, PID: %s", os.getpid())
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):
@@ -61,11 +61,11 @@ class TimeoutPosix(_timeout, LoggingMixin):
     def __init__(self, seconds=1, error_message="Timeout"):
         super().__init__()
         self.seconds = seconds
-        self.error_message = error_message + ", PID: " + str(os.getpid())
+        self.error_message = f"{error_message}, PID: {os.getpid()}"
 
     def handle_timeout(self, signum, frame):
         """Log information and raises AirflowTaskTimeout."""
-        self.log.error("Process timed out, PID: %s", str(os.getpid()))
+        self.log.error("Process timed out, PID: %s", os.getpid())
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):

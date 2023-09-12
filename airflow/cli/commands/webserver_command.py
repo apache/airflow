@@ -398,7 +398,7 @@ def webserver(args):
             "--timeout",
             str(worker_timeout),
             "--bind",
-            args.hostname + ":" + str(args.port),
+            f"{args.hostname}:{args.port}",
             "--name",
             "airflow-webserver",
             "--pid",

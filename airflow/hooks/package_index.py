@@ -82,6 +82,7 @@ class PackageIndexHook(BaseHook):
             ["pip", "search", "not-existing-test-package", "--no-input", "--index", conn_url],
             check=False,
             capture_output=True,
+            text=True,
         )
         conn = self.get_connection(self.pi_conn_id)
         if proc.returncode not in [
@@ -89,6 +90,6 @@ class PackageIndexHook(BaseHook):
             23,  # executed successfully, didn't find any packages
             #      (but we do not expect it to find 'not-existing-test-package')
         ]:
-            return False, f"Connection test to {conn.host} failed. Error: {str(proc.stderr)}"
+            return False, f"Connection test to {conn.host} failed. Error: {proc.stderr}"
 
         return True, f"Connection to {conn.host} tested successfully!"

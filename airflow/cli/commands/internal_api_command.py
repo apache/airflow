@@ -111,7 +111,7 @@ def internal_api(args):
             "--timeout",
             str(worker_timeout),
             "--bind",
-            args.hostname + ":" + str(args.port),
+            f"{args.hostname}:{args.port}",
             "--name",
             "airflow-internal-api",
             "--pid",

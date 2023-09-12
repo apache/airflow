@@ -65,10 +65,10 @@ def generate_md5(filename, file_size: int = 65536):
 def check_md5_sum_for_file(file_to_check: str, md5sum_cache_dir: Path, update: bool):
     file_to_get_md5 = AIRFLOW_SOURCES_ROOT / file_to_check
     md5_checksum = generate_md5(file_to_get_md5)
-    sub_dir_name = file_to_get_md5.parts[-2]
-    actual_file_name = file_to_get_md5.parts[-1]
-    cache_file_name = Path(md5sum_cache_dir, sub_dir_name + "-" + actual_file_name + ".md5sum")
-    file_content = md5_checksum + "  " + str(file_to_get_md5) + "\n"
+    sub_dir_name = file_to_get_md5.parent.name
+    actual_file_name = file_to_get_md5.name
+    cache_file_name = Path(md5sum_cache_dir, f"{sub_dir_name}-{actual_file_name}.md5sum")
+    file_content = f"{md5_checksum}  {file_to_get_md5}\n"
     is_modified = check_md5checksum_in_cache_modified(file_content, cache_file_name, update=update)
     return is_modified
 

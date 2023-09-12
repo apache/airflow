@@ -144,7 +144,7 @@ def init_plugins(app):
             appbuilder.add_view(view["view"], name, category=view["category"])
         else:
             # if 'name' key is missing, intent is to add view without menu
-            log.debug("Adding view %s without menu", str(type(view["view"])))
+            log.debug("Adding view %s without menu", type(view["view"]))
             appbuilder.add_view_no_menu(view["view"])
 
     for menu_link in sorted(

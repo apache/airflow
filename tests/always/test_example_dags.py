@@ -83,7 +83,7 @@ def test_should_be_importable(example):
         dag_folder=example,
         include_examples=False,
     )
-    assert len(dagbag.import_errors) == 0, f"import_errors={str(dagbag.import_errors)}"
+    assert len(dagbag.import_errors) == 0, f"import_errors={dagbag.import_errors}"
     assert len(dagbag.dag_ids) >= 1
 
 

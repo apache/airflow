@@ -177,7 +177,7 @@ class TestFileTaskLogHandler:
 
         # We should expect our log line from the callable above to appear in
         # the logs we read back
-        assert re.search(target_re, logs[0][0][-1]), "Logs were " + str(logs)
+        assert re.search(target_re, logs[0][0][-1]), f"Logs were {logs}"
 
         # Remove the generated tmp log file.
         os.remove(log_filename)

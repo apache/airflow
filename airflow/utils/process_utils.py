@@ -90,8 +90,7 @@ def reap_process_group(
             # use sudo -n(--non-interactive) to kill the process
             if err_killpg.errno == errno.EPERM:
                 subprocess.check_call(
-                    ["sudo", "-n", "kill", "-" + str(int(sig))]
-                    + [str(p.pid) for p in all_processes_in_the_group]
+                    ["sudo", "-n", "kill", f"-{int(sig)}", *(str(p.pid) for p in all_processes_in_the_group)]
                 )
             elif err_killpg.errno == errno.ESRCH:
                 # There is a rare condition that the process has not managed yet to change its process
@@ -104,7 +103,7 @@ def reap_process_group(
                     os.kill(process_group_id, sig)
                 except OSError as err_kill:
                     if err_kill.errno == errno.EPERM:
-                        subprocess.check_call(["sudo", "-n", "kill", "-" + str(process_group_id)])
+                        subprocess.check_call(["sudo", "-n", "kill", f"-{process_group_id}"])
                     else:
                         raise
             else:

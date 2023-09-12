@@ -248,7 +248,7 @@ def make_sure_kubernetes_tools_are_installed():
     _download_kubectl_if_needed()
     _download_helm_if_needed()
     new_env = os.environ.copy()
-    new_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + new_env["PATH"]
+    new_env["PATH"] = os.fspath(K8S_BIN_BASE_PATH / new_env["PATH"])
     result = run_command(
         ["helm", "repo", "list"],
         check=False,
@@ -390,7 +390,7 @@ def run_command_with_k8s_env(
 
 def get_k8s_env(python: str, kubernetes_version: str, executor: str | None = None) -> dict[str, str]:
     new_env = os.environ.copy()
-    new_env["PATH"] = str(K8S_BIN_BASE_PATH) + os.pathsep + new_env["PATH"]
+    new_env["PATH"] = os.fspath(K8S_BIN_BASE_PATH / new_env["PATH"])
     new_env["KUBECONFIG"] = str(get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version))
     new_env["KINDCONFIG"] = str(
         get_kind_cluster_config_path(python=python, kubernetes_version=kubernetes_version)

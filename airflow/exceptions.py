@@ -306,7 +306,7 @@ class FileSyntaxError(NamedTuple):
     message: str
 
     def __str__(self):
-        return f"{self.message}. Line number: s{str(self.line_no)},"
+        return f"{self.message}. Line number: s{self.line_no},"
 
 
 class AirflowFileParseException(AirflowException):
@@ -422,5 +422,5 @@ class DeserializingResultError(ValueError):
     def __str__(self):
         return (
             "Error deserializing result. Note that result deserialization "
-            "is not supported across major Python versions. Cause: " + str(self.__cause__)
+            f"is not supported across major Python versions. Cause: {self.__cause__}"
         )
