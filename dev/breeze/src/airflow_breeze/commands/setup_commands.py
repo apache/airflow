@@ -60,8 +60,6 @@ from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
-OPTIONS_COMMAND_MAP = {}
-
 
 @click.group(cls=BreezeGroup, name="setup", help="Tools that developers can use to configure Breeze")
 def setup():
@@ -275,16 +273,28 @@ def is_common_param(name):
     return name == "verbose" or name == "help" or name == "dry_run"
 
 
+def is_short_flag(opt):
+    return len(opt) == 2 and (not opt.startswith("--"))
+
+
 def validate_params_for_command(command_params, command):
+    options_command_map = {}
     if "params" in command_params:
         for param in command_params["params"]:
             name = param["name"]
             if not is_common_param(name):
                 for opt in param["opts"]:
-                    if opt not in OPTIONS_COMMAND_MAP:
-                        OPTIONS_COMMAND_MAP[opt] = [command]
+                    if opt not in options_command_map:
+                        options_command_map[opt] = [command]
                     else:
-                        OPTIONS_COMMAND_MAP[opt].append(command)
+                        # same flag used in same command
+                        if is_short_flag(opt):
+                            get_console().print(
+                                f"\n[error] {opt} have duplicate short hand commands under command: "
+                                f"{'breeze ' + command}\n"
+                            )
+                            return False
+    return True
 
 
 def get_command_hash_export() -> str:
@@ -299,9 +309,9 @@ def get_command_hash_export() -> str:
         commands_dict = the_context_dict["command"]["commands"]
         options = rich_click.rich_click.OPTION_GROUPS
         for command in sorted(commands_dict.keys()):
-            global OPTIONS_COMMAND_MAP
-            OPTIONS_COMMAND_MAP = {}
-            validate_params_for_command(commands_dict[command], command)
+            ok = validate_params_for_command(commands_dict[command], command)
+            if not ok:
+                sys.exit(1)
             current_command_dict = commands_dict[command]
             current_command_hash_dict = {
                 "command": current_command_dict,
@@ -310,9 +320,11 @@ def get_command_hash_export() -> str:
             if "commands" in current_command_dict:
                 subcommands = current_command_dict["commands"]
                 for subcommand in sorted(subcommands.keys()):
-                    validate_params_for_command(
+                    ok = validate_params_for_command(
                         commands_dict[command]["commands"][subcommand], command + " " + subcommand
                     )
+                    if not ok:
+                        sys.exit(1)
                     subcommand_click_dict = subcommands[subcommand]
                     try:
                         subcommand_rich_click_dict = options[f"breeze {command} {subcommand}"]
@@ -334,22 +346,6 @@ def get_command_hash_export() -> str:
                 hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
             else:
                 hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
-            duplicate_short_options: dict[str, list[str]] = {}
-            atleast_one_duplicate = False
-            get_console().print(OPTIONS_COMMAND_MAP)
-            # filter out the short options
-            for option in OPTIONS_COMMAND_MAP:
-                if len(option) == 2 and (not option.startswith("--")):
-                    if len(OPTIONS_COMMAND_MAP[option]) > 1:
-                        duplicate_short_options[option] = OPTIONS_COMMAND_MAP[option]
-                        atleast_one_duplicate = True
-
-            if atleast_one_duplicate:
-                get_console().print(
-                    f"\n[error] {duplicate_short_options} have duplicate short hand commands\n"
-                )
-                sys.exit(1)
-
     return "".join(f"{h}\n" for h in hashes)
 
 
