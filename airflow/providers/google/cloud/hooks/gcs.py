@@ -336,7 +336,7 @@ class GCSHook(GoogleBaseHook):
         for attempt in range(num_max_attempts):
             if attempt:
                 # Wait with exponential backoff scheme before retrying.
-                timeout_seconds = 2 ** attempt
+                timeout_seconds = 2**attempt
                 time.sleep(timeout_seconds)
 
             try:
