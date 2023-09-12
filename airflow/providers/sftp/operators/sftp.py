@@ -123,7 +123,7 @@ class SFTPOperator(BaseOperator):
                 f"!= {len(remote_filepath_array)} paths in remote_filepath"
             )
 
-        if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
+        if self.operation.lower() not in (SFTPOperation.GET, SFTPOperation.PUT):
             raise TypeError(
                 f"Unsupported operation value {self.operation}, "
                 f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}."

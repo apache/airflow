@@ -470,7 +470,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         if not exactly_one(self.keys is None, self.prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
 
-        if isinstance(self.keys, (list, str)) and not bool(self.keys):
+        if isinstance(self.keys, (list, str)) and not self.keys:
             return
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
