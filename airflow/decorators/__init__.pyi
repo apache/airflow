@@ -120,13 +120,13 @@ class TaskDecoratorCollection:
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param requirements: Either a list of requirement strings, or a (templated)
             "requirements file" as specified by pip.
-        :param python_version: The Python version to run the virtualenv with. Note that
+        :param python_version: The Python version to run the virtual environment with. Note that
             both 2 and 2.7 are acceptable forms.
         :param use_dill: Whether to use dill to serialize
             the args and result (pickle is default). This allow more complex types
             but requires you to include dill in your requirements.
         :param system_site_packages: Whether to include
-            system_site_packages in your virtualenv.
+            system_site_packages in your virtual environment.
             See virtualenv documentation for more information.
         :param pip_install_options: a list of pip install options when installing requirements
             See 'pip install -h' for available options
@@ -135,9 +135,10 @@ class TaskDecoratorCollection:
             exit code will be treated as a failure.
         :param index_urls: an optional list of index urls to load Python packages from.
             If not provided the system pip conf will be used to source packages from.
-        :param venv_cache_path: Optional path to the venv parent folder in which the venv will be cached,
-            creates a sub-folder venv-{hash} whereas hash will be replaced with a checksum of requirements.
-            If not provided the venv will be created and deleted in a temp folder for every execution.
+        :param venv_cache_path: Optional path to the virtual environment parent folder in which the
+            virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be
+            replaced with a checksum of requirements. If not provided the virtual environment will be
+            created and deleted in a temp folder for every execution.
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
@@ -164,7 +165,7 @@ class TaskDecoratorCollection:
         """Create a decorator to convert the decorated callable to a virtual environment task.
 
         :param python: Full path string (file-system specific) that points to a Python binary inside
-            a virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path
+            a virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path
             (so usually start with "/" or "X:/" depending on the filesystem/os used).
         :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
