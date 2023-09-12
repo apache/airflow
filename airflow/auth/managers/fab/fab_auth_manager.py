@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from flask import url_for
 from sqlalchemy import select
@@ -180,7 +180,7 @@ class FabAuthManager(BaseAuthManager):
         else:
             # Scenario 2
             resource_type = self._get_fab_resource_type(dag_access_entity)
-            dag_method: ResourceMethod = cast(ResourceMethod, "GET" if method == "GET" else "PUT")
+            dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
 
             return self._is_authorized_dag(
                 method=dag_method, dag_details=dag_details, user=user
