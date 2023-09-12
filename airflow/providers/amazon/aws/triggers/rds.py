@@ -196,7 +196,7 @@ class RdsDbDeletedTrigger(AwsBaseWaiterTrigger):
             serialized_fields={
                 "db_identifier": db_identifier,
                 "response": response,
-                "db_type": db_type,
+                "db_type": db_type_str,
             },
             waiter_name=f"db_{db_type_str}_deleted",
             waiter_args={_waiter_arg[db_type_str]: db_identifier},

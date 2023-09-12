@@ -115,7 +115,7 @@ def gen_test_name(trigger):
     return trigger.__class__.__name__
 
 
-class TestRdsTriggers:
+class TestTriggersSerialization:
     @pytest.mark.parametrize(
         "trigger",
         [
