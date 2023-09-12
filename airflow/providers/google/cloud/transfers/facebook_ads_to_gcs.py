@@ -226,7 +226,5 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
 
     def _transform_object_name_with_account_id(self, account_id: str):
         directory_parts = self.object_name.split("/")
-        directory_parts[len(directory_parts) - 1] = (
-            account_id + "_" + directory_parts[len(directory_parts) - 1]
-        )
+        directory_parts[-1] = f"{account_id}_{directory_parts[-1]}"
         return "/".join(directory_parts)

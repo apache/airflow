@@ -257,7 +257,7 @@ class GcpBodyFieldValidator(LoggingMixin):
             self._validate_field(
                 validation_spec=child_validation_spec, dictionary_to_validate=value, parent=full_field_path
             )
-        all_dict_keys = [spec["name"] for spec in children_validation_specs]
+        all_dict_keys = {spec["name"] for spec in children_validation_specs}
         for field_name in value.keys():
             if field_name not in all_dict_keys:
                 self.log.warning(
@@ -428,20 +428,18 @@ class GcpBodyFieldValidator(LoggingMixin):
             raise GcpFieldValidationException(
                 f"There was an error when validating: body '{body_to_validate}': '{e}'"
             )
-        all_field_names = [
+        all_field_names = {
             spec["name"]
             for spec in self._validation_specs
             if spec.get("type") != "union" and spec.get("api_version") != self._api_version
-        ]
+        }
         all_union_fields = [spec for spec in self._validation_specs if spec.get("type") == "union"]
         for union_field in all_union_fields:
-            all_field_names.extend(
-                [
-                    nested_union_spec["name"]
-                    for nested_union_spec in union_field["fields"]
-                    if nested_union_spec.get("type") != "union"
-                    and nested_union_spec.get("api_version") != self._api_version
-                ]
+            all_field_names.update(
+                nested_union_spec["name"]
+                for nested_union_spec in union_field["fields"]
+                if nested_union_spec.get("type") != "union"
+                and nested_union_spec.get("api_version") != self._api_version
             )
         for field_name in body_to_validate.keys():
             if field_name not in all_field_names:
