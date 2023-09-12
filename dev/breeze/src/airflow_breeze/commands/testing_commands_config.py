@@ -56,6 +56,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--use-airflow-version",
                 "--mount-sources",
                 "--upgrade-boto",
+                "--downgrade-sqlalchemy",
                 "--remove-arm-packages",
                 "--skip-docker-compose-down",
             ],

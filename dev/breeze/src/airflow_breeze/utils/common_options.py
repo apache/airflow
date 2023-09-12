@@ -601,3 +601,15 @@ option_eager_upgrade_additional_requirements = click.option(
     help="Optional additional requirements to upgrade eagerly to avoid backtracking "
     "(see `breeze ci find-backtracking-candidates`).",
 )
+option_upgrade_boto = click.option(
+    "--upgrade-boto",
+    help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_BOTO",
+)
+option_downgrade_sqlalchemy = click.option(
+    "--downgrade-sqlalchemy",
+    help="Downgrade SQLAlchemy to minimum supported version.",
+    is_flag=True,
+    envvar="DOWNGRADE_SQLALCHEMY",
+)

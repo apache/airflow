@@ -51,6 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_celery_broker,
     option_celery_flower,
     option_db_reset,
+    option_downgrade_sqlalchemy,
     option_dry_run,
     option_executor,
     option_force_build,
@@ -70,6 +71,7 @@ from airflow_breeze.utils.common_options import (
     option_platform_single,
     option_postgres_version,
     option_python,
+    option_upgrade_boto,
     option_use_airflow_version,
     option_use_packages_from_dist,
     option_verbose,
@@ -162,6 +164,8 @@ class TimerThread(threading.Thread):
 @option_image_tag_for_running
 @option_max_time
 @option_include_mypy_volume
+@option_upgrade_boto
+@option_downgrade_sqlalchemy
 @option_verbose
 @option_dry_run
 @option_github_repository
@@ -197,6 +201,8 @@ def shell(
     celery_broker: str,
     celery_flower: bool,
     extra_args: tuple,
+    upgrade_boto: bool,
+    downgrade_sqlalchemy: bool,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run():
@@ -234,6 +240,8 @@ def shell(
         executor=executor,
         celery_broker=celery_broker,
         celery_flower=celery_flower,
+        upgrade_boto=upgrade_boto,
+        downgrade_sqlalchemy=downgrade_sqlalchemy,
     )
     sys.exit(result.returncode)
 

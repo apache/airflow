@@ -38,6 +38,7 @@ from airflow_breeze.utils.common_options import (
     option_backend,
     option_db_reset,
     option_debug_resources,
+    option_downgrade_sqlalchemy,
     option_dry_run,
     option_github_repository,
     option_image_name,
@@ -52,6 +53,7 @@ from airflow_breeze.utils.common_options import (
     option_python,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_upgrade_boto,
     option_use_airflow_version,
     option_verbose,
 )
@@ -367,12 +369,8 @@ def run_tests_in_parallel(
     show_default=True,
     envvar="PARALLEL_TEST_TYPES",
 )
-@click.option(
-    "--upgrade-boto",
-    help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
-    is_flag=True,
-    envvar="UPGRADE_BOTO",
-)
+@option_upgrade_boto
+@option_downgrade_sqlalchemy
 @click.option(
     "--collect-only",
     help="Collect tests only, do not run them.",
@@ -416,6 +414,7 @@ def command_for_tests(
     mount_sources: str,
     extra_pytest_args: tuple,
     upgrade_boto: bool,
+    downgrade_sqlalchemy: bool,
     collect_only: bool,
     remove_arm_packages: bool,
     github_repository: str,
@@ -436,6 +435,7 @@ def command_for_tests(
         forward_ports=False,
         test_type=test_type,
         upgrade_boto=upgrade_boto,
+        downgrade_sqlalchemy=downgrade_sqlalchemy,
         collect_only=collect_only,
         remove_arm_packages=remove_arm_packages,
         github_repository=github_repository,

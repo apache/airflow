@@ -326,6 +326,22 @@ fi
 # Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
 # but may still be present in the local directory if the user has old breeze image
 rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+if [[ ${UPGRADE_BOTO=} == "true" ]]; then
+    echo
+    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
+    echo
+    pip uninstall --root-user-action ignore aiobotocore -y || true
+    pip install --root-user-action ignore --upgrade boto3 botocore
+    pip check
+fi
+if [[ ${DOWNGRADE_SQLALCHEMY=} == "true" ]]; then
+    min_sqlalchemy_version=$(grep "sqlalchemy>=" setup.cfg | sed "s/.*>=\([0-9\.]*\).*/\1/")
+    echo
+    echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
+    echo
+    pip install --root-user-action ignore "sqlalchemy==${min_sqlalchemy_version}"
+    pip check
+fi
 
 set +u
 # If we do not want to run tests, we simply drop into bash
@@ -557,13 +573,6 @@ else
         echo
         exit 1
     fi
-fi
-if [[ ${UPGRADE_BOTO=} == "true" ]]; then
-    echo
-    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
-    echo
-    pip uninstall aiobotocore -y || true
-    pip install --upgrade boto3 botocore
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
