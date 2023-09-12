@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-12T16:47:29Z
+# This constraints file was automatically generated on 2023-09-12T19:09:17Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -287,7 +287,7 @@ gcloud-aio-bigquery==6.3.0
 gcloud-aio-storage==8.3.0
 gcsfs==2023.9.0
 geomet==0.2.1.post1
-gevent==23.9.0.post1
+gevent==23.9.1
 gitdb==4.0.10
 google-ads==21.3.0
 google-api-core==2.11.1
@@ -342,7 +342,7 @@ google-re2==1.1
 google-resumable-media==2.6.0
 googleapis-common-protos==1.60.0
 graphviz==0.20.1
-greenlet==2.0.2
+greenlet==3.0.0rc3
 grpc-google-iam-v1==0.12.6
 grpcio-gcp==0.2.2
 grpcio-status==1.58.0
@@ -559,7 +559,7 @@ rich-click==1.6.1
 rich==13.5.2
 rpds-py==0.10.2
 rsa==4.9
-ruff==0.0.288
+ruff==0.0.289
 s3transfer==0.6.2
 scramp==1.4.4
 scrapbook==0.5.0
