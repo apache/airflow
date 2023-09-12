@@ -1578,6 +1578,7 @@ tzinfo
 UA
 ui
 uid
+ulimit
 Umask
 umask
 Un
