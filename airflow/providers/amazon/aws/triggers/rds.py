@@ -99,12 +99,11 @@ class RdsDbInstanceTrigger(BaseTrigger):
         yield TriggerEvent({"status": "success", "response": self.response})
 
 
-# using Any for the keys  to "disable" type checks because Union types.
-_waiter_arg: dict[Any, str] = {
+_waiter_arg = {
     RdsDbType.INSTANCE.value: "DBInstanceIdentifier",
     RdsDbType.CLUSTER.value: "DBClusterIdentifier",
 }
-_status_paths: dict[Any, list[str]] = {
+_status_paths = {
     RdsDbType.INSTANCE.value: ["DBInstances[].DBInstanceStatus", "DBInstances[].StatusInfos"],
     RdsDbType.CLUSTER.value: ["DBClusters[].Status"],
 }
@@ -136,19 +135,21 @@ class RdsDbAvailableTrigger(AwsBaseWaiterTrigger):
         # allow passing enums for users,
         # but we can only rely on strings because (de-)serialization doesn't support enums
         if isinstance(db_type, RdsDbType):
-            db_type = db_type.value
+            db_type_str = db_type.value
+        else:
+            db_type_str = db_type
 
         super().__init__(
             serialized_fields={
                 "db_identifier": db_identifier,
                 "response": response,
-                "db_type": db_type,
+                "db_type": db_type_str,
             },
-            waiter_name=f"db_{db_type}_available",
-            waiter_args={_waiter_arg[db_type]: db_identifier},
+            waiter_name=f"db_{db_type_str}_available",
+            waiter_args={_waiter_arg[db_type_str]: db_identifier},
             failure_message="Error while waiting for DB to be available",
             status_message="DB initialization in progress",
-            status_queries=_status_paths[db_type],
+            status_queries=_status_paths[db_type_str],
             return_key="response",
             return_value=response,
             waiter_delay=waiter_delay,
@@ -187,7 +188,9 @@ class RdsDbDeletedTrigger(AwsBaseWaiterTrigger):
         # allow passing enums for users,
         # but we can only rely on strings because (de-)serialization doesn't support enums
         if isinstance(db_type, RdsDbType):
-            db_type = db_type.value
+            db_type_str = db_type.value
+        else:
+            db_type_str = db_type
 
         super().__init__(
             serialized_fields={
@@ -195,11 +198,11 @@ class RdsDbDeletedTrigger(AwsBaseWaiterTrigger):
                 "response": response,
                 "db_type": db_type,
             },
-            waiter_name=f"db_{db_type}_deleted",
-            waiter_args={_waiter_arg[db_type]: db_identifier},
+            waiter_name=f"db_{db_type_str}_deleted",
+            waiter_args={_waiter_arg[db_type_str]: db_identifier},
             failure_message="Error while deleting DB",
             status_message="DB deletion in progress",
-            status_queries=_status_paths[db_type],
+            status_queries=_status_paths[db_type_str],
             return_key="response",
             return_value=response,
             waiter_delay=waiter_delay,
@@ -238,19 +241,21 @@ class RdsDbStoppedTrigger(AwsBaseWaiterTrigger):
         # allow passing enums for users,
         # but we can only rely on strings because (de-)serialization doesn't support enums
         if isinstance(db_type, RdsDbType):
-            db_type = db_type.value
+            db_type_str = db_type.value
+        else:
+            db_type_str = db_type
 
         super().__init__(
             serialized_fields={
                 "db_identifier": db_identifier,
                 "response": response,
-                "db_type": db_type,
+                "db_type": db_type_str,
             },
-            waiter_name=f"db_{db_type}_stopped",
-            waiter_args={_waiter_arg[db_type]: db_identifier},
+            waiter_name=f"db_{db_type_str}_stopped",
+            waiter_args={_waiter_arg[db_type_str]: db_identifier},
             failure_message="Error while stopping DB",
             status_message="DB is being stopped",
-            status_queries=_status_paths[db_type],
+            status_queries=_status_paths[db_type_str],
             return_key="response",
             return_value=response,
             waiter_delay=waiter_delay,
