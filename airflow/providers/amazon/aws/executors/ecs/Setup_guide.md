@@ -97,9 +97,11 @@ Once the image is built, it needs to be put in a repository where it can be pull
 5. Add the following environment variables to the container:
 
  - `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`, with the value being the PostgreSQL connection string in the following format using the values set during the [Database section](#create-the-rds-db-instance) above:
+
 ```
 postgresql+psycopg2://<username>:<password>@<endpoint>/<database_name>
 ```
+
  - `AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS`, with the value being a comma separated list of security group IDs associated with the VPC used for the RDS instance.
  - `AIRFLOW__ECS_EXECUTOR__SUBNETS`, with the value being a comma separated list of subnet IDs of the subnets associated with the RDS instance.
 
