@@ -279,22 +279,24 @@ def is_short_flag(opt):
 
 def validate_params_for_command(command_params, command):
     options_command_map = {}
+    is_duplicate_found = False
     if "params" in command_params:
         for param in command_params["params"]:
             name = param["name"]
-            if not is_common_param(name):
-                for opt in param["opts"]:
+            for opt in param["opts"]:
+                if is_short_flag(opt):
                     if opt not in options_command_map:
-                        options_command_map[opt] = [command]
+                        options_command_map[opt] = [[command, name]]
                     else:
                         # same flag used in same command
-                        if is_short_flag(opt):
-                            get_console().print(
-                                f"\n[error] {opt} have duplicate short hand commands under command: "
-                                f"{'breeze ' + command}\n"
-                            )
-                            return False
-    return True
+                        get_console().print(
+                            f"[error] {opt} short flag has duplicate short hand commands under command(s): "
+                            f"{'breeze ' + command} for parameters "
+                            f"{options_command_map[opt][0][1]} and {name}\n"
+                        )
+                        options_command_map[opt][0][1] = name
+                        is_duplicate_found = True
+    return is_duplicate_found
 
 
 def get_command_hash_export() -> str:
@@ -309,8 +311,8 @@ def get_command_hash_export() -> str:
         commands_dict = the_context_dict["command"]["commands"]
         options = rich_click.rich_click.OPTION_GROUPS
         for command in sorted(commands_dict.keys()):
-            ok = validate_params_for_command(commands_dict[command], command)
-            if not ok:
+            duplicate_found = validate_params_for_command(commands_dict[command], command)
+            if duplicate_found:
                 sys.exit(1)
             current_command_dict = commands_dict[command]
             current_command_hash_dict = {
@@ -319,12 +321,13 @@ def get_command_hash_export() -> str:
             }
             if "commands" in current_command_dict:
                 subcommands = current_command_dict["commands"]
+                duplicate_found_subcommand = False
                 for subcommand in sorted(subcommands.keys()):
-                    ok = validate_params_for_command(
+                    duplicate_found = validate_params_for_command(
                         commands_dict[command]["commands"][subcommand], command + " " + subcommand
                     )
-                    if not ok:
-                        sys.exit(1)
+                    if duplicate_found:
+                        duplicate_found_subcommand = True
                     subcommand_click_dict = subcommands[subcommand]
                     try:
                         subcommand_rich_click_dict = options[f"breeze {command} {subcommand}"]
@@ -343,6 +346,8 @@ def get_command_hash_export() -> str:
                         "rich_click_options": subcommand_rich_click_dict,
                     }
                     hashes.append(f"{command}:{subcommand}:{dict_hash(final_dict)}")
+                if duplicate_found_subcommand:
+                    sys.exit(1)
                 hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
             else:
                 hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
