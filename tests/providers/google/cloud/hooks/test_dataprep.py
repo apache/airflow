@@ -23,7 +23,6 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from pytest import param
 from requests import HTTPError
 from tenacity import RetryError
 
@@ -262,8 +261,8 @@ class TestGoogleDataprepHook:
     @pytest.mark.parametrize(
         "uri",
         [
-            param("a://?extra__dataprep__token=abc&extra__dataprep__base_url=abc", id="prefix"),
-            param("a://?token=abc&base_url=abc", id="no-prefix"),
+            pytest.param("a://?extra__dataprep__token=abc&extra__dataprep__base_url=abc", id="prefix"),
+            pytest.param("a://?token=abc&base_url=abc", id="no-prefix"),
         ],
     )
     def test_conn_extra_backcompat_prefix(self, uri):

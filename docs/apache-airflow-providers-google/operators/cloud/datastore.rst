@@ -38,7 +38,7 @@ Export Entities
 To export entities from Google Cloud Datastore to Cloud Storage use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreExportEntitiesOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_export_import.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_export_task]
@@ -52,7 +52,7 @@ Import Entities
 To import entities from Cloud Storage to Google Cloud Datastore use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreImportEntitiesOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_export_import.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_import_task]
@@ -168,7 +168,7 @@ Get operation state
 To get the current state of a long-running operation use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreGetOperationOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_export_import.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START get_operation_state]
@@ -182,7 +182,7 @@ Delete operation
 To delete an operation use
 :class:`~airflow.providers.google.cloud.operators.datastore.CloudDatastoreDeleteOperationOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_export_import.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/datastore/example_datastore_commit.py
     :language: python
     :dedent: 4
     :start-after: [START delete_operation]

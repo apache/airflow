@@ -206,10 +206,9 @@ class TestPluginsManager:
 
             assert 6 == len(plugins_manager.plugins)
             for plugin in plugins_manager.plugins:
-                if "AirflowTestOnLoadPlugin" not in str(plugin):
-                    continue
-                assert "postload" == plugin.name
-                break
+                if "AirflowTestOnLoadPlugin" in str(plugin):
+                    assert "postload" == plugin.name
+                    break
             else:
                 pytest.fail("Wasn't able to find a registered `AirflowTestOnLoadPlugin`")
 

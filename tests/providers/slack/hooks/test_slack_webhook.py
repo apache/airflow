@@ -26,7 +26,6 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from pytest import MonkeyPatch, param
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.webhook.webhook_response import WebhookResponse
 
@@ -126,7 +125,7 @@ def slack_webhook_connections():
             host="some.netloc",
         ),
     ]
-    with MonkeyPatch.context() as mp:
+    with pytest.MonkeyPatch.context() as mp:
         for conn in connections:
             mp.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.get_uri())
         yield
@@ -479,11 +478,11 @@ class TestSlackWebhookHook:
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://:abc@?extra__slackwebhook__timeout=123&extra__slackwebhook__proxy=proxy",
                 id="prefix",
             ),
-            param("a://:abc@?timeout=123&proxy=proxy", id="no-prefix"),
+            pytest.param("a://:abc@?timeout=123&proxy=proxy", id="no-prefix"),
         ],
     )
     def test_backcompat_prefix_works(self, uri):

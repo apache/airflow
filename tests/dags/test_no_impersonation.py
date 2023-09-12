@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import textwrap
 from datetime import datetime
-from textwrap import dedent
 
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
@@ -32,7 +32,7 @@ args = {
 
 dag = DAG(dag_id="test_no_impersonation", default_args=args)
 
-test_command = dedent(
+test_command = textwrap.dedent(
     """\
     sudo ls
     if [ $? -ne 0 ]; then

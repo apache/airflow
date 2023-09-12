@@ -356,7 +356,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         )
 
     def _wait_for_transfer_to_be_done(self, run_id: str, transfer_config_id: str, interval: int = 10):
-        if interval < 0:
+        if interval <= 0:
             raise ValueError("Interval must be > 0")
 
         while True:

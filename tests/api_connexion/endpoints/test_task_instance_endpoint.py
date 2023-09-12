@@ -24,6 +24,7 @@ import pendulum
 import pytest
 from sqlalchemy.orm import contains_eager
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
@@ -82,6 +83,25 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ],
     )
+    create_user(
+        app,  # type: ignore
+        username="test_read_only_one_dag",
+        role_name="TestReadOnlyOneDag",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ],
+    )
+    # For some reason, "DAG:example_python_operator" is not synced when in the above list of perms,
+    # so do it manually here:
+    app.appbuilder.sm.bulk_sync_roles(
+        [
+            {
+                "role": "TestReadOnlyOneDag",
+                "perms": [(permissions.ACTION_CAN_READ, "DAG:example_python_operator")],
+            }
+        ]
+    )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     yield app
@@ -90,6 +110,7 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_dag_read_only")  # type: ignore
     delete_user(app, username="test_task_read_only")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test_read_only_one_dag")  # type: ignore
     delete_roles(app)
 
 
@@ -904,6 +925,24 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             json={"dag_ids": ["example_python_operator", "example_skip_dag"]},
         )
         assert response.status_code == 403
+
+    def test_returns_403_forbidden_when_user_has_access_to_only_some_dags(self, session):
+        self.create_task_instances(session=session)
+        self.create_task_instances(session=session, dag_id="example_skip_dag")
+        payload = {"dag_ids": ["example_python_operator", "example_skip_dag"]}
+
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test_read_only_one_dag"},
+            json=payload,
+        )
+        assert response.status_code == 403
+        assert response.json == {
+            "detail": "User not allowed to access these DAGs: ['example_skip_dag']",
+            "status": 403,
+            "title": "Forbidden",
+            "type": EXCEPTIONS_LINK_MAP[403],
+        }
 
     def test_should_raise_400_for_no_json(self):
         response = self.client.post(
