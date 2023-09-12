@@ -768,6 +768,15 @@ def enter_shell(**kwargs) -> RunCommandResult:
         if shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
             sys.exit(1)
+
+    if "openlineage" in shell_params.integration or "all" in shell_params.integration:
+        if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
+            get_console().print(
+                "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
+                "as a backend with OpenLineage integration via Breeze[/]\n"
+            )
+            sys.exit(1)
+
     command_result = run_command(
         cmd, env=env_variables, text=True, check=False, output_outside_the_group=True
     )
