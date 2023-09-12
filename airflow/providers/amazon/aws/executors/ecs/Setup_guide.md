@@ -142,5 +142,5 @@ The script sets environment variables that configure Airflow to use the ECS Exec
 The Airflow DB needs to be initialized before it can be used and a user needs to be added for you to log in. The below command adds an admin user (the command will also initialize the DB if it hasn't been already):
 
 ```
-airflow users create --username admin --password admin --firstname <your  first name> --lastname <your last name> --email <your email> --role Admin
+airflow users create --username admin --password admin --firstname <your first name> --lastname <your last name> --email <your email> --role Admin
 ```
