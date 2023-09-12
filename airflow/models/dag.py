@@ -2760,6 +2760,7 @@ class DAG(LoggingMixin):
                     _run_task(ti, session=session)
                 except Exception:
                     self.log.exception("Task failed; ti=%s", ti)
+                    raise
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
