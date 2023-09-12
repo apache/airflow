@@ -269,10 +269,6 @@ def dict_hash(dictionary: dict[str, Any]) -> str:
     return dhash.hexdigest()
 
 
-def is_common_param(name):
-    return name == "verbose" or name == "help" or name == "dry_run"
-
-
 def is_short_flag(opt):
     return len(opt) == 2 and (not opt.startswith("--"))
 
