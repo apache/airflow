@@ -1983,7 +1983,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        self.dataset_reference = dataset_reference if dataset_reference else {}
+        self.dataset_reference = dataset_reference or {}
         self.impersonation_chain = impersonation_chain
         if exists_ok is not None:
             warnings.warn(
