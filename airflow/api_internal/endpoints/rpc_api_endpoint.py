@@ -72,7 +72,7 @@ def _initialize_map() -> dict[str, Callable]:
         SerializedDagModel.get_serialized_dag,
         TaskInstance.get_task_instance,
         TaskInstance.fetch_handle_failure_context,
-        TaskInstance.finish_task,
+        TaskInstance.save_to_db,
         TaskInstance.set_end_date,
         Trigger.from_object,
         Trigger.bulk_fetch,
