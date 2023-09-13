@@ -56,9 +56,6 @@ def downgrade():
     with op.batch_alter_table("dag_run") as batch_op:
         if conn.dialect.name == "mssql":
             constraints = get_mssql_table_constraints(conn, "dag_run")
-            for k, cols in constraints.get("NOT NULL").items():
-                if "clear_number" in cols:
-                    batch_op.drop_constraint(k)
             for k, cols in constraints.get("DEFAULT").items():
                 if "clear_number" in cols:
                     batch_op.drop_constraint(k)
