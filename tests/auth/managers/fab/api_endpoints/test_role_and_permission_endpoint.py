@@ -32,8 +32,8 @@ from tests.test_utils.api_connexion_utils import (
 
 
 @pytest.fixture(scope="module")
-def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+def configured_app(minimal_app_for_auth_api):
+    app = minimal_app_for_auth_api
     create_user(
         app,  # type: ignore
         username="test",

@@ -33,8 +33,8 @@ DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 
 
 @pytest.fixture(scope="module")
-def configured_app(minimal_app_for_api):
-    app = minimal_app_for_api
+def configured_app(minimal_app_for_auth_api):
+    app = minimal_app_for_auth_api
     create_user(
         app,  # type: ignore
         username="test",
@@ -633,7 +633,7 @@ class TestPatchUser(TestUserEndpoint):
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     @unittest.mock.patch(
-        "airflow.api_connexion.endpoints.user_endpoint.generate_password_hash",
+        "airflow.auth.managers.fab.api_endpoints.user_endpoint.generate_password_hash",
         return_value="fake-hashed-pass",
     )
     def test_password_hashed(
