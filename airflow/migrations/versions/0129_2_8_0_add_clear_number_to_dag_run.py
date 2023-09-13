@@ -43,7 +43,7 @@ def upgrade():
             sa.Column(
                 "clear_number",
                 sa.Integer,
-                default=0,
+                server_default="0",
                 nullable=False,
             )
         )
