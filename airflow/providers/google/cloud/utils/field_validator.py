@@ -421,6 +421,8 @@ class GcpBodyFieldValidator(LoggingMixin):
         :param body_to_validate: body that must follow the specification
         :return: None
         """
+        if body_to_validate is None:
+            raise RuntimeError("The body to validate is `None`. Please provide a dictionary to validate.")
         try:
             for validation_spec in self._validation_specs:
                 self._validate_field(validation_spec=validation_spec, dictionary_to_validate=body_to_validate)
