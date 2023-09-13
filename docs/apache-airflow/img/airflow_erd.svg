@@ -1218,28 +1218,28 @@
 <g id="edge46" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1114.45,-2160.17C1147.39,-2079.52 1188.61,-1998.03 1239,-1929 1244.85,-1920.99 1251.31,-1913.19 1258.19,-1905.69"/>
-<text text-anchor="start" x="1248.19" y="-1894.49" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="1227.19" y="-1894.49" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1104.45" y="-2148.97" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
 <g id="edge47" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1121.68,-2160.36C1153.36,-2085.87 1192.23,-2011.07 1239,-1947 1244.85,-1938.99 1251.31,-1931.19 1258.19,-1923.67"/>
-<text text-anchor="start" x="1227.19" y="-1912.47" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1248.19" y="-1912.47" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="1121.68" y="-2149.16" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
 <g id="edge48" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1129.34,-2160.34C1159.57,-2092.09 1195.93,-2024 1239,-1965 1244.85,-1956.99 1251.31,-1949.19 1258.19,-1941.64"/>
-<text text-anchor="start" x="1248.19" y="-1930.44" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="1227.19" y="-1930.44" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1129.34" y="-2149.14" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
 <g id="edge49" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1137.45,-2160.12C1166.01,-2098.2 1199.71,-2036.81 1239,-1983 1248.13,-1970.5 1258.77,-1958.5 1270.11,-1947.08"/>
-<text text-anchor="start" x="1239.11" y="-1950.88" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1260.11" y="-1950.88" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="1137.45" y="-2148.92" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- log_template -->
