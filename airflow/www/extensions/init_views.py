@@ -324,7 +324,7 @@ def init_api_experimental(app):
 
 
 def init_api_auth_provider(app):
-    """Initialize the API offered by the authentication provider."""
+    """Initialize the API offered by the auth manager."""
     auth_mgr = get_auth_manager()
     blueprint = auth_mgr.get_api_blueprint()
     if blueprint is not None:
