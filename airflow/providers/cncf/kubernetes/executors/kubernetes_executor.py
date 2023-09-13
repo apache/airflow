@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from sqlalchemy import select, update
 
-from airflow.exceptions import AirflowException
+from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException, PodReconciliationError
 
 try:
     from airflow.cli.cli_config import (
@@ -98,14 +98,6 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
-
-
-class PodMutationHookException(AirflowException):
-    """Raised when exception happens during Pod Mutation Hook execution."""
-
-
-class PodReconciliationError(AirflowException):
-    """Raised when an error is encountered while trying to merge pod configs."""
 
 
 # CLI Args
