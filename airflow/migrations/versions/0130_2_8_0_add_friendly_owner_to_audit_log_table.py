@@ -47,4 +47,4 @@ def upgrade():
 def downgrade():
     """Removes owner_display_name column from log"""
     with op.batch_alter_table(TABLE_NAME) as batch_op:
-        batch_op.drop_column("owner_display_name")
+        batch_op.drop_column("owner_display_name", mssql_drop_default=True)
