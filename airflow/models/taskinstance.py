@@ -1726,15 +1726,12 @@ class TaskInstance(Base, LoggingMixin):
     def set_end_date(
         cls,
         dag_id: str,
-        run_id: str,
         task_id: str,
-        map_index: int,
+        execution_date: datetime | None,
         end_date: datetime,
         session: Session = NEW_SESSION,
     ):
-        task_instance = session.get(
-            TaskInstance, {"task_id": task_id, "dag_id": dag_id, "run_id": run_id, "map_index": map_index}
-        )
+        task_instance = session.get(dag_id=dag_id, task_id=task_id, execution_date=execution_date)
         task_instance.end_date = end_date
 
         if task_instance.start_date:
@@ -2313,9 +2310,8 @@ class TaskInstance(Base, LoggingMixin):
             _log_state(task_instance=self)
             TaskInstance.set_end_date(
                 dag_id=self.dag_id,
-                run_id=self.run_id,
                 task_id=self.task_id,
-                map_index=self.map_index,
+                execution_date=self.execution_date,
                 end_date=timezone.utcnow(),
                 session=session,
             )
@@ -2539,9 +2535,8 @@ class TaskInstance(Base, LoggingMixin):
 
         TaskInstance.set_end_date(
             dag_id=self.dag_id,
-            run_id=self.run_id,
             task_id=self.task_id,
-            map_index=self.map_index,
+            execution_date=self.execution_date,
             end_date=timezone.utcnow(),
             session=session,
         )
@@ -2628,9 +2623,8 @@ class TaskInstance(Base, LoggingMixin):
 
         TaskInstance.set_end_date(
             dag_id=ti.dag_id,
-            run_id=ti.run_id,
             task_id=ti.task_id,
-            map_index=ti.map_index,
+            execution_date=ti.execution_date,
             end_date=timezone.utcnow(),
             session=session,
         )

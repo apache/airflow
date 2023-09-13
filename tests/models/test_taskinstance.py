@@ -2027,9 +2027,8 @@ class TestTaskInstance:
 
         TaskInstance.set_end_date(
             dag_id=ti.dag_id,
-            run_id=ti.run_id,
             task_id=ti.task_id,
-            map_index=ti.map_index,
+            execution_date=ti.execution_date,
             end_date=datetime.datetime(2018, 10, 1, 2),
             session=session,
         )
@@ -2044,9 +2043,8 @@ class TestTaskInstance:
 
         TaskInstance.set_end_date(
             dag_id=ti.dag_id,
-            run_id=ti.run_id,
             task_id=ti.task_id,
-            map_index=ti.map_index,
+            execution_date=ti.execution_date,
             end_date=datetime.datetime(2018, 10, 1, 2),
             session=session,
         )
