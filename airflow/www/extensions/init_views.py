@@ -231,15 +231,16 @@ class _CustomErrorRequestBodyValidator(RequestBodyValidator):
         return super().validate_schema(data, url)
 
 
-def init_api_connexion(app: Flask) -> None:
-    """Initialize Stable API."""
-    base_path = "/api/v1"
+base_paths: list[str] = []  # contains the list of base paths that have api endpoints
 
+
+def init_api_error_handlers(app: Flask) -> None:
+    """Add error handlers for 404 and 405 errors for existing API paths."""
     from airflow.www import views
 
     @app.errorhandler(404)
     def _handle_api_not_found(ex):
-        if request.path.startswith(base_path):
+        if any([request.path.startswith(p) for p in base_paths]):
             # 404 errors are never handled on the blueprint level
             # unless raised from a view func so actual 404 errors,
             # i.e. "no route for it" defined, need to be handled
@@ -250,10 +251,18 @@ def init_api_connexion(app: Flask) -> None:
 
     @app.errorhandler(405)
     def _handle_method_not_allowed(ex):
-        if request.path.startswith(base_path):
+        if any([request.path.startswith(p) for p in base_paths]):
             return common_error_handler(ex)
         else:
             return views.method_not_allowed(ex)
+
+    app.register_error_handler(ProblemException, common_error_handler)
+
+
+def init_api_connexion(app: Flask) -> None:
+    """Initialize Stable API."""
+    base_path = "/api/v1"
+    base_paths.append(base_path)
 
     with ROOT_APP_DIR.joinpath("api_connexion", "openapi", "v1.yaml").open() as f:
         specification = safe_load(f)
@@ -272,7 +281,6 @@ def init_api_connexion(app: Flask) -> None:
     api_bp.after_request(set_cors_headers_on_response)
 
     app.register_blueprint(api_bp)
-    app.register_error_handler(ProblemException, common_error_handler)
     app.extensions["csrf"].exempt(api_bp)
 
 
@@ -281,6 +289,7 @@ def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
     if not standalone_api and not conf.getboolean("webserver", "run_internal_api", fallback=False):
         return
 
+    base_paths.append("/internal_api/v1")
     with ROOT_APP_DIR.joinpath("api_internal", "openapi", "internal_api_v1.yaml").open() as f:
         specification = safe_load(f)
     api_bp = FlaskApi(
@@ -309,6 +318,7 @@ def init_api_experimental(app):
         "The authenticated user has full access.",
         RemovedInAirflow3Warning,
     )
+    base_paths.append("/api/experimental")
     app.register_blueprint(endpoints.api_experimental, url_prefix="/api/experimental")
     app.extensions["csrf"].exempt(endpoints.api_experimental)
 
@@ -318,5 +328,6 @@ def init_api_auth_provider(app):
     auth_mgr = get_auth_manager()
     blueprint = auth_mgr.get_blueprint()
     if blueprint is not None:
+        base_paths.append(blueprint.url_prefix)
         app.register_blueprint(blueprint)
         app.extensions["csrf"].exempt(blueprint)
