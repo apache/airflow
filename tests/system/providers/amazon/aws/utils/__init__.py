@@ -40,7 +40,7 @@ ENV_ID_ENVIRON_KEY: str = "SYSTEM_TESTS_ENV_ID"
 ENV_ID_KEY: str = "ENV_ID"
 DEFAULT_ENV_ID_PREFIX: str = "env"
 DEFAULT_ENV_ID_LEN: int = 8
-DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{str(uuid4())[:DEFAULT_ENV_ID_LEN]}"
+DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{uuid4()!s:.{DEFAULT_ENV_ID_LEN}}"
 PURGE_LOGS_INTERVAL_PERIOD = 5
 
 # All test file names will contain this string.

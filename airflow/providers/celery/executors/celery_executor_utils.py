@@ -154,8 +154,8 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         setproctitle(f"airflow task supervisor: {command_to_exec}")
         args.func(args)
         ret = 0
-    except Exception as e:
-        log.exception("[%s] Failed to execute task %s.", celery_task_id, str(e))
+    except Exception:
+        log.exception("[%s] Failed to execute task.", celery_task_id)
         ret = 1
     finally:
         Sentry.flush()

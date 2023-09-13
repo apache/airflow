@@ -728,23 +728,24 @@ class PodManager(LoggingMixin):
             self._exec_pod_command(resp, "kill -s SIGINT 1")
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
-        res = None
-        if resp.is_open():
-            self.log.info("Running command... %s\n", command)
-            resp.write_stdin(command + "\n")
-            while resp.is_open():
-                resp.update(timeout=1)
-                while resp.peek_stdout():
-                    res = res + resp.read_stdout() if res else resp.read_stdout()
-                error_res = None
-                while resp.peek_stderr():
-                    error_res = error_res + resp.read_stderr() if error_res else resp.read_stderr()
-                if error_res:
-                    self.log.info("stderr from command: %s", error_res)
-                    break
-                if res:
-                    return res
-        return res
+        res = ""
+        if not resp.is_open():
+            return None
+        self.log.info("Running command... %s", command)
+        resp.write_stdin(command + "\n")
+        while resp.is_open():
+            resp.update(timeout=1)
+            while resp.peek_stdout():
+                res += resp.read_stdout()
+            error_res = ""
+            while resp.peek_stderr():
+                error_res += resp.read_stderr()
+            if error_res:
+                self.log.info("stderr from command: %s", error_res)
+                break
+            if res:
+                return res
+        return None
 
 
 class OnFinishAction(str, enum.Enum):

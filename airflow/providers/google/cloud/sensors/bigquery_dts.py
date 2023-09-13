@@ -137,7 +137,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
             timeout=self.request_timeout,
             metadata=self.metadata,
         )
-        self.log.info("Status of %s run: %s", self.run_id, str(run.state))
+        self.log.info("Status of %s run: %s", self.run_id, run.state)
 
         if run.state in (TransferState.FAILED, TransferState.CANCELLED):
             raise AirflowException(f"Transfer {self.run_id} did not succeed")
