@@ -38,13 +38,18 @@ airflow_version = "2.8.0"
 def upgrade():
     """Apply add cleared column to dagrun"""
     with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.add_column(sa.Column("clear_number", sa.Integer))
-    op.execute(sa.text(f"UPDATE dag_run SET clear_number = 0"))
-    with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.alter_column("clear_number", existing_type=sa.Integer, nullable=False)
+        batch_op.add_column(
+            sa.Column(
+                "clear_number",
+                sa.Integer,
+                default=0,
+                nullable=False,
+                server_default="0",
+            )
+        )
 
 
 def downgrade():
     """Unapply add cleared column to pool"""
     with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.drop_column("clear_number")
+        batch_op.drop_column("clear_number", mssql_drop_default=True)
