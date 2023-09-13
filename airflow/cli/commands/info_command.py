@@ -162,7 +162,7 @@ class Architecture(Enum):
     def get_current() -> Architecture:
         """Get architecture."""
         current_architecture = _MACHINE_TO_ARCHITECTURE.get(platform.machine().lower())
-        return current_architecture if current_architecture else Architecture.UNKNOWN
+        return current_architecture or Architecture.UNKNOWN
 
 
 _MACHINE_TO_ARCHITECTURE: dict[str, Architecture] = {

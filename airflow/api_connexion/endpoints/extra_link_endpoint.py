@@ -71,7 +71,5 @@ def get_extra_links(
     all_extra_link_pairs = (
         (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
     )
-    all_extra_links = {
-        link_name: link_url if link_url else None for link_name, link_url in sorted(all_extra_link_pairs)
-    }
+    all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}
     return all_extra_links
