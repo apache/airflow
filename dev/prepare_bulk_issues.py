@@ -204,16 +204,12 @@ def prepare_bulk_issues(
     total_issues = len(names)
     processed_issues = 0
     if dry_run:
-        for name in names:
+        for name in names[:max_issues]:
             issue_content, issue_title = get_issue_details(issues, name, template_file, title)
             console.print(f"[yellow]### {issue_title} #####[/]")
             console.print(issue_content)
             console.print()
             processed_issues += 1
-            if max_issues is not None:
-                max_issues -= 1
-                if max_issues == 0:
-                    break
         console.print()
         console.print(f"Displayed {processed_issues} issue(s).")
     else:
@@ -224,17 +220,12 @@ def prepare_bulk_issues(
             g = Github(github_token)
             repo = g.get_repo(repository)
             try:
-                for i in range(total_issues):
-                    name = names[i]
+                for name in names[:max_issues]:
                     issue_content, issue_title = get_issue_details(issues, name, template_file, title)
                     repo.create_issue(title=issue_title, body=issue_content, labels=labels_list)
                     progress.advance(task)
                     processed_issues += 1
                     sleep(2)  # avoid secondary rate limit!
-                    if max_issues is not None:
-                        max_issues -= 1
-                        if max_issues == 0:
-                            break
             except GithubException as e:
                 console.print(f"[red]Error!: {e}[/]")
                 console.print(
