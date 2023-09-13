@@ -44,7 +44,7 @@ If you want to check which executor is currently set, you can use the ``airflow 
 Executor Types
 --------------
 
-There are two types of executor - those that run tasks *locally* (inside the ``scheduler`` process), and those that run their tasks *remotely* (usually via a pool of *workers*). Airflow comes configured with the ``SequentialExecutor`` by default, which is a local executor, and the safest option for execution, but we *strongly recommend* you change this to ``LocalExecutor`` for small, single-machine installations, or one of the remote executors for a multi-machine/cloud installation.
+There are two types of executors - those that run tasks *locally* (inside the ``scheduler`` process), and those that run their tasks *remotely* (usually via a pool of *workers*). Airflow comes configured with the ``SequentialExecutor`` by default, which is a local executor, and the simplest option for execution. However, the ``SequentialExecutor`` is not suitable for production since it does not allow for parallel task running and due to that, some Airflow features (e.g. running sensors) will not work properly. You should instead use the ``LocalExecutor`` for small, single-machine production installations, or one of the remote executors for a multi-machine/cloud installation.
 
 
 **Local Executors**
@@ -75,11 +75,17 @@ There are two types of executor - those that run tasks *locally* (inside the ``s
 Writing Your Own Executor
 -------------------------
 
-All Airflow executors implement a common interface so that they are pluggable and any executor has access to all abilities and integrations within Airflow. Primarily the Airflow scheduler uses this interface to interact with the executor, but other components such as logging, CLI and backfill do as well.
+All Airflow executors implement a common interface so that they are pluggable and any executor has access to all abilities and integrations within Airflow. Primarily, the Airflow scheduler uses this interface to interact with the executor, but other components such as logging, CLI and backfill do as well.
 The public interface is the :class:`~airflow.executors.base_executor.BaseExecutor`. You can look through the code for the most detailed and up to date interface, but some important highlights are outlined below:
 
 .. note::
     For more information about Airflow's public interface see :doc:`/public-airflow-interface`.
+
+Some reasons you may want to write a custom executor include:
+
+* An executor does not exist which fits your specific use case, such as a specific tool or service for compute.
+* You'd like to use an executor that leverages a compute service but from your preferred cloud provider.
+* You have a private tool/service for task execution that is only available to you or your organization.
 
 
 Important BaseExecutor Methods
