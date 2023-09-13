@@ -43,6 +43,7 @@ def upgrade():
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.alter_column("clear_number", existing_type=sa.Integer, nullable=False)
 
+
 def downgrade():
     """Unapply add cleared column to pool"""
     with op.batch_alter_table("dag_run") as batch_op:
