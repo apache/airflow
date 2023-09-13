@@ -31,6 +31,7 @@ from airflow.api_connexion.schemas.dag_warning_schema import (
 from airflow.models.dagwarning import DagWarning as DagWarningModel
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -62,17 +63,14 @@ def get_dag_warnings(
         if not get_airflow_app().appbuilder.sm.can_read_dag(dag_id, g.user):
             raise PermissionDenied(detail=f"User not allowed to access this DAG: {dag_id}")
         query = query.where(DagWarningModel.dag_id == dag_id)
+    else:
+        readable_dags = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+        query = query.where(DagWarningModel.dag_id.in_(readable_dags))
     if warning_type:
         query = query.where(DagWarningModel.warning_type == warning_type)
+    total_entries = get_query_count(query, session=session)
     query = apply_sorting(query=query, order_by=order_by, allowed_attrs=allowed_filter_attrs)
     dag_warnings = session.scalars(query.offset(offset).limit(limit)).all()
-    if not dag_id:
-        dag_warnings = [
-            dag_warning
-            for dag_warning in dag_warnings
-            if get_airflow_app().appbuilder.sm.can_read_dag(dag_warning.dag_id, g.user)
-        ]
-    total_entries = len(dag_warnings)
     return dag_warning_collection_schema.dump(
         DagWarningCollection(dag_warnings=dag_warnings, total_entries=total_entries)
     )
