@@ -1,0 +1,1 @@
+Fix missing ``git-sync-ssh-key`` volume in ``scheduler`` pod while using ``dags.persistence.enabled=true`` with ``dags.gitSync.sshKeySecret``.
