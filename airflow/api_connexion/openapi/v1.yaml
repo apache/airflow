@@ -2112,6 +2112,7 @@ paths:
 
   /roles:
     get:
+      deprecated: true
       summary: List roles
       description: |
         Get a list of roles.
@@ -2137,6 +2138,7 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
 
     post:
+      deprecated: true
       summary: Create a role
       description: |
         Create a new role.
@@ -2170,6 +2172,7 @@ paths:
       - $ref: '#/components/parameters/RoleName'
 
     get:
+      deprecated: true
       summary: Get a role
       description: |
         Get a role.
@@ -2193,6 +2196,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     patch:
+      deprecated: true
       summary: Update a role
       description: |
         Update a role.
@@ -2227,6 +2231,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
+      deprecated: true
       summary: Delete a role
       description: |
         Delete a role.
@@ -2249,6 +2254,7 @@ paths:
 
   /permissions:
     get:
+      deprecated: true
       summary: List permissions
       description: |
         Get a list of permissions.
@@ -2274,6 +2280,7 @@ paths:
 
   /users:
     get:
+      deprecated: true
       summary: List users
       description: |
         Get a list of users.
@@ -2299,6 +2306,7 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
 
     post:
+      deprecated: true
       summary: Create a user
       description: |
         Create a new user with unique username and email.
@@ -2333,6 +2341,7 @@ paths:
     parameters:
       - $ref: '#/components/parameters/Username'
     get:
+      deprecated: true
       summary: Get a user
       description: |
         Get a user with a specific username.
@@ -2356,6 +2365,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     patch:
+      deprecated: true
       summary: Update a user
       description: |
         Update fields for a user.
@@ -2389,6 +2399,7 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
+      deprecated: true
       summary: Delete a user
       description: |
         Delete a user with a specific username.
