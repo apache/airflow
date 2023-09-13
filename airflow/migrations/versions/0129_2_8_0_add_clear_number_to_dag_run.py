@@ -44,6 +44,7 @@ def upgrade():
 
     with op.batch_alter_table("dag_run") as batch_op:
         batch_op.alter_column("clear_number", existing_type=sa.Integer, nullable=False)
+    # This seems to be a only way that doesn't add constraints for MSSQL so that drop column works.
 
 
 def downgrade():
