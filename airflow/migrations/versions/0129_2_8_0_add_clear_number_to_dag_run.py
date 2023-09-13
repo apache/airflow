@@ -43,7 +43,7 @@ def upgrade():
             sa.Column(
                 "clear_number",
                 sa.Integer,
-                default=0,
+                server_default="0",
                 nullable=False,
             )
         )
@@ -51,5 +51,14 @@ def upgrade():
 
 def downgrade():
     """Unapply add cleared column to pool"""
+    conn = op.get_bind()
     with op.batch_alter_table("dag_run") as batch_op:
+        if conn.dialect.name == "mssql":
+            constraints = get_mssql_table_constraints(conn, "dag_run")
+            for k, cols in constraints.get("NOT NULL").items():
+                if "clear_number" in cols:
+                    batch_op.drop_constraint(k)
+            for k, cols in constraints.get("DEFAULT").items():
+                if "clear_number" in cols:
+                    batch_op.drop_constraint(k)
         batch_op.drop_column("clear_number")
