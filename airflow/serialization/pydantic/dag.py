@@ -34,6 +34,7 @@ class DagOwnerAttributesPydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
 
 
@@ -47,6 +48,7 @@ class DagTagPydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
 
 
@@ -84,4 +86,5 @@ class DagModelPydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
+        orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
