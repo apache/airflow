@@ -73,7 +73,6 @@ def _initialize_map() -> dict[str, Callable]:
         TaskInstance.get_task_instance,
         TaskInstance.fetch_handle_failure_context,
         TaskInstance.save_to_db,
-        TaskInstance.set_end_date,
         Trigger.from_object,
         Trigger.bulk_fetch,
         Trigger.clean_unused,
