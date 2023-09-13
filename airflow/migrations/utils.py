@@ -40,7 +40,8 @@ def get_mssql_table_constraints(conn, table_name) -> dict[str, dict[str, list[st
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
      WHERE tc.TABLE_NAME = '{table_name}' AND
      (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE'
-     or UPPER(tc.CONSTRAINT_TYPE) = 'FOREIGN KEY')
+     or UPPER(tc.CONSTRAINT_TYPE) = 'FOREIGN KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'NOT NULL'
+     or UPPER(tc.CONSTRAINT_TYPE) = 'DEFAULT')
     """
     )
     result = conn.execute(query).fetchall()
