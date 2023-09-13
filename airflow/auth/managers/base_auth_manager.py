@@ -50,7 +50,7 @@ class BaseAuthManager(LoggingMixin):
         """
         return []
 
-    def get_blueprint(self) -> None | Blueprint:
+    def get_api_blueprint(self) -> None | Blueprint:
         """Return a blueprint of the API endpoints proposed by this auth manager."""
         return None
 

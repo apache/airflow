@@ -70,7 +70,7 @@ class FabAuthManager(BaseAuthManager):
             SYNC_PERM_COMMAND,  # not in a command group
         ]
 
-    def get_blueprint(self) -> None | Blueprint:
+    def get_api_blueprint(self) -> None | Blueprint:
         """Return a blueprint of the API endpoints proposed by this auth manager."""
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
         with folder.joinpath("openapi", "v1.yaml").open() as f:
