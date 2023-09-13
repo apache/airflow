@@ -82,6 +82,7 @@ class DatasetEventPydantic(BaseModelPydantic):
     source_run_id: Optional[str]
     source_map_index: Optional[int]
     timestamp: datetime
+    dataset: Optional[DatasetPydantic]
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
