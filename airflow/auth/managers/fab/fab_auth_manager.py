@@ -18,7 +18,10 @@
 from __future__ import annotations
 
 import warnings
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+from connexion import FlaskApi
 
 from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
@@ -30,8 +33,13 @@ from airflow.auth.managers.fab.cli_commands.definition import (
 from airflow.cli.cli_config import (
     GroupCommand,
 )
+from airflow.configuration import conf
+from airflow.utils.yaml import safe_load
+from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
+    from flask import Blueprint
+
     from airflow.auth.managers.fab.models import User
     from airflow.cli.cli_config import (
         CLICommand,
@@ -61,6 +69,24 @@ class FabAuthManager(BaseAuthManager):
             ),
             SYNC_PERM_COMMAND,  # not in a command group
         ]
+
+    def get_blueprint(self) -> None | Blueprint:
+        """Return a blueprint of the API endpoints proposed by this auth manager."""
+        folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
+        with folder.joinpath("openapi", "v1.yaml").open() as f:
+            specification = safe_load(f)
+        api = FlaskApi(
+            specification=specification,
+            resolver=_LazyResolver(),
+            base_path="/security/v1",
+            options={
+                "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
+            },
+            strict_validation=True,
+            validate_responses=True,
+            validator_map={"body": _CustomErrorRequestBodyValidator},
+        )
+        return api.blueprint
 
     def get_user_name(self) -> str:
         """
