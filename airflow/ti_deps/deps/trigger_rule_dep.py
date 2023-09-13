@@ -146,6 +146,11 @@ class TriggerRuleDep(BaseTIDep):
                 expanded_ti_count = _get_expanded_ti_count()
             except (NotFullyPopulated, NotMapped):
                 return None
+            if ti.map_index < 0:
+                # This can happen in mapped task groups.
+                # The current task is not expanded yet even though the mapped group has expanded.
+                # We should return None
+                return None
             return ti.get_relevant_upstream_map_indexes(
                 upstream=ti.task.dag.task_dict[upstream_id],
                 ti_count=expanded_ti_count,
