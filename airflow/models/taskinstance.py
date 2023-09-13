@@ -2344,8 +2344,6 @@ class TaskInstance(Base, LoggingMixin):
                 session=session,
             )
 
-            self.refresh_from_db(session=session)
-
             # run on_success_callback before db committing
             # otherwise, the LocalTaskJob sees the state is changed to `success`,
             # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
@@ -2561,6 +2559,8 @@ class TaskInstance(Base, LoggingMixin):
 
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
+        self.refresh_from_db(session)
+
         TaskInstance.set_end_date(
             dag_id=self.dag_id,
             run_id=self.run_id,
@@ -2569,8 +2569,6 @@ class TaskInstance(Base, LoggingMixin):
             end_date=timezone.utcnow(),
             session=session,
         )
-
-        self.refresh_from_db(session)
 
         # Lock DAG run to be sure not to get into a deadlock situation when trying to insert
         # TaskReschedule which apparently also creates lock on corresponding DagRun entity
