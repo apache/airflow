@@ -1205,20 +1205,24 @@ def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("tg1.t1", 0), ("tg1.t1", 1), ("tg1.t1", 2)]
 
-    # After running the first t1, the first t2 becomes immediately available.
-    tis["tg1.t1", 0].run()
+    # After running the first t1, the remaining t1 must be run before t2 is available.
+    tis["tg.t1", 0].run()
     tis = _one_scheduling_decision_iteration()
-    assert sorted(tis) == [("tg1.t1", 1), ("tg1.t1", 2), ("tg1.t2", 0)]
+    assert sorted(tis) == [("tg.t1", 1), ("tg.t1", 2)]
 
-    # Similarly for the subsequent t2 instances.
-    tis["tg1.t1", 2].run()
+    # After running all t1, t2 is available.
+    tis["tg.t1", 1].run()
+    tis["tg.t1", 2].run()
     tis = _one_scheduling_decision_iteration()
-    assert sorted(tis) == [("tg1.t1", 1), ("tg1.t2", 0), ("tg1.t2", 2)]
+    assert sorted(tis) == [("tg.t2", 0), ("tg.t2", 1), ("tg.t2", 2)]
+
+    # Similarly for t2 instances. They both have to complete before t3 is available
+    tis["tg.t2", 0].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t2", 1), ("tg.t2", 2)]
 
     # But running t2 partially does not make t3 available.
-    tis["tg1.t1", 1].run()
-    tis["tg1.t2", 0].run()
-    tis["tg1.t2", 2].run()
+    tis["tg.t2", 2].run()
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("tg1.t2", 1)]
 
@@ -1644,3 +1648,34 @@ def _test_trigger_rule(
     else:
         assert not dep_statuses
     assert ti.state == expected_ti_state
+
+
+def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_maker, session):
+    """Test that one failed trigger rule works well in mapped task group"""
+    with dag_maker() as dag:
+
+        @dag.task
+        def t1():
+            return [1, 2, 3]
+
+        @task_group("tg1")
+        def tg1(a):
+            @dag.task()
+            def t2(a):
+                return a
+
+            @dag.task(trigger_rule=TriggerRule.ONE_FAILED)
+            def t3(a):
+                return a
+
+            t2(a) >> t3(a)
+
+        t = t1()
+        tg1.expand(a=t)
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id="t1")
+    ti.run()
+    dr.task_instance_scheduling_decisions()
+    ti3 = dr.get_task_instance(task_id="tg1.t3")
+    assert not ti3.state
