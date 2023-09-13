@@ -27,6 +27,7 @@ Create Date: 2023-09-05 19:27:30.531558
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.migrations.utils import get_mssql_table_constraints
 
 # revision identifiers, used by Alembic.
 revision = "375a816bbbf4"
