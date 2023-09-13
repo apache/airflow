@@ -140,6 +140,7 @@ class DagRun(Base, LoggingMixin):
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    clear_number = Column(Integer, default=0, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -232,6 +233,7 @@ class DagRun(Base, LoggingMixin):
         self.run_type = run_type
         self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
+        self.clear_number = 0
         super().__init__()
 
     def __repr__(self):
@@ -307,7 +309,7 @@ class DagRun(Base, LoggingMixin):
         else:
             query = query.where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
         query = query.group_by(cls.dag_id)
-        return {dag_id: count for dag_id, count in session.execute(query)}
+        return dict(iter(session.execute(query)))
 
     @classmethod
     def next_dagruns_to_examine(
@@ -917,11 +919,14 @@ class DagRun(Base, LoggingMixin):
         rid of the outliers on the stats side through dashboards tooling.
 
         Note that the stat will only be emitted for scheduler-triggered DAG runs
-        (i.e. when ``external_trigger`` is *False*).
+        (i.e. when ``external_trigger`` is *False* and ``clear_number`` is
+        greater than 0).
         """
         if self.state == TaskInstanceState.RUNNING:
             return
         if self.external_trigger:
+            return
+        if self.clear_number > 0:
             return
         if not finished_tis:
             return

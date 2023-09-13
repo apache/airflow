@@ -21,9 +21,10 @@ import copy
 from copy import deepcopy
 from unittest import mock
 
-import pytest as pytest
+import pytest
 
 import airflow
+from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.dataflow import (
     CheckJobRunning,
     DataflowCreateJavaJobOperator,
@@ -581,6 +582,7 @@ class TestDataflowStartFlexTemplateOperator:
             do_xcom_push=True,
             project_id=TEST_PROJECT,
             location=TEST_LOCATION,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_DONE,
         )
 
     @pytest.fixture
@@ -600,6 +602,7 @@ class TestDataflowStartFlexTemplateOperator:
         mock_dataflow.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             drain_pipeline=False,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_DONE,
             cancel_timeout=600,
             wait_until_finished=None,
             impersonation_chain=None,

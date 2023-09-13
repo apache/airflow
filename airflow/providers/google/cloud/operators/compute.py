@@ -127,6 +127,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_insert_fields]
 
@@ -214,7 +215,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
             )
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the should not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Instance already exists", self.resource_id)
@@ -306,6 +307,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_insert_from_template_fields]
 
@@ -384,7 +386,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Instance already exists", self.resource_id)
@@ -869,6 +871,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_template_insert_fields]
 
@@ -957,7 +960,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Template already exists.", existing_template)
@@ -1219,7 +1222,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info(
@@ -1452,6 +1455,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_igm_insert_fields]
 
@@ -1537,7 +1541,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the Instance Group Manager should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Instance Group Manager already exists", existing_instance_group_manager)

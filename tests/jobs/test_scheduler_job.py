@@ -2271,9 +2271,8 @@ class TestSchedulerJob:
         ex_date = dr.execution_date
 
         for tid, state in expected_task_states.items():
-            if state != State.FAILED:
-                continue
-            self.null_exec.mock_task_fail(dag_id, tid, dr.run_id)
+            if state == State.FAILED:
+                self.null_exec.mock_task_fail(dag_id, tid, dr.run_id)
 
         try:
             dag = DagBag().get_dag(dag.dag_id)

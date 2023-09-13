@@ -75,7 +75,9 @@ with models.DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, resource={"predefined_acl": "public_read_write"}
+    )
 
     # [START howto_operator_create_instance]
     create_instance = CloudMemorystoreCreateInstanceOperator(

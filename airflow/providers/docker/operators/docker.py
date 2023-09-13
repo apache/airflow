@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
-from docker.types import LogConfig, Mount
+from docker.types import LogConfig, Mount, Ulimit
 from dotenv import dotenv_values
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -166,6 +166,8 @@ class DockerOperator(BaseOperator):
         dictionary of value where the key indicates the port to open inside the container
         and value indicates the host port that binds to the container port.
         Incompatible with ``host`` in ``network_mode``.
+    :param ulimits: List of ulimit options to set for the container. Each item should
+        be a :py:class:`docker.types.Ulimit` instance.
     """
 
     template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
@@ -225,6 +227,7 @@ class DockerOperator(BaseOperator):
         skip_exit_code: int | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
+        ulimits: list[Ulimit] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -277,6 +280,7 @@ class DockerOperator(BaseOperator):
         self.privileged = privileged
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
+        self.ulimits = ulimits or []
 
         self.container: dict = None  # type: ignore[assignment]
         self.retrieve_output = retrieve_output
@@ -387,6 +391,7 @@ class DockerOperator(BaseOperator):
                 device_requests=self.device_requests,
                 log_config=LogConfig(config=docker_log_config),
                 ipc_mode=self.ipc_mode,
+                ulimits=self.ulimits,
             ),
             image=self.image,
             user=self.user,

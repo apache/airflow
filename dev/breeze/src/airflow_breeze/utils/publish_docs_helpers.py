@@ -26,6 +26,8 @@ from typing import Any
 
 import yaml
 
+from airflow_breeze.utils.general_utils import get_provider_name_from_short_hand
+
 CONSOLE_WIDTH = 180
 
 ROOT_DIR = Path(__file__).parents[5].resolve()
@@ -99,13 +101,18 @@ def get_available_packages():
     ]
 
 
-def process_package_filters(available_packages: list[str], package_filters: list[str] | None):
+def process_package_filters(
+    available_packages: list[str], package_filters: list[str] | None, packages_short_form: tuple[str]
+):
     """Filters the package list against a set of filters.
 
     A packet is returned if it matches at least one filter. The function keeps the order of the packages.
     """
-    if not package_filters:
+    if not package_filters and not packages_short_form:
         return available_packages
+
+    expanded_short_form_packages = get_provider_name_from_short_hand(packages_short_form)
+    package_filters = list(package_filters + expanded_short_form_packages)
 
     invalid_filters = [
         f for f in package_filters if not any(fnmatch.fnmatch(p, f) for p in available_packages)

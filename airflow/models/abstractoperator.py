@@ -266,7 +266,7 @@ class AbstractOperator(Templater, DAGNode):
             yield task
             if task.is_setup:
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
 
     def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
@@ -290,7 +290,7 @@ class AbstractOperator(Templater, DAGNode):
             if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
                 yield task
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
 
     def get_upstreams_only_setups(self) -> Iterable[Operator]:

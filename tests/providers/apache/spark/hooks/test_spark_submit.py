@@ -67,10 +67,9 @@ class TestSparkSubmitHook:
     @staticmethod
     def cmd_args_to_dict(list_cmd):
         return_dict = {}
-        for arg in list_cmd:
-            if arg.startswith("--"):
-                pos = list_cmd.index(arg)
-                return_dict[arg] = list_cmd[pos + 1]
+        for arg1, arg2 in zip(list_cmd, list_cmd[1:]):
+            if arg1.startswith("--"):
+                return_dict[arg1] = arg2
         return return_dict
 
     def setup_method(self):

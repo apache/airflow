@@ -319,7 +319,7 @@ def _confirm_delete(*, date: DateTime, tables: list[str]):
     )
     print(question)
     answer = input().strip()
-    if not answer == "delete rows":
+    if answer != "delete rows":
         raise SystemExit("User did not confirm; exiting.")
 
 
@@ -339,7 +339,7 @@ def _confirm_drop_archives(*, tables: list[str]):
         if show_tables:
             print(tables, "\n")
     answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
-    if not answer == "drop archived tables":
+    if answer != "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")
 
 
