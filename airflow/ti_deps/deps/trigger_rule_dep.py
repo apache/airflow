@@ -523,7 +523,7 @@ class TriggerRuleDep(BaseTIDep):
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
                     )
-                elif upstream_setup and not success_setup >= 1:
+                elif upstream_setup and not success_setup:
                     yield self._failing_status(
                         reason=(
                             f"Task's trigger rule '{trigger_rule}' requires at least one upstream setup task "

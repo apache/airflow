@@ -24,7 +24,7 @@ from unittest.mock import call
 import pytest
 from docker import APIClient
 from docker.errors import APIError
-from docker.types import DeviceRequest, LogConfig, Mount
+from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.docker.exceptions import DockerContainerFailedException
@@ -247,6 +247,7 @@ class TestDockerOperator:
             log_config=LogConfig(config={"max-size": "10m", "max-file": "5"}),
             ipc_mode=None,
             port_bindings={},
+            ulimits=[],
         )
         self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -318,6 +319,7 @@ class TestDockerOperator:
             log_config=LogConfig(config={}),
             ipc_mode=None,
             port_bindings={},
+            ulimits=[],
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -428,6 +430,7 @@ class TestDockerOperator:
                     log_config=LogConfig(config={}),
                     ipc_mode=None,
                     port_bindings={},
+                    ulimits=[],
                 ),
                 call(
                     mounts=[
@@ -447,6 +450,7 @@ class TestDockerOperator:
                     log_config=LogConfig(config={}),
                     ipc_mode=None,
                     port_bindings={},
+                    ulimits=[],
                 ),
             ]
         )
@@ -709,3 +713,12 @@ class TestDockerOperator:
         assert "host_config" in self.client_mock.create_container.call_args.kwargs
         assert "port_bindings" in self.client_mock.create_host_config.call_args.kwargs
         assert port_bindings == self.client_mock.create_host_config.call_args.kwargs["port_bindings"]
+
+    def test_ulimits(self):
+        ulimits = [Ulimit(name="nofile", soft=1024, hard=2048)]
+        operator = DockerOperator(task_id="test", image="test", ulimits=ulimits)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "ulimits" in self.client_mock.create_host_config.call_args.kwargs
+        assert ulimits == self.client_mock.create_host_config.call_args.kwargs["ulimits"]

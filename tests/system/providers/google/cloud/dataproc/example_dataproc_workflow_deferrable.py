@@ -34,7 +34,7 @@ DAG_ID = "dataproc_workflow_def"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 REGION = "europe-west1"
-CLUSTER_NAME = f"{ENV_ID}-{DAG_ID}".replace("_", "-")
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "")
 CLUSTER_CONFIG = {
     "master_config": {
         "num_instances": 1,
@@ -48,7 +48,7 @@ CLUSTER_CONFIG = {
     },
 }
 PIG_JOB = {"query_list": {"queries": ["define sin HiveUDF('sin');"]}}
-WORKFLOW_NAME = "airflow-dataproc-test"
+WORKFLOW_NAME = "airflow-dataproc-test-def"
 WORKFLOW_TEMPLATE = {
     "id": WORKFLOW_NAME,
     "placement": {

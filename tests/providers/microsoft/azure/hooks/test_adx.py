@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
-from pytest import param
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -269,12 +268,12 @@ class TestAzureDataExplorerHook:
     @pytest.mark.parametrize(
         "mocked_connection",
         [
-            param(
+            pytest.param(
                 "a://usr:pw@host?extra__azure_data_explorer__tenant=my-tenant"
                 "&extra__azure_data_explorer__auth_method=AAD_APP",
                 id="prefix",
             ),
-            param("a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", id="no-prefix"),
+            pytest.param("a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", id="no-prefix"),
         ],
         indirect=True,
     )

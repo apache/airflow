@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import textwrap
 import warnings
 from functools import cached_property
-from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -293,7 +293,7 @@ class DecoratedOperator(BaseOperator):
 
     def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
-        res = dedent(raw_source)
+        res = textwrap.dedent(raw_source)
         res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
@@ -351,7 +351,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         except TypeError:  # Can't evaluate return type.
             return False
         ttype = getattr(return_type, "__origin__", return_type)
-        return ttype == dict or ttype == Dict
+        return ttype is dict or ttype is Dict
 
     def __attrs_post_init__(self):
         if "self" in self.function_signature.parameters:

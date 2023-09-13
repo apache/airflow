@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
 from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
+from airflow.providers.openlineage.extractors import OperatorLineage
 
 TASK_ID = "dbt_test"
 DAG_ID = "dbt_dag"
@@ -130,7 +131,10 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         )
 
         mock_build_task_instance_run_id.return_value = TASK_UUID
-
         generate_openlineage_events_from_dbt_cloud_run(mock_operator, task_instance=mock_task_instance)
-
         assert mock_client.emit.call_count == 4
+
+    def test_do_not_raise_error_if_runid_not_set_on_operator(self):
+        operator = DbtCloudRunJobOperator(task_id="dbt-job-runid-taskid", job_id=1500)
+        assert operator.run_id is None
+        assert operator.get_openlineage_facets_on_complete(MagicMock()) == OperatorLineage()
