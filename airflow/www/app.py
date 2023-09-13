@@ -48,6 +48,7 @@ from airflow.www.extensions.init_security import (
 )
 from airflow.www.extensions.init_session import init_airflow_session_interface
 from airflow.www.extensions.init_views import (
+    init_api_auth_provider,
     init_api_connexion,
     init_api_experimental,
     init_api_internal,
@@ -169,6 +170,7 @@ def create_app(config=None, testing=False):
                 raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
             init_api_internal(flask_app)
         init_api_experimental(flask_app)
+        init_api_auth_provider(flask_app)
 
         sync_appbuilder_roles(flask_app)
 

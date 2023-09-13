@@ -33,6 +33,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
 from airflow.utils.yaml import safe_load
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -310,3 +311,12 @@ def init_api_experimental(app):
     )
     app.register_blueprint(endpoints.api_experimental, url_prefix="/api/experimental")
     app.extensions["csrf"].exempt(endpoints.api_experimental)
+
+
+def init_api_auth_provider(app):
+    """Initialize the API offered by the authentication provider."""
+    auth_mgr = get_auth_manager()
+    blueprint = auth_mgr.get_blueprint()
+    if blueprint is not None:
+        app.register_blueprint(blueprint)
+        app.extensions["csrf"].exempt(blueprint)

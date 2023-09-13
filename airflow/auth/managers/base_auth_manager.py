@@ -24,7 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from flask import Flask
+    from flask import Blueprint, Flask
 
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import CLICommand
@@ -49,6 +49,10 @@ class BaseAuthManager(LoggingMixin):
         Override this method to expose commands via Airflow CLI to manage this auth manager.
         """
         return []
+
+    def get_blueprint(self) -> None | Blueprint:
+        """Return a blueprint of the API endpoints proposed by this auth manager."""
+        return None
 
     @abstractmethod
     def get_user_name(self) -> str:
