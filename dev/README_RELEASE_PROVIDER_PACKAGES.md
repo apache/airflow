@@ -414,6 +414,16 @@ If you have providers as list of provider ids because you just released them you
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
+breeze release-management publish-docs providers-index amazon cncf.kubernetes --override-versioned --run-in-parallel
+
+breeze release-management add-back-references providers-index amazon cncf.kubernetes
+```
+
+or with
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
 
 # No need to add back references as the script has this step as integral part
