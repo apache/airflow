@@ -27,8 +27,6 @@ Create Date: 2023-09-05 19:27:30.531558
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.migrations.utils import get_mssql_table_constraints
-
 # revision identifiers, used by Alembic.
 revision = "375a816bbbf4"
 down_revision = "405de8318b3a"
@@ -52,11 +50,5 @@ def upgrade():
 
 def downgrade():
     """Unapply add cleared column to pool"""
-    conn = op.get_bind()
     with op.batch_alter_table("dag_run") as batch_op:
-        if conn.dialect.name == "mssql":
-            constraints = get_mssql_table_constraints(conn, "dag_run")
-            for k, cols in constraints.get("DEFAULT").items():
-                if "clear_number" in cols:
-                    batch_op.drop_constraint(k)
-        batch_op.drop_column("clear_number")
+        batch_op.drop_column("clear_number", mssql_drop_default=True)
