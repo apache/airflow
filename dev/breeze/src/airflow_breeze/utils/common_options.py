@@ -623,3 +623,15 @@ option_airflow_site_directory = click.option(
     help="Local directory path of cloned airflow-site repo.",
     required=True,
 )
+option_upgrade_boto = click.option(
+    "--upgrade-boto",
+    help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_BOTO",
+)
+option_downgrade_sqlalchemy = click.option(
+    "--downgrade-sqlalchemy",
+    help="Downgrade SQLAlchemy to minimum supported version.",
+    is_flag=True,
+    envvar="DOWNGRADE_SQLALCHEMY",
+)

@@ -20,7 +20,8 @@ import pytest
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.exceptions import AirflowException
-from airflow.www.security import ApplessAirflowSecurityManager
+from airflow.www.security_appless import ApplessAirflowSecurityManager
+from airflow.www.security_manager import AirflowSecurityManagerV2
 
 
 @pytest.fixture
@@ -35,12 +36,13 @@ def auth_manager():
         def get_url_login(self, **kwargs) -> str:
             raise NotImplementedError()
 
-    return EmptyAuthManager()
+    # noinspection PyTypeChecker
+    return EmptyAuthManager(None)
 
 
 class TestBaseAuthManager:
     def test_get_security_manager_override_class_return_empty_class(self, auth_manager):
-        assert auth_manager.get_security_manager_override_class() is object
+        assert auth_manager.get_security_manager_override_class() is AirflowSecurityManagerV2
 
     def test_get_security_manager_not_defined(self, auth_manager):
         with pytest.raises(AirflowException, match="Security manager not defined."):

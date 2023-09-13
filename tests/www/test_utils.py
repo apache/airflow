@@ -69,7 +69,7 @@ class TestUtils:
         assert min(window, total_pages) + extra_links == len(ulist_items)
 
         page_items = ulist_items[2:-2]
-        mid = int(len(page_items) / 2)
+        mid = len(page_items) // 2
         all_nodes = []
         pages = []
 

@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.3.0
 .....
 
-Latest change: 2023-09-07
+Latest change: 2023-09-11
 
 =================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================
+`87fd884c0b <https://github.com/apache/airflow/commit/87fd884c0b9b90a02d454da323321f944a26c97e>`_  2023-09-11   ``dbt, openlineage: set run_id after defer, do not log error if operator has no run_id set (#34270)``
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `0ecbbacd21 <https://github.com/apache/airflow/commit/0ecbbacd211184eaf8943ba2e58205a0b2dd108e>`_  2023-09-07   ``fix(providers/redis): respect soft_fail argument when exception is raised (#34164)``
 `5eea4e632c <https://github.com/apache/airflow/commit/5eea4e632c8ae50812e07b1d844ea4f52e0d6fe1>`_  2023-09-07   ``Add OpenLineage support for DBT Cloud. (#33959)``
 `0a5e2281e0 <https://github.com/apache/airflow/commit/0a5e2281e084b228e697ffdd5d825b927fce9483>`_  2023-08-31   ``Remove some useless try/except from providers code (#33967)``

@@ -24,7 +24,6 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pandas as pd
 import pytest
-from pytest import param
 from requests import Session as request_session
 from simple_salesforce import Salesforce, api
 
@@ -458,11 +457,11 @@ class TestSalesforceHook:
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://?extra__salesforce__security_token=token&extra__salesforce__domain=domain",
                 id="prefix",
             ),
-            param("a://?security_token=token&domain=domain", id="no-prefix"),
+            pytest.param("a://?security_token=token&domain=domain", id="no-prefix"),
         ],
     )
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
