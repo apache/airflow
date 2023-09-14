@@ -547,7 +547,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     ):
         if (
             python_version
-            and python_version[0] != str(sys.version_info.major)
+            and str(python_version[0]) != str(sys.version_info.major)
             and (op_args or op_kwargs)
         ):
             raise AirflowException(
@@ -556,11 +556,10 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
             )
         if type(python_version) is float or type(python_version) is int:
-            raise TypeError(
-                "Passing numeric type(int, float) as python_version "
-                "has been removed for PythonVirtualenvOperator. "
-                "Since Python 3.10 is interpreted as 3.1. "
-                "Please use string value instead."
+            warnings.warn(
+                "Passing numeric type(int, float) as python_version is deprecated. Please use string value instead.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
             )
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
