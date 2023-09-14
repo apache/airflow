@@ -416,7 +416,7 @@ cd "${AIRFLOW_REPO_ROOT}"
 
 breeze release-management publish-docs providers-index amazon cncf.kubernetes --override-versioned --run-in-parallel
 
-breeze release-management add-back-references providers-index amazon cncf.kubernetes
+breeze release-management add-back-references amazon cncf.kubernetes
 ```
 
 or with
