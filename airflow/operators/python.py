@@ -558,7 +558,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         if type(python_version) is float or type(python_version) is int:
             raise TypeError(
                 "Passing numeric type(int, float) as python_version "
-                "has been deprecated for PythonVirtualenvOperator. "
+                "has been removed for PythonVirtualenvOperator. "
                 "Since Python 3.10 is interpreted as 3.1. "
                 "Please use string value instead."
             )
