@@ -377,13 +377,12 @@ class TestAwsEcsExecutor:
             mock_executor.attempt_task_runs()
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
-        
+
         # Pass in last attempt
         mock_executor.attempt_task_runs()
         assert len(mock_executor.pending_tasks) == 0
         assert ARN1 in mock_executor.active_workers.get_all_arns()
-        
-    
+
     def test_failed_execute_api_exception(self, mock_executor):
         """Test what happens when ECS refuses to execute a task and throws an exception"""
         mock_executor.ecs.run_task.side_effect = Exception("Test exception")
@@ -394,7 +393,7 @@ class TestAwsEcsExecutor:
             mock_executor.attempt_task_runs()
             # Task is not stored in active workers.
             assert len(mock_executor.active_workers) == 0
-    
+
     def test_failed_execute_api(self, mock_executor):
         """Test what happens when ECS refuses to execute a task."""
         mock_executor.ecs.run_task.return_value = {
@@ -468,7 +467,6 @@ class TestAwsEcsExecutor:
         fail_mock.assert_not_called()
         success_mock.assert_not_called()
 
-    
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
     def test_failed_sync_cumulative_fail(self, success_mock, fail_mock, mock_airflow_key, mock_executor):
@@ -488,7 +486,7 @@ class TestAwsEcsExecutor:
             assert task_key in keys
             mock_executor.attempt_task_runs()
             assert len(mock_executor.pending_tasks) == 1
-        
+
         mock_executor.ecs.run_task.return_value = {
             "tasks": [
                 {
@@ -521,7 +519,7 @@ class TestAwsEcsExecutor:
             # Task is neither failed nor succeeded.
             fail_mock.assert_not_called()
             success_mock.assert_not_called()
-        
+
         # run_task failed twice, and passed once
         assert mock_executor.ecs.run_task.call_count == 3
         # describe_tasks failed 2 times so far
@@ -534,12 +532,11 @@ class TestAwsEcsExecutor:
         fail_mock.assert_called()
         success_mock.assert_not_called()
 
-
     def test_failed_sync_api_exception(self, mock_executor, caplog):
         """Test what happens when ECS sync fails for certain tasks repeatedly."""
         self._mock_sync(mock_executor)
         mock_executor.ecs.describe_tasks.side_effect = Exception("Test Exception")
-        
+
         mock_executor.sync()
         assert "Failed to sync" in caplog.messages[0]
 
