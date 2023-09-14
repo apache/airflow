@@ -305,7 +305,7 @@ class DAG(LoggingMixin):
         characters, dashes, dots and underscores (all ASCII)
     :param description: The description for the DAG to e.g. be shown on the webserver
     :param schedule: Defines the rules according to which DAG runs are scheduled. Can
-        accept cron string, timedelta object, Timetable, or list of Dataset objects. 
+        accept cron string, timedelta object, Timetable, or list of Dataset objects.
         If this is not provided, the DAG will be set to the default
         schedule ``timedelta(days=1)``. See also :doc:`/howto/timetable`. 
     :param start_date: The timestamp from which the scheduler will
