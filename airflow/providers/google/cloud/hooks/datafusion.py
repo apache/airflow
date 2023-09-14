@@ -31,6 +31,7 @@ from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -105,6 +106,7 @@ class DataFusionHook(GoogleBaseHook):
         pipeline_name: str,
         pipeline_id: str,
         instance_url: str,
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
         namespace: str = "default",
         success_states: list[str] | None = None,
         failure_states: list[str] | None = None,
@@ -120,6 +122,7 @@ class DataFusionHook(GoogleBaseHook):
                 workflow = self.get_pipeline_workflow(
                     pipeline_name=pipeline_name,
                     pipeline_id=pipeline_id,
+                    pipeline_type=pipeline_type,
                     instance_url=instance_url,
                     namespace=namespace,
                 )
@@ -432,13 +435,14 @@ class DataFusionHook(GoogleBaseHook):
         pipeline_name: str,
         instance_url: str,
         pipeline_id: str,
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
         namespace: str = "default",
     ) -> Any:
         url = os.path.join(
             self._base_url(instance_url, namespace),
             quote(pipeline_name),
-            "workflows",
-            "DataPipelineWorkflow",
+            f"{self.cdap_program_type(pipeline_type=pipeline_type)}s",
+            self.cdap_program_id(pipeline_type=pipeline_type),
             "runs",
             quote(pipeline_id),
         )
@@ -453,6 +457,7 @@ class DataFusionHook(GoogleBaseHook):
         self,
         pipeline_name: str,
         instance_url: str,
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
         namespace: str = "default",
         runtime_args: dict[str, Any] | None = None,
     ) -> str:
@@ -460,6 +465,7 @@ class DataFusionHook(GoogleBaseHook):
         Starts a Cloud Data Fusion pipeline. Works for both batch and stream pipelines.
 
         :param pipeline_name: Your pipeline name.
+        :param pipeline_type: Optional pipeline type (BATCH by default).
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
         :param runtime_args: Optional runtime JSON args to be passed to the pipeline
         :param namespace: if your pipeline belongs to a Basic edition instance, the namespace ID
@@ -480,9 +486,9 @@ class DataFusionHook(GoogleBaseHook):
         body = [
             {
                 "appId": pipeline_name,
-                "programType": "workflow",
-                "programId": "DataPipelineWorkflow",
                 "runtimeargs": runtime_args,
+                "programType": self.cdap_program_type(pipeline_type=pipeline_type),
+                "programId": self.cdap_program_id(pipeline_type=pipeline_type),
             }
         ]
         response = self._cdap_request(url=url, method="POST", body=body)
@@ -513,6 +519,30 @@ class DataFusionHook(GoogleBaseHook):
         self._check_response_status_and_data(
             response, f"Stopping a pipeline failed with code {response.status}"
         )
+
+    @staticmethod
+    def cdap_program_type(pipeline_type: DataFusionPipelineType) -> str:
+        """Retrieves CDAP Program type depending on the pipeline type.
+
+        :param pipeline_type: Pipeline type.
+        """
+        program_types = {
+            DataFusionPipelineType.BATCH: "workflow",
+            DataFusionPipelineType.STREAM: "spark",
+        }
+        return program_types.get(pipeline_type, "")
+
+    @staticmethod
+    def cdap_program_id(pipeline_type: DataFusionPipelineType) -> str:
+        """Retrieves CDAP Program id depending on the pipeline type.
+
+        :param pipeline_type: Pipeline type.
+        """
+        program_ids = {
+            DataFusionPipelineType.BATCH: "DataPipelineWorkflow",
+            DataFusionPipelineType.STREAM: "DataStreamsSparkStreaming",
+        }
+        return program_ids.get(pipeline_type, "")
 
 
 class DataFusionAsyncHook(GoogleBaseAsyncHook):
@@ -561,10 +591,13 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
         pipeline_name: str,
         pipeline_id: str,
         session,
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
     ):
+        program_type = self.sync_hook_class.cdap_program_type(pipeline_type=pipeline_type)
+        program_id = self.sync_hook_class.cdap_program_id(pipeline_type=pipeline_type)
         base_url_link = self._base_url(instance_url, namespace)
         url = urljoin(
-            base_url_link, f"{quote(pipeline_name)}/workflows/DataPipelineWorkflow/runs/{quote(pipeline_id)}"
+            base_url_link, f"{quote(pipeline_name)}/{program_type}s/{program_id}/runs/{quote(pipeline_id)}"
         )
         return await self._get_link(url=url, session=session)
 
@@ -573,6 +606,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
         pipeline_name: str,
         instance_url: str,
         pipeline_id: str,
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
         namespace: str = "default",
         success_states: list[str] | None = None,
     ) -> str:
@@ -581,7 +615,8 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
 
         :param pipeline_name: Your pipeline name.
         :param instance_url: Endpoint on which the REST APIs is accessible for the instance.
-        :param pipeline_id: Unique pipeline ID associated with specific pipeline
+        :param pipeline_id: Unique pipeline ID associated with specific pipeline.
+        :param pipeline_type: Optional pipeline type (by default batch).
         :param namespace: if your pipeline belongs to a Basic edition instance, the namespace ID
             is always default. If your pipeline belongs to an Enterprise edition instance, you
             can create a namespace.
@@ -596,6 +631,7 @@ class DataFusionAsyncHook(GoogleBaseAsyncHook):
                     namespace=namespace,
                     pipeline_name=pipeline_name,
                     pipeline_id=pipeline_id,
+                    pipeline_type=pipeline_type,
                     session=session,
                 )
                 pipeline = await pipeline.json(content_type=None)

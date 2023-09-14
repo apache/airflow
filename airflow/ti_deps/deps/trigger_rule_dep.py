@@ -471,20 +471,7 @@ class TriggerRuleDep(BaseTIDep):
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
                     )
-            elif trigger_rule == TR.NONE_FAILED:
-                num_failures = upstream - success - skipped
-                if ti.map_index > -1:
-                    num_failures -= removed
-                if num_failures > 0:
-                    yield self._failing_status(
-                        reason=(
-                            f"Task's trigger rule '{trigger_rule}' requires all upstream tasks to have "
-                            f"succeeded or been skipped, but found {num_failures} non-success(es). "
-                            f"upstream_states={upstream_states}, "
-                            f"upstream_task_ids={task.upstream_task_ids}"
-                        )
-                    )
-            elif trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
+            elif trigger_rule == TR.NONE_FAILED or trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
                 num_failures = upstream - success - skipped
                 if ti.map_index > -1:
                     num_failures -= removed
@@ -536,7 +523,7 @@ class TriggerRuleDep(BaseTIDep):
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
                     )
-                elif upstream_setup and not success_setup >= 1:
+                elif upstream_setup and not success_setup:
                     yield self._failing_status(
                         reason=(
                             f"Task's trigger rule '{trigger_rule}' requires at least one upstream setup task "

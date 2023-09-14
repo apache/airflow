@@ -14,3 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from enum import Enum
+
+
+class DataFusionPipelineType(Enum):
+    """Enum for Data Fusion pipeline types."""
+
+    BATCH = "batch"
+    STREAM = "stream"
+
+    @staticmethod
+    def from_str(value: str) -> DataFusionPipelineType:
+        value_to_item = {item.value: item for item in DataFusionPipelineType}
+        if value in value_to_item:
+            return value_to_item[value]
+        raise ValueError(f"Invalid value '{value}'. Valid values are: {[i for i in value_to_item.keys()]}")

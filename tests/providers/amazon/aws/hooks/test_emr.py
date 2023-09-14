@@ -39,6 +39,7 @@ class TestEmrHook:
             "notebook_running",
             "notebook_stopped",
             "step_wait_for_terminal",
+            "steps_wait_for_terminal",
         ]
 
         assert sorted(hook.list_waiters()) == sorted([*official_waiters, *custom_waiters])

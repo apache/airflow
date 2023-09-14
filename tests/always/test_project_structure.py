@@ -147,12 +147,10 @@ class ProjectStructureTest:
         module = filepath_to_module(filepath)
         results: dict = {}
         for current_node in ast.walk(doc_node):
-            if not isinstance(current_node, ast.ClassDef):
-                continue
-            name = current_node.name
-            if not name.endswith(tuple(self.CLASS_SUFFIXES)):
-                continue
-            results[f"{module}.{name}"] = current_node
+            if isinstance(current_node, ast.ClassDef) and current_node.name.endswith(
+                tuple(self.CLASS_SUFFIXES)
+            ):
+                results[f"{module}.{current_node.name}"] = current_node
         return results
 
 

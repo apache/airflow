@@ -28,6 +28,15 @@
 Changelog
 ---------
 
+3.5.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 3.5.3
 .....
 

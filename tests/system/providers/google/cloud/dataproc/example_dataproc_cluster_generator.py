@@ -114,9 +114,8 @@ with models.DAG(
         # TEST SETUP
         create_bucket
         >> upload_file
-        >>
         # TEST BODY
-        create_dataproc_cluster
+        >> create_dataproc_cluster
         # TEST TEARDOWN
         >> [delete_cluster, delete_bucket]
     )

@@ -97,7 +97,6 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from moto.core.exceptions import AWSError
-    from pytest import ExceptionInfo
 
 
 @pytest.fixture(scope="function")
@@ -1332,7 +1331,7 @@ def assert_all_arn_values_are_valid(expected_arn_values, pattern, arn_under_test
 
 
 def assert_client_error_exception_thrown(
-    expected_exception: type[AWSError], expected_msg: str, raised_exception: ExceptionInfo
+    expected_exception: type[AWSError], expected_msg: str, raised_exception: pytest.ExceptionInfo
 ) -> None:
     """
     Asserts that the raised exception is of the expected type

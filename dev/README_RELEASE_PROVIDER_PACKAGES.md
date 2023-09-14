@@ -351,14 +351,6 @@ breeze build-docs --clean-build --package-filter apache-airflow-providers \
    --package-filter 'apache-airflow-providers-*'
 ```
 
-You can also use shorthand names as arguments instead of using the full names
-for airflow providers. Example:
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs cncf.kubernetes sftp --clean-build
-```
-
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
 means that unless we release just few selected packages or if we need to deliberately skip some packages
 we should release documentation for all provider packages and the above command is the one to use.
@@ -379,16 +371,14 @@ for airflow providers. Example:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs package1 package2 --clean-build
+breeze build-docs providers-index cncf.kubernetes sftp --clean-build
 ```
-
 
 If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
 ```
-
 
 - Now you can preview the documentation.
 
@@ -420,6 +410,16 @@ export PYTHONPATH=.:${PYTHONPATH}
 ```
 
 If you have providers as list of provider ids because you just released them you can build them with
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management publish-docs providers-index amazon cncf.kubernetes --override-versioned --run-in-parallel
+
+breeze release-management add-back-references providers-index amazon cncf.kubernetes
+```
+
+or with
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
