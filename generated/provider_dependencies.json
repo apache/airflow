@@ -474,7 +474,6 @@
       "postgres",
       "presto",
       "salesforce",
-      "samba",
       "sftp",
       "ssh",
       "trino"
@@ -761,7 +760,9 @@
       "apache-airflow>=2.4.0",
       "smbprotocol>=1.5.0"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "google"
+    ],
     "excluded-python-versions": []
   },
   "segment": {
