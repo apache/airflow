@@ -492,15 +492,11 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         while self.to_create:
             trigger_id, trigger_instance = self.to_create.popleft()
             if trigger_id not in self.triggers:
-                task_instance: TaskInstance = trigger_instance.task_instance
-                dag_id = task_instance.dag_id
-                run_id = task_instance.run_id
-                task_id = task_instance.task_id
-                map_index = task_instance.map_index
-                try_number = task_instance.try_number
+                ti: TaskInstance = trigger_instance.task_instance
                 self.triggers[trigger_id] = {
                     "task": asyncio.create_task(self.run_trigger(trigger_id, trigger_instance)),
-                    "name": f"{dag_id}/{run_id}/{task_id}/{map_index}/{try_number} (ID {trigger_id})",
+                    "name": f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number} "
+                    f"(ID {trigger_id})",
                     "events": 0,
                 }
             else:
