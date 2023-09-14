@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-13T23:52:39Z
+# This constraints file was automatically generated on 2023-09-14T13:44:19Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -105,9 +105,9 @@ azure-mgmt-resource==23.0.1
 azure-mgmt-storage==21.1.0
 azure-nspkg==3.0.2
 azure-servicebus==7.11.2
-azure-storage-blob==12.18.0
-azure-storage-file-datalake==12.13.0
-azure-storage-file-share==12.14.0
+azure-storage-blob==12.18.1
+azure-storage-file-datalake==12.13.1
+azure-storage-file-share==12.14.1
 azure-synapse-spark==0.7.0
 backcall==0.2.0
 backoff==1.10.0
@@ -206,7 +206,7 @@ google-cloud-bigquery-storage==2.22.0
 google-cloud-bigquery==3.11.4
 google-cloud-bigtable==2.21.0
 google-cloud-build==3.20.0
-google-cloud-compute==1.14.0
+google-cloud-compute==1.14.1
 google-cloud-container==2.31.0
 google-cloud-core==2.3.3
 google-cloud-datacatalog==3.15.1
@@ -522,7 +522,7 @@ toolz==0.12.0
 tornado==6.3.3
 towncrier==23.6.0
 tqdm==4.66.1
-traitlets==5.9.0
+traitlets==5.10.0
 trino==0.326.0
 twine==4.0.2
 types-Deprecated==1.2.9.3
@@ -565,7 +565,7 @@ yamllint==1.32.0
 yandexcloud==0.230.0
 yarl==1.9.2
 zeep==4.2.1
-zenpy==2.0.36
+zenpy==2.0.38
 zict==3.0.0
 zipp==3.16.2
 zope.event==5.0

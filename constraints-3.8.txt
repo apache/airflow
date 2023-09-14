@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-13T23:59:22Z
+# This constraints file was automatically generated on 2023-09-14T13:52:08Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -119,7 +119,7 @@ apache-airflow-providers-common-sql==1.7.2
 apache-airflow-providers-daskexecutor==1.0.1
 apache-airflow-providers-databricks==4.5.0
 apache-airflow-providers-datadog==3.3.2
-apache-airflow-providers-dbt-cloud==3.2.3
+apache-airflow-providers-dbt-cloud==3.3.0
 apache-airflow-providers-dingding==3.2.1
 apache-airflow-providers-discord==3.3.1
 apache-airflow-providers-docker==3.7.5
@@ -625,7 +625,7 @@ toolz==0.12.0
 tornado==6.3.3
 towncrier==23.6.0
 tqdm==4.66.1
-traitlets==5.9.0
+traitlets==5.10.0
 trino==0.326.0
 twine==4.0.2
 types-Deprecated==1.2.9.3
@@ -668,7 +668,7 @@ yamllint==1.32.0
 yandexcloud==0.230.0
 yarl==1.9.2
 zeep==4.2.1
-zenpy==2.0.36
+zenpy==2.0.38
 zict==3.0.0
 zipp==3.16.2
 zope.event==5.0
