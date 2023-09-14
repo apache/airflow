@@ -60,7 +60,7 @@ WORKER_POOL_SPECS = [
         },
         "replica_count": REPLICA_COUNT,
         "container_spec": {
-            "image_uri": f"gcr.io/{PROJECT_ID}/horse-human:hypertune",
+            "image_uri": "us-docker.pkg.dev/composer-256318/horse-human/horse-human-image:latest",
         },
     }
 ]
