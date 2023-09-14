@@ -860,7 +860,7 @@
   "tabular": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "pyiceberg>=0.4.0"
+      "pyiceberg>=0.5.0rc2"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
