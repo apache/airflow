@@ -62,7 +62,7 @@ class TestPodTemplateFile:
                 "images": {
                     "gitSync": {
                         "repository": "test-registry/test-repo",
-                        "tag": "test-tag",
+                        "tag": "v3.6.9",
                         "pullPolicy": "Always",
                     }
                 },
@@ -91,7 +91,7 @@ class TestPodTemplateFile:
         assert {
             "name": "git-sync-test-init",
             "securityContext": {"runAsUser": 65533},
-            "image": "test-registry/test-repo:test-tag",
+            "image": "test-registry/test-repo:v3.6.9",
             "imagePullPolicy": "Always",
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},

@@ -17,7 +17,7 @@
 #
 # This file is used for documentation purposes. Example can be found at docs/executor/kubernetes.rst
 #
-# [START git_sync_template]
+# [START git_sync_v4_template]
 ---
 apiVersion: v1
 kind: Pod
@@ -26,21 +26,21 @@ metadata:
 spec:
   initContainers:
     - name: git-sync
-      image: "registry.k8s.io/git-sync/git-sync:v3.6.9"
+      image: "registry.k8s.io/git-sync/git-sync:v4.0.0"
       env:
-        - name: GIT_SYNC_BRANCH
+        - name: GITSYNC_REF
           value: "v2-2-stable"
-        - name: GIT_SYNC_REPO
+        - name: GITSYNC_REPO
           value: "https://github.com/apache/airflow.git"
-        - name: GIT_SYNC_DEPTH
+        - name: GITSYNC_DEPTH
           value: "1"
-        - name: GIT_SYNC_ROOT
+        - name: GITSYNC_ROOT
           value: "/git"
-        - name: GIT_SYNC_DEST
+        - name: GITSYNC_LINK
           value: "repo"
-        - name: GIT_SYNC_ADD_USER
+        - name: GITSYNC_ADD_USER
           value: "true"
-        - name: GIT_SYNC_ONE_TIME
+        - name: GITSYNC_ONE_TIME
           value: "true"
       volumeMounts:
         - name: airflow-dags
@@ -92,4 +92,4 @@ spec:
     - configMap:
         name: RELEASE-NAME-airflow-config
       name: airflow-config
-# [END git_sync_template]
+# [END git_sync_v4_template]

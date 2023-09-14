@@ -57,7 +57,7 @@ class TestGitSyncSchedulerTest:
                 "images": {
                     "gitSync": {
                         "repository": "test-registry/test-repo",
-                        "tag": "test-tag",
+                        "tag": "v3.6.9",
                         "pullPolicy": "Always",
                     }
                 },
@@ -85,7 +85,7 @@ class TestGitSyncSchedulerTest:
         assert {
             "name": "git-sync-test",
             "securityContext": {"runAsUser": 65533},
-            "image": "test-registry/test-repo:test-tag",
+            "image": "test-registry/test-repo:v3.6.9",
             "imagePullPolicy": "Always",
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
@@ -97,6 +97,57 @@ class TestGitSyncSchedulerTest:
                 {"name": "GIT_SYNC_ADD_USER", "value": "true"},
                 {"name": "GIT_SYNC_WAIT", "value": "66"},
                 {"name": "GIT_SYNC_MAX_SYNC_FAILURES", "value": "70"},
+            ],
+            "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
+            "resources": {},
+        } == jmespath.search("spec.template.spec.containers[1]", docs[0])
+
+    def test_validate_the_git_sync_v4_container_spec(self):
+        docs = render_chart(
+            values={
+                "images": {
+                    "gitSync": {
+                        "repository": "test-registry/test-repo",
+                        "tag": "v4.0.0",
+                        "pullPolicy": "IfNotPresent",
+                    }
+                },
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerName": "git-sync-test",
+                        "wait": 66,
+                        "maxFailures": 70,
+                        "subPath": "path1/path2",
+                        "rev": "HEAD",
+                        "depth": 1,
+                        "repo": "https://github.com/apache/airflow.git",
+                        "branch": "test-branch",
+                        "sshKeySecret": None,
+                        "credentialsSecret": None,
+                        "knownHosts": None,
+                    },
+                    "persistence": {"enabled": True},
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {
+            "name": "git-sync-test",
+            "securityContext": {"runAsUser": 65533},
+            "image": "test-registry/test-repo:v4.0.0",
+            "imagePullPolicy": "IfNotPresent",
+            "env": [
+                {"name": "GIT_SYNC_REV", "value": "HEAD"},
+                {"name": "GIT_SYNC_BRANCH", "value": "test-branch"},
+                {"name": "GITSYNC_REPO", "value": "https://github.com/apache/airflow.git"},
+                {"name": "GITSYNC_DEPTH", "value": "1"},
+                {"name": "GITSYNC_ROOT", "value": "/git"},
+                {"name": "GITSYNC_LINK", "value": "repo"},
+                {"name": "GITSYNC_ADD_USER", "value": "true"},
+                {"name": "GITSYNC_PERIOD", "value": "66s"},
+                {"name": "GITSYNC_MAX_FAILURES", "value": "70"},
             ],
             "volumeMounts": [{"mountPath": "/git", "name": "dags"}],
             "resources": {},

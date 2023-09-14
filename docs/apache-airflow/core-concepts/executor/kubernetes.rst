@@ -127,6 +127,13 @@ Pulling DAGs from ``git``:
     :start-after:  [START git_sync_template]
     :end-before: [END git_sync_template]
 
+Pulling DAGs from ``git`` via git-sync v4.0.0+:
+
+.. literalinclude:: /../../airflow/providers/cncf/kubernetes/pod_template_file_examples/git_sync_v4_template.yaml
+    :language: yaml
+    :start-after:  [START git_sync_v4_template]
+    :end-before: [END git_sync_v4_template]
+
 .. _concepts:pod_override:
 
 pod_override
