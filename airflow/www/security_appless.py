@@ -16,20 +16,28 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
+from typing import TYPE_CHECKING
+
+from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+
+if TYPE_CHECKING:
+    from flask_session import Session
 
 
-class TestAthenaTrigger:
-    def test_serialize_recreate(self):
-        trigger = AthenaTrigger("query_id", 1, 5, "aws connection")
+class FakeAppBuilder:
+    """Stand-in class to replace a Flask App Builder.
 
-        class_path, args = trigger.serialize()
+    The only purpose is to provide the ``self.appbuilder.get_session`` interface
+    for ``ApplessAirflowSecurityManager`` so it can be used without a real Flask
+    app, which is slow to create.
+    """
 
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
+    def __init__(self, session: Session | None = None) -> None:
+        self.get_session = session
 
-        class_path2, args2 = instance.serialize()
 
-        assert class_path == class_path2
-        assert args == args2
+class ApplessAirflowSecurityManager(FabAirflowSecurityManagerOverride):
+    """Security Manager that doesn't need the whole flask app."""
+
+    def __init__(self, session: Session | None = None):
+        self.appbuilder = FakeAppBuilder(session)

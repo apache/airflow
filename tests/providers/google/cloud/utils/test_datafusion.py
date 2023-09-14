@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,3 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import pytest
+
+from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
+
+
+class TestDataFusionPipelineType:
+    @pytest.mark.parametrize(
+        "str_value, expected_item",
+        [
+            ("batch", DataFusionPipelineType.BATCH),
+            ("stream", DataFusionPipelineType.STREAM),
+        ],
+    )
+    def test_from_str(self, str_value, expected_item):
+        assert DataFusionPipelineType.from_str(str_value) == expected_item
+
+    def test_from_str_error(self):
+        with pytest.raises(ValueError):
+            DataFusionPipelineType.from_str("non-existing value")

@@ -169,7 +169,7 @@ class ElasticsearchPythonHook(BaseHook):
     def __init__(self, hosts: list[Any], es_conn_args: dict | None = None):
         super().__init__()
         self.hosts = hosts
-        self.es_conn_args = es_conn_args if es_conn_args else {}
+        self.es_conn_args = es_conn_args or {}
 
     def _get_elastic_connection(self):
         """Returns the Elasticsearch client."""

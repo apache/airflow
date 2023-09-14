@@ -40,12 +40,16 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``fix(providers/redis): respect soft_fail argument when exception is raised (#34164)``
+* ``dbt, openlineage: set run_id after defer, do not log error if operator has no run_id set (#34270)``
 
 Misc
 ~~~~
 
 * ``Remove some useless try/except from providers code (#33967)``
 * ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 
 3.2.3
 .....

@@ -59,13 +59,7 @@ with models.DAG(
         task_id="create_bucket",
         bucket_name=BUCKET_NAME,
         project_id=PROJECT_ID,
-        resource={
-            "iamConfiguration": {
-                "uniformBucketLevelAccess": {
-                    "enabled": False,
-                },
-            },
-        },
+        resource={"predefined_acl": "public_read_write"},
     )
 
     upload_file = LocalFilesystemToGCSOperator(

@@ -89,13 +89,13 @@ with DAG(
 
     @task(task_id="print_greetings", trigger_rule=TriggerRule.ALL_DONE)
     def print_greetings(greetings1, greetings2, greetings3) -> None:
-        for g in greetings1 if greetings1 else []:
+        for g in greetings1 or []:
             print(g)
-        for g in greetings2 if greetings2 else []:
+        for g in greetings2 or []:
             print(g)
-        for g in greetings3 if greetings3 else []:
+        for g in greetings3 or []:
             print(g)
-        if not greetings1 and not greetings2 and not greetings3:
+        if not (greetings1 or greetings2 or greetings3):
             print("sad, nobody to greet :-(")
 
     lang_select = select_languages()
