@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-14T13:52:07Z
+# This constraints file was automatically generated on 2023-09-14T18:31:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -315,8 +315,8 @@ google-cloud-dataflow-client==0.8.4
 google-cloud-dataform==0.5.2
 google-cloud-dataplex==1.6.2
 google-cloud-dataproc-metastore==1.12.0
-google-cloud-dataproc==5.5.0
-google-cloud-dlp==3.12.2
+google-cloud-dataproc==5.5.1
+google-cloud-dlp==3.12.3
 google-cloud-kms==2.19.1
 google-cloud-language==2.11.0
 google-cloud-logging==3.6.0
@@ -331,9 +331,9 @@ google-cloud-run==0.9.1
 google-cloud-secret-manager==2.16.3
 google-cloud-spanner==3.40.1
 google-cloud-speech==2.21.0
-google-cloud-storage-transfer==1.9.1
+google-cloud-storage-transfer==1.9.2
 google-cloud-storage==2.10.0
-google-cloud-tasks==2.14.1
+google-cloud-tasks==2.14.2
 google-cloud-texttospeech==2.14.1
 google-cloud-translate==3.12.0
 google-cloud-videointelligence==2.11.3
@@ -436,9 +436,9 @@ oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.6.0
 openapi-spec-validator==0.6.0
-openlineage-integration-common==1.1.0
-openlineage-python==1.1.0
-openlineage_sql==1.1.0
+openlineage-integration-common==1.2.0
+openlineage-python==1.2.0
+openlineage_sql==1.2.0
 openpyxl==3.1.2
 opentelemetry-api==1.20.0
 opentelemetry-exporter-otlp-proto-common==1.20.0
