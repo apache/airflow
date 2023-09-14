@@ -532,7 +532,7 @@ class GCSToBigQueryOperator(BaseOperator):
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
-        if self.source_format in src_fmt_to_param_mapping.keys():
+        if self.source_format in src_fmt_to_param_mapping:
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[self.source_format]]
             self.src_fmt_configs = self._validate_src_fmt_configs(
                 self.source_format, self.src_fmt_configs, valid_configs, backward_compatibility_configs

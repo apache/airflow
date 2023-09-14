@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
@@ -35,6 +36,8 @@ if TYPE_CHECKING:
     from airflow.models import Connection
 
 T = TypeVar("T", bound=Callable)
+
+log = logging.getLogger(__name__)
 
 
 def get_access_denied_message():
@@ -135,13 +138,33 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
     def has_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            dag_id = (
-                kwargs.get("dag_id")
-                or request.args.get("dag_id")
-                or request.form.get("dag_id")
-                or (request.is_json and request.json.get("dag_id"))
-                or None
-            )
+            dag_id_kwargs = kwargs.get("dag_id")
+            dag_id_args = request.args.get("dag_id")
+            dag_id_form = request.form.get("dag_id")
+            dag_id_json = request.json.get("dag_id") if request.is_json else None
+            all_dag_ids = [dag_id_kwargs, dag_id_args, dag_id_form, dag_id_json]
+            unique_dag_ids = set(dag_id for dag_id in all_dag_ids if dag_id is not None)
+
+            if len(unique_dag_ids) > 1:
+                log.warning(
+                    f"There are different dag_ids passed in the request: {unique_dag_ids}. Returning 403."
+                )
+                log.warning(
+                    f"kwargs: {dag_id_kwargs}, args: {dag_id_args}, "
+                    f"form: {dag_id_form}, json: {dag_id_json}"
+                )
+                return (
+                    render_template(
+                        "airflow/no_roles_permissions.html",
+                        hostname=get_hostname()
+                        if conf.getboolean("webserver", "EXPOSE_HOSTNAME")
+                        else "redact",
+                        logout_url=get_auth_manager().get_url_logout(),
+                    ),
+                    403,
+                )
+            dag_id = unique_dag_ids.pop() if unique_dag_ids else None
+
             is_authorized = get_auth_manager().is_authorized_dag(
                 method=method,
                 dag_access_entity=access_entity,

@@ -207,7 +207,7 @@ class GCSToGCSOperator(BaseOperator):
                 stacklevel=2,
             )
         self.source_object = source_object
-        if source_objects and any([WILDCARD in obj for obj in source_objects]):
+        if source_objects and any(WILDCARD in obj for obj in source_objects):
             warnings.warn(
                 "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead",
                 AirflowProviderDeprecationWarning,
@@ -429,7 +429,7 @@ class GCSToGCSOperator(BaseOperator):
         # Check whether the prefix is a root directory for all the rest of objects.
         _pref = prefix.rstrip("/")
         is_directory = prefix.endswith("/") or all(
-            [obj.replace(_pref, "", 1).startswith("/") for obj in source_objects]
+            obj.replace(_pref, "", 1).startswith("/") for obj in source_objects
         )
 
         if is_directory:

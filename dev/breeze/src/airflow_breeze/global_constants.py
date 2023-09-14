@@ -44,7 +44,7 @@ ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
-OTHER_INTEGRATIONS = ["statsd"]
+OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -55,8 +55,6 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
     [
         "all-testable",
         "all",
-        "otel",
-        "statsd",
         *ALL_INTEGRATIONS,
     ]
 )
