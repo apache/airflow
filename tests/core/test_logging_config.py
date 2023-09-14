@@ -21,9 +21,9 @@ import contextlib
 import importlib
 import logging
 import os
-import pathlib
 import sys
 import tempfile
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -138,30 +138,27 @@ def settings_context(content, directory=None, name="LOGGING_CONFIG"):
         filename = f"{SETTINGS_DEFAULT_NAME}.py"
         if directory:
             # Create the directory structure with __init__.py
-            dir_path = os.path.join(settings_root, directory)
-            pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
+            dir_path = Path(settings_root, directory)
+            dir_path.mkdir(exist_ok=True)
 
-            basedir = settings_root
-            for part in directory.split("/"):
-                open(os.path.join(basedir, "__init__.py"), "w").close()
-                basedir = os.path.join(basedir, part)
-            open(os.path.join(basedir, "__init__.py"), "w").close()
+            (dir_path / "__init__.py").touch()
+            for part in Path(directory).parents:
+                (settings_root / part / "__init__.py").touch()
 
             # Replace slashes by dots
-            module = directory.replace("/", ".") + "." + SETTINGS_DEFAULT_NAME + "." + name
-            settings_file = os.path.join(dir_path, filename)
+            module = str(directory).replace("/", ".") + f".{SETTINGS_DEFAULT_NAME}.{name}"
+            settings_path = dir_path / filename
         else:
-            module = SETTINGS_DEFAULT_NAME + "." + name
-            settings_file = os.path.join(settings_root, filename)
+            module = f"{SETTINGS_DEFAULT_NAME}.{name}"
+            settings_path = Path(settings_root, filename)
 
-        with open(settings_file, "w") as handle:
-            handle.writelines(content)
+        settings_path.write_text(content)
         sys.path.append(settings_root)
 
         # Using environment vars instead of conf_vars so value is accessible
         # to parent and child processes when using 'spawn' for multiprocessing.
         os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = module
-        yield settings_file
+        yield os.fspath(settings_path)
 
     finally:
         os.environ["AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS"] = initial_logging_config

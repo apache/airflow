@@ -140,13 +140,8 @@ class FileProcessorHandler(logging.Handler):
         :param filename: task instance object
         :return: relative log path of the given task instance
         """
-        relative_log_file_path = os.path.join(self._get_log_directory(), self._render_filename(filename))
-        log_file_path = os.path.abspath(relative_log_file_path)
-        directory = os.path.dirname(log_file_path)
+        log_file_path = Path(self._get_log_directory(), self._render_filename(filename)).resolve()
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+        log_file_path.touch(exist_ok=True)
 
-        Path(directory).mkdir(parents=True, exist_ok=True)
-
-        if not os.path.exists(log_file_path):
-            open(log_file_path, "a").close()
-
-        return log_file_path
+        return os.fspath(log_file_path)

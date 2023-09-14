@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -99,8 +100,7 @@ class TestFileSensor:
         )
         task._hook = self.hook
         try:
-            # `touch` the dir
-            open(temp_dir + "/file", "a").close()
+            Path(temp_dir, "file").touch()
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         finally:
             shutil.rmtree(temp_dir)
@@ -158,8 +158,7 @@ class TestFileSensor:
                 )
                 task._hook = self.hook
 
-                # `touch` the file in subdir
-                open(os.path.join(subdir, "file"), "a").close()
+                Path(subdir, "file").touch()
                 task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_wildcared_directory(self):
@@ -177,8 +176,7 @@ class TestFileSensor:
         task._hook = self.hook
 
         try:
-            # `touch` the file in subdir
-            open(subdir + "/file", "a").close()
+            Path(subdir, "file").touch()
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         finally:
             shutil.rmtree(temp_dir)

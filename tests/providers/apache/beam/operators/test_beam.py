@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -430,7 +431,7 @@ class TestBeamRunGoPipelineOperator:
         mock_tmp_dir.return_value.__enter__.side_effect = tmp_dir_side_effect
 
         def gcs_download_side_effect(bucket_name: str, object_name: str, filename: str) -> None:
-            open(filename, "wb").close()
+            Path(filename).touch()
 
         gcs_download_method = mock_gcs_hook.return_value.download
         gcs_download_method.side_effect = gcs_download_side_effect
@@ -595,7 +596,7 @@ class TestBeamRunGoPipelineOperator:
         mock_tmp_dir.return_value.__enter__.side_effect = tmp_dir_side_effect
 
         def gcs_download_side_effect(bucket_name: str, object_name: str, filename: str) -> None:
-            open(filename, "wb").close()
+            Path(filename).touch()
 
         gcs_download_method = mock_gcs_hook.return_value.download
         gcs_download_method.side_effect = gcs_download_side_effect

@@ -476,16 +476,17 @@ class FileTaskHandler(logging.Handler):
             # if this is true, we're invoked via set_context in the context of
             # setting up individual trigger logging. return trigger log path.
             full_path = self.add_triggerer_suffix(full_path=full_path, job_id=ti.triggerer_job.id)
-        self._prepare_log_folder(Path(full_path).parent)
+        path = Path(full_path)
+        self._prepare_log_folder(os.fspath(path.parent))
 
-        if not os.path.exists(full_path):
-            open(full_path, "a").close()
+        if not path.exists():
+            path.touch()
             try:
-                os.chmod(full_path, new_file_permissions)
+                path.chmod(new_file_permissions)
             except OSError as e:
                 logging.warning("OSError while changing ownership of the log file. ", e)
 
-        return full_path
+        return os.fspath(path)
 
     @staticmethod
     def _read_from_local(worker_log_path: Path) -> tuple[list[str], list[str]]:
