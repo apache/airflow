@@ -22,7 +22,6 @@ import os
 import re
 import time
 from functools import partial
-from importlib import reload
 from typing import Callable
 from unittest import mock
 
@@ -35,6 +34,7 @@ from airflow.providers.amazon.aws.executors.ecs import (
     AllEcsConfigKeys,
     AwsEcsExecutor,
     EcsTaskCollection,
+    ecs_executor_config,
 )
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
@@ -662,11 +662,9 @@ class TestAwsEcsExecutor:
         assert raised.match('Executor Config should never override "name" or "command"')
         assert 0 == len(mock_executor.pending_tasks)
 
-    def test_container_not_found(self, mock_executor):
-        # Force a container name mismatch
-        os.environ[
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()
-        ] = "bad-container-name"
+    @mock.patch.object(ecs_executor_config, "build_task_kwargs")
+    def test_container_not_found(self, mock_build_task_kwargs, mock_executor):
+        mock_build_task_kwargs.return_value({"overrides": {"containerOverrides": [{"name": "foo"}]}})
 
         with pytest.raises(KeyError) as raised:
             AwsEcsExecutor()
@@ -775,24 +773,24 @@ class TestEcsExecutorConfig:
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
-        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
         with pytest.raises(ValueError) as raised:
-            # The executor config module runs code and sets values at the
-            # module level. So to trigger any changes, the module must be
-            # reloaded
-            reload(ecs_executor_config)
+            ecs_executor_config.build_task_kwargs()
         assert raised.match("At least one subnet is required to run a task.")
 
     def test_config_defaults_are_applied(self, assign_subnets):
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()
+        ] = "container-name"
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
-        task_kwargs = _recursive_flatten_dict(ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS)
+        task_kwargs = _recursive_flatten_dict(ecs_executor_config.build_task_kwargs())
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
         for (expected_key, expected_value) in CONFIG_DEFAULTS.items():
-            # "conn_id" is used in the hook, but is not expected to appear in the task_kwargs.
-            if expected_key is AllEcsConfigKeys.AWS_CONN_ID:
+            # "conn_id" and max_run_task_attempts are used by the executor, but are not expected to appear
+            # in the task_kwargs.
+            if expected_key in [AllEcsConfigKeys.AWS_CONN_ID, AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS]:
                 assert expected_key not in found_keys.keys()
             else:
                 assert expected_key in found_keys.keys()
@@ -822,21 +820,23 @@ class TestEcsExecutorConfig:
         assert platform_version_env_key not in os.environ
         from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
-        reload(ecs_executor_config)
+        task_kwargs = ecs_executor_config.build_task_kwargs()
 
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["platformVersion"] == default_version
+        assert task_kwargs["platformVersion"] == default_version
 
         # Provide a value via template and assert that it is applied.
         os.environ[run_task_kwargs_env_key] = json.dumps(
             {AllEcsConfigKeys.PLATFORM_VERSION: templated_version}
         )
-        reload(ecs_executor_config)
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["platformVersion"] == templated_version
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+
+        assert task_kwargs["platformVersion"] == templated_version
 
         # Provide a new value explicitly and assert that it is applied.
         os.environ[platform_version_env_key] = explicit_version
-        reload(ecs_executor_config)
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["platformVersion"] == explicit_version
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+
+        assert task_kwargs["platformVersion"] == explicit_version
 
     def test_provided_kwargs_are_not_dropped(self, assign_subnets):
         """
@@ -868,41 +868,37 @@ class TestEcsExecutorConfig:
         # Confirm the default value is applied when no value is provided.
         assert run_task_kwargs_env_key not in os.environ
         assert platform_version_env_key not in os.environ
-        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 
-        reload(ecs_executor_config)
+        task_kwargs = ecs_executor_config.build_task_kwargs()
 
         # Platform version will be the default since no overrides or explicit config was passed for it yet
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["platformVersion"] == default_version
+        assert task_kwargs["platformVersion"] == default_version
         # There is no default for "cluster" so it should not exist.
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS.get("cluster") is None
+        assert task_kwargs.get("cluster") is None
 
         # Provide values for "platform_version" and "cluster" via task run kwargs template and assert
         # that they are applied.
         os.environ[run_task_kwargs_env_key] = json.dumps(provided_run_task_kwargs)
-        reload(ecs_executor_config)
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["platformVersion"] == templated_version
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["cluster"] == templated_cluster
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+        assert task_kwargs["platformVersion"] == templated_version
+        assert task_kwargs["cluster"] == templated_cluster
         # This also verifies that tag names are exempt from the camel-case conversion.
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["tags"] == templated_tags
+        assert task_kwargs["tags"] == templated_tags
         # Assert that count is NOT overridden, since it _must_ be 1
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["count"] == 1
+        assert task_kwargs["count"] == 1
         # The container override provided by the user should not be removed or overridden
-        assert (
-            ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["memory"]
-            == 5
-        )
+        assert task_kwargs["overrides"]["containerOverrides"][0]["memory"] == 5
 
         # Provide a new value explicitly for template_version and assert that it is applied while the
         # value for cluster still comes from the run kwargs template
         os.environ[platform_version_env_key] = explicit_version
-        reload(ecs_executor_config)
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["platformVersion"] == explicit_version
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+        assert task_kwargs["platformVersion"] == explicit_version
         # The env var which set the run_task_kwargs with "cluster" is still there, so even though we
         # explicitly set "platform_version" after that, and that value from the run_task_kwargs
         # should be overridden, "cluster" should still be what run_task_kwargs set it to, as well as tags.
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["cluster"] == templated_cluster
-        assert ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS["tags"] == templated_tags
+        assert task_kwargs["cluster"] == templated_cluster
+        assert task_kwargs["tags"] == templated_tags
 
     def test_that_provided_kwargs_are_moved_to_correct_nesting(self, assign_subnets):
         """
@@ -919,11 +915,7 @@ class TestEcsExecutorConfig:
         for key, value in kwargs_to_test.items():
             os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{key}".upper()] = value
 
-        from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
-
-        reload(ecs_executor_config)
-
-        run_task_kwargs = ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS
+        run_task_kwargs = ecs_executor_config.build_task_kwargs()
         run_task_kwargs_network_config = run_task_kwargs["networkConfiguration"]["awsvpcConfiguration"]
         for key, value in kwargs_to_test.items():
             # Assert that the values are not at the root of the kwargs

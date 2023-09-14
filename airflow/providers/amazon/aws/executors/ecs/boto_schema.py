@@ -15,6 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+AWS ECS Executor Boto Schema.
+
+Schemas for easily and consistently parsing boto responses.
+"""
+
 from __future__ import annotations
 
 from marshmallow import EXCLUDE, Schema, fields, post_load
@@ -22,7 +28,7 @@ from marshmallow import EXCLUDE, Schema, fields, post_load
 
 class BotoContainerSchema(Schema):
     """
-    Botocore Serialization Object for ECS 'Container' shape.
+    Botocore Serialization Object for ECS ``Container`` shape.
 
     Note that there are many more parameters, but the executor only needs the members listed below.
     """
@@ -39,7 +45,7 @@ class BotoContainerSchema(Schema):
 
 class BotoTaskSchema(Schema):
     """
-    Botocore Serialization Object for ECS 'Task' shape.
+    Botocore Serialization Object for ECS ``Task`` shape.
 
     Note that there are many more parameters, but the executor only needs the members listed below.
     """
@@ -66,7 +72,7 @@ class BotoTaskSchema(Schema):
 
 
 class BotoFailureSchema(Schema):
-    """Botocore Serialization Object for ECS 'Failure' Shape."""
+    """Botocore Serialization Object for ECS ``Failure`` Shape."""
 
     arn = fields.String()
     reason = fields.String()
@@ -78,7 +84,7 @@ class BotoFailureSchema(Schema):
 
 
 class BotoRunTaskSchema(Schema):
-    """Botocore Serialization Object for ECS 'RunTask' Operation output."""
+    """Botocore Serialization Object for ECS ``RunTask`` Operation output."""
 
     tasks = fields.List(fields.Nested(BotoTaskSchema), required=True)
     failures = fields.List(fields.Nested(BotoFailureSchema), required=True)
@@ -90,7 +96,7 @@ class BotoRunTaskSchema(Schema):
 
 
 class BotoDescribeTasksSchema(Schema):
-    """Botocore Serialization Object for ECS 'DescribeTask' Operation output."""
+    """Botocore Serialization Object for ECS ``DescribeTask`` Operation output."""
 
     tasks = fields.List(fields.Nested(BotoTaskSchema), required=True)
     failures = fields.List(fields.Nested(BotoFailureSchema), required=True)

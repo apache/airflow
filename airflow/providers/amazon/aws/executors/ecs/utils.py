@@ -15,6 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+"""
+AWS ECS Executor Utilities.
+
+Data classes and utility functions used by the ECS executor.
+"""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -47,7 +53,7 @@ CONFIG_DEFAULTS = {
 
 @dataclass
 class EcsQueuedTask:
-    """Represents an Ecs task that is queued. The task will be run in the next heartbeat."""
+    """Represents an ECS task that is queued. The task will be run in the next heartbeat."""
 
     key: TaskInstanceKey
     command: CommandType
@@ -58,7 +64,7 @@ class EcsQueuedTask:
 
 @dataclass
 class EcsTaskInfo:
-    """Contains information about a currently running Ecs task."""
+    """Contains information about a currently running ECS task."""
 
     cmd: CommandType
     queue: str
@@ -254,7 +260,7 @@ def snake_to_camel(_key):
 
 
 def convert_dict_keys_camel_case(nested_dict) -> dict:
-    """Accept a potentially nested dictionary and recursively convert all keys into camelCase."""
+    """Accept a potentially nested dictionary and recursively convert all keys into `rcamelCase``."""
     result = {}
     for (key, value) in nested_dict.items():
         new_key = snake_to_camel(key)

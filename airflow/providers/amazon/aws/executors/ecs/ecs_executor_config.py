@@ -18,12 +18,13 @@
 """
 AWS ECS Executor configuration.
 
-This is the configuration for calling the ECS `run_task` function. The AWS ECS Executor calls
-Boto3's run_task(**kwargs) function with the kwargs templated by this dictionary. See the URL
+This is the configuration for calling the ECS ``run_task`` function. The AWS ECS Executor calls
+Boto3's ``run_task(**kwargs)`` function with the kwargs templated by this dictionary. See the URL
 below for documentation on the parameters accepted by the Boto3 run_task function.
 
 .. seealso::
-https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+
 """
 
 from __future__ import annotations
@@ -55,7 +56,7 @@ def _fetch_explicit_kwargs() -> dict[str, str]:
     )
 
 
-def _build_task_kwargs() -> dict:
+def build_task_kwargs() -> dict:
     # This will put some kwargs at the root of the dictionary that do NOT belong there. However,
     # the code below expects them to be there and will rearrange them as necessary.
     task_kwargs = deepcopy(RUN_TASK_KWARG_DEFAULTS)
@@ -108,6 +109,3 @@ def _build_task_kwargs() -> dict:
         raise ValueError(f"AWS ECS Executor config values must be JSON serializable. Got {task_kwargs}")
 
     return task_kwargs
-
-
-ECS_EXECUTOR_RUN_TASK_KWARGS = _build_task_kwargs()

@@ -20,6 +20,7 @@ AWS ECS Executor.
 
 Each Airflow task gets delegated out to an Amazon ECS Task.
 """
+
 from __future__ import annotations
 
 import time
@@ -55,11 +56,11 @@ class AwsEcsExecutor(BaseExecutor):
     The Airflow Scheduler creates a shell command, and passes it to the executor. This ECS Executor
     runs said Airflow command on a remote Amazon ECS Cluster with a task-definition configured to
     launch the same containers as the Scheduler. It then periodically checks in with the launched
-    tasks (via task-arns) to determine the status.
+    tasks (via task ARNs) to determine the status.
 
     This allows individual tasks to specify CPU, memory, GPU, env variables, etc. When initializing a task,
     there's an option for "executor config" which should be a dictionary with keys that match the
-    "ContainerOverride" definition per AWS documentation (see link below).
+    ``ContainerOverride`` definition per AWS documentation (see link below).
 
     Prerequisite: proper configuration of Boto3 library
     .. seealso:: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html for
@@ -313,18 +314,18 @@ class AwsEcsExecutor(BaseExecutor):
             self.log.exception("Failed to terminate %s", self.__class__.__name__)
 
     def _load_run_kwargs(self) -> dict:
-        try:
-            from airflow.providers.amazon.aws.executors.ecs.ecs_executor_config import (
-                ECS_EXECUTOR_RUN_TASK_KWARGS,
-            )
+        from airflow.providers.amazon.aws.executors.ecs.ecs_executor_config import build_task_kwargs
 
-            self.get_container(ECS_EXECUTOR_RUN_TASK_KWARGS["overrides"]["containerOverrides"])["command"]
+        ecs_executor_run_task_kwargs = build_task_kwargs()
+
+        try:
+            self.get_container(ecs_executor_run_task_kwargs["overrides"]["containerOverrides"])["command"]
         except KeyError:
             raise KeyError(
                 "Rendered JSON template does not contain key "
                 '"overrides[containerOverrides][containers][x][command]"'
             )
-        return ECS_EXECUTOR_RUN_TASK_KWARGS
+        return ecs_executor_run_task_kwargs
 
     def get_container(self, container_list):
         """Searches task list for core Airflow container."""
