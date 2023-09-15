@@ -153,7 +153,7 @@ def make_initialization_workspace_flow(
         contents=dataform_config_content,
     )
 
-    package_name = package_name if package_name else workspace_id
+    package_name = package_name or workspace_id
     package_json_content = json.dumps(
         {
             "name": package_name,
