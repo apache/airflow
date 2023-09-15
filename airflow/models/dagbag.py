@@ -28,6 +28,7 @@ import traceback
 import warnings
 import zipfile
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy.exc import OperationalError
@@ -56,8 +57,6 @@ from airflow.utils.timeout import timeout
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    import pathlib
-
     from airflow.models.dag import DAG
 
 
@@ -93,7 +92,7 @@ class DagBag(LoggingMixin):
 
     def __init__(
         self,
-        dag_folder: str | pathlib.Path | None = None,
+        dag_folder: str | Path | None = None,
         include_examples: bool | ArgNotSet = NOTSET,
         safe_mode: bool | ArgNotSet = NOTSET,
         read_dags_from_db: bool = False,
@@ -325,8 +324,8 @@ class DagBag(LoggingMixin):
             return []
 
         self.log.debug("Importing %s", filepath)
-        org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
         path_hash = hashlib.sha1(filepath.encode("utf-8")).hexdigest()
+        org_mod_name = Path(filepath).stem
         mod_name = f"unusual_prefix_{path_hash}_{org_mod_name}"
 
         if mod_name in sys.modules:
@@ -378,15 +377,12 @@ class DagBag(LoggingMixin):
         mods = []
         with zipfile.ZipFile(filepath) as current_zip_file:
             for zip_info in current_zip_file.infolist():
-                head, _ = os.path.split(zip_info.filename)
-                mod_name, ext = os.path.splitext(zip_info.filename)
-                if ext not in [".py", ".pyc"]:
-                    continue
-                if head:
+                zip_path = Path(zip_info.filename)
+                if zip_path.suffix not in [".py", ".pyc"] or len(zip_path.parts) > 1:
                     continue
 
-                if mod_name == "__init__":
-                    self.log.warning("Found __init__.%s at root of %s", ext, filepath)
+                if zip_path.stem == "__init__":
+                    self.log.warning("Found %s at root of %s", zip_path.name, filepath)
 
                 self.log.debug("Reading %s from %s", zip_info.filename, filepath)
 
@@ -400,6 +396,7 @@ class DagBag(LoggingMixin):
                         )
                     continue
 
+                mod_name = zip_path.stem
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
 
@@ -516,7 +513,7 @@ class DagBag(LoggingMixin):
 
     def collect_dags(
         self,
-        dag_folder: str | pathlib.Path | None = None,
+        dag_folder: str | Path | None = None,
         only_if_updated: bool = True,
         include_examples: bool = conf.getboolean("core", "LOAD_EXAMPLES"),
         safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),

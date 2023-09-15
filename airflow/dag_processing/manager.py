@@ -847,9 +847,7 @@ class DagFileProcessorManager(LoggingMixin):
             last_runtime = self.get_last_runtime(file_path)
             num_dags = self.get_last_dag_count(file_path)
             num_errors = self.get_last_error_count(file_path)
-            file_name = os.path.basename(file_path)
-            file_name = os.path.splitext(file_name)[0].replace(os.sep, ".")
-
+            file_name = Path(file_path).stem
             processor_pid = self.get_pid(file_path)
             processor_start_time = self.get_start_time(file_path)
             runtime = (now - processor_start_time) if processor_start_time else None
@@ -1039,8 +1037,7 @@ class DagFileProcessorManager(LoggingMixin):
             run_count=self.get_run_count(processor.file_path) + 1,
         )
         self._file_stats[processor.file_path] = stat
-
-        file_name = os.path.splitext(os.path.basename(processor.file_path))[0].replace(os.sep, ".")
+        file_name = Path(processor.file_path).stem
         Stats.timing(f"dag_processing.last_duration.{file_name}", last_duration)
         Stats.timing("dag_processing.last_duration", last_duration, tags={"file_name": file_name})
 
