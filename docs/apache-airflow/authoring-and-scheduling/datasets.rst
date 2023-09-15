@@ -197,3 +197,9 @@ Notes on schedules
 The ``schedule`` parameter to your DAG can take either a list of datasets to consume or a timetable-based option. The two cannot currently be mixed.
 
 When using datasets, in this first release (v2.4) waiting for all datasets in the list to be updated is the only option when multiple datasets are consumed by a DAG. A later release may introduce more fine-grained options allowing for greater flexibility.
+
+Fetching information from a Triggering Dataset Event
+----------------------------------------------------
+
+A triggered DAG can fetch information from the Dataset that triggered it using the ``triggering_dataset_events`` template or parameter.
+See more at :ref:`templates-ref`.
