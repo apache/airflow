@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import json
 import warnings
 from time import sleep
@@ -490,27 +491,20 @@ class EmrContainerHook(AwsBaseHook):
         :param poll_interval: Time (in seconds) to wait between calls to check query status on EMR
         :param max_polling_attempts: Number of times to poll for query state before function exits
         """
-        try_number = 1
-        final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
-
-        while True:
+        query_state = None  # Query state when query reaches final state or max_polling_attempts reached
+        count = range(1, 1 + max_polling_attempts) if max_polling_attempts else itertools.count(1)
+        for attempt in count:
+            if attempt > 1:
+                sleep(poll_interval)
             query_state = self.check_query_status(job_id)
             if query_state is None:
-                self.log.info("Try %s: Invalid query state. Retrying again", try_number)
+                self.log.info("Try %s: Invalid query state. Retrying again", attempt)
             elif query_state in self.TERMINAL_STATES:
-                self.log.info("Try %s: Query execution completed. Final state is %s", try_number, query_state)
-                final_query_state = query_state
+                self.log.info("Try %s: Query execution completed. Final state is %s", attempt, query_state)
                 break
             else:
-                self.log.info("Try %s: Query is still in non-terminal state - %s", try_number, query_state)
-            if (
-                max_polling_attempts and try_number >= max_polling_attempts
-            ):  # Break loop if max_polling_attempts reached
-                final_query_state = query_state
-                break
-            try_number += 1
-            sleep(poll_interval)
-        return final_query_state
+                self.log.info("Try %s: Query is still in non-terminal state - %s", attempt, query_state)
+        return query_state
 
     def stop_query(self, job_id: str) -> dict:
         """

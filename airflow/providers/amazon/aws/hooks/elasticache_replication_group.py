@@ -139,37 +139,28 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         sleep_time = initial_sleep_time or self.initial_poke_interval
         exponential_back_off_factor = exponential_back_off_factor or self.exponential_back_off_factor
         max_retries = max_retries or self.max_retries
-        num_tries = 0
         status = "not-found"
-        stop_poking = False
 
-        while not stop_poking and num_tries <= max_retries:
+        for attempt in range(max_retries):
+            if attempt:
+                self.log.info("Poke retry %s. Sleep time %s seconds. Sleeping...", attempt, sleep_time)
+                sleep(sleep_time)
+                sleep_time *= exponential_back_off_factor
+
             status = self.get_replication_group_status(replication_group_id=replication_group_id)
-            stop_poking = status in self.TERMINAL_STATES
 
             self.log.info(
                 "Current status of replication group with ID %s is %s", replication_group_id, status
             )
 
-            if not stop_poking:
-                num_tries += 1
+            if status in self.TERMINAL_STATES:
+                break
 
-                # No point in sleeping if all tries have exhausted
-                if num_tries > max_retries:
-                    break
-
-                self.log.info("Poke retry %s. Sleep time %s seconds. Sleeping...", num_tries, sleep_time)
-
-                sleep(sleep_time)
-
-                sleep_time *= exponential_back_off_factor
-
-        if status != "available":
+        if status == "available":
+            return True
+        else:
             self.log.warning('Replication group is not available. Current status is "%s"', status)
-
             return False
-
-        return True
 
     def wait_for_deletion(
         self,
@@ -194,10 +185,14 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         sleep_time = initial_sleep_time or self.initial_poke_interval
         exponential_back_off_factor = exponential_back_off_factor or self.exponential_back_off_factor
         max_retries = max_retries or self.max_retries
-        num_tries = 0
         response = None
 
-        while not deleted and num_tries <= max_retries:
+        for attempt in range(max_retries):
+            if attempt:
+                self.log.info("Poke retry %s. Sleep time %s seconds. Sleeping...", attempt, sleep_time)
+                sleep(sleep_time)
+                sleep_time *= exponential_back_off_factor
+
             try:
                 status = self.get_replication_group_status(replication_group_id=replication_group_id)
 
@@ -214,8 +209,8 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
             except self.conn.exceptions.ReplicationGroupNotFoundFault:
                 self.log.info("Replication group with ID '%s' does not exist", replication_group_id)
-
                 deleted = True
+                break
 
             # This should never occur as we only issue a delete request when status is `available`
             # which is a valid status for deletion. Still handling for safety.
@@ -228,21 +223,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
                 #             for deletion.
 
                 message = exp.response["Error"]["Message"]
-
                 self.log.warning("Received error message from AWS ElastiCache API : %s", message)
-
-            if not deleted:
-                num_tries += 1
-
-                # No point in sleeping if all tries have exhausted
-                if num_tries > max_retries:
-                    break
-
-                self.log.info("Poke retry %s. Sleep time %s seconds. Sleeping...", num_tries, sleep_time)
-
-                sleep(sleep_time)
-
-                sleep_time *= exponential_back_off_factor
 
         return response, deleted
 

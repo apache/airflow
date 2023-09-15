@@ -342,12 +342,12 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         :param check_interval: The amount of time in seconds to wait between attempts
         :param max_attempts: The maximum number of attempts to be made
         """
-        state = poke()
-        tries = 1
-        while state != target_state:
-            self.log.info("Current state is %s", state)
-            if tries >= max_attempts:
-                raise AirflowException("Max attempts exceeded")
-            time.sleep(check_interval)
+        for attempt in range(max_attempts):
+            if attempt:
+                time.sleep(check_interval)
             state = poke()
-            tries += 1
+            if state == target_state:
+                break
+            self.log.info("Current state is %s", state)
+        else:
+            raise AirflowException("Max attempts exceeded")
