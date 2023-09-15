@@ -21,7 +21,7 @@
 
 There are 3 steps involved in getting an ECS Executor to work in Apache Airflow:
 
-1. Creating a database that Airflow and the Executor can connect to.
+1. Creating a database that Airflow and the tasks running in ECS can connect to.
 2. Creating and configuring an ECS Cluster that can run tasks from Airflow.
 3. Configuring Airflow to use the ECS Executor and the database.
 
