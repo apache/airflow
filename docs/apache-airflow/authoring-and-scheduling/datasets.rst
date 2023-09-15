@@ -234,3 +234,5 @@ Example:
                 print(dataset_list[dataset][0].source_dag_run.dag_run_id)
 
         print_triggering_dataset_events()
+
+Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one Dataset given to the DAG, and the first of one DatasetEvent for that Dataset. An implementation may be quite complex if you have multiple Datasets, potentially with multiple DatasetEvents.
