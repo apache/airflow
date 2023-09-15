@@ -26,6 +26,7 @@ import logging
 import os
 import re
 import shutil
+import time
 import warnings
 from contextlib import suppress
 from copy import deepcopy
@@ -35,7 +36,6 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from time import sleep
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -1288,7 +1288,7 @@ class S3Hook(AwsBaseHook):
                 if not bucket_keys:
                     break
                 if retry:  # Avoid first loop
-                    sleep(500)
+                    time.sleep(500)
 
                 self.delete_objects(bucket=bucket_name, keys=bucket_keys)
 

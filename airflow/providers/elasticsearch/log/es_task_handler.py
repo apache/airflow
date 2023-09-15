@@ -21,10 +21,10 @@ import contextlib
 import inspect
 import logging
 import sys
+import time
 import warnings
 from collections import defaultdict
 from operator import attrgetter
-from time import time
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
 from urllib.parse import quote, urlparse
 
@@ -372,7 +372,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def emit(self, record):
         if self.handler:
-            setattr(record, self.offset_field, int(time() * (10**9)))
+            setattr(record, self.offset_field, int(time.time() * (10**9)))
             self.handler.emit(record)
 
     def set_context(self, ti: TaskInstance) -> None:
