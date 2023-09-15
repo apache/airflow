@@ -28,6 +28,13 @@ hookspec = HookspecMarker("airflow")
 
 
 @hookspec
+def on_dataset_created(
+    dataset: Dataset,
+):
+    """Execute when a new dataset is created."""
+
+
+@hookspec
 def on_dataset_changed(
     dataset: Dataset,
 ):

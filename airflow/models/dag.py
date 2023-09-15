@@ -89,6 +89,7 @@ from airflow.exceptions import (
     TaskNotFound,
 )
 from airflow.jobs.job import run_job
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
@@ -3085,6 +3086,7 @@ class DAG(LoggingMixin):
             else:
                 session.add(dataset)
                 stored_datasets[dataset.uri] = dataset
+                get_listener_manager().hook.on_dataset_created(dataset=dataset)
 
         session.flush()  # this is required to ensure each dataset has its PK loaded
 
