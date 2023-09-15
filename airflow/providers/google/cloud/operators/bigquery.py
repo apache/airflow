@@ -329,7 +329,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         records = event["records"]
         if not records:
             raise AirflowException("The query returned empty results")
-        elif not all(bool(r) for r in records):
+        elif not all(records):
             self._raise_exception(  # type: ignore[attr-defined]
                 f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
             )
@@ -1983,7 +1983,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        self.dataset_reference = dataset_reference if dataset_reference else {}
+        self.dataset_reference = dataset_reference or {}
         self.impersonation_chain = impersonation_chain
         if exists_ok is not None:
             warnings.warn(

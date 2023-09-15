@@ -40,14 +40,14 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.www.security_manager import AirflowSecurityManagerV2
 
 
-def _check_action_and_resource(sm: AirflowSecurityManager, perms: list[tuple[str, str]]) -> None:
+def _check_action_and_resource(sm: AirflowSecurityManagerV2, perms: list[tuple[str, str]]) -> None:
     """
     Check if the action or resource exists and otherwise raise 400.
 
-    This function is intended for use in the REST API because it raise 400
+    This function is intended for use in the REST API because it raises an HTTP error 400
     """
     for action, resource in perms:
         if not sm.get_action(action):
@@ -133,7 +133,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
         update_mask = [i.strip() for i in update_mask]
         data_ = {}
         for field in update_mask:
-            if field in data and not field == "permissions":
+            if field in data and field != "permissions":
                 data_[field] = data[field]
             elif field == "actions":
                 data_["permissions"] = data["permissions"]

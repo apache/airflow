@@ -35,7 +35,6 @@ from uuid import uuid4
 import pendulum
 import pytest
 import time_machine
-from pytest import param
 
 from airflow import models, settings
 from airflow.decorators import task, task_group
@@ -1165,7 +1164,7 @@ class TestTaskInstance:
             #   expect_passed
             # states: success, skipped, failed, upstream_failed, removed, done, success_setup, skipped_setup
             # all setups succeeded - one
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(6, 0, 0, 0, 0, 6, 1, 0),
@@ -1174,7 +1173,7 @@ class TestTaskInstance:
                 True,
                 id="all setups succeeded - one",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(7, 0, 0, 0, 0, 7, 2, 0),
@@ -1183,7 +1182,7 @@ class TestTaskInstance:
                 True,
                 id="all setups succeeded - two",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(5, 0, 1, 0, 0, 6, 0, 0),
@@ -1192,7 +1191,7 @@ class TestTaskInstance:
                 False,
                 id="setups failed - one",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(5, 0, 2, 0, 0, 7, 0, 0),
@@ -1201,7 +1200,7 @@ class TestTaskInstance:
                 False,
                 id="setups failed - two",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(5, 1, 0, 0, 0, 6, 0, 1),
@@ -1210,7 +1209,7 @@ class TestTaskInstance:
                 False,
                 id="setups skipped - one",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(5, 2, 0, 0, 0, 7, 0, 2),
@@ -1219,7 +1218,7 @@ class TestTaskInstance:
                 False,
                 id="setups skipped - two",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(5, 1, 1, 0, 0, 7, 0, 1),
@@ -1228,7 +1227,7 @@ class TestTaskInstance:
                 False,
                 id="one setup failed one setup skipped",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
@@ -1237,7 +1236,7 @@ class TestTaskInstance:
                 True,
                 id="is teardown one setup failed one setup success",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
@@ -1246,7 +1245,7 @@ class TestTaskInstance:
                 True,
                 id="not teardown one setup failed one setup success",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
@@ -1255,7 +1254,7 @@ class TestTaskInstance:
                 True,
                 id="is teardown one setup success one setup skipped",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
@@ -1264,7 +1263,7 @@ class TestTaskInstance:
                 True,
                 id="not teardown one setup success one setup skipped",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 0, 0, 0, 0, 3, 1, 0),
@@ -1273,7 +1272,7 @@ class TestTaskInstance:
                 False,
                 id="not all done",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
@@ -1282,7 +1281,7 @@ class TestTaskInstance:
                 False,
                 id="is teardown not all done one failed",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
@@ -1291,7 +1290,7 @@ class TestTaskInstance:
                 False,
                 id="not teardown not all done one failed",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
@@ -1300,7 +1299,7 @@ class TestTaskInstance:
                 False,
                 id="not all done one skipped",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
@@ -2815,13 +2814,13 @@ class TestTaskInstance:
 
         states = [State.RUNNING, State.FAILED, State.QUEUED, State.SCHEDULED, State.DEFERRED]
         tasks = []
-        for i in range(len(states)):
+        for i, state in enumerate(states):
             op = EmptyOperator(
                 task_id=f"reg_Task{i}",
                 dag=dag,
             )
             ti = TI(task=op, run_id=dr.run_id)
-            ti.state = states[i]
+            ti.state = state
             session.add(ti)
             tasks.append(ti)
 

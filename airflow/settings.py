@@ -49,8 +49,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-
-TIMEZONE = pendulum.tz.timezone("UTC")
 try:
     tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
@@ -58,7 +56,8 @@ try:
     else:
         TIMEZONE = pendulum.tz.timezone(tz)
 except Exception:
-    pass
+    TIMEZONE = pendulum.tz.timezone("UTC")
+
 log.info("Configured default timezone %s", TIMEZONE)
 
 
@@ -312,7 +311,7 @@ def prepare_engine_args(disable_connection_pool=False, pool_class=None):
         # Typically, this is a simple statement like "SELECT 1", but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
-        # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+        # https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
         pool_pre_ping = conf.getboolean("database", "SQL_ALCHEMY_POOL_PRE_PING", fallback=True)
 
         log.debug(

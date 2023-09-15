@@ -182,7 +182,7 @@ def connections_export(args):
                     f"Unsupported file format. The file must have the extension {', '.join(file_formats)}."
                 )
 
-        if args.serialization_format and not filetype == ".env":
+        if args.serialization_format and filetype != ".env":
             raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
 
         with create_session() as session:

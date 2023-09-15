@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import inspect
 import logging
 import sys
@@ -322,12 +323,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Using formatter._style.format makes it future proof i.e.
         # if we change the formatter style from '%' to '{' or '$', this will still work
         if self.json_format:
-            try:
+            with contextlib.suppress(Exception):
                 return self.formatter._style.format(
                     logging.makeLogRecord({**LOG_LINE_DEFAULTS, **log_line.to_dict()})
                 )
-            except Exception:
-                pass
 
         # Just a safe-guard to preserve backwards-compatibility
         return log_line.message

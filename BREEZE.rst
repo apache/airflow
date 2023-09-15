@@ -492,6 +492,8 @@ Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
 Example:
 If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
+Note: For building docs for apache-airflow-providers index, use ``providers-index`` as the short hand operator.
+
 Running static checks
 ---------------------
 
@@ -767,6 +769,28 @@ You can connect to these ports using:
 * Prometheus Targets: http://127.0.0.1:29090/targets
 * Grafana Dashboards: http://127.0.0.1:23000/dashboards
 
+Running Breeze with OpenLineage
+..........................................
+
+You can launch an instance of Breeze pre-configured to emit OpenLineage metrics using
+``breeze start-airflow --integration openlineage``.  This will launch an Airflow webserver
+within the Breeze environment as well as containers running a [Marquez](https://marquezproject.ai/)
+webserver and API server.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* MARQUEZ_API_HOST_PORT (default 25000) -> forwarded to Marquez API -> marquez:5000
+* MARQUEZ_API_ADMIN_HOST_PORT (default 25001) -> forwarded to Marquez Admin API -> marquez:5001
+* MARQUEZ_HOST_PORT (default 23100) -> forwarded to Marquez -> marquez_web:3000
+
+You can connect to these services using:
+
+* Marquez Webserver: http://127.0.0.1:23100
+* Marquez API: http://127.0.0.1:25000/api/v1
+* Marquez Admin API: http://127.0.0.1:25001
+
+Make sure to substitute the port numbers if you have customized them via the above env vars.
 
 Stopping the environment
 ------------------------
@@ -2078,6 +2102,9 @@ while publishing the documentation.
 
      breeze release-management publish-docs --airflow-site-directory
 
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
+
 The flag ``--airflow-site-directory`` takes the path of the cloned ``airflow-site``. The command will
 not proceed if this is an invalid path.
 
@@ -2090,6 +2117,17 @@ These are all available flags of ``release-management publish-docs`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_publish-docs.svg
   :width: 100%
   :alt: Breeze Publish documentation
+
+.. _generating_short_form_names:
+
+Generating short form names for Providers
+-----------------------------------------
+
+Skip the ``apache-airflow-providers-`` from the usual provider full names.
+Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
+
+Example:
+If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
 Adding back referencing HTML for the documentation
 """"""""""""""""""""""""""""""""""""""""""""""""""

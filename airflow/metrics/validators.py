@@ -178,7 +178,7 @@ def stat_name_default_handler(
         raise InvalidStatsNameException(
             f"The stat_name ({stat_name}) has to be less than {max_length} characters."
         )
-    if not all((c in allowed_chars) for c in stat_name):
+    if any(c not in allowed_chars for c in stat_name):
         raise InvalidStatsNameException(
             f"The stat name ({stat_name}) has to be composed of ASCII "
             f"alphabets, numbers, or the underscore, dot, or dash characters."

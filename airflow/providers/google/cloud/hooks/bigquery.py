@@ -123,7 +123,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.location = location
         self.priority = priority
         self.running_job_id: str | None = None
-        self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
+        self.api_resource_configs: dict = api_resource_configs or {}
         self.labels = labels
         self.credentials_path = "bigquery_hook_credentials.json"
 
@@ -659,7 +659,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
-        if source_format in src_fmt_to_param_mapping.keys():
+        if source_format in src_fmt_to_param_mapping:
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[source_format]]
             src_fmt_configs = _validate_src_fmt_configs(
                 source_format, src_fmt_configs, valid_configs, backward_compatibility_configs
@@ -2372,7 +2372,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.use_legacy_sql = use_legacy_sql
         if api_resource_configs:
             _validate_value("api_resource_configs", api_resource_configs, dict)
-        self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
+        self.api_resource_configs: dict = api_resource_configs or {}
         self.running_job_id: str | None = None
         self.location = location
         self.num_retries = num_retries
@@ -2874,12 +2874,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
         A sequence of sequences (e.g. a list of tuples) is returned.
         """
-        result = []
-        while True:
-            one = self.fetchone()
-            if one is None:
-                break
-            result.append(one)
+        result = list(iter(self.fetchone, None))
         return result
 
     def get_arraysize(self) -> int:
@@ -3099,16 +3094,16 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         with await self.service_file_as_context() as f:
             return Job(job_id=job_id, project=project_id, service_file=f, session=cast(Session, session))
 
-    async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> str:
+    async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> dict[str, str]:
         async with ClientSession() as s:
             job_client = await self.get_job_instance(project_id, job_id, s)
             job = await job_client.get_job()
             status = job.get("status", {})
             if status["state"] == "DONE":
                 if "errorResult" in status:
-                    return "error"
-                return "success"
-            return status["state"].lower()
+                    return {"status": "error", "message": status["errorResult"]["message"]}
+                return {"status": "success", "message": "Job completed"}
+            return {"status": status["state"].lower(), "message": "Job running"}
 
     async def get_job_output(
         self,

@@ -172,7 +172,7 @@ class HiveCliHook(BaseHook):
             )
         try:
             int_port = int(conn.port)
-            if int_port <= 0 or int_port > 65535:
+            if not 0 < int_port <= 65535:
                 raise Exception(f"The port used in beeline command ({conn.port}) should be in range 0-65535)")
         except (ValueError, TypeError) as e:
             raise Exception(f"The port used in beeline command ({conn.port}) should be a valid integer: {e})")

@@ -340,7 +340,7 @@ class OracleHook(DbApiHook):
         if self.supports_autocommit:
             self.set_autocommit(conn, False)
         cursor = conn.cursor()  # type: ignore[attr-defined]
-        values_base = target_fields if target_fields else rows[0]
+        values_base = target_fields or rows[0]
         prepared_stm = "insert into {tablename} {columns} values ({values})".format(
             tablename=table,
             columns="({})".format(", ".join(target_fields)) if target_fields else "",

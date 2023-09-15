@@ -136,6 +136,7 @@ class TestDagRun:
         ti0.refresh_from_db()
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
         assert dr0.state == state
+        assert dr0.clear_number < 1
 
     @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_clear_task_instances_for_backfill_finished_dagrun(self, state, session):
@@ -154,6 +155,7 @@ class TestDagRun:
         ti0.refresh_from_db()
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
         assert dr0.state == DagRunState.QUEUED
+        assert dr0.clear_number == 1
 
     def test_dagrun_find(self, session):
         now = timezone.utcnow()
