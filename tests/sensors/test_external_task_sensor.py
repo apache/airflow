@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import logging
 import os
 import tempfile
@@ -1159,10 +1160,9 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
     run_tasks(dag_bag, execution_date=day_2)
 
     # Assert that dagruns of all the affected dags are set to SUCCESS before tasks are cleared.
-    for dag in dag_bag.dags.values():
-        for execution_date in [day_1, day_2]:
-            dagrun = dag.get_dagrun(execution_date=execution_date, session=session)
-            dagrun.set_state(State.SUCCESS)
+    for dag, execution_date in itertools.product(dag_bag.dags.values(), [day_1, day_2]):
+        dagrun = dag.get_dagrun(execution_date=execution_date, session=session)
+        dagrun.set_state(State.SUCCESS)
     session.flush()
 
     dag_0 = dag_bag.get_dag("parent_dag_0")

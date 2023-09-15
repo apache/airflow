@@ -1241,10 +1241,8 @@ class Airflow(AirflowBaseView):
         )
         data = get_task_stats_from_query(qry)
         payload: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
-        for dag_id in filter_dag_ids:
-            for state in State.task_states:
-                count = data.get(dag_id, {}).get(state, 0)
-                payload[dag_id].append({"state": state, "count": count})
+        for dag_id, state in itertools.product(filter_dag_ids, State.task_states):
+            payload[dag_id].append({"state": state, "count": data.get(dag_id, {}).get(state, 0)})
         return flask.json.jsonify(payload)
 
     @expose("/last_dagruns", methods=["POST"])

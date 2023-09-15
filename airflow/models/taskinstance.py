@@ -20,6 +20,7 @@ from __future__ import annotations
 import collections.abc
 import contextlib
 import hashlib
+import itertools
 import logging
 import math
 import operator
@@ -2666,32 +2667,31 @@ class TaskInstance(Base, LoggingMixin):
 
         # this assumes that most dags have dag_id as the largest grouping, followed by run_id. even
         # if its not, this is still  a significant optimization over querying for every single tuple key
-        for cur_dag_id in dag_ids:
-            for cur_run_id in run_ids:
-                # we compare the group size between task_id and map_index and use the smaller group
-                dag_task_id_groups = task_id_groups[(cur_dag_id, cur_run_id)]
-                dag_map_index_groups = map_index_groups[(cur_dag_id, cur_run_id)]
+        for cur_dag_id, cur_run_id in itertools.product(dag_ids, run_ids):
+            # we compare the group size between task_id and map_index and use the smaller group
+            dag_task_id_groups = task_id_groups[(cur_dag_id, cur_run_id)]
+            dag_map_index_groups = map_index_groups[(cur_dag_id, cur_run_id)]
 
-                if len(dag_task_id_groups) <= len(dag_map_index_groups):
-                    for cur_task_id, cur_map_indices in dag_task_id_groups.items():
-                        filter_condition.append(
-                            and_(
-                                TaskInstance.dag_id == cur_dag_id,
-                                TaskInstance.run_id == cur_run_id,
-                                TaskInstance.task_id == cur_task_id,
-                                TaskInstance.map_index.in_(cur_map_indices),
-                            )
+            if len(dag_task_id_groups) <= len(dag_map_index_groups):
+                for cur_task_id, cur_map_indices in dag_task_id_groups.items():
+                    filter_condition.append(
+                        and_(
+                            TaskInstance.dag_id == cur_dag_id,
+                            TaskInstance.run_id == cur_run_id,
+                            TaskInstance.task_id == cur_task_id,
+                            TaskInstance.map_index.in_(cur_map_indices),
                         )
-                else:
-                    for cur_map_index, cur_task_ids in dag_map_index_groups.items():
-                        filter_condition.append(
-                            and_(
-                                TaskInstance.dag_id == cur_dag_id,
-                                TaskInstance.run_id == cur_run_id,
-                                TaskInstance.task_id.in_(cur_task_ids),
-                                TaskInstance.map_index == cur_map_index,
-                            )
+                    )
+            else:
+                for cur_map_index, cur_task_ids in dag_map_index_groups.items():
+                    filter_condition.append(
+                        and_(
+                            TaskInstance.dag_id == cur_dag_id,
+                            TaskInstance.run_id == cur_run_id,
+                            TaskInstance.task_id.in_(cur_task_ids),
+                            TaskInstance.map_index == cur_map_index,
                         )
+                    )
 
         return or_(*filter_condition)
 

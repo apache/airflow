@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import io
+import itertools
 import logging
 import os
 import pickle
@@ -342,12 +343,9 @@ class TestDag:
                 [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(width)]
                 for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
-                for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
-                        current_task.set_upstream(prev_task)
+            for upstream, downstream in zip(pipeline, pipeline[1:]):
+                for up_task, down_task in itertools.product(upstream, downstream):
+                    down_task.set_upstream(up_task)
 
             for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
@@ -376,12 +374,9 @@ class TestDag:
                 ]
                 for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
-                for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
-                        current_task.set_upstream(prev_task)
+            for upstream, downstream in zip(pipeline, pipeline[1:]):
+                for up_task, down_task in itertools.product(upstream, downstream):
+                    down_task.set_upstream(up_task)
 
             for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
@@ -409,12 +404,9 @@ class TestDag:
                 ]
                 for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
-                for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
-                        current_task.set_upstream(prev_task)
+            for upstream, downstream in zip(pipeline, pipeline[1:]):
+                for up_task, down_task in itertools.product(upstream, downstream):
+                    down_task.set_upstream(up_task)
 
             for task in dag.task_dict.values():
                 # the sum of each stages after this task + itself
