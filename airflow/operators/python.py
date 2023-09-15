@@ -555,7 +555,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "major versions for PythonVirtualenvOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
             )
-        if not (isinstance(python_version, str) or python_version is None):
+        if python_version is not None and not isinstance(python_version, str):
             warnings.warn(
                 "Passing non-string types (e.g. int or float) as python_version "
                 "is deprecated. Please use string value instead.",
