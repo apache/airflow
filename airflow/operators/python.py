@@ -555,10 +555,10 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "major versions for PythonVirtualenvOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
             )
-        if type(python_version) is float or type(python_version) is int:
+        if not (isinstance(python_version, str) or python_version is None):
             warnings.warn(
-                "Passing numeric type(int, float) as python_version is deprecated. "
-                "Please use string value instead.",
+                "Passing non-string types (e.g. int or float) as python_version "
+                "is deprecated. Please use string value instead.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
