@@ -74,15 +74,15 @@ class GCSToSambaOperator(BaseOperator):
         bucket. The wildcard can appear inside the object name or at the
         end of the object name. Appending a wildcard to the bucket name is
         unsupported.
-    :param destination_path: The smb remote path. This is the specified directory path in
-        the SMB Sharename for uploading files to the SMB server.
+    :param destination_path: The SMB remote path. This is the specified directory path in
+        the SMB sharename for uploading files to the SMB server.
     :param keep_directory_structure: (Optional) When set to False the path of the file
          on the bucket is recreated within path passed in destination_path.
     :param move_object: When move object is True, the object is moved instead
         of copied to the new location. This is the equivalent of a mv command
         as opposed to a cp command.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param samba_conn_id: The smb connection id. The name or identifier for
+    :param samba_conn_id: The SMB connection id. The name or identifier for
         establishing a connection to the SMB server.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

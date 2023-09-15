@@ -46,8 +46,8 @@ class TestGoogleCloudStorageToSambaOperator:
             ("folder/subfolder/test_object.txt", "test_object.txt", False),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.SambaHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
     def test_execute_copy_single_file(
         self, samba_hook_mock, gcs_hook_mock, source_object, target_object, keep_directory_structure
     ):
@@ -88,8 +88,8 @@ class TestGoogleCloudStorageToSambaOperator:
             ("folder/subfolder/test_object.txt", "test_object.txt", False),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.SambaHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
     def test_execute_move_single_file(
         self,
         samba_hook_mock,
@@ -175,8 +175,8 @@ class TestGoogleCloudStorageToSambaOperator:
             ),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.SambaHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
     def test_execute_copy_with_wildcard(
         self,
         samba_hook_mock,
@@ -267,8 +267,8 @@ class TestGoogleCloudStorageToSambaOperator:
             ),
         ],
     )
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.SambaHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
     def test_execute_move_with_wildcard(
         self,
         samba_hook_mock,
@@ -312,8 +312,8 @@ class TestGoogleCloudStorageToSambaOperator:
             [mock.call(TEST_BUCKET, gcs_file) for gcs_file in gcs_files_list]
         )
 
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_samba.SambaHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
+    @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
     def test_execute_more_than_one_wildcard_exception(self, samba_hook_mock, gcs_hook_mock):
         operator = GCSToSambaOperator(
             task_id=TASK_ID,
