@@ -24,7 +24,7 @@ from collections import namedtuple
 from unittest import mock
 
 import pytest
-import sqlalchemy
+import sqlalchemy as sa
 from cryptography.fernet import Fernet
 
 from airflow import AirflowException
@@ -678,7 +678,7 @@ class TestConnection:
         conn = BaseHook.get_connection(conn_id="test_uri")
         hook = conn.get_hook()
         engine = hook.get_sqlalchemy_engine()
-        assert isinstance(engine, sqlalchemy.engine.Engine)
+        assert isinstance(engine, sa.engine.Engine)
         assert "postgresql://username:password@ec2.compute.com:5432/the_database" == str(engine.url)
 
     @mock.patch.dict(

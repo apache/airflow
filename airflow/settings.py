@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 import pendulum
 import pluggy
-import sqlalchemy
+import sqlalchemy as sa
 from sqlalchemy import create_engine, exc, text
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -237,9 +237,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         session = Session()
         try:
             result = session.execute(
-                sqlalchemy.text(
-                    "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name=:database_name"
-                ),
+                sa.text("SELECT is_read_committed_snapshot_on FROM sys.databases WHERE name=:database_name"),
                 params={"database_name": engine.url.database},
             )
             data = result.fetchone()[0]

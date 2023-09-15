@@ -39,7 +39,7 @@ import flask.json
 import lazy_object_proxy
 import nvd3
 import re2
-import sqlalchemy as sqla
+import sqlalchemy as sa
 from croniter import croniter
 from flask import (
     Response,
@@ -306,7 +306,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             TaskInstance.state,
             TaskInstance._try_number,
             func.min(TaskInstanceNote.content).label("note"),
-            func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
+            func.count(func.coalesce(TaskInstance.state, sa.literal("no_status"))).label("state_count"),
             func.min(TaskInstance.queued_dttm).label("queued_dttm"),
             func.min(TaskInstance.start_date).label("start_date"),
             func.max(TaskInstance.end_date).label("end_date"),
@@ -871,7 +871,7 @@ class Airflow(AirflowBaseView):
                 dag_run_subquery = (
                     select(
                         DagRun.dag_id,
-                        sqla.func.max(DagRun.execution_date).label("max_execution_date"),
+                        sa.func.max(DagRun.execution_date).label("max_execution_date"),
                     )
                     .group_by(DagRun.dag_id)
                     .subquery()
@@ -1125,7 +1125,7 @@ class Airflow(AirflowBaseView):
             return flask.json.jsonify({})
 
         dag_state_stats = session.execute(
-            select(DagRun.dag_id, DagRun.state, sqla.func.count(DagRun.state))
+            select(DagRun.dag_id, DagRun.state, sa.func.count(DagRun.state))
             .group_by(DagRun.dag_id, DagRun.state)
             .where(DagRun.dag_id.in_(filter_dag_ids))
         )
@@ -1178,7 +1178,7 @@ class Airflow(AirflowBaseView):
         running_task_instance_query_result = select(
             TaskInstance.dag_id.label("dag_id"),
             TaskInstance.state.label("state"),
-            sqla.literal(True).label("is_dag_running"),
+            sa.literal(True).label("is_dag_running"),
         ).join(
             running_dag_run_query_result,
             and_(
@@ -1189,7 +1189,7 @@ class Airflow(AirflowBaseView):
 
         if conf.getboolean("webserver", "SHOW_RECENT_STATS_FOR_COMPLETED_RUNS", fallback=True):
             last_dag_run = (
-                select(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label("execution_date"))
+                select(DagRun.dag_id, sa.func.max(DagRun.execution_date).label("execution_date"))
                 .join(DagModel, DagModel.dag_id == DagRun.dag_id)
                 .where(DagRun.state != DagRunState.RUNNING, DagModel.is_active)
                 .group_by(DagRun.dag_id)
@@ -1204,7 +1204,7 @@ class Airflow(AirflowBaseView):
                 select(
                     TaskInstance.dag_id.label("dag_id"),
                     TaskInstance.state.label("state"),
-                    sqla.literal(False).label("is_dag_running"),
+                    sa.literal(False).label("is_dag_running"),
                 )
                 .join(TaskInstance.dag_run)
                 .join(
@@ -1227,7 +1227,7 @@ class Airflow(AirflowBaseView):
                 final_task_instance_query_result.c.dag_id,
                 final_task_instance_query_result.c.state,
                 final_task_instance_query_result.c.is_dag_running,
-                sqla.func.count(),
+                sa.func.count(),
             )
             .group_by(
                 final_task_instance_query_result.c.dag_id,
@@ -1273,7 +1273,7 @@ class Airflow(AirflowBaseView):
         last_runs_subquery = (
             select(
                 DagRun.dag_id,
-                sqla.func.max(DagRun.execution_date).label("max_execution_date"),
+                sa.func.max(DagRun.execution_date).label("max_execution_date"),
             )
             .group_by(DagRun.dag_id)
             .where(DagRun.dag_id.in_(filter_dag_ids))  # Only include accessible/selected DAGs.
@@ -1377,7 +1377,7 @@ class Airflow(AirflowBaseView):
         root = request.args.get("root", "")
 
         states = session.execute(
-            select(TaskInstance.state, sqla.func.count(TaskInstance.dag_id))
+            select(TaskInstance.state, sa.func.count(TaskInstance.dag_id))
             .where(TaskInstance.dag_id == dag_id)
             .group_by(TaskInstance.state)
         ).all()
@@ -2459,7 +2459,7 @@ class Airflow(AirflowBaseView):
             return flask.json.jsonify([])
 
         dags = session.execute(
-            select(DagRun.dag_id, sqla.func.count(DagRun.id))
+            select(DagRun.dag_id, sa.func.count(DagRun.id))
             .where(DagRun.state == DagRunState.RUNNING)
             .where(DagRun.dag_id.in_(filter_dag_ids))
             .group_by(DagRun.dag_id)
@@ -5907,13 +5907,13 @@ class AutocompleteView(AirflowBaseView):
 
         # Provide suggestions of dag_ids and owners
         dag_ids_query = select(
-            sqla.literal("dag").label("type"),
+            sa.literal("dag").label("type"),
             DagModel.dag_id.label("name"),
         ).where(~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike(f"%{query}%"))
 
         owners_query = (
             select(
-                sqla.literal("owner").label("type"),
+                sa.literal("owner").label("type"),
                 DagModel.owners.label("name"),
             )
             .distinct()

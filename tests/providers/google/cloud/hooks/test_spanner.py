@@ -21,7 +21,7 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
 import pytest
-import sqlalchemy
+import sqlalchemy as sa
 
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -446,7 +446,7 @@ class TestGcpSpannerHookDefaultProjectId:
     def test_get_sqlalchemy_engine(self, get_client):
         self.spanner_hook_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
         engine = self.spanner_hook_default_project_id.get_sqlalchemy_engine()
-        assert isinstance(engine, sqlalchemy.engine.Engine)
+        assert isinstance(engine, sa.engine.Engine)
         assert engine.name == "spanner+spanner"
 
 
@@ -706,5 +706,5 @@ class TestGcpSpannerHookNoDefaultProjectID:
     def test_get_sqlalchemy_engine(self, get_client):
         self.spanner_hook_no_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
         engine = self.spanner_hook_no_default_project_id.get_sqlalchemy_engine()
-        assert isinstance(engine, sqlalchemy.engine.Engine)
+        assert isinstance(engine, sa.engine.Engine)
         assert engine.name == "spanner+spanner"

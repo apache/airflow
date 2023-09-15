@@ -21,7 +21,7 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-import sqlalchemy
+import sqlalchemy as sa
 
 from airflow.models import Connection
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
@@ -143,7 +143,7 @@ class TestSqliteHook:
         conn_id = "sqlite_default"
         hook = SqliteHook(sqlite_conn_id=conn_id)
         engine = hook.get_sqlalchemy_engine()
-        assert isinstance(engine, sqlalchemy.engine.Engine)
+        assert isinstance(engine, sa.engine.Engine)
         assert engine.name == "sqlite"
         # Assert filepath of the sqliate DB is correct
         assert engine.url.database == hook.get_connection(conn_id).host

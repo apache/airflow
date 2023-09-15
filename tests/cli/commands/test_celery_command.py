@@ -23,7 +23,7 @@ from argparse import Namespace
 from unittest import mock
 
 import pytest
-import sqlalchemy
+import sqlalchemy as sa
 
 import airflow
 from airflow.cli import cli_parser
@@ -58,7 +58,7 @@ class TestWorkerPrecheck:
         """
         Test to validate connection failure scenario on SELECT 1 query
         """
-        mock_session.side_effect = sqlalchemy.exc.OperationalError("m1", "m2", "m3", "m4")
+        mock_session.side_effect = sa.exc.OperationalError("m1", "m2", "m3", "m4")
         assert airflow.settings.validate_session() is False
 
 
