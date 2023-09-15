@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import shutil
 from datetime import timedelta
+from pathlib import Path
 
 import time_machine
 
@@ -67,27 +68,25 @@ class TestFileProcessorHandler:
         date1 = (timezone.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
         date2 = (timezone.utcnow() + timedelta(days=2)).strftime("%Y-%m-%d")
 
-        path1 = os.path.join(self.base_log_folder, date1, "log1")
-        path2 = os.path.join(self.base_log_folder, date1, "log2")
+        path1 = Path(self.base_log_folder, date1, "log1")
+        path2 = Path(self.base_log_folder, date1, "log2")
 
-        if os.path.exists(path1):
-            os.remove(path1)
-        if os.path.exists(path2):
-            os.remove(path2)
+        path1.unlink(missing_ok=True)
+        path2.unlink(missing_ok=True)
 
-        link = os.path.join(self.base_log_folder, "latest")
+        link = Path(self.base_log_folder, "latest")
 
         with time_machine.travel(date1, tick=False):
             handler.set_context(filename=os.path.join(self.dag_dir, "log1"))
-            assert os.path.islink(link)
-            assert os.path.basename(os.readlink(link)) == date1
-            assert os.path.exists(os.path.join(link, "log1"))
+            assert link.is_symlink()
+            assert link.readlink().name == date1
+            assert (link / "log1").exists()
 
         with time_machine.travel(date2, tick=False):
             handler.set_context(filename=os.path.join(self.dag_dir, "log2"))
-            assert os.path.islink(link)
-            assert os.path.basename(os.readlink(link)) == date2
-            assert os.path.exists(os.path.join(link, "log2"))
+            assert link.is_symlink()
+            assert link.readlink().name == date2
+            assert (link / "log2").exists()
 
     def test_symlink_latest_log_directory_exists(self):
         handler = FileProcessorHandler(base_log_folder=self.base_log_folder, filename_template=self.filename)
@@ -95,14 +94,12 @@ class TestFileProcessorHandler:
 
         date1 = (timezone.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
 
-        path1 = os.path.join(self.base_log_folder, date1, "log1")
-        if os.path.exists(path1):
-            os.remove(path1)
+        path1 = Path(self.base_log_folder, date1, "log1")
+        path1.unlink(missing_ok=True)
 
-        link = os.path.join(self.base_log_folder, "latest")
-        if os.path.exists(link):
-            os.remove(link)
-        os.makedirs(link)
+        link = Path(self.base_log_folder, "latest")
+        link.rmdir(missing_ok=True)
+        link.mkdir(parents=True, exist_ok=True)
 
         with time_machine.travel(date1, tick=False):
             handler.set_context(filename=os.path.join(self.dag_dir, "log1"))

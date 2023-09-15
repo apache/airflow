@@ -120,7 +120,7 @@ def generate_back_references(link: str, base_path: Path):
                 relative_path = os.path.relpath(old, new)
                 # remove one directory level because file path was used above
                 relative_path = relative_path.replace("../", "", 1)
-                os.makedirs(dest_dir, exist_ok=True)
+                dest_dir.mkdir(exist_ok=True)
                 dest_file_path = dest_dir / file_name
                 create_back_reference_html(relative_path, dest_file_path)
 

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from sphinx.builders import html as builders
 from sphinx.util import logging
@@ -61,13 +62,9 @@ def generate_redirects(app):
 
             log.debug("Resolved redirect '%s' to '%s'", from_path, to_path)
 
-            redirected_filename = os.path.join(app.builder.outdir, from_path)
-            redirected_directory = os.path.dirname(redirected_filename)
-
-            os.makedirs(redirected_directory, exist_ok=True)
-
-            with open(redirected_filename, "w") as f:
-                f.write(TEMPLATE.format(to_path))
+            redirected_path = Path(app.builder.outdir, from_path)
+            redirected_path.parent.mkdir(parents=True, exist_ok=True)
+            redirected_path.write_text(TEMPLATE.format(to_path))
 
 
 def setup(app):

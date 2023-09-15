@@ -23,6 +23,7 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 
 import requests
 import yaml
@@ -40,9 +41,9 @@ AIRFLOW_SOURCES_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pard
 
 def _cache_dir():
     """Return full path to the user-specific cache dir for this application"""
-    path = os.path.join(AIRFLOW_SOURCES_DIR, ".build", "cache")
-    os.makedirs(path, exist_ok=True)
-    return path
+    path = Path(AIRFLOW_SOURCES_DIR, ".build", "cache")
+    path.mkdir(parents=True, exist_ok=True)
+    return os.fspath(path)
 
 
 def _gethash(string: str):
@@ -56,8 +57,6 @@ def fetch_and_cache(url: str, output_filename: str):
     cache_dir = _cache_dir()
     cache_metadata_filepath = os.path.join(cache_dir, "cache-metadata.json")
     cache_filepath = os.path.join(cache_dir, f"{cache_key}-{output_filename[:64]}")
-    # Create cache directory
-    os.makedirs(cache_dir, exist_ok=True)
     # Load cache metadata
     cache_metadata: dict[str, str] = {}
     if os.path.exists(cache_metadata_filepath):

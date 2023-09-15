@@ -23,6 +23,7 @@ import os
 import tempfile
 import zipfile
 from datetime import time, timedelta
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -77,25 +78,21 @@ def dag_zip_maker():
         def __call__(self, *dag_files):
             self.__dag_files = [os.sep.join([TEST_DAGS_FOLDER.__str__(), dag_file]) for dag_file in dag_files]
             dag_files_hash = md5("".join(self.__dag_files).encode()).hexdigest()
-            self.__tmp_dir = os.sep.join([tempfile.tempdir, dag_files_hash])
-
-            self.__zip_file_name = os.sep.join([self.__tmp_dir, f"{dag_files_hash}.zip"])
-
-            if not os.path.exists(self.__tmp_dir):
-                os.mkdir(self.__tmp_dir)
+            self.__zip_file_name = Path(tempfile.tempdir, dag_files_hash, f"{dag_files_hash}.zip")
+            self.__zip_file_name.parent.mkdir()
             return self
 
         def __enter__(self):
             with zipfile.ZipFile(self.__zip_file_name, "x") as zf:
                 for dag_file in self.__dag_files:
                     zf.write(dag_file, os.path.basename(dag_file))
-            dagbag = DagBag(dag_folder=self.__tmp_dir, include_examples=False)
+            dagbag = DagBag(dag_folder=os.fspath(self.__zip_file_name.parent), include_examples=False)
             dagbag.sync_to_db()
             return dagbag
 
         def __exit__(self, exc_type, exc_val, exc_tb):
-            os.unlink(self.__zip_file_name)
-            os.rmdir(self.__tmp_dir)
+            self.__zip_file_name.unlink()
+            self.__zip_file_name.parent.unlink()
 
     yield DagZipMaker()
 

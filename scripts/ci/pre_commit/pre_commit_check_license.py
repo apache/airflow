@@ -26,7 +26,7 @@ from pathlib import Path
 AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 # This is the target of a symlink in airflow/www/static/docs -
 # and rat exclude doesn't cope with the symlink target doesn't exist
-os.makedirs(AIRFLOW_SOURCES / "docs" / "_build" / "html", exist_ok=True)
+AIRFLOW_SOURCES.joinpath("docs", "_build", "html").mkdir(parents=True, exist_ok=True)
 
 cmd = [
     "docker",

@@ -75,22 +75,22 @@ class TestSFTPHook:
         temp_dir = tmp_path_factory.mktemp("sftp-temp")
         self.old_login = self.update_connection(SFTP_CONNECTION_USER)
         self.hook = SFTPHook()
-        os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR))
+        temp_dir.joinpath(TMP_DIR_FOR_TESTS, SUB_DIR).mkdir()
 
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
-            with open(os.path.join(temp_dir, file_name), "a") as file:
+            with (temp_dir / file_name).open("a") as file:
                 file.write("Test file")
-        with open(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), "a") as file:
+        with temp_dir.joinpath(TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS).open("a") as file:
             file.write("Test file")
-        os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        os.mkfifo(temp_dir.joinpath(TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
 
         self.temp_dir = str(temp_dir)
 
         yield
 
-        shutil.rmtree(os.path.join(temp_dir, TMP_DIR_FOR_TESTS))
+        shutil.rmtree(temp_dir / TMP_DIR_FOR_TESTS)
         for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
-            os.remove(os.path.join(temp_dir, file_name))
+            (temp_dir / file_name).unlink()
         self.update_connection(self.old_login)
 
     def test_get_conn(self):

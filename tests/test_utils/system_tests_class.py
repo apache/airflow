@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import logging
 import os
 import shutil
@@ -157,15 +156,13 @@ class SystemTest:
 
     @staticmethod
     def create_dummy_file(filename, dir_path="/tmp"):
-        os.makedirs(dir_path, exist_ok=True)
-        full_path = os.path.join(dir_path, filename)
-        with open(full_path, "wb") as f:
-            f.write(os.urandom(1 * 1024 * 1024))
+        full_path = Path(dir_path, filename)
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_bytes(os.urandom(1 * 1024 * 1024))
 
     @staticmethod
     def delete_dummy_file(filename, dir_path):
-        full_path = os.path.join(dir_path, filename)
-        with contextlib.suppress(FileNotFoundError):
-            os.remove(full_path)
-        if dir_path != "/tmp":
-            shutil.rmtree(dir_path, ignore_errors=True)
+        full_path = Path(dir_path, filename)
+        full_path.unlink(missing_ok=True)
+        if full_path.parent != "/tmp":
+            shutil.rmtree(full_path.parent, ignore_errors=True)

@@ -22,6 +22,7 @@ import logging
 import os
 import sys
 import tempfile
+from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -88,12 +89,10 @@ class TestLogView:
 
     @pytest.fixture(autouse=True)
     def prepare_log_files(self, log_dir):
-        dir_path = f"{log_dir}/{self.DAG_ID}/{self.TASK_ID}/2017-09-01T00.00.00+00.00/"
-        os.makedirs(dir_path)
+        dir_path = Path(log_dir, self.DAG_ID, self.TASK_ID, "2017-09-01T00.00.00+00.00")
+        dir_path.mkdir(parents=True, exist_ok=True)
         for try_number in range(1, 4):
-            with open(f"{dir_path}/{try_number}.log", "w+") as f:
-                f.write(f"try_number={try_number}.\n")
-                f.flush()
+            (dir_path / f"{try_number}.log").write_text(f"try_number={try_number}.\n")
 
     @pytest.fixture(autouse=True)
     def prepare_db(self, create_task_instance):

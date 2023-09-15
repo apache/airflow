@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 import zipfile
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -91,18 +90,16 @@ class TestListPyFilesPath:
     @pytest.fixture()
     def test_dir(self, tmp_path):
         # create test tree with symlinks
-        source = os.path.join(tmp_path, "folder")
-        target = os.path.join(tmp_path, "symlink")
-        py_file = os.path.join(source, "hello_world.py")
-        ignore_file = os.path.join(tmp_path, ".airflowignore")
-        os.mkdir(source)
+        source = tmp_path / "folder"
+        target = tmp_path / "symlink"
+        py_file = source / "hello_world.py"
+        ignore_file = tmp_path / ".airflowignore"
+        source.mkdir()
         os.symlink(source, target)
         # write ignore files
-        with open(ignore_file, "w") as f:
-            f.write("folder")
+        ignore_file.write_text("folder")
         # write sample pyfile
-        with open(py_file, "w") as f:
-            f.write("print('hello world')")
+        py_file.write_text("print('hello world')")
         return tmp_path
 
     def test_find_path_from_directory_regex_ignore(self):
@@ -154,9 +151,9 @@ class TestListPyFilesPath:
 
     def test_find_path_from_directory_fails_on_recursive_link(self, test_dir):
         # add a recursive link
-        recursing_src = os.path.join(test_dir, "folder2", "recursor")
-        recursing_tgt = os.path.join(test_dir, "folder2")
-        os.mkdir(recursing_tgt)
+        recursing_src = test_dir / "folder2" / "recursor"
+        recursing_tgt = test_dir / "folder2"
+        recursing_tgt.mkdir()
         os.symlink(recursing_tgt, recursing_src)
 
         ignore_list_file = ".airflowignore"
@@ -167,7 +164,7 @@ class TestListPyFilesPath:
         except RuntimeError as err:
             assert str(err) == (
                 f"Detected recursive loop when walking DAG directory {test_dir}: "
-                f"{Path(recursing_tgt).resolve()} has appeared more than once."
+                f"{recursing_tgt.resolve()} has appeared more than once."
             )
 
     def test_might_contain_dag_with_default_callable(self):
