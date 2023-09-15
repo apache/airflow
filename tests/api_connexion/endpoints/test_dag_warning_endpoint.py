@@ -35,14 +35,27 @@ def configured_app(minimal_app_for_api):
         app,  # type:ignore
         username="test",
         role_name="Test",
-        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING)],  # type: ignore
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        ],  # type: ignore
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(
+        app,  # type:ignore
+        username="test_with_dag2_read",
+        role_name="TestWithDag2Read",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
+            (permissions.ACTION_CAN_READ, f"{permissions.RESOURCE_DAG_PREFIX}dag2"),
+        ],  # type: ignore
+    )
 
     yield minimal_app_for_api
 
     delete_user(app, username="test")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test_with_dag2_read")  # type: ignore
 
 
 class TestBaseDagWarning:
@@ -145,5 +158,13 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             "/api/v1/dagWarnings", environ_overrides={"REMOTE_USER": "test_no_permissions"}
+        )
+        assert response.status_code == 403
+
+    def test_should_raise_403_forbidden_when_user_has_no_dag_read_permission(self):
+        response = self.client.get(
+            "/api/v1/dagWarnings",
+            environ_overrides={"REMOTE_USER": "test_with_dag2_read"},
+            query_string={"dag_id": "dag1"},
         )
         assert response.status_code == 403

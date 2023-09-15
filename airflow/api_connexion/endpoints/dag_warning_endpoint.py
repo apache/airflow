@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from flask import g
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
+from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_warning_schema import (
     DagWarningCollection,
@@ -28,6 +30,7 @@ from airflow.api_connexion.schemas.dag_warning_schema import (
 from airflow.api_connexion.types import APIResponse
 from airflow.models.dagwarning import DagWarning as DagWarningModel
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -52,7 +55,12 @@ def get_dag_warnings(
     allowed_filter_attrs = ["dag_id", "warning_type", "message", "timestamp"]
     query = select(DagWarningModel)
     if dag_id:
+        if not get_airflow_app().appbuilder.sm.can_read_dag(dag_id, g.user):
+            raise PermissionDenied(detail=f"User not allowed to access this DAG: {dag_id}")
         query = query.where(DagWarningModel.dag_id == dag_id)
+    else:
+        readable_dags = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+        query = query.where(DagWarningModel.dag_id.in_(readable_dags))
     if warning_type:
         query = query.where(DagWarningModel.warning_type == warning_type)
     total_entries = get_query_count(query, session=session)
