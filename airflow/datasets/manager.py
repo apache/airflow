@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exc, select
 
 from airflow.configuration import conf
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -68,6 +69,9 @@ class DatasetManager(LoggingMixin):
             )
         )
         session.flush()
+
+        get_listener_manager().hook.on_dataset_changed(dataset=dataset)
+
         Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
