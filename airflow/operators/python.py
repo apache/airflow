@@ -547,7 +547,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     ):
         if (
             python_version
-            and str(python_version[0]) != str(sys.version_info.major)
+            and str(python_version)[0] != str(sys.version_info.major)
             and (op_args or op_kwargs)
         ):
             raise AirflowException(
