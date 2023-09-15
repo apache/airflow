@@ -120,10 +120,8 @@ class TestElasticsearchTaskHandler:
         logs_by_host = self.es_task_handler._group_logs_by_host(es_response)
 
         def concat_logs(lines):
-            log_range = (
-                (len(lines) - 1) if lines[-1].message == self.es_task_handler.end_of_log_mark else len(lines)
-            )
-            return "\n".join(self.es_task_handler._format_msg(lines[i]) for i in range(log_range))
+            log_range = -1 if lines[-1].message == self.es_task_handler.end_of_log_mark else None
+            return "\n".join(self.es_task_handler._format_msg(line) for line in lines[:log_range])
 
         for hosted_log in logs_by_host.values():
             message = concat_logs(hosted_log)
