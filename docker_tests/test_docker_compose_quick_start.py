@@ -21,9 +21,9 @@ import os
 import shlex
 import subprocess
 import sys
+import time
 from pprint import pprint
 from shutil import copyfile
-from time import monotonic, sleep
 
 import requests
 
@@ -60,7 +60,7 @@ def wait_for_container(container_id: str, timeout: int = 300):
     )
     print(f"Waiting for container: {container_name} [{container_id}] for {timeout} more seconds.")
     waiting_done = False
-    start_time = monotonic()
+    start_time = time.monotonic()
     while not waiting_done:
         container_state = (
             subprocess.check_output(["docker", "inspect", container_id, "--format", "{{ .State.Status }}"])
@@ -81,7 +81,7 @@ def wait_for_container(container_id: str, timeout: int = 300):
                 .decode()
                 .strip()
             )
-            current_time = monotonic()
+            current_time = time.monotonic()
             print(
                 f"{container_name}: container_state={container_state}, health_status={health_status}. "
                 f"Waiting for {int(timeout - (current_time - start_time))} more seconds"
@@ -92,9 +92,9 @@ def wait_for_container(container_id: str, timeout: int = 300):
         else:
             print(f"{container_name}: container_state={container_state}")
             waiting_done = True
-        if timeout != 0 and monotonic() - start_time > timeout:
+        if timeout != 0 and time.monotonic() - start_time > timeout:
             raise Exception(f"Timeout. The operation takes longer than the maximum waiting time ({timeout}s)")
-        sleep(1)
+        time.sleep(1)
 
 
 def wait_for_terminal_dag_state(dag_id, dag_run_id):
@@ -105,7 +105,7 @@ def wait_for_terminal_dag_state(dag_id, dag_run_id):
     for _ in range(400):
         dag_state = api_request("GET", f"dags/{dag_id}/dagRuns/{dag_run_id}").get("state")
         print(f"Waiting for DAG Run: dag_state={dag_state}")
-        sleep(1)
+        time.sleep(1)
         if dag_state in ("success", "failed"):
             break
 

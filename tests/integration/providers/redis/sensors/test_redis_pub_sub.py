@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from time import sleep
+import time
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -55,7 +55,7 @@ class TestRedisPubSubSensor:
             result = sensor.poke(self.mock_context)
             if result:
                 break
-            sleep(0.1)
+            time.sleep(0.1)
         assert result
         context_calls = [
             call.xcom_push(

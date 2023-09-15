@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from functools import cached_property
-from time import sleep
 from typing import TYPE_CHECKING, Callable, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
@@ -205,7 +205,7 @@ class Job(Base, LoggingMixin):
                     self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
                 )
                 sleep_for = max(0, seconds_remaining)
-            sleep(sleep_for)
+            time.sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:

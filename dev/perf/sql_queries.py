@@ -19,7 +19,7 @@ from __future__ import annotations
 import os
 import statistics
 import textwrap
-from time import monotonic, sleep
+import time
 from typing import NamedTuple
 
 import pandas as pd
@@ -168,9 +168,9 @@ def run_test() -> tuple[list[Query], float]:
     if os.path.exists(LOG_FILE):
         os.remove(LOG_FILE)
 
-    tic = monotonic()
+    tic = time.monotonic()
     run_scheduler_job(with_db_reset=False)
-    toc = monotonic()
+    toc = time.monotonic()
     queries = make_report()
     return queries, toc - tic
 
@@ -180,7 +180,7 @@ def rows_to_csv(rows: list[dict], name: str | None = None) -> pd.DataFrame:
     Write results stats to a file.
     """
     df = pd.DataFrame(rows)
-    name = name or f"/files/sql_stats_{int(monotonic())}.csv"
+    name = name or f"/files/sql_stats_{int(time.monotonic())}.csv"
     df.to_csv(name, index=False)
     print(f"Saved result to {name}")
     return df
@@ -195,7 +195,7 @@ def main() -> None:
     times = []
 
     for test_no in range(4):
-        sleep(5)
+        time.sleep(5)
         queries, exec_time = run_test()
         if test_no:
             times.append(exec_time)

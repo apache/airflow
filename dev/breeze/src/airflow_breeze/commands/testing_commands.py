@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from datetime import datetime
-from time import sleep
 
 import click
 from click import IntRange
@@ -199,7 +199,7 @@ def _run_test(
             )
             container_ids = ps_result.stdout.splitlines()
             get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
-            sleep(10)
+            time.sleep(10)
             get_console(output=output).print(
                 f"[info]Error {result.returncode}. Dumping containers: {container_ids} for {project_name}.\n"
             )

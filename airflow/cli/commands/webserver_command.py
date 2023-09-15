@@ -26,7 +26,6 @@ import textwrap
 import time
 from contextlib import suppress
 from pathlib import Path
-from time import sleep
 from typing import TYPE_CHECKING, NoReturn
 
 import daemon
@@ -161,7 +160,7 @@ class GunicornMonitor(LoggingMixin):
         while not fn():
             if 0 < timeout <= time.monotonic() - start_time:
                 raise AirflowWebServerTimeout(f"No response from gunicorn master within {timeout} seconds")
-            sleep(0.1)
+            time.sleep(0.1)
 
     def _spawn_new_workers(self, count: int) -> None:
         """
@@ -204,7 +203,7 @@ class GunicornMonitor(LoggingMixin):
         """
         # HUP: Reload the configuration.
         self.gunicorn_master_proc.send_signal(signal.SIGHUP)
-        sleep(1)
+        time.sleep(1)
         self._wait_until_true(
             lambda: self.num_workers_expected == self._get_num_workers_running(), timeout=self.master_timeout
         )
@@ -221,7 +220,7 @@ class GunicornMonitor(LoggingMixin):
                     sys.exit(1)
                 self._check_workers()
                 # Throttle loop
-                sleep(1)
+                time.sleep(1)
 
         except (AirflowWebServerTimeout, OSError) as err:
             self.log.error(err)
@@ -243,7 +242,7 @@ class GunicornMonitor(LoggingMixin):
                 num_ready_workers_running,
                 num_workers_running,
             )
-            sleep(1)
+            time.sleep(1)
             return
 
         # If there are too many workers, then kill a worker gracefully by asking gunicorn to reduce
@@ -264,7 +263,7 @@ class GunicornMonitor(LoggingMixin):
                 num_ready_workers_running,
                 num_workers_running,
             )
-            sleep(10)
+            time.sleep(10)
             num_workers_running = self._get_num_workers_running()
             if num_workers_running < self.num_workers_expected:
                 new_worker_count = min(
@@ -498,7 +497,7 @@ def webserver(args):
                     # the one of process spawned above.
                     gunicorn_master_proc_pid = None
                     while not gunicorn_master_proc_pid:
-                        sleep(0.1)
+                        time.sleep(0.1)
                         gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
 
                     # Run Gunicorn monitor

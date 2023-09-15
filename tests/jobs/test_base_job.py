@@ -245,7 +245,7 @@ class TestJob:
         assert test_job.executor == mock_sequential_executor
 
     def test_heartbeat(self, frozen_sleep, monkeypatch):
-        monkeypatch.setattr("airflow.jobs.job.sleep", frozen_sleep)
+        monkeypatch.setattr("airflow.jobs.job.time.sleep", frozen_sleep)
         with create_session() as session:
             job = Job(heartrate=10)
             job.latest_heartbeat = timezone.utcnow()

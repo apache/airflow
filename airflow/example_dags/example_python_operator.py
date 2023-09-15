@@ -99,7 +99,7 @@ with DAG(
             Importing at the module level ensures that it will not attempt to import the
             library before it is installed.
             """
-            from time import sleep
+            import time
 
             from colorama import Back, Fore, Style
 
@@ -109,7 +109,7 @@ with DAG(
             print(Style.RESET_ALL)
             for _ in range(4):
                 print(Style.DIM + "Please wait...", flush=True)
-                sleep(1)
+                time.sleep(1)
             print("Finished")
 
         virtualenv_task = callable_virtualenv()
@@ -127,13 +127,13 @@ with DAG(
             library before it is installed.
             """
             import sys
-            from time import sleep
+            import time
 
             print(f"Running task via {sys.executable}")
             print("Sleeping")
             for _ in range(4):
                 print("Please wait...", flush=True)
-                sleep(1)
+                time.sleep(1)
             print("Finished")
 
         external_python_task = callable_external_python()

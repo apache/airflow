@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from contextlib import suppress
 from datetime import timedelta
-from time import sleep
 
 import pytest
 
@@ -73,7 +73,7 @@ class TestCore:
             op = PythonOperator(
                 task_id="test_timeout",
                 execution_timeout=timedelta(seconds=1),
-                python_callable=lambda: sleep(5),
+                python_callable=lambda: time.sleep(5),
             )
         dag_maker.create_dagrun()
         with pytest.raises(AirflowTaskTimeout):

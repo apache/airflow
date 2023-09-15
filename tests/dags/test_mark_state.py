@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from datetime import datetime
-from time import sleep
 
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
@@ -49,7 +49,7 @@ def test_mark_success_no_kill(ti):
         session.merge(ti)
         session.commit()
         # The below code will not run as heartbeat will detect change of state
-        sleep(10)
+        time.sleep(10)
 
 
 PythonOperator(
@@ -74,7 +74,7 @@ def test_mark_failure_externally(ti):
         session.commit()
 
     # This should not happen -- the state change should be noticed and the task should get killed
-    sleep(10)
+    time.sleep(10)
     assert False
 
 
@@ -88,7 +88,7 @@ PythonOperator(
 
 def test_mark_skipped_externally(ti):
     assert State.RUNNING == ti.state
-    sleep(0.1)  # for timeout
+    time.sleep(0.1)  # for timeout
     with create_session() as session:
         ti.log.info("Marking TI as failed 'externally'")
         ti.state = State.SKIPPED
@@ -96,7 +96,7 @@ def test_mark_skipped_externally(ti):
         session.commit()
 
     # This should not happen -- the state change should be noticed and the task should get killed
-    sleep(10)
+    time.sleep(10)
     assert False
 
 

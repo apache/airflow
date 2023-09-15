@@ -53,7 +53,7 @@ class TestGunicornMonitor:
         mock.patch.object(self.monitor, "_kill_old_workers", return_value=None).start()
         mock.patch.object(self.monitor, "_reload_gunicorn", return_value=None).start()
 
-    @mock.patch("airflow.cli.commands.webserver_command.sleep")
+    @mock.patch("airflow.cli.commands.webserver_command.time.sleep")
     def test_should_wait_for_workers_to_start(self, mock_sleep):
         self.monitor._get_num_ready_workers_running.return_value = 0
         self.monitor._get_num_workers_running.return_value = 4
@@ -62,7 +62,7 @@ class TestGunicornMonitor:
         self.monitor._kill_old_workers.assert_not_called()
         self.monitor._reload_gunicorn.assert_not_called()
 
-    @mock.patch("airflow.cli.commands.webserver_command.sleep")
+    @mock.patch("airflow.cli.commands.webserver_command.time.sleep")
     def test_should_kill_excess_workers(self, mock_sleep):
         self.monitor._get_num_ready_workers_running.return_value = 10
         self.monitor._get_num_workers_running.return_value = 10
@@ -71,7 +71,7 @@ class TestGunicornMonitor:
         self.monitor._kill_old_workers.assert_called_once_with(2)
         self.monitor._reload_gunicorn.assert_not_called()
 
-    @mock.patch("airflow.cli.commands.webserver_command.sleep")
+    @mock.patch("airflow.cli.commands.webserver_command.time.sleep")
     def test_should_start_new_workers_when_missing(self, mock_sleep):
         self.monitor._get_num_ready_workers_running.return_value = 3
         self.monitor._get_num_workers_running.return_value = 3
@@ -81,7 +81,7 @@ class TestGunicornMonitor:
         self.monitor._kill_old_workers.assert_not_called()
         self.monitor._reload_gunicorn.assert_not_called()
 
-    @mock.patch("airflow.cli.commands.webserver_command.sleep")
+    @mock.patch("airflow.cli.commands.webserver_command.time.sleep")
     def test_should_start_new_batch_when_missing_many_workers(self, mock_sleep):
         self.monitor._get_num_ready_workers_running.return_value = 1
         self.monitor._get_num_workers_running.return_value = 1
@@ -91,7 +91,7 @@ class TestGunicornMonitor:
         self.monitor._kill_old_workers.assert_not_called()
         self.monitor._reload_gunicorn.assert_not_called()
 
-    @mock.patch("airflow.cli.commands.webserver_command.sleep")
+    @mock.patch("airflow.cli.commands.webserver_command.time.sleep")
     def test_should_start_new_workers_when_refresh_interval_has_passed(self, mock_sleep):
         self.monitor._last_refresh_time -= 200
         self.monitor._check_workers()
@@ -100,7 +100,7 @@ class TestGunicornMonitor:
         self.monitor._reload_gunicorn.assert_not_called()
         assert abs(self.monitor._last_refresh_time - time.monotonic()) < 5
 
-    @mock.patch("airflow.cli.commands.webserver_command.sleep")
+    @mock.patch("airflow.cli.commands.webserver_command.time.sleep")
     def test_should_reload_when_plugin_has_been_changed(self, mock_sleep):
         self.monitor._generate_plugin_state.return_value = {"AA": 12}
 

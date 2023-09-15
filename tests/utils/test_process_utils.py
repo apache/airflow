@@ -25,7 +25,6 @@ import subprocess
 import time
 from contextlib import suppress
 from subprocess import CalledProcessError
-from time import sleep
 from unittest import mock
 
 import psutil
@@ -126,13 +125,13 @@ class TestExecuteInSubProcess:
 
 
 def my_sleep_subprocess():
-    sleep(100)
+    time.sleep(100)
 
 
 def my_sleep_subprocess_with_signals():
     signal.signal(signal.SIGINT, lambda signum, frame: None)
     signal.signal(signal.SIGTERM, lambda signum, frame: None)
-    sleep(100)
+    time.sleep(100)
 
 
 class TestKillChildProcessesByPids:
@@ -141,7 +140,7 @@ class TestKillChildProcessesByPids:
 
         process = multiprocessing.Process(target=my_sleep_subprocess, args=())
         process.start()
-        sleep(0)
+        time.sleep(0)
 
         num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")
         assert before_num_process + 1 == num_process
@@ -155,7 +154,7 @@ class TestKillChildProcessesByPids:
 
         process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=())
         process.start()
-        sleep(0)
+        time.sleep(0)
 
         all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
         assert str(process.pid) in (x.strip() for x in all_processes)
@@ -164,7 +163,7 @@ class TestKillChildProcessesByPids:
             caplog.clear()
             process_utils.kill_child_processes_by_pids([process.pid], timeout=0)
             assert f"Killing child PID: {process.pid}" in caplog.messages
-        sleep(0)
+        time.sleep(0)
         all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
         assert str(process.pid) not in (x.strip() for x in all_processes)
 

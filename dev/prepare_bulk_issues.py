@@ -21,8 +21,8 @@ import csv
 import logging
 import os
 import textwrap
+import time
 from collections import defaultdict
-from time import sleep
 from typing import Any
 
 import rich_click as click
@@ -225,7 +225,7 @@ def prepare_bulk_issues(
                     repo.create_issue(title=issue_title, body=issue_content, labels=labels_list)
                     progress.advance(task)
                     processed_issues += 1
-                    sleep(2)  # avoid secondary rate limit!
+                    time.sleep(2)  # avoid secondary rate limit!
             except GithubException as e:
                 console.print(f"[red]Error!: {e}[/]")
                 console.print(

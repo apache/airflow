@@ -21,8 +21,8 @@ import re
 import shutil
 import sys
 import threading
+import time
 from signal import SIGTERM
-from time import sleep
 from typing import Iterable
 
 import click
@@ -128,7 +128,7 @@ class TimerThread(threading.Thread):
 
     def run(self):
         get_console().print(f"[info]Setting timer to fail after {self.max_time} s.")
-        sleep(self.max_time)
+        time.sleep(self.max_time)
         get_console().print(f"[error]The command took longer than {self.max_time} s. Failing!")
         os.killpg(os.getpgid(0), SIGTERM)
 

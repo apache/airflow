@@ -91,7 +91,7 @@ class TestLocalTaskJob:
     @pytest.fixture(autouse=True)
     def set_instance_attrs(self, dagbag):
         self.dagbag = dagbag
-        with patch("airflow.jobs.job.sleep") as self.mock_base_job_sleep:
+        with patch("airflow.jobs.job.time.sleep") as self.mock_base_job_sleep:
             yield
 
     def validate_ti_states(self, dag_run, ti_state_mapping, error_message):

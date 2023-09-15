@@ -23,10 +23,10 @@ import signal
 import subprocess
 import sys
 import textwrap
+import time
 from contextlib import suppress
 from pathlib import Path
 from tempfile import gettempdir
-from time import sleep
 
 import daemon
 import psutil
@@ -192,7 +192,7 @@ def internal_api(args):
                     # the one of process spawned above.
                     gunicorn_master_proc_pid = None
                     while not gunicorn_master_proc_pid:
-                        sleep(0.1)
+                        time.sleep(0.1)
                         gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
 
                     # Run Gunicorn monitor

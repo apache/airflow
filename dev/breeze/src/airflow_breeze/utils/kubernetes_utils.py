@@ -26,9 +26,9 @@ import stat
 import sys
 import tarfile
 import tempfile
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from time import sleep
 from typing import Any, NamedTuple
 from urllib import request
 
@@ -502,7 +502,7 @@ def _attempt_to_connect(port_number: int, output: Output | None, wait_seconds: i
                 get_console(output=output).print(f"[error]More than {wait_seconds} passed. Exiting.")
             break
         get_console(output=output).print(f"Sleeping for {sleep_seconds} seconds.")
-        sleep(sleep_seconds)
+        time.sleep(sleep_seconds)
     return False
 
 

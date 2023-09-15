@@ -25,11 +25,11 @@ import json
 import logging
 import os
 import sys
+import time
 import traceback
 import warnings
 from dataclasses import dataclass
 from functools import wraps
-from time import perf_counter
 from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar, cast
 
 from packaging.utils import canonicalize_name
@@ -371,14 +371,14 @@ def provider_info_cache(cache_name: str) -> Callable[[T], T]:
             providers_manager_instance = args[0]
             if cache_name in providers_manager_instance._initialized_cache:
                 return
-            start_time = perf_counter()
+            start_time = time.perf_counter()
             logger.debug("Initializing Providers Manager[%s]", cache_name)
             func(*args, **kwargs)
             providers_manager_instance._initialized_cache[cache_name] = True
             logger.debug(
                 "Initialization of Providers Manager[%s] took %.2f seconds",
                 cache_name,
-                perf_counter() - start_time,
+                time.perf_counter() - start_time,
             )
 
         return cast(T, wrapped_function)

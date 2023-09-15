@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import os
 import signal
+import time
 from datetime import datetime, timedelta
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from time import sleep
 from unittest import mock
 
 import pytest
@@ -213,7 +213,7 @@ class TestBashOperator:
             )
         with pytest.raises(AirflowTaskTimeout):
             op.run()
-        sleep(2)
+        time.sleep(2)
         for proc in psutil.process_iter():
             if proc.cmdline() == ["sleep", sleep_time]:
                 os.kill(proc.pid, signal.SIGTERM)
