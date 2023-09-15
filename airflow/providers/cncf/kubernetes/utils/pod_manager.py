@@ -732,7 +732,7 @@ class PodManager(LoggingMixin):
         if not resp.is_open():
             return None
         self.log.info("Running command... %s", command)
-        resp.write_stdin(command + "\n")
+        resp.write_stdin(f"{command}\n")
         while resp.is_open():
             resp.update(timeout=1)
             while resp.peek_stdout():
