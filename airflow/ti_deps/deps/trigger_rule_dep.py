@@ -132,6 +132,18 @@ class TriggerRuleDep(BaseTIDep):
             """
             return ti.task.get_mapped_ti_count(ti.run_id, session=session)
 
+        def _iter_expansion_dependencies() -> Iterator[str]:
+            from airflow.models.mappedoperator import MappedOperator
+
+            if isinstance(ti.task, MappedOperator):
+                for op in ti.task.iter_mapped_dependencies():
+                    yield op.task_id
+            task_group = ti.task.task_group
+            if task_group:
+                groups = task_group.iter_mapped_task_groups()
+                if groups:
+                    yield from (op.task_id for tg in groups for op in tg.iter_mapped_dependencies())
+
         @functools.lru_cache
         def _get_relevant_upstream_map_indexes(upstream_id: str) -> int | range | None:
             """Get the given task's map indexes relevant to the current ti.
@@ -142,14 +154,11 @@ class TriggerRuleDep(BaseTIDep):
             """
             if TYPE_CHECKING:
                 assert isinstance(ti.task.dag, DAG)
+            if upstream_id not in set(_iter_expansion_dependencies()):
+                return None
             try:
                 expanded_ti_count = _get_expanded_ti_count()
             except (NotFullyPopulated, NotMapped):
-                return None
-            if ti.map_index < 0:
-                # This can happen in mapped task groups.
-                # The current task is not expanded yet even though the mapped group has expanded.
-                # We should return None
                 return None
             return ti.get_relevant_upstream_map_indexes(
                 upstream=ti.task.dag.task_dict[upstream_id],
