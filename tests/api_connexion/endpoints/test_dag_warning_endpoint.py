@@ -47,7 +47,7 @@ def configured_app(minimal_app_for_api):
         role_name="TestWithDag2Read",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_PREFIX + "dag2"),
+            (permissions.ACTION_CAN_READ, f"{permissions.RESOURCE_DAG_PREFIX}dag2"),
         ],  # type: ignore
     )
 
