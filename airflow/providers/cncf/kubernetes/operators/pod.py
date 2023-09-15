@@ -371,7 +371,7 @@ class KubernetesPodOperator(BaseOperator):
         self.get_logs = get_logs
         self.container_logs = container_logs
         if self.container_logs == KubernetesPodOperator.BASE_CONTAINER_NAME:
-            self.container_logs = base_container_name if base_container_name else self.BASE_CONTAINER_NAME
+            self.container_logs = base_container_name or self.BASE_CONTAINER_NAME
         self.image_pull_policy = image_pull_policy
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
