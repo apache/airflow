@@ -203,3 +203,34 @@ Fetching information from a Triggering Dataset Event
 
 A triggered DAG can fetch information from the Dataset that triggered it using the ``triggering_dataset_events`` template or parameter.
 See more at :ref:`templates-ref`.
+
+Example:
+
+.. code-block:: python
+
+    example_snowflake_dataset = Dataset("snowflake://my_db.my_schema.my_table")
+
+    with DAG(dag_id="load_snowflake_data", schedule="@hourly", ...):
+        SQLExecuteQueryOperator(
+            task_id="load", conn_id="snowflake_default", outlets=[example_snowflake_dataset], ...
+        )
+
+    with DAG(dag_id="query_snowflake_data", schedule=[example_snowflake_dataset], ...):
+        SQLExecuteQueryOperator(
+            task_id="query",
+            conn_id="snowflake_default",
+            sql="""
+              SELECT *
+              FROM my_db.my_schema.my_table
+              WHERE "updated_at" >= '{{ (triggering_dataset_events.values() | first | first).source_dag_run.data_interval_start }}'
+              AND "updated_at" < '{{ (triggering_dataset_events.values() | first | first).source_dag_run.data_interval_end }}';
+            """,
+        )
+
+        @task
+        def print_triggering_dataset_events(triggering_dataset_events=None):
+            for dataset, dataset_list in triggering_dataset_events.items():
+                print(dataset, dataset_list, dataset_list[dataset])
+                print(dataset_list[dataset][0].source_dag_run.dag_run_id)
+
+        print_triggering_dataset_events()

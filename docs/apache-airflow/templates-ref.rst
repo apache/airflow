@@ -33,25 +33,25 @@ Variables
 The Airflow engine passes a few variables by default that are accessible
 in all templates
 
-=========================================== ====================== ===================================================================
-Variable                                    Type                   Description
-=========================================== ====================== ===================================================================
-``{{ data_interval_start }}``               `pendulum.DateTime`_   Start of the data interval. Added in version 2.2.
-``{{ data_interval_end }}``                 `pendulum.DateTime`_   End of the data interval. Added in version 2.2.
-``{{ ds }}``                                str                    | The DAG run's logical date as ``YYYY-MM-DD``.
-                                                                   | Same as ``{{ dag_run.logical_date | ds }}``.
-``{{ ds_nodash }}``                         str                    Same as ``{{ dag_run.logical_date | ds_nodash }}``.
-``{{ ts }}``                                str                    | Same as ``{{ dag_run.logical_date | ts }}``.
-                                                                   | Example: ``2018-01-01T00:00:00+00:00``.
-``{{ ts_nodash_with_tz }}``                 str                    | Same as ``{{ dag_run.logical_date | ts_nodash_with_tz }}``.
-                                                                   | Example: ``20180101T000000+0000``.
-``{{ ts_nodash }}``                         str                    | Same as ``{{ dag_run.logical_date | ts_nodash }}``.
-                                                                   | Example: ``20180101T000000``.
-``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_   | Start of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
-                                            | ``None``             | Added in version 2.2.
-``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_   | End of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
-                                            | ``None``             | Added in version 2.2.
-``{{ prev_start_date_success }}``           `pendulum.DateTime`_   Start date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
+=========================================== ===================== ===================================================================
+Variable                                    Type                  Description
+=========================================== ===================== ===================================================================
+``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.2.
+``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.2.
+``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
+                                                                  | Same as ``{{ dag_run.logical_date | ds }}``.
+``{{ ds_nodash }}``                         str                   Same as ``{{ dag_run.logical_date | ds_nodash }}``.
+``{{ ts }}``                                str                   | Same as ``{{ dag_run.logical_date | ts }}``.
+                                                                  | Example: ``2018-01-01T00:00:00+00:00``.
+``{{ ts_nodash_with_tz }}``                 str                   | Same as ``{{ dag_run.logical_date | ts_nodash_with_tz }}``.
+                                                                  | Example: ``20180101T000000+0000``.
+``{{ ts_nodash }}``                         str                   | Same as ``{{ dag_run.logical_date | ts_nodash }}``.
+                                                                  | Example: ``20180101T000000``.
+``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
+                                            | ``None``            | Added in version 2.2.
+``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
+                                            | ``None``            | Added in version 2.2.
+``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
                                             | ``None``
 ``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
 ``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
@@ -74,7 +74,8 @@ Variable                                    Type                   Description
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
-``{{ triggering_dataset_events }}``         list[DatasetEvent]    | If in a Dataset Scheduled DAG, a list of triggering :class:`~airflow.models.dataset.DatasetEvent`.
+``{{ triggering_dataset_events }}``         dict[str,             | If in a Dataset Scheduled DAG, a map of Dataset URI to a list of triggering :class:`~airflow.models.dataset.DatasetEvent`
+                                            list[DatasetEvent]]   | (there may be more than one, if there are multiple Datasets with different frequencies).
                                                                   | Read more here :doc:`Datasets <authoring-and-scheduling/datasets>`.
                                                                   | Added in version 2.4.
 =========================================== ===================== ===================================================================
