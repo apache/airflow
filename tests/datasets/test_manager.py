@@ -24,8 +24,10 @@ import pytest
 
 from airflow.datasets import Dataset
 from airflow.datasets.manager import DatasetManager
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from tests.listeners import dataset_listener
 
 
 @pytest.fixture()
@@ -94,3 +96,23 @@ class TestDatasetManager:
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
         assert session.query(DatasetDagRunQueue).count() == 0
+
+    def test_register_dataset_change_notifies_dataset_listener(self, session, mock_task_instance):
+        dsem = DatasetManager()
+        dataset_listener.clear()
+        get_listener_manager().add_listener(dataset_listener)
+
+        ds = Dataset(uri="test_dataset_uri")
+        dag1 = DagModel(dag_id="dag1")
+        session.add_all([dag1])
+
+        dsm = DatasetModel(uri="test_dataset_uri")
+        session.add(dsm)
+        dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag1.dag_id)]
+        session.flush()
+
+        dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session)
+
+        # Ensure the listener was notified
+        assert len(dataset_listener.changed) == 1
+        assert dataset_listener.changed[0].uri == ds.uri
