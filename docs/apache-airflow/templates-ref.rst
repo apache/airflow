@@ -120,7 +120,7 @@ You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
 ``{{ var.json.my_dict_var.key1 }}``.
 
-It is also possible to fetch a variable by string if needed with
+It is also possible to fetch a variable by string if needed (for example your variable key contains dots) with
 ``{{ var.value.get('my.var', 'fallback') }}`` or
 ``{{ var.json.get('my.dict.var', {'key1': 'val1'}) }}``. Defaults can be
 supplied in case the variable does not exist.
