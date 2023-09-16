@@ -3038,8 +3038,8 @@ class DAG(LoggingMixin):
         dag_references = collections.defaultdict(set)
         outlet_references = collections.defaultdict(set)
         # We can't use a set here as we want to preserve order
-        outlet_datasets: dict[Dataset, None] = {}
-        input_datasets: dict[Dataset, None] = {}
+        outlet_datasets: dict[DatasetModel, None] = {}
+        input_datasets: dict[DatasetModel, None] = {}
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
@@ -3072,7 +3072,8 @@ class DAG(LoggingMixin):
         all_datasets.update(input_datasets)
 
         # store datasets
-        stored_datasets = {}
+        stored_datasets: dict[str, DatasetModel] = {}
+        new_datasets: list[DatasetModel] = []
         for dataset in all_datasets:
             stored_dataset = session.scalar(
                 select(DatasetModel).where(DatasetModel.uri == dataset.uri).limit(1)
@@ -3084,12 +3085,11 @@ class DAG(LoggingMixin):
                 stored_dataset.is_orphaned = expression.false()
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
-                session.add(dataset)
-                stored_datasets[dataset.uri] = dataset
-                dataset_manager.notify_dataset_created(dataset=dataset)
+                new_datasets.append(dataset)
+        dataset_manager.create_datasets(dataset_models=new_datasets, session=session)
+        stored_datasets.update({dataset.uri: dataset for dataset in new_datasets})
 
-        session.flush()  # this is required to ensure each dataset has its PK loaded
-
+        del new_datasets
         del all_datasets
 
         # reconcile dag-schedule-on-dataset references

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exc, select
 
 from airflow.configuration import conf
+from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.stats import Stats
@@ -30,7 +31,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.datasets import Dataset
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -44,6 +44,15 @@ class DatasetManager(LoggingMixin):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    def create_datasets(self, dataset_models: list[DatasetModel], session: Session) -> None:
+        """Create new datasets."""
+        for dataset_model in dataset_models:
+            session.add(dataset_model)
+            dataset_manager.notify_dataset_created(
+                dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra)
+            )
+        session.flush()  # this is required to ensure each dataset has its PK loaded
 
     def register_dataset_change(
         self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
