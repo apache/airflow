@@ -963,7 +963,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return
             raise Exception
 
-        self.run_as_task(f, python_version=3, use_dill=False, requirements=["dill"])
+        self.run_as_task(f, python_version="3", use_dill=False, requirements=["dill"])
 
     def test_without_dill(self):
         def f(a):
