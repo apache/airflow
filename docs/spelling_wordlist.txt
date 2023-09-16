@@ -375,6 +375,8 @@ Dataproc
 dataproc
 Dataset
 dataset
+DatasetEvent
+DatasetEvents
 datasetId
 Datasets
 datasets
