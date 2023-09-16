@@ -415,6 +415,7 @@ class PodManager(LoggingMixin):
                 )
                 message_to_log = None
                 message_timestamp = None
+                progress_callback_lines = []
                 for raw_line in logs:
                     line = raw_line.decode("utf-8", errors="backslashreplace")
                     line_timestamp, message = self.parse_log_line(line)
@@ -422,19 +423,24 @@ class PodManager(LoggingMixin):
                         if message_to_log is None:  # first line in the log
                             message_to_log = message
                             message_timestamp = line_timestamp
+                            progress_callback_lines.append(line)
                         else:  # previous log line is complete
                             if self._progress_callback:
-                                self._progress_callback(message_to_log or "")
+                                for line in progress_callback_lines:
+                                    self._progress_callback(line)
                             self.log.info("[%s] %s", container_name, message_to_log)
                             last_captured_timestamp = message_timestamp
                             message_to_log = message
                             message_timestamp = line_timestamp
+                            progress_callback_lines = [line]
                     else:  # continuation of the previous log line
                         message_to_log = f"{message_to_log}\n{message}"
+                        progress_callback_lines.append(line)
 
                 # log the last line and update the last_captured_timestamp
                 if self._progress_callback:
-                    self._progress_callback(message_to_log or "")
+                    for line in progress_callback_lines:
+                        self._progress_callback(line)
                 self.log.info("[%s] %s", container_name, message_to_log)
                 last_captured_timestamp = message_timestamp
             except BaseHTTPError as e:
