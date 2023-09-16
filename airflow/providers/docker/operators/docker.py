@@ -28,6 +28,7 @@ from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
 
+from deprecated.classic import deprecated
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 from docker.types import LogConfig, Mount, Ulimit
@@ -328,6 +329,7 @@ class DockerOperator(BaseOperator):
             timeout=self.timeout,
         )
 
+    @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> DockerHook:
         """Create and return an DockerHook (cached)."""
         return self.hook
