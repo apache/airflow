@@ -233,6 +233,34 @@ class TestGetEventLogs(TestEventLogEndpoint):
 
         assert_401(response)
 
+    def test_should_filter_eventlogs_by_allowed_attributes(self, create_log_model, session):
+        eventlog1 = create_log_model(event="1", dag_id="1", task_id="1", owner="1", when=self.default_time)
+        eventlog2 = create_log_model(event="2", dag_id="2", task_id="2", owner="2", when=self.default_time_2)
+        session.add_all([eventlog1, eventlog2])
+        session.commit()
+        for attr in ["dag_id", "task_id", "owner", "event"]:
+            response = self.client.get(
+                f"/api/v1/eventLogs?{attr}=1", environ_overrides={"REMOTE_USER": "test"}
+            )
+            assert response.status_code == 200
+            assert {eventlog[attr] for eventlog in response.json["event_logs"]} == {"1"}
+
+    def test_should_filter_eventlogs_by_when(self, create_log_model, session):
+        eventlog1 = create_log_model(event="TEST_EVENT_1", when=self.default_time)
+        eventlog2 = create_log_model(event="TEST_EVENT_2", when=self.default_time_2)
+        session.add_all([eventlog1, eventlog2])
+        session.commit()
+        for when_attr, expected_eventlogs in {
+            "before": {"TEST_EVENT_1"},
+            "after": {"TEST_EVENT_1", "TEST_EVENT_2"},
+        }.items():
+            response = self.client.get(
+                f"/api/v1/eventLogs?{when_attr}=2020-06-10T20%3A00%3A00%2B00%3A00",
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 200
+            assert {eventlog["event"] for eventlog in response.json["event_logs"]} == expected_eventlogs
+
 
 class TestGetEventLogPagination(TestEventLogEndpoint):
     @pytest.mark.parametrize(

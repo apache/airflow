@@ -2287,6 +2287,18 @@ export interface components {
     DAGID: string;
     /** @description The task ID. */
     TaskID: string;
+    /** @description DAG ID of an event log. */
+    EventLogDAGID: string;
+    /** @description Task ID of an event log. */
+    EventLogTaskID: string;
+    /** @description The name of event log. */
+    Event: string;
+    /** @description The owner's name of event log. */
+    Owner: string;
+    /** @description Timestamp to select event logs occurring before. */
+    Before: string;
+    /** @description Timestamp to select event logs occurring after. */
+    After: string;
     /** @description The map index. */
     MapIndex: number;
     /** @description The DAG run ID. */
@@ -3187,6 +3199,18 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** DAG ID of an event log. */
+        dag_id?: components["parameters"]["EventLogDAGID"];
+        /** Task ID of an event log. */
+        task_id?: components["parameters"]["EventLogTaskID"];
+        /** The name of event log. */
+        event?: components["parameters"]["Event"];
+        /** The owner's name of event log. */
+        owner?: components["parameters"]["Owner"];
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+        /** Timestamp to select event logs occurring after. */
+        after?: components["parameters"]["After"];
       };
     };
     responses: {

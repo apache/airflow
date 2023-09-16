@@ -983,6 +983,12 @@ paths:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/EventLogDAGID'
+        - $ref: '#/components/parameters/EventLogTaskID'
+        - $ref: '#/components/parameters/Event'
+        - $ref: '#/components/parameters/Owner'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/After'
       responses:
         '200':
           description: Success.
@@ -4809,6 +4815,56 @@ components:
         type: string
       required: true
       description: The task ID.
+
+    EventLogDAGID:
+      in: query
+      name: dag_id
+      schema:
+        type: string
+      required: false
+      description: DAG ID of an event log.
+
+    EventLogTaskID:
+      in: query
+      name: task_id
+      schema:
+        type: string
+      required: false
+      description: Task ID of an event log.
+
+    Event:
+      in: query
+      name: event
+      schema:
+        type: string
+      required: false
+      description: The name of event log.
+
+    Owner:
+      in: query
+      name: owner
+      schema:
+        type: string
+      required: false
+      description: The owner's name of event log.
+
+    Before:
+      in: query
+      name: before
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: Timestamp to select event logs occurring before.
+
+    After:
+      in: query
+      name: after
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: Timestamp to select event logs occurring after.
 
     MapIndex:
       in: path
