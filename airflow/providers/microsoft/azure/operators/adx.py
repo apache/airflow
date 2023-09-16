@@ -18,7 +18,10 @@
 """This module contains Azure Data Explorer operators."""
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
+
+from deprecated.classic import deprecated
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
@@ -61,9 +64,15 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         self.options = options
         self.azure_data_explorer_conn_id = azure_data_explorer_conn_id
 
-    def get_hook(self) -> AzureDataExplorerHook:
+    @cached_property
+    def hook(self) -> AzureDataExplorerHook:
         """Returns new instance of AzureDataExplorerHook."""
         return AzureDataExplorerHook(self.azure_data_explorer_conn_id)
+
+    @deprecated(reason="use `hook` property instead.")
+    def get_hook(self) -> AzureDataExplorerHook:
+        """Returns new instance of AzureDataExplorerHook."""
+        return self.hook
 
     def execute(self, context: Context) -> KustoResultTable | str:
         """
@@ -73,8 +82,7 @@ class AzureDataExplorerQueryOperator(BaseOperator):
 
         https://docs.microsoft.com/en-us/azure/kusto/api/rest/response2
         """
-        hook = self.get_hook()
-        response = hook.run_query(self.query, self.database, self.options)
+        response = self.hook.run_query(self.query, self.database, self.options)
         if conf.getboolean("core", "enable_xcom_pickling"):
             return response.primary_results[0]
         else:
