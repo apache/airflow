@@ -70,12 +70,20 @@ class DatasetManager(LoggingMixin):
         )
         session.flush()
 
-        get_listener_manager().hook.on_dataset_changed(dataset=dataset)
+        self.notify_dataset_changed(dataset=dataset)
 
         Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()
+
+    def notify_dataset_created(self, dataset: Dataset):
+        """Run applicable notification actions when a dataset is created."""
+        get_listener_manager().hook.on_dataset_created(dataset=dataset)
+
+    def notify_dataset_changed(self, dataset: Dataset):
+        """Run applicable notification actions when a dataset is changed."""
+        get_listener_manager().hook.on_dataset_changed(dataset=dataset)
 
     def _queue_dagruns(self, dataset: DatasetModel, session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually
