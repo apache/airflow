@@ -182,7 +182,7 @@ class GCSToS3Operator(BaseOperator):
         )
 
         list_kwargs = {
-            "bucket_name": self.bucket,
+            "bucket_name": self.gcs_bucket,
             "prefix": self.prefix,
             "delimiter": self.delimiter,
             "user_project": self.gcp_user_project,
