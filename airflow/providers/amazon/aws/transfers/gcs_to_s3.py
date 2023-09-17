@@ -88,7 +88,6 @@ class GCSToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "bucket",
         "gcs_bucket",
         "prefix",
         "delimiter",
