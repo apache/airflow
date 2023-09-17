@@ -29,15 +29,13 @@ to learn more, head to the
 The Apache Software Foundation takes security issues very seriously. Apache
 Airflow specifically offers security features and is responsive to issues
 around its features. If you have any concern around Airflow Security or believe
-you have uncovered a vulnerability, we suggest that you get in touch via the
-e-mail address [security@airflow.apache.org](mailto:security@airflow.apache.org).
+you have uncovered a vulnerability, we suggest that you privately report it by using the [vulnerability reporting form](https://github.com/airflow-s/airflow/security/advisories/new).
 
-**Only** use the security e-mail address to report undisclosed security vulnerabilities in Apache
+**Only** use this form to report undisclosed security vulnerabilities in Apache
 Airflow and to manage the process of fixing such vulnerabilities. We do not accept regular
-bug reports or other security-related queries at this address. We will ignore mail
-sent to this address that does not relate to an undisclosed security problem
-in the Apache Airflow project. Please follow regular communication channels described in
-the [Airflow Community](https://airflow.apache.org/community/index.html) page for
+bug reports or other security-related queries. We will ignore reports that do not relate to an
+undisclosed security problem in the Apache Airflow project. Please follow regular communication channels
+described in the [Airflow Community](https://airflow.apache.org/community/index.html) page for
 inquiries, questions and other discussions related to the process or issues.
 
 Specifically, we will ignore results of security scans that contain a list of
@@ -47,7 +45,7 @@ is a page that describes how the
 and providing helpful instructions explaining how you can build your
 own image and manage dependencies of Airflow in your own image.
 
-Please send one plain-text email for each vulnerability you are reporting including an explanation
+Please create one vulnerability report for each vulnerability you are reporting including an explanation
 of how it affects Airflow security. We may ask that you resubmit your report if you send it as an image,
 movie, HTML, or PDF attachment when you could as easily describe it with plain text.
 
