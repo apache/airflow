@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from deprecated.classic import deprecated
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils import operator_helpers
@@ -132,7 +133,7 @@ class HiveOperator(BaseOperator):
             auth=self.auth,
         )
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> HiveCliHook:
         """Get Hive cli hook."""
         return self.hook
