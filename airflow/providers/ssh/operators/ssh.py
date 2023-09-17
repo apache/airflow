@@ -132,7 +132,7 @@ class SSHOperator(BaseOperator):
     def hook(self) -> SSHHook:
         return self.ssh_hook
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> SSHHook:
         return self.ssh_hook
 
