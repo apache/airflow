@@ -147,7 +147,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         self.hook.get_pandas_df("select 1")
 
         mock_read_gbq.assert_called_once_with(
-            "select 1", credentials=CREDENTIALS, dialect="legacy", project_id=PROJECT_ID, verbose=False
+            "select 1", credentials=CREDENTIALS, dialect="legacy", project_id=PROJECT_ID
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
@@ -2142,9 +2142,12 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     @pytest.mark.parametrize(
         "job_status, expected",
         [
-            ({"status": {"state": "DONE"}}, "success"),
-            ({"status": {"state": "DONE", "errorResult": "Timeout"}}, "error"),
-            ({"status": {"state": "running"}}, "running"),
+            ({"status": {"state": "DONE"}}, {"status": "success", "message": "Job completed"}),
+            (
+                {"status": {"state": "DONE", "errorResult": {"message": "Timeout"}}},
+                {"status": "error", "message": "Timeout"},
+            ),
+            ({"status": {"state": "running"}}, {"status": "running", "message": "Job running"}),
         ],
     )
     @pytest.mark.asyncio

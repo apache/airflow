@@ -25,11 +25,11 @@ is supported and no serialization need be written.
 from __future__ import annotations
 
 import copy
-import datetime
 import logging
 import os
 import warnings
 from functools import reduce
+from typing import TYPE_CHECKING
 
 import re2
 from dateutil import parser
@@ -38,11 +38,8 @@ from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
     AirflowConfigException,
+    AirflowException,
     RemovedInAirflow3Warning,
-)
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
-    PodMutationHookException,
-    PodReconciliationError,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
@@ -55,9 +52,20 @@ from airflow.providers.cncf.kubernetes.utils.k8s_hashlib_wrapper import md5
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
 
+if TYPE_CHECKING:
+    import datetime
+
 log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
+
+
+class PodMutationHookException(AirflowException):
+    """Raised when exception happens during Pod Mutation Hook execution."""
+
+
+class PodReconciliationError(AirflowException):
+    """Raised when an error is encountered while trying to merge pod configs."""
 
 
 def make_safe_label_value(string: str) -> str:
@@ -342,9 +350,10 @@ class PodGenerator:
         client_container = extend_object_field(base_container, client_container, "volume_devices")
         client_container = merge_objects(base_container, client_container)
 
-        return [client_container] + PodGenerator.reconcile_containers(
-            base_containers[1:], client_containers[1:]
-        )
+        return [
+            client_container,
+            *PodGenerator.reconcile_containers(base_containers[1:], client_containers[1:]),
+        ]
 
     @classmethod
     def construct_pod(
@@ -606,7 +615,7 @@ def merge_objects(base_obj, client_obj):
         base_obj_cp.update(client_obj_cp)
         return base_obj_cp
 
-    for base_key in base_obj.to_dict().keys():
+    for base_key in base_obj.to_dict():
         base_val = getattr(base_obj, base_key, None)
         if not getattr(client_obj, base_key, None) and base_val:
             if not isinstance(client_obj_cp, dict):

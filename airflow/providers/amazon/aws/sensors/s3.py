@@ -113,14 +113,14 @@ class S3KeySensor(BaseSensorOperator):
         }]
         """
         if self.wildcard_match:
-            prefix = re.split(r"[\[\*\?]", key, 1)[0]
+            prefix = re.split(r"[\[*?]", key, 1)[0]
             keys = self.hook.get_file_metadata(prefix, bucket_name)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if len(key_matches) == 0:
+            if not key_matches:
                 return False
 
             # Reduce the set of metadata to size only
-            files = list(map(lambda f: {"Size": f["Size"]}, key_matches))
+            files = [{"Size": f["Size"]} for f in key_matches]
         else:
             obj = self.hook.head_object(key, bucket_name)
             if obj is None:
@@ -157,14 +157,14 @@ class S3KeySensor(BaseSensorOperator):
                 aws_conn_id=self.aws_conn_id,
                 verify=self.verify,
                 poke_interval=self.poke_interval,
-                should_check_fn=True if self.check_fn else False,
+                should_check_fn=bool(self.check_fn),
             ),
             method_name="execute_complete",
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> bool | None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -355,7 +355,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """

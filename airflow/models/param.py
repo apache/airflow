@@ -28,7 +28,6 @@ from pendulum.parsing import parse_iso8601
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -36,6 +35,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.utils.context import Context
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +100,7 @@ class Param:
 
     def resolve(self, value: Any = NOTSET, suppress_exception: bool = False) -> Any:
         """
-        Runs the validations and returns the Param's final value.
+        Run the validations and returns the Param's final value.
 
         May raise ValueError on failed validations, or TypeError
         if no value is passed and no value already exists.
@@ -138,13 +138,18 @@ class Param:
 
     def dump(self) -> dict:
         """Dump the Param as a dictionary."""
-        out_dict = {self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"}
+        out_dict: dict[str, str | None] = {
+            self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"
+        }
         out_dict.update(self.__dict__)
+        # Ensure that not set is translated to None
+        if self.value is NOTSET:
+            out_dict["value"] = None
         return out_dict
 
     @property
     def has_value(self) -> bool:
-        return self.value is not NOTSET
+        return self.value is not NOTSET and self.value is not None
 
     def serialize(self) -> dict:
         return {"value": self.value, "description": self.description, "schema": self.schema}
@@ -262,11 +267,11 @@ class ParamsDict(MutableMapping[str, Any]):
         super().update(*args, **kwargs)
 
     def dump(self) -> dict[str, Any]:
-        """Dumps the ParamsDict object as a dictionary, while suppressing exceptions."""
+        """Dump the ParamsDict object as a dictionary, while suppressing exceptions."""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
     def validate(self) -> dict[str, Any]:
-        """Validates & returns all the Params object stored in the dictionary."""
+        """Validate & returns all the Params object stored in the dictionary."""
         resolved_dict = {}
         try:
             for k, v in self.items():

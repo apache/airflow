@@ -97,7 +97,7 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 First thing that release manager has to do is to change version of the provider to a target
 version. Each provider has a `provider.yaml` file that, among others, stores information
 about provider versions. When you attempt to release a provider you should update that
-information based on the changes for the provider, and it's `CHANGELOG.rst`. It might be that
+information based on the changes for the provider, and its `CHANGELOG.rst`. It might be that
 `CHANGELOG.rst` already contains the right target version. This will be especially true if some
 changes in the provider add new features (then minor version is increased) or when the changes
 introduce backwards-incompatible, breaking change in the provider (then major version is
@@ -366,13 +366,19 @@ breeze build-docs --clean-build \
   ...
 ```
 
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. Example:
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+breeze build-docs providers-index cncf.kubernetes sftp --clean-build
+```
 
 If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
 ```
-
 
 - Now you can preview the documentation.
 
@@ -382,7 +388,9 @@ If you have providers as list of provider ids because you just released them, yo
 
 - Copy the documentation to the ``airflow-site`` repository
 
-All providers (including overriding documentation for doc-only changes):
+All providers (including overriding documentation for doc-only changes) - note that publishing is
+way faster on multi-cpu machines when you are publishing multiple providers:
+
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
@@ -390,9 +398,9 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze release-management publish-docs \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
-    --override-versioned
+    --override-versioned --run-in-parallel
 
-breeze release-management add-back-references --gen-type providers
+breeze release-management add-back-references all-providers
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
@@ -406,7 +414,19 @@ If you have providers as list of provider ids because you just released them you
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
+breeze release-management publish-docs providers-index amazon cncf.kubernetes --override-versioned --run-in-parallel
+
+breeze release-management add-back-references amazon cncf.kubernetes
+```
+
+or with
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
+
+# No need to add back references as the script has this step as integral part
 ```
 
 
@@ -468,7 +488,7 @@ cat <<EOF
 Hey all,
 
 I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on $(date -d '+3 days') and until 3 binding +1 votes have been received.
+which will last for 72 hours - which means that it will end on $(TZ=UTC date -v+3d "+%B %d, %Y %H:%M %p" ) UTC and until 3 binding +1 votes have been received.
 
 
 Consider this my (binding) +1.

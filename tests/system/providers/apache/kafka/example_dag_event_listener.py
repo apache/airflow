@@ -69,8 +69,7 @@ def _producer_function():
 
 
 def _generate_uuid():
-    letters = string.ascii_lowercase
-    return "".join(random.choice(letters) for i in range(6))
+    return "".join(random.choices(string.ascii_lowercase, k=6))
 
 
 with DAG(

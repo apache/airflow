@@ -77,6 +77,12 @@ with models.DAG(
 
     allocate_ids >> begin_transaction_query >> run_query
 
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
 
 from tests.system.utils import get_test_run  # noqa: E402
 

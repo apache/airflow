@@ -17,6 +17,9 @@
     under the License.
 
 
+.. _guides/developer:openlineage:
+
+
 Implementing OpenLineage in Operators
 -------------------------------------
 
@@ -61,7 +64,7 @@ This allows users to use your provider even if they do not have OpenLineage prov
 
 Second important point is to make sure your provider returns OpenLineage-compliant dataset names.
 It allows OpenLineage consumers to properly match information about datasets gathered from different sources.
-The naming convention is described in the `OpenLineage docs <https://openlineage.io/docs/spec/naming>`__.
+The naming convention is described in the `OpenLineage naming docs <https://openlineage.io/docs/spec/naming>`__.
 
 Third, OpenLineage implementation should not waste time of users that do not use it.
 This means not doing heavy processing or network calls in the ``execute`` method that aren't used by it.

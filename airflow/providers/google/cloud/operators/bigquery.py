@@ -21,11 +21,11 @@ from __future__ import annotations
 import enum
 import json
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
 from google.api_core.exceptions import Conflict
-from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 from google.cloud.bigquery.table import RowIterator
 
@@ -55,6 +55,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
 
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -133,6 +134,68 @@ class _BigQueryDbHookMixin:
         )
 
 
+class _BigQueryOpenLineageMixin:
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """
+        Retrieve OpenLineage data for a COMPLETE BigQuery job.
+
+        This method retrieves statistics for the specified job_ids using the BigQueryDatasetsProvider.
+        It calls BigQuery API, retrieving input and output dataset info from it, as well as run-level
+        usage statistics.
+
+        Run facets should contain:
+            - ExternalQueryRunFacet
+            - BigQueryJobRunFacet
+
+        Job facets should contain:
+            - SqlJobFacet if operator has self.sql
+
+        Input datasets should contain facets:
+            - DataSourceDatasetFacet
+            - SchemaDatasetFacet
+
+        Output datasets should contain facets:
+            - DataSourceDatasetFacet
+            - SchemaDatasetFacet
+            - OutputStatisticsOutputDatasetFacet
+        """
+        from openlineage.client.facet import SqlJobFacet
+        from openlineage.common.provider.bigquery import BigQueryDatasetsProvider
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+        from airflow.providers.openlineage.utils.utils import normalize_sql
+
+        if not self.job_id:
+            return OperatorLineage()
+
+        client = self.hook.get_client(project_id=self.hook.project_id)
+        job_ids = self.job_id
+        if isinstance(self.job_id, str):
+            job_ids = [self.job_id]
+        inputs, outputs, run_facets = {}, {}, {}
+        for job_id in job_ids:
+            stats = BigQueryDatasetsProvider(client=client).get_facets(job_id=job_id)
+            for input in stats.inputs:
+                input = input.to_openlineage_dataset()
+                inputs[input.name] = input
+            if stats.output:
+                output = stats.output.to_openlineage_dataset()
+                outputs[output.name] = output
+            for key, value in stats.run_facets.items():
+                run_facets[key] = value
+
+        job_facets = {}
+        if hasattr(self, "sql"):
+            job_facets["sql"] = SqlJobFacet(query=normalize_sql(self.sql))
+
+        return OperatorLineage(
+            inputs=list(inputs.values()),
+            outputs=list(outputs.values()),
+            run_facets=run_facets,
+            job_facets=job_facets,
+        )
+
+
 class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     """Performs checks against BigQuery.
 
@@ -191,6 +254,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -265,7 +329,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         records = event["records"]
         if not records:
             raise AirflowException("The query returned empty results")
-        elif not all(bool(r) for r in records):
+        elif not all(records):
             self._raise_exception(  # type: ignore[attr-defined]
                 f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}"
             )
@@ -309,6 +373,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -378,6 +443,10 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                     method_name="execute_complete",
                 )
             self._handle_job_error(job)
+            # job.result() returns a RowIterator. Mypy expects an instance of SupportsNext[Any] for
+            # the next() call which the RowIterator does not resemble to. Hence, ignore the arg-type error.
+            records = next(job.result())  # type: ignore[arg-type]
+            self.check_value(records)
             self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     @staticmethod
@@ -447,6 +516,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         "labels",
     )
     ui_color = BigQueryUIColors.CHECK.value
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -572,6 +642,10 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     """
 
+    template_fields: Sequence[str] = tuple(set(SQLColumnCheckOperator.template_fields) | {"gcp_conn_id"})
+
+    conn_id_field = "gcp_conn_id"
+
     def __init__(
         self,
         *,
@@ -694,6 +768,10 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
         account from the list granting this role to the originating account (templated).
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     """
+
+    template_fields: Sequence[str] = tuple(set(SQLTableCheckOperator.template_fields) | {"gcp_conn_id"})
+
+    conn_id_field = "gcp_conn_id"
 
     def __init__(
         self,
@@ -965,7 +1043,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             self.log.info("Total extracted rows: %s", len(rows))
 
             if self.as_dict:
-                table_data = [{k: v for k, v in row.items()} for row in rows]
+                table_data = [dict(row) for row in rows]
             else:
                 table_data = [row.values() for row in rows]
 
@@ -1153,6 +1231,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         self.encryption_configuration = encryption_configuration
         self.hook: BigQueryHook | None = None
         self.impersonation_chain = impersonation_chain
+        self.job_id: str | list[str] | None = None
 
     def execute(self, context: Context):
         if self.hook is None:
@@ -1164,7 +1243,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
         if isinstance(self.sql, str):
-            job_id: str | list[str] = self.hook.run_query(
+            self.job_id = self.hook.run_query(
                 sql=self.sql,
                 destination_dataset_table=self.destination_dataset_table,
                 write_disposition=self.write_disposition,
@@ -1184,7 +1263,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
                 encryption_configuration=self.encryption_configuration,
             )
         elif isinstance(self.sql, Iterable):
-            job_id = [
+            self.job_id = [
                 self.hook.run_query(
                     sql=s,
                     destination_dataset_table=self.destination_dataset_table,
@@ -1210,9 +1289,9 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
             raise AirflowException(f"argument 'sql' of type {type(str)} is neither a string nor an iterable")
         project_id = self.hook.project_id
         if project_id:
-            job_id_path = convert_job_id(job_id=job_id, project_id=project_id, location=self.location)
+            job_id_path = convert_job_id(job_id=self.job_id, project_id=project_id, location=self.location)
             context["task_instance"].xcom_push(key="job_id_path", value=job_id_path)
-        return job_id
+        return self.job_id
 
     def on_kill(self) -> None:
         super().on_kill()
@@ -1722,6 +1801,22 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             default_project_id=bq_hook.project_id or "",
         )
 
+        external_data_configuration = {
+            "source_uris": source_uris,
+            "source_format": self.source_format,
+            "autodetect": self.autodetect,
+            "compression": self.compression,
+            "maxBadRecords": self.max_bad_records,
+        }
+        if self.source_format == "CSV":
+            external_data_configuration["csvOptions"] = {
+                "fieldDelimiter": self.field_delimiter,
+                "skipLeadingRows": self.skip_leading_rows,
+                "quote": self.quote_character,
+                "allowQuotedNewlines": self.allow_quoted_newlines,
+                "allowJaggedRows": self.allow_jagged_rows,
+            }
+
         table_resource = {
             "tableReference": {
                 "projectId": project_id,
@@ -1730,20 +1825,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
             },
             "labels": self.labels,
             "schema": {"fields": schema_fields},
-            "externalDataConfiguration": {
-                "source_uris": source_uris,
-                "source_format": self.source_format,
-                "maxBadRecords": self.max_bad_records,
-                "autodetect": self.autodetect,
-                "compression": self.compression,
-                "csvOptions": {
-                    "fieldDelimiter": self.field_delimiter,
-                    "skipLeadingRows": self.skip_leading_rows,
-                    "quote": self.quote_character,
-                    "allowQuotedNewlines": self.allow_quoted_newlines,
-                    "allowJaggedRows": self.allow_jagged_rows,
-                },
-            },
+            "externalDataConfiguration": external_data_configuration,
             "location": self.location,
             "encryptionConfiguration": self.encryption_configuration,
         }
@@ -1901,7 +1983,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        self.dataset_reference = dataset_reference if dataset_reference else {}
+        self.dataset_reference = dataset_reference or {}
         self.impersonation_chain = impersonation_chain
         if exists_ok is not None:
             warnings.warn(
@@ -2562,7 +2644,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         return table
 
 
-class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
+class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMixin):
     """Execute a BigQuery job.
 
     Waits for the job to complete and returns job id.
@@ -2663,6 +2745,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
+    @cached_property
+    def sql(self) -> str | None:
+        try:
+            return self.configuration["query"]["query"]
+        except KeyError:
+            return None
+
     def prepare_template(self) -> None:
         # If .json is passed then we have to read the file
         if isinstance(self.configuration, str) and self.configuration.endswith(".json"):
@@ -2697,7 +2786,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         )
         self.hook = hook
 
-        job_id = hook.generate_job_id(
+        self.job_id = hook.generate_job_id(
             job_id=self.job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
@@ -2708,13 +2797,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
 
         try:
             self.log.info("Executing: %s'", self.configuration)
-            job: BigQueryJob | UnknownJob = self._submit_job(hook, job_id)
+            job: BigQueryJob | UnknownJob = self._submit_job(hook, self.job_id)
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(
                 project_id=self.project_id,
                 location=self.location,
-                job_id=job_id,
+                job_id=self.job_id,
             )
             if job.state in self.reattach_states:
                 # We are reattaching to a job
@@ -2723,7 +2812,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
             else:
                 # Same job configuration so we need force_rerun
                 raise AirflowException(
-                    f"Job with id: {job_id} already exists and is in {job.state} state. If you "
+                    f"Job with id: {self.job_id} already exists and is in {job.state} state. If you "
                     f"want to force rerun it consider setting `force_rerun=True`."
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
@@ -2757,7 +2846,9 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         self.job_id = job.job_id
         project_id = self.project_id or self.hook.project_id
         if project_id:
-            job_id_path = convert_job_id(job_id=job_id, project_id=project_id, location=self.location)
+            job_id_path = convert_job_id(
+                job_id=self.job_id, project_id=project_id, location=self.location  # type: ignore[arg-type]
+            )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
         # Wait for the job to complete
         if not self.deferrable:

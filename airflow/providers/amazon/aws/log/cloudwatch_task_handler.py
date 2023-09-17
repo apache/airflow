@@ -17,15 +17,20 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import watchtower
 
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
 
 
 class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
@@ -90,30 +95,39 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             return (
                 f"*** Reading remote log from Cloudwatch log_group: {self.log_group} "
-                f"log_stream: {stream_name}.\n{self.get_cloudwatch_logs(stream_name=stream_name)}\n",
+                f"log_stream: {stream_name}.\n"
+                f"{self.get_cloudwatch_logs(stream_name=stream_name, task_instance=task_instance)}\n",
                 {"end_of_log": True},
             )
         except Exception as e:
             log = (
                 f"*** Unable to read remote logs from Cloudwatch (log_group: {self.log_group}, log_stream: "
-                f"{stream_name})\n*** {str(e)}\n\n"
+                f"{stream_name})\n*** {e}\n\n"
             )
             self.log.error(log)
             local_log, metadata = super()._read(task_instance, try_number, metadata)
             log += local_log
             return log, metadata
 
-    def get_cloudwatch_logs(self, stream_name: str) -> str:
+    def get_cloudwatch_logs(self, stream_name: str, task_instance: TaskInstance) -> str:
         """
         Return all logs from the given log stream.
 
         :param stream_name: name of the Cloudwatch log stream to get all logs from
+        :param task_instance: the task instance to get logs about
         :return: string of all logs from the given log stream
         """
+        # If there is an end_date to the task instance, fetch logs until that date + 30 seconds
+        # 30 seconds is an arbitrary buffer so that we don't miss any logs that were emitted
+        end_time = (
+            None
+            if task_instance.end_date is None
+            else datetime_to_epoch_utc_ms(task_instance.end_date + timedelta(seconds=30))
+        )
         events = self.hook.get_log_events(
             log_group=self.log_group,
             log_stream_name=stream_name,
-            start_from_head=True,
+            end_time=end_time,
         )
         return "\n".join(self._event_to_str(event) for event in events)
 

@@ -27,6 +27,53 @@
 Changelog
 ---------
 
+3.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix condition of update_task_state in celery executor (#34192)``
+
+Misc
+~~~~
+
+* ``Combine similar if logics in providers (#33987)``
+* ``Limit celery by excluding 5.3.2 and 5.3.3 (#34031)``
+* ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+3.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix dependencies for celery and opentelemetry for Python 3.8 (#33579)``
+
+Misc
+~~~~~
+
+* ``Make auth managers provide their own airflow CLI commands (#33481)``
+* ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``
+
+3.3.2
+.....
+
+Misc
+~~~~
+* ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+* ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+
+3.3.1
+.....
+
+Misc
+~~~~
+
+* ``aDd documentation generation for CLI commands from executors (#33081)``
+* ``Get rid of Python2 numeric relics (#33050)``
+
 3.3.0
 .....
 

@@ -30,8 +30,9 @@ log = logging.getLogger(__name__)
 
 def init_xframe_protection(app):
     """
-    Add X-Frame-Options header. Use it to avoid click-jacking attacks, by ensuring that their content is not
-    embedded into other sites.
+    Add X-Frame-Options header.
+
+    Use it to avoid click-jacking attacks, by ensuring that their content is not embedded into other sites.
 
     See also: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
     """
@@ -55,14 +56,14 @@ def init_api_experimental_auth(app):
         pass
 
     app.api_auth = []
-    for backend in auth_backends.split(","):
-        try:
+    try:
+        for backend in auth_backends.split(","):
             auth = import_module(backend.strip())
             auth.init_app(app)
             app.api_auth.append(auth)
-        except ImportError as err:
-            log.critical("Cannot import %s for API authentication due to: %s", backend, err)
-            raise AirflowException(err)
+    except ImportError as err:
+        log.critical("Cannot import %s for API authentication due to: %s", backend, err)
+        raise AirflowException(err)
 
 
 def init_check_user_active(app):

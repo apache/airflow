@@ -80,10 +80,10 @@ SBOM_INDEX_TEMPLATE = """
 
 @sbom.command(name="update-sbom-information", help="Update SBOM information in airflow-site project.")
 @click.option(
-    "--airflow-site-dir",
+    "--airflow-site-directory",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path, exists=True),
     required=True,
-    envvar="AIRFLOW_SITE_DIR",
+    envvar="AIRFLOW_SITE_DIRECTORY",
     help="Directory where airflow-site directory is located.",
 )
 @click.option(
@@ -154,13 +154,15 @@ def update_sbom_information(
             get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
             continue
         destination_dir = airflow_version_dir / "sbom"
-        destination_dir.mkdir(parents=True, exist_ok=True)
         if destination_dir.exists():
             if not force:
                 get_console().print(f"[warning]The {destination_dir} already exists. Skipping")
                 continue
             else:
                 get_console().print(f"[warning]The {destination_dir} already exists. Forcing update")
+
+        destination_dir.mkdir(parents=True, exist_ok=True)
+
         get_console().print(f"[info]Attempting to update sbom for {airflow_v}.")
         get_console().print(f"[success]The {destination_dir} exists. Proceeding.")
         for python_version in python_versions:

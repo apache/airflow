@@ -22,15 +22,12 @@ import datetime
 import io
 import os
 import re
-import tempfile
 import textwrap
 import warnings
-from collections import OrderedDict
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from pytest import param
 
 from airflow import configuration
 from airflow.configuration import (
@@ -113,6 +110,13 @@ class TestConf:
         assert conf.get("core", "PERCENT") == "with%inside"
         assert conf.get("CORE", "PERCENT") == "with%inside"
 
+    @conf_vars({("core", "key"): "test_value"})
+    def test_set_and_get_with_upper_case(self):
+        # both get and set should be case insensitive
+        assert conf.get("Core", "Key") == "test_value"
+        conf.set("Core", "Key", "new_test_value")
+        assert conf.get("Core", "Key") == "new_test_value"
+
     def test_config_as_dict(self):
         """Test that getting config as dict works even if
         environment has non-legal env vars"""
@@ -157,7 +161,6 @@ class TestConf:
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
         assert cfg_dict["core"]["load_examples"][1] == "airflow.cfg"
-        assert cfg_dict["database"]["load_default_connections"][1] == "airflow.cfg"
         assert cfg_dict["testsection"]["testkey"] == ("testvalue", "env var")
         assert cfg_dict["core"]["fernet_key"] == ("< hidden >", "env var")
 
@@ -541,26 +544,24 @@ key3 = value3
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
-        assert OrderedDict([("key1", "hello"), ("key2", "airflow")]) == test_conf.getsection("test")
-        assert OrderedDict(
-            [("key3", "value3"), ("testkey", "testvalue"), ("testpercent", "with%percent")]
-        ) == test_conf.getsection("testsection")
+        assert {"key1": "hello", "key2": "airflow"} == test_conf.getsection("test")
+        assert {
+            "key3": "value3",
+            "testkey": "testvalue",
+            "testpercent": "with%percent",
+        } == test_conf.getsection("testsection")
 
-        assert OrderedDict([("key", "value")]) == test_conf.getsection("new_section")
+        assert {"key": "value"} == test_conf.getsection("new_section")
 
         assert test_conf.getsection("non_existent_section") is None
 
-    def test_get_section_should_respect_cmd_env_variable(self):
-        with tempfile.NamedTemporaryFile(delete=False) as cmd_file:
-            cmd_file.write(b"#!/usr/bin/env bash\n")
-            cmd_file.write(b"echo -n difficult_unpredictable_cat_password\n")
-            cmd_file.flush()
-            os.chmod(cmd_file.name, 0o0555)
-            cmd_file.close()
+    def test_get_section_should_respect_cmd_env_variable(self, tmp_path, monkeypatch):
+        cmd_file = tmp_path / "testfile.sh"
+        cmd_file.write_text("#!/usr/bin/env bash\necho -n difficult_unpredictable_cat_password\n")
+        cmd_file.chmod(0o0555)
 
-            with mock.patch.dict("os.environ", {"AIRFLOW__WEBSERVER__SECRET_KEY_CMD": cmd_file.name}):
-                content = conf.getsection("webserver")
-            os.unlink(cmd_file.name)
+        monkeypatch.setenv("AIRFLOW__WEBSERVER__SECRET_KEY_CMD", str(cmd_file))
+        content = conf.getsection("webserver")
         assert content["secret_key"] == "difficult_unpredictable_cat_password"
 
     def test_kubernetes_environment_variables_section(self):
@@ -575,7 +576,7 @@ AIRFLOW_HOME = /root/airflow
         test_conf = AirflowConfigParser(default_config=parameterized_config(test_config_default))
         test_conf.read_string(test_config)
 
-        assert OrderedDict([("key1", "hello"), ("AIRFLOW_HOME", "/root/airflow")]) == test_conf.getsection(
+        assert {"key1": "hello", "AIRFLOW_HOME": "/root/airflow"} == test_conf.getsection(
             "kubernetes_environment_variables"
         )
 
@@ -1480,8 +1481,8 @@ sql_alchemy_conn=sqlite://test
     @pytest.mark.parametrize(
         "key",
         [
-            param("deactivate_stale_dags_interval", id="old"),
-            param("parsing_cleanup_interval", id="new"),
+            pytest.param("deactivate_stale_dags_interval", id="old"),
+            pytest.param("parsing_cleanup_interval", id="new"),
         ],
     )
     def test_future_warning_only_for_code_ref(self, key):
@@ -1563,7 +1564,7 @@ sql_alchemy_conn=sqlite://test
         all_sections_including_defaults = airflow_cfg.get_sections_including_defaults()
         assert "core" in all_sections_including_defaults
         assert "test-section" in all_sections_including_defaults
-        assert len([section for section in all_sections_including_defaults if section == "core"]) == 1
+        assert sum(1 for section in all_sections_including_defaults if section == "core") == 1
 
     def test_get_options_including_defaults(self):
         airflow_cfg = AirflowConfigParser()
@@ -1587,7 +1588,7 @@ sql_alchemy_conn=sqlite://test
         assert "dags_folder" in all_core_options_including_defaults
         assert "test-value" == airflow_cfg.get("core", "new-test-key")
         assert "test-runner" == airflow_cfg.get("core", "task_runner")
-        assert len([option for option in all_core_options_including_defaults if option == "task_runner"]) == 1
+        assert sum(1 for option in all_core_options_including_defaults if option == "task_runner") == 1
 
 
 def test_sensitive_values():

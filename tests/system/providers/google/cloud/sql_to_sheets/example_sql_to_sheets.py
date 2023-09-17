@@ -56,7 +56,7 @@ scopes: https://www.googleapis.com/auth/spreadsheets, https://www.googleapis.com
 
 # Sheet
 Finally, you need a Google Sheet you have access to, for testing you can
-create a public sheet and get it's ID.
+create a public sheet and get its ID.
 
 # Tear Down
 You can delete the db with

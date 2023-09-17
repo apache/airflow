@@ -29,7 +29,7 @@ import time_machine
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule
+from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule, XCom
 from airflow.models.dagcode import DagCode
 from airflow.operators.bash import BashOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
@@ -42,10 +42,11 @@ from airflow.utils.types import DagRunType
 from airflow.www.views import TaskInstanceModelView
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_runs, clear_db_xcom
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
 DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+STR_DEFAULT_DATE = urllib.parse.quote(DEFAULT_DATE.strftime("%Y-%m-%dT%H:%M:%S.%f%z"))
 
 DEFAULT_VAL = urllib.parse.quote_plus(str(DEFAULT_DATE))
 
@@ -68,6 +69,13 @@ def init_dagruns(app, reset_dagruns):
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
+        )
+        XCom.set(
+            key="return_value",
+            value="{'x':1}",
+            task_id="runme_0",
+            dag_id="example_bash_operator",
+            execution_date=DEFAULT_DATE,
         )
         app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
@@ -103,6 +111,7 @@ def init_dagruns(app, reset_dagruns):
         )
     yield
     clear_db_runs()
+    clear_db_xcom()
 
 
 @pytest.fixture(scope="module")
@@ -174,14 +183,14 @@ def client_ti_without_dag_edit(app):
             id="dag-details-subdag",
         ),
         pytest.param(
-            "graph?dag_id=example_bash_operator",
+            "object/graph_data?dag_id=example_bash_operator",
             ["runme_1"],
-            id="graph-url-param",
+            id="graph-data",
         ),
         pytest.param(
-            "dags/example_bash_operator/graph",
-            ["runme_1"],
-            id="graph",
+            "object/graph_data?dag_id=example_subdag_operator.section-1",
+            ["section-1-task-1"],
+            id="graph-data-subdag",
         ),
         pytest.param(
             "object/grid_data?dag_id=example_bash_operator",
@@ -331,6 +340,17 @@ def test_views_get(admin_client, url, contents):
         check_content_in_response(content, resp)
 
 
+def test_xcom_return_value_is_not_bytes(admin_client):
+    url = f"xcom?dag_id=example_bash_operator&task_id=runme_0&execution_date={DEFAULT_VAL}&map_index=-1"
+    resp = admin_client.get(url, follow_redirects=True)
+    # check that {"x":1} is in the response
+    content = "{&#39;x&#39;:1}"
+    check_content_in_response(content, resp)
+    # check that b'{"x":1}' is not in the response
+    content = "b&#39;&#34;{\\&#39;x\\&#39;:1}&#34;&#39;"
+    check_content_not_in_response(content, resp)
+
+
 def test_rendered_task_view(admin_client):
     url = f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
@@ -370,7 +390,7 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
     check_content_in_response(href, resp)
 
 
-def test_graph_trigger_origin_graph_view(app, admin_client):
+def test_graph_trigger_origin_grid_view(app, admin_client):
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
@@ -381,7 +401,23 @@ def test_graph_trigger_origin_graph_view(app, admin_client):
 
     url = "/dags/test_tree_view/graph"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"origin": "/dags/test_tree_view/graph"}
+    params = {"origin": "/dags/test_tree_view/grid?tab=graph"}
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    check_content_in_response(href, resp)
+
+
+def test_gantt_trigger_origin_grid_view(app, admin_client):
+    app.dag_bag.get_dag("test_tree_view").create_dagrun(
+        run_type=DagRunType.SCHEDULED,
+        execution_date=DEFAULT_DATE,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        start_date=timezone.utcnow(),
+        state=State.RUNNING,
+    )
+
+    url = "/dags/test_tree_view/gantt"
+    resp = admin_client.get(url, follow_redirects=True)
+    params = {"origin": "/dags/test_tree_view/grid?tab=gantt"}
     href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
@@ -390,7 +426,10 @@ def test_graph_view_without_dag_permission(app, one_dag_perm_user_client):
     url = "/dags/example_bash_operator/graph"
     resp = one_dag_perm_user_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
-    assert resp.request.url == "http://localhost/dags/example_bash_operator/graph"
+    assert (
+        resp.request.url
+        == "http://localhost/dags/example_bash_operator/grid?tab=graph&dag_run_id=TEST_DAGRUN"
+    )
     check_content_in_response("example_bash_operator", resp)
 
     url = "/dags/example_xcom/graph"
@@ -1003,7 +1042,7 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
 def test_task_instances(admin_client):
     """Test task_instances view."""
     resp = admin_client.get(
-        f"/object/task_instances?dag_id=example_bash_operator&execution_date={DEFAULT_DATE}",
+        f"/object/task_instances?dag_id=example_bash_operator&execution_date={STR_DEFAULT_DATE}",
         follow_redirects=True,
     )
     assert resp.status_code == 200

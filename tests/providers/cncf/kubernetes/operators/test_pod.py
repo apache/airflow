@@ -23,8 +23,7 @@ from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, V1PodStatus, models as k8s
-from pytest import param
+from kubernetes.client import ApiClient, V1PodSecurityContext, V1PodStatus, models as k8s
 from urllib3 import HTTPResponse
 from urllib3.packages.six import BytesIO
 
@@ -205,8 +204,8 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(
         "input",
         [
-            param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
-            param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
+            pytest.param([k8s.V1EnvVar(name="{{ bar }}", value="{{ foo }}")], id="current"),
+            pytest.param({"{{ bar }}": "{{ foo }}"}, id="backcompat"),
         ],
     )
     def test_env_vars(self, input):
@@ -219,9 +218,7 @@ class TestKubernetesPodOperator:
         assert k.env_vars[0].name == "bartemplated"
 
     def test_security_context(self):
-        security_context = {
-            "runAsUser": 1245,
-        }
+        security_context = V1PodSecurityContext(run_as_user=1245)
         k = KubernetesPodOperator(
             security_context=security_context,
             task_id="task",
@@ -312,6 +309,16 @@ class TestKubernetesPodOperator:
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
         }
 
+    def test_find_custom_pod_labels(self):
+        k = KubernetesPodOperator(
+            labels={"foo": "bar", "hello": "airflow"},
+            name="test",
+            task_id="task",
+        )
+        context = create_context(k)
+        label_selector = k._build_find_pod_label_selector(context)
+        assert "foo=bar" in label_selector and "hello=airflow" in label_selector
+
     @patch(HOOK_CLASS, new=MagicMock)
     def test_find_pod_labels(self):
         k = KubernetesPodOperator(
@@ -327,7 +334,7 @@ class TestKubernetesPodOperator:
         self.run_pod(k)
         _, kwargs = k.client.list_namespaced_pod.call_args
         assert kwargs["label_selector"] == (
-            "dag_id=dag,kubernetes_pod_operator=True,run_id=test,task_id=task,"
+            "dag_id=dag,foo=bar,kubernetes_pod_operator=True,run_id=test,task_id=task,"
             "already_checked!=True,!airflow-worker"
         )
 
@@ -369,8 +376,8 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(
         "val",
         [
-            param([k8s.V1LocalObjectReference("fakeSecret")], id="current"),
-            param("fakeSecret", id="backcompat"),
+            pytest.param([k8s.V1LocalObjectReference("fakeSecret")], id="current"),
+            pytest.param("fakeSecret", id="backcompat"),
         ],
     )
     def test_image_pull_secrets_correctly_set(self, val):
@@ -607,6 +614,88 @@ class TestKubernetesPodOperator:
         assert pod.spec.containers[0].termination_message_policy == "File"
 
     @pytest.mark.parametrize(
+        "task_kwargs, base_container_fail, expect_to_delete_pod",
+        [
+            ({"on_finish_action": "delete_pod"}, True, True),
+            ({"on_finish_action": "delete_pod"}, False, True),
+            ({"on_finish_action": "keep_pod"}, False, False),
+            ({"on_finish_action": "keep_pod"}, True, False),
+            ({"on_finish_action": "delete_succeeded_pod"}, False, True),
+            ({"on_finish_action": "delete_succeeded_pod"}, True, False),
+        ],
+    )
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.kill_istio_sidecar")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.is_istio_enabled")
+    @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
+    def test_pod_with_istio_delete_after_await_container_error(
+        self,
+        find_pod_mock,
+        await_pod_completion_mock,
+        is_istio_enabled_mock,
+        kill_istio_sidecar_mock,
+        task_kwargs,
+        base_container_fail,
+        expect_to_delete_pod,
+    ):
+        """
+        When KPO fails unexpectedly during await_container, we should still try to delete the pod,
+        and the pod we try to delete should be the one returned from find_pod earlier.
+        """
+        sidecar = MagicMock()
+        sidecar.name = "istio-proxy"
+        sidecar.namespace = "default"
+        sidecar.image = "istio/proxyv2:1.18.2"
+        sidecar.args = []
+        sidecar.state.running = True
+
+        cont_status_1 = MagicMock()
+        cont_status_1.name = "base"
+        cont_status_1.state.running = False
+        cont_status_1.state.terminated.exit_code = 0
+        if base_container_fail:
+            cont_status_1.state.terminated.exit_code = 1
+            cont_status_1.state.terminated.message = "my-failure"
+
+        cont_status_2 = MagicMock()
+        cont_status_2.name = "istio-proxy"
+        cont_status_2.state.running = True
+        cont_status_2.state.terminated = False
+
+        await_pod_completion_mock.return_value.spec.containers = [sidecar]
+        await_pod_completion_mock.return_value.status.phase = "Running"
+        await_pod_completion_mock.return_value.status.container_statuses = [cont_status_1, cont_status_2]
+        await_pod_completion_mock.return_value.metadata.name = "pod-with-istio-sidecar"
+        await_pod_completion_mock.return_value.metadata.namespace = "default"
+
+        find_pod_mock.return_value.spec.containers = [sidecar]
+        find_pod_mock.return_value.status.phase = "Running"
+        find_pod_mock.return_value.status.container_statuses = [cont_status_1, cont_status_2]
+        find_pod_mock.return_value.metadata.name = "pod-with-istio-sidecar"
+        find_pod_mock.return_value.metadata.namespace = "default"
+
+        k = KubernetesPodOperator(task_id="task", **task_kwargs)
+
+        context = create_context(k)
+        context["ti"].xcom_push = MagicMock()
+        if base_container_fail:
+            self.await_pod_mock.side_effect = AirflowException("fake failure")
+            with pytest.raises(AirflowException, match="my-failure"):
+                k.execute(context=context)
+        else:
+            k.execute(context=context)
+
+        assert is_istio_enabled_mock(find_pod_mock.return_value)
+        if task_kwargs["on_finish_action"] == "delete_pod":
+            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
+        elif expect_to_delete_pod and base_container_fail:
+            kill_istio_sidecar_mock.assert_called_with(find_pod_mock.return_value)
+        elif expect_to_delete_pod and not base_container_fail:
+            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
+        else:
+            kill_istio_sidecar_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
         "task_kwargs, should_be_deleted",
         [
             ({}, True),  # default values
@@ -771,7 +860,7 @@ class TestKubernetesPodOperator:
 
     @pytest.fixture
     def pod_template_file(self, tmp_path):
-        pod_template_yaml = b"""
+        pod_template_yaml = """
             apiVersion: v1
             kind: Pod
             metadata:
@@ -809,7 +898,7 @@ class TestKubernetesPodOperator:
         """
 
         tpl_file = tmp_path / "template.yaml"
-        tpl_file.write_bytes(pod_template_yaml)
+        tpl_file.write_text(pod_template_yaml)
 
         yield tpl_file
 
@@ -1219,10 +1308,10 @@ class TestKubernetesPodOperator:
 
         base_container = MagicMock()
         base_container.name = k.base_container_name
-        base_container.last_state.terminated.exit_code = actual_exit_code
+        base_container.state.terminated.exit_code = actual_exit_code
         sidecar_container = MagicMock()
         sidecar_container.name = "airflow-xcom-sidecar"
-        sidecar_container.last_state.terminated.exit_code = 0
+        sidecar_container.state.terminated.exit_code = 0
         remote_pod.return_value.status.container_statuses = [base_container, sidecar_container]
         remote_pod.return_value.status.phase = "Succeeded" if actual_exit_code == 0 else "Failed"
 
@@ -1231,6 +1320,48 @@ class TestKubernetesPodOperator:
         else:
             with pytest.raises(expected_exc):
                 self.run_pod(k)
+
+    @patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
+    @patch(HOOK_CLASS)
+    def test_get_logs_but_not_for_base_container(
+        self,
+        hook_mock,
+        mock_fetch_log,
+        mock_await_container_completion,
+        mock_await_xcom_sidecar,
+        mock_extract_xcom,
+    ):
+        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=True,
+            container_logs=["some_init_container"],
+            get_logs=True,
+        )
+        mock_extract_xcom.return_value = "{}"
+        remote_pod_mock = MagicMock()
+        remote_pod_mock.status.phase = "Succeeded"
+        self.await_pod_mock.return_value = remote_pod_mock
+        pod = self.run_pod(k)
+
+        # check that the base container is not included in the logs
+        mock_fetch_log.assert_called_once_with(
+            pod=pod, container_logs=["some_init_container"], follow_logs=True
+        )
+        # check that KPO waits for the base container to complete before proceeding to extract XCom
+        mock_await_container_completion.assert_called_once_with(pod=pod, container_name="base")
+        # check that we wait for the xcom sidecar to start before extracting XCom
+        mock_await_xcom_sidecar.assert_called_once_with(pod=pod)
 
 
 class TestSuppress:
@@ -1339,12 +1470,15 @@ class TestKubernetesPodOperatorAsync:
         )
         return remote_pod_mock
 
+    @pytest.mark.parametrize("do_xcom_push", [True, False])
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj):
+    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, do_xcom_push):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
+
+        pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar
         """
 
         k = KubernetesPodOperator(
@@ -1359,10 +1493,23 @@ class TestKubernetesPodOperatorAsync:
             in_cluster=True,
             get_logs=True,
             deferrable=True,
+            do_xcom_push=do_xcom_push,
         )
         k.config_file_in_dict_representation = {"a": "b"}
+
+        mocked_pod.return_value.metadata.name = TEST_NAME
+        mocked_pod.return_value.metadata.namespace = TEST_NAMESPACE
+
+        context = create_context(k)
+        ti_mock = MagicMock()
+        context["ti"] = ti_mock
+
         with pytest.raises(TaskDeferred) as exc:
-            k.execute(create_context(k))
+            k.execute(context)
+
+        assert ti_mock.xcom_push.call_count == 2
+        ti_mock.xcom_push.assert_any_call(key="pod_name", value=TEST_NAME)
+        ti_mock.xcom_push.assert_any_call(key="pod_namespace", value=TEST_NAMESPACE)
         assert isinstance(exc.value.trigger, KubernetesPodTrigger)
 
     @patch(KUB_OP_PATH.format("cleanup"))
@@ -1437,10 +1584,10 @@ class TestKubernetesPodOperatorAsync:
 
         base_container = MagicMock()
         base_container.name = k.base_container_name
-        base_container.last_state.terminated.exit_code = actual_exit_code
+        base_container.state.terminated.exit_code = actual_exit_code
         sidecar_container = MagicMock()
         sidecar_container.name = "airflow-xcom-sidecar"
-        sidecar_container.last_state.terminated.exit_code = 0
+        sidecar_container.state.terminated.exit_code = 0
         remote_pod = MagicMock()
         remote_pod.status.phase = pod_status
         remote_pod.status.container_statuses = [base_container, sidecar_container]
@@ -1522,34 +1669,6 @@ class TestKubernetesPodOperatorAsync:
                 "memory": "10Mi",
             },
         )
-
-    @pytest.mark.parametrize("do_xcom_push", [True, False])
-    @patch(KUB_OP_PATH.format("post_complete_action"))
-    @patch(KUB_OP_PATH.format("extract_xcom"))
-    @patch(POD_MANAGER_CLASS)
-    @patch(HOOK_CLASS)
-    def test_async_push_xcom_check_xcom_values_should_execute_successfully(
-        self, mocked_hook, mock_manager, mock_extract_xcom, post_complete_action, do_xcom_push
-    ):
-        """pod name and namespace are *always* pushed; do_xcom_push only controls xcom sidecar"""
-
-        mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
-        )
-        mock_manager.return_value.await_pod_completion.return_value = {}
-        mock_extract_xcom.return_value = "{}"
-        k = KubernetesPodOperator(
-            task_id="task",
-            do_xcom_push=do_xcom_push,
-            deferrable=True,
-        )
-
-        pod = self.run_pod_async(k)
-
-        pod_name = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_name")
-        pod_namespace = XCom.get_one(run_id=self.dag_run.run_id, task_id="task", key="pod_namespace")
-        assert pod_name == pod.metadata.name
-        assert pod_namespace == pod.metadata.namespace
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
@@ -1648,8 +1767,6 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
         succeeded_state,
     ]
 
-    ti_mock = MagicMock()
-
     success_event = {
         "status": "success",
         "message": TEST_SUCCESS_MESSAGE,
@@ -1658,15 +1775,10 @@ def test_async_kpo_wait_termination_before_cleanup_on_success(
     }
 
     k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
-    k.execute_complete({"ti": ti_mock}, success_event)
+    k.execute_complete({}, success_event)
 
     # check if it gets the pod
     mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
-
-    # check if it pushes the xcom
-    assert ti_mock.xcom_push.call_count == 2
-    ti_mock.xcom_push.assert_any_call(key="pod_name", value=TEST_NAME)
-    ti_mock.xcom_push.assert_any_call(key="pod_namespace", value=TEST_NAMESPACE)
 
     # assert that the xcom are extracted/not extracted
     if do_xcom_push:
@@ -1724,3 +1836,11 @@ def test_async_kpo_wait_termination_before_cleanup_on_failure(
 
     # assert that the cleanup is called
     post_complete_action.assert_called_once()
+
+
+def test_default_container_logs():
+    class TestSubclassKPO(KubernetesPodOperator):
+        BASE_CONTAINER_NAME = "test-base-container"
+
+    k = TestSubclassKPO(task_id="task")
+    assert k.container_logs == "test-base-container"

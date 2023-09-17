@@ -40,8 +40,9 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
+    BranchExternalPythonOperator,
     BranchPythonOperator,
-    ExternalBranchPythonOperator,
+    BranchPythonVirtualenvOperator,
     ExternalPythonOperator,
     PythonOperator,
     PythonVirtualenvOperator,
@@ -847,9 +848,11 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         kwargs["python_version"] = python_version
         return kwargs
 
+    @mock.patch("shutil.which")
     @mock.patch("airflow.operators.python.importlib")
-    def test_virtuenv_not_installed(self, importlib):
-        importlib.util.find_spec.return_value = None
+    def test_virtuenv_not_installed(self, importlib_mock, which_mock):
+        which_mock.return_value = None
+        importlib_mock.util.find_spec.return_value = None
         with pytest.raises(AirflowException, match="requires virtualenv"):
 
             def f():
@@ -929,6 +932,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             pip_install_options=["--no-deps"],
         )
         mocked_prepare_virtualenv.assert_called_with(
+            index_urls=None,
             venv_directory=mock.ANY,
             python_bin=mock.ANY,
             system_site_packages=False,
@@ -961,13 +965,25 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return
             raise Exception
 
-        self.run_as_task(f, python_version=3, use_dill=False, requirements=["dill"])
+        self.run_as_task(f, python_version="3", use_dill=False, requirements=["dill"])
 
     def test_without_dill(self):
         def f(a):
             return a
 
         self.run_as_task(f, system_site_packages=False, use_dill=False, op_args=[4])
+
+    def test_with_index_urls(self):
+        def f(a):
+            import sys
+            from pathlib import Path
+
+            pip_conf = (Path(sys.executable).parent.parent / "pip.conf").read_text()
+            assert "abc.def.de" in pip_conf
+            assert "xyz.abc.de" in pip_conf
+            return a
+
+        self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
@@ -1106,18 +1122,11 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
             task._read_result(path=mock.Mock())
 
 
-class TestExternalBranchPythonOperator(BaseTestPythonVirtualenvOperator):
-    opcls = ExternalBranchPythonOperator
-
+class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     @pytest.fixture(autouse=True)
     def setup_tests(self):
         self.branch_1 = EmptyOperator(task_id="branch_1")
         self.branch_2 = EmptyOperator(task_id="branch_2")
-
-    @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
-        kwargs["python"] = sys.executable
-        return kwargs
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):
@@ -1265,6 +1274,23 @@ class TestExternalBranchPythonOperator(BaseTestPythonVirtualenvOperator):
             ti.run()
 
 
+class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator):
+    opcls = BranchPythonVirtualenvOperator
+
+    @staticmethod
+    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        return kwargs
+
+
+class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
+    opcls = BranchExternalPythonOperator
+
+    @staticmethod
+    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        kwargs["python"] = sys.executable
+        return kwargs
+
+
 class TestCurrentContext:
     def test_current_context_no_context_raise(self):
         with pytest.raises(AirflowException):
@@ -1381,7 +1407,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             expected_tasks = {dag.task_dict[x] for x in expected}
         if should_skip:
@@ -1412,7 +1438,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
@@ -1439,7 +1465,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs
@@ -1474,7 +1500,7 @@ class TestShortCircuitWithTeardown:
             op1.skip = MagicMock()
             dagrun = dag_maker.create_dagrun()
             tis = dagrun.get_task_instances()
-            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti: TaskInstance = next(x for x in tis if x.task_id == "op1")
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs

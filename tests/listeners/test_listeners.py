@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import pytest as pytest
+import contextlib
+import os
+
+import pytest
 
 from airflow import AirflowException
 from airflow.jobs.job import Job, run_job
@@ -45,6 +48,8 @@ LISTENERS = [
 DAG_ID = "test_listener_dag"
 TASK_ID = "test_listener_task"
 EXECUTION_DATE = timezone.utcnow()
+
+TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 
 @pytest.fixture(autouse=True)
@@ -83,10 +88,9 @@ def test_multiple_listeners(create_task_instance, session=None):
 
     job = Job()
     job_runner = MockJobRunner(job=job)
-    try:
+    with contextlib.suppress(NotImplementedError):
+        # suppress NotImplementedError: just for lifecycle
         run_job(job=job, execute_callable=job_runner._execute)
-    except NotImplementedError:
-        pass  # just for lifecycle
 
     assert full_listener.started_component is job
     assert lifecycle_listener.started_component is job

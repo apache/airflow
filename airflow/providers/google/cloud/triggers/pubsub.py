@@ -20,12 +20,12 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Sequence
 
-from google.cloud.pubsub_v1.types import ReceivedMessage
-
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
+    from google.cloud.pubsub_v1.types import ReceivedMessage
+
     from airflow.utils.context import Context
 
 
@@ -41,7 +41,7 @@ class PubsubPullTrigger(BaseTrigger):
         immediately rather than by any downstream tasks
     :param gcp_conn_id: Reference to google cloud connection id
     :param messages_callback: (Optional) Callback to process received messages.
-        It's return value will be saved to XCom.
+        Its return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
         If not provided, the default implementation will convert `ReceivedMessage` objects
         into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.

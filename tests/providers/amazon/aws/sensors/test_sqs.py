@@ -24,7 +24,7 @@ from unittest.mock import patch
 import pytest
 from moto import mock_sqs
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
@@ -333,3 +333,16 @@ class TestSqsSensor:
             assert f"'Body': '{message}'" in str(
                 self.mock_context["ti"].method_calls
             ), "context call should contain message '{message}'"
+
+    def test_sqs_deferrable(self):
+        self.sensor = SqsSensor(
+            task_id="test_task_deferrable",
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id="aws_default",
+            max_messages=1,
+            num_batches=3,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred):
+            self.sensor.execute(None)

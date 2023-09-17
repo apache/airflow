@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import os
 import re
-from itertools import chain
 from pathlib import Path
 from unittest import mock
 
@@ -41,7 +41,7 @@ def provider_env_vars():
 
 @pytest.fixture(autouse=True)
 def skip_if_env_var_not_set(provider_env_vars):
-    for env in chain(REQUIRED_ENV_VARS, provider_env_vars):
+    for env in itertools.chain(REQUIRED_ENV_VARS, provider_env_vars):
         if env not in os.environ:
             pytest.skip(f"Missing required environment variable {env}")
             return
@@ -53,7 +53,6 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         rel_path = Path(item.fspath).relative_to(rootdir)
         match = re.match(".+/system/providers/([^/]+)", str(rel_path))
-        if not match:
-            continue
-        provider = match.group(1)
-        item.add_marker(pytest.mark.system(provider))
+        if match:
+            provider = match.group(1)
+            item.add_marker(pytest.mark.system(provider))

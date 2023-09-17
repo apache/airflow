@@ -76,10 +76,7 @@ class SqoopOperator(BaseOperator):
     :param create_hcatalog_table: Have sqoop create the hcatalog table passed
         in or not
     :param properties: additional JVM properties passed to sqoop
-    :param extra_import_options: Extra import options to pass as dict.
-        If a key doesn't have a value, just pass an empty string to it.
-        Don't include prefix of -- for sqoop options.
-    :param extra_export_options: Extra export options to pass as dict.
+    :param extra_options:  Extra import/export options to pass as dict to the SqoopHook.
         If a key doesn't have a value, just pass an empty string to it.
         Don't include prefix of -- for sqoop options.
     :param libjars: Optional Comma separated jar files to include in the classpath.
@@ -105,9 +102,8 @@ class SqoopOperator(BaseOperator):
         "input_lines_terminated_by",
         "input_optionally_enclosed_by",
         "properties",
-        "extra_import_options",
+        "extra_options",
         "driver",
-        "extra_export_options",
         "hcatalog_database",
         "hcatalog_table",
         "schema",
@@ -148,8 +144,7 @@ class SqoopOperator(BaseOperator):
         hcatalog_database: str | None = None,
         hcatalog_table: str | None = None,
         create_hcatalog_table: bool = False,
-        extra_import_options: dict[str, Any] | None = None,
-        extra_export_options: dict[str, Any] | None = None,
+        extra_options: dict[str, Any] | None = None,
         schema: str | None = None,
         libjars: str | None = None,
         **kwargs: Any,
@@ -185,8 +180,7 @@ class SqoopOperator(BaseOperator):
         self.hcatalog_table = hcatalog_table
         self.create_hcatalog_table = create_hcatalog_table
         self.properties = properties
-        self.extra_import_options = extra_import_options or {}
-        self.extra_export_options = extra_export_options or {}
+        self.extra_options = extra_options or {}
         self.hook: SqoopHook | None = None
         self.schema = schema
         self.libjars = libjars
@@ -211,16 +205,9 @@ class SqoopOperator(BaseOperator):
                 input_optionally_enclosed_by=self.input_optionally_enclosed_by,
                 batch=self.batch,
                 relaxed_isolation=self.relaxed_isolation,
-                extra_export_options=self.extra_export_options,
                 schema=self.schema,
             )
         elif self.cmd_type == "import":
-            # add create hcatalog table to extra import options if option passed
-            # if new params are added to constructor can pass them in here
-            # so don't modify sqoop_hook for each param
-            if self.create_hcatalog_table:
-                self.extra_import_options["create-hcatalog-table"] = ""
-
             if self.table and self.query:
                 raise AirflowException("Cannot specify query and table together. Need to specify either or.")
 
@@ -235,7 +222,6 @@ class SqoopOperator(BaseOperator):
                     where=self.where,
                     direct=self.direct,
                     driver=self.driver,
-                    extra_import_options=self.extra_import_options,
                     schema=self.schema,
                 )
             elif self.query:
@@ -247,7 +233,6 @@ class SqoopOperator(BaseOperator):
                     split_by=self.split_by,
                     direct=self.direct,
                     driver=self.driver,
-                    extra_import_options=self.extra_import_options,
                 )
             else:
                 raise AirflowException("Provide query or table parameter to import using Sqoop")
@@ -261,6 +246,12 @@ class SqoopOperator(BaseOperator):
         os.killpg(os.getpgid(self.hook.sub_process_pid), signal.SIGTERM)
 
     def _get_hook(self) -> SqoopHook:
+        """Return a SqoopHook instance."""
+        # Add `create-hcatalog-table` to extra options if option passed to operator in case of `import`
+        # command. Similarly, if new parameters are added to the operator, you can pass them to
+        # `extra_options` so that you don't need to modify `SqoopHook` for each new parameter.
+        if self.cmd_type == "import" and self.create_hcatalog_table:
+            self.extra_options["create-hcatalog-table"] = ""
         return SqoopHook(
             conn_id=self.conn_id,
             verbose=self.verbose,
@@ -269,4 +260,5 @@ class SqoopOperator(BaseOperator):
             hcatalog_table=self.hcatalog_table,
             properties=self.properties,
             libjars=self.libjars,
+            extra_options=self.extra_options,
         )

@@ -22,7 +22,6 @@ import json
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import BadRequest, Conflict
-from google.api_core.retry import Retry
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     CopyJob,
@@ -44,6 +43,8 @@ from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 ALLOWED_FORMATS = [
@@ -531,7 +532,7 @@ class GCSToBigQueryOperator(BaseOperator):
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
-        if self.source_format in src_fmt_to_param_mapping.keys():
+        if self.source_format in src_fmt_to_param_mapping:
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[self.source_format]]
             self.src_fmt_configs = self._validate_src_fmt_configs(
                 self.source_format, self.src_fmt_configs, valid_configs, backward_compatibility_configs

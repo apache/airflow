@@ -61,6 +61,7 @@ Read messages from an Amazon SQS queue
 
 To read messages from an Amazon SQS queue until exhausted use the
 :class:`~airflow.providers.amazon.aws.sensors.sqs.SqsSensor`
+This sensor can also be run in deferrable mode by setting ``deferrable`` param to ``True``.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sqs.py
     :language: python

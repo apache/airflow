@@ -24,34 +24,68 @@ import pytest
 from airflow import AirflowException
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User
-from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
-from airflow.www.security import ApplessAirflowSecurityManager
+from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.www.security_appless import ApplessAirflowSecurityManager
 
 
 @pytest.fixture
 def auth_manager():
-    auth_manager = FabAuthManager()
+    app_mock = Mock(name="flask_app")
+    app_mock.config.get.return_value = None  # this is called to get the security manager override (if any)
+    auth_manager = FabAuthManager(app_mock)
     auth_manager.security_manager = ApplessAirflowSecurityManager()
     return auth_manager
 
 
 class TestFabAuthManager:
     @pytest.mark.parametrize(
-        "first_name,last_name,expected",
+        "id,first_name,last_name,username,email,expected",
         [
-            ("First", "Last", "First Last"),
-            ("First", None, "First"),
-            (None, "Last", "Last"),
+            (1, "First", "Last", None, None, "1"),
+            (1, None, None, None, None, "1"),
+            (1, "First", "Last", "user", None, "user"),
+            (1, "First", "Last", "user", "email", "user"),
+            (1, None, None, None, "email", "email"),
+            (1, "First", "Last", None, "email", "email"),
         ],
     )
     @mock.patch.object(FabAuthManager, "get_user")
-    def test_get_user_name(self, mock_get_user, first_name, last_name, expected, auth_manager):
+    def test_get_user_name(
+        self, mock_get_user, id, first_name, last_name, username, email, expected, auth_manager
+    ):
         user = User()
+        user.id = id
         user.first_name = first_name
         user.last_name = last_name
+        user.username = username
+        user.email = email
         mock_get_user.return_value = user
 
         assert auth_manager.get_user_name() == expected
+
+    @pytest.mark.parametrize(
+        "id,first_name,last_name,username,email,expected",
+        [
+            (1, "First", "Last", None, None, "First Last"),
+            (1, "First", None, "user", None, "First"),
+            (1, None, "Last", "user", "email", "Last"),
+            (1, None, None, None, "email", ""),
+            (1, None, None, None, "email", ""),
+        ],
+    )
+    @mock.patch.object(FabAuthManager, "get_user")
+    def test_get_user_display_name(
+        self, mock_get_user, id, first_name, last_name, username, email, expected, auth_manager
+    ):
+        user = User()
+        user.id = id
+        user.first_name = first_name
+        user.last_name = last_name
+        user.username = username
+        user.email = email
+        mock_get_user.return_value = user
+
+        assert auth_manager.get_user_display_name() == expected
 
     @mock.patch("flask_login.utils._get_user")
     def test_get_user(self, mock_current_user, auth_manager):
@@ -85,14 +119,14 @@ class TestFabAuthManager:
         with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
             auth_manager.get_url_login()
 
-    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
+    @mock.patch.object(FabAuthManager, "url_for")
     def test_get_url_login(self, mock_url_for, auth_manager):
         auth_manager.security_manager.auth_view = Mock()
         auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager.get_url_login()
         mock_url_for.assert_called_once_with("test_endpoint.login")
 
-    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
+    @mock.patch.object(FabAuthManager, "url_for")
     def test_get_url_login_with_next(self, mock_url_for, auth_manager):
         auth_manager.security_manager.auth_view = Mock()
         auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
@@ -103,7 +137,7 @@ class TestFabAuthManager:
         with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
             auth_manager.get_url_logout()
 
-    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
+    @mock.patch.object(FabAuthManager, "url_for")
     def test_get_url_logout(self, mock_url_for, auth_manager):
         auth_manager.security_manager.auth_view = Mock()
         auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
@@ -113,7 +147,7 @@ class TestFabAuthManager:
     def test_get_url_user_profile_when_auth_view_not_defined(self, auth_manager):
         assert auth_manager.get_url_user_profile() is None
 
-    @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
+    @mock.patch.object(FabAuthManager, "url_for")
     def test_get_url_user_profile(self, mock_url_for, auth_manager):
         expected_url = "test_url"
         mock_url_for.return_value = expected_url

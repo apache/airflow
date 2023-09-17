@@ -90,6 +90,7 @@ class TestSnowflakeOperatorForParams:
         mock_base_op.assert_called_once_with(
             conn_id="snowflake_default",
             task_id="snowflake_params_check",
+            database=None,
             hook_params={
                 "warehouse": "test_warehouse",
                 "database": "test_database",

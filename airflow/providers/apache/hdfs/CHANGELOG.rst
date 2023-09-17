@@ -27,8 +27,30 @@
 Changelog
 ---------
 
+4.1.1
+.....
+
+Misc
+~~~~
+
+* ``Fix package name in exception message for hdfs provider (#33813)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use correct headings in HDFS Provider changelog (#33809)``
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+   * ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Fix typos (double words and it's/its) (#33623)``
+
 4.1.0
------
+.....
 
 .. note::
   This release dropped support for Python 3.7
@@ -45,7 +67,7 @@ Features
    * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.0.0
------
+.....
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the
@@ -75,7 +97,7 @@ you can use 3.* version of the provider, but the recommendation is to switch to 
    Protobuf 3 required by the snakebite-py3 library has ended its life in June 2023 and Airflow and it's
    providers stopped supporting it. If you would like to continue using HDFS hooks and sensors
    based on snakebite-py3 library when you have protobuf library 4.+ you can install the 3.* version
-   of the provider but due to Protobuf incompatibility, you need to do one of the the two things:
+   of the provider but due to Protobuf incompatibility, you need to do one of the two things:
 
    * set ``PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python`` variable in your environment.
    * downgrade protobuf to latest 3.* version (3.20.3 at this time)

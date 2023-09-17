@@ -26,6 +26,161 @@
 Changelog
 ---------
 
+8.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix: Fix RDS triggers parameters so that they handle serialization/deserialization (#34222)``
+* ``Use a AwsBaseWaiterTrigger-based trigger in EmrAddStepsOperator deferred mode (#34216)``
+
+Misc
+~~~~
+
+* ``Refactor: Think positively in providers (#34279)``
+* ``Remove unused parameter 'cluster_role_arn' from 'EksPodOperator''s docstring (#34300)``
+* ``Correct parameter names in docstring for 'S3CreateObjectOperator' (#34263)``
+* ``Refactor: Simplify comparisons (#34181)``
+* ``Simplify  to bool(...) (#34258)``
+
+8.7.0
+.....
+
+.. warning:: A bug introduced in version 8.0.0 caused all ``EcsRunTaskOperator`` tasks to detach from the ECS task
+  and fail after 10 minutes, even if the ECS task was still running.
+  In this version we are fixing it by returning the default ``waiter_max_attempts`` value to ``sys.maxsize``.
+
+Features
+~~~~~~~~
+
+* ``Add Amazon SQS Notifier (#33962)``
+* ``Add Amazon SNS Notifier (#33828)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Increase 'waiter_max_attempts' default value in 'EcsRunTaskOperator' (#33712)``
+* ``Fix AWS 'EmrStepSensor' ignoring the specified 'aws_conn_id' in deferred mode  (#33952)``
+* ``Fix type annotation in AppflowHook (#33881)``
+* ``Make Amazon Chime connection lazy loaded and consistent with docs (#34000)``
+* ``respect "soft_fail" argument when running BatchSensor in deferrable mode (#33405)``
+
+Misc
+~~~~
+
+ * ``Refactor: Consolidate import and usage of random (#34108)``
+ * ``Consolidate importing of os.path.* (#34060)``
+ * ``Refactor regex in providers (#33898)``
+ * ``Refactor: Simplify loop in aws/triggers/batch.py (#34052)``
+ * ``Combine similar if logics in providers (#33987)``
+ * ``Replace single quotes by double quotes in tests (#33864)``
+ * ``Remove useless string join from providers (#33968)``
+ * ``Make 'aws.session_factory' part of Amazon provider configuration documentation (#33960)``
+ * ``Refactor unneeded  jumps in providers (#33833)``
+ * ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+ * ``Remove some useless try/except from providers code (#33967)``
+ * ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+ * ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+ * ``Reorganize devel_only extra in airflow's setup.py (#33907)``
+ * ``Remove explicit str concat from Airflow providers package and tests (#33860)``
+ * ``Improve modules import in AWS provider by move some of them into a type-checking block (#33780)``
+ * ``Always use 'Literal' from 'typing_extensions' (#33794)``
+ * ``Use literal dict instead of calling dict() in providers (#33761)``
+ * ``remove unnecessary and rewrite it using list in providers (#33763)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add decorator for suppress optional internal methods in Amazon Provider (#34034)``
+
+8.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added Amazon SageMaker Notebook hook and operators (#33219)``
+* ``Add 'deferrable' option to 'LambdaCreateFunctionOperator' (#33327)``
+* ``Add Deferrable mode to GlueCatalogPartitionSensor (#33239)``
+* ``Add 'sql_hook_params' parameter to 'S3ToSqlOperator' (#33427)``
+* ``Add 'sql_hook_params' parameter to 'SqlToS3Operator' (#33425)``
+* ``Add parameter to pass role ARN to 'GlueJobOperator ' (#33408)``
+* ``Add new RdsStartExportTaskOperator parameters (#33251)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix bug in task logs when using AWS CloudWatch. Do not set 'start_time' (#33673)``
+* ``Fix AWS Batch waiter failure state (#33656)``
+* ``Fix AWS appflow waiter (#33613)``
+* ``Fix striping tags when falling back to update in 'SageMakerEndpointOperator' (#33487)``
+
+
+Misc
+~~~~
+
+* ``Simplify conditions on len() in providers/amazon (#33565)``
+* ``Remove non-public interface usage in EcsRunTaskOperator (#29447)``
+* ``Upgrade botocore/aiobotocore minimum requirements (#33649)``
+* ``Consolidate import and usage of itertools (#33479)``
+* ``Consolidate import and usage of pandas (#33480)``
+* ``always push ECS task ARN to xcom in 'EcsRunTaskOperator' (#33703)``
+* ``Use 'boto3.client' linked to resource meta instead of create new one for waiters (#33552)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add Appflow system test + improvements (#33614)``
+   * ``Fix typos (double words and it's/its) (#33623)``
+   * ``Refactor: Remove useless str() calls (#33629)``
+   * ``Replace strftime with f-strings where nicer (#33455)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+8.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Get failure information on EMR job failure (#32151)``
+* ``Fix get_log_events() in AWS logs hook (#33290)``
+
+Misc
+~~~~
+
+* ``Improve fetching logs from AWS (#33231)``
+* ``Refactor: Simplify code in providers/amazon (#33222)``
+* ``Implement EventBridge enable and disable rule operators (#33226)``
+* ``Update mypy-boto3-appflow dependency (#32930)``
+* ``use 'cached_property' from functools in 'RdsBaseOperator' (#33133)``
+* ``Use set for 'template_fields' of 'EcsDeregisterTaskDefinitionOperator' (#33129)``
+
+8.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, sagemaker: add OpenLineage support for SageMaker's Processing, Transform and Training operators (#31816)``
+* ``Add Amazon EventBridge PutRule hook and operator (#32869)``
+* ``Add GCS Requester Pays bucket support to GCSToS3Operator (#32760)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Check google provider version in GCSToS3Operator before provide match_glob param (#32925)``
+* ``Set longer default 'waiter_max_attempts' for deferred BatchJobOperator (#33045)``
+
+Misc
+~~~~
+
+* ``openlineage, sagemaker: add missing OpenLineage type signature (#33114)``
+* ``Add S3Bucket for mypy (#33028)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deferrable mode for Sqs Sensor (#32809)``
+   * ``Increase the number of attempts in AWS system test 'example_rds_export' (#32976)``
+
 8.4.0
 .....
 

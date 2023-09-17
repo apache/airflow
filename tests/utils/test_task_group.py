@@ -22,8 +22,14 @@ from datetime import timedelta
 import pendulum
 import pytest
 
-from airflow.decorators import dag, task as task_decorator, task_group as task_group_decorator
-from airflow.exceptions import AirflowException, TaskAlreadyInTaskGroup
+from airflow.decorators import (
+    dag,
+    setup,
+    task as task_decorator,
+    task_group as task_group_decorator,
+    teardown,
+)
+from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
@@ -1481,70 +1487,113 @@ def test_task_group_arrow_with_setups_teardowns():
     assert w1.downstream_task_ids == {"tg1.t1", "w2"}
 
 
-def test_tasks_defined_outside_taskgrooup(dag_maker):
-    # Test that classic tasks defined outside a task group are added to the root task group
-    # when the relationships are defined inside the task group
-    with dag_maker() as dag:
-        t1 = make_task("t1")
-        t2 = make_task("t2")
-        t3 = make_task("t3")
-        with TaskGroup(group_id="tg1"):
-            t1 >> t2 >> t3
-    dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1", "t2", "t3"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t2"].upstream_task_ids == {"t1"}
-    assert dag.task_group.children["tg1"].children["t2"].downstream_task_ids == {"t3"}
-    assert dag.task_group.children["tg1"].children["t3"].upstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t3"].downstream_task_ids == set()
+def test_task_group_arrow_with_setup_group():
+    with DAG(dag_id="setup_group_teardown_group", start_date=pendulum.now()):
+        with TaskGroup("group_1") as g1:
 
-    # Test that decorated tasks defined outside a task group are added to the root task group
-    # when relationships are defined inside the task group
-    with dag_maker() as dag:
-        t1 = make_task("t1", type_="decorated")
-        t2 = make_task("t2", type_="decorated")
-        t3 = make_task("t3", type_="decorated")
-        with TaskGroup(group_id="tg1"):
-            t1 >> t2 >> t3
-    dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1", "t2", "t3"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t2"].upstream_task_ids == {"t1"}
-    assert dag.task_group.children["tg1"].children["t2"].downstream_task_ids == {"t3"}
-    assert dag.task_group.children["tg1"].children["t3"].upstream_task_ids == {"t2"}
-    assert dag.task_group.children["tg1"].children["t3"].downstream_task_ids == set()
+            @setup
+            def setup_1():
+                ...
 
-    # Test adding single decorated task defined outside a task group to a task group
-    with dag_maker() as dag:
-        t1 = make_task("t1", type_="decorated")
-        with TaskGroup(group_id="tg1") as tg1:
-            tg1.add_task(t1)
-    dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == set()
+            @setup
+            def setup_2():
+                ...
 
-    # Test adding single classic task defined outside a task group to a task group
-    with dag_maker() as dag:
-        t1 = make_task("t1")
-        with TaskGroup(group_id="tg1") as tg1:
-            tg1.add_task(t1)
-    dag.validate()
-    assert dag.task_group.children.keys() == {"tg1"}
-    assert dag.task_group.children["tg1"].children.keys() == {"t1"}
-    assert dag.task_group.children["tg1"].children["t1"].upstream_task_ids == set()
-    assert dag.task_group.children["tg1"].children["t1"].downstream_task_ids == set()
+            s1 = setup_1()
+            s2 = setup_2()
 
-    with pytest.raises(
-        AirflowException,
-        match="Using this method on a task group that's not a context manager is not supported.",
-    ):
-        with dag_maker():
-            t1 = make_task("t1")
-            tg1 = TaskGroup(group_id="tg1")
-            tg1.add_task(t1)
+        with TaskGroup("group_2") as g2:
+
+            @teardown
+            def teardown_1():
+                ...
+
+            @teardown
+            def teardown_2():
+                ...
+
+            t1 = teardown_1()
+            t2 = teardown_2()
+
+        @task_decorator
+        def work():
+            ...
+
+        w1 = work()
+        g1 >> w1 >> g2
+        t1.as_teardown(setups=s1)
+        t2.as_teardown(setups=s2)
+    assert set(s1.operator.downstream_task_ids) == {"work", "group_2.teardown_1"}
+    assert set(s2.operator.downstream_task_ids) == {"work", "group_2.teardown_2"}
+    assert set(w1.operator.downstream_task_ids) == {"group_2.teardown_1", "group_2.teardown_2"}
+    assert set(t1.operator.downstream_task_ids) == set()
+    assert set(t2.operator.downstream_task_ids) == set()
+
+    def get_nodes(group):
+        d = task_group_to_dict(group)
+        new_d = {}
+        new_d["id"] = d["id"]
+        new_d["children"] = [{"id": x["id"]} for x in d["children"]]
+        return new_d
+
+    assert get_nodes(g1) == {
+        "id": "group_1",
+        "children": [
+            {"id": "group_1.setup_1"},
+            {"id": "group_1.setup_2"},
+            {"id": "group_1.downstream_join_id"},
+        ],
+    }
+
+
+def test_task_group_arrow_with_setup_group_deeper_setup():
+    """
+    When recursing upstream for a non-teardown leaf, we should ignore setups that
+    are direct upstream of a teardown.
+    """
+    with DAG(dag_id="setup_group_teardown_group_2", start_date=pendulum.now()):
+        with TaskGroup("group_1") as g1:
+
+            @setup
+            def setup_1():
+                ...
+
+            @setup
+            def setup_2():
+                ...
+
+            @teardown
+            def teardown_0():
+                ...
+
+            s1 = setup_1()
+            s2 = setup_2()
+            t0 = teardown_0()
+            s2 >> t0
+
+        with TaskGroup("group_2") as g2:
+
+            @teardown
+            def teardown_1():
+                ...
+
+            @teardown
+            def teardown_2():
+                ...
+
+            t1 = teardown_1()
+            t2 = teardown_2()
+
+        @task_decorator
+        def work():
+            ...
+
+        w1 = work()
+        g1 >> w1 >> g2
+        t1.as_teardown(setups=s1)
+        t2.as_teardown(setups=s2)
+    assert set(s1.operator.downstream_task_ids) == {"work", "group_2.teardown_1"}
+    assert set(s2.operator.downstream_task_ids) == {"group_1.teardown_0", "group_2.teardown_2"}
+    assert set(w1.operator.downstream_task_ids) == {"group_2.teardown_1", "group_2.teardown_2"}
+    assert set(t1.operator.downstream_task_ids) == set()
+    assert set(t2.operator.downstream_task_ids) == set()

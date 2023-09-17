@@ -25,8 +25,10 @@ Database
 
 It is advised to set up an external database for the Airflow metastore. The default Helm chart deploys a
 Postgres database running in a container. For production usage, a database running on a dedicated machine or
-leveraging a cloud provider's database service such as AWS RDS is advised. Supported databases and versions
-can be found at :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
+leveraging a cloud provider's database service such as AWS RDS should be used because the embedded Postgres
+lacks stability, monitoring and persistence features that you need for a production database. It is only there to
+make it easier to test the Helm Chart in a "standalone" version but you might experience data loss when you
+are using it. Supported databases and versions can be found at :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
 
 
 .. note::

@@ -66,9 +66,14 @@
 {% if auth_manager.is_logged_in() %}
   <li class="dropdown">
     <a class="dropdown-toggle" href="#">
-       <span class="navbar-user-icon" title="{{ auth_manager.get_user_name() }}">
-         {% set user_names = auth_manager.get_user_name().split(" ", 1) %}
-         <span>{% for name in user_names %}{{ name[0].upper() }}{% endfor %}</span>
+       <span class="navbar-user-icon" title="{{ auth_manager.get_user_display_name() }}">
+         {% set user_display_name = auth_manager.get_user_display_name() %}
+         {% if user_display_name %}
+          {% set user_display_names = user_display_name.split(" ", 1) %}
+          <span>{% for name in user_display_names %}{{ name[0].upper() }}{% endfor %}</span>
+         {% else %}
+          <span class="material-icons">person</span>
+         {% endif %}
        </span>
        <b class="caret"></b>
     </a>

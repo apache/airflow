@@ -23,7 +23,6 @@ from unittest import mock
 import pendulum
 import pytest
 import time_machine
-from pytest import mark
 
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.models.baseoperator import BaseOperator
@@ -132,7 +131,7 @@ def setup_trigger_tasks(dag_maker):
     return executor, dagrun
 
 
-@mark.parametrize("open_slots", [1, 2, 3])
+@pytest.mark.parametrize("open_slots", [1, 2, 3])
 def test_trigger_queued_tasks(dag_maker, open_slots):
     executor, _ = setup_trigger_tasks(dag_maker)
     executor.trigger_tasks(open_slots)

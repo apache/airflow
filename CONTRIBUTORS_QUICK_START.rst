@@ -104,7 +104,7 @@ Colima
 ------
 If you use Colima as your container runtimes engine, please follow the next steps:
 
-1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ and follow it's instructions
+1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ and follow its instructions
 
 2. Link the Colima socket to the default socket path. Note that this may break other Docker servers.
 
@@ -252,7 +252,7 @@ Typical development tasks
 #########################
 
 For many of the development tasks you will need ``Breeze`` to be configured. ``Breeze`` is a development
-environment which uses docker and docker-compose and it's main purpose is to provide a consistent
+environment which uses docker and docker-compose and its main purpose is to provide a consistent
 and repeatable environment for all the contributors and CI. When using ``Breeze`` you avoid the "works for me"
 syndrome - because not only others can reproduce easily what you do, but also the CI of Airflow uses
 the same environment to run all tests - so you should be able to easily reproduce the same failures you

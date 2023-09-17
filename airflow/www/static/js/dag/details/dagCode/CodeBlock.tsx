@@ -22,6 +22,7 @@ import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
 import React, { useState } from "react";
 import { Box, Button } from "@chakra-ui/react";
+import { getMetaValue } from "src/utils";
 
 SyntaxHighlighter.registerLanguage("python", python);
 
@@ -29,7 +30,9 @@ interface Props {
   code: string;
 }
 export default function CodeBlock({ code }: Props) {
-  const [codeWrap, setCodeWrap] = useState(false);
+  const [codeWrap, setCodeWrap] = useState(
+    getMetaValue("default_wrap") === "True"
+  );
   const toggleCodeWrap = () => setCodeWrap(!codeWrap);
 
   return (

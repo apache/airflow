@@ -31,7 +31,6 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
@@ -98,13 +97,6 @@ with models.DAG(
         body=GKE_CLUSTER_CONFIG,
     )
 
-    add_iam_policy_binding = BashOperator(
-        task_id="add_iam_policy_binding",
-        bash_command=f"gcloud projects add-iam-policy-binding {PROJECT_ID} "
-        f"--member=serviceAccount:{WORKLOAD_POOL}[{GKE_NAMESPACE}/agent] "
-        "--role=roles/iam.workloadIdentityUser",
-    )
-
     # [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
     create_cluster_in_gke = DataprocCreateClusterOperator(
         task_id="create_cluster_in_gke",
@@ -134,11 +126,12 @@ with models.DAG(
     (
         # TEST SETUP
         create_gke_cluster
-        >> add_iam_policy_binding
         # TEST BODY
         >> create_cluster_in_gke
         # TEST TEARDOWN
-        >> [delete_gke_cluster, delete_dataproc_cluster]
+        # >> delete_gke_cluster
+        >> delete_dataproc_cluster
+        >> delete_gke_cluster
     )
 
     from tests.system.utils.watcher import watcher

@@ -135,7 +135,7 @@ class ColorField(fields.String):
 
     def __init__(self, **metadata):
         super().__init__(**metadata)
-        self.validators = [validate.Regexp("^#[a-fA-F0-9]{3,6}$")] + list(self.validators)
+        self.validators = [validate.Regexp("^#[a-fA-F0-9]{3,6}$"), *self.validators]
 
 
 class WeightRuleField(fields.String):
@@ -143,7 +143,7 @@ class WeightRuleField(fields.String):
 
     def __init__(self, **metadata):
         super().__init__(**metadata)
-        self.validators = [validate.OneOf(WeightRule.all_weight_rules())] + list(self.validators)
+        self.validators = [validate.OneOf(WeightRule.all_weight_rules()), *self.validators]
 
 
 class TimezoneField(fields.String):

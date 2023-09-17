@@ -316,7 +316,6 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     cd "${AIRFLOW_SOURCES}"
 
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
-        export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
         wait_for_asset_compilation
         # shellcheck source=scripts/in_container/bin/run_tmux
@@ -324,9 +323,27 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     fi
 fi
 
-# Remove pytest.ini from the current directory if it exists. It has been removed from the source tree
+# Remove pytest.ini and .coveragerc from the current directory if it exists. It has been removed from the source tree
 # but may still be present in the local directory if the user has old breeze image
 rm -f "${AIRFLOW_SOURCES}/pytest.ini"
+rm -f "${AIRFLOW_SOURCES}/.coveragerc"
+
+if [[ ${UPGRADE_BOTO=} == "true" ]]; then
+    echo
+    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
+    echo
+    pip uninstall --root-user-action ignore aiobotocore -y || true
+    pip install --root-user-action ignore --upgrade boto3 botocore
+    pip check
+fi
+if [[ ${DOWNGRADE_SQLALCHEMY=} == "true" ]]; then
+    min_sqlalchemy_version=$(grep "sqlalchemy>=" setup.cfg | sed "s/.*>=\([0-9\.]*\).*/\1/")
+    echo
+    echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
+    echo
+    pip install --root-user-action ignore "sqlalchemy==${min_sqlalchemy_version}"
+    pip check
+fi
 
 set +u
 # If we do not want to run tests, we simply drop into bash
@@ -399,10 +416,11 @@ else
 fi
 
 if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
+    _suffix="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)"
     EXTRA_PYTEST_ARGS+=(
         "--cov=airflow"
-        "--cov-config=.coveragerc"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
+        "--cov-config=pyproject.toml"
+        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}-${_suffix}.xml"
     )
 fi
 
@@ -558,13 +576,6 @@ else
         echo
         exit 1
     fi
-fi
-if [[ ${UPGRADE_BOTO=} == "true" ]]; then
-    echo
-    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
-    echo
-    pip uninstall aiobotocore -y || true
-    pip install --upgrade boto3 botocore
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS

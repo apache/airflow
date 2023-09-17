@@ -92,7 +92,7 @@ class TestAirflowKubernetesScheduler:
     @staticmethod
     def _is_valid_pod_id(name):
         regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-        return len(name) <= 253 and all(ch.lower() == ch for ch in name) and re.match(regex, name)
+        return len(name) <= 253 and name.islower() and re.match(regex, name)
 
     @staticmethod
     def _is_safe_label_value(value):
@@ -227,6 +227,19 @@ class TestAirflowKubernetesScheduler:
             mock_delete_namespace.assert_called_with(pod_name, namespace, body=mock_client.V1DeleteOptions())
         finally:
             kube_executor.end()
+
+    def test_running_pod_log_lines(self):
+        # default behaviour
+        kube_executor = KubernetesExecutor()
+        assert kube_executor.RUNNING_POD_LOG_LINES == 100
+
+        # monkey-patching for second executor
+        kube_executor_2 = KubernetesExecutor()
+        kube_executor_2.RUNNING_POD_LOG_LINES = 200
+
+        # monkey-patching should not affect the class constant
+        assert kube_executor.RUNNING_POD_LOG_LINES == 100
+        assert kube_executor_2.RUNNING_POD_LOG_LINES == 200
 
 
 class TestKubernetesExecutor:
@@ -437,7 +450,7 @@ class TestKubernetesExecutor:
                 ),
             )
 
-            assert list(executor.event_buffer.values())[0][1] == "Invalid executor_config passed"
+            assert next(iter(executor.event_buffer.values()))[1] == "Invalid executor_config passed"
         finally:
             executor.end()
 

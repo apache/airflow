@@ -21,12 +21,11 @@ import json
 import math
 import time
 import warnings
-from datetime import datetime as dt
+from typing import TYPE_CHECKING
 
 import pendulum
 import tenacity
 from kubernetes import client, watch
-from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from requests.exceptions import HTTPError
@@ -37,6 +36,9 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from kubernetes.client.models.v1_pod import V1Pod
 
 warnings.warn(
     """
@@ -129,12 +131,11 @@ class PodLauncher(LoggingMixin):
         :return:
         """
         resp = self.run_pod_async(pod)
-        curr_time = dt.now()
+        start_time = time.monotonic()
         if resp.status.start_time is None:
             while self.pod_not_started(pod):
                 self.log.warning("Pod not yet started: %s", pod.metadata.name)
-                delta = dt.now() - curr_time
-                if delta.total_seconds() >= startup_timeout:
+                if time.monotonic() >= start_time + startup_timeout:
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
 
@@ -185,16 +186,14 @@ class PodLauncher(LoggingMixin):
         :param line: k8s log line
         :return: timestamp and log message
         """
-        split_at = line.find(" ")
-        if split_at == -1:
+        timestamp, sep, message = line.strip().partition(" ")
+        if not sep:
             self.log.error(
                 "Error parsing timestamp (no timestamp in message: %r). "
                 "Will continue execution but won't update timestamp",
                 line,
             )
             return None, line
-        timestamp = line[:split_at]
-        message = line[split_at + 1 :].rstrip()
         return timestamp, message
 
     def _task_status(self, event):

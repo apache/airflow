@@ -45,7 +45,9 @@ class RedisPubSubSensor(BaseSensorOperator):
 
     @cached_property
     def pubsub(self):
-        return RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
+        hook = RedisHook(redis_conn_id=self.redis_conn_id).get_conn().pubsub()
+        hook.subscribe(self.channels)
+        return hook
 
     def poke(self, context: Context) -> bool:
         """
@@ -57,7 +59,6 @@ class RedisPubSubSensor(BaseSensorOperator):
         :return: ``True`` if message (with type 'message') is available or ``False`` if not
         """
         self.log.info("RedisPubSubSensor checking for message on channels: %s", self.channels)
-        self.pubsub.subscribe(self.channels)
         message = self.pubsub.get_message()
         self.log.info("Message %s from channel %s", message, self.channels)
 

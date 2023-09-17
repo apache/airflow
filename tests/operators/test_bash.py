@@ -204,7 +204,7 @@ class TestBashOperator:
     def test_bash_operator_kill(self, dag_maker):
         import psutil
 
-        sleep_time = "100%d" % os.getpid()
+        sleep_time = f"100{os.getpid()}"
         with dag_maker():
             op = BashOperator(
                 task_id="test_bash_operator_kill",

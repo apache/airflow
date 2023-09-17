@@ -122,9 +122,10 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         bucket, prefix = self.hook.parse_s3_url(s3url=os.path.join(self.remote_base, worker_log_rel_path))
         keys = self.hook.list_keys(bucket_name=bucket, prefix=prefix)
         if keys:
-            keys = [f"s3://{bucket}/{key}" for key in keys]
-            messages.extend(["Found logs in s3:", *[f"  * {x}" for x in sorted(keys)]])
-            for key in sorted(keys):
+            keys = sorted(f"s3://{bucket}/{key}" for key in keys)
+            messages.append("Found logs in s3:")
+            messages.extend(f"  * {key}" for key in keys)
+            for key in keys:
                 logs.append(self.s3_read(key, return_error=True))
         else:
             messages.append(f"No logs found on s3 for ti={ti}")
@@ -169,7 +170,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def s3_read(self, remote_log_location: str, return_error: bool = False) -> str:
         """
-        Returns the log found at the remote_log_location. Return '' if no logs are found or there is an error.
+        Return the log found at the remote_log_location or '' if no logs are found or there is an error.
 
         :param remote_log_location: the log's location in remote storage
         :param return_error: if True, returns a string error message if an
@@ -200,7 +201,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         try:
             if append and self.s3_log_exists(remote_log_location):
                 old_log = self.s3_read(remote_log_location)
-                log = "\n".join([old_log, log]) if old_log else log
+                log = f"{old_log}\n{log}" if old_log else log
         except Exception:
             self.log.exception("Could not verify previous log to append")
             return False

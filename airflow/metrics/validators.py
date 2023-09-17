@@ -107,7 +107,7 @@ def stat_name_otel_handler(
     max_length: int = OTEL_NAME_MAX_LENGTH,
 ) -> str:
     """
-    Verifies that a proposed prefix and name combination will meet OpenTelemetry naming standards.
+    Verify that a proposed prefix and name combination will meet OpenTelemetry naming standards.
 
     See: https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
 
@@ -178,7 +178,7 @@ def stat_name_default_handler(
         raise InvalidStatsNameException(
             f"The stat_name ({stat_name}) has to be less than {max_length} characters."
         )
-    if not all((c in allowed_chars) for c in stat_name):
+    if any(c not in allowed_chars for c in stat_name):
         raise InvalidStatsNameException(
             f"The stat name ({stat_name}) has to be composed of ASCII "
             f"alphabets, numbers, or the underscore, dot, or dash characters."
