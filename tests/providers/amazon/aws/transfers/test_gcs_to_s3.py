@@ -199,8 +199,8 @@ class TestGCSToS3Operator:
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_gcs_bucket_rename_compatibility(self, mock_hook):
         """
-        Tests the same conditions as `test_execute` using the deprecated `bucket` parameter instead of `gcs_bucket`.
-        This test can be removed when the `bucket` parameter is removed.
+        Tests the same conditions as `test_execute` using the deprecated `bucket` parameter instead of
+        `gcs_bucket`. This test can be removed when the `bucket` parameter is removed.
         """
         mock_hook.return_value.list.return_value = MOCK_FILES
         with NamedTemporaryFile() as f:
@@ -233,6 +233,12 @@ class TestGCSToS3Operator:
                 gcs_bucket=GCS_BUCKET,
                 dest_s3_key=S3_BUCKET,
             )
+        with pytest.raises(ValueError) as excinfo:
+            GCSToS3Operator(
+                task_id=TASK_ID,
+                dest_s3_key=S3_BUCKET,
+            )
+        assert str(excinfo.value) == "You must pass either bucket or gcs_bucket."
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_with_replace(self, mock_hook):

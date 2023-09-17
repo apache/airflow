@@ -130,8 +130,10 @@ class GCSToS3Operator(BaseOperator):
                 stacklevel=2,
             )
             self.gcs_bucket = bucket
-        else:
+        elif gcs_bucket:
             self.gcs_bucket = gcs_bucket
+        else:
+            raise ValueError("You must pass either bucket or gcs_bucket.")
         # The bucket attribute is unused, but must be set on the operator instance in
         # order to include it in template_fields.
         self.bucket = None
