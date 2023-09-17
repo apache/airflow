@@ -35,7 +35,7 @@ def get_host_user_id() -> str:
 
     host_user_id = ""
     os = get_host_os()
-    if os == "linux" or os == "darwin":
+    if os in ("linux", "darwin"):
         host_user_id = run_command(cmd=["id", "-ur"], capture_output=True, text=True).stdout.strip()
     return host_user_id
 
@@ -45,7 +45,7 @@ def get_host_group_id() -> str:
 
     host_group_id = ""
     os = get_host_os()
-    if os == "linux" or os == "darwin":
+    if os in ("linux", "darwin"):
         host_group_id = run_command(cmd=["id", "-gr"], capture_output=True, text=True).stdout.strip()
     return host_group_id
 

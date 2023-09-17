@@ -1284,7 +1284,7 @@ class TestBackfillJob:
         run_job(job=job, execute_callable=job_runner._execute)
 
         for ti in dr.get_task_instances():
-            if ti.task_id == "leave1" or ti.task_id == "leave2":
+            if ti.task_id in ("leave1", "leave2"):
                 assert State.SUCCESS == ti.state
             else:
                 assert State.NONE == ti.state

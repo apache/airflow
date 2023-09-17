@@ -39,7 +39,7 @@ class TestBaseChartTest:
         return values
 
     def _get_object_count(self, version):
-        if version == "2.3.2" or version == "default":
+        if version in ("2.3.2", "default"):
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
         return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 

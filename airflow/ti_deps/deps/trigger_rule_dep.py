@@ -471,7 +471,7 @@ class TriggerRuleDep(BaseTIDep):
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
                     )
-            elif trigger_rule == TR.NONE_FAILED or trigger_rule == TR.NONE_FAILED_MIN_ONE_SUCCESS:
+            elif trigger_rule in (TR.NONE_FAILED, TR.NONE_FAILED_MIN_ONE_SUCCESS):
                 num_failures = upstream - success - skipped
                 if ti.map_index > -1:
                     num_failures -= removed

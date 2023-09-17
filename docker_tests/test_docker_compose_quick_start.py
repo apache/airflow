@@ -87,7 +87,7 @@ def wait_for_container(container_id: str, timeout: int = 300):
                 f"Waiting for {int(timeout - (current_time - start_time))} more seconds"
             )
 
-            if health_status == "healthy" or health_status == "no-check":
+            if health_status in ("healthy", "no-check"):
                 waiting_done = True
         else:
             print(f"{container_name}: container_state={container_state}")

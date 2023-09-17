@@ -976,7 +976,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         All providers have different ways to retrieve user info.
         """
         # for GITHUB
-        if provider == "github" or provider == "githublocal":
+        if provider in ("github", "githublocal"):
             me = self.oauth_remotes[provider].get("user")
             data = me.json()
             log.debug("User info from GitHub: %s", data)

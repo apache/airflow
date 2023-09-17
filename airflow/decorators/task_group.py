@@ -149,7 +149,7 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         # It's impossible to build a dict of stubs as keyword arguments if the
         # function uses * or ** wildcard arguments.
         function_has_vararg = any(
-            v.kind == inspect.Parameter.VAR_POSITIONAL or v.kind == inspect.Parameter.VAR_KEYWORD
+            v.kind in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
             for v in self.function_signature.parameters.values()
         )
         if function_has_vararg:

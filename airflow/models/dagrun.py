@@ -770,7 +770,7 @@ class DagRun(Base, LoggingMixin):
         else:
             self.set_state(DagRunState.RUNNING)
 
-        if self._state == DagRunState.FAILED or self._state == DagRunState.SUCCESS:
+        if self._state in (DagRunState.FAILED, DagRunState.SUCCESS):
             msg = (
                 "DagRun Finished: dag_id=%s, execution_date=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, run_duration=%s, "

@@ -202,7 +202,7 @@ def test_capacity_decode():
     for input_str in variants:
         job = Job()
         job_runner = TriggererJobRunner(job, capacity=input_str)
-        assert job_runner.capacity == input_str or job_runner.capacity == 1000
+        assert job_runner.capacity in (input_str, 1000)
 
     # Negative cases
     variants = [
