@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from azure.batch import models as batch_models
 from deprecated.classic import deprecated
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 
@@ -184,7 +184,7 @@ class AzureBatchOperator(BaseOperator):
         """Create and return an AzureBatchHook (cached)."""
         return AzureBatchHook(self.azure_batch_conn_id)
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> AzureBatchHook:
         """Create and return an AzureBatchHook."""
         return self.hook
