@@ -132,7 +132,9 @@ class GCSToS3Operator(BaseOperator):
             self.gcs_bucket = bucket
         else:
             self.gcs_bucket = gcs_bucket
-
+        # The bucket attribute is unused, but must be set on the operator instance in
+        # order to include it in template_fields.
+        self.bucket = None
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
