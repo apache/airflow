@@ -1967,7 +1967,7 @@ class TestBigQueryValueCheckOperator:
         )
         with pytest.raises(AirflowException) as missing_param:
             BigQueryValueCheckOperator(deferrable=True, kwargs={})
-        assert (missing_param.value.args[0] == expected) or (missing_param.value.args[0] == expected1)
+        assert missing_param.value.args[0] in (expected, expected1)
 
     def test_bigquery_value_check_operator_execute_complete_success(self):
         """Tests response message in case of success event"""
