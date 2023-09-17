@@ -769,9 +769,9 @@ logging:
       type: string
       example: ~
       default: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
-    CustomTTYColoredFormatter:
+    simple_log_format:
       description: |
-        Defines the format for colored logging when outputting to a terminal (TTY).
+        Defines the format of log messages for simple logging configuration
       version_added: 2.0.0
       type: string
       example: ~
