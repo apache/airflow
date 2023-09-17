@@ -90,9 +90,9 @@ def get_event_logs(
     if event:
         query = query.where(Log.event == event)
     if before:
-        query = query.where(Log.dttm <= timezone.parse(before))
+        query = query.where(Log.dttm < timezone.parse(before))
     if after:
-        query = query.where(Log.dttm >= timezone.parse(after))
+        query = query.where(Log.dttm > timezone.parse(after))
 
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     event_logs = session.scalars(query.offset(offset).limit(limit)).all()

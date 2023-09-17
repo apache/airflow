@@ -234,16 +234,29 @@ class TestGetEventLogs(TestEventLogEndpoint):
         assert_401(response)
 
     def test_should_filter_eventlogs_by_allowed_attributes(self, create_log_model, session):
-        eventlog1 = create_log_model(event="1", dag_id="1", task_id="1", owner="1", when=self.default_time)
-        eventlog2 = create_log_model(event="2", dag_id="2", task_id="2", owner="2", when=self.default_time_2)
+        eventlog1 = create_log_model(
+            event="TEST_EVENT_1",
+            dag_id="TEST_DAG_ID_1",
+            task_id="TEST_TASK_ID_1",
+            owner="TEST_OWNER_1",
+            when=self.default_time,
+        )
+        eventlog2 = create_log_model(
+            event="TEST_EVENT_2",
+            dag_id="TEST_DAG_ID_2",
+            task_id="TEST_TASK_ID_2",
+            owner="TEST_OWNER_2",
+            when=self.default_time_2,
+        )
         session.add_all([eventlog1, eventlog2])
         session.commit()
         for attr in ["dag_id", "task_id", "owner", "event"]:
+            attr_value = f"TEST_{attr}_1".upper()
             response = self.client.get(
-                f"/api/v1/eventLogs?{attr}=1", environ_overrides={"REMOTE_USER": "test"}
+                f"/api/v1/eventLogs?{attr}={attr_value}", environ_overrides={"REMOTE_USER": "test"}
             )
             assert response.status_code == 200
-            assert {eventlog[attr] for eventlog in response.json["event_logs"]} == {"1"}
+            assert {eventlog[attr] for eventlog in response.json["event_logs"]} == {attr_value}
 
     def test_should_filter_eventlogs_by_when(self, create_log_model, session):
         eventlog1 = create_log_model(event="TEST_EVENT_1", when=self.default_time)
@@ -252,10 +265,10 @@ class TestGetEventLogs(TestEventLogEndpoint):
         session.commit()
         for when_attr, expected_eventlogs in {
             "before": {"TEST_EVENT_1"},
-            "after": {"TEST_EVENT_1", "TEST_EVENT_2"},
+            "after": {"TEST_EVENT_2"},
         }.items():
             response = self.client.get(
-                f"/api/v1/eventLogs?{when_attr}=2020-06-10T20%3A00%3A00%2B00%3A00",
+                f"/api/v1/eventLogs?{when_attr}=2020-06-10T20%3A00%3A01%2B00%3A00",  # self.default_time + 1 second
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
