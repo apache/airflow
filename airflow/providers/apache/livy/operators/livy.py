@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from deprecated.classic import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
@@ -140,7 +140,7 @@ class LivyOperator(BaseOperator):
             auth_type=self._livy_conn_auth_type,
         )
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> LivyHook:
         """Get valid hook."""
         return self.hook
