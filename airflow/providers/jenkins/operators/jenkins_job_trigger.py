@@ -30,7 +30,7 @@ from deprecated.classic import deprecated
 from jenkins import Jenkins, JenkinsException
 from requests import Request
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
@@ -189,7 +189,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """Instantiate the Jenkins hook."""
         return JenkinsHook(self.jenkins_connection_id)
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> JenkinsHook:
         """Instantiate the Jenkins hook."""
         return self.hook
