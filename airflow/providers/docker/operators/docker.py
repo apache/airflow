@@ -329,7 +329,7 @@ class DockerOperator(BaseOperator):
             timeout=self.timeout,
         )
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> DockerHook:
         """Create and return an DockerHook (cached)."""
         return self.hook
