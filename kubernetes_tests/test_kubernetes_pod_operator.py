@@ -38,7 +38,7 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
@@ -180,7 +180,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
             config_file=new_config_path,
         )
         context = create_context(k)
@@ -216,7 +216,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=True,
+            on_finish_action=OnFinishAction.DELETE_POD,
         )
         context = create_context(k)
         k.execute(context)
@@ -233,7 +233,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=True,
+            on_finish_action=OnFinishAction.DELETE_POD,
             skip_on_exit_code=42,
         )
         context = create_context(k)
@@ -242,7 +242,7 @@ class TestKubernetesPodOperatorSystem:
 
     def test_already_checked_on_success(self, mock_get_connection):
         """
-        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        When ``on_finish_action="keep_pod"``, pod should have 'already_checked'
         label, whether pod is successful or not.
         """
         k = KubernetesPodOperator(
@@ -254,7 +254,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
         )
         context = create_context(k)
         k.execute(context)
@@ -264,7 +264,7 @@ class TestKubernetesPodOperatorSystem:
 
     def test_already_checked_on_failure(self, mock_get_connection):
         """
-        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        When ``on_finish_action="keep_pod"``, pod should have 'already_checked'
         label, whether pod is successful or not.
         """
         k = KubernetesPodOperator(
@@ -276,7 +276,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
         )
         context = create_context(k)
         with pytest.raises(AirflowException):
@@ -541,7 +541,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=name,
             name=name,
             random_name_suffix=False,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
             in_cluster=False,
             do_xcom_push=False,
             security_context=security_context,
@@ -566,7 +566,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=name,
             name=name,
             random_name_suffix=False,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
             in_cluster=False,
             do_xcom_push=False,
             security_context=security_context,
@@ -824,7 +824,7 @@ class TestKubernetesPodOperatorSystem:
             labels=self.labels,
             full_pod_spec=pod_spec,
             do_xcom_push=True,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
             startup_timeout_seconds=30,
         )
 
@@ -1113,7 +1113,7 @@ class TestKubernetesPodOperatorSystem:
                 task_id=name,
                 in_cluster=False,
                 do_xcom_push=False,
-                is_delete_operator_pod=False,
+                on_finish_action=OnFinishAction.KEEP_POD,
                 termination_grace_period=0,
             )
 
