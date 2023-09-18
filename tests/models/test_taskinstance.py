@@ -2814,13 +2814,13 @@ class TestTaskInstance:
 
         states = [State.RUNNING, State.FAILED, State.QUEUED, State.SCHEDULED, State.DEFERRED]
         tasks = []
-        for i in range(len(states)):
+        for i, state in enumerate(states):
             op = EmptyOperator(
                 task_id=f"reg_Task{i}",
                 dag=dag,
             )
             ti = TI(task=op, run_id=dr.run_id)
-            ti.state = states[i]
+            ti.state = state
             session.add(ti)
             tasks.append(ti)
 

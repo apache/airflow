@@ -27,14 +27,14 @@ The document below describes the database engine configurations, the necessary c
 Choosing database backend
 -------------------------
 
-If you want to take a real test drive of Airflow, you should consider setting up a database backend to **PostgreSQL**, **MySQL**, or **MSSQL**.
+If you want to take a real test drive of Airflow, you should consider setting up a database backend to **PostgreSQL** or **MySQL**.
 By default, Airflow uses **SQLite**, which is intended for development purposes only.
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
 * PostgreSQL: 11, 12, 13, 14, 15
 * MySQL: 5.7, 8
-* MSSQL (Experimental): 2017, 2019
+* MSSQL (Experimental, **Discontinued soon**): 2017, 2019
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -322,6 +322,14 @@ In addition, you also should pay particular attention to MySQL's encoding. Altho
 
 Setting up a MsSQL Database
 ---------------------------
+
+.. warning::
+
+    After `discussion <https://lists.apache.org/thread/r06j306hldg03g2my1pd4nyjxg78b3h4>`__
+    and a `voting process <https://lists.apache.org/thread/pgcgmhf6560k8jbsmz8nlyoxosvltph2>`__,
+    the Airflow's PMC and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
+
+    For new Airflow installations, it is advised against using MsSQL as the database backend.
 
 You need to create a database and a database user that Airflow will use to access this database.
 In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created.

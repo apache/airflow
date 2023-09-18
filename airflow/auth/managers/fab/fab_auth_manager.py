@@ -62,17 +62,22 @@ class FabAuthManager(BaseAuthManager):
             SYNC_PERM_COMMAND,  # not in a command group
         ]
 
+    def get_user_display_name(self) -> str:
+        """Return the user's display name associated to the user in session."""
+        user = self.get_user()
+        first_name = user.first_name.strip() if isinstance(user.first_name, str) else ""
+        last_name = user.last_name.strip() if isinstance(user.last_name, str) else ""
+        return f"{first_name} {last_name}".strip()
+
     def get_user_name(self) -> str:
         """
         Return the username associated to the user in session.
 
-        For backward compatibility reasons, the username in FAB auth manager is the concatenation of the
-        first name and the last name.
+        For backward compatibility reasons, the username in FAB auth manager can be any of username,
+        email, or the database user ID.
         """
         user = self.get_user()
-        first_name = user.first_name or ""
-        last_name = user.last_name or ""
-        return f"{first_name} {last_name}".strip()
+        return user.username or user.email or self.get_user_id()
 
     def get_user(self) -> User:
         """Return the user associated to the user in session."""

@@ -2223,6 +2223,7 @@ cleanup:
 
   # Detailed default security context for cleanup for container level
   securityContexts:
+    pod: {}
     container: {}
 
   # container level lifecycle hooks
