@@ -2985,7 +2985,7 @@ class DAG(LoggingMixin):
                         DagRun.execution_date == last_automated_runs_subq.c.max_execution_date,
                     )
                 )
-            dag_id_to_last_automated_run = {run.dag_id: run for run in most_recent_runs_iter}
+            dag_id_to_last_automated_run = {run.dag_id: run for run in last_automated_runs}
 
             # Get number of active dagruns for all dags we are processing as a single query.
             num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
