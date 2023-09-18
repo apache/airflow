@@ -75,7 +75,7 @@ class GCSToSambaOperator(BaseOperator):
         end of the object name. Appending a wildcard to the bucket name is
         unsupported.
     :param destination_path: The SMB remote path. This is the specified directory path in
-        the SMB sharename for uploading files to the SMB server.
+        the SMB share name for uploading files to the SMB server.
     :param keep_directory_structure: (Optional) When set to False the path of the file
          on the bucket is recreated within path passed in destination_path.
     :param move_object: When move object is True, the object is moved instead

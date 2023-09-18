@@ -17,7 +17,7 @@
 
 
 Google Cloud Storage Transfer Operator to Samba
-==============================================
+===============================================
 
 Google has a service `Google Cloud Storage <https://cloud.google.com/storage/>`__.
 This service is used to store large data from various applications.
@@ -29,7 +29,7 @@ Samba has provided secure, stable and fast file and print services for clients u
 Operator
 ^^^^^^^^
 
-Transfer files between Google Storage and Sambe is performed with the
+Transfer files between Google Storage and Samba is performed with the
 :class:`~airflow.providers.samba.transfers.gcs_to_samba.GCSToSambaOperator` operator.
 
 Use :ref:`Jinja templating <concepts:jinja-templating>` with
