@@ -82,21 +82,29 @@ class TabularVttsSensor(BaseSensorOperator):
         snapshot = table.current_snapshot()
 
         for _ in range(self.num_snapshots):
-            if vtts := snapshot.summary.additional_properties.get(PROPERTY_KEY_VTTS):
-                dt = datetime.fromtimestamp(int(vtts) / 1000.0)
-                self.log.info("Found VTTS: %s", dt)
-                diff = int((dt - datetime.now()).total_seconds())
+            if summary := snapshot.summary:
+                if vtts := summary.additional_properties.get(PROPERTY_KEY_VTTS):
+                    dt = datetime.fromtimestamp(int(vtts) / 1000.0)
+                    self.log.info("Found VTTS: %s", dt)
+                    diff = int((dt - datetime.now()).total_seconds())
 
-                if diff < 0:
-                    self.log.info("VTTS passed %s seconds ago", abs(diff))
-                    return True
+                    if diff < 0:
+                        self.log.info("VTTS passed %s seconds ago", abs(diff))
+                        return True
+                    else:
+                        self.log.info("Waiting on VTTS, lagging %s seconds behind", diff)
+                        return False
                 else:
-                    self.log.info("Waiting on VTTS, lagging %s seconds behind", diff)
+                    snapshot_id = "" if snapshot.parent_snapshot_id is None else f"({snapshot.snapshot_id})"
+                    self.log.warning(f"Key '{PROPERTY_KEY_VTTS}' not found on snapshot {snapshot_id} summary")
+
+                # Since there can be another operation in between, check the parent
+                if snapshot.parent_snapshot_id is not None:
+                    snapshot = table.snapshot_by_id(snapshot.parent_snapshot_id)
+                else:
+                    self.log.info(f"Snapshot does not have a parent: {snapshot}")
                     return False
             else:
-                self.log.warning(
-                    f"Key '{PROPERTY_KEY_VTTS}' not found on snapshot ({snapshot.snapshot_id}) summary"
-                )
+                self.log.info("Could not find summary, retrying later")
 
-            # Since there can be another operation in between, check the parent
-            snapshot = table.snapshot_by_id(snapshot.parent_snapshot_id)
+        return False

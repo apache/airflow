@@ -44,7 +44,7 @@ class TabularHook(BaseHook):
     conn_type = "tabular"
     hook_name = "Tabular"
 
-    @staticmethod
+    @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
