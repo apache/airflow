@@ -379,6 +379,8 @@ DataScan
 dataScans
 Dataset
 dataset
+DatasetEvent
+DatasetEvents
 datasetId
 Datasets
 datasets
