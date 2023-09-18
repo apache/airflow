@@ -82,7 +82,7 @@ class TabularVttsSensor(BaseSensorOperator):
         snapshot = table.current_snapshot()
 
         for _ in range(self.num_snapshots):
-            if summary := snapshot.summary:
+            if snapshot is not None and (summary := snapshot.summary):
                 if vtts := summary.additional_properties.get(PROPERTY_KEY_VTTS):
                     dt = datetime.fromtimestamp(int(vtts) / 1000.0)
                     self.log.info("Found VTTS: %s", dt)
@@ -105,6 +105,6 @@ class TabularVttsSensor(BaseSensorOperator):
                     self.log.info(f"Snapshot does not have a parent: {snapshot}")
                     return False
             else:
-                self.log.info("Could not find summary, retrying later")
+                self.log.info("Could not find snapshot summary, retrying later")
 
         return False
