@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.jobs.job import Job
 from airflow.utils.net import get_hostname
@@ -25,12 +26,15 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import JobState
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
 
 @providers_configuration_loaded
 @provide_session
 def check(args, session: Session = NEW_SESSION) -> None:
     """Check if job(s) are still alive."""
-    if args.allow_multiple and not args.limit > 1:
+    if args.allow_multiple and args.limit <= 1:
         raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")
     if args.hostname and args.local:
         raise SystemExit("You can't use --hostname and --local at the same time")

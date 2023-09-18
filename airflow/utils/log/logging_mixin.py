@@ -22,10 +22,13 @@ import enum
 import logging
 import sys
 from io import IOBase
-from logging import Handler, Logger, StreamHandler
-from typing import IO, Any, TypeVar, cast
+from logging import Handler, StreamHandler
+from typing import IO, TYPE_CHECKING, Any, TypeVar, cast
 
 import re2
+
+if TYPE_CHECKING:
+    from logging import Logger
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re2.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
@@ -38,7 +41,7 @@ class SetContextPropagate(enum.Enum):
     :meta private:
     """
 
-    # If a `set_context` function wants to _keep_ propagation set on it's logger it needs to return this
+    # If a `set_context` function wants to _keep_ propagation set on its logger it needs to return this
     # special value.
     MAINTAIN_PROPAGATE = object()
     # Don't use this one anymore!
@@ -165,7 +168,7 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
     def flush(self):
         """Ensure all logging output has been flushed."""
         buf = self._buffer
-        if len(buf) > 0:
+        if buf:
             self._buffer = ""
             self._propagate_log(buf)
 

@@ -96,16 +96,16 @@ def connections_list(args):
 
 
 def _connection_to_dict(conn: Connection) -> dict:
-    return dict(
-        conn_type=conn.conn_type,
-        description=conn.description,
-        login=conn.login,
-        password=conn.password,
-        host=conn.host,
-        port=conn.port,
-        schema=conn.schema,
-        extra=conn.extra,
-    )
+    return {
+        "conn_type": conn.conn_type,
+        "description": conn.description,
+        "login": conn.login,
+        "password": conn.password,
+        "host": conn.host,
+        "port": conn.port,
+        "schema": conn.schema,
+        "extra": conn.extra,
+    }
 
 
 def create_default_connections(args):
@@ -114,7 +114,10 @@ def create_default_connections(args):
 
 def _format_connections(conns: list[Connection], file_format: str, serialization_format: str) -> str:
     if serialization_format == "json":
-        serializer_func = lambda x: json.dumps(_connection_to_dict(x))
+
+        def serializer_func(x):
+            return json.dumps(_connection_to_dict(x))
+
     elif serialization_format == "uri":
         serializer_func = Connection.get_uri
     else:
@@ -179,7 +182,7 @@ def connections_export(args):
                     f"Unsupported file format. The file must have the extension {', '.join(file_formats)}."
                 )
 
-        if args.serialization_format and not filetype == ".env":
+        if args.serialization_format and filetype != ".env":
             raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
 
         with create_session() as session:

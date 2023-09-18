@@ -29,10 +29,7 @@ except ModuleNotFoundError:
     from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
-from airflow.providers.microsoft.azure.sensors.data_factory import (
-    AzureDataFactoryPipelineRunStatusAsyncSensor,
-    AzureDataFactoryPipelineRunStatusSensor,
-)
+from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 from airflow.utils.edgemodifier import Label
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -82,11 +79,10 @@ with DAG(
         deferrable=True,
     )
 
-    # The following sensor is deprecated.
-    # Please use the AzureDataFactoryPipelineRunStatusSensor and set deferrable to True
-    pipeline_run_async_sensor = AzureDataFactoryPipelineRunStatusAsyncSensor(
+    pipeline_run_async_sensor = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_async_sensor",
         run_id=cast(str, XComArg(run_pipeline2, key="run_id")),
+        deferrable=True,
     )
     # [END howto_operator_adf_run_pipeline_async]
 

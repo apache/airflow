@@ -63,23 +63,18 @@ defs = get_remote_schema(K8S_DEFINITIONS)
 refs = set(find_refs(schema["properties"]))
 
 # now we look for refs in refs
-i = 0
-while True:
+for step in range(15):
     starting_refs = refs
     for ref in refs:
         ref_id = ref.split("/")[-1]
         remote_def = defs["definitions"].get(ref_id)
-        if not remote_def:
-            continue
-        schema["definitions"][ref_id] = remote_def
+        if remote_def:
+            schema["definitions"][ref_id] = remote_def
     refs = set(find_refs(schema["definitions"]))
     if refs == starting_refs:
         break
-
-    # Make sure we don't have a runaway loop
-    i += 1
-    if i > 15:
-        raise SystemExit("Wasn't able to find all nested references in 15 cycles")
+else:
+    raise SystemExit("Wasn't able to find all nested references in 15 cycles")
 
 # and finally, sort them all!
 schema["definitions"] = dict(sorted(schema["definitions"].items()))

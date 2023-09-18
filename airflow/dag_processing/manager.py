@@ -33,12 +33,10 @@ import zipfile
 from collections import defaultdict
 from datetime import datetime, timedelta
 from importlib import import_module
-from multiprocessing.connection import Connection as MultiprocessingConnection
 from pathlib import Path
-from typing import Any, Callable, Iterator, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, NamedTuple, cast
 
 from setproctitle import setproctitle
-from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 import airflow.models
@@ -66,6 +64,11 @@ from airflow.utils.process_utils import (
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
+
+if TYPE_CHECKING:
+    from multiprocessing.connection import Connection as MultiprocessingConnection
+
+    from sqlalchemy.orm import Session
 
 
 class DagParsingStat(NamedTuple):
@@ -607,16 +610,12 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
 
             for sentinel in ready:
-                if sentinel is self._direct_scheduler_conn:
-                    continue
-
-                processor = self.waitables.get(sentinel)
-                if not processor:
-                    continue
-
-                self._collect_results_from_processor(processor)
-                self.waitables.pop(sentinel)
-                self._processors.pop(processor.file_path)
+                if sentinel is not self._direct_scheduler_conn:
+                    processor = self.waitables.get(sentinel)
+                    if processor:
+                        self._collect_results_from_processor(processor)
+                        self.waitables.pop(sentinel)
+                        self._processors.pop(processor.file_path)
 
             if self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
@@ -851,9 +850,7 @@ class DagFileProcessorManager(LoggingMixin):
             last_runtime = self.get_last_runtime(file_path)
             num_dags = self.get_last_dag_count(file_path)
             num_errors = self.get_last_error_count(file_path)
-            file_name = os.path.basename(file_path)
-            file_name = os.path.splitext(file_name)[0].replace(os.sep, ".")
-
+            file_name = Path(file_path).stem
             processor_pid = self.get_pid(file_path)
             processor_start_time = self.get_start_time(file_path)
             runtime = (now - processor_start_time) if processor_start_time else None
@@ -865,7 +862,7 @@ class DagFileProcessorManager(LoggingMixin):
             rows.append((file_path, processor_pid, runtime, num_dags, num_errors, last_runtime, last_run))
 
         # Sort by longest last runtime. (Can't sort None values in python3)
-        rows = sorted(rows, key=lambda x: x[3] or 0.0)
+        rows.sort(key=lambda x: x[3] or 0.0)
 
         formatted_rows = []
         for file_path, pid, runtime, num_dags, num_errors, last_runtime, last_run in rows:
@@ -1043,8 +1040,7 @@ class DagFileProcessorManager(LoggingMixin):
             run_count=self.get_run_count(processor.file_path) + 1,
         )
         self._file_stats[processor.file_path] = stat
-
-        file_name = os.path.splitext(os.path.basename(processor.file_path))[0].replace(os.sep, ".")
+        file_name = Path(processor.file_path).stem
         Stats.timing(f"dag_processing.last_duration.{file_name}", last_duration)
         Stats.timing("dag_processing.last_duration", last_duration, tags={"file_name": file_name})
 
@@ -1055,12 +1051,11 @@ class DagFileProcessorManager(LoggingMixin):
         )
 
         for sentinel in ready:
-            if sentinel is self._direct_scheduler_conn:
-                continue
-            processor = cast(DagFileProcessorProcess, self.waitables[sentinel])
-            self.waitables.pop(processor.waitable_handle)
-            self._processors.pop(processor.file_path)
-            self._collect_results_from_processor(processor)
+            if sentinel is not self._direct_scheduler_conn:
+                processor = cast(DagFileProcessorProcess, self.waitables[sentinel])
+                self.waitables.pop(processor.waitable_handle)
+                self._processors.pop(processor.file_path)
+                self._collect_results_from_processor(processor)
 
         self.log.debug("%s/%s DAG parsing processes running", len(self._processors), self._parallelism)
 
@@ -1083,7 +1078,7 @@ class DagFileProcessorManager(LoggingMixin):
         # needs to be done before this process is forked to create the DAG parsing processes.
         SecretCache.init()
 
-        while self._parallelism - len(self._processors) > 0 and self._file_path_queue:
+        while self._parallelism > len(self._processors) and self._file_path_queue:
             file_path = self._file_path_queue.popleft()
             # Stop creating duplicate processor i.e. processor with the same filepath
             if file_path in self._processors:
@@ -1167,7 +1162,7 @@ class DagFileProcessorManager(LoggingMixin):
         if is_mtime_mode:
             file_paths = sorted(files_with_mtime, key=files_with_mtime.get, reverse=True)
         elif list_mode == "alphabetical":
-            file_paths = sorted(file_paths)
+            file_paths.sort()
         elif list_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple schedulers can work on different
             # set of files. Since we set the seed, the sort order will remain same per host

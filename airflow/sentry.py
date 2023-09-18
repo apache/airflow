@@ -87,7 +87,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
             # LoggingIntegration is set by default.
             integrations = [sentry_flask]
 
-            executor_class, _ = ExecutorLoader.import_default_executor_cls()
+            executor_class, _ = ExecutorLoader.import_default_executor_cls(validate=False)
 
             if executor_class.supports_sentry:
                 from sentry_sdk.integrations.celery import CeleryIntegration

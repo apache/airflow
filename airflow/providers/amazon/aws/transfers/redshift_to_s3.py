@@ -131,9 +131,7 @@ class RedshiftToS3Operator(BaseOperator):
             )
 
         if self.include_header and "HEADER" not in [uo.upper().strip() for uo in self.unload_options]:
-            self.unload_options = list(self.unload_options) + [
-                "HEADER",
-            ]
+            self.unload_options = [*self.unload_options, "HEADER"]
 
         if self.redshift_data_api_kwargs:
             for arg in ["sql", "parameters"]:

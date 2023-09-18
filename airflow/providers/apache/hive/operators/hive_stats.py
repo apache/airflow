@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import warnings
-from collections import OrderedDict
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
@@ -134,7 +133,6 @@ class HiveStatsCollectionOperator(BaseOperator):
                 assign_exprs = self.get_default_exprs(col, col_type)
             exprs.update(assign_exprs)
         exprs.update(self.extra_exprs)
-        exprs = OrderedDict(exprs)
         exprs_str = ",\n        ".join(f"{v} AS {k[0]}__{k[1]}" for k, v in exprs.items())
 
         where_clause_ = [f"{k} = '{v}'" for k, v in self.partition.items()]

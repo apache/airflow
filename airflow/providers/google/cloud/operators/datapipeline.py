@@ -100,3 +100,55 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
                 raise AirflowException(self.data_pipeline.get("error").get("message"))
 
         return self.data_pipeline
+
+
+class RunDataPipelineOperator(GoogleCloudBaseOperator):
+    """
+    Runs a Data Pipelines Instance using the Data Pipelines API.
+
+    :param data_pipeline_name:  The display name of the pipeline. In example
+        projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+    :param project_id: The ID of the GCP project that owns the job.
+    :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+    :param gcp_conn_id: The connection ID to connect to the Google Cloud
+        Platform.
+
+    Returns the created Job in JSON representation.
+    """
+
+    def __init__(
+        self,
+        data_pipeline_name: str,
+        project_id: str | None = None,
+        location: str = DEFAULT_DATAPIPELINE_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.data_pipeline_name = data_pipeline_name
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+
+    def execute(self, context: Context):
+        self.data_pipeline_hook = DataPipelineHook(gcp_conn_id=self.gcp_conn_id)
+
+        if self.data_pipeline_name is None:
+            raise AirflowException("Data Pipeline name not given; cannot run unspecified pipeline.")
+        if self.project_id is None:
+            raise AirflowException("Data Pipeline Project ID not given; cannot run pipeline.")
+        if self.location is None:
+            raise AirflowException("Data Pipeline location not given; cannot run pipeline.")
+
+        self.response = self.data_pipeline_hook.run_data_pipeline(
+            data_pipeline_name=self.data_pipeline_name,
+            project_id=self.project_id,
+            location=self.location,
+        )
+
+        if self.response:
+            if "error" in self.response:
+                raise AirflowException(self.response.get("error").get("message"))
+
+        return self.response

@@ -23,8 +23,7 @@ import functools
 import logging
 import sys
 from importlib import import_module
-from types import ModuleType
-from typing import Any, Pattern, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Pattern, TypeVar, Union, cast
 
 import attr
 import re2
@@ -33,6 +32,9 @@ import airflow.serialization.serializers
 from airflow.configuration import conf
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 log = logging.getLogger(__name__)
 
@@ -317,7 +319,14 @@ def _is_pydantic(cls: Any) -> bool:
     Checking is done by attributes as it is significantly faster than
     using isinstance.
     """
-    return hasattr(cls, "__validators__") and hasattr(cls, "__fields__") and hasattr(cls, "dict")
+    return (
+        hasattr(cls, "__validators__")
+        and hasattr(cls, "__fields__")
+        and hasattr(cls, "dict")  # Pydantic v1
+        or hasattr(cls, "model_config")
+        and hasattr(cls, "model_fields")
+        and hasattr(cls, "model_fields_set")  # Pydantic v2
+    )
 
 
 def _register():

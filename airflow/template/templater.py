@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Sequence
 
-from airflow.utils.context import Context
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import ResolveMixin
@@ -30,6 +29,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.utils.context import Context
 
 
 class Templater(LoggingMixin):
@@ -68,9 +68,7 @@ class Templater(LoggingMixin):
         if self.template_ext:
             for field in self.template_fields:
                 content = getattr(self, field, None)
-                if content is None:
-                    continue
-                elif isinstance(content, str) and any(content.endswith(ext) for ext in self.template_ext):
+                if isinstance(content, str) and content.endswith(tuple(self.template_ext)):
                     env = self.get_template_env()
                     try:
                         setattr(self, field, env.loader.get_source(env, content)[0])  # type: ignore
@@ -79,7 +77,7 @@ class Templater(LoggingMixin):
                 elif isinstance(content, list):
                     env = self.get_template_env()
                     for i, item in enumerate(content):
-                        if isinstance(item, str) and any(item.endswith(ext) for ext in self.template_ext):
+                        if isinstance(item, str) and item.endswith(tuple(self.template_ext)):
                             try:
                                 content[i] = env.loader.get_source(env, item)[0]  # type: ignore
                             except Exception:
@@ -150,7 +148,7 @@ class Templater(LoggingMixin):
             jinja_env = self.get_template_env()
 
         if isinstance(value, str):
-            if any(value.endswith(ext) for ext in self.template_ext):  # A filepath.
+            if value.endswith(tuple(self.template_ext)):  # A filepath.
                 template = jinja_env.get_template(value)
             else:
                 template = jinja_env.from_string(value)

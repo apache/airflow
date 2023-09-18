@@ -144,7 +144,7 @@ def requires_authentication(function: T):
                 response = function(*args, **kwargs)
                 response = make_response(response)
                 if ctx.kerberos_token is not None:
-                    response.headers["WWW-Authenticate"] = " ".join(["negotiate", ctx.kerberos_token])
+                    response.headers["WWW-Authenticate"] = f"negotiate {ctx.kerberos_token}"
 
                 return response
             if return_code != kerberos.AUTH_GSS_CONTINUE:

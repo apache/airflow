@@ -42,6 +42,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchExternalPythonOperator,
     BranchPythonOperator,
+    BranchPythonVirtualenvOperator,
     ExternalPythonOperator,
     PythonOperator,
     PythonVirtualenvOperator,
@@ -964,7 +965,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return
             raise Exception
 
-        self.run_as_task(f, python_version=3, use_dill=False, requirements=["dill"])
+        self.run_as_task(f, python_version="3", use_dill=False, requirements=["dill"])
 
     def test_without_dill(self):
         def f(a):
@@ -1121,18 +1122,11 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
             task._read_result(path=mock.Mock())
 
 
-class TestBranchExternalPythonOperator(BaseTestPythonVirtualenvOperator):
-    opcls = BranchExternalPythonOperator
-
+class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     @pytest.fixture(autouse=True)
     def setup_tests(self):
         self.branch_1 = EmptyOperator(task_id="branch_1")
         self.branch_2 = EmptyOperator(task_id="branch_2")
-
-    @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
-        kwargs["python"] = sys.executable
-        return kwargs
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):
@@ -1278,6 +1272,23 @@ class TestBranchExternalPythonOperator(BaseTestPythonVirtualenvOperator):
         ti = self.create_ti(f)
         with pytest.raises(AirflowException, match="Invalid tasks found: {'some_task_id'}"):
             ti.run()
+
+
+class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator):
+    opcls = BranchPythonVirtualenvOperator
+
+    @staticmethod
+    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        return kwargs
+
+
+class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
+    opcls = BranchExternalPythonOperator
+
+    @staticmethod
+    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        kwargs["python"] = sys.executable
+        return kwargs
 
 
 class TestCurrentContext:

@@ -123,7 +123,7 @@ class SFTPOperator(BaseOperator):
                 f"!= {len(remote_filepath_array)} paths in remote_filepath"
             )
 
-        if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
+        if self.operation.lower() not in (SFTPOperation.GET, SFTPOperation.PUT):
             raise TypeError(
                 f"Unsupported operation value {self.operation}, "
                 f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}."
@@ -188,7 +188,7 @@ class SFTPOperator(BaseOperator):
                     self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
+            raise AirflowException(f"Error while transferring {file_msg}, error: {e}")
 
         return self.local_filepath
 

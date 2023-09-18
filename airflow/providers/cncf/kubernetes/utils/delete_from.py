@@ -20,9 +20,12 @@
 from __future__ import annotations
 
 import re
+from typing import TYPE_CHECKING
 
 from kubernetes import client
-from kubernetes.client import ApiClient
+
+if TYPE_CHECKING:
+    from kubernetes.client import ApiClient
 
 DEFAULT_DELETION_BODY = client.V1DeleteOptions(
     propagation_policy="Background",
@@ -78,9 +81,7 @@ def delete_from_yaml(
     **kwargs,
 ):
     for yml_document in yaml_objects:
-        if yml_document is None:
-            continue
-        else:
+        if yml_document is not None:
             delete_from_dict(
                 k8s_client=k8s_client,
                 data=yml_document,

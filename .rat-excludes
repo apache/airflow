@@ -10,7 +10,6 @@
 .airflowignore
 .babelrc
 .coverage
-.coveragerc
 .codecov.yml
 .codespellignorelines
 .eslintignore
@@ -133,3 +132,6 @@ chart/*.iml
 
 # Sha files
 .*sha256
+
+# DOAP file
+doap_airflow.rdf

@@ -256,7 +256,7 @@ class PsrpHook(BaseHook):
         if message_type == MessageType.ERROR_RECORD:
             log(INFO, "%s: %s", record.reason, record)
             if record.script_stacktrace:
-                for trace in record.script_stacktrace.split("\r\n"):
+                for trace in record.script_stacktrace.splitlines():
                     log(INFO, trace)
 
         level = INFORMATIONAL_RECORD_LEVEL_MAP.get(message_type)

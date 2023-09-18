@@ -23,22 +23,29 @@ The module which provides a way to nest your DAGs and so your levels of complexi
 from __future__ import annotations
 
 import warnings
-from datetime import datetime
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from sqlalchemy.orm.session import Session
+from sqlalchemy import select
 
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskInstanceNotFound
 from airflow.models import DagRun
-from airflow.models.dag import DAG, DagContext
+from airflow.models.dag import DagContext
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance
 from airflow.sensors.base import BaseSensorOperator
-from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm.session import Session
+
+    from airflow.models.dag import DAG
+    from airflow.utils.context import Context
 
 
 class SkippedStatePropagationOptions(Enum):
@@ -112,7 +119,7 @@ class SubDagOperator(BaseSensorOperator):
             conflicts = [t for t in self.subdag.tasks if t.pool == self.pool]
             if conflicts:
                 # only query for pool conflicts if one may exist
-                pool = session.query(Pool).filter(Pool.slots == 1).filter(Pool.pool == self.pool).first()
+                pool = session.scalar(select(Pool).where(Pool.slots == 1, Pool.pool == self.pool))
                 if pool and any(t.pool == self.pool for t in self.subdag.tasks):
                     raise AirflowException(
                         f"SubDagOperator {self.task_id} and subdag task{'s' if len(conflicts) > 1 else ''} "
@@ -139,11 +146,11 @@ class SubDagOperator(BaseSensorOperator):
         with create_session() as session:
             dag_run.state = DagRunState.RUNNING
             session.merge(dag_run)
-            failed_task_instances = (
-                session.query(TaskInstance)
-                .filter(TaskInstance.dag_id == self.subdag.dag_id)
-                .filter(TaskInstance.execution_date == execution_date)
-                .filter(TaskInstance.state.in_((TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED)))
+            failed_task_instances = session.scalars(
+                select(TaskInstance)
+                .where(TaskInstance.dag_id == self.subdag.dag_id)
+                .where(TaskInstance.execution_date == execution_date)
+                .where(TaskInstance.state.in_((TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED)))
             )
 
             for task_instance in failed_task_instances:

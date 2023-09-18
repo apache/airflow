@@ -19,11 +19,14 @@ from __future__ import annotations
 import atexit
 import os
 import sys
+from typing import TYPE_CHECKING
 
 import rich
-from rich.console import Console
 
 from airflow_breeze.utils.path_utils import in_autocomplete
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 help_console: Console | None = None
 

@@ -54,7 +54,9 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
     project_id=PROJECT_ID,
     zone=ZONE,
     master_machine_type="n1-standard-4",
+    master_disk_size=32,
     worker_machine_type="n1-standard-4",
+    worker_disk_size=32,
     num_workers=2,
     storage_bucket=BUCKET_NAME,
     init_actions_uris=[f"gs://{BUCKET_NAME}/{INIT_FILE}"],
@@ -112,9 +114,8 @@ with models.DAG(
         # TEST SETUP
         create_bucket
         >> upload_file
-        >>
         # TEST BODY
-        create_dataproc_cluster
+        >> create_dataproc_cluster
         # TEST TEARDOWN
         >> [delete_cluster, delete_bucket]
     )

@@ -37,6 +37,7 @@ from sqlalchemy import (
     UniqueConstraint,
     event,
     func,
+    select,
 )
 from sqlalchemy.orm import backref, declared_attr, relationship
 
@@ -210,12 +211,13 @@ class User(Model, BaseUser):
             if current_app:
                 sm = current_app.appbuilder.sm
                 self._perms: set[tuple[str, str]] = set(
-                    sm.get_session.query(sm.action_model.name, sm.resource_model.name)
-                    .join(sm.permission_model.action)
-                    .join(sm.permission_model.resource)
-                    .join(sm.permission_model.role)
-                    .filter(sm.role_model.user.contains(self))
-                    .all()
+                    sm.get_session.execute(
+                        select(sm.action_model.name, sm.resource_model.name)
+                        .join(sm.permission_model.action)
+                        .join(sm.permission_model.resource)
+                        .join(sm.permission_model.role)
+                        .where(sm.role_model.user.contains(self))
+                    )
                 )
             else:
                 self._perms = {

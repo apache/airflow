@@ -27,6 +27,88 @@
 Changelog
 ---------
 
+7.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'progress_callback' parameter to 'KubernetesPodOperator' (#34153)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move definition of Pod*Exceptions to pod_generator (#34346)``
+* ``Push to xcom before 'KubernetesPodOperator' deferral (#34209)``
+
+Misc
+~~~~
+
+* ``Refactor: Consolidate import textwrap in providers (#34220)``
+
+7.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/spark-kubernetes): respect soft_fail argument when exception is raised (#34167)``
+* ``Use 'cached_property' for hook in SparkKubernetesSensor (#34106)``
+* ``Use cached property for hook in SparkKubernetesOperator (#34130)``
+
+Misc
+~~~~
+
+* ``Combine similar if logics in providers (#33987)``
+* ``Remove useless string join from providers (#33968)``
+* ``Refactor unneeded  jumps in providers (#33833)``
+* ``replace loop by any when looking for a positive value in providers (#33984)``
+* ``Move the try outside the loop when this is possible in kubernetes provider (#33977)``
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Replace dict.items by values when key is not used in providers (#33939)``
+* ``Refactor: Consolidate import datetime (#34110)``
+
+7.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add istio test, use curl /quitquitquit to exit sidecar, and some othe… (#33306)``
+* ``Add 'active_deadline_seconds' parameter to 'KubernetesPodOperator' (#33379)``
+* ``Make cluster_context templated (#33604)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator duplicating logs when interrupted (#33500)``
+* ``Fix 2.7.0 db migration job errors (#33652)``
+* ``Inspect container state rather than last_state when deciding whether to skip (#33702)``
+* ``Fix kill istio proxy logic (#33779)``
+
+Misc
+~~~~
+
+* ``Introducing class constant to make worker pod log lines configurable (#33378)``
+* ``Adding typing for KPO SCC objects (#33381)``
+* ``Refactor: Remove useless str() calls (#33629)``
+* ``Refactor: Improve detection of duplicates and list sorting (#33675)``
+* ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``
+* ``Consolidate import and usage of itertools (#33479)``
+* ``Simplify conditions on len() in other providers (#33569)``
+* ``Import utc from datetime and normalize its import (#33450)``
+* ``Always use 'Literal' from 'typing_extensions' (#33794)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``Improve modules import in cncf.kubernetes probvider by move some of them into a type-checking block (#33781)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos (double words and it's/its) (#33623)``
+   * ``Exclude deprecated "operators.kubernetes_pod" module from provider.yaml (#33641)``
+   * ``D205 Support - Providers - Final Pass (#33303)``
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+
 7.4.2
 .....
 

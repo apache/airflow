@@ -20,12 +20,15 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
-from airflow.auth.managers.models.base_user import BaseUser
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from airflow.www.security import AirflowSecurityManager
+    from flask import Flask
+
+    from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.cli.cli_config import CLICommand
+    from airflow.www.security_manager import AirflowSecurityManagerV2
 
 
 class BaseAuthManager(LoggingMixin):
@@ -35,12 +38,25 @@ class BaseAuthManager(LoggingMixin):
     Auth managers are responsible for any user management related operation such as login, logout, authz, ...
     """
 
-    def __init__(self):
-        self._security_manager: AirflowSecurityManager | None = None
+    def __init__(self, app: Flask) -> None:
+        self._security_manager: AirflowSecurityManagerV2 | None = None
+        self.app = app
+
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
+        """Vends CLI commands to be included in Airflow CLI.
+
+        Override this method to expose commands via Airflow CLI to manage this auth manager.
+        """
+        return []
 
     @abstractmethod
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
+
+    @abstractmethod
+    def get_user_display_name(self) -> str:
+        """Return the user's display name associated to the user in session."""
 
     @abstractmethod
     def get_user(self) -> BaseUser:
@@ -71,22 +87,24 @@ class BaseAuthManager(LoggingMixin):
         Return the security manager override class.
 
         The security manager override class is responsible for overriding the default security manager
-        class airflow.www.security.AirflowSecurityManager with a custom implementation. This class is
-        essentially inherited from airflow.www.security.AirflowSecurityManager.
+        class airflow.www.security_manager.AirflowSecurityManagerV2 with a custom implementation.
+        This class is essentially inherited from airflow.www.security_manager.AirflowSecurityManagerV2.
 
-        By default, return an empty class.
+        By default, return the generic AirflowSecurityManagerV2.
         """
-        return object
+        from airflow.www.security_manager import AirflowSecurityManagerV2
+
+        return AirflowSecurityManagerV2
 
     @property
-    def security_manager(self) -> AirflowSecurityManager:
+    def security_manager(self) -> AirflowSecurityManagerV2:
         """Get the security manager."""
         if not self._security_manager:
             raise AirflowException("Security manager not defined.")
         return self._security_manager
 
     @security_manager.setter
-    def security_manager(self, security_manager: AirflowSecurityManager):
+    def security_manager(self, security_manager: AirflowSecurityManagerV2):
         """
         Set the security manager.
 

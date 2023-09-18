@@ -41,10 +41,9 @@ def clean_stackdriver_handlers():
     yield
     for handler_ref in reversed(logging._handlerList[:]):
         handler = handler_ref()
-        if not isinstance(handler, StackdriverTaskHandler):
-            continue
-        logging._removeHandlerRef(handler_ref)
-        del handler
+        if isinstance(handler, StackdriverTaskHandler):
+            logging._removeHandlerRef(handler_ref)
+            del handler
 
 
 @pytest.mark.usefixtures("clean_stackdriver_handlers")
@@ -311,7 +310,7 @@ labels.try_number="3"'''
 
         entry = mock.MagicMock(json_payload={"message": "TEXT"})
         page = mock.MagicMock(entries=[entry, entry], next_page_token=None)
-        mock_client.return_value.list_log_entries.return_value.pages = (n for n in [page])
+        mock_client.return_value.list_log_entries.return_value.pages = iter([page])
 
         logs, metadata = stackdriver_task_handler.read(self.ti)
         mock_client.return_value.list_log_entries.assert_called_once_with(
@@ -372,7 +371,7 @@ labels.try_number="3"'''
         assert {"project", "interval", "resource", "advancedFilter"} == set(parsed_qs.keys())
         assert "global" in parsed_qs["resource"]
 
-        filter_params = parsed_qs["advancedFilter"][0].split("\n")
+        filter_params = parsed_qs["advancedFilter"][0].splitlines()
         expected_filter = [
             'resource.type="global"',
             'logName="projects/project_id/logs/airflow"',

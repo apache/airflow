@@ -66,7 +66,7 @@ def get_temp_file_name() -> str:
 
 
 def get_output_files(titles: list[str]) -> list[Output]:
-    outputs = [Output(title=titles[i], file_name=get_temp_file_name()) for i in range(len(titles))]
+    outputs = [Output(title=title, file_name=get_temp_file_name()) for title in titles]
     for out in outputs:
         get_console().print(f"[info]Capturing output of {out.escaped_title}:[/] {out.file_name}")
     return outputs
@@ -357,7 +357,7 @@ def print_async_summary(completed_list: list[ApplyResult]) -> None:
 
 def get_completed_result_list(results: list[ApplyResult]) -> list[ApplyResult]:
     """Return completed results from the list."""
-    return list(filter(lambda result: result.ready(), results))
+    return [result for result in results if result.ready()]
 
 
 class SummarizeAfter(Enum):
@@ -402,7 +402,7 @@ def check_async_run_results(
             completed_number = current_completed_number
             get_console().print(
                 f"\n[info]Completed {completed_number} out of {total_number_of_results} "
-                f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
+                f"({completed_number / total_number_of_results:.0%}).[/]\n"
             )
             print_async_summary(completed_list)
         time.sleep(poll_time_seconds)
@@ -410,7 +410,7 @@ def check_async_run_results(
     completed_number = len(completed_list)
     get_console().print(
         f"\n[info]Completed {completed_number} out of {total_number_of_results} "
-        f"({int(100*completed_number/total_number_of_results)}%).[/]\n"
+        f"({completed_number / total_number_of_results:.0%}).[/]\n"
     )
     print_async_summary(completed_list)
     errors = False
@@ -449,10 +449,7 @@ def check_async_run_results(
     finally:
         if not skip_cleanup:
             for output in outputs:
-                try:
-                    os.unlink(output.file_name)
-                except FileNotFoundError:
-                    pass
+                Path(output.file_name).unlink(missing_ok=True)
 
 
 @contextmanager

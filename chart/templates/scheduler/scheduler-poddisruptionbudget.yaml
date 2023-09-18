@@ -24,7 +24,7 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ .Release.Name }}-scheduler-pdb
+  name: {{ include "airflow.fullname" . }}-scheduler-pdb
   labels:
     tier: airflow
     component: scheduler

@@ -137,7 +137,7 @@ class AzureBlobStorageToS3Operator(BaseOperator):
             # parent directories/keys
             existing_files = s3_hook.list_keys(bucket_name, prefix=prefix)
             # in case that no files exists, return an empty array to avoid errors
-            existing_files = existing_files if existing_files is not None else []
+            existing_files = existing_files or []
             # remove the prefix for the existing files to allow the match
             existing_files = [file.replace(f"{prefix}/", "", 1) for file in existing_files]
             files = list(set(files) - set(existing_files))

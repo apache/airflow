@@ -67,38 +67,28 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-REVISION_HEADS_MAP = {
+_REVISION_HEADS_MAP = {
     "2.0.0": "e959f08ac86c",
     "2.0.1": "82b7c48c147f",
     "2.0.2": "2e42bb497a22",
     "2.1.0": "a13f7613ad25",
-    "2.1.1": "a13f7613ad25",
-    "2.1.2": "a13f7613ad25",
     "2.1.3": "97cdd93827b8",
     "2.1.4": "ccde3e26fe78",
     "2.2.0": "7b2661a43ba3",
-    "2.2.1": "7b2661a43ba3",
-    "2.2.2": "7b2661a43ba3",
     "2.2.3": "be2bfac3da23",
     "2.2.4": "587bdf053233",
-    "2.2.5": "587bdf053233",
     "2.3.0": "b1b348e02d07",
     "2.3.1": "1de7bc13c950",
     "2.3.2": "3c94c427fdf6",
     "2.3.3": "f5fcbda3e651",
-    "2.3.4": "f5fcbda3e651",
     "2.4.0": "ecb43d2a1842",
-    "2.4.1": "ecb43d2a1842",
     "2.4.2": "b0d31815b5a6",
     "2.4.3": "e07f49787c9d",
     "2.5.0": "290244fb8b83",
-    "2.5.1": "290244fb8b83",
-    "2.5.2": "290244fb8b83",
-    "2.5.3": "290244fb8b83",
     "2.6.0": "98ae134e6fff",
-    "2.6.1": "98ae134e6fff",
     "2.6.2": "c804e5c76e3e",
-    "2.6.3": "c804e5c76e3e",
+    "2.7.0": "405de8318b3a",
+    "2.8.0": "f7bf2a57d0a6",
 }
 
 
@@ -1221,9 +1211,8 @@ def _create_table_as(
         )
     else:
         # Postgres and SQLite both support the same "CREATE TABLE a AS SELECT ..." syntax
-        session.execute(
-            f"CREATE TABLE {target_table_name} AS {source_query.selectable.compile(bind=session.get_bind())}"
-        )
+        select_table = source_query.selectable.compile(bind=session.get_bind())
+        session.execute(text(f"CREATE TABLE {target_table_name} AS {select_table}"))
 
 
 def _move_dangling_data_to_new_table(
@@ -1458,9 +1447,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version, "dangling")
         if dangling_table_name in existing_table_names:
             invalid_row_count = bad_rows_query.count()
-            if invalid_row_count <= 0:
-                continue
-            else:
+            if invalid_row_count:
                 yield _format_dangling_error(
                     source_table=source_table.name,
                     target_table=dangling_table_name,
@@ -1662,10 +1649,9 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     connection = settings.engine.connect()
 
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        with connection.begin():
-            drop_airflow_models(connection)
-            drop_airflow_moved_tables(connection)
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
+        drop_airflow_models(connection)
+        drop_airflow_moved_tables(connection)
 
     if not skip_init:
         initdb(session=session)

@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import random
 import re
-from random import randrange
 from unittest import mock
 
 import oracledb
@@ -90,7 +90,7 @@ class TestOracleStoredProcedureOperator:
         oracle_conn_id = "oracle_default"
         parameters = {"parameter": "value"}
         task_id = "test_push"
-        ora_exit_code = "%05d" % randrange(10**5)
+        ora_exit_code = f"{random.randrange(10**5):05}"
         error = f"ORA-{ora_exit_code}: This is a five-digit ORA error code"
         mock_callproc.side_effect = oracledb.DatabaseError(error)
 

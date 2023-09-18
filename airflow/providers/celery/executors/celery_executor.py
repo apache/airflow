@@ -23,7 +23,6 @@
 """
 from __future__ import annotations
 
-import argparse
 import logging
 import math
 import operator
@@ -37,7 +36,6 @@ from celery import states as celery_states
 
 try:
     from airflow.cli.cli_config import (
-        ARG_AUTOSCALE,
         ARG_DAEMON,
         ARG_LOG_FILE,
         ARG_PID,
@@ -84,6 +82,8 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 
 
 if TYPE_CHECKING:
+    import argparse
+
     from celery import Task
 
     from airflow.executors.base_executor import CommandType, TaskTuple
@@ -143,6 +143,7 @@ ARG_FLOWER_BASIC_AUTH = Arg(
 )
 
 # worker cli args
+ARG_AUTOSCALE = Arg(("-a", "--autoscale"), help="Minimum and Maximum number of worker to autoscale")
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
     help="Comma delimited list of queues to serve",
@@ -367,9 +368,7 @@ class CeleryExecutor(BaseExecutor):
                 self.success(key, info)
             elif state in (celery_states.FAILURE, celery_states.REVOKED):
                 self.fail(key, info)
-            elif state == celery_states.STARTED:
-                pass
-            elif state == celery_states.PENDING:
+            elif state in (celery_states.STARTED, celery_states.PENDING):
                 pass
             else:
                 self.log.info("Unexpected state for %s: %s", key, state)

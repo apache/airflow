@@ -28,12 +28,10 @@ import uuid
 import warnings
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
 
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
-from google.api_core.page_iterator import HTTPIterator
-from google.api_core.retry import Retry
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     Client,
@@ -49,7 +47,6 @@ from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem,
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
 from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
-from pandas import DataFrame
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa
 from requests import Session
@@ -68,6 +65,11 @@ except ModuleNotFoundError:
     from hashlib import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    import pandas as pd
+    from google.api_core.page_iterator import HTTPIterator
+    from google.api_core.retry import Retry
 
 log = logging.getLogger(__name__)
 
@@ -121,7 +123,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.location = location
         self.priority = priority
         self.running_job_id: str | None = None
-        self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
+        self.api_resource_configs: dict = api_resource_configs or {}
         self.labels = labels
         self.credentials_path = "bigquery_hook_credentials.json"
 
@@ -244,7 +246,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         parameters: Iterable | Mapping[str, Any] | None = None,
         dialect: str | None = None,
         **kwargs,
-    ) -> DataFrame:
+    ) -> pd.DataFrame:
         """Get a Pandas DataFrame for the BigQuery results.
 
         The DbApiHook method must be overridden because Pandas doesn't support
@@ -266,9 +268,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         credentials, project_id = self.get_credentials_and_project_id()
 
-        return read_gbq(
-            sql, project_id=project_id, dialect=dialect, verbose=False, credentials=credentials, **kwargs
-        )
+        return read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:
@@ -659,7 +659,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
-        if source_format in src_fmt_to_param_mapping.keys():
+        if source_format in src_fmt_to_param_mapping:
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[source_format]]
             src_fmt_configs = _validate_src_fmt_configs(
                 source_format, src_fmt_configs, valid_configs, backward_compatibility_configs
@@ -2206,26 +2206,24 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             if param_name == "schemaUpdateOptions" and param:
                 self.log.info("Adding experimental 'schemaUpdateOptions': %s", schema_update_options)
 
-            if param_name != "destinationTable":
-                continue
-
-            for key in ["projectId", "datasetId", "tableId"]:
-                if key not in configuration["query"]["destinationTable"]:
-                    raise ValueError(
-                        "Not correct 'destinationTable' in "
-                        "api_resource_configs. 'destinationTable' "
-                        "must be a dict with {'projectId':'', "
-                        "'datasetId':'', 'tableId':''}"
+            if param_name == "destinationTable":
+                for key in ["projectId", "datasetId", "tableId"]:
+                    if key not in configuration["query"]["destinationTable"]:
+                        raise ValueError(
+                            "Not correct 'destinationTable' in "
+                            "api_resource_configs. 'destinationTable' "
+                            "must be a dict with {'projectId':'', "
+                            "'datasetId':'', 'tableId':''}"
+                        )
+                else:
+                    configuration["query"].update(
+                        {
+                            "allowLargeResults": allow_large_results,
+                            "flattenResults": flatten_results,
+                            "writeDisposition": write_disposition,
+                            "createDisposition": create_disposition,
+                        }
                     )
-
-            configuration["query"].update(
-                {
-                    "allowLargeResults": allow_large_results,
-                    "flattenResults": flatten_results,
-                    "writeDisposition": write_disposition,
-                    "createDisposition": create_disposition,
-                }
-            )
 
         if (
             "useLegacySql" in configuration["query"]
@@ -2374,7 +2372,7 @@ class BigQueryBaseCursor(LoggingMixin):
         self.use_legacy_sql = use_legacy_sql
         if api_resource_configs:
             _validate_value("api_resource_configs", api_resource_configs, dict)
-        self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
+        self.api_resource_configs: dict = api_resource_configs or {}
         self.running_job_id: str | None = None
         self.location = location
         self.num_retries = num_retries
@@ -2876,12 +2874,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
         A sequence of sequences (e.g. a list of tuples) is returned.
         """
-        result = []
-        while True:
-            one = self.fetchone()
-            if one is None:
-                break
-            result.append(one)
+        result = list(iter(self.fetchone, None))
         return result
 
     def get_arraysize(self) -> int:
@@ -3031,12 +3024,10 @@ def _api_resource_configs_duplication_check(
 ) -> None:
     if key in config_dict and value != config_dict[key]:
         raise ValueError(
-            "Values of {param_name} param are duplicated. "
-            "{dict_name} contained {param_name} param "
-            "in `query` config and {param_name} was also provided "
-            "with arg to run_query() method. Please remove duplicates.".format(
-                param_name=key, dict_name=config_dict_name
-            )
+            f"Values of {key} param are duplicated. "
+            f"{config_dict_name} contained {key} param "
+            f"in `query` config and {key} was also provided "
+            "with arg to run_query() method. Please remove duplicates."
         )
 
 
@@ -3103,16 +3094,16 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         with await self.service_file_as_context() as f:
             return Job(job_id=job_id, project=project_id, service_file=f, session=cast(Session, session))
 
-    async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> str:
+    async def get_job_status(self, job_id: str | None, project_id: str | None = None) -> dict[str, str]:
         async with ClientSession() as s:
             job_client = await self.get_job_instance(project_id, job_id, s)
             job = await job_client.get_job()
             status = job.get("status", {})
             if status["state"] == "DONE":
                 if "errorResult" in status:
-                    return "error"
-                return "success"
-            return status["state"].lower()
+                    return {"status": "error", "message": status["errorResult"]["message"]}
+                return {"status": "success", "message": "Job completed"}
+            return {"status": status["state"].lower(), "message": "Job running"}
 
     async def get_job_output(
         self,
@@ -3154,15 +3145,15 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         if "rows" in query_results and query_results["rows"]:
             rows = query_results["rows"]
             fields = query_results["schema"]["fields"]
+            fields_names = [field["name"] for field in fields]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
-                typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
-                if not as_dict:
-                    buffer.append(typed_row)
-                else:
-                    fields_names = [field["name"] for field in fields]
-                    typed_row_dict = {k: v for k, v in zip(fields_names, typed_row)}
+                typed_row = [bq_cast(vs["v"], col_type) for vs, col_type in zip(dict_row["f"], col_types)]
+                if as_dict:
+                    typed_row_dict = dict(zip(fields_names, typed_row))
                     buffer.append(typed_row_dict)
+                else:
+                    buffer.append(typed_row)
         return buffer
 
     def value_check(
@@ -3180,7 +3171,6 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             raise AirflowException("The query returned None")
         pass_value_conv = self._convert_to_float_if_possible(pass_value)
         is_numeric_value_check = isinstance(pass_value_conv, float)
-        tolerance_pct_str = str(tolerance * 100) + "%" if tolerance else None
 
         error_msg = (
             "Test failed.\nPass value:{pass_value_conv}\n"
@@ -3188,7 +3178,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             "Query:\n{sql}\nResults:\n{records!s}"
         ).format(
             pass_value_conv=pass_value_conv,
-            tolerance_pct_str=tolerance_pct_str,
+            tolerance_pct_str=f"{tolerance:.1%}" if tolerance else None,
             sql=sql,
             records=records,
         )

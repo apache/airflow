@@ -27,19 +27,16 @@ from flask import request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
 from flask_appbuilder.models.filters import BaseFilter
-from flask_appbuilder.models.sqla import Model, filters as fab_sqlafilters
+from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
 from markdown_it import MarkdownIt
 from markupsafe import Markup
-from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from pygments.lexer import Lexer
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
-from sqlalchemy.sql import Select
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
@@ -56,7 +53,11 @@ from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 if TYPE_CHECKING:
+    from flask_appbuilder.models.sqla import Model
+    from pendulum.datetime import DateTime
+    from pygments.lexer import Lexer
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Select
     from sqlalchemy.sql.operators import ColumnOperators
 
     from airflow.www.fab_security.sqla.manager import SecurityManager
@@ -107,7 +108,6 @@ priority: list[None | TaskInstanceState] = [
     TaskInstanceState.SCHEDULED,
     TaskInstanceState.DEFERRED,
     TaskInstanceState.RUNNING,
-    TaskInstanceState.SHUTDOWN,
     TaskInstanceState.RESTARTING,
     None,
     TaskInstanceState.SUCCESS,
@@ -197,7 +197,7 @@ def check_import_errors(fileloc, session):
     ).all()
     if import_errors:
         for import_error in import_errors:
-            flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
+            flash(f"Broken DAG: [{import_error.filename}] {import_error.stacktrace}", "dag_import_error")
 
 
 def check_dag_warnings(dag_id, session):
@@ -339,7 +339,7 @@ def generate_pages(
 
     output.append(previous_node.format(href_link=page_link, disabled=is_disabled))
 
-    mid = int(window / 2)
+    mid = window // 2
     last_page = num_of_pages - 1
 
     if current_page <= mid or num_of_pages < window:
@@ -775,7 +775,8 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
             "is_extendedjson",
             [],
         ),
-    ) + fab_sqlafilters.SQLAFilterConverter.conversion_table
+        *fab_sqlafilters.SQLAFilterConverter.conversion_table,
+    )
 
     def __init__(self, datamodel):
         super().__init__(datamodel)
@@ -806,12 +807,11 @@ class CustomSQLAInterface(SQLAInterface):
         clean_column_names()
         # Support for AssociationProxy in search and list columns
         for obj_attr, desc in self.obj.__mapper__.all_orm_descriptors.items():
-            if not isinstance(desc, AssociationProxy):
-                continue
-            proxy_instance = getattr(self.obj, obj_attr)
-            if hasattr(proxy_instance.remote_attr.prop, "columns"):
-                self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
-                self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
+            if isinstance(desc, AssociationProxy):
+                proxy_instance = getattr(self.obj, obj_attr)
+                if hasattr(proxy_instance.remote_attr.prop, "columns"):
+                    self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
+                    self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
@@ -877,7 +877,8 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
 # place
 FieldConverter.conversion_table = (
     ("is_utcdatetime", DateTimeWithTimezoneField, AirflowDateTimePickerWidget),
-) + FieldConverter.conversion_table
+    *FieldConverter.conversion_table,
+)
 
 
 class UIAlert:

@@ -1897,11 +1897,7 @@ export interface components {
       include_future?: boolean;
       /** @description If set to True, also tasks from past DAG Runs are affected. */
       include_past?: boolean;
-      /**
-       * @description Expected new state.
-       * @enum {string}
-       */
-      new_state?: "success" | "failed" | "skipped";
+      new_state?: components["schemas"]["UpdateTaskState"];
     };
     UpdateTaskInstance: {
       /**
@@ -1911,11 +1907,7 @@ export interface components {
        * @default false
        */
       dry_run?: boolean;
-      /**
-       * @description Expected new state.
-       * @enum {string}
-       */
-      new_state?: "success" | "failed" | "skipped";
+      new_state?: components["schemas"]["UpdateTaskState"];
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */
@@ -2181,6 +2173,14 @@ export interface components {
           | "restarting"
         )
       | null;
+    /**
+     * @description Expected new state. Only a subset of TaskState are available.
+     *
+     * Other states are managed directly by the scheduler or the workers and cannot be updated manually through the REST API.
+     *
+     * @enum {string}
+     */
+    UpdateTaskState: "success" | "failed" | "skipped";
     /**
      * @description DAG State.
      *
@@ -4881,6 +4881,9 @@ export type CollectionInfo = CamelCasedPropertiesDeep<
 >;
 export type TaskState = CamelCasedPropertiesDeep<
   components["schemas"]["TaskState"]
+>;
+export type UpdateTaskState = CamelCasedPropertiesDeep<
+  components["schemas"]["UpdateTaskState"]
 >;
 export type DagState = CamelCasedPropertiesDeep<
   components["schemas"]["DagState"]

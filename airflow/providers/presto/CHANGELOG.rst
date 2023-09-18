@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+5.1.4
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+5.1.3
+.....
+
+Misc
+~~~~
+
+* ``Consolidate import and usage of pandas (#33480)``
+
 5.1.2
 .....
 

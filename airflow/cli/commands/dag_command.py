@@ -26,10 +26,9 @@ import signal
 import subprocess
 import sys
 import warnings
+from typing import TYPE_CHECKING
 
-from graphviz.dot import Dot
 from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
@@ -41,13 +40,18 @@ from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.timetables.base import DataInterval
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+
+if TYPE_CHECKING:
+    from graphviz.dot import Dot
+    from sqlalchemy.orm import Session
+
+    from airflow.timetables.base import DataInterval
 
 log = logging.getLogger(__name__)
 
@@ -240,7 +244,7 @@ def dag_dependencies_show(args) -> None:
 
 @providers_configuration_loaded
 def dag_show(args) -> None:
-    """Display DAG or saves it's graphic representation to the file."""
+    """Display DAG or saves its graphic representation to the file."""
     dag = get_dag(args.subdir, args.dag_id)
     dot = render_dag(dag)
     filename = args.save

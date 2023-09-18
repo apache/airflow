@@ -17,6 +17,9 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime
+
 import pytest
 
 from airflow.exceptions import SerializationError
@@ -39,32 +42,28 @@ def test_recursive_serialize_calls_must_forward_kwargs():
 
     class_def = None
     for stmt in ast.walk(tree):
-        if not isinstance(stmt, ast.ClassDef):
-            continue
-        if stmt.name == "BaseSerialization":
+        if isinstance(stmt, ast.ClassDef) and stmt.name == "BaseSerialization":
             class_def = stmt
 
     method_def = None
     for elem in ast.walk(class_def):
-        if isinstance(elem, ast.FunctionDef):
-            if elem.name == "serialize":
-                method_def = elem
-                break
+        if isinstance(elem, ast.FunctionDef) and elem.name == "serialize":
+            method_def = elem
+            break
     kwonly_args = [x.arg for x in method_def.args.kwonlyargs]
 
     for elem in ast.walk(method_def):
-        if isinstance(elem, ast.Call):
-            if getattr(elem.func, "attr", "") == "serialize":
-                kwargs = {y.arg: y.value for y in elem.keywords}
-                for name in kwonly_args:
-                    if name not in kwargs or getattr(kwargs[name], "id", "") != name:
-                        ref = f"{file}:{elem.lineno}"
-                        message = (
-                            f"Error at {ref}; recursive calls to `cls.serialize` "
-                            f"must forward the `{name}` argument"
-                        )
-                        raise Exception(message)
-                    valid_recursive_call_count += 1
+        if isinstance(elem, ast.Call) and getattr(elem.func, "attr", "") == "serialize":
+            kwargs = {y.arg: y.value for y in elem.keywords}
+            for name in kwonly_args:
+                if name not in kwargs or getattr(kwargs[name], "id", "") != name:
+                    ref = f"{file}:{elem.lineno}"
+                    message = (
+                        f"Error at {ref}; recursive calls to `cls.serialize` "
+                        f"must forward the `{name}` argument"
+                    )
+                    raise Exception(message)
+                valid_recursive_call_count += 1
     print(f"validated calls: {valid_recursive_call_count}")
     assert valid_recursive_call_count > 0
 
@@ -89,13 +88,25 @@ def test_use_pydantic_models():
 
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    ti = TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING)
+    ti = TaskInstance(
+        task=EmptyOperator(task_id="task"),
+        run_id="run_id",
+        state=State.RUNNING,
+    )
+    start_date = datetime.utcnow()
+    ti.start_date = start_date
     obj = [[ti]]  # nested to verify recursive behavior
 
     serialized = BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
     deserialized = BaseSerialization.deserialize(serialized, use_pydantic_models=True)  # does not raise
-
     assert isinstance(deserialized[0][0], TaskInstancePydantic)
+
+    serialized_json = json.dumps(serialized)  # does not raise
+    deserialized_from_json = BaseSerialization.deserialize(
+        json.loads(serialized_json), use_pydantic_models=True
+    )  # does not raise
+    assert isinstance(deserialized_from_json[0][0], TaskInstancePydantic)
+    assert deserialized_from_json[0][0].start_date == start_date
 
 
 def test_serialized_mapped_operator_unmap(dag_maker):

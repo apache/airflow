@@ -24,7 +24,7 @@ import logging
 import time
 import traceback
 from datetime import timedelta
-from typing import Any, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 from airflow import settings
 from airflow.configuration import conf
@@ -35,6 +35,7 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTimeout,
+    TaskDeferralError,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.baseoperator import BaseOperator
@@ -42,12 +43,14 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context
 
 # We need to keep the import here because GCSToLocalFilesystemOperator released in
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults  # noqa: F401
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
 _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
@@ -239,14 +242,19 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             except (
                 AirflowSensorTimeout,
                 AirflowTaskTimeout,
-                AirflowSkipException,
                 AirflowFailException,
             ) as e:
+                if self.soft_fail:
+                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                raise e
+            except AirflowSkipException as e:
                 raise e
             except Exception as e:
                 if self.silent_fail:
                     logging.error("Sensor poke failed: \n %s", traceback.format_exc())
                     poke_return = False
+                elif self.soft_fail:
+                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
                 else:
                     raise e
 
@@ -280,6 +288,14 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 try_number += 1
         self.log.info("Success criteria met. Exiting.")
         return xcom_value
+
+    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
+        try:
+            return super().resume_execution(next_method, next_kwargs, context)
+        except (AirflowException, TaskDeferralError) as e:
+            if self.soft_fail:
+                raise AirflowSkipException(str(e)) from e
+            raise
 
     def _get_next_poke_interval(
         self,
@@ -329,12 +345,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     @classmethod
     def get_serialized_fields(cls):
         return super().get_serialized_fields() | {"reschedule"}
-
-    def raise_failed_or_skiping_exception(self, *, failed_message: str, skipping_message: str = "") -> None:
-        """Raise AirflowSkipException if self.soft_fail is set to True. Otherwise raise AirflowException."""
-        if self.soft_fail:
-            raise AirflowSkipException(skipping_message or failed_message)
-        raise AirflowException(failed_message)
 
 
 def poke_mode_only(cls):

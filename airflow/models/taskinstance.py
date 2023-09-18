@@ -27,11 +27,8 @@ import os
 import signal
 import warnings
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum
-from functools import partial
-from pathlib import PurePath
-from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
 from urllib.parse import quote
 
@@ -44,6 +41,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -63,9 +61,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
-from sqlalchemy.orm.session import Session
-from sqlalchemy.sql.elements import BooleanClauseList
-from sqlalchemy.sql.expression import ColumnOperators, case
+from sqlalchemy.sql.expression import case
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -81,7 +77,6 @@ from airflow.exceptions import (
     AirflowTaskTimeout,
     DagRunNotFound,
     RemovedInAirflow3Warning,
-    TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
@@ -104,8 +99,6 @@ from airflow.stats import Stats
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
-from airflow.timetables.base import DataInterval
-from airflow.typing_compat import Literal, TypeGuard
 from airflow.utils import timezone
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor, context_merge
 from airflow.utils.email import send_email
@@ -126,6 +119,7 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
+from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -136,12 +130,22 @@ log = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
+    from datetime import datetime
+    from pathlib import PurePath
+    from types import TracebackType
+
+    from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql.elements import BooleanClauseList
+    from sqlalchemy.sql.expression import ColumnOperators
+
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.timetables.base import DataInterval
+    from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
 
     # This is a workaround because mypy doesn't work with hybrid_property
@@ -345,6 +349,7 @@ def clear_task_instances(
                 if dag_run_state == DagRunState.QUEUED:
                     dr.last_scheduling_decision = None
                     dr.start_date = None
+                    dr.clear_number += 1
     session.flush()
 
 
@@ -1509,98 +1514,98 @@ class TaskInstance(Base, LoggingMixin):
                 count=0,
                 tags={**self.stats_tags, "state": str(state)},
             )
+        with set_current_task_instance_session(session=session):
+            self.task = self.task.prepare_for_execution()
+            context = self.get_template_context(ignore_param_exceptions=False)
 
-        self.task = self.task.prepare_for_execution()
-        context = self.get_template_context(ignore_param_exceptions=False)
-
-        try:
-            if not mark_success:
-                self._execute_task_with_callbacks(context, test_mode, session=session)
-            if not test_mode:
-                self.refresh_from_db(lock_for_update=True, session=session)
-            self.state = TaskInstanceState.SUCCESS
-        except TaskDeferred as defer:
-            # The task has signalled it wants to defer execution based on
-            # a trigger.
-            self._defer_task(defer=defer, session=session)
-            self.log.info(
-                "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",
-                self.dag_id,
-                self.task_id,
-                self._date_or_empty("execution_date"),
-                self._date_or_empty("start_date"),
-            )
-            if not test_mode:
-                session.add(Log(self.state, self))
-                session.merge(self)
-                session.commit()
-            return TaskReturnCode.DEFERRED
-        except AirflowSkipException as e:
-            # Recording SKIP
-            # log only if exception has any arguments to prevent log flooding
-            if e.args:
-                self.log.info(e)
-            if not test_mode:
-                self.refresh_from_db(lock_for_update=True, session=session)
-            self.state = TaskInstanceState.SKIPPED
-        except AirflowRescheduleException as reschedule_exception:
-            self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
-            session.commit()
-            return None
-        except (AirflowFailException, AirflowSensorTimeout) as e:
-            # If AirflowFailException is raised, task should not retry.
-            # If a sensor in reschedule mode reaches timeout, task should not retry.
-            self.handle_failure(e, test_mode, context, force_fail=True, session=session)
-            session.commit()
-            raise
-        except AirflowException as e:
-            if not test_mode:
-                self.refresh_from_db(lock_for_update=True, session=session)
-            # for case when task is marked as success/failed externally
-            # or dagrun timed out and task is marked as skipped
-            # current behavior doesn't hit the callbacks
-            if self.state in State.finished:
-                self.clear_next_method_args()
-                session.merge(self)
+            try:
+                if not mark_success:
+                    self._execute_task_with_callbacks(context, test_mode, session=session)
+                if not test_mode:
+                    self.refresh_from_db(lock_for_update=True, session=session)
+                self.state = TaskInstanceState.SUCCESS
+            except TaskDeferred as defer:
+                # The task has signalled it wants to defer execution based on
+                # a trigger.
+                self._defer_task(defer=defer, session=session)
+                self.log.info(
+                    "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",
+                    self.dag_id,
+                    self.task_id,
+                    self._date_or_empty("execution_date"),
+                    self._date_or_empty("start_date"),
+                )
+                if not test_mode:
+                    session.add(Log(self.state, self))
+                    session.merge(self)
+                    session.commit()
+                return TaskReturnCode.DEFERRED
+            except AirflowSkipException as e:
+                # Recording SKIP
+                # log only if exception has any arguments to prevent log flooding
+                if e.args:
+                    self.log.info(e)
+                if not test_mode:
+                    self.refresh_from_db(lock_for_update=True, session=session)
+                self.state = TaskInstanceState.SKIPPED
+            except AirflowRescheduleException as reschedule_exception:
+                self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
                 session.commit()
                 return None
-            else:
+            except (AirflowFailException, AirflowSensorTimeout) as e:
+                # If AirflowFailException is raised, task should not retry.
+                # If a sensor in reschedule mode reaches timeout, task should not retry.
+                self.handle_failure(e, test_mode, context, force_fail=True, session=session)
+                session.commit()
+                raise
+            except AirflowException as e:
+                if not test_mode:
+                    self.refresh_from_db(lock_for_update=True, session=session)
+                # for case when task is marked as success/failed externally
+                # or dagrun timed out and task is marked as skipped
+                # current behavior doesn't hit the callbacks
+                if self.state in State.finished:
+                    self.clear_next_method_args()
+                    session.merge(self)
+                    session.commit()
+                    return None
+                else:
+                    self.handle_failure(e, test_mode, context, session=session)
+                    session.commit()
+                    raise
+            except (Exception, KeyboardInterrupt) as e:
                 self.handle_failure(e, test_mode, context, session=session)
                 session.commit()
                 raise
-        except (Exception, KeyboardInterrupt) as e:
-            self.handle_failure(e, test_mode, context, session=session)
-            session.commit()
-            raise
-        finally:
-            Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
-            # Same metric with tagging
-            Stats.incr("ti.finish", tags={**self.stats_tags, "state": str(self.state)})
+            finally:
+                Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
+                # Same metric with tagging
+                Stats.incr("ti.finish", tags={**self.stats_tags, "state": str(self.state)})
 
-        # Recording SKIPPED or SUCCESS
-        self.clear_next_method_args()
-        self.end_date = timezone.utcnow()
-        self._log_state()
-        self.set_duration()
+            # Recording SKIPPED or SUCCESS
+            self.clear_next_method_args()
+            self.end_date = timezone.utcnow()
+            self._log_state()
+            self.set_duration()
 
-        # run on_success_callback before db committing
-        # otherwise, the LocalTaskJob sees the state is changed to `success`,
-        # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-        self._run_finished_callback(self.task.on_success_callback, context, "on_success")
+            # run on_success_callback before db committing
+            # otherwise, the LocalTaskJob sees the state is changed to `success`,
+            # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
+            self._run_finished_callback(self.task.on_success_callback, context, "on_success")
 
-        if not test_mode:
-            session.add(Log(self.state, self))
-            session.merge(self).task = self.task
-            if self.state == TaskInstanceState.SUCCESS:
-                self._register_dataset_changes(session=session)
+            if not test_mode:
+                session.add(Log(self.state, self))
+                session.merge(self).task = self.task
+                if self.state == TaskInstanceState.SUCCESS:
+                    self._register_dataset_changes(session=session)
 
-            session.commit()
-            if self.state == TaskInstanceState.SUCCESS:
-                get_listener_manager().hook.on_task_instance_success(
-                    previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
-                )
+                session.commit()
+                if self.state == TaskInstanceState.SUCCESS:
+                    get_listener_manager().hook.on_task_instance_success(
+                        previous_state=TaskInstanceState.RUNNING, task_instance=self, session=session
+                    )
 
-        return None
+            return None
 
     def _register_dataset_changes(self, *, session: Session) -> None:
         for obj in self.task.outlets or []:
@@ -1643,7 +1648,9 @@ class TaskInstance(Base, LoggingMixin):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
 
-            task_orig = self.render_templates(context=context)
+            with set_current_context(context):
+                task_orig = self.render_templates(context=context)
+
             if not test_mode:
                 rtif = RenderedTaskInstanceFields(ti=self, render_templates=False)
                 RenderedTaskInstanceFields.write(rtif)
@@ -1710,19 +1717,11 @@ class TaskInstance(Base, LoggingMixin):
         # If the task has been deferred and is being executed due to a trigger,
         # then we need to pick the right method to come back to, otherwise
         # we go for the default execute
+        execute_callable_kwargs = {}
         if self.next_method:
-            # __fail__ is a special signal value for next_method that indicates
-            # this task was scheduled specifically to fail.
-            if self.next_method == "__fail__":
-                next_kwargs = self.next_kwargs or {}
-                traceback = self.next_kwargs.get("traceback")
-                if traceback is not None:
-                    self.log.error("Trigger failed:\n%s", "\n".join(traceback))
-                raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
-            # Grab the callable off the Operator/Task and add in any kwargs
-            execute_callable = getattr(task_to_execute, self.next_method)
-            if self.next_kwargs:
-                execute_callable = partial(execute_callable, **self.next_kwargs)
+            execute_callable = task_to_execute.resume_execution
+            execute_callable_kwargs["next_method"] = self.next_method
+            execute_callable_kwargs["next_kwargs"] = self.next_kwargs
         else:
             execute_callable = task_to_execute.execute
         # If a timeout is specified for the task, make it fail
@@ -1742,12 +1741,12 @@ class TaskInstance(Base, LoggingMixin):
                     raise AirflowTaskTimeout()
                 # Run task in timeout wrapper
                 with timeout(timeout_seconds):
-                    result = execute_callable(context=context)
+                    result = execute_callable(context=context, **execute_callable_kwargs)
             except AirflowTaskTimeout:
                 task_to_execute.on_kill()
                 raise
         else:
-            result = execute_callable(context=context)
+            result = execute_callable(context=context, **execute_callable_kwargs)
         with create_session() as session:
             if task_to_execute.do_xcom_push:
                 xcom_value = result
@@ -1843,8 +1842,6 @@ class TaskInstance(Base, LoggingMixin):
 
     def dry_run(self) -> None:
         """Only Renders Templates for the TI."""
-        from airflow.models.baseoperator import BaseOperator
-
         self.task = self.task.prepare_for_execution()
         self.render_templates()
         if TYPE_CHECKING:
@@ -2149,7 +2146,7 @@ class TaskInstance(Base, LoggingMixin):
             execution_date = get_prev_execution_date()
             if execution_date is None:
                 return None
-            return execution_date.strftime(r"%Y-%m-%d")
+            return execution_date.strftime("%Y-%m-%d")
 
         def get_prev_ds_nodash() -> str | None:
             prev_ds = get_prev_ds()
@@ -3022,7 +3019,9 @@ class TaskInstanceNote(Base):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(
+        Integer, nullable=True, foreign_key=ForeignKey("ab_user.id", name="task_instance_note_user_fkey")
+    )
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
@@ -3047,11 +3046,6 @@ class TaskInstanceNote(Base):
             ],
             name="task_instance_note_ti_fkey",
             ondelete="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            (user_id,),
-            ["ab_user.id"],
-            name="task_instance_note_user_fkey",
         ),
     )
 

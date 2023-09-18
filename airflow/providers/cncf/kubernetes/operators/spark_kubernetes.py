@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from kubernetes.client import ApiException
@@ -81,7 +82,9 @@ class SparkKubernetesOperator(BaseOperator):
         self.config_file = config_file
         self.watch = watch
 
-        self.hook = KubernetesHook(
+    @cached_property
+    def hook(self) -> KubernetesHook:
+        return KubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,

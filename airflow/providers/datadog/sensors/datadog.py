@@ -96,4 +96,4 @@ class DatadogSensor(BaseSensorOperator):
             return self.response_check(response)
 
         # If no check was inserted, assume any event that matched yields true.
-        return len(response) > 0
+        return bool(response)

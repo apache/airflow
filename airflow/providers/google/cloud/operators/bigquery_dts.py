@@ -23,7 +23,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import (
     StartManualTransferRunsResponse,
     TransferConfig,
@@ -39,6 +38,8 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 
@@ -355,7 +356,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         )
 
     def _wait_for_transfer_to_be_done(self, run_id: str, transfer_config_id: str, interval: int = 10):
-        if interval < 0:
+        if interval <= 0:
             raise ValueError("Interval must be > 0")
 
         while True:

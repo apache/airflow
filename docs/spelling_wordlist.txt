@@ -34,6 +34,7 @@ Alibaba
 alibaba
 allAuthenticatedUsers
 allowinsert
+allowlist
 allUsers
 alphanumerics
 Alphasort
@@ -154,6 +155,7 @@ BaseView
 BaseXCom
 bashrc
 batchGet
+BatchServiceClient
 bc
 bcc
 bdist
@@ -377,6 +379,8 @@ DataScan
 dataScans
 Dataset
 dataset
+DatasetEvent
+DatasetEvents
 datasetId
 Datasets
 datasets
@@ -789,6 +793,7 @@ isfile
 ish
 isn
 isort
+istio
 iterable
 iterables
 iteratively
@@ -1048,6 +1053,7 @@ openapi
 openfaas
 openlineage
 oper
+OperatorLineage
 Opsgenie
 opsgenie
 Optimise
@@ -1068,6 +1074,7 @@ oversubscription
 PaaS
 Pagerduty
 pagerduty
+PagerdutyEventsHook
 pageviews
 paginator
 Papermill
@@ -1573,6 +1580,7 @@ tzinfo
 UA
 ui
 uid
+ulimit
 Umask
 umask
 Un

@@ -19,10 +19,10 @@
 from __future__ import annotations
 
 import ast
+import warnings
 from typing import TYPE_CHECKING, Sequence, Tuple
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.automl_v1beta1 import (
     BatchPredictResult,
     ColumnSpec,
@@ -32,6 +32,7 @@ from google.cloud.automl_v1beta1 import (
     TableSpec,
 )
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.links.automl import (
     AutoMLDatasetLink,
@@ -43,6 +44,8 @@ from airflow.providers.google.cloud.links.automl import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 MetaData = Sequence[Tuple[str, str]]
@@ -51,6 +54,10 @@ MetaData = Sequence[Tuple[str, str]]
 class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
     """
     Creates Google Cloud AutoML model.
+
+    AutoMLTrainModelOperator for text prediction is deprecated. Please use
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
+    instead.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -101,7 +108,6 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
         self.model = model
         self.location = location
         self.project_id = project_id
@@ -112,6 +118,20 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
+        # Output warning if running AutoML Natural Language prediction job
+        automl_nl_model_keys = [
+            "text_classification_model_metadata",
+            "text_extraction_model_metadata",
+            "text_sentiment_dataset_metadata",
+        ]
+        if any(key in automl_nl_model_keys for key in self.model):
+            warnings.warn(
+                "AutoMLTrainModelOperator for text prediction is deprecated. All the functionality of legacy "
+                "AutoML Natural Language and new features are available on the Vertex AI platform. "
+                "Please use `CreateAutoMLTextTrainingJobOperator`",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         hook = CloudAutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

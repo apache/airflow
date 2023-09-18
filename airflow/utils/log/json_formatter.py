@@ -37,7 +37,7 @@ class JSONFormatter(logging.Formatter):
         self.extras = extras
 
     def usesTime(self):
-        return self.json_fields.count("asctime") > 0
+        return "asctime" in self.json_fields
 
     def format(self, record):
         super().format(record)

@@ -26,6 +26,22 @@
 Changelog
 ---------
 
+3.3.2
+.....
+
+Misc
+~~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+3.3.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify conditions on len() in other providers (#33569)``
+
 3.3.0
 .....
 
