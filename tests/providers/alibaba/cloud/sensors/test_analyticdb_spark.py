@@ -42,10 +42,10 @@ class TestAnalyticDBSparkSensor:
     @mock.patch(ADB_SPARK_SENSOR_STRING.format("AnalyticDBSparkHook"))
     def test_get_hook(self, mock_service):
         """Test get_hook function works as expected."""
-        self.sensor.get_hook()
+        self.sensor.hook
         mock_service.assert_called_once_with(adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION)
 
-    @mock.patch(ADB_SPARK_SENSOR_STRING.format("AnalyticDBSparkSensor.get_hook"))
+    @mock.patch(ADB_SPARK_SENSOR_STRING.format("AnalyticDBSparkSensor.hook"))
     def test_poke_terminal_state(self, mock_service):
         """Test poke_terminal_state works as expected with COMPLETED application."""
         # Given
@@ -58,7 +58,7 @@ class TestAnalyticDBSparkSensor:
         assert res is True
         mock_service.get_spark_state.assert_called_once_with(MOCK_ADB_SPARK_ID)
 
-    @mock.patch(ADB_SPARK_SENSOR_STRING.format("AnalyticDBSparkSensor.get_hook"))
+    @mock.patch(ADB_SPARK_SENSOR_STRING.format("AnalyticDBSparkSensor.hook"))
     def test_poke_non_terminal_state(self, mock_service):
         """Test poke_terminal_state works as expected with RUNNING application."""
         # Given
