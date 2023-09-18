@@ -293,7 +293,7 @@ class TestPodManager:
             None,
             bytes(f"{last_timestamp_string} message", "utf-8"),
         ]
-        PodLogsConsumer.messages = messages
+        expected_call_count = len([message for message in messages if message is not None])
 
         def consumer_iter():
             while messages:
@@ -306,7 +306,8 @@ class TestPodManager:
             mock_consumer_iter.side_effect = consumer_iter
             mock_container_is_running.side_effect = [True, True, False]
             status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
-            assert status.last_log_time == cast(DateTime, pendulum.parse(last_timestamp_string))
+        assert status.last_log_time == cast(DateTime, pendulum.parse(last_timestamp_string))
+        assert self.mock_progress_callback.call_count == expected_call_count
 
     def test_parse_invalid_log_line(self, caplog):
         with caplog.at_level(logging.INFO):
