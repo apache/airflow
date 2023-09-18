@@ -78,6 +78,7 @@ with DAG(
         destination_bucket=BUCKET_NAME,
         calendar_id=CALENDAR_ID,
         api_version=API_VERSION,
+        gcp_conn_id=CONNECTION_ID,
     )
     # [END upload_calendar_to_gcs]
 
