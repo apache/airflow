@@ -935,6 +935,59 @@ class TestDag:
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
 
+    def test_bulk_write_to_db_single_dag(self):
+        """
+        Test bulk_write_to_db for a single dag using the index optimized query
+        """
+        clear_db_dags()
+        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(1)]
+
+        with assert_queries_count(5):
+            DAG.bulk_write_to_db(dags)
+        with create_session() as session:
+            assert {"dag-bulk-sync-0"} == {row[0] for row in session.query(DagModel.dag_id).all()}
+            assert {
+                ("dag-bulk-sync-0", "test-dag"),
+            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+
+            for row in session.query(DagModel.last_parsed_time).all():
+                assert row[0] is not None
+
+        # Re-sync should do fewer queries
+        with assert_queries_count(8):
+            DAG.bulk_write_to_db(dags)
+        with assert_queries_count(8):
+            DAG.bulk_write_to_db(dags)
+
+    def test_bulk_write_to_db_multiple_dags(self):
+        """
+        Test bulk_write_to_db for multiple dags which does not use the index optimized query
+        """
+        clear_db_dags()
+        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(4)]
+
+        with assert_queries_count(5):
+            DAG.bulk_write_to_db(dags)
+        with create_session() as session:
+            assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
+                row[0] for row in session.query(DagModel.dag_id).all()
+            }
+            assert {
+                ("dag-bulk-sync-0", "test-dag"),
+                ("dag-bulk-sync-1", "test-dag"),
+                ("dag-bulk-sync-2", "test-dag"),
+                ("dag-bulk-sync-3", "test-dag"),
+            } == set(session.query(DagTag.dag_id, DagTag.name).all())
+
+            for row in session.query(DagModel.last_parsed_time).all():
+                assert row[0] is not None
+
+        # Re-sync should do fewer queries
+        with assert_queries_count(8):
+            DAG.bulk_write_to_db(dags)
+        with assert_queries_count(8):
+            DAG.bulk_write_to_db(dags)
+
     @pytest.mark.parametrize("interval", [None, "@daily"])
     def test_bulk_write_to_db_interval_save_runtime(self, interval):
         mock_active_runs_of_dags = mock.MagicMock(side_effect=DagRun.active_runs_of_dags)
