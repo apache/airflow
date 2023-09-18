@@ -38,7 +38,7 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CALENDAR_ID = os.environ.get("CALENDAR_ID", "primary")
 API_VERSION = "v3"
 
-CONNECTION_ID = "google_cloud_temp"
+CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 
 
 with DAG(
@@ -58,9 +58,8 @@ with DAG(
             conn_id=CONNECTION_ID,
             conn_type="google_cloud_platform",
         )
-        scopes = "https://www.googleapis.com/auth/calendar"
         conn_extra = {
-            "scope": scopes,
+            "scope": "https://www.googleapis.com/auth/calendar",
             "project": PROJECT_ID,
             "keyfile_dict": "",  # Override to match your needs
         }
