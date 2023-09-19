@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+10.9.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add explicit support of stream (realtime) pipelines for CloudDataFusionStartPipelineOperator (#34271)``
+* ``Add 'expected_terminal_state' parameter to Dataflow operators (#34217)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'ComputeEngineInsertInstanceOperator' doesn't respect jinja-templated instance name when given in body argument (#34171)``
+* ``fix: BigQuery job error message (#34208)``
+* ``GKEPodHook ignores gcp_conn_id parameter. (#34194)``
+
+Misc
+~~~~
+
+* ``Bump min common-sql provider version for Google provider (#34257)``
+* ``Remove unnecessary call to keys() method on dictionaries (#34260)``
+* ``Refactor: Think positively in providers (#34279)``
+* ``Refactor: Simplify code in providers/google (#33229)``
+* ``Refactor: Simplify comparisons (#34181)``
+* ``Deprecate AutoMLTrainModelOperator for NL (#34212)``
+* ``Simplify  to bool(...) (#34258)``
+* ``Make Google Dataform operators templated_fields more consistent (#34187)``
+
 10.8.0
 ......
 

@@ -23,7 +23,7 @@ Best Practices
 Creating a new DAG is a three-step process:
 
 - writing Python code to create a DAG object,
-- testing if the code meets our expectations,
+- testing if the code meets your expectations,
 - configuring environment dependencies to run your DAG
 
 This tutorial will introduce you to the best practices for these three steps.

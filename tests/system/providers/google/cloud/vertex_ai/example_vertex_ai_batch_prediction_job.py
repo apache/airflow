@@ -26,15 +26,17 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
-from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
@@ -48,22 +50,20 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
     DeleteDatasetOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_batch_prediction_job_operations"
+DAG_ID = "example_vertex_ai_batch_prediction_operations"
 REGION = "us-central1"
 
 FORECAST_DISPLAY_NAME = f"auto-ml-forecasting-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"auto-ml-forecasting-model-{ENV_ID}"
 
 JOB_DISPLAY_NAME = f"batch_prediction_job_test_{ENV_ID}"
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/forecast-dataset.csv"
-FORECAST_ZIP_CSV_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / "forecast-dataset.csv.zip")
-FORECAST_CSV_FILE_LOCAL_PATH = "/batch-prediction/forecast-dataset.csv"
 
 FORECAST_DATASET = {
     "display_name": f"forecast-dataset-{ENV_ID}",
@@ -109,18 +109,15 @@ with models.DAG(
         location=REGION,
     )
 
-    unzip_file = BashOperator(
-        task_id="unzip_csv_data_file",
-        bash_command=f"mkdir -p /batch-prediction && "
-        f"unzip {FORECAST_ZIP_CSV_FILE_LOCAL_PATH} -d /batch-prediction/",
+    move_dataset_file = GCSSynchronizeBucketsOperator(
+        task_id="move_dataset_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="vertex-ai/datasets",
+        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        destination_object="vertex-ai",
+        recursive=True,
     )
 
-    upload_files = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=FORECAST_CSV_FILE_LOCAL_PATH,
-        dst=DATA_SAMPLE_GCS_OBJECT_NAME,
-        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-    )
     create_forecast_dataset = CreateDatasetOperator(
         task_id="forecast_dataset",
         dataset=FORECAST_DATASET,
@@ -186,7 +183,8 @@ with models.DAG(
 
     delete_auto_ml_forecasting_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_forecasting_training_job",
-        training_pipeline_id=create_auto_ml_forecasting_training_job.output["training_id"],
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_forecasting_task', "
+        "key='training_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -204,16 +202,10 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    clear_folder = BashOperator(
-        task_id="clear_folder",
-        bash_command="rm -r /batch-prediction/*",
-    )
-
     (
         # TEST SETUP
         create_bucket
-        >> unzip_file
-        >> upload_files
+        >> move_dataset_file
         >> create_forecast_dataset
         >> create_auto_ml_forecasting_training_job
         # TEST BODY
@@ -224,7 +216,6 @@ with models.DAG(
         >> delete_auto_ml_forecasting_training_job
         >> delete_forecast_dataset
         >> delete_bucket
-        >> clear_folder
     )
 
 

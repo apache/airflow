@@ -64,7 +64,7 @@ class RedisTaskHandler(FileTaskHandler, LoggingMixin):
         self.handler: _RedisHandler | None = None
         self.max_lines = max_lines
         self.ttl_seconds = ttl_seconds
-        self.conn_id = conn_id if conn_id is not None else conf.get("logging", "REMOTE_LOG_CONN_ID")
+        self.conn_id = conn_id or conf.get("logging", "REMOTE_LOG_CONN_ID")
 
     @cached_property
     def conn(self):

@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+8.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix: Fix RDS triggers parameters so that they handle serialization/deserialization (#34222)``
+* ``Use a AwsBaseWaiterTrigger-based trigger in EmrAddStepsOperator deferred mode (#34216)``
+
+Misc
+~~~~
+
+* ``Refactor: Think positively in providers (#34279)``
+* ``Remove unused parameter 'cluster_role_arn' from 'EksPodOperator''s docstring (#34300)``
+* ``Correct parameter names in docstring for 'S3CreateObjectOperator' (#34263)``
+* ``Refactor: Simplify comparisons (#34181)``
+* ``Simplify  to bool(...) (#34258)``
+
 8.7.0
 .....
 
