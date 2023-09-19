@@ -102,7 +102,7 @@ class TabularVttsSensor(BaseSensorOperator):
                 if snapshot.parent_snapshot_id is not None:
                     snapshot = table.snapshot_by_id(snapshot.parent_snapshot_id)
                 else:
-                    self.log.info(f"Snapshot does not have a parent: %s", snapshot)
+                    self.log.info("Snapshot does not have a parent: %s", snapshot)
                     return False
             else:
                 self.log.info("Could not find snapshot summary, retrying later")
