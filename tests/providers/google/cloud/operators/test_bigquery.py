@@ -1893,7 +1893,7 @@ class TestBigQueryValueCheckOperator:
     def test_bigquery_value_check_async(self, mock_hook, create_task_instance_of_operator):
         """
         Asserts that a task is deferred and a BigQueryValueCheckTrigger will be fired
-        when the BigQueryValueCheckOperator(deferable=True) is executed.
+        when the BigQueryValueCheckOperator with deferrable=True is executed.
         """
         ti = create_task_instance_of_operator(
             BigQueryValueCheckOperator,
