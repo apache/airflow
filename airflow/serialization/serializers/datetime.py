@@ -44,7 +44,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
         if is_naive(o):
             o = convert_to_utc(o)
 
-        tz = o.tzname()
+        tz = o.tzinfo.name  # type: ignore
 
         return {TIMESTAMP: o.timestamp(), TIMEZONE: tz}, qn, __version__, True
 

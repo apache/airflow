@@ -31,7 +31,6 @@ from airflow.serialization.serde import DATA, deserialize, serialize
 class TestSerializers:
     def test_datetime(self):
         i = datetime.datetime(2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.tz.UTC)
-
         s = serialize(i)
         d = deserialize(s)
         assert i.timestamp() == d.timestamp()
@@ -50,6 +49,18 @@ class TestSerializers:
         s = serialize(i)
         d = deserialize(s)
         assert i == d
+
+        i = datetime.datetime(
+            2022, 7, 10, 22, 10, 43, microsecond=0, tzinfo=pendulum.timezone("America/New_York")
+        )
+        s = serialize(i)
+        d = deserialize(s)
+        assert i.timestamp() == d.timestamp()
+
+        i = DateTime(2022, 7, 10, tzinfo=pendulum.timezone("America/New_York"))
+        s = serialize(i)
+        d = deserialize(s)
+        assert i.timestamp() == d.timestamp()
 
     @pytest.mark.parametrize(
         "expr, expected",
