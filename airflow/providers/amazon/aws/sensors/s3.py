@@ -31,7 +31,7 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
@@ -179,7 +179,7 @@ class S3KeySensor(BaseSensorOperator):
             raise AirflowException(event["message"])
         return None
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> S3Hook:
         """Create and return an S3Hook."""
         return self.hook

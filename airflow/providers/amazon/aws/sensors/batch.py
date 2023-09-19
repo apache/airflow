@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -124,7 +124,7 @@ class BatchSensor(BaseSensorOperator):
         job_id = event["job_id"]
         self.log.info("Batch Job %s complete", job_id)
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> BatchClientHook:
         """Create and return a BatchClientHook."""
         return self.hook
