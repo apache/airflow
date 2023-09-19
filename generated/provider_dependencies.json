@@ -732,6 +732,7 @@
   "papermill": {
     "deps": [
       "apache-airflow>=2.5.0",
+      "ipykernel",
       "papermill[all]>=1.2.1",
       "scrapbook[all]"
     ],
