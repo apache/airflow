@@ -260,7 +260,8 @@ class ExternalTaskSensor(BaseSensorOperator):
                     allowed_states=self.allowed_states,
                     skipped_states=self.skipped_states,
                     failed_states=self.failed_states,
-                    task_id=self.task_id
+                    task_id=self.task_id,
+                    poll_interval=self.poll_interval
                 ),
                 method_name="execute_complete"
             )
