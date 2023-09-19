@@ -93,6 +93,10 @@ export const BaseNode = ({
     [, operatorTextColor] = labelStyle.split(":");
   }
 
+  const nodeBGColor = instance?.state && stateColors[instance.state]
+    ? `${stateColors[instance.state]}.400`
+    : "gray.400"
+
   return (
     <Tooltip
       label={
@@ -107,8 +111,8 @@ export const BaseNode = ({
     >
       <Box
         borderRadius={5}
-        borderWidth={1}
-        borderColor={isSelected ? "blue.400" : "gray.400"}
+        borderWidth={1.5}
+        borderColor={isSelected ? "blue.400" : nodeBGColor}
         bg={isSelected ? "blue.50" : bg}
         height={`${height}px`}
         width={`${width}px`}
@@ -150,7 +154,7 @@ export const BaseNode = ({
             {!!instance && instance.state && (
               <Flex alignItems="center">
                 <SimpleStatus state={instance.state} />
-                <Text ml={2} color="gray.500" fontSize="md">
+                <Text ml={2} color="gray.500" fontSize="lg">
                   {instance.state}
                 </Text>
               </Flex>
