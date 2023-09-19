@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 
 from deprecated import deprecated
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -62,7 +62,7 @@ class DmsTaskBaseSensor(BaseSensorOperator):
         self.target_statuses: Iterable[str] = target_statuses or []
         self.termination_statuses: Iterable[str] = termination_statuses or []
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> DmsHook:
         """Get DmsHook."""
         return self.hook
