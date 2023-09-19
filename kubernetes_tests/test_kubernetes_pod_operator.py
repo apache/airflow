@@ -22,7 +22,6 @@ import os
 import shutil
 import sys
 from copy import copy
-from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 from uuid import uuid4
@@ -149,9 +148,8 @@ class TestKubernetesPodOperatorSystem:
             return None
         return ",".join([f"{key}={value}" for key, value in enumerate(self.labels)])
 
-    def test_do_xcom_push_defaults_false(self, kubeconfig_path, mock_get_connection):
-        with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
-            new_config_path = f.name
+    def test_do_xcom_push_defaults_false(self, kubeconfig_path, mock_get_connection, tmp_path):
+        new_config_path = tmp_path / "kube_config.cfg"
         shutil.copy(kubeconfig_path, new_config_path)
         k = KubernetesPodOperator(
             namespace="default",
@@ -162,13 +160,12 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            config_file=new_config_path,
+            config_file=os.fspath(new_config_path),
         )
         assert not k.do_xcom_push
 
-    def test_config_path_move(self, kubeconfig_path, mock_get_connection):
-        with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
-            new_config_path = f.name
+    def test_config_path_move(self, kubeconfig_path, mock_get_connection, tmp_path):
+        new_config_path = tmp_path / "kube_config.cfg"
         shutil.copy(kubeconfig_path, new_config_path)
 
         k = KubernetesPodOperator(
@@ -181,7 +178,7 @@ class TestKubernetesPodOperatorSystem:
             in_cluster=False,
             do_xcom_push=False,
             on_finish_action=OnFinishAction.KEEP_POD,
-            config_file=new_config_path,
+            config_file=os.fspath(new_config_path),
         )
         context = create_context(k)
         k.execute(context)
