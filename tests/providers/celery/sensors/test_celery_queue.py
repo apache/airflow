@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.celery.sensors.celery_queue import CeleryQueueSensor
 
 
@@ -58,7 +58,7 @@ class TestCeleryQueueSensor:
         assert not test_sensor.poke(None)
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, KeyError), (True, AirflowSkipException))
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     @patch("celery.app.control.Inspect")
     def test_poke_fail_with_exception(self, mock_inspect, soft_fail, expected_exception):
