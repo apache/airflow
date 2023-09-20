@@ -98,11 +98,10 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             )
             state = job.status.state
             self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
-            if state in (JobStatus.State.ERROR, JobStatus.State.DONE, JobStatus.State.CANCELLED):
-                if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED):
-                    break
-                elif state == JobStatus.State.ERROR:
-                    raise AirflowException(f"Dataproc job execution failed {self.job_id}")
+            if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED):
+                break
+            elif state == JobStatus.State.ERROR:
+                raise AirflowException(f"Dataproc job execution failed {self.job_id}")
             await asyncio.sleep(self.polling_interval_seconds)
         yield TriggerEvent({"job_id": self.job_id, "job_state": state})
 
@@ -316,21 +315,17 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                 operation = await hook.get_operation(region=self.region, operation_name=self.name)
                 if operation.done:
                     if operation.error.message:
-                        yield TriggerEvent(
-                            {
-                                "operation_name": operation.name,
-                                "operation_done": operation.done,
-                                "status": "error",
-                                "message": operation.error.message,
-                            }
-                        )
-                        return
+                        status = "error"
+                        message = operation.error.message
+                    else:
+                        status = "success"
+                        message = "Operation is successfully ended."
                     yield TriggerEvent(
                         {
                             "operation_name": operation.name,
                             "operation_done": operation.done,
-                            "status": "success",
-                            "message": "Operation is successfully ended.",
+                            "status": status,
+                            "message": message,
                         }
                     )
                     return
