@@ -19,7 +19,7 @@ from __future__ import annotations
 providers_prefix = "apache-airflow-providers-"
 
 
-def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
+def get_provider_name_from_short_hand(short_form_providers: tuple[str]) -> list[str]:
     providers = []
     for short_form_provider in short_form_providers:
         if short_form_provider == "providers-index":
@@ -29,4 +29,4 @@ def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
         short_form_provider.split(".")
         parts = "-".join(short_form_provider.split("."))
         providers.append(providers_prefix + parts)
-    return tuple(providers)
+    return providers
