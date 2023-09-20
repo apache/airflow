@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.sensors.dataproc_metastore import MetastoreHivePartitionSensor
 
 DATAPROC_METASTORE_SENSOR_PATH = "airflow.providers.google.cloud.sensors.dataproc_metastore.{}"
