@@ -283,7 +283,7 @@ class TestCloudDataFusionStartPipelineOperator:
         mock_hook.return_value.wait_for_pipeline_state.assert_not_called()
 
 
-class TestCloudDataFusionStartPipelineOperatorAsynch:
+class TestCloudDataFusionStartPipelineOperatorAsync:
     @mock.patch(HOOK_STR)
     def test_asynch_execute_should_execute_successfully(self, mock_hook):
         """
