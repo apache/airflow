@@ -822,9 +822,12 @@ class KubernetesPodOperator(BaseOperator):
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
                 elif should_delete_pod and istio_enabled:
-                    self.log.info("Deleting istio-proxy sidecar inside %s: ", pod.metadata.name)
-                    self.kill_istio_sidecar(pod)
-                    self.pod_manager.delete_pod(pod)
+                    if container_is_running(pod, self.ISTIO_CONTAINER_NAME):
+                        self.log.info("Deleting istio-proxy sidecar inside %s: ", pod.metadata.name)
+                        self.kill_istio_sidecar(pod)
+                        self.pod_manager.delete_pod(pod)
+                    else:
+                        self.pod_manager.delete_pod(pod)
                 else:
                     self.log.info("Skipping deleting pod: %s", pod.metadata.name)
 
