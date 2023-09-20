@@ -93,9 +93,10 @@ export const BaseNode = ({
     [, operatorTextColor] = labelStyle.split(":");
   }
 
-  const nodeBGColor = instance?.state && stateColors[instance.state]
-    ? `${stateColors[instance.state]}.400`
-    : "gray.400"
+  const nodeBGColor =
+    instance?.state && stateColors[instance.state]
+      ? `${stateColors[instance.state]}.400`
+      : "gray.400";
 
   return (
     <Tooltip
