@@ -140,6 +140,9 @@ class DagRun(Base, LoggingMixin):
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    # Keeps track of the number of times the dagrun had been cleared.
+    # This number is incremented only when the DagRun is re-Queued,
+    # when the DagRun is cleared.
     clear_number = Column(Integer, default=0, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
