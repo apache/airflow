@@ -62,6 +62,55 @@ class TestSerializers:
         d = deserialize(s)
         assert i.timestamp() == d.timestamp()
 
+    def test_deserialize_datetime_v1(self):
+
+        s = {
+            "__classname__": "pendulum.datetime.DateTime",
+            "__version__": 1,
+            "__data__": {"timestamp": 1657505443.0, "tz": "UTC"},
+        }
+        d = deserialize(s)
+        assert d.timestamp() == 1657505443.0
+        assert d.tzinfo.name == "UTC"
+
+        s["__data__"]["tz"] = "Europe/Paris"
+        d = deserialize(s)
+        assert d.timestamp() == 1657505443.0
+        assert d.tzinfo.name == "Europe/Paris"
+
+        s["__data__"]["tz"] = "America/New_York"
+        d = deserialize(s)
+        assert d.timestamp() == 1657505443.0
+        assert d.tzinfo.name == "America/New_York"
+
+        s["__data__"]["tz"] = "EDT"
+        d = deserialize(s)
+        assert d.timestamp() == 1657505443.0
+        assert d.tzinfo.name == "-04:00"
+        # assert that it's serializable with the new format
+        assert deserialize(serialize(d)) == d
+
+        s["__data__"]["tz"] = "CDT"
+        d = deserialize(s)
+        assert d.timestamp() == 1657505443.0
+        assert d.tzinfo.name == "-05:00"
+        # assert that it's serializable with the new format
+        assert deserialize(serialize(d)) == d
+
+        s["__data__"]["tz"] = "MDT"
+        d = deserialize(s)
+        assert d.timestamp() == 1657505443.0
+        assert d.tzinfo.name == "-06:00"
+        # assert that it's serializable with the new format
+        assert deserialize(serialize(d)) == d
+
+        s["__data__"]["tz"] = "PDT"
+        d = deserialize(s)
+        assert d.timestamp() == 1657505443.0
+        assert d.tzinfo.name == "-07:00"
+        # assert that it's serializable with the new format
+        assert deserialize(serialize(d)) == d
+
     @pytest.mark.parametrize(
         "expr, expected",
         [("1", "1"), ("52e4", "520000"), ("2e0", "2"), ("12e-2", "0.12"), ("12.34", "12.34")],
