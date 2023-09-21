@@ -93,7 +93,7 @@ export const BaseNode = ({
     [, operatorTextColor] = labelStyle.split(":");
   }
 
-  const nodeBGColor =
+  const nodeBorderColor =
     instance?.state && stateColors[instance.state]
       ? `${stateColors[instance.state]}.400`
       : "gray.400";
