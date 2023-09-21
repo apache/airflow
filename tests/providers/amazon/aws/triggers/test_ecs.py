@@ -23,7 +23,7 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.ecs import (
