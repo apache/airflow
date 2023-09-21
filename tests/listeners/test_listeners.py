@@ -21,7 +21,7 @@ import os
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, run_job
 from airflow.listeners.listener import get_listener_manager
 from airflow.operators.bash import BashOperator

@@ -21,7 +21,7 @@ from __future__ import annotations
 from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.triggers.dataplex import DataplexDataQualityJobTrigger
 
 if TYPE_CHECKING:
