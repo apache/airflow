@@ -40,9 +40,9 @@ from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
-from airflow import AirflowException
 from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
+from airflow.exceptions import AirflowException
 from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
 
