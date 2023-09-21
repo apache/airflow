@@ -5657,6 +5657,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "list": "read",
         "delete": "delete",
         "action_clear": "edit",
+        "action_clear_downstream": "edit",
         "action_muldelete": "delete",
         "action_set_running": "edit",
         "action_set_failed": "edit",
@@ -5821,6 +5822,57 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
             flash(f"{len(task_instances)} task instances have been cleared")
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', "error")
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action(
+        "clear_downstream",
+        lazy_gettext("Clear (including downstream tasks)"),
+        lazy_gettext(
+            "Are you sure you want to clear the state of the selected task"
+            " instance(s) and all their downstream dependencie(s), and set their dagruns to the QUEUED state?"
+        ),
+        single=False,
+    )
+    @action_has_dag_edit_access
+    @provide_session
+    @action_logging
+    def action_clear_downstream(self, task_instances, session: Session = NEW_SESSION):
+        try:
+            # Group TIs by dag id in order to call `get_dag` only once per dag
+            tis_grouped_by_dag_id = itertools.groupby(task_instances, lambda ti: ti.dag_id)
+
+            for dag_id, dag_tis in tis_grouped_by_dag_id:
+                dag = get_airflow_app().dag_bag.get_dag(dag_id)
+
+                tis_grouped_by_dag_run = itertools.groupby(dag_tis, lambda ti: ti.dag_run)
+
+                # Downstream tasks are determined per dag run
+                for dag_run, tis in tis_grouped_by_dag_run:
+                    task_ids_to_clear = [ti.task_id for ti in tis]
+
+                    partial_dag = dag.partial_subset(
+                        task_ids_or_regex=task_ids_to_clear, include_downstream=True, include_upstream=False
+                    )
+
+                    downstream_task_ids_to_clear = [
+                        task_id for task_id in partial_dag.task_dict if task_id not in task_ids_to_clear
+                    ]
+
+                    cleared_count = dag.clear(
+                        start_date=dag_run.execution_date,
+                        end_date=dag_run.execution_date,
+                        task_ids=task_ids_to_clear + downstream_task_ids_to_clear,
+                        include_subdags=False,
+                        include_parentdag=False,
+                        session=session,
+                    )
+
+            session.commit()
+            flash(f"{cleared_count} task instances have been cleared")
+        except Exception as e:
+            flash(f'Failed to clear task instances: "{e}"', "error")
+
         self.update_redirect()
         return redirect(self.get_redirect())
 
