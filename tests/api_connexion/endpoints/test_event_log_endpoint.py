@@ -268,7 +268,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
             "after": {"TEST_EVENT_2"},
         }.items():
             response = self.client.get(
-                f"/api/v1/eventLogs?{when_attr}=2020-06-10T20%3A00%3A01%2B00%3A00",  # self.default_time + 1 second
+                f"/api/v1/eventLogs?{when_attr}=2020-06-10T20%3A00%3A01%2B00%3A00",  # self.default_time + 1s
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
