@@ -60,8 +60,8 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodManager,
     PodOperatorHookProtocol,
     PodPhase,
-    container_is_succeeded,
     container_is_running,
+    container_is_succeeded,
     get_container_termination_message,
 )
 from airflow.settings import pod_mutation_hook
