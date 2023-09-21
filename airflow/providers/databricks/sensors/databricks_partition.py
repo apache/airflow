@@ -182,6 +182,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         partition_columns = self._sql_sensor(f"DESCRIBE DETAIL {table_name}")[0][7]
         self.log.debug("Partition columns: %s", partition_columns)
         if len(partition_columns) < 1:
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Table {table_name} does not have partitions"
             if self.soft_fail:
                 raise AirflowSkipException(message)
@@ -206,12 +207,14 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
                 else:
+                    # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
                     message = f"Column {partition_col} not part of table partitions: {partition_columns}"
                     if self.soft_fail:
                         raise AirflowSkipException(message)
                     raise AirflowException(message)
         else:
             # Raises exception if the table does not have any partitions.
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = "No partitions specified to check with the sensor."
             if self.soft_fail:
                 raise AirflowSkipException(message)
@@ -228,6 +231,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         if partition_result:
             return True
         else:
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Specified partition(s): {self.partitions} were not found."
             if self.soft_fail:
                 raise AirflowSkipException(message)
