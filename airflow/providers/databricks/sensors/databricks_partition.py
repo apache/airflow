@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from databricks.sql.utils import ParamEscaper
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
@@ -182,7 +182,11 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         partition_columns = self._sql_sensor(f"DESCRIBE DETAIL {table_name}")[0][7]
         self.log.debug("Partition columns: %s", partition_columns)
         if len(partition_columns) < 1:
-            raise AirflowException(f"Table {table_name} does not have partitions")
+            message = f"Table {table_name} does not have partitions"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
+
         formatted_opts = ""
         if opts:
             output_list = []
@@ -202,12 +206,16 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
                 else:
-                    raise AirflowException(
-                        f"Column {partition_col} not part of table partitions: {partition_columns}"
-                    )
+                    message = f"Column {partition_col} not part of table partitions: {partition_columns}"
+                    if self.soft_fail:
+                        raise AirflowSkipException(message)
+                    raise AirflowException(message)
         else:
             # Raises exception if the table does not have any partitions.
-            raise AirflowException("No partitions specified to check with the sensor.")
+            message = "No partitions specified to check with the sensor."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         formatted_opts = f"{prefix} {joiner_val.join(output_list)} {suffix}"
         self.log.debug("Formatted options: %s", formatted_opts)
 
@@ -220,4 +228,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         if partition_result:
             return True
         else:
-            raise AirflowException(f"Specified partition(s): {self.partitions} were not found.")
+            message = f"Specified partition(s): {self.partitions} were not found."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
