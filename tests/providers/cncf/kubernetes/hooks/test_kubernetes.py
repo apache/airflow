@@ -29,8 +29,7 @@ import pytest
 from kubernetes.config import ConfigException
 from sqlalchemy.orm import make_transient
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
