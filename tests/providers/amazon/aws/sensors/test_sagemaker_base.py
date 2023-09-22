@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-
 import pytest
 
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -115,9 +113,7 @@ class TestSagemakerBaseSensor:
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
-    @mock.patch("airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor.state_from_response")
-    @mock.patch("airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor.get_sagemaker_response")
-    def test_fail_poke(self, get_sagemaker_response, state_from_response, soft_fail, expected_exception):
+    def test_fail_poke(self, soft_fail, expected_exception):
         resource_type = "job"
 
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
