@@ -35,9 +35,9 @@ class LifeSciencesRunPipelineOperator(GoogleCloudBaseOperator):
     Runs a Life Sciences Pipeline.
 
     .. warning::
-    This operator is deprecated. Consider using Google Cloud Batch Operators instead.
-    The Life Sciences API (beta) will be discontinued on July 8, 2025 in favor
-    of Google Cloud Batch.
+        This operator is deprecated. Consider using Google Cloud Batch Operators instead.
+        The Life Sciences API (beta) will be discontinued on July 8, 2025 in favor
+        of Google Cloud Batch.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
