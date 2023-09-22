@@ -17,8 +17,8 @@
 """Various utils to prepare docker and docker compose commands."""
 from __future__ import annotations
 
-import json
 import copy
+import json
 import os
 import random
 import re
@@ -815,7 +815,11 @@ def autodetect_docker_context():
     if result.returncode != 0:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    known_contexts = {info["Name"]: info for info in json.loads(result.stdout)}
+    context_json = json.loads(result.stdout)
+    if isinstance(context_json, dict):
+        # In case there is one context it is returned as dict not array of dicts ¯\_(ツ)_/¯
+        context_json = [context_json]
+    known_contexts = {info["Name"]: info for info in context_json}
     if not known_contexts:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
