@@ -1,5 +1,4 @@
-#!/bin/sh
-
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,11 +16,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-set -eu
+"""Add owner_display_name to (Audit) Log table
 
-psql -v ON_ERROR_STOP=1 --username "${POSTGRES_USER}" > /dev/null <<-EOSQL
-  CREATE USER ${MARQUEZ_USER};
-  ALTER USER ${MARQUEZ_USER} WITH PASSWORD '${MARQUEZ_PASSWORD}';
-  CREATE DATABASE ${MARQUEZ_DB};
-  GRANT ALL PRIVILEGES ON DATABASE ${MARQUEZ_DB} TO ${MARQUEZ_USER};
-EOSQL
+Revision ID: f7bf2a57d0a6
+Revises: 375a816bbbf4
+Create Date: 2023-09-12 17:21:45.149658
+
+"""
+
+import sqlalchemy as sa
+from alembic import op
+
+
+# revision identifiers, used by Alembic.
+revision = "f7bf2a57d0a6"
+down_revision = "375a816bbbf4"
+branch_labels = None
+depends_on = None
+airflow_version = "2.8.0"
+
+TABLE_NAME = "log"
+
+
+def upgrade():
+    """Adds owner_display_name column to log"""
+    with op.batch_alter_table(TABLE_NAME) as batch_op:
+        batch_op.add_column(sa.Column("owner_display_name", sa.String(500)))
+
+
+def downgrade():
+    """Removes owner_display_name column from log"""
+    with op.batch_alter_table(TABLE_NAME) as batch_op:
+        batch_op.drop_column("owner_display_name")

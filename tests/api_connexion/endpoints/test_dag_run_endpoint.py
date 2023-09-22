@@ -958,12 +958,12 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
                 dag_id="TEST_DAG_ID",
                 run_id=f"TEST_START_EXEC_DAY_1{i}",
                 run_type=DagRunType.MANUAL,
-                execution_date=timezone.parse(dates[i]),
-                start_date=timezone.parse(dates[i]),
+                execution_date=timezone.parse(date),
+                start_date=timezone.parse(date),
                 external_trigger=True,
                 state="success",
             )
-            for i in range(len(dates))
+            for i, date in enumerate(dates)
         ]
         with create_session() as session:
             session.add_all(dag_runs)

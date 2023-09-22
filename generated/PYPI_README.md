@@ -55,9 +55,11 @@ Apache Airflow is tested with:
 | PostgreSQL  | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15     |
 | MySQL       | 5.7, 8.0, 8.1                | 5.7, 8.0               |
 | SQLite      | 3.15.0+                      | 3.15.0+                |
-| MSSQL       | 2017(\*), 2019(\*)           | 2017(\*), 2019(\*)     |
+| MSSQL       | 2017(\*\*), 2019(\*\*)       | 2017(\*), 2019(\*)     |
 
 \* Experimental
+
+\*\* **Discontinued soon**, not recommended for the new installation
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).
