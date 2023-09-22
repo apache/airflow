@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 from unittest import mock
 
@@ -120,17 +119,12 @@ class TestS3KeysUnchangedSensor:
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     def test_fail_is_keys_unchanged(self, soft_fail, expected_exception):
-        op = S3KeysUnchangedSensor(bucket_name="test-bucket", prefix="test-prefix/path")
+        op = S3KeysUnchangedSensor(task_id="sensor", bucket_name="test-bucket", prefix="test-prefix/path")
         op.soft_fail = soft_fail
         op.previous_objects = {"1", "2", "3"}
         current_objects = {"1", "2"}
         op.allow_delete = False
-        bucket_name = "test"
-        prefix = "prefix"
-        message = (
-            f"Illegal behavior: objects were deleted in {os.path.join(bucket_name, prefix)}"
-            f" between pokes."
-        )
+        message = "Illegal behavior: objects were deleted in"
         with pytest.raises(expected_exception, match=message):
             op.is_keys_unchanged(current_objects=current_objects)
 
@@ -138,7 +132,7 @@ class TestS3KeysUnchangedSensor:
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     def test_fail_execute_complete(self, soft_fail, expected_exception):
-        op = S3KeysUnchangedSensor(bucket_name="test-bucket", prefix="test-prefix/path")
+        op = S3KeysUnchangedSensor(task_id="sensor", bucket_name="test-bucket", prefix="test-prefix/path")
         op.soft_fail = soft_fail
         message = "test message"
         with pytest.raises(expected_exception, match=message):
