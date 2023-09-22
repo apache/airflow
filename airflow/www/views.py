@@ -5884,7 +5884,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
                 task_instances=task_instances, session=session, clear_downstream=False
             )
             session.commit()
-            flash(f"{count} task instances have been cleared")
+            flash(f"{count} task instance{'s have' if count > 1 else ' has'} been cleared")
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', "error")
 
@@ -5911,8 +5911,8 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
             )
             session.commit()
             flash(
-                f"Cleared {selected_ti_count} selected task instances + "
-                f"{downstream_ti_count} downstream dependencies"
+                f"Cleared {selected_ti_count} selected task instance{'s' if selected_ti_count > 1 else ''} "
+                f"and {downstream_ti_count} downstream dependencies"
             )
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', "error")
