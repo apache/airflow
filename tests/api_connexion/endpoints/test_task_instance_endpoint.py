@@ -210,7 +210,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         # This prevents issue when users upgrade to 2.0+
         # from 1.10.x
         # https://github.com/apache/airflow/issues/14421
-        session.query(TaskInstance).update({TaskInstance.operator: None}, synchronize_session="fetch")
+        session.query(TaskInstance).update(
+            {TaskInstance.operator: None}, synchronize_session="fetch")
         session.commit()
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
@@ -312,7 +313,8 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         }
 
     def test_should_respond_200_with_task_state_in_removed(self, session):
-        self.create_task_instances(session, task_instances=[{"state": State.REMOVED}], update_extras=True)
+        self.create_task_instances(session, task_instances=[
+                                   {"state": State.REMOVED}], update_extras=True)
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
             environ_overrides={"REMOTE_USER": "test"},
@@ -667,7 +669,8 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         )
 
         assert response.status_code == 200
-        count = session.query(TaskInstance).filter(TaskInstance.dag_id == "example_python_operator").count()
+        count = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == "example_python_operator").count()
         assert count == response.json["total_entries"]
         assert count == len(response.json["task_instances"])
 
@@ -1760,6 +1763,27 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
+                "new_state": NEW_STATE,
+            },
+        )
+
+        response2 = self.client.get(
+            self.ENDPOINT_URL,
+            environ_overrides={"REMOTE_USER": "test"},
+            json={},
+        )
+        assert response2.status_code == 200
+        assert response2.json["state"] == NEW_STATE
+
+    def test_should_update_task_instance_state_default_dry_run_to_false(self, session):
+        self.create_task_instances(session)
+
+        NEW_STATE = "failed"
+
+        self.client.patch(
+            self.ENDPOINT_URL,
+            environ_overrides={"REMOTE_USER": "test"},
+            json={
                 "new_state": NEW_STATE,
             },
         )

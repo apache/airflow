@@ -180,7 +180,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 class SetSingleTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of updating state of a single task instance."""
 
-    dry_run = fields.Boolean(dump_default=True)
+    dry_run = fields.Boolean(dump_default=True, load_default=False)
     new_state = TaskInstanceStateField(
         required=True,
         validate=validate.OneOf(
