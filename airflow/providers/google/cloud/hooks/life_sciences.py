@@ -36,10 +36,10 @@ class LifeSciencesHook(GoogleBaseHook):
     """
     Hook for the Google Cloud Life Sciences APIs.
 
-     .. warning::
-    This hook is deprecated. Consider using Google Cloud Batch Operators' hook instead.
-    The Life Sciences API (beta) will be discontinued on July 8, 2025 in favor
-    of Google Cloud Batch.
+    .. warning::
+        This hook is deprecated. Consider using Google Cloud Batch Operators' hook instead.
+        The Life Sciences API (beta) will be discontinued on July 8, 2025 in favor
+        of Google Cloud Batch.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
