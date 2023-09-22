@@ -902,7 +902,7 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
     )
     assert resp.status_code == 200
 
-    # Assert that task_2 of dag run 1 is cleared, but task_3 is left untouched
+    # Assert that task_1 and task_2 of dag run 1 are cleared, but task_3 is left untouched
     run1_ti1.refresh_from_db(session=session)
     run1_ti2 = run1.get_task_instance(task_id="task_2")
     run1_ti3 = run1.get_task_instance(task_id="task_3")

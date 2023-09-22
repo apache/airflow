@@ -5880,7 +5880,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         lazy_gettext("Clear (including downstream tasks)"),
         lazy_gettext(
             "Are you sure you want to clear the state of the selected task"
-            " instance(s) and all their downstream dependencie(s), and set their dagruns to the QUEUED state?"
+            " instance(s) and all their downstream dependencies, and set their dagruns to the QUEUED state?"
         ),
         single=False,
     )
