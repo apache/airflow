@@ -31,7 +31,16 @@ from bisect import insort_left
 from collections import defaultdict
 from functools import cached_property, wraps
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterator, Mapping, MutableMapping, Sequence
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Collection,
+    Iterator,
+    Mapping,
+    MutableMapping,
+    Sequence,
+)
 from urllib.parse import unquote, urljoin, urlsplit
 
 import configupdater
@@ -5796,16 +5805,19 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
 
     def _clear_task_instances(
         self, task_instances: list[TaskInstance], session: Session, clear_downstream: bool = False
-    ) -> int:
+    ) -> tuple[int, int]:
         """
-        Clears task instance state, optionally including downstream dependencies.
+        Clears task instances, optionally including their downstream dependencies.
 
         :param task_instances: list of TIs to clear
         :param clear_downstream: should downstream task instances be cleared as well?
 
-        :return: the number of cleared task instances
+        :return: a tuple with:
+            - count of cleared task instances actually selected by the user
+            - count of downstream task instances that were additionally cleared
         """
         cleared_tis_count = 0
+        cleared_downstream_tis_count = 0
 
         # Group TIs by dag id in order to call `get_dag` only once per dag
         tis_grouped_by_dag_id = itertools.groupby(task_instances, lambda ti: ti.dag_id)
@@ -5813,41 +5825,45 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         for dag_id, dag_tis in tis_grouped_by_dag_id:
             dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
-            # General case: clear UI selected TIs
             tis_to_clear = list(dag_tis)
+            downstream_tis_to_clear = []
 
-            models.clear_task_instances(tis=tis_to_clear, session=session, dag=dag)
+            if clear_downstream:
+                tis_to_clear_grouped_by_dag_run = itertools.groupby(tis_to_clear, lambda ti: ti.dag_run)
+
+                for dag_run, dag_run_tis in tis_to_clear_grouped_by_dag_run:
+                    # Determine tasks that are downstream of the cleared TIs and fetch associated TIs
+                    # This has to be run for each dag run because the user may clear different TIs across runs
+                    task_ids_to_clear = [ti.task_id for ti in dag_run_tis]
+
+                    partial_dag = dag.partial_subset(
+                        task_ids_or_regex=task_ids_to_clear, include_downstream=True, include_upstream=False
+                    )
+
+                    downstream_task_ids_to_clear = [
+                        task_id for task_id in partial_dag.task_dict if task_id not in task_ids_to_clear
+                    ]
+
+                    # dag.clear returns TIs when in dry run mode
+                    downstream_tis_to_clear.extend(
+                        dag.clear(
+                            start_date=dag_run.execution_date,
+                            end_date=dag_run.execution_date,
+                            task_ids=downstream_task_ids_to_clear,
+                            include_subdags=False,
+                            include_parentdag=False,
+                            session=session,
+                            dry_run=True,
+                        )
+                    )
+
+            # Once all TIs are fetched, perform the actual clearing
+            models.clear_task_instances(tis=tis_to_clear + downstream_tis_to_clear, session=session, dag=dag)
+
             cleared_tis_count += len(tis_to_clear)
+            cleared_downstream_tis_count += len(downstream_tis_to_clear)
 
-            if not clear_downstream:
-                continue
-
-            tis_to_clear_grouped_by_dag_run = itertools.groupby(tis_to_clear, lambda ti: ti.dag_run)
-
-            for dag_run, dag_run_tis in tis_to_clear_grouped_by_dag_run:
-                # Determine tasks that are downstream of the cleared TIs and fetch associated TIs
-                # This has to be run per dag run because the user may clear different task instances
-                # depending on the run
-                task_ids_to_clear = [ti.task_id for ti in dag_run_tis]
-
-                partial_dag = dag.partial_subset(
-                    task_ids_or_regex=task_ids_to_clear, include_downstream=True, include_upstream=False
-                )
-
-                downstream_task_ids_to_clear = [
-                    task_id for task_id in partial_dag.task_dict if task_id not in task_ids_to_clear
-                ]
-
-                cleared_tis_count += dag.clear(
-                    start_date=dag_run.execution_date,
-                    end_date=dag_run.execution_date,
-                    task_ids=downstream_task_ids_to_clear,
-                    include_subdags=False,
-                    include_parentdag=False,
-                    session=session,
-                )
-
-        return cleared_tis_count
+        return cleared_tis_count, cleared_downstream_tis_count
 
     @action(
         "clear",
@@ -5864,7 +5880,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     def action_clear(self, task_instances, session: Session = NEW_SESSION):
         """Clears an arbitrary number of task instances."""
         try:
-            count = self._clear_task_instances(
+            count, _ = self._clear_task_instances(
                 task_instances=task_instances, session=session, clear_downstream=False
             )
             session.commit()
@@ -5890,11 +5906,14 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     def action_clear_downstream(self, task_instances, session: Session = NEW_SESSION):
         """Clears an arbitrary number of task instances, including downstream dependencies."""
         try:
-            count = self._clear_task_instances(
+            selected_ti_count, downstream_ti_count = self._clear_task_instances(
                 task_instances=task_instances, session=session, clear_downstream=True
             )
             session.commit()
-            flash(f"{count} task instances have been cleared")
+            flash(
+                f"Cleared {selected_ti_count} selected task instances + "
+                f"{downstream_ti_count} downstream dependencies"
+            )
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', "error")
 
