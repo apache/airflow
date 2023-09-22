@@ -41,7 +41,7 @@ def _require_fab(func: Callable) -> Callable:
 
         auth_mgr = get_auth_manager()
         if not isinstance(auth_mgr, FabAuthManager):
-            raise BadRequest(detail="This endpoint is only available when using the default auth manager.")
+            raise BadRequest(detail="This endpoint is only available when using the default auth manager FabAuthManager.")
         else:
             warnings.warn(
                 "This API endpoint is deprecated. "
