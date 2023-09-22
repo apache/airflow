@@ -82,7 +82,7 @@ class TestQuickSightSensor:
         self.sensor.soft_fail = soft_fail
         error = "expected error"
         message = f"The QuickSight Ingestion failed. Error info: {error}"
-        with (pytest.raises(expected_exception, match=message),):
+        with pytest.raises(expected_exception, match=message):
             get_status.return_value = "FAILED"
             get_error_info.return_value = message
             self.sensor.poke(context={})
