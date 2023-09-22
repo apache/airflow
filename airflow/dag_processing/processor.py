@@ -28,7 +28,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Iterable, Iterator
 
 from setproctitle import setproctitle
-from sqlalchemy import delete, exc, func, or_, select
+from sqlalchemy import delete, func, or_, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -44,7 +44,8 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
@@ -736,25 +737,28 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
         dag = dagbag.dags[request.dag_id]
-        dag_run = dag.get_dagrun(run_id=request.run_id, session=session)
-        dag.handle_callback(
-            dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
-        )
+        callbacks, context = DAG.fetch_callback(
+            dag=dag,
+            dag_run_id=request.run_id,
+            success=not request.is_failure_callback,
+            reason=request.msg,
+            session=session,
+        ) or (None, None)
+
+        if callbacks and context:
+            DAG.execute_callback(callbacks, context, dag.dag_id)
 
     def _execute_task_callbacks(self, dagbag: DagBag | None, request: TaskCallbackRequest, session: Session):
         if not request.is_failure_callback:
             return
 
         simple_ti = request.simple_task_instance
-        ti: TI | None = (
-            session.query(TI)
-            .filter_by(
-                dag_id=simple_ti.dag_id,
-                run_id=simple_ti.run_id,
-                task_id=simple_ti.task_id,
-                map_index=simple_ti.map_index,
-            )
-            .one_or_none()
+        ti = TaskInstance.get_task_instance(
+            dag_id=simple_ti.dag_id,
+            run_id=simple_ti.run_id,
+            task_id=simple_ti.task_id,
+            map_index=simple_ti.map_index,
+            session=session,
         )
         if not ti:
             return
@@ -770,14 +774,10 @@ class DagFileProcessor(LoggingMixin):
             # `handle_failure` so that the state of the TI gets progressed.
             #
             # Since handle_failure _really_ wants a task, we do our best effort to give it one
-            from airflow.models.serialized_dag import SerializedDagModel
+            task = SerializedDagModel.get_serialized_dag(
+                dag_id=simple_ti.dag_id, task_id=simple_ti.task_id, session=session
+            )
 
-            try:
-                model = session.get(SerializedDagModel, simple_ti.dag_id)
-                if model:
-                    task = model.dag.get_task(simple_ti.task_id)
-            except (exc.NoResultFound, TaskNotFound):
-                pass
         if task:
             ti.refresh_from_task(task)
 
