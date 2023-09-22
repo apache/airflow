@@ -361,7 +361,8 @@ class PodManager(LoggingMixin):
         warnings.warn(
             "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead"
             "with option `follow=True`.",
-            AirflowProviderDeprecationWarning,
+            category=AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 

@@ -41,7 +41,6 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 if TYPE_CHECKING:
     from airflow.jobs.job import Job
-    from airflow.serialization.pydantic.job import JobPydantic
 
 
 @pytest.fixture()
@@ -336,7 +335,7 @@ class TestHelpers:
 class MockJobRunner(BaseJobRunner):
     job_type = "MockJob"
 
-    def __init__(self, job: Job | JobPydantic, func=None):
+    def __init__(self, job: Job, func=None):
         super().__init__(job)
         self.job = job
         self.job.job_type = self.job_type
