@@ -78,7 +78,7 @@ class FabAuthManager(BaseAuthManager):
         api = FlaskApi(
             specification=specification,
             resolver=_LazyResolver(),
-            base_path="/security/v1",
+            base_path="/auth/fab/v1",
             options={
                 "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
             },
