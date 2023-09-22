@@ -28,7 +28,7 @@ from airflow.providers.samba.transfers.gcs_to_samba import GCSToSambaOperator
 
 TASK_ID = "test-gcs-to-samba-operator"
 GCP_CONN_ID = "GCP_CONN_ID"
-SMB_CONN_ID = "SMB_CONN_ID"
+SAMBA_CONN_ID = "SAMBA_CONN_ID"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEST_BUCKET = "test-bucket"
 DESTINATION_SMB = "destination_path"
@@ -59,7 +59,7 @@ class TestGoogleCloudStorageToSambaOperator:
             keep_directory_structure=keep_directory_structure,
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
-            samba_conn_id=SMB_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute({})
@@ -67,7 +67,7 @@ class TestGoogleCloudStorageToSambaOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        samba_hook_mock.assert_called_once_with(SMB_CONN_ID)
+        samba_hook_mock.assert_called_once_with(SAMBA_CONN_ID)
 
         gcs_hook_mock.return_value.download.assert_called_with(
             bucket_name=TEST_BUCKET, object_name=source_object, filename=mock.ANY
@@ -106,7 +106,7 @@ class TestGoogleCloudStorageToSambaOperator:
             keep_directory_structure=keep_directory_structure,
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
-            samba_conn_id=SMB_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         task.execute(None)
@@ -114,7 +114,7 @@ class TestGoogleCloudStorageToSambaOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        samba_hook_mock.assert_called_once_with(SMB_CONN_ID)
+        samba_hook_mock.assert_called_once_with(SAMBA_CONN_ID)
 
         gcs_hook_mock.return_value.download.assert_called_with(
             bucket_name=TEST_BUCKET, object_name=source_object, filename=mock.ANY
@@ -197,7 +197,7 @@ class TestGoogleCloudStorageToSambaOperator:
             keep_directory_structure=keep_directory_structure,
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
-            samba_conn_id=SMB_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
         )
         operator.execute(None)
 
@@ -289,7 +289,7 @@ class TestGoogleCloudStorageToSambaOperator:
             keep_directory_structure=keep_directory_structure,
             move_object=True,
             gcp_conn_id=GCP_CONN_ID,
-            samba_conn_id=SMB_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
         )
         operator.execute(None)
 
@@ -322,7 +322,7 @@ class TestGoogleCloudStorageToSambaOperator:
             destination_path=DESTINATION_SMB,
             move_object=False,
             gcp_conn_id=GCP_CONN_ID,
-            samba_conn_id=SMB_CONN_ID,
+            samba_conn_id=SAMBA_CONN_ID,
         )
         with pytest.raises(AirflowException):
             operator.execute(None)
