@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections.abc
+import json
 import logging
 import os
 import smtplib
@@ -33,6 +34,7 @@ import re2
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException, RemovedInAirflow3Warning
+from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -128,6 +130,10 @@ def send_email_smtp(
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
     smtp_mail_from = conf.get("smtp", "SMTP_MAIL_FROM")
+    if conn_id is not None:
+        airflow_conn = BaseHook.get_connection(conn_id)
+        extra = json.loads(airflow_conn.extra)
+        smtp_mail_from = extra.get("from_email", smtp_mail_from)
 
     if smtp_mail_from is not None:
         mail_from = smtp_mail_from
@@ -245,11 +251,18 @@ def send_mime_email(
 
     if conn_id is not None:
         try:
-            from airflow.hooks.base import BaseHook
-
             airflow_conn = BaseHook.get_connection(conn_id)
             smtp_user = airflow_conn.login
             smtp_password = airflow_conn.password
+            smtp_host = airflow_conn.host
+            smtp_port = airflow_conn.port
+
+            extra = json.loads(airflow_conn.extra)
+
+            smtp_starttls = not extra.get("disable_tls", not smtp_starttls)
+            smtp_timeout = int(extra.get("timeout", smtp_timeout))
+            smtp_retry_limit = int(extra.get("retry_limit", smtp_retry_limit))
+            smtp_ssl = not extra.get("disable_ssl", not smtp_ssl)
         except AirflowException:
             pass
     if smtp_user is None or smtp_password is None:
@@ -271,17 +284,18 @@ def send_mime_email(
             try:
                 smtp_conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
             except smtplib.SMTPServerDisconnected:
-                if attempt == smtp_retry_limit:
-                    raise
-            else:
-                if smtp_starttls:
-                    smtp_conn.starttls()
-                if smtp_user and smtp_password:
-                    smtp_conn.login(smtp_user, smtp_password)
-                log.info("Sent an alert email to %s", e_to)
-                smtp_conn.sendmail(e_from, e_to, mime_msg.as_string())
-                smtp_conn.quit()
-                break
+                if attempt < smtp_retry_limit:
+                    continue
+                raise
+
+            if smtp_starttls:
+                smtp_conn.starttls()
+            if smtp_user and smtp_password:
+                smtp_conn.login(smtp_user, smtp_password)
+            log.info("Sent an alert email to %s", e_to)
+            smtp_conn.sendmail(e_from, e_to, mime_msg.as_string())
+            smtp_conn.quit()
+            break
 
 
 def get_email_address_list(addresses: str | Iterable[str]) -> list[str]:
