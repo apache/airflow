@@ -2118,7 +2118,7 @@ paths:
         Get a list of roles.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_roles
       tags: [Role]
       parameters:
@@ -2144,7 +2144,7 @@ paths:
         Create a new role.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_role
       tags: [Role]
       requestBody:
@@ -2178,7 +2178,7 @@ paths:
         Get a role.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_role
       tags: [Role]
       responses:
@@ -2202,7 +2202,7 @@ paths:
         Update a role.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_role
       tags: [Role]
       parameters:
@@ -2237,7 +2237,7 @@ paths:
         Delete a role.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_role
       tags: [Role]
       responses:
@@ -2260,7 +2260,7 @@ paths:
         Get a list of permissions.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_permissions
       tags: [Permission]
       parameters:
@@ -2286,7 +2286,7 @@ paths:
         Get a list of users.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_users
       tags: [User]
       parameters:
@@ -2312,7 +2312,7 @@ paths:
         Create a new user with unique username and email.
 
         *New in version 2.2.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_user
       tags: [User]
       requestBody:
@@ -2347,7 +2347,7 @@ paths:
         Get a user with a specific username.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_user
       tags: [User]
       responses:
@@ -2371,7 +2371,7 @@ paths:
         Update fields for a user.
 
         *New in version 2.2.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_user
       tags: [User]
       parameters:
@@ -2405,7 +2405,7 @@ paths:
         Delete a user with a specific username.
 
         *New in version 2.2.0*
-      x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_user
       tags: [User]
       responses:
