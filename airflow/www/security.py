@@ -64,6 +64,14 @@ else:
     # Fetch the security manager override from the auth manager
     SecurityManagerOverride = get_auth_manager().get_security_manager_override_class()
 
+EXISTING_ROLES = {
+    "Admin",
+    "Viewer",
+    "User",
+    "Op",
+    "Public",
+}
+
 
 class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMixin):
     """Custom security manager, which introduces a permission model adapted to Airflow."""
