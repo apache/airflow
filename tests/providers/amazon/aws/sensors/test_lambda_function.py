@@ -80,5 +80,8 @@ class TestLambdaFunctionStateSensor:
         )
         sensor.soft_fail = soft_fail
         message = "Lambda function state sensor failed because the Lambda is in a failed state"
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(expected_exception, match=message), mock.patch(
+            "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.conn"
+        ) as conn:
+            conn.get_function.return_value = {"Configuration": {"State": "Failed"}}
             sensor.poke(context={})
