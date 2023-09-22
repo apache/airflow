@@ -198,7 +198,8 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance | TaskInstancePydantic,
 
     :meta private:
     """
-    assert task_instance.dag_run is not None
+    if not task_instance.dag_run:
+        raise ValueError("``task_instance`` must have ``dag_run`` set")
     tis = task_instance.dag_run.get_task_instances(session=session)
     if TYPE_CHECKING:
         assert isinstance(task_instance.task.dag, DAG)
