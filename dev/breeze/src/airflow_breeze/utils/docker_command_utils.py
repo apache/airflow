@@ -143,6 +143,16 @@ def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False
     return extra_docker_flags
 
 
+def is_docker_rootless():
+    response = run_command(
+        ["docker", "info", "-f", "{{println .SecurityOptions}}"], capture_output=True, check=True, text=True
+    )
+    if "rootless" in response.stdout.strip():
+        get_console().print("[info]Docker is running in rootless mode.[/]\n")
+        return True
+    return False
+
+
 def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
     """
     Check if we have enough resources to run docker. This is done via running script embedded in our image.
@@ -569,6 +579,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "COLLECT_ONLY", "false")
     set_value_to_default_if_not_set(env, "DB_RESET", "false")
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
+    set_value_to_default_if_not_set(env, "DOCKER_IS_ROOTLESS", "false")
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
     set_value_to_default_if_not_set(env, "ENABLE_TEST_COVERAGE", "false")
     set_value_to_default_if_not_set(env, "HELM_TEST_PACKAGE", "")
@@ -704,6 +715,8 @@ def prepare_broker_url(params, env_variables):
 def perform_environment_checks():
     check_docker_is_running()
     check_docker_version()
+    if is_docker_rootless():
+        os.environ["DOCKER_IS_ROOTLESS"] = "true"
     check_docker_compose_version()
 
 
