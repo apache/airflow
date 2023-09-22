@@ -359,7 +359,12 @@ class BatchOperator(BaseOperator):
             else:
                 self.hook.wait_for_job(self.job_id)
 
-        awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
+        awslogs = []
+        try:
+            awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
+        except AirflowException as ae:
+            self.log.warning("cannot determine where to find aws logs for this batch job: %s", ae)
+
         if awslogs:
             self.log.info("AWS Batch job (%s) CloudWatch Events details found. Links to logs:", self.job_id)
             link_builder = CloudWatchEventsLink()
