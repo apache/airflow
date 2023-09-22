@@ -202,7 +202,9 @@ class TestPrevDagrunDep:
         ),
     ],
 )
+@patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
 def test_dagrun_dep(
+    mock_get_previous_scheduled_dagrun,
     depends_on_past,
     wait_for_past_depends_before_skipping,
     wait_for_downstream,
@@ -222,10 +224,9 @@ def test_dagrun_dep(
         prev_dagrun = Mock(execution_date=datetime(2016, 1, 2))
     else:
         prev_dagrun = None
-
+    mock_get_previous_scheduled_dagrun.return_value = prev_dagrun
     dagrun = Mock(
         **{
-            "get_previous_scheduled_dagrun.return_value": prev_dagrun,
             "get_previous_dagrun.return_value": prev_dagrun,
         },
     )

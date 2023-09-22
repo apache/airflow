@@ -1591,6 +1591,9 @@ class Airflow(AirflowBaseView):
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
 
+        if not ti:
+            raise AirflowException(f"Task instance {task.task_id} not found.")
+
         pod_spec = None
         try:
             pod_spec = get_rendered_k8s_spec(ti, session=session)

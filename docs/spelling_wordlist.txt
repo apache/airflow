@@ -343,6 +343,7 @@ Dagre
 dagre
 DagRun
 dagrun
+DagRunPydantic
 dagruns
 DagRunState
 DAGs
@@ -1193,6 +1194,7 @@ Py
 py
 Pyarrow
 pyarrow
+pydantic
 pydruid
 pyexasol
 pyhive
