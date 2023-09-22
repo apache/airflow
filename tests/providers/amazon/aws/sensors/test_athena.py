@@ -64,4 +64,9 @@ class TestAthenaSensor:
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
     def test_fail_poke(self, soft_fail, expected_exception):
-        pass
+        self.sensor.soft_fail = soft_fail
+        with pytest.raises(expected_exception), mock.patch(
+            "airflow.providers.amazon.aws.hooks.athena.AthenaHook.poll_query_status"
+        ) as poll_query_status:
+            poll_query_status.return_value = "FAILED"
+            self.sensor.poke(context={})
