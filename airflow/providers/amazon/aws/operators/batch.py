@@ -363,7 +363,7 @@ class BatchOperator(BaseOperator):
         try:
             awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
         except AirflowException as ae:
-            self.log.warning("cannot determine where to find aws logs for this batch job: %s", ae)
+            self.log.warning("Cannot determine where to find the AWS logs for this Batch job: %s", ae)
 
         if awslogs:
             self.log.info("AWS Batch job (%s) CloudWatch Events details found. Links to logs:", self.job_id)
