@@ -59,6 +59,10 @@ class BaseAuthManager(LoggingMixin):
         """Return the username associated to the user in session."""
 
     @abstractmethod
+    def get_user_display_name(self) -> str:
+        """Return the user's display name associated to the user in session."""
+
+    @abstractmethod
     def get_user(self) -> BaseUser:
         """Return the user associated to the user in session."""
 

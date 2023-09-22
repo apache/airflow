@@ -88,8 +88,10 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
             with create_session() as session:
                 if not get_auth_manager().is_logged_in():
                     user = "anonymous"
+                    user_display = ""
                 else:
                     user = get_auth_manager().get_user_name()
+                    user_display = get_auth_manager().get_user_display_name()
 
                 fields_skip_logging = {"csrf_token", "_csrf_token"}
                 extra_fields = [
@@ -108,6 +110,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                     event=event or f.__name__,
                     task_instance=None,
                     owner=user,
+                    owner_display_name=user_display,
                     extra=str(extra_fields),
                     task_id=params.get("task_id"),
                     dag_id=params.get("dag_id"),

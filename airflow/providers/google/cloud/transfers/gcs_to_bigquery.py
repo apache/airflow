@@ -34,8 +34,8 @@ from google.cloud.bigquery import (
 )
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -532,7 +532,7 @@ class GCSToBigQueryOperator(BaseOperator):
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
-        if self.source_format in src_fmt_to_param_mapping.keys():
+        if self.source_format in src_fmt_to_param_mapping:
             valid_configs = src_fmt_to_configs_mapping[src_fmt_to_param_mapping[self.source_format]]
             self.src_fmt_configs = self._validate_src_fmt_configs(
                 self.source_format, self.src_fmt_configs, valid_configs, backward_compatibility_configs

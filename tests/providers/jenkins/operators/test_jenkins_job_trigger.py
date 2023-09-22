@@ -35,7 +35,7 @@ TEST_PARAMETERS = (
 
 class TestJenkinsOperator:
     @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
-    def test_execute(self, parameters):
+    def test_execute(self, parameters, mocker):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_build_info.return_value = {
             "result": "SUCCESS",
@@ -46,14 +46,18 @@ class TestJenkinsOperator:
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
-        with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
+        with patch.object(
+            JenkinsJobTriggerOperator,
+            "hook",
+            new_callable=mocker.PropertyMock,
+        ) as hook_mocked, patch(
             "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             mock_make_request.side_effect = [
                 {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
                 {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
-            get_hook_mocked.return_value = hook_mock
+            hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
                 dag=None,
                 jenkins_connection_id="fake_jenkins_connection",
@@ -70,7 +74,7 @@ class TestJenkinsOperator:
             jenkins_mock.get_build_info.assert_called_once_with(name="a_job_on_jenkins", number="1")
 
     @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
-    def test_execute_job_polling_loop(self, parameters):
+    def test_execute_job_polling_loop(self, parameters, mocker):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.side_effect = [
@@ -82,14 +86,18 @@ class TestJenkinsOperator:
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
-        with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
+        with patch.object(
+            JenkinsJobTriggerOperator,
+            "hook",
+            new_callable=mocker.PropertyMock,
+        ) as hook_mocked, patch(
             "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             mock_make_request.side_effect = [
                 {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
                 {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
-            get_hook_mocked.return_value = hook_mock
+            hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
                 dag=None,
                 task_id="operator_test",
@@ -104,7 +112,7 @@ class TestJenkinsOperator:
             assert jenkins_mock.get_build_info.call_count == 2
 
     @pytest.mark.parametrize("parameters", TEST_PARAMETERS)
-    def test_execute_job_failure(self, parameters):
+    def test_execute_job_failure(self, parameters, mocker):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.return_value = {
@@ -116,14 +124,18 @@ class TestJenkinsOperator:
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
-        with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
+        with patch.object(
+            JenkinsJobTriggerOperator,
+            "hook",
+            new_callable=mocker.PropertyMock,
+        ) as hook_mocked, patch(
             "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             mock_make_request.side_effect = [
                 {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
                 {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
-            get_hook_mocked.return_value = hook_mock
+            hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
                 dag=None,
                 task_id="operator_test",
@@ -158,7 +170,7 @@ class TestJenkinsOperator:
             ),
         ],
     )
-    def test_allowed_jenkins_states(self, state, allowed_jenkins_states):
+    def test_allowed_jenkins_states(self, state, allowed_jenkins_states, mocker):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.return_value = {
@@ -170,14 +182,18 @@ class TestJenkinsOperator:
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
-        with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
-            "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
+        with patch.object(
+            JenkinsJobTriggerOperator,
+            "hook",
+            new_callable=mocker.PropertyMock,
+        ) as hook_mocked, patch(
+            "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers",
         ) as mock_make_request:
             mock_make_request.side_effect = [
                 {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
                 {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
-            get_hook_mocked.return_value = hook_mock
+            hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
                 dag=None,
                 task_id="operator_test",
@@ -218,7 +234,7 @@ class TestJenkinsOperator:
             ),
         ],
     )
-    def test_allowed_jenkins_states_failure(self, state, allowed_jenkins_states):
+    def test_allowed_jenkins_states_failure(self, state, allowed_jenkins_states, mocker):
         jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
         jenkins_mock.get_job_info.return_value = {"nextBuildNumber": "1"}
         jenkins_mock.get_build_info.return_value = {
@@ -230,14 +246,18 @@ class TestJenkinsOperator:
         hook_mock = Mock(spec=JenkinsHook)
         hook_mock.get_jenkins_server.return_value = jenkins_mock
 
-        with patch.object(JenkinsJobTriggerOperator, "get_hook") as get_hook_mocked, patch(
+        with patch.object(
+            JenkinsJobTriggerOperator,
+            "hook",
+            new_callable=mocker.PropertyMock,
+        ) as hook_mocked, patch(
             "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
         ) as mock_make_request:
             mock_make_request.side_effect = [
                 {"body": "", "headers": {"Location": "http://what-a-strange.url/18"}},
                 {"body": '{"executable":{"number":"1"}}', "headers": {}},
             ]
-            get_hook_mocked.return_value = hook_mock
+            hook_mocked.return_value = hook_mock
             operator = JenkinsJobTriggerOperator(
                 dag=None,
                 task_id="operator_test",

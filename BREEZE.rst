@@ -2118,10 +2118,10 @@ These are all available flags of ``release-management publish-docs`` command:
   :width: 100%
   :alt: Breeze Publish documentation
 
-.. _generating_short_form_names:
+.. _generating_short_form_names_publish:
 
 Generating short form names for Providers
------------------------------------------
+.........................................
 
 Skip the ``apache-airflow-providers-`` from the usual provider full names.
 Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.

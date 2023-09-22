@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from flask import Response
 
+from airflow.jobs.job import Job, most_recent_job
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -51,6 +52,12 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_current,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        Job._add_to_db,
+        Job._fetch_from_db,
+        Job._kill,
+        Job._update_heartbeat,
+        Job._update_in_db,
+        most_recent_job,
         MetastoreBackend._fetch_connection,
         MetastoreBackend._fetch_variable,
         XCom.get_value,
