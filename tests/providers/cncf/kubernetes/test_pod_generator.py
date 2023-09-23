@@ -513,6 +513,38 @@ class TestPodGenerator:
         worker_config_result = self.k8s_client.sanitize_for_serialization(worker_config)
         assert sanitized_result == worker_config_result
 
+    def test_construct_pod_override_namespace(self):
+        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod_generator_base_with_secrets.yaml"
+        worker_config = PodGenerator.deserialize_model_file(path)
+        executor_config = k8s.V1Pod(metadata=k8s.V1ObjectMeta(namespace="other_namespace"))
+
+        result = PodGenerator.construct_pod(
+            dag_id="dag_id",
+            task_id="task_id",
+            pod_id="pod_id",
+            kube_image="test-image",
+            try_number=3,
+            date=self.execution_date,
+            args=["command"],
+            pod_override_object=executor_config,
+            base_worker_pod=worker_config,
+            namespace="namespace",
+            scheduler_job_id="uuid",
+        )
+        sanitized_result = self.k8s_client.sanitize_for_serialization(result)
+        worker_config.spec.containers[0].image = "test-image"
+        worker_config.spec.containers[0].args = ["command"]
+        worker_config.metadata.annotations = self.annotations
+        worker_config.metadata.labels = self.labels
+        worker_config.metadata.labels["app"] = "myapp"
+        worker_config.metadata.name = "pod_id"
+        worker_config.metadata.namespace = "other_namespace"
+        worker_config.spec.containers[0].env.append(
+            k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")
+        )
+        worker_config_result = self.k8s_client.sanitize_for_serialization(worker_config)
+        assert sanitized_result == worker_config_result
+
     @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
     def test_construct_pod_attribute_error(self, mock_rand_str):
         """
