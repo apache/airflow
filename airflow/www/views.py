@@ -5162,7 +5162,8 @@ class VariableModelView(AirflowModelView):
                 failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
                 flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
                 logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
-                return redirect(location=request.referrer)
+                self.update_redirect()
+                return redirect(self.get_redirect())
             skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():

@@ -259,16 +259,7 @@
     <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
     <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
     {%- endif %}
-    <p>
-      To access configuration in your DAG use <code>{{ '{{ dag_run.conf }}' }}</code>.
-      {% if is_dag_run_conf_overrides_params %}
-        As <code>core.dag_run_conf_overrides_params</code> is set to <code>True</code>, so passing any configuration
-        here will override task params which can be accessed via <code>{{ '{{ params }}' }}</code>.
-      {% else %}
-        As <code>core.dag_run_conf_overrides_params</code> is set to <code>False</code>, so passing any configuration
-        here won't override task params.
-      {% endif %}
-    </p>
+    {% if dag.get_is_paused() %}
     <div class="form-group">
       <label class="switch-label">
         <input class="switch-input" name="unpause" id="unpause" type="checkbox" checked>
@@ -276,6 +267,7 @@
         Unpause DAG when triggered
       </label>
     </div>
+    {% endif %}
     <button type="submit" class="btn btn-primary">Trigger</button>
     <a class="btn" href="{{ origin }}">Cancel</a>
   </form>
