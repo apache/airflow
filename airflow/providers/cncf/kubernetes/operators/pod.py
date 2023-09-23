@@ -679,7 +679,10 @@ class KubernetesPodOperator(BaseOperator):
                     return xcom_sidecar_output
         finally:
             istio_enabled = self.is_istio_enabled(pod)
-            pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
+            # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
+            # on the ErrImagePull or ContainerCreating step and it will never complete
+            if event["status"] != "timeout":
+                pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
             if pod is not None:
                 self.post_complete_action(
                     pod=pod,
