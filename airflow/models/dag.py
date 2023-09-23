@@ -2839,7 +2839,7 @@ class DAG(LoggingMixin):
                     ret = _run_task(ti, session=session)
                     if ret is TaskReturnCode.DEFERRED:
                         if not _triggerer_is_healthy():
-                            raise StopDagTest("Task has deferred but there triggerer is not running.")
+                            raise StopDagTest("Task has deferred but the triggerer component is not running.")
                 except StopDagTest:
                     raise
                 except Exception:
@@ -3981,6 +3981,7 @@ def _triggerer_is_healthy():
     health = get_airflow_health()
     if health["triggerer"]["status"] != "healthy":
         return False
+    return True
 
 
 def _run_task(ti: TaskInstance, session):
