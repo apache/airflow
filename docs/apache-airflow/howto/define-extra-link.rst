@@ -32,7 +32,6 @@ The following code shows how to add extra links to an operator via Plugins:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-
     class GoogleLink(BaseOperatorLink):
         name = "Google"
 
