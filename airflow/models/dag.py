@@ -87,6 +87,7 @@ from airflow.exceptions import (
     FailStopDagInvalidTriggerRule,
     ParamValidationError,
     RemovedInAirflow3Warning,
+    StopDagTest,
     TaskNotFound,
 )
 from airflow.jobs.job import run_job
@@ -97,7 +98,13 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.param import DagParam, ParamsDict
-from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
+from airflow.models.taskinstance import (
+    Context,
+    TaskInstance,
+    TaskInstanceKey,
+    TaskReturnCode,
+    clear_task_instances,
+)
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.stats import Stats
@@ -2811,6 +2818,7 @@ class DAG(LoggingMixin):
         # Instead of starting a scheduler, we run the minimal loop possible to check
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
+        wait_counter = 0
         while dr.state == DagRunState.RUNNING:
             session.expire_all()
             schedulable_tis, _ = dr.update_state(session=session)
@@ -2828,9 +2836,19 @@ class DAG(LoggingMixin):
                 try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
-                    _run_task(ti, session=session)
+                    ret = _run_task(ti, session=session)
+                    if ret is TaskReturnCode.DEFERRED:
+                        if not _triggerer_is_healthy():
+                            raise StopDagTest("Task has deferred but there triggerer is not running.")
+                except StopDagTest:
+                    raise
                 except Exception:
                     self.log.exception("Task failed; ti=%s", ti)
+            if schedulable_tis:
+                wait_counter = 0
+            else:
+                self.log.info("No schedulable tasks; sleeping; try=%s", (wait_counter := wait_counter + 1))
+                time.sleep(1)
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
@@ -3957,6 +3975,14 @@ class DagContext:
             return None
 
 
+def _triggerer_is_healthy():
+    from airflow.api.common.airflow_health import get_airflow_health
+
+    health = get_airflow_health()
+    if health["triggerer"]["status"] is None:
+        return False
+
+
 def _run_task(ti: TaskInstance, session):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
@@ -3967,18 +3993,21 @@ def _run_task(ti: TaskInstance, session):
     Args:
         ti: TaskInstance to run
     """
+    ret = None
     log.info("*****************************************************")
     if ti.map_index > 0:
         log.info("Running task %s index %d", ti.task_id, ti.map_index)
     else:
         log.info("Running task %s", ti.task_id)
     try:
-        ti._run_raw_task(session=session)
+        ret = ti._run_raw_task(session=session)
         session.flush()
         log.info("%s ran successfully!", ti.task_id)
     except AirflowSkipException:
         log.info("Task Skipped, continuing")
     log.info("*****************************************************")
+    if ret is not None:
+        return ret
 
 
 def _get_or_create_dagrun(
