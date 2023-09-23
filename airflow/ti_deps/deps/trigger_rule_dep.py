@@ -20,7 +20,8 @@ from __future__ import annotations
 import collections
 import collections.abc
 import functools
-from typing import TYPE_CHECKING, Iterator, KeysView, NamedTuple
+from itertools import chain
+from typing import TYPE_CHECKING, Iterable, Iterator, KeysView, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
 
@@ -184,17 +185,17 @@ class TriggerRuleDep(BaseTIDep):
                 return True
             return False
 
-        def _iter_upstream_conditions(relevant_tasks: dict) -> Iterator[ColumnOperators]:
+        def _iter_upstream_conditions(relevant_tasks: Iterable[str]) -> Iterator[ColumnOperators]:
             # Optimization: If the current task is not in a mapped task group,
             # it depends on all upstream task instances.
             from airflow.models.taskinstance import TaskInstance
 
             if ti.task.get_closest_mapped_task_group() is None:
-                yield TaskInstance.task_id.in_(relevant_tasks.keys())
+                yield TaskInstance.task_id.in_(relevant_tasks)
                 return
             # Otherwise we need to figure out which map indexes are depended on
             # for each upstream by the current task instance.
-            for upstream_id in relevant_tasks.keys():
+            for upstream_id in relevant_tasks:
                 map_indexes = _get_relevant_upstream_map_indexes(upstream_id)
                 if map_indexes is None:  # All tis of this upstream are dependencies.
                     yield (TaskInstance.task_id == upstream_id)
@@ -215,7 +216,9 @@ class TriggerRuleDep(BaseTIDep):
                 else:
                     yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
 
-        def _evaluate_setup_constraint(*, relevant_setups) -> Iterator[tuple[TIDepStatus, bool]]:
+        def _evaluate_setup_constraint(
+            *, relevant_setups
+        ) -> Iterator[tuple[TIDepStatus, bool, list[TaskInstance] | None, int | None]]:
             """Evaluate whether ``ti``'s trigger rule was met.
 
             :param ti: Task instance to evaluate the trigger rule of.
@@ -223,14 +226,14 @@ class TriggerRuleDep(BaseTIDep):
             :param session: Database session.
             """
             task = ti.task
-
+            direct_upstream_tasks = {t.task_id: t for t in task.upstream_list}
             indirect_setups = {k: v for k, v in relevant_setups.items() if k not in task.upstream_task_ids}
-            finished_upstream_tis = (
+            relevant_finished_tis = (
                 x
                 for x in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
                 if _is_relevant_upstream(upstream=x, relevant_ids=indirect_setups.keys())
             )
-            upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis)
+            upstream_states = _UpstreamTIStates.calculate(relevant_finished_tis)
 
             # all of these counts reflect indirect setups which are relevant for this ti
             success = upstream_states.success
@@ -238,19 +241,30 @@ class TriggerRuleDep(BaseTIDep):
             failed = upstream_states.failed
             upstream_failed = upstream_states.upstream_failed
             removed = upstream_states.removed
-
+            direct_upstream_count = None
             # Optimization: Don't need to hit the database if all upstreams are
             # "simple" tasks (no task or task group mapping involved).
             if not any(needs_expansion(t) for t in indirect_setups.values()):
-                upstream = len(indirect_setups)
+                indirect_setup_count = len(indirect_setups)
             else:
                 task_id_counts = session.execute(
                     select(TaskInstance.task_id, func.count(TaskInstance.task_id))
                     .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
-                    .where(or_(*_iter_upstream_conditions(relevant_tasks=indirect_setups)))
+                    .where(
+                        or_(
+                            *_iter_upstream_conditions(
+                                relevant_tasks=chain(indirect_setups, direct_upstream_tasks)
+                            )
+                        )
+                    )
                     .group_by(TaskInstance.task_id)
                 ).all()
-                upstream = sum(count for _, count in task_id_counts)
+                indirect_setup_count = sum(
+                    count for task_id, count in task_id_counts if task_id in indirect_setups
+                )
+                direct_upstream_count = sum(
+                    count for task_id, count in task_id_counts if task_id in direct_upstream_tasks
+                )
 
             new_state = None
             changed = False
@@ -277,14 +291,14 @@ class TriggerRuleDep(BaseTIDep):
                     if not past_depends_met:
                         yield self._failing_status(
                             reason="Task should be skipped but the past depends are not met"
-                        ), changed
+                        ), changed, None, None
                         return
                 changed = ti.set_state(new_state, session)
 
             if changed:
                 dep_context.have_changed_ti_states = True
 
-            non_successes = upstream - success
+            non_successes = indirect_setup_count - success
             if ti.map_index > -1:
                 non_successes -= removed
             if non_successes > 0:
@@ -294,9 +308,14 @@ class TriggerRuleDep(BaseTIDep):
                         f"upstream_states={upstream_states}, "
                         f"upstream_task_ids={task.upstream_task_ids}"
                     ),
-                ), changed
+                ), changed, None, None
+            yield self._passing_status(
+                reason="Indirect setups passed."
+            ), False, dep_context.finished_tis, direct_upstream_count
 
-        def _evaluate_direct_relatives() -> Iterator[TIDepStatus]:
+        def _evaluate_direct_relatives(
+            finished_tis: list[TaskInstance] | None = None, direct_upstream_count=None
+        ) -> Iterator[TIDepStatus]:
             """Evaluate whether ``ti``'s trigger rule was met.
 
             :param ti: Task instance to evaluate the trigger rule of.
@@ -306,13 +325,13 @@ class TriggerRuleDep(BaseTIDep):
             task = ti.task
             upstream_tasks = {t.task_id: t for t in task.upstream_list}
             trigger_rule = task.trigger_rule
-
-            finished_upstream_tis = (
-                finished_ti
-                for finished_ti in dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
-                if _is_relevant_upstream(upstream=finished_ti, relevant_ids=ti.task.upstream_task_ids)
+            finished_tis = finished_tis or dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
+            relevant_finished_tis = (
+                x
+                for x in finished_tis
+                if _is_relevant_upstream(upstream=x, relevant_ids=ti.task.upstream_task_ids)
             )
-            upstream_states = _UpstreamTIStates.calculate(finished_upstream_tis)
+            upstream_states = _UpstreamTIStates.calculate(relevant_finished_tis)
 
             success = upstream_states.success
             skipped = upstream_states.skipped
@@ -329,12 +348,15 @@ class TriggerRuleDep(BaseTIDep):
                 upstream = len(upstream_tasks)
                 upstream_setup = sum(1 for x in upstream_tasks.values() if x.is_setup)
             else:
-                task_id_counts = session.execute(
-                    select(TaskInstance.task_id, func.count(TaskInstance.task_id))
-                    .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
-                    .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
-                    .group_by(TaskInstance.task_id)
-                ).all()
+                if direct_upstream_count is not None:
+                    task_id_counts = direct_upstream_count
+                else:
+                    task_id_counts = session.execute(
+                        select(TaskInstance.task_id, func.count(TaskInstance.task_id))
+                        .where(TaskInstance.dag_id == ti.dag_id, TaskInstance.run_id == ti.run_id)
+                        .where(or_(*_iter_upstream_conditions(relevant_tasks=upstream_tasks)))
+                        .group_by(TaskInstance.task_id)
+                    ).all()
                 upstream = sum(count for _, count in task_id_counts)
                 upstream_setup = sum(c for t, c in task_id_counts if upstream_tasks[t].is_setup)
 
@@ -535,14 +557,21 @@ class TriggerRuleDep(BaseTIDep):
             else:
                 yield self._failing_status(reason=f"No strategy to evaluate trigger rule '{trigger_rule}'.")
 
+        finished_tis = None
+        direct_upstream_count = None
         if not ti.task.is_teardown:
             # a teardown cannot have any indirect setups
             relevant_setups = {t.task_id: t for t in ti.task.get_upstreams_only_setups()}
             if relevant_setups:
-                for status, changed in _evaluate_setup_constraint(relevant_setups=relevant_setups):
-                    yield status
+                for status, changed, finished_tis, direct_upstream_count in _evaluate_setup_constraint(
+                    relevant_setups=relevant_setups
+                ):
+                    if not status.passed:
+                        yield status
                     if not status.passed and changed:
                         # no need to evaluate trigger rule; we've already marked as skipped or failed
                         return
 
-        yield from _evaluate_direct_relatives()
+        yield from _evaluate_direct_relatives(
+            finished_tis=finished_tis, direct_upstream_count=direct_upstream_count
+        )
