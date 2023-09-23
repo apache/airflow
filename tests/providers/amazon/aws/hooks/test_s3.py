@@ -1298,13 +1298,7 @@ def test_unify_and_provide_bucket_name_combination(
     first.
     """
     if has_conn == "with_conn":
-        c = Connection(extra={
-  "service_config": {
-    "s3": {
-      "bucket_name": "conn_bucket"
-    }
-  }
-})
+        c = Connection(extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}})
     else:
         c = Connection()
     key = "key.txt" if key_kind == "rel_key" else "s3://key_bucket/key.txt"
@@ -1353,13 +1347,7 @@ def test_unify_and_provide_bucket_name_combination(
 @patch("airflow.hooks.base.BaseHook.get_connection")
 def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_kind, expected):
     if has_conn == "with_conn":
-        c = Connection(extra={
-  "service_config": {
-    "s3": {
-      "bucket_name": "conn_bucket"
-    }
-  }
-})
+        c = Connection(extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}})
     else:
         c = Connection()
     mock_conn.return_value = c
