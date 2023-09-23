@@ -3979,7 +3979,7 @@ def _triggerer_is_healthy():
     from airflow.api.common.airflow_health import get_airflow_health
 
     health = get_airflow_health()
-    if health["triggerer"]["status"] is None:
+    if health["triggerer"]["status"] != "healthy":
         return False
 
 
