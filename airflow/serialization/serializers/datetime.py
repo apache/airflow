@@ -29,8 +29,6 @@ from airflow.utils.timezone import convert_to_utc, is_naive
 if TYPE_CHECKING:
     import datetime
 
-    from pendulum.tz.timezone import Timezone
-
     from airflow.serialization.serde import U
 
 __version__ = 2
@@ -68,17 +66,18 @@ def deserialize(classname: str, version: int, data: dict | str) -> datetime.date
 
     from pendulum import DateTime
     from pendulum.tz import timezone
-    from pytz.reference import USTimeZone
 
-    tz: USTimeZone | Timezone | None = None
+    tz: datetime.tzinfo | None = None
     if isinstance(data, dict) and TIMEZONE in data:
         if version == 1:
+            from pytz.reference import Central, Eastern, Mountain, Pacific
+
             # try to deserialize unsupported US timezones
             mapping_us_timezones = {
-                "EDT": USTimeZone(-5, "Eastern", "EST", "EDT"),
-                "CDT": USTimeZone(-6, "Central", "CST", "CDT"),
-                "MDT": USTimeZone(-7, "Mountain", "MST", "MDT"),
-                "PDT": USTimeZone(-8, "Pacific", "PST", "PDT"),
+                "EDT": Eastern,
+                "CDT": Central,
+                "MDT": Mountain,
+                "PDT": Pacific,
             }
             if data[TIMEZONE] in mapping_us_timezones:
                 tz = mapping_us_timezones[data[TIMEZONE]]
