@@ -2165,12 +2165,8 @@ class TaskInstance(Base, LoggingMixin):
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
-                # same comment as above
-                self.log.warning(
-                    "cannot record %s for task %s because previous state change time has not been saved",
-                    metric_name,
-                    self.task_id,
-                )
+                # this could happen when the scheduler queue a TI
+                # or when the backfill CLI send a TI to the executor
                 return
             timing = (timezone.utcnow() - self.start_date).total_seconds()
         else:
