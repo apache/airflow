@@ -27,6 +27,7 @@ import os
 import pathlib
 import pickle
 import sys
+import time
 import traceback
 import warnings
 import weakref
@@ -123,7 +124,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
@@ -2752,8 +2753,18 @@ class DAG(LoggingMixin):
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == DagRunState.RUNNING:
+            session.expire_all()
             schedulable_tis, _ = dr.update_state(session=session)
-            for ti in schedulable_tis:
+            all_tis = dr.get_task_instances(session=session)
+            # triggerer may mark tasks scheduled
+            scheduled_tis = [x for x in all_tis if x.state == TaskInstanceState.SCHEDULED]
+            ids_to_run = {x.task_id for x in itertools.chain(scheduled_tis, schedulable_tis)}
+            tis_to_run = [x for x in all_tis if x.task_id in ids_to_run]
+            unrunnable_tis = {x.task_id for x in all_tis if x.state not in State.finished} - ids_to_run
+            if not tis_to_run and unrunnable_tis:
+                self.log.warning("No tasks to run. unrunnable_tis: %s", unrunnable_tis)
+                time.sleep(1)
+            for ti in tis_to_run:
                 try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
