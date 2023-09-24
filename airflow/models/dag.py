@@ -2759,15 +2759,13 @@ class DAG(LoggingMixin):
                 s.state = TaskInstanceState.SCHEDULED
             session.commit()
             # triggerer may mark tasks scheduled so we read from DB
-            all_tis = {(x.task_id, x.map_index): x for x in dr.get_task_instances(session=session)}
-            scheduled_tis = {k: v for k, v in all_tis.items() if v.state == TaskInstanceState.SCHEDULED}
-            ids_unrunnable = {
-                k: v for k, v in all_tis.items() if v.state not in State.finished if k not in scheduled_tis
-            }
+            all_tis = set(dr.get_task_instances(session=session))
+            scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
+            ids_unrunnable = {x for x in all_tis if x.state not in State.finished} - scheduled_tis
             if not scheduled_tis and ids_unrunnable:
-                self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable.values())
+                self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                 time.sleep(1)
-            for ti in scheduled_tis.values():
+            for ti in scheduled_tis:
                 try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
