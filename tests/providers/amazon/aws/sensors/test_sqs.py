@@ -381,6 +381,7 @@ class TestSqsSensor:
             max_messages=1,
             num_batches=3,
             deferrable=True,
+            soft_fail=soft_fail,
         )
         response = "error message"
         messages = [{"MessageId": "1", "ReceiptHandle": "test"}]
