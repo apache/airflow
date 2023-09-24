@@ -21,10 +21,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow import AirflowException
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User
 from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.exceptions import AirflowException
 from airflow.www.security_appless import ApplessAirflowSecurityManager
 
 

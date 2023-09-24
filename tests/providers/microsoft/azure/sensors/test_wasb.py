@@ -24,15 +24,12 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.microsoft.azure.sensors.wasb import (
-    WasbBlobSensor,
-    WasbPrefixSensor,
-)
+from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbPrefixSensor
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -163,10 +160,14 @@ class TestWasbBlobAsyncSensor:
                 self.SENSOR.execute_complete(context={}, event=event)
             mock_log_info.assert_called_with(event["message"])
 
-    def test_wasb_blob_sensor_execute_complete_failure(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_wasb_blob_sensor_execute_complete_failure(self, soft_fail, expected_exception):
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
-        with pytest.raises(AirflowException):
+        self.SENSOR.soft_fail = soft_fail
+        with pytest.raises(expected_exception):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})
 
 
@@ -288,8 +289,12 @@ class TestWasbPrefixAsyncSensor:
                 self.SENSOR.execute_complete(context={}, event=event)
             mock_log_info.assert_called_with(event["message"])
 
-    def test_wasb_prefix_sensor_execute_complete_failure(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_wasb_prefix_sensor_execute_complete_failure(self, soft_fail, expected_exception):
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
+        self.SENSOR.soft_fail = soft_fail
         with pytest.raises(AirflowException):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})

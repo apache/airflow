@@ -31,7 +31,7 @@ from google.cloud.aiplatform import (
 )
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 

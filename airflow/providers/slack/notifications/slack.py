@@ -53,7 +53,7 @@ class SlackNotifier(BaseNotifier):
     def __init__(
         self,
         *,
-        slack_conn_id: str = "slack_api_default",
+        slack_conn_id: str = SlackHook.default_conn_name,
         text: str = "This is a default message",
         channel: str = "#general",
         username: str = "Airflow",

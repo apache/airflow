@@ -63,6 +63,7 @@ extend-select = [
     "D419",
     "TCH001",  # typing-only-first-party-import
     "TCH002",  # typing-only-third-party-import
+    "TID251",
 ]
 extend-ignore = [
     "D203",
@@ -122,7 +123,8 @@ combine-as-imports = true
 
 # The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
 # when __future__.annotations is used so we need to skip them from upgrading
-"airflow/serialization/pydantic/*.py" = ["I002"]
+# Pydantic also require models to be imported during execution
+"airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
@@ -143,6 +145,9 @@ combine-as-imports = true
 "airflow/security/utils.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
+
+[tool.ruff.flake8-tidy-imports.banned-api]
+"airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 
 [tool.coverage.run]
 branch = true

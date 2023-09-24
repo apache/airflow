@@ -34,8 +34,8 @@ from google.cloud.bigquery import (
 )
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
