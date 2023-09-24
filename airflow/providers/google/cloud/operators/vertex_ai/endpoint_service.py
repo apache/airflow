@@ -454,7 +454,15 @@ class ListEndpointsOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         VertexAIEndpointListLink.persist(context=context, task_instance=self)
-        return [Endpoint.to_dict(result) for result in results]
+        result_endpoints = []
+        for result in results:
+            result_endpoint = result
+            try:
+                result_endpoint = Endpoint(result)
+                result_endpoints.append(Endpoint.to_dict(result_endpoint))
+            except Exception as e:
+                self.log.info("%s can't be casted as Endpoint and/or converted to dictionary: %s", result, e)
+        return result_endpoints
 
 
 class UndeployModelOperator(GoogleCloudBaseOperator):
