@@ -359,8 +359,8 @@ class TestSqsSensor:
             max_messages=1,
             num_batches=3,
             deferrable=True,
+            soft_fail=soft_fail,
         )
-        self.sensor.soft_fail = soft_fail
         event = {"status": "failed"}
         message = f"Trigger error: event is {event}"
         with pytest.raises(expected_exception, match=message):
