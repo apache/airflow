@@ -505,7 +505,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
         Defaults to 4 seconds.
-    :param project_ud: a string represents the BigQuery projectId
+    :param project_id: a string represents the BigQuery projectId
     """
 
     template_fields: Sequence[str] = (
