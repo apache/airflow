@@ -388,7 +388,6 @@ class TestSqsSensor:
         process_response.return_value = messages
         conn.delete_message_batch.return_value = response
         error_message = f"Delete SQS Messages failed {response} for messages"
-        self.sensor.soft_fail = soft_fail
         self.sensor.delete_message_on_reception = True
         with pytest.raises(expected_exception, match=error_message):
             self.sensor.poke(context={})
