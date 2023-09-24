@@ -2755,16 +2755,19 @@ class DAG(LoggingMixin):
         while dr.state == DagRunState.RUNNING:
             session.expire_all()
             schedulable_tis, _ = dr.update_state(session=session)
-            all_tis = dr.get_task_instances(session=session)
-            # triggerer may mark tasks scheduled
-            scheduled_tis = [x for x in all_tis if x.state == TaskInstanceState.SCHEDULED]
-            ids_to_run = {x.task_id for x in itertools.chain(scheduled_tis, schedulable_tis)}
-            tis_to_run = [x for x in all_tis if x.task_id in ids_to_run]
-            unrunnable_tis = {x.task_id for x in all_tis if x.state not in State.finished} - ids_to_run
-            if not tis_to_run and unrunnable_tis:
-                self.log.warning("No tasks to run. unrunnable_tis: %s", unrunnable_tis)
+            for s in schedulable_tis:
+                s.state = TaskInstanceState.SCHEDULED
+            session.commit()
+            # triggerer may mark tasks scheduled so we read from DB
+            all_tis = {(x.task_id, x.map_index): x for x in dr.get_task_instances(session=session)}
+            scheduled_tis = {k: v for k, v in all_tis.items() if v.state == TaskInstanceState.SCHEDULED}
+            ids_unrunnable = {
+                k: v for k, v in all_tis.items() if v.state not in State.finished if k not in scheduled_tis
+            }
+            if not scheduled_tis and ids_unrunnable:
+                self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable.values())
                 time.sleep(1)
-            for ti in tis_to_run:
+            for ti in scheduled_tis.values():
                 try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
