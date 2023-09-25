@@ -41,7 +41,7 @@ import re2
 import typing_extensions
 from sqlalchemy.orm import Session
 
-from airflow import Dataset
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
