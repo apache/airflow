@@ -624,7 +624,6 @@ class TestKubernetesPodOperator:
             ({"on_finish_action": "delete_succeeded_pod"}, True, False),
         ],
     )
-    @patch(f"{KPO_MODULE}.KubernetesPodOperator.kill_istio_sidecar")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.is_istio_enabled")
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
@@ -633,7 +632,6 @@ class TestKubernetesPodOperator:
         find_pod_mock,
         await_pod_completion_mock,
         is_istio_enabled_mock,
-        kill_istio_sidecar_mock,
         task_kwargs,
         base_container_fail,
         expect_to_delete_pod,
@@ -686,14 +684,6 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
 
         assert is_istio_enabled_mock(find_pod_mock.return_value)
-        if task_kwargs["on_finish_action"] == "delete_pod":
-            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
-        elif expect_to_delete_pod and base_container_fail:
-            kill_istio_sidecar_mock.assert_called_with(find_pod_mock.return_value)
-        elif expect_to_delete_pod and not base_container_fail:
-            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
-        else:
-            kill_istio_sidecar_mock.assert_not_called()
 
     @pytest.mark.parametrize(
         "task_kwargs, should_be_deleted",
