@@ -226,18 +226,8 @@ class TestGCSToS3Operator:
             uploaded_files = operator.execute(None)
             assert sorted(MOCK_FILES) == sorted(uploaded_files)
             assert sorted(MOCK_FILES) == sorted(hook.list_keys("bucket", delimiter="/"))
-        with pytest.raises(ValueError, match="You must pass either bucket or gcs_bucket, but not both."):
-            GCSToS3Operator(
-                task_id=TASK_ID,
-                bucket=GCS_BUCKET,
-                gcs_bucket=GCS_BUCKET,
-                dest_s3_key=S3_BUCKET,
-            )
         with pytest.raises(ValueError) as excinfo:
-            GCSToS3Operator(
-                task_id=TASK_ID,
-                dest_s3_key=S3_BUCKET,
-            )
+            GCSToS3Operator(task_id=TASK_ID ,dest_s3_key=S3_BUCKET)
         assert str(excinfo.value) == "You must pass either bucket or gcs_bucket."
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")

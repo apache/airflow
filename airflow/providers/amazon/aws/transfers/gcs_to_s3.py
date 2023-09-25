@@ -119,9 +119,7 @@ class GCSToS3Operator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        if bucket and gcs_bucket:
-            raise ValueError("You must pass either bucket or gcs_bucket, but not both.")
-        elif bucket:
+        if bucket:
             warnings.warn(
                 "The 'bucket' parameter is deprecated and will be removed in a future version. "
                 "Please use 'gcs_bucket' instead.",
@@ -133,9 +131,6 @@ class GCSToS3Operator(BaseOperator):
             self.gcs_bucket = gcs_bucket
         else:
             raise ValueError("You must pass either bucket or gcs_bucket.")
-        # The bucket attribute is unused, but must be set on the operator instance in
-        # order to include it in template_fields.
-        self.bucket = None
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
