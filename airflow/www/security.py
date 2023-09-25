@@ -25,6 +25,14 @@ from airflow.auth.managers.fab.security_manager.override import FabAirflowSecuri
 if TYPE_CHECKING:
     pass
 
+EXISTING_ROLES = {
+    "Admin",
+    "Viewer",
+    "User",
+    "Op",
+    "Public",
+}
+
 
 @deprecated(
     reason="If you want to override the security manager, you should inherit from "

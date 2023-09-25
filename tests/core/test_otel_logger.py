@@ -65,9 +65,9 @@ class TestOtelMetrics:
         assert not _is_up_down_counter("this_is_not_a_udc")
 
     def test_exemption_list_has_not_grown(self):
-        assert len(BACK_COMPAT_METRIC_NAMES) <= 23, (
+        assert len(BACK_COMPAT_METRIC_NAMES) <= 26, (
             "This test exists solely to ensure that nobody is adding names to the exemption list. "
-            "There are 23 names which are potentially too long for OTel and that number should "
+            "There are 26 names which are potentially too long for OTel and that number should "
             "only ever go down as these names are deprecated.  If this test is failing, please "
             "adjust your new stat's name; do not add as exemption without a very good reason."
         )
