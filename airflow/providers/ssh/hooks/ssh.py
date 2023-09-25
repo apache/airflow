@@ -173,7 +173,7 @@ class SSHHook(BaseHook):
                         "Extra option `timeout` is deprecated."
                         "Please use `conn_timeout` instead."
                         "The old option `timeout` will be removed in a future version.",
-                        AirflowProviderDeprecationWarning,
+                        category=AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
                     self.timeout = int(extra_options["timeout"])
@@ -233,8 +233,8 @@ class SSHHook(BaseHook):
                 "Parameter `timeout` is deprecated."
                 "Please use `conn_timeout` instead."
                 "The old option `timeout` will be removed in a future version.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=1,
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
 
         if self.conn_timeout is None:
@@ -371,6 +371,7 @@ class SSHHook(BaseHook):
             "Please use get_conn() as a contextmanager instead."
             "This method will be removed in Airflow 2.0",
             category=AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
         return self
 
@@ -436,6 +437,7 @@ class SSHHook(BaseHook):
             "order of the parameters have changed"
             "This method will be removed in Airflow 2.0",
             category=AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
 
         return self.get_tunnel(remote_port, remote_host, local_port)

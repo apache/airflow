@@ -25,7 +25,7 @@ import pytest
 from googleapiclient.errors import HttpError
 from paramiko.ssh_exception import SSHException
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 

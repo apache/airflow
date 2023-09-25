@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
     DEFAULT_CELERY_BROKER,
+    PROVIDERS_INDEX_KEY,
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
@@ -456,7 +457,7 @@ argument_packages_plus_all_providers_for_shorthand = click.argument(
     nargs=-1,
     required=False,
     type=BetterChoice(
-        ["all-providers"] + get_available_documentation_packages(short_version=True) + ["providers-index"]
+        ["all-providers"] + get_available_documentation_packages(short_version=True) + [PROVIDERS_INDEX_KEY]
     ),
 )
 

@@ -20,7 +20,6 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-from airflow import AirflowException
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.auth.managers.fab.cli_commands.definition import (
     ROLES_COMMANDS,
@@ -30,6 +29,7 @@ from airflow.auth.managers.fab.cli_commands.definition import (
 from airflow.cli.cli_config import (
     GroupCommand,
 )
+from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.auth.managers.fab.models import User

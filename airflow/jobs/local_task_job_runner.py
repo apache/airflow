@@ -41,7 +41,6 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.job import JobPydantic
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
@@ -74,14 +73,14 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
+class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
     job_type = "LocalTaskJob"
 
     def __init__(
         self,
-        job: Job | JobPydantic,
+        job: Job,
         task_instance: TaskInstance,  # TODO add TaskInstancePydantic
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
