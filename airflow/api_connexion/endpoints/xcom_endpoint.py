@@ -26,8 +26,8 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.xcom_schema import XComCollection, xcom_collection_schema, xcom_schema
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import DagRun as DR, XCom
-from airflow.security import permissions
 from airflow.settings import conf
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
@@ -39,14 +39,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.XCOM)
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_xcom_entries(
@@ -85,14 +78,7 @@ def get_xcom_entries(
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query, total_entries=total_entries))
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.XCOM)
 @provide_session
 def get_xcom_entry(
     *,

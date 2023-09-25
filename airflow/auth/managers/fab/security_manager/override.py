@@ -23,7 +23,7 @@ import logging
 import uuid
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Container, Iterable
 
 import re2
 from flask import flash, g, session
@@ -40,13 +40,20 @@ from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
+from airflow.auth.managers.fab.fab_auth_manager import MAP_METHOD_NAME_TO_FAB_ACTION_NAME
 from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.models import DagModel
+from airflow.security import permissions
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.fab.models import User
 
 log = logging.getLogger(__name__)
@@ -462,6 +469,66 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_CREATE_DB, e)
             exit(1)
+
+    def get_readable_dags(self, user) -> Iterable[DagModel]:
+        """Gets the DAGs readable by authenticated user."""
+        warnings.warn(
+            "`get_readable_dags` has been deprecated. Please use `get_readable_dag_ids` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
+            return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
+
+    def get_editable_dags(self, user) -> Iterable[DagModel]:
+        """Gets the DAGs editable by authenticated user."""
+        warnings.warn(
+            "`get_editable_dags` has been deprecated. Please use `get_editable_dag_ids` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
+            return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
+
+    @provide_session
+    def get_accessible_dags(
+        self,
+        user_actions: Container[str] | None,
+        user,
+        session: Session = NEW_SESSION,
+    ) -> Iterable[DagModel]:
+        warnings.warn(
+            "`get_accessible_dags` has been deprecated. Please use `get_accessible_dag_ids` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=3,
+        )
+
+        dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
+        return session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids)))
+
+    @provide_session
+    def get_accessible_dag_ids(
+        self,
+        user,
+        user_actions: Container[str] | None = None,
+        session: Session = NEW_SESSION,
+    ) -> set[str]:
+        warnings.warn(
+            "`get_accessible_dag_ids` has been deprecated. Please use `get_permitted_dag_ids` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=3,
+        )
+        if not user_actions:
+            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+        fab_action_name_to_method_name = {v: k for k, v in MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()}
+        user_methods: Container[ResourceMethod] = [
+            fab_action_name_to_method_name[action]
+            for action in fab_action_name_to_method_name
+            if action in user_actions
+        ]
+        return self.get_permitted_dag_ids(user=user, user_methods=user_methods, session=session)
 
     """
     -----------

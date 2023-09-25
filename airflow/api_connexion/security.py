@@ -17,12 +17,25 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import Callable, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
 from flask import Response
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
+from airflow.auth.managers.models.resource_details import (
+    ConfigurationDetails,
+    ConnectionDetails,
+    DagAccessEntity,
+    DagDetails,
+    DatasetDetails,
+    PoolDetails,
+    VariableDetails,
+)
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.www.extensions.init_auth_manager import get_auth_manager
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
 
 T = TypeVar("T", bound=Callable)
 
@@ -51,6 +64,169 @@ def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Cal
             if appbuilder.sm.check_authorization(permissions, kwargs.get("dag_id")):
                 return func(*args, **kwargs)
             raise PermissionDenied()
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
+
+
+def _requires_access(*, is_authorized_callback: Callable[[], bool], func: Callable, args, kwargs):
+    """
+    Define the behavior whether the user is authorized to access the resource.
+
+    :param is_authorized_callback: callback to execute to figure whether the user is authorized to access
+        the resource?
+    :param func: the function to call if the user is authorized
+    :param args: the arguments of ``func``
+    :param kwargs: the keyword arguments ``func``
+
+    :meta private:
+    """
+    check_authentication()
+    if is_authorized_callback():
+        return func(*args, **kwargs)
+    raise PermissionDenied()
+
+
+def requires_authentication(func: T):
+    """Decorator for functions that require authentication."""
+
+    @wraps(func)
+    def decorated(*args, **kwargs):
+        check_authentication()
+        return func(*args, **kwargs)
+
+    return cast(T, decorated)
+
+
+def requires_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            section: str | None = kwargs.get("section")
+            return _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_configuration(
+                    method=method, details=ConfigurationDetails(section=section)
+                ),
+                func=func,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
+
+
+def requires_access_connection(method: ResourceMethod) -> Callable[[T], T]:
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            connection_id: str | None = kwargs.get("connection_id")
+            return _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_connection(
+                    method=method, details=ConnectionDetails(conn_id=connection_id)
+                ),
+                func=func,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
+
+
+def requires_access_dag(
+    method: ResourceMethod, access_entity: DagAccessEntity | None = None
+) -> Callable[[T], T]:
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            dag_id: str | None = kwargs.get("dag_id")
+            return _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
+                    method=method,
+                    access_entity=access_entity,
+                    details=DagDetails(id=dag_id),
+                ),
+                func=func,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
+
+
+def requires_access_dataset(method: ResourceMethod) -> Callable[[T], T]:
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            uri: str | None = kwargs.get("uri")
+            return _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_dataset(
+                    method=method, details=DatasetDetails(uri=uri)
+                ),
+                func=func,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
+
+
+def requires_access_pool(method: ResourceMethod) -> Callable[[T], T]:
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            pool_name: str | None = kwargs.get("pool_name")
+            return _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_pool(
+                    method=method, details=PoolDetails(name=pool_name)
+                ),
+                func=func,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
+
+
+def requires_access_variable(method: ResourceMethod) -> Callable[[T], T]:
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            variable_key: str | None = kwargs.get("variable_key")
+            return _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_variable(
+                    method=method, details=VariableDetails(key=variable_key)
+                ),
+                func=func,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
+
+
+def requires_access_website() -> Callable[[T], T]:
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            return _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_website(),
+                func=func,
+                args=args,
+                kwargs=kwargs,
+            )
 
         return cast(T, decorated)
 

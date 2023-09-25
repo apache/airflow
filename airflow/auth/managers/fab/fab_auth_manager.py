@@ -29,7 +29,15 @@ from airflow.auth.managers.fab.cli_commands.definition import (
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
 )
-from airflow.auth.managers.models.resource_details import ConnectionDetails, DagAccessEntity, DagDetails
+from airflow.auth.managers.models.resource_details import (
+    ConfigurationDetails,
+    ConnectionDetails,
+    DagAccessEntity,
+    DagDetails,
+    DatasetDetails,
+    PoolDetails,
+    VariableDetails,
+)
 from airflow.cli.cli_config import (
     GroupCommand,
 )
@@ -50,9 +58,15 @@ from airflow.security.permissions import (
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_PREFIX,
     RESOURCE_DAG_RUN,
+    RESOURCE_DAG_WARNING,
     RESOURCE_DATASET,
+    RESOURCE_IMPORT_ERROR,
+    RESOURCE_PLUGIN,
+    RESOURCE_POOL,
+    RESOURCE_PROVIDER,
     RESOURCE_TASK_INSTANCE,
     RESOURCE_TASK_LOG,
+    RESOURCE_TRIGGER,
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
@@ -65,7 +79,7 @@ if TYPE_CHECKING:
         CLICommand,
     )
 
-_MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
+MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
     "POST": ACTION_CAN_CREATE,
     "GET": ACTION_CAN_READ,
     "PUT": ACTION_CAN_EDIT,
@@ -77,9 +91,11 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE = {
     DagAccessEntity.CODE: RESOURCE_DAG_CODE,
     DagAccessEntity.DATASET: RESOURCE_DATASET,
     DagAccessEntity.DEPENDENCIES: RESOURCE_DAG_DEPENDENCIES,
+    DagAccessEntity.IMPORT_ERRORS: RESOURCE_IMPORT_ERROR,
     DagAccessEntity.RUN: RESOURCE_DAG_RUN,
     DagAccessEntity.TASK_INSTANCE: RESOURCE_TASK_INSTANCE,
     DagAccessEntity.TASK_LOGS: RESOURCE_TASK_LOG,
+    DagAccessEntity.WARNING: RESOURCE_DAG_WARNING,
     DagAccessEntity.XCOM: RESOURCE_XCOM,
 }
 
@@ -139,7 +155,13 @@ class FabAuthManager(BaseAuthManager):
         """Return whether the user is logged in."""
         return not self.get_user().is_anonymous
 
-    def is_authorized_configuration(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+    def is_authorized_configuration(
+        self,
+        *,
+        method: ResourceMethod,
+        details: ConfigurationDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_CONFIG, user=user)
 
     def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
@@ -149,7 +171,7 @@ class FabAuthManager(BaseAuthManager):
         self,
         *,
         method: ResourceMethod,
-        connection_details: ConnectionDetails | None = None,
+        details: ConnectionDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_CONNECTION, user=user)
@@ -158,8 +180,8 @@ class FabAuthManager(BaseAuthManager):
         self,
         *,
         method: ResourceMethod,
-        dag_access_entity: DagAccessEntity | None = None,
-        dag_details: DagDetails | None = None,
+        access_entity: DagAccessEntity | None = None,
+        details: DagDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         """
@@ -171,34 +193,50 @@ class FabAuthManager(BaseAuthManager):
         entity (e.g. DAG runs).
         2. ``dag_access`` is provided which means the user wants to access a sub entity of the DAG
         (e.g. DAG runs).
-            a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity
+            a. If ``method`` is GET, then check the user has READ permissions on the sub entity
             b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity
 
         :param method: The method to authorize.
-        :param dag_access_entity: The dag access entity.
-        :param dag_details: The dag details.
+        :param access_entity: The dag access entity.
+        :param details: The dag details.
         :param user: The user.
         """
-        if not dag_access_entity:
+        if not access_entity:
             # Scenario 1
-            return self._is_authorized_dag(method=method, dag_details=dag_details, user=user)
+            return self._is_authorized_dag(method=method, details=details, user=user)
         else:
             # Scenario 2
-            resource_type = self._get_fab_resource_type(dag_access_entity)
-            dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
+            resource_type = self._get_fab_resource_type(access_entity)
 
-            return self._is_authorized_dag(
-                method=dag_method, dag_details=dag_details, user=user
-            ) and self._is_authorized(method=method, resource_type=resource_type, user=user)
+            if method == "GET":
+                return self._is_authorized(method=method, resource_type=resource_type, user=user)
+            else:
+                return self._is_authorized_dag(
+                    method="PUT", details=details, user=user
+                ) and self._is_authorized(method=method, resource_type=resource_type, user=user)
 
-    def is_authorized_dataset(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+    def is_authorized_dataset(
+        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_DATASET, user=user)
 
-    def is_authorized_variable(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+    def is_authorized_pool(
+        self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
+        return self._is_authorized(method=method, resource_type=RESOURCE_POOL, user=user)
+
+    def is_authorized_variable(
+        self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_VARIABLE, user=user)
 
     def is_authorized_website(self, *, user: BaseUser | None = None) -> bool:
-        return self._is_authorized(method="GET", resource_type=RESOURCE_WEBSITE, user=user)
+        return (
+            self._is_authorized(method="GET", resource_type=RESOURCE_PLUGIN, user=user)
+            or self._is_authorized(method="GET", resource_type=RESOURCE_PROVIDER, user=user)
+            or self._is_authorized(method="GET", resource_type=RESOURCE_TRIGGER, user=user)
+            or self._is_authorized(method="GET", resource_type=RESOURCE_WEBSITE, user=user)
+        )
 
     def get_security_manager_override_class(self) -> type:
         """Return the security manager override."""
@@ -270,14 +308,14 @@ class FabAuthManager(BaseAuthManager):
     def _is_authorized_dag(
         self,
         method: ResourceMethod,
-        dag_details: DagDetails | None = None,
+        details: DagDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a DAG.
 
         :param method: the method to perform
-        :param dag_details: optional details about the DAG
+        :param details: optional details about the DAG
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
 
         :meta private:
@@ -286,9 +324,9 @@ class FabAuthManager(BaseAuthManager):
         if is_global_authorized:
             return True
 
-        if dag_details and dag_details.id:
+        if details and details.id:
             # Check whether the user has permissions to access a specific DAG
-            resource_dag_name = self._resource_name_for_dag(dag_details.id)
+            resource_dag_name = self._resource_name_for_dag(details.id)
             return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
 
         return False
@@ -302,9 +340,9 @@ class FabAuthManager(BaseAuthManager):
 
         :meta private:
         """
-        if method not in _MAP_METHOD_NAME_TO_FAB_ACTION_NAME:
+        if method not in MAP_METHOD_NAME_TO_FAB_ACTION_NAME:
             raise AirflowException(f"Unknown method: {method}")
-        return _MAP_METHOD_NAME_TO_FAB_ACTION_NAME[method]
+        return MAP_METHOD_NAME_TO_FAB_ACTION_NAME[method]
 
     @staticmethod
     def _get_fab_resource_type(dag_access_entity: DagAccessEntity):

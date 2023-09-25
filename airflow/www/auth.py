@@ -33,7 +33,7 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.models import Connection
+    from airflow.models.connection import Connection
 
 T = TypeVar("T", bound=Callable)
 
@@ -51,7 +51,7 @@ def _has_access_no_details(is_authorized_callback: Callable[[], bool]) -> Callab
     This works only for resources with no details. This function is used in some ``has_access_`` functions
     below.
 
-    :param is_authorized_callback: callback to execute to figure whether the user authorized to access
+    :param is_authorized_callback: callback to execute to figure whether the user is authorized to access
         the resource?
     """
 
@@ -116,9 +116,7 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
             ]
             is_authorized = all(
                 [
-                    get_auth_manager().is_authorized_connection(
-                        method=method, connection_details=connection_details
-                    )
+                    get_auth_manager().is_authorized_connection(method=method, details=connection_details)
                     for connection_details in connections_details
                 ]
             )
@@ -167,8 +165,8 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
 
             is_authorized = get_auth_manager().is_authorized_dag(
                 method=method,
-                dag_access_entity=access_entity,
-                dag_details=None if not dag_id else DagDetails(id=dag_id),
+                access_entity=access_entity,
+                details=None if not dag_id else DagDetails(id=dag_id),
             )
 
             return _has_access(

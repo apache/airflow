@@ -293,7 +293,7 @@ class TestFabAuthManager:
         user = Mock()
         user.perms = user_permissions
         result = auth_manager.is_authorized_dag(
-            method=method, dag_access_entity=dag_access_entity, dag_details=dag_details, user=user
+            method=method, access_entity=dag_access_entity, details=dag_details, user=user
         )
         assert result == expected_result
 

@@ -23,7 +23,7 @@ from flask import g
 from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload
 
-from airflow.auth.managers.fab.models import Permission, Resource, Role, User
+from airflow.auth.managers.fab.models import Permission, Resource, Role
 from airflow.auth.managers.fab.views.permissions import (
     ActionModelView,
     PermissionPairModelView,
@@ -43,6 +43,7 @@ from airflow.auth.managers.fab.views.user_edit import (
     CustomUserInfoEditView,
 )
 from airflow.auth.managers.fab.views.user_stats import CustomUserStatsChartView
+from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
@@ -62,6 +63,8 @@ EXISTING_ROLES = {
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
 
 
 class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
@@ -267,95 +270,47 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             user = g.user
         return user.roles
 
-    def get_readable_dags(self, user) -> Iterable[DagModel]:
-        """Gets the DAGs readable by authenticated user."""
-        warnings.warn(
-            "`get_readable_dags` has been deprecated. Please use `get_readable_dag_ids` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
-
-    def get_editable_dags(self, user) -> Iterable[DagModel]:
-        """Gets the DAGs editable by authenticated user."""
-        warnings.warn(
-            "`get_editable_dags` has been deprecated. Please use `get_editable_dag_ids` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
-
-    @provide_session
-    def get_accessible_dags(
-        self,
-        user_actions: Container[str] | None,
-        user,
-        session: Session = NEW_SESSION,
-    ) -> Iterable[DagModel]:
-        warnings.warn(
-            "`get_accessible_dags` has been deprecated. Please use `get_accessible_dag_ids` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=3,
-        )
-        dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
-        return session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids)))
-
     def get_readable_dag_ids(self, user) -> set[str]:
         """Gets the DAG IDs readable by authenticated user."""
-        return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_READ])
+        return self.get_permitted_dag_ids(user, ["GET"])
 
     def get_editable_dag_ids(self, user) -> set[str]:
         """Gets the DAG IDs editable by authenticated user."""
-        return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_EDIT])
+        return self.get_permitted_dag_ids(user, ["PUT"])
 
     @provide_session
-    def get_accessible_dag_ids(
+    def get_permitted_dag_ids(
         self,
         user,
-        user_actions: Container[str] | None = None,
+        user_methods: Container[ResourceMethod] | None = None,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """Generic function to get readable or writable DAGs for user."""
-        if not user_actions:
-            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+        if not user_methods:
+            user_methods = ["PUT", "GET"]
 
-        if not get_auth_manager().is_logged_in():
-            roles = user.roles
-        else:
-            if (permissions.ACTION_CAN_EDIT in user_actions and self.can_edit_all_dags(user)) or (
-                permissions.ACTION_CAN_READ in user_actions and self.can_read_all_dags(user)
-            ):
-                return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-            user_query = session.scalar(
-                select(User)
-                .options(
-                    joinedload(User.roles)
-                    .subqueryload(Role.permissions)
-                    .options(joinedload(Permission.action), joinedload(Permission.resource))
-                )
-                .where(User.id == user.id)
-            )
-            roles = user_query.roles
+        dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
 
-        resources = set()
-        for role in roles:
-            for permission in role.permissions:
-                action = permission.action.name
-                if action in user_actions:
-                    resource = permission.resource.name
-                    if resource == permissions.RESOURCE_DAG:
-                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-                    if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
-                        resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
-                    else:
-                        resources.add(resource)
+        if ("GET" in user_methods and get_auth_manager().is_authorized_dag(method="GET", user=user)) or (
+            "PUT" in user_methods and get_auth_manager().is_authorized_dag(method="PUT", user=user)
+        ):
+            return dag_ids
+
         return {
-            dag.dag_id
-            for dag in session.execute(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))
+            dag_id
+            for dag_id in dag_ids
+            if (
+                "GET" in user_methods
+                and get_auth_manager().is_authorized_dag(
+                    method="GET", details=DagDetails(id=dag_id), user=user
+                )
+            )
+            or (
+                "PUT" in user_methods
+                and get_auth_manager().is_authorized_dag(
+                    method="PUT", details=DagDetails(id=dag_id), user=user
+                )
+            )
         }
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
@@ -368,24 +323,6 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         if action == permissions.ACTION_CAN_READ:
             return any(self.get_readable_dag_ids(user))
         return any(self.get_editable_dag_ids(user))
-
-    def can_read_dag(self, dag_id: str, user=None) -> bool:
-        """Determines whether a user has DAG read access."""
-        root_dag_id = self._get_root_dag_id(dag_id)
-        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
-        return self.has_access(permissions.ACTION_CAN_READ, dag_resource_name, user=user)
-
-    def can_edit_dag(self, dag_id: str, user=None) -> bool:
-        """Determines whether a user has DAG edit access."""
-        root_dag_id = self._get_root_dag_id(dag_id)
-        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
-        return self.has_access(permissions.ACTION_CAN_EDIT, dag_resource_name, user=user)
-
-    def can_delete_dag(self, dag_id: str, user=None) -> bool:
-        """Determines whether a user has DAG delete access."""
-        root_dag_id = self._get_root_dag_id(dag_id)
-        dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
-        return self.has_access(permissions.ACTION_CAN_DELETE, dag_resource_name, user=user)
 
     def prefixed_dag_id(self, dag_id: str) -> str:
         """Returns the permission name for a DAG id."""
@@ -427,36 +364,6 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             return (action_name, resource_name) in user.perms
 
         return False
-
-    def _has_role(self, role_name_or_list: Container, user) -> bool:
-        """Whether the user has this role name."""
-        if not isinstance(role_name_or_list, list):
-            role_name_or_list = [role_name_or_list]
-        return any(r.name in role_name_or_list for r in user.roles)
-
-    def has_all_dags_access(self, user) -> bool:
-        """
-        Has all the dag access in any of the 3 cases.
-
-        1. Role needs to be in (Admin, Viewer, User, Op).
-        2. Has can_read action on dags resource.
-        3. Has can_edit action on dags resource.
-        """
-        if not user:
-            user = g.user
-        return (
-            self._has_role(["Admin", "Viewer", "Op", "User"], user)
-            or self.can_read_all_dags(user)
-            or self.can_edit_all_dags(user)
-        )
-
-    def can_edit_all_dags(self, user=None) -> bool:
-        """Has can_edit action on DAG resource."""
-        return self.has_access(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG, user)
-
-    def can_read_all_dags(self, user=None) -> bool:
-        """Has can_read action on DAG resource."""
-        return self.has_access(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG, user)
 
     def clean_perms(self) -> None:
         """FAB leaves faulty permissions that need to be cleaned up."""
