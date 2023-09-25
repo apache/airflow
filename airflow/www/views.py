@@ -426,9 +426,14 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 **setup_teardown_type,
             }
 
+        def check_group_is_mapped(tg: TaskGroup | None) -> bool:
+            if tg is None:
+                return False
+            return isinstance(tg, MappedTaskGroup) or check_group_is_mapped(tg.parent_group)
+
         # Task Group
         task_group = item
-        group_is_mapped = isinstance(task_group, MappedTaskGroup)
+        group_is_mapped = check_group_is_mapped(task_group)
 
         children = [
             task_group_to_grid(child, grouped_tis, is_parent_mapped=group_is_mapped)
