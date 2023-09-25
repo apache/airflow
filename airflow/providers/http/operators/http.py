@@ -50,6 +50,12 @@ class SimpleHttpOperator(BaseOperator):
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
     :param headers: The HTTP headers to be added to the GET request
+    :param pagination_function: A callable that generate the parameters used
+        to call the API again. Typically used when the API is paginated and
+        returns a cursor, a next page id, or a next page URL. When provided,
+        the Operator will call the API repeatedly until this function returns
+        None. Also, by default, the result of the Operator will be a list of
+        Response.text objects.
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.

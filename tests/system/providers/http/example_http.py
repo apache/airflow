@@ -116,8 +116,9 @@ task_http_sensor_check = HttpSensor(
 
 def get_next_page_cursor(response) -> Optional[dict]:
     """
-    Return parameters to call the next page of result,
-    if a cursor is provided.
+    Take the raw `request.Response` object, and check for a cursor.
+    If a cursor exists, this function creates and return parameters to call
+    the next page of result.
     """
     next_cursor = response.json().get("cursor")
     if next_cursor:
