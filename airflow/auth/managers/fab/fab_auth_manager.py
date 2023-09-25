@@ -399,8 +399,7 @@ class FabAuthManager(BaseAuthManager):
         :meta private:
         """
         if "." in dag_id:
-            dm = self.security_manager.appbuilder.get_session.scalar(
+            return self.security_manager.appbuilder.get_session.scalar(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
             )
-            return dm.root_dag_id or dm.dag_id
         return dag_id
