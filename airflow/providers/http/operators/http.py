@@ -117,7 +117,6 @@ class SimpleHttpOperator(BaseOperator):
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
         self.deferrable = deferrable
-        self._deferrable_paginated_responses: List[Response] = []
 
     def execute(self, context: Context) -> Any:
         if self.deferrable:
@@ -190,7 +189,7 @@ class SimpleHttpOperator(BaseOperator):
             return lambda: response.text
         return lambda: [entry.text for entry in response]
 
-    def execute_complete(self, context: Context, event: dict):
+    def execute_complete(self, context: Context, event: dict, paginated_responses: List[Response] = None):
         """
         Callback for when the trigger fires. When no pagination, this method
         returns immediately. Otherwise, it creates a new deferrable.
@@ -201,13 +200,12 @@ class SimpleHttpOperator(BaseOperator):
             response = pickle.loads(base64.standard_b64decode(event["response"]))
 
             if self.pagination_function:
-                self._deferrable_paginated_responses.append(response)
+                paginated_responses = paginated_responses or []
+                paginated_responses.append(response)
 
                 next_page_params = self.pagination_function(response)
                 if not next_page_params:
-                    return self.process_response(
-                        context=context, response=self._deferrable_paginated_responses
-                    )
+                    return self.process_response(context=context, response=paginated_responses)
                 self.defer(
                     trigger=HttpTrigger(
                         http_conn_id=self.http_conn_id,
@@ -216,6 +214,7 @@ class SimpleHttpOperator(BaseOperator):
                         **self._merge_next_page_parameters(next_page_params),
                     ),
                     method_name="execute_complete",
+                    kwargs={"paginated_responses": paginated_responses},
                 )
             else:
                 return self.process_response(context=context, response=response)

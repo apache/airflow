@@ -94,11 +94,10 @@ class TestSimpleHttpOp:
         pagination_function is provided, and as long as this function returns
         a dictionary that override previous' call parameters.
         """
-
-        # Paginated function which returns None at the second call
         has_returned: bool = False
 
         def pagination_function(response: Response) -> Union[dict, None]:
+            """Paginated function which returns None at the second call."""
             nonlocal has_returned
             if not has_returned:
                 has_returned = True
@@ -152,9 +151,13 @@ class TestSimpleHttpOp:
         returns a dictionary that override previous' call parameters.
         """
 
-        def make_deferrable_response() -> dict:
+        def make_response_object() -> Response:
             response = Response()
             response._content = b'{"value": 5}'
+            return response
+
+        def create_resume_response_parameters() -> dict:
+            response = make_response_object()
             return dict(
                 context={},
                 event={
@@ -163,10 +166,10 @@ class TestSimpleHttpOp:
                 },
             )
 
-        # Paginated function which returns None at the second call
         has_returned: bool = False
 
         def pagination_function(response: Response) -> Union[dict, None]:
+            """Paginated function which returns None at the second call."""
             nonlocal has_returned
             if not has_returned:
                 has_returned = True
@@ -182,6 +185,8 @@ class TestSimpleHttpOp:
         # deferrable trigger. On the second one, the pagination_function returns
         # None, which end the execution of the Operator
         with contextlib.suppress(TaskDeferred):
-            operator.execute_complete(**make_deferrable_response())
-            result = operator.execute_complete(**make_deferrable_response())
+            operator.execute_complete(**create_resume_response_parameters())
+            result = operator.execute_complete(
+                **create_resume_response_parameters(), paginated_responses=[make_response_object()]
+            )
             assert result == ['{"value": 5}', '{"value": 5}']
