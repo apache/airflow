@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import pickle
+from typing import Union
 from unittest import mock
 
 import pytest
@@ -86,6 +87,35 @@ class TestSimpleHttpOp:
         result = operator.execute({})
         assert result == {"value": 5}
 
+    def test_paginated_responses(self, requests_mock):
+        """
+        Test that the SimpleHttpOperator calls repetitively the API when a
+        pagination_function is provided, and as long as this function doesn't
+        return None.
+        """
+
+        has_returned: bool = False
+        def pagination_function() -> Union[dict, None]:
+            nonlocal has_returned
+            if not has_returned:
+                has_returned = True
+                return dict(
+                    endpoint="/",
+                    data={"cursor": "abc"},
+                    headers={"Example": "Header"}
+                )
+
+        requests_mock.get("http://www.example.com", json={"value": 5})
+        operator = SimpleHttpOperator(
+            task_id="test_HTTP_op",
+            method="GET",
+            endpoint="/",
+            http_conn_id="HTTP_EXAMPLE",
+            pagination_function=pagination_function,
+        )
+        result = operator.execute({})
+        assert result == [{"value": 5}, {"value": 5}]
+
     def test_async_defer_successfully(self, requests_mock):
         operator = SimpleHttpOperator(
             task_id="test_HTTP_op",
@@ -110,3 +140,33 @@ class TestSimpleHttpOp:
             },
         )
         assert result == "content"
+
+    def test_async_paginated_responses(self, requests_mock):
+        """
+        Test that the SimpleHttpOperator calls repetitively the API when a
+        pagination_function is provided, and as long as this function doesn't
+        return None.
+        """
+
+        has_returned: bool = False
+        def pagination_function() -> Union[dict, None]:
+            nonlocal has_returned
+            if not has_returned:
+                has_returned = True
+                return dict(
+                    endpoint="/",
+                    data={"cursor": "abc"},
+                    headers={"Example": "Header"}
+                )
+
+        requests_mock.get("http://www.example.com", json={"value": 5})
+        operator = SimpleHttpOperator(
+            task_id="test_HTTP_op",
+            method="GET",
+            endpoint="/",
+            http_conn_id="HTTP_EXAMPLE",
+            pagination_function=pagination_function,
+            deferrable=True,
+        )
+        result = operator.execute({})
+        assert result == [{"value": 5}, {"value": 5}]

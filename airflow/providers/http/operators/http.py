@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import base64
 import pickle
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence, List, Union
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpTrigger
+from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
     from requests import Response
@@ -85,6 +86,7 @@ class SimpleHttpOperator(BaseOperator):
         method: str = "POST",
         data: Any = None,
         headers: dict[str, str] | None = None,
+        pagination_function: Callable[..., Any] | None = None,
         response_check: Callable[..., bool] | None = None,
         response_filter: Callable[..., Any] | None = None,
         extra_options: dict[str, Any] | None = None,
@@ -104,6 +106,7 @@ class SimpleHttpOperator(BaseOperator):
         self.endpoint = endpoint
         self.headers = headers or {}
         self.data = data or {}
+        self.pagination_function = pagination_function
         self.response_check = response_check
         self.response_filter = response_filter
         self.extra_options = extra_options or {}
@@ -114,6 +117,7 @@ class SimpleHttpOperator(BaseOperator):
         self.tcp_keep_alive_count = tcp_keep_alive_count
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
         self.deferrable = deferrable
+        self._deferrable_paginated_responses: List[Response] = []
 
     def execute(self, context: Context) -> Any:
         if self.deferrable:
@@ -141,16 +145,27 @@ class SimpleHttpOperator(BaseOperator):
             )
 
             self.log.info("Calling HTTP method")
-
             response = http.run(self.endpoint, self.data, self.headers, self.extra_options)
+
+            if self.pagination_function:
+                all_responses: List[Response] = [response]
+                while True:
+                    next_page_params = self.pagination_function(response)
+                    if not next_page_params:
+                        break
+                    response = http.run(**self._merge_next_page_parameters(next_page_params))
+                    all_responses.append(response)
+                response = all_responses
+
             return self.process_response(context=context, response=response)
 
-    def process_response(self, context: Context, response: Response) -> str:
+    def process_response(self, context: Context, response: Union[Response, List[Response]]) -> Union[str, List[str]]:
         """Process the response."""
         from airflow.utils.operator_helpers import determine_kwargs
+        make_default_response: Callable = self._default_response_maker(response=response)
 
         if self.log_response:
-            self.log.info(response.text)
+            self.log.info(make_default_response())
         if self.response_check:
             kwargs = determine_kwargs(self.response_check, [response], context)
             if not self.response_check(response, **kwargs):
@@ -158,7 +173,13 @@ class SimpleHttpOperator(BaseOperator):
         if self.response_filter:
             kwargs = determine_kwargs(self.response_filter, [response], context)
             return self.response_filter(response, **kwargs)
-        return response.text
+        return make_default_response()
+
+    @staticmethod
+    def _default_response_maker(response: Union[Response, List[Response]]) -> Callable:
+        if isinstance(response, Response):
+            return lambda: response.text
+        return lambda: [entry.text for entry in response]
 
     def execute_complete(self, context: Context, event: dict):
         """
@@ -168,6 +189,34 @@ class SimpleHttpOperator(BaseOperator):
         """
         if event["status"] == "success":
             response = pickle.loads(base64.standard_b64decode(event["response"]))
-            return self.process_response(context=context, response=response)
+
+            if self.pagination_function:
+                self._deferrable_paginated_responses.append(response)
+
+                next_page_params = self.pagination_function(response)
+                if not next_page_params:
+                    return self.process_response(
+                        context=context,
+                        response=self._deferrable_paginated_responses
+                    )
+                self.defer(
+                    trigger=HttpTrigger(
+                        http_conn_id=self.http_conn_id,
+                        auth_type=self.auth_type,
+                        method=self.method,
+                        **self._merge_next_page_parameters(next_page_params)
+                    ),
+                    method_name="execute_complete",
+                )
+            else:
+                return self.process_response(context=context, response=response)
         else:
             raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+
+    def _merge_next_page_parameters(self, next_page_params: dict) -> dict:
+        return dict(
+            endpoint=next_page_params.get("endpoint") or self.endpoint,
+            data=merge_dicts(self.data, next_page_params.get("data", {})),
+            headers=merge_dicts(self.headers, next_page_params.get("headers", {})),
+            extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {}))
+        )
