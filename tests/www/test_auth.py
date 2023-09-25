@@ -64,7 +64,7 @@ def test_dag_id_consistency(
     fail: bool,
 ):
     with app.test_request_context() as mock_context:
-        from airflow.www.auth import has_access
+        from airflow.www.auth import has_access_dag
 
         mock_context.request.args = {"dag_id": dag_id_args} if dag_id_args else {}
         kwargs = {"dag_id": dag_id_kwargs} if dag_id_kwargs else {}
@@ -79,10 +79,10 @@ def test_dag_id_consistency(
             role_name="limited-role",
             permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
         ) as user:
-            with patch("airflow.www.security_manager.g") as mock_g:
-                mock_g.user = user
+            with patch("airflow.auth.managers.fab.fab_auth_manager.FabAuthManager.get_user") as mock_get_user:
+                mock_get_user.return_value = user
 
-                @has_access(permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
+                @has_access_dag("GET")
                 def test_func(**kwargs):
                     return True
 

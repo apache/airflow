@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,19 +17,32 @@
 # under the License.
 from __future__ import annotations
 
-from airflow_breeze.global_constants import PROVIDERS_INDEX_KEY
+from dataclasses import dataclass
+from enum import Enum
 
-providers_prefix = "apache-airflow-providers-"
+
+@dataclass
+class ConnectionDetails:
+    """Represents the details of a connection."""
+
+    conn_id: str
 
 
-def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
-    providers = []
-    for short_form_provider in short_form_providers:
-        if short_form_provider == PROVIDERS_INDEX_KEY:
-            providers.append("apache-airflow-providers")
-            continue
+@dataclass
+class DagDetails:
+    """Represents the details of a DAG."""
 
-        short_form_provider.split(".")
-        parts = "-".join(short_form_provider.split("."))
-        providers.append(providers_prefix + parts)
-    return tuple(providers)
+    id: str
+
+
+class DagAccessEntity(Enum):
+    """Enum of DAG entities the user tries to access."""
+
+    AUDIT_LOG = "AUDIT_LOG"
+    CODE = "CODE"
+    DATASET = "DATASET"
+    DEPENDENCIES = "DEPENDENCIES"
+    RUN = "RUN"
+    TASK_INSTANCE = "TASK_INSTANCE"
+    TASK_LOGS = "TASK_LOGS"
+    XCOM = "XCOM"

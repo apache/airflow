@@ -43,7 +43,7 @@ class SlackAPIOperator(BaseOperator):
     def __init__(
         self,
         *,
-        slack_conn_id: str,
+        slack_conn_id: str = SlackHook.default_conn_name,
         method: str | None = None,
         api_params: dict | None = None,
         **kwargs,

@@ -123,7 +123,8 @@ combine-as-imports = true
 
 # The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
 # when __future__.annotations is used so we need to skip them from upgrading
-"airflow/serialization/pydantic/*.py" = ["I002"]
+# Pydantic also require models to be imported during execution
+"airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
