@@ -183,7 +183,7 @@ class TestSimpleHttpOp:
 
         # Do two calls: On the first one, the pagination_function creates a new
         # deferrable trigger. On the second one, the pagination_function returns
-        # None, which end the execution of the Operator
+        # None, which ends the execution of the Operator
         with contextlib.suppress(TaskDeferred):
             operator.execute_complete(**create_resume_response_parameters())
             result = operator.execute_complete(
