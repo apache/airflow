@@ -57,6 +57,12 @@ LIST_PIPELINES_ENDPOINT = ("GET", "/api/2.0/pipelines")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
+SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
+
+PATCH_REPOS_ENDPOINT = ("PATCH", "api/2.0/repos/{repo_id}")
+DELETE_REPOS_ENDPOINT = ("DELETE", "api/2.0/repos/{repo_id}")
+CREATE_REPOS_ENDPOINT = ("POST", "api/2.0/repos")
+
 RUN_LIFE_CYCLE_STATES = [
     "PENDING",
     "RUNNING",
@@ -66,8 +72,6 @@ RUN_LIFE_CYCLE_STATES = [
     "INTERNAL_ERROR",
     "QUEUED",
 ]
-
-SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
 
 
 class RunState:
@@ -526,7 +530,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: metadata from update
         """
-        repos_endpoint = ("PATCH", f"api/2.0/repos/{repo_id}")
+        repos_endpoint = (lambda tuple, repo_id: (tuple[0], tuple[1].format(repo_id=repo_id)))(PATCH_REPOS_ENDPOINT, repo_id)
         return self._do_api_call(repos_endpoint, json)
 
     def delete_repo(self, repo_id: str):
@@ -536,7 +540,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param repo_id: ID of Databricks Repos
         :return:
         """
-        repos_endpoint = ("DELETE", f"api/2.0/repos/{repo_id}")
+        repos_endpoint = (lambda tuple, repo_id: (tuple[0], tuple[1].format(repo_id=repo_id)))(DELETE_REPOS_ENDPOINT, repo_id)
         self._do_api_call(repos_endpoint)
 
     def create_repo(self, json: dict[str, Any]) -> dict:
@@ -546,7 +550,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return:
         """
-        repos_endpoint = ("POST", "api/2.0/repos")
+        repos_endpoint = CREATE_REPOS_ENDPOINT # TODO: use variable
         return self._do_api_call(repos_endpoint, json)
 
     def get_repo_by_path(self, path: str) -> str | None:
