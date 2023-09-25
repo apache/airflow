@@ -72,7 +72,7 @@
     "url-loader": "4.1.0",
     "webpack": "^5.73.0",
     "webpack-cli": "^4.0.0",
-    "webpack-license-plugin": "4.2.2",
+    "webpack-license-plugin": "^4.2.2",
     "webpack-manifest-plugin": "^4.0.0"
   },
   "dependencies": {
