@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING
 
 import pendulum
 
-from airflow import DAG
 from airflow.exceptions import AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.trigger_rule import TriggerRule
 
