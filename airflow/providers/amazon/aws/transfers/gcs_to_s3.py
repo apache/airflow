@@ -42,7 +42,7 @@ class GCSToS3Operator(BaseOperator):
         :ref:`howto/operator:GCSToS3Operator`
 
     :param gcs_bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :param bucket: (Deprecated) Use gcs_bucket instead.
+    :param bucket: (Deprecated) Use ``gcs_bucket`` instead.
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
     :param delimiter: (Deprecated) The delimiter by which you want to filter the objects. (templated)
