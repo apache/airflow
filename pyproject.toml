@@ -147,7 +147,40 @@ combine-as-imports = true
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
 
 [tool.ruff.flake8-tidy-imports.banned-api]
+# Banned lazy imports from ``airflow`` package in codebase
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
+"airflow.DAG".msg = "Use airflow.models.dag.DAG instead."
+"airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
+"airflow.XComArg".msg = "Use airflow.models.xcom_arg.XComArg instead."
+# Banned lazy imports from ``airflow.model`` package in codebase
+"airflow.models.Base".msg = "Use airflow.models.base.Base instead."
+"airflow.models.ID_LEN".msg = "Use airflow.models.base.ID_LEN instead."
+"airflow.models.BaseOperator".msg = "Use airflow.models.baseoperator.BaseOperator instead."
+"airflow.models.BaseOperatorLink".msg = "Use airflow.models.baseoperator.BaseOperatorLink instead."
+"airflow.models.Connection".msg = "Use airflow.models.connection.Connection instead."
+"airflow.models.DAG".msg = "Use airflow.models.dag.DAG instead."
+"airflow.models.DagModel".msg = "Use airflow.models.dag.DagModel instead."
+"airflow.models.DagTag".msg = "Use airflow.models.dag.DagTag instead."
+"airflow.models.DagBag".msg = "Use airflow.models.dagbag.DagBag instead."
+"airflow.models.DagPickle".msg = "Use airflow.models.dagpickle.DagPickle instead."
+"airflow.models.DagRun".msg = "Use airflow.models.dagrun.DagRun instead."
+"airflow.models.DbCallbackRequest".msg = "Use airflow.models.db_callback_request.DbCallbackRequest instead."
+"airflow.models.ImportError".msg = "Use airflow.models.errors.ImportError instead."
+"airflow.models.Log".msg = "Use airflow.models.log.Log instead."
+"airflow.models.MappedOperator".msg = "Use airflow.models.mappedoperator.MappedOperator instead."
+"airflow.models.Operator".msg = "Use airflow.models.operator.Operator instead."
+"airflow.models.Param".msg = "Use airflow.models.param.Param instead."
+"airflow.models.Pool".msg = "Use airflow.models.pool.Pool instead."
+"airflow.models.RenderedTaskInstanceFields".msg = "Use airflow.models.renderedtifields.RenderedTaskInstanceFields instead."
+"airflow.models.SkipMixin".msg = "Use airflow.models.skipmixin.SkipMixin instead."
+"airflow.models.SlaMiss".msg = "Use airflow.models.slamiss.SlaMiss instead."
+"airflow.models.TaskFail".msg = "Use airflow.models.taskfail.TaskFail instead."
+"airflow.models.TaskInstance".msg = "Use airflow.models.taskinstance.TaskInstance instead."
+"airflow.models.clear_task_instances".msg = "Use airflow.models.taskinstance.clear_task_instances instead."
+"airflow.models.TaskReschedule".msg = "Use airflow.models.taskreschedule.TaskReschedule instead."
+"airflow.models.Trigger".msg = "Use airflow.models.trigger.Trigger instead."
+"airflow.models.Variable".msg = "Use airflow.models.variable.Variable instead."
+"airflow.models.XCom".msg = "Use airflow.models.xcom.XCom instead."
 
 [tool.coverage.run]
 branch = true
