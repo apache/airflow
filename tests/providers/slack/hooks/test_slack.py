@@ -483,3 +483,7 @@ class TestSlackHook:
             params = hook._get_conn_params()
             assert "proxy" not in params
             assert "base_url" not in params
+
+    def test_default_conn_name(self):
+        hook = SlackHook()
+        assert hook.slack_conn_id == SlackHook.default_conn_name

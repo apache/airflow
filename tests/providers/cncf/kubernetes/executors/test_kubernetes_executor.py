@@ -30,7 +30,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator

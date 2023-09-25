@@ -30,8 +30,8 @@ from google.cloud.bigquery_datatransfer_v1 import (
     TransferState,
 )
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator

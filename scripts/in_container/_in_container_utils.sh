@@ -66,6 +66,10 @@ function in_container_script_start() {
 #
 function in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "linux" ]]; then
+        if [[ ${DOCKER_IS_ROOTLESS=} == "true" ]]; then
+             echo "${COLOR_YELLOW}Skip fixing ownership of generated files: Docker is rootless${COLOR_RESET}"
+             return
+        fi
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"
