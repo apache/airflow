@@ -38,6 +38,7 @@ DEFAULT_CONN_ID: str = "aws_default"
 
 def _check_failed(current_state, target_state, failure_states, soft_fail):
     if (current_state != target_state) and (current_state in failure_states):
+        # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
         message = f"Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
         if soft_fail:
             raise AirflowSkipException(message)
