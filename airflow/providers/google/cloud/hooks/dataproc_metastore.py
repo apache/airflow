@@ -228,7 +228,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
             request={
                 "parent": parent,
                 "service_id": service_id,
-                "service": service if service else {},
+                "service": service or {},
                 "request_id": request_id,
             },
             retry=retry,

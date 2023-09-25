@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from flask import Response
 
+from airflow.jobs.job import Job, most_recent_job
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import create_session
 
@@ -38,8 +39,11 @@ def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
     from airflow.models import Trigger, Variable, XCom
-    from airflow.models.dag import DagModel
+    from airflow.models.dag import DAG, DagModel
+    from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
+    from airflow.models.serialized_dag import SerializedDagModel
+    from airflow.models.taskinstance import TaskInstance
     from airflow.secrets.metastore import MetastoreBackend
 
     functions: list[Callable] = [
@@ -51,6 +55,12 @@ def _initialize_map() -> dict[str, Callable]:
         DagModel.get_current,
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagWarning.purge_inactive_dag_warnings,
+        Job._add_to_db,
+        Job._fetch_from_db,
+        Job._kill,
+        Job._update_heartbeat,
+        Job._update_in_db,
+        most_recent_job,
         MetastoreBackend._fetch_connection,
         MetastoreBackend._fetch_variable,
         XCom.get_value,
@@ -60,6 +70,16 @@ def _initialize_map() -> dict[str, Callable]:
         Variable.set,
         Variable.update,
         Variable.delete,
+        DAG.fetch_callback,
+        DAG.fetch_dagrun,
+        DagRun.fetch_task_instances,
+        DagRun.get_previous_dagrun,
+        DagRun.get_previous_scheduled_dagrun,
+        DagRun.fetch_task_instance,
+        SerializedDagModel.get_serialized_dag,
+        TaskInstance.get_task_instance,
+        TaskInstance.fetch_handle_failure_context,
+        TaskInstance.save_to_db,
         Trigger.from_object,
         Trigger.bulk_fetch,
         Trigger.clean_unused,

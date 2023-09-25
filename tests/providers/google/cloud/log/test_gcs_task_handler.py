@@ -23,7 +23,6 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from pytest import param
 
 from airflow.providers.google.cloud.log.gcs_task_handler import GCSTaskHandler
 from airflow.utils.state import TaskInstanceState
@@ -63,7 +62,9 @@ class TestGCSTaskHandler:
     @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.GCSHook")
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id")
-    @pytest.mark.parametrize("conn_id", [param("", id="no-conn"), param("my_gcs_conn", id="with-conn")])
+    @pytest.mark.parametrize(
+        "conn_id", [pytest.param("", id="no-conn"), pytest.param("my_gcs_conn", id="with-conn")]
+    )
     def test_client_conn_id_behavior(self, mock_get_cred, mock_client, mock_hook, conn_id):
         """When remote log conn id configured, hook will be used"""
         mock_hook.return_value.get_credentials_and_project_id.return_value = ("test_cred", "test_proj")

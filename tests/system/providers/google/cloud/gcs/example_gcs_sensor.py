@@ -54,7 +54,7 @@ def workaround_in_debug_executor(cls):
     This method creates dummy property to overwrite it and force poke method to always return True.
     """
     cls.mode = dummy_mode_property()
-    cls.poke = lambda self, ctx: True
+    cls.poke = lambda self, context: True
 
 
 def dummy_mode_property():
@@ -179,6 +179,7 @@ with models.DAG(
             gcs_object_exists_defered,
             gcs_object_exists_async,
             gcs_object_with_prefix_exists,
+            gcs_object_with_prefix_exists_async,
         ],
         # TEST TEARDOWN
         delete_bucket,
@@ -188,6 +189,7 @@ with models.DAG(
         # TEST BODY
         gcs_upload_session_complete,
         gcs_update_object_exists,
+        gcs_update_object_exists_async,
         delete_bucket,
     )
 

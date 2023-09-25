@@ -102,7 +102,7 @@ def wait_for_terminal_dag_state(dag_id, dag_run_id):
     pprint(api_request("GET", f"dags/{DAG_ID}/details"))
 
     # Wait 80 seconds
-    for _ in range(80):
+    for _ in range(400):
         dag_state = api_request("GET", f"dags/{dag_id}/dagRuns/{dag_run_id}").get("state")
         print(f"Waiting for DAG Run: dag_state={dag_state}")
         sleep(1)
@@ -134,61 +134,38 @@ def test_trigger_dag_and_wait_for_result(tmp_path_factory, monkeypatch):
     compose_command = ["docker", "compose"]
     success = run_command([*compose_command, "version"], check=False)
     if not success:
-        compose_command = ["docker-compose"]
-        success = run_command([*compose_command, "--version"], check=False)
-        if not success:
-            print("ERROR: Neither `docker compose` nor `docker-compose` is available")
-            sys.exit(1)
+        print("ERROR: `docker compose` not available. Make sure compose plugin is installed")
+        sys.exit(1)
     compose_command.extend(["--project-name", "quick-start"])
     run_command([*compose_command, "config"])
     run_command([*compose_command, "down", "--volumes", "--remove-orphans"])
+    run_command([*compose_command, "up", "-d", "--wait"])
+    api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
+    api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
     try:
-        run_command([*compose_command, "up", "-d"])
-        # The --wait condition was released in docker-compose v2.1.1, but we want to support
-        # docker-compose v1 yet.
-        # See:
-        # https://github.com/docker/compose/releases/tag/v2.1.1
-        # https://github.com/docker/compose/pull/8777
-        wait_for_containers_timeout = int(os.getenv("WAIT_FOR_CONTAINERS_TIMEOUT", "300"))
-        # the time to wait is total, not per container
-        start_time = monotonic()
-        for container_id in (
-            subprocess.check_output([*compose_command, "ps", "-q"]).decode().strip().splitlines()
-        ):
-            current_time = monotonic()
-            wait_for_container(container_id, wait_for_containers_timeout - int(current_time - start_time))
-        api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
-        api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
-        try:
-            wait_for_terminal_dag_state(dag_id=DAG_ID, dag_run_id=DAG_RUN_ID)
-            dag_state = api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}").get("state")
-            assert dag_state == "success"
-        except Exception:
-            print("HTTP: GET health")
-            pprint(api_request("GET", "health"))
-            print(f"HTTP: GET dags/{DAG_ID}/dagRuns")
-            pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns"))
-            print(f"HTTP: GET dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances")
-            pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances"))
-            raise
+        wait_for_terminal_dag_state(dag_id=DAG_ID, dag_run_id=DAG_RUN_ID)
+        dag_state = api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}").get("state")
+        assert dag_state == "success"
     except Exception:
+        print("HTTP: GET health")
+        pprint(api_request("GET", "health"))
+        print(f"HTTP: GET dags/{DAG_ID}/dagRuns")
+        pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns"))
+        print(f"HTTP: GET dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances")
+        pprint(api_request("GET", f"dags/{DAG_ID}/dagRuns/{DAG_RUN_ID}/taskInstances"))
         print(f"Current working directory: {os.getcwd()}")
         run_command(["docker", "version"])
         run_command([*compose_command, "version"])
         run_command(["docker", "ps"])
         run_command([*compose_command, "logs"])
-
-        if compose_command == ["docker", "compose"]:
-            # JSON output is only available for docker compose v2
-            ps_output = run_command([*compose_command, "ps", "--format", "json"], return_output=True)
-            container_names = [container["Name"] for container in json.loads(ps_output)]
-            for container in container_names:
-                print(f"Health check for {container}")
-                result = run_command(
-                    ["docker", "inspect", "--format", "{{json .State}}", container], return_output=True
-                )
-                pprint(json.loads(result))
-
+        ps_output = run_command([*compose_command, "ps", "--format", "json"], return_output=True)
+        container_names = [container["Name"] for container in json.loads(ps_output)]
+        for container in container_names:
+            print(f"Health check for {container}")
+            result = run_command(
+                ["docker", "inspect", "--format", "{{json .State}}", container], return_output=True
+            )
+            pprint(json.loads(result))
         raise
     finally:
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):

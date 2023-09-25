@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.utils import trim_none_values
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
 
 
@@ -74,9 +74,11 @@ class LambdaFunctionStateSensor(BaseSensorOperator):
         state = self.hook.conn.get_function(**trim_none_values(get_function_args))["Configuration"]["State"]
 
         if state in self.FAILURE_STATES:
-            raise AirflowException(
-                "Lambda function state sensor failed because the Lambda is in a failed state"
-            )
+            message = "Lambda function state sensor failed because the Lambda is in a failed state"
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         return state in self.target_states
 

@@ -543,7 +543,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
                     dataset=dataset, table_id=table_id, project_id=project_id, session=session
                 )
                 response = await client.get()
-                return True if response else False
+                return bool(response)
             except ClientResponseError as err:
                 if err.status == 404:
                     return False

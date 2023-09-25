@@ -193,12 +193,12 @@ class GCSToS3Operator(BaseOperator):
             # filter all the objects (return empty list) instead of empty
             # prefix returning all the objects
             if prefix:
-                prefix = prefix if prefix.endswith("/") else f"{prefix}/"
+                prefix = prefix.rstrip("/") + "/"
             # look for the bucket and the prefix to avoid look into
             # parent directories/keys
             existing_files = s3_hook.list_keys(bucket_name, prefix=prefix)
             # in case that no files exists, return an empty array to avoid errors
-            existing_files = existing_files if existing_files is not None else []
+            existing_files = existing_files or []
             # remove the prefix for the existing files to allow the match
             existing_files = [file.replace(prefix, "", 1) for file in existing_files]
             gcs_files = list(set(gcs_files) - set(existing_files))

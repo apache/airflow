@@ -22,7 +22,6 @@ import os
 import shutil
 import sys
 from copy import copy
-from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 from uuid import uuid4
@@ -33,13 +32,12 @@ from kubernetes import client
 from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
-from pytest import param
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
@@ -150,9 +148,8 @@ class TestKubernetesPodOperatorSystem:
             return None
         return ",".join([f"{key}={value}" for key, value in enumerate(self.labels)])
 
-    def test_do_xcom_push_defaults_false(self, kubeconfig_path, mock_get_connection):
-        with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
-            new_config_path = f.name
+    def test_do_xcom_push_defaults_false(self, kubeconfig_path, mock_get_connection, tmp_path):
+        new_config_path = tmp_path / "kube_config.cfg"
         shutil.copy(kubeconfig_path, new_config_path)
         k = KubernetesPodOperator(
             namespace="default",
@@ -163,13 +160,12 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            config_file=new_config_path,
+            config_file=os.fspath(new_config_path),
         )
         assert not k.do_xcom_push
 
-    def test_config_path_move(self, kubeconfig_path, mock_get_connection):
-        with NamedTemporaryFile(prefix="kube_config", suffix=".cfg") as f:
-            new_config_path = f.name
+    def test_config_path_move(self, kubeconfig_path, mock_get_connection, tmp_path):
+        new_config_path = tmp_path / "kube_config.cfg"
         shutil.copy(kubeconfig_path, new_config_path)
 
         k = KubernetesPodOperator(
@@ -181,8 +177,8 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=False,
-            config_file=new_config_path,
+            on_finish_action=OnFinishAction.KEEP_POD,
+            config_file=os.fspath(new_config_path),
         )
         context = create_context(k)
         k.execute(context)
@@ -217,7 +213,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=True,
+            on_finish_action=OnFinishAction.DELETE_POD,
         )
         context = create_context(k)
         k.execute(context)
@@ -234,7 +230,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=True,
+            on_finish_action=OnFinishAction.DELETE_POD,
             skip_on_exit_code=42,
         )
         context = create_context(k)
@@ -243,7 +239,7 @@ class TestKubernetesPodOperatorSystem:
 
     def test_already_checked_on_success(self, mock_get_connection):
         """
-        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        When ``on_finish_action="keep_pod"``, pod should have 'already_checked'
         label, whether pod is successful or not.
         """
         k = KubernetesPodOperator(
@@ -255,7 +251,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
         )
         context = create_context(k)
         k.execute(context)
@@ -265,7 +261,7 @@ class TestKubernetesPodOperatorSystem:
 
     def test_already_checked_on_failure(self, mock_get_connection):
         """
-        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        When ``on_finish_action="keep_pod"``, pod should have 'already_checked'
         label, whether pod is successful or not.
         """
         k = KubernetesPodOperator(
@@ -277,7 +273,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             in_cluster=False,
             do_xcom_push=False,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
         )
         context = create_context(k)
         with pytest.raises(AirflowException):
@@ -395,7 +391,7 @@ class TestKubernetesPodOperatorSystem:
     @pytest.mark.parametrize(
         "val",
         [
-            param(
+            pytest.param(
                 k8s.V1Affinity(
                     node_affinity=k8s.V1NodeAffinity(
                         required_during_scheduling_ignored_during_execution=k8s.V1NodeSelector(
@@ -415,7 +411,7 @@ class TestKubernetesPodOperatorSystem:
                 ),
                 id="current",
             ),
-            param(
+            pytest.param(
                 {
                     "nodeAffinity": {
                         "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -542,7 +538,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=name,
             name=name,
             random_name_suffix=False,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
             in_cluster=False,
             do_xcom_push=False,
             security_context=security_context,
@@ -567,7 +563,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=name,
             name=name,
             random_name_suffix=False,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
             in_cluster=False,
             do_xcom_push=False,
             security_context=security_context,
@@ -729,8 +725,8 @@ class TestKubernetesPodOperatorSystem:
     @pytest.mark.parametrize(
         "env_vars",
         [
-            param([k8s.V1EnvVar(name="env_name", value="value")], id="current"),
-            param({"env_name": "value"}, id="backcompat"),  # todo: remove?
+            pytest.param([k8s.V1EnvVar(name="env_name", value="value")], id="current"),
+            pytest.param({"env_name": "value"}, id="backcompat"),  # todo: remove?
         ],
     )
     def test_pod_template_file_with_overrides_system(self, env_vars, test_label, mock_get_connection):
@@ -825,7 +821,7 @@ class TestKubernetesPodOperatorSystem:
             labels=self.labels,
             full_pod_spec=pod_spec,
             do_xcom_push=True,
-            is_delete_operator_pod=False,
+            on_finish_action=OnFinishAction.KEEP_POD,
             startup_timeout_seconds=30,
         )
 
@@ -1114,7 +1110,7 @@ class TestKubernetesPodOperatorSystem:
                 task_id=name,
                 in_cluster=False,
                 do_xcom_push=False,
-                is_delete_operator_pod=False,
+                on_finish_action=OnFinishAction.KEEP_POD,
                 termination_grace_period=0,
             )
 

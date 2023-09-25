@@ -26,15 +26,17 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
-from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomPythonPackageTrainingJobOperator,
     DeleteCustomTrainingJobOperator,
@@ -43,27 +45,19 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
     DeleteDatasetOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_custom_job_operations"
+DAG_ID = "example_vertex_ai_custom_job_operations"
 REGION = "us-central1"
 PACKAGE_DISPLAY_NAME = f"train-housing-py-package-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"py-package-housing-model-{ENV_ID}"
 
-CUSTOM_PYTHON_GCS_BUCKET_NAME = f"bucket_python_{DAG_ID}_{ENV_ID}"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+CUSTOM_PYTHON_GCS_BUCKET_NAME = f"bucket_python_{DAG_ID}_{ENV_ID}".replace("_", "-")
 
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
-RESOURCES_PATH = Path(__file__).parent / "resources"
-CSV_ZIP_FILE_LOCAL_PATH = str(RESOURCES_PATH / "California-housing-python-package.zip")
-CSV_FILE_LOCAL_PATH = "/custom-job-python/california_housing_train.csv"
-TAR_FILE_LOCAL_PATH = "/custom-job-python/custom_trainer_script-0.1.tar"
-FILES_TO_UPLOAD = [
-    CSV_FILE_LOCAL_PATH,
-    TAR_FILE_LOCAL_PATH,
-]
 
 
 def TABULAR_DATASET(bucket_name):
@@ -104,16 +98,16 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
-    unzip_file = BashOperator(
-        task_id="unzip_csv_data_file",
-        bash_command=f"mkdir -p /custom-job-python && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job-python/",
+
+    move_data_files = GCSSynchronizeBucketsOperator(
+        task_id="move_files_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="vertex-ai/california-housing-data",
+        destination_bucket=CUSTOM_PYTHON_GCS_BUCKET_NAME,
+        destination_object="vertex-ai",
+        recursive=True,
     )
-    upload_files = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=FILES_TO_UPLOAD,
-        dst="vertex-ai/",
-        bucket=CUSTOM_PYTHON_GCS_BUCKET_NAME,
-    )
+
     create_tabular_dataset = CreateDatasetOperator(
         task_id="tabular_dataset",
         dataset=TABULAR_DATASET(CUSTOM_PYTHON_GCS_BUCKET_NAME),
@@ -148,8 +142,9 @@ with models.DAG(
 
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
-        training_pipeline_id=create_custom_python_package_training_job.output["training_id"],
-        custom_job_id=create_custom_python_package_training_job.output["custom_job_id"],
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='python_package_task', "
+        "key='training_id') }}",
+        custom_job_id="{{ task_instance.xcom_pull(task_ids='python_package_task', key='custom_job_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -167,16 +162,11 @@ with models.DAG(
         bucket_name=CUSTOM_PYTHON_GCS_BUCKET_NAME,
         trigger_rule=TriggerRule.ALL_DONE,
     )
-    clear_folder = BashOperator(
-        task_id="clear_folder",
-        bash_command="rm -r /custom-job-python/*",
-    )
 
     (
         # TEST SETUP
         create_bucket
-        >> unzip_file
-        >> upload_files
+        >> move_data_files
         >> create_tabular_dataset
         # TEST BODY
         >> create_custom_python_package_training_job
@@ -184,7 +174,6 @@ with models.DAG(
         >> delete_custom_training_job
         >> delete_tabular_dataset
         >> delete_bucket
-        >> clear_folder
     )
 
 

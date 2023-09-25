@@ -284,7 +284,7 @@ def patch_environ(new_env_variables: dict[str, str]) -> Generator[None, None, No
     After leaving the context, it restores its original state.
     :param new_env_variables: Environment variables to set
     """
-    current_env_state = {key: os.environ.get(key) for key in new_env_variables.keys()}
+    current_env_state = {key: os.environ.get(key) for key in new_env_variables}
     os.environ.update(new_env_variables)
     try:
         yield
