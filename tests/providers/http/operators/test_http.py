@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import base64
+import contextlib
 import pickle
 from typing import Union
 from unittest import mock
@@ -90,19 +91,21 @@ class TestSimpleHttpOp:
     def test_paginated_responses(self, requests_mock):
         """
         Test that the SimpleHttpOperator calls repetitively the API when a
-        pagination_function is provided, and as long as this function doesn't
-        return None.
+        pagination_function is provided, and as long as this function returns
+        a dictionary that override previous' call parameters.
         """
 
+        # Paginated function which returns None at the second call
         has_returned: bool = False
-        def pagination_function() -> Union[dict, None]:
+        def pagination_function(response: Response) -> Union[dict, None]:
             nonlocal has_returned
             if not has_returned:
                 has_returned = True
                 return dict(
                     endpoint="/",
-                    data={"cursor": "abc"},
-                    headers={"Example": "Header"}
+                    data={"cursor": "example"},
+                    headers={},
+                    extra_options={},
                 )
 
         requests_mock.get("http://www.example.com", json={"value": 5})
@@ -114,7 +117,7 @@ class TestSimpleHttpOp:
             pagination_function=pagination_function,
         )
         result = operator.execute({})
-        assert result == [{"value": 5}, {"value": 5}]
+        assert result == ['{"value": 5}', '{"value": 5}']
 
     def test_async_defer_successfully(self, requests_mock):
         operator = SimpleHttpOperator(
@@ -143,30 +146,40 @@ class TestSimpleHttpOp:
 
     def test_async_paginated_responses(self, requests_mock):
         """
-        Test that the SimpleHttpOperator calls repetitively the API when a
-        pagination_function is provided, and as long as this function doesn't
-        return None.
+        Test that the SimpleHttpOperator calls asynchronously and repetitively
+        the API when a pagination_function is provided, and as long as this function
+        returns a dictionary that override previous' call parameters.
         """
 
+        def make_deferrable_response() -> dict:
+            response = Response()
+            response._content = b'{"value": 5}'
+            return dict(
+                context={},
+                event={
+                    "status": "success",
+                    "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                }
+            )
+
+        # Paginated function which returns None at the second call
         has_returned: bool = False
-        def pagination_function() -> Union[dict, None]:
+        def pagination_function(response: Response) -> Union[dict, None]:
             nonlocal has_returned
             if not has_returned:
                 has_returned = True
-                return dict(
-                    endpoint="/",
-                    data={"cursor": "abc"},
-                    headers={"Example": "Header"}
-                )
+                return dict(endpoint="/")
 
-        requests_mock.get("http://www.example.com", json={"value": 5})
         operator = SimpleHttpOperator(
             task_id="test_HTTP_op",
-            method="GET",
-            endpoint="/",
-            http_conn_id="HTTP_EXAMPLE",
             pagination_function=pagination_function,
             deferrable=True,
         )
-        result = operator.execute({})
-        assert result == [{"value": 5}, {"value": 5}]
+
+        # Do two calls: On the first one, the pagination_function creates a new
+        # deferrable trigger. On the second one, the pagination_function returns
+        # None, which end the execution of the Operator
+        with contextlib.suppress(TaskDeferred):
+            operator.execute_complete(**make_deferrable_response())
+            result = operator.execute_complete(**make_deferrable_response())
+            assert result == ['{"value": 5}', '{"value": 5}']
