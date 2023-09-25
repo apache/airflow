@@ -54,7 +54,16 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-version",
                 "--python",
                 "--provider-id",
-                "--provider-version",
+            ],
+        },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
             ],
         },
     ],

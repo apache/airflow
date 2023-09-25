@@ -28,7 +28,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.cdxgen import (
     SbomApplicationJob,
-    build_providers_base_image,
+    build_all_airflow_versions_base_image,
     get_cdxgen_port_mapping,
     get_requirements_for_provider,
 )
@@ -113,7 +113,7 @@ SBOM_INDEX_TEMPLATE = """
 @option_dry_run
 @option_answer
 def update_sbom_information(
-    airflow_site_dir: Path,
+    airflow_site_directory: Path,
     airflow_version: str | None,
     python: str | None,
     include_provider_dependencies: bool,
@@ -146,10 +146,10 @@ def update_sbom_information(
 
     jobs_to_run: list[SbomApplicationJob] = []
 
-    apache_airflow_dir = airflow_site_dir / "docs-archive" / "apache-airflow"
+    apache_airflow_directory = airflow_site_directory / "docs-archive" / "apache-airflow"
 
     for airflow_v in airflow_versions:
-        airflow_version_dir = apache_airflow_dir / airflow_v
+        airflow_version_dir = apache_airflow_directory / airflow_v
         if not airflow_version_dir.exists():
             get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
             continue
@@ -218,7 +218,7 @@ def update_sbom_information(
             produce_sbom_for_application_via_cdxgen_server(job, output=None)
 
     for airflow_v in airflow_versions:
-        airflow_version_dir = apache_airflow_dir / airflow_v
+        airflow_version_dir = apache_airflow_directory / airflow_v
         destination_dir = airflow_version_dir / "sbom"
         destination_index_path = destination_dir / "index.html"
         get_console().print(f"[info]Generating index for {destination_dir}")
@@ -248,27 +248,67 @@ def update_sbom_information(
     type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
     required=True,
     help="Provider to generate the requirements for",
-)
-@click.option(
-    "--provider-version", type=str, required=False, help="Provider version to generate the requirements for"
+    multiple=True,
 )
 @option_verbose
 @option_dry_run
 @option_answer
+@option_run_in_parallel
+@option_parallelism
+@option_debug_resources
+@option_include_success_outputs
+@option_skip_cleanup
 def generate_provider_requirements(
     airflow_version: str | None,
     python: str,
-    provider_id: str,
-    provider_version: str | None,
+    provider_id: tuple[str],
+    run_in_parallel: bool,
+    parallelism: int,
+    debug_resources: bool,
+    include_success_outputs: bool,
+    skip_cleanup: bool,
 ):
     perform_environment_checks()
     if airflow_version is None:
         airflow_version = get_active_airflow_versions(confirm=False)[-1]
         get_console().print(f"[info]Using {airflow_version} as airflow version")
-    build_providers_base_image(airflow_version=airflow_version, python_version=python)
-    get_requirements_for_provider(
-        provider_id=provider_id,
-        provider_version=provider_version,
-        airflow_version=airflow_version,
-        python_version=python,
-    )
+    build_all_airflow_versions_base_image(python_version=python)
+
+    if run_in_parallel:
+        parallelism = min(parallelism, len(provider_id))
+        get_console().print(f"[info]Running {len(provider_id)} jobs in parallel")
+        with ci_group(f"Generating provider requirements for {provider_id}"):
+            all_params = [f"CI {p_id}" for p_id in provider_id]
+            with run_with_pool(
+                parallelism=parallelism,
+                all_params=all_params,
+                debug_resources=debug_resources,
+                progress_matcher=ShowLastLineProgressMatcher(),
+            ) as (pool, outputs):
+                results = [
+                    pool.apply_async(
+                        get_requirements_for_provider,
+                        kwds={
+                            "provider_id": p_id,
+                            "provider_version": None,
+                            "airflow_version": airflow_version,
+                            "python_version": python,
+                        },
+                    )
+                    for index, p_id in enumerate(provider_id)
+                ]
+        check_async_run_results(
+            results=results,
+            success="Providers requirements were generated successfully",
+            outputs=outputs,
+            include_success_outputs=include_success_outputs,
+            skip_cleanup=skip_cleanup,
+        )
+    else:
+        for p_id in provider_id:
+            get_requirements_for_provider(
+                provider_id=p_id,
+                provider_version=None,
+                airflow_version=airflow_version,
+                python_version=python,
+            )
