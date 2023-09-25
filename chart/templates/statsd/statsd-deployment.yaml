@@ -26,7 +26,7 @@
 {{- $tolerations := or .Values.statsd.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.statsd.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "localPodSecurityContext" .Values.statsd }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.statsd) }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.statsd }}
 {{- $containerLifecycleHooks := .Values.statsd.containerLifecycleHooks }}
 apiVersion: apps/v1
