@@ -25,7 +25,7 @@
 {{- $affinity := or .Values.redis.affinity .Values.affinity }}
 {{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.redis.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "localPodSecurityContext" .Values.redis }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.redis) }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.redis }}
 {{- $containerLifecycleHooks := .Values.redis.containerLifecycleHooks }}
 apiVersion: apps/v1
