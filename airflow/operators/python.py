@@ -20,6 +20,7 @@ from __future__ import annotations
 import fcntl
 import importlib
 import inspect
+import json
 import logging
 import os
 import pickle
@@ -624,7 +625,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             index_urls=self.index_urls,
         )
 
-    def _calculate_cache_hash(self) -> str:
+    def _calculate_cache_hash(self) -> tuple[str, str]:
         """Helper to generate the hash of the cache folder to use.
 
         The following factors are used as input for the hash:
@@ -634,42 +635,65 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         - python version
         - Variable to override the hash with a cache key
         - Index URLs
+
+        Returns a hash and the data dict which is the base for the hash as text.
         """
-        requirements_list = ",".join(self._requirements_list())
-        pip_options = ",".join(self.pip_install_options) if self.pip_install_options else ""
-        index_urls = ",".join(self.index_urls) if self.index_urls else ""
-        cache_key = str(Variable.get("PythonVirtualenvOperator.cache_key", ""))
-        hash_text = (
-            f"{self.python_version};{requirements_list};{cache_key};{self.system_site_packages};{pip_options};"
-            f"{index_urls}"
-        )
+        hash_dict = {
+            "requirements_list": self._requirements_list(),
+            "pip_install_options": self.pip_install_options,
+            "index_urls": self.index_urls,
+            "cache_key": str(Variable.get("PythonVirtualenvOperator.cache_key", "")),
+            "python_version": self.python_version,
+            "system_site_packages": self.system_site_packages,
+        }
+        hash_text = json.dumps(hash_dict, sort_keys=True)
         hash_object = hashlib_wrapper.md5(hash_text.encode())
         requirements_hash = hash_object.hexdigest()
-        return requirements_hash[0:8]
+        return requirements_hash[0:8], hash_text
 
     def _ensure_venv_cache_exists(self, venv_cache_path: Path) -> Path:
         """Helper to ensure a valid virtual environment is set up and will create inplace."""
-        venv_path = venv_cache_path / f"venv-{self._calculate_cache_hash()}"
+        cache_hash, hash_data = self._calculate_cache_hash()
+        venv_path = venv_cache_path / f"venv-{cache_hash}"
         self.log.info("Python virtual environment will be cached in %s", venv_path)
         venv_path.parent.mkdir(parents=True, exist_ok=True)
         with open(f"{venv_path}.lock", "w") as f:
             # Ensure that cache is not build by parallel workers
             fcntl.flock(f, fcntl.LOCK_EX)
 
-            if venv_path.exists() and (venv_path / "install_complete_marker").exists():
-                self.log.info("Re-using cached Python virtual environment in %s", venv_path)
-            else:
-                try:
-                    if venv_path.exists():
-                        self.log.warning("Found a previous partial virtual environment in %s", venv_path)
-                        shutil.rmtree(venv_path)
-                    venv_path.mkdir(parents=True)
-                    self._prepare_venv(venv_path)
-                    (venv_path / "install_complete_marker").touch()
-                except Exception as e:
+            hash_marker = venv_path / "install_complete_marker.json"
+            try:
+                if venv_path.exists():
+                    if hash_marker.exists():
+                        previous_hash_data = hash_marker.read_text(encoding="utf8")
+                        if previous_hash_data == hash_data:
+                            self.log.info("Re-using cached Python virtual environment in %s", venv_path)
+                            return venv_path
+
+                        self.log.error(
+                            "Unicorn alert: Found a previous virtual environment in %s "
+                            "with the same hash but different parameters. Previous setup: '%s' / "
+                            "Requested venv setup: '%s'. Please report a bug to airflow!",
+                            venv_path,
+                            previous_hash_data,
+                            hash_data,
+                        )
+                    else:
+                        self.log.warning(
+                            "Found a previous (probably partial installed) virtual environment in %s, "
+                            "deleting and re-creating.",
+                            venv_path,
+                        )
+
                     shutil.rmtree(venv_path)
-                    raise AirflowException(f"Unable to create new virtual environment in {venv_path}") from e
-                self.log.info("New Python virtual environment created in %s", venv_path)
+
+                venv_path.mkdir(parents=True)
+                self._prepare_venv(venv_path)
+                hash_marker.write_text(hash_data, encoding="utf8")
+            except Exception as e:
+                shutil.rmtree(venv_path)
+                raise AirflowException(f"Unable to create new virtual environment in {venv_path}") from e
+            self.log.info("New Python virtual environment created in %s", venv_path)
             return venv_path
 
     def execute_callable(self):
