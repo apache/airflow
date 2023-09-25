@@ -96,6 +96,18 @@ response body.
     :start-after: [START howto_operator_http_task_get_op_response_filter]
     :end-before: [END howto_operator_http_task_get_op_response_filter]
 
+You can also do a series of call on a paginated API. Let's assume your API returns a JSON body containing a cursor:
+You can write a ``pagination_function`` that will receive the raw ``request.Response`` object of your request, and
+generate new request parameters (as ``dict``) based on this cursor. The SimpleHttpOperator will repeat calls to the
+API until the function stop returning anything.
+
+In this case, by default, the result of the SimpleHttpOperator will be a list of text.
+
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+    :language: python
+    :start-after: [START howto_operator_http_pagination_function]
+    :end-before: [END howto_operator_http_pagination_function]
+
 In the third example we are performing a ``PUT`` operation to put / set data according to the data that is being
 provided to the request.
 

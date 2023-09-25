@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
+from typing import Optional
 
 from airflow import DAG
 from airflow.providers.http.operators.http import SimpleHttpOperator
@@ -110,8 +111,30 @@ task_http_sensor_check = HttpSensor(
     dag=dag,
 )
 # [END howto_operator_http_http_sensor_check]
+# [START howto_operator_http_pagination_function]
+
+
+def get_next_page_cursor(response) -> Optional[dict]:
+    """
+    Return parameters to call the next page of result,
+    if a cursor is provided.
+    """
+    next_cursor = response.json().get("cursor")
+    if next_cursor:
+        return dict(data={"cursor": next_cursor})
+
+
+task_get_paginated = SimpleHttpOperator(
+    task_id="get_paginated",
+    method="GET",
+    endpoint="get",
+    pagination_function=get_next_page_cursor,
+    dag=dag
+)
+# [END howto_operator_http_pagination_function]
 task_http_sensor_check >> task_post_op >> task_get_op >> task_get_op_response_filter
 task_get_op_response_filter >> task_put_op >> task_del_op >> task_post_op_formenc
+task_post_op_formenc >> task_get_paginated
 
 from tests.system.utils import get_test_run  # noqa: E402
 
