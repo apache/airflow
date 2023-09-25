@@ -112,7 +112,7 @@ export const BaseNode = ({
     >
       <Box
         borderRadius={5}
-        borderWidth={1.5}
+        borderWidth={isSelected ? 2.5 : 1.5}
         borderColor={nodeBorderColor}
         bg={isSelected ? "blue.50" : bg}
         height={`${height}px`}
