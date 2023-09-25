@@ -300,26 +300,11 @@ class TestBatchJobQueueSensor:
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
+    @pytest.mark.parametrize("job_queue", ([], [{"status": "UNKNOWN_STATUS"}]))
     @mock.patch.object(BatchClientHook, "client")
-    def test_fail_poke_no_jobqueues_status(
-        self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor, soft_fail, expected_exception
+    def test_fail_poke(
+        self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor, job_queue, soft_fail, expected_exception
     ):
-        job_queue = []
-        mock_batch_client.describe_job_queues.return_value = {"jobQueues": job_queue}
-        batch_job_queue_sensor.treat_non_existing_as_deleted = False
-        batch_job_queue_sensor.soft_fail = soft_fail
-        message = "AWS Batch job queue"
-        with pytest.raises(expected_exception, match=message):
-            batch_job_queue_sensor.poke({})
-
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    @mock.patch.object(BatchClientHook, "client")
-    def test_fail_poke_invalid_jobqueues_status(
-        self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor, soft_fail, expected_exception
-    ):
-        job_queue = [{"status": "UNKNOWN_STATUS"}]
         mock_batch_client.describe_job_queues.return_value = {"jobQueues": job_queue}
         batch_job_queue_sensor.treat_non_existing_as_deleted = False
         batch_job_queue_sensor.soft_fail = soft_fail
