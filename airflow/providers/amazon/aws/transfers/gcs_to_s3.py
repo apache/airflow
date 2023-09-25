@@ -121,16 +121,16 @@ class GCSToS3Operator(BaseOperator):
 
         if bucket:
             warnings.warn(
-                "The 'bucket' parameter is deprecated and will be removed in a future version. "
-                "Please use 'gcs_bucket' instead.",
+                "The ``bucket`` parameter is deprecated and will be removed in a future version. "
+                "Please use ``gcs_bucket`` instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             self.gcs_bucket = bucket
-        elif gcs_bucket:
+        if gcs_bucket:
             self.gcs_bucket = gcs_bucket
         else:
-            raise ValueError("You must pass either bucket or gcs_bucket.")
+            raise ValueError("You must pass either ``bucket`` or ``gcs_bucket``.")
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
