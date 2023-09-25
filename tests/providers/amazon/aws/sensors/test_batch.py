@@ -109,28 +109,20 @@ class TestBatchSensor:
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
-    @mock.patch.object(BatchClientHook, "get_job_description")
-    def test_fail_poke_failed_state(
-        self, mock_get_job_description, batch_sensor: BatchSensor, soft_fail, expected_exception
-    ):
-        mock_get_job_description.return_value = {"status": BatchClientHook.FAILURE_STATE}
-        message = f"Batch sensor failed. AWS Batch job status: {BatchClientHook.FAILURE_STATE}"
-        batch_sensor.soft_fail = soft_fail
-        with pytest.raises(expected_exception, match=message):
-            batch_sensor.poke({})
-
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+        "state, error_message",
+        (
+            (BatchClientHook.FAILURE_STATE, f"Batch sensor failed. AWS Batch job status: {BatchClientHook.FAILURE_STATE}"),
+            ("unknown_state", "Batch sensor failed. Unknown AWS Batch job status: unknown_state")
+        )
     )
     @mock.patch.object(BatchClientHook, "get_job_description")
-    def test_fail_poke_unknown_state(
-        self, mock_get_job_description, batch_sensor: BatchSensor, soft_fail, expected_exception
+    def test_fail_poke(
+        self, mock_get_job_description, batch_sensor: BatchSensor, status, error_message, soft_fail, expected_exception
     ):
-        state = "unknown_state"
         mock_get_job_description.return_value = {"status": state}
-        message = f"Batch sensor failed. Unknown AWS Batch job status: {state}"
         batch_sensor.soft_fail = soft_fail
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(expected_exception, match=error_message):
             batch_sensor.poke({})
 
 
