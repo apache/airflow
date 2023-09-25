@@ -200,8 +200,7 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
 
     return (
         provider_command_result.returncode,
-        f"Provider requirements generated for {provider_id}:{provider_version}:{airflow_version}:"
-        f"{python_version}",
+        f"Provider requirements generated for {provider_id}:{provider_version}:{python_version}",
     )
 
 

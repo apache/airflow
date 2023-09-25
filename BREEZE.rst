@@ -2274,11 +2274,11 @@ Generating Provider requirements
 .................................
 
 In order to generate SBOM information for providers, we need to generate requirements for them. This is
-done by the ``generate-provider-requirements`` command. This command generates requirements for the
+done by the ``generate-providers-requirements`` command. This command generates requirements for the
 selected provider and python version, using the airflow version specified.
 
-.. image:: ./images/breeze/output_sbom_generate-provider-requirements.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-provider-requirements.svg
+.. image:: ./images/breeze/output_sbom_generate-providers-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-providers-requirements.svg
   :width: 100%
   :alt: Breeze generate SBOM provider requirements
 

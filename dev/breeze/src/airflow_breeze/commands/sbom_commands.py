@@ -187,7 +187,9 @@ def update_sbom_information(
         parallelism = min(parallelism, len(jobs_to_run))
         get_console().print(f"[info]Running {len(jobs_to_run)} jobs in parallel")
         with ci_group(f"Generating SBoMs for {airflow_versions}:{python_versions}"):
-            all_params = [f"CI {job.airflow_version}:{job.python_version}" for job in jobs_to_run]
+            all_params = [
+                f"Generate SBoMs for {job.airflow_version}:{job.python_version}" for job in jobs_to_run
+            ]
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=all_params,
@@ -232,7 +234,7 @@ def update_sbom_information(
             )
 
 
-@sbom.command(name="generate-provider-requirements", help="Generate requirements for selected provider.")
+@sbom.command(name="generate-providers-requirements", help="Generate requirements for selected provider.")
 @click.option(
     "--airflow-version", type=str, required=False, help="Airflow version to use to generate the requirements"
 )
@@ -258,7 +260,7 @@ def update_sbom_information(
 @option_debug_resources
 @option_include_success_outputs
 @option_skip_cleanup
-def generate_provider_requirements(
+def generate_providers_requirements(
     airflow_version: str | None,
     python: str,
     provider_id: tuple[str],
@@ -268,6 +270,7 @@ def generate_provider_requirements(
     include_success_outputs: bool,
     skip_cleanup: bool,
 ):
+    provider_ids = provider_id
     perform_environment_checks()
     if airflow_version is None:
         airflow_version = get_active_airflow_versions(confirm=False)[-1]
@@ -275,10 +278,10 @@ def generate_provider_requirements(
     build_all_airflow_versions_base_image(python_version=python)
 
     if run_in_parallel:
-        parallelism = min(parallelism, len(provider_id))
-        get_console().print(f"[info]Running {len(provider_id)} jobs in parallel")
-        with ci_group(f"Generating provider requirements for {provider_id}"):
-            all_params = [f"CI {p_id}" for p_id in provider_id]
+        parallelism = min(parallelism, len(provider_ids))
+        get_console().print(f"[info]Running {len(provider_ids)} jobs in parallel")
+        with ci_group(f"Generating provider requirements for {provider_ids}"):
+            all_params = [f"Generate provider requirements for {p_id}" for p_id in provider_ids]
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=all_params,
@@ -295,7 +298,7 @@ def generate_provider_requirements(
                             "python_version": python,
                         },
                     )
-                    for index, p_id in enumerate(provider_id)
+                    for index, p_id in enumerate(provider_ids)
                 ]
         check_async_run_results(
             results=results,
@@ -305,7 +308,7 @@ def generate_provider_requirements(
             skip_cleanup=skip_cleanup,
         )
     else:
-        for p_id in provider_id:
+        for p_id in provider_ids:
             get_requirements_for_provider(
                 provider_id=p_id,
                 provider_version=None,

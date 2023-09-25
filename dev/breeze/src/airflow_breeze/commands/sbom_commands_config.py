@@ -20,7 +20,7 @@ SBOM_COMMANDS: dict[str, str | list[str]] = {
     "name": "SBOM commands",
     "commands": [
         "update-sbom-information",
-        "generate-provider-requirements",
+        "generate-providers-requirements",
     ],
 }
 
@@ -47,7 +47,7 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
-    "breeze sbom generate-provider-requirements": [
+    "breeze sbom generate-providers-requirements": [
         {
             "name": "Generate provider requirements flags",
             "options": [
