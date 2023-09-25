@@ -204,37 +204,28 @@ class TestBatchComputeEnvironmentSensor:
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
     )
+    @pytest.mark.parametrize(
+        "compute_env, error_message",
+        (
+            ([], "AWS Batch compute environment"),
+            ([{"status": "unknown_status"}], "AWS Batch compute environment failed. AWS Batch compute environment status:")
+        )
+    )
     @mock.patch.object(BatchClientHook, "client")
-    def test_fail_poke_no_compute_env(
+    def test_fail_poke(
         self,
         mock_batch_client,
         batch_compute_environment_sensor: BatchComputeEnvironmentSensor,
+        compute_env,
+        error_message,
         soft_fail,
         expected_exception,
     ):
         compute_env = []
         mock_batch_client.describe_compute_environments.return_value = {"computeEnvironments": compute_env}
-        message = "AWS Batch compute environment"
+        message = 
         batch_compute_environment_sensor.soft_fail = soft_fail
-        with pytest.raises(expected_exception, match=message):
-            batch_compute_environment_sensor.poke({})
-
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    @mock.patch.object(BatchClientHook, "client")
-    def test_fail_poke_unknown_status(
-        self,
-        mock_batch_client,
-        batch_compute_environment_sensor: BatchComputeEnvironmentSensor,
-        soft_fail,
-        expected_exception,
-    ):
-        compute_env = [{"status": "unknown_status"}]
-        mock_batch_client.describe_compute_environments.return_value = {"computeEnvironments": compute_env}
-        message = "AWS Batch compute environment failed. AWS Batch compute environment status:"
-        batch_compute_environment_sensor.soft_fail = soft_fail
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(expected_exception, match=error_message):
             batch_compute_environment_sensor.poke({})
 
 
