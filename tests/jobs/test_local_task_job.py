@@ -315,9 +315,7 @@ class TestLocalTaskJob:
             job_runner.heartbeat_callback = lambda session: heartbeat_records.append(job.latest_heartbeat)
             run_job(job=job, execute_callable=job_runner._execute)
             assert len(heartbeat_records) > 2
-            for i in range(1, len(heartbeat_records)):
-                time1 = heartbeat_records[i - 1]
-                time2 = heartbeat_records[i]
+            for time1, time2 in zip(heartbeat_records, heartbeat_records[1:]):
                 # Assert that difference small enough
                 delta = (time2 - time1).total_seconds()
                 assert abs(delta - job.heartrate) < 0.8

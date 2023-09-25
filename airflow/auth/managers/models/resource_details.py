@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,20 +17,32 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
+from dataclasses import dataclass
+from enum import Enum
 
 
-class TestAthenaTrigger:
-    def test_serialize_recreate(self):
-        trigger = AthenaTrigger("query_id", 1, 5, "aws connection")
+@dataclass
+class ConnectionDetails:
+    """Represents the details of a connection."""
 
-        class_path, args = trigger.serialize()
+    conn_id: str
 
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
 
-        class_path2, args2 = instance.serialize()
+@dataclass
+class DagDetails:
+    """Represents the details of a DAG."""
 
-        assert class_path == class_path2
-        assert args == args2
+    id: str
+
+
+class DagAccessEntity(Enum):
+    """Enum of DAG entities the user tries to access."""
+
+    AUDIT_LOG = "AUDIT_LOG"
+    CODE = "CODE"
+    DATASET = "DATASET"
+    DEPENDENCIES = "DEPENDENCIES"
+    RUN = "RUN"
+    TASK_INSTANCE = "TASK_INSTANCE"
+    TASK_LOGS = "TASK_LOGS"
+    XCOM = "XCOM"

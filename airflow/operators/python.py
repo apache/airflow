@@ -540,7 +540,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         *,
         python_callable: Callable,
         requirements: None | Iterable[str] | str = None,
-        python_version: str | int | float | None = None,
+        python_version: str | None = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
         pip_install_options: list[str] | None = None,
@@ -564,6 +564,13 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "Passing op_args or op_kwargs is not supported across different Python "
                 "major versions for PythonVirtualenvOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Virtual environment version: {python_version}"
+            )
+        if python_version is not None and not isinstance(python_version, str):
+            warnings.warn(
+                "Passing non-string types (e.g. int or float) as python_version "
+                "is deprecated. Please use string value instead.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
             )
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")

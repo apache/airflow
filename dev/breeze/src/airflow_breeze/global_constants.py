@@ -44,7 +44,7 @@ ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
-OTHER_INTEGRATIONS = ["statsd"]
+OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -55,8 +55,6 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
     [
         "all-testable",
         "all",
-        "otel",
-        "statsd",
         *ALL_INTEGRATIONS,
     ]
 )
@@ -100,6 +98,9 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
 PIP_VERSION = "23.2.1"
+
+# key used for generating providers index
+PROVIDERS_INDEX_KEY = "providers-index"
 
 
 @lru_cache(maxsize=None)

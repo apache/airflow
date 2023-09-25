@@ -41,7 +41,7 @@ from google.cloud.automl_v1beta1 import (
     PredictResponse,
 )
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 

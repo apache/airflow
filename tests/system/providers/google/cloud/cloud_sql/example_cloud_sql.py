@@ -153,7 +153,9 @@ with models.DAG(
     catchup=False,
     tags=["example", "cloud_sql"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, resource={"predefined_acl": "public_read_write"}
+    )
 
     # ############################################## #
     # ### INSTANCES SET UP ######################### #

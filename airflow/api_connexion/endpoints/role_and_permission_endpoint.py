@@ -133,7 +133,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
         update_mask = [i.strip() for i in update_mask]
         data_ = {}
         for field in update_mask:
-            if field in data and not field == "permissions":
+            if field in data and field != "permissions":
                 data_[field] = data[field]
             elif field == "actions":
                 data_["permissions"] = data["permissions"]

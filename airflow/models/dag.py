@@ -27,6 +27,7 @@ import os
 import pathlib
 import pickle
 import sys
+import time
 import traceback
 import warnings
 import weakref
@@ -89,7 +90,7 @@ from airflow.exceptions import (
     TaskNotFound,
 )
 from airflow.jobs.job import run_job
-from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
@@ -123,7 +124,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
@@ -140,6 +141,7 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.slamiss import SlaMiss
     from airflow.serialization.pydantic.dag import DagModelPydantic
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.typing_compat import Literal
     from airflow.utils.task_group import TaskGroup
 
@@ -306,7 +308,8 @@ class DAG(LoggingMixin):
     :param description: The description for the DAG to e.g. be shown on the webserver
     :param schedule: Defines the rules according to which DAG runs are scheduled. Can
         accept cron string, timedelta object, Timetable, or list of Dataset objects.
-        See also :doc:`/howto/timetable`.
+        If this is not provided, the DAG will be set to the default
+        schedule ``timedelta(days=1)``. See also :doc:`/howto/timetable`.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill
     :param end_date: A date beyond which your DAG won't run, leave to None
@@ -889,7 +892,7 @@ class DAG(LoggingMixin):
         # infer from the logical date.
         return self.infer_automated_data_interval(dag_model.next_dagrun)
 
-    def get_run_data_interval(self, run: DagRun) -> DataInterval:
+    def get_run_data_interval(self, run: DagRun | DagRunPydantic) -> DataInterval:
         """Get the data interval of this run.
 
         For compatibility, this method infers the data interval from the DAG's
@@ -1384,8 +1387,43 @@ class DAG(LoggingMixin):
             _schedule_interval = self.schedule_interval
         return _schedule_interval
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def handle_callback(self, dagrun, success=True, reason=None, session=NEW_SESSION):
+    def fetch_callback(
+        dag: DAG,
+        dag_run_id: str,
+        success: bool = True,
+        reason: str | None = None,
+        *,
+        session: Session = NEW_SESSION,
+    ) -> tuple[list[TaskStateChangeCallback], Context] | None:
+        """
+        Fetch the appropriate callbacks depending on the value of success.
+
+        This method gets the context of a single TaskInstance part of this DagRun and returns it along
+        the list of callbacks.
+
+        :param dag: DAG object
+        :param dag_run_id: The DAG run ID
+        :param success: Flag to specify if failure or success callback should be called
+        :param reason: Completion reason
+        :param session: Database session
+        """
+        callbacks = dag.on_success_callback if success else dag.on_failure_callback
+        if callbacks:
+            dagrun = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=dag_run_id, session=session)
+            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
+            tis = dagrun.get_task_instances(session=session)
+            ti = tis[-1]  # get first TaskInstance of DagRun
+            ti.task = dag.get_task(ti.task_id)
+            context = ti.get_template_context(session=session)
+            context["reason"] = reason
+            return callbacks, context
+        return None
+
+    @provide_session
+    def handle_callback(self, dagrun: DagRun, success=True, reason=None, session=NEW_SESSION):
         """
         Triggers on_failure_callback or on_success_callback as appropriate.
 
@@ -1401,21 +1439,29 @@ class DAG(LoggingMixin):
         :param reason: Completion reason
         :param session: Database session
         """
-        callbacks = self.on_success_callback if success else self.on_failure_callback
-        if callbacks:
-            callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-            tis = dagrun.get_task_instances(session=session)
-            ti = tis[-1]  # get first TaskInstance of DagRun
-            ti.task = self.get_task(ti.task_id)
-            context = ti.get_template_context(session=session)
-            context.update({"reason": reason})
+        callbacks, context = DAG.fetch_callback(
+            dag=self, dag_run_id=dagrun.run_id, success=success, reason=reason, session=session
+        ) or (None, None)
+
+        DAG.execute_callback(callbacks, context, self.dag_id)
+
+    @classmethod
+    def execute_callback(cls, callbacks: list[Callable] | None, context: Context | None, dag_id: str):
+        """
+        Triggers the callbacks with the given context.
+
+        :param callbacks: List of callbacks to call
+        :param context: Context to pass to all callbacks
+        :param dag_id: The dag_id of the DAG to find.
+        """
+        if callbacks and context:
             for callback in callbacks:
-                self.log.info("Executing dag callback function: %s", callback)
+                cls.logger().info("Executing dag callback function: %s", callback)
                 try:
                     callback(context)
                 except Exception:
-                    self.log.exception("failed to invoke dag state update callback")
-                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dagrun.dag_id})
+                    cls.logger().exception("failed to invoke dag state update callback")
+                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dag_id})
 
     def get_active_runs(self):
         """
@@ -1453,16 +1499,19 @@ class DAG(LoggingMixin):
 
         return session.scalar(query)
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def get_dagrun(
-        self,
+    def fetch_dagrun(
+        dag_id: str,
         execution_date: datetime | None = None,
         run_id: str | None = None,
         session: Session = NEW_SESSION,
-    ):
+    ) -> DagRun | DagRunPydantic:
         """
         Return the dag run for a given execution date or run_id if it exists, otherwise none.
 
+        :param dag_id: The dag_id of the DAG to find.
         :param execution_date: The execution date of the DagRun to find.
         :param run_id: The run_id of the DagRun to find.
         :param session:
@@ -1472,10 +1521,21 @@ class DAG(LoggingMixin):
             raise TypeError("You must provide either the execution_date or the run_id")
         query = select(DagRun)
         if execution_date:
-            query = query.where(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)
+            query = query.where(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
         if run_id:
-            query = query.where(DagRun.dag_id == self.dag_id, DagRun.run_id == run_id)
+            query = query.where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
         return session.scalar(query)
+
+    @provide_session
+    def get_dagrun(
+        self,
+        execution_date: datetime | None = None,
+        run_id: str | None = None,
+        session: Session = NEW_SESSION,
+    ) -> DagRun | DagRunPydantic:
+        return DAG.fetch_dagrun(
+            dag_id=self.dag_id, execution_date=execution_date, run_id=run_id, session=session
+        )
 
     @provide_session
     def get_dagruns_between(self, start_date, end_date, session=NEW_SESSION):
@@ -2752,8 +2812,19 @@ class DAG(LoggingMixin):
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == DagRunState.RUNNING:
+            session.expire_all()
             schedulable_tis, _ = dr.update_state(session=session)
-            for ti in schedulable_tis:
+            for s in schedulable_tis:
+                s.state = TaskInstanceState.SCHEDULED
+            session.commit()
+            # triggerer may mark tasks scheduled so we read from DB
+            all_tis = set(dr.get_task_instances(session=session))
+            scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
+            ids_unrunnable = {x for x in all_tis if x.state not in State.finished} - scheduled_tis
+            if not scheduled_tis and ids_unrunnable:
+                self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
+                time.sleep(1)
+            for ti in scheduled_tis:
                 try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]

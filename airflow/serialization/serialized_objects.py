@@ -840,7 +840,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return serialized_op
 
     @classmethod
-    def serialize_operator(cls, op: BaseOperator) -> dict[str, Any]:
+    def serialize_operator(cls, op: BaseOperator | MappedOperator) -> dict[str, Any]:
         return cls._serialize_node(op, include_deps=op.deps is not BaseOperator.deps)
 
     @classmethod
@@ -1526,7 +1526,7 @@ class DagDependency:
     def node_id(self):
         """Node ID for graph rendering."""
         val = f"{self.dependency_type}"
-        if not self.dependency_type == "dataset":
+        if self.dependency_type != "dataset":
             val += f":{self.source}:{self.target}"
         if self.dependency_id:
             val += f":{self.dependency_id}"

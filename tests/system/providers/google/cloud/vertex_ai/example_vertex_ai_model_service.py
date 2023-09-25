@@ -26,15 +26,17 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
 from airflow import models
-from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import (
     CreateCustomTrainingJobOperator,
     DeleteCustomTrainingJobOperator,
@@ -49,23 +51,21 @@ from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
     ListModelsOperator,
     UploadModelOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_model_service_operations"
+DAG_ID = "example_vertex_ai_model_service_operations"
 REGION = "us-central1"
 TRAIN_DISPLAY_NAME = f"train-housing-custom-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"custom-housing-model-{ENV_ID}"
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 STAGING_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}"
 
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
-CSV_FILE_LOCAL_PATH = "/model_service/california_housing_train.csv"
-RESOURCES_PATH = Path(__file__).parent / "resources"
-CSV_ZIP_FILE_LOCAL_PATH = str(RESOURCES_PATH / "California-housing-ai-model.zip")
 
 TABULAR_DATASET = {
     "display_name": f"tabular-dataset-{ENV_ID}",
@@ -82,7 +82,7 @@ TABULAR_DATASET = {
 
 CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
 
-LOCAL_TRAINING_SCRIPT_PATH = "/model_service/california_housing_training_script.py"
+LOCAL_TRAINING_SCRIPT_PATH = "california_housing_training_script.py"
 
 MODEL_OUTPUT_CONFIG = {
     "artifact_destination": {
@@ -120,16 +120,23 @@ with models.DAG(
         storage_class="REGIONAL",
         location=REGION,
     )
-    unzip_file = BashOperator(
-        task_id="unzip_csv_data_file",
-        bash_command=f"mkdir -p /model_service && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /model_service/",
+
+    move_data_files = GCSSynchronizeBucketsOperator(
+        task_id="move_files_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="vertex-ai/california-housing-data",
+        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        destination_object="vertex-ai",
+        recursive=True,
     )
-    upload_files = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=CSV_FILE_LOCAL_PATH,
-        dst=DATA_SAMPLE_GCS_OBJECT_NAME,
+
+    download_training_script_file = GCSToLocalFilesystemOperator(
+        task_id="download_training_script_file",
+        object_name="vertex-ai/california_housing_training_script.py",
         bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        filename=LOCAL_TRAINING_SCRIPT_PATH,
     )
+
     create_tabular_dataset = CreateDatasetOperator(
         task_id="tabular_dataset",
         dataset=TABULAR_DATASET,
@@ -194,8 +201,8 @@ with models.DAG(
 
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
-        training_pipeline_id=create_custom_training_job.output["training_id"],
-        custom_job_id=create_custom_training_job.output["custom_job_id"],
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='custom_task', key='training_id') }}",
+        custom_job_id="{{ task_instance.xcom_pull(task_ids='custom_task', key='custom_job_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
@@ -215,16 +222,11 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    clear_folder = BashOperator(
-        task_id="clear_folder",
-        bash_command="rm -r /model_service/*",
-    )
-
     (
         # TEST SETUP
         create_bucket
-        >> unzip_file
-        >> upload_files
+        >> move_data_files
+        >> download_training_script_file
         >> create_tabular_dataset
         >> create_custom_training_job
         # TEST BODY
@@ -236,7 +238,6 @@ with models.DAG(
         >> delete_custom_training_job
         >> delete_tabular_dataset
         >> delete_bucket
-        >> clear_folder
     )
 
 

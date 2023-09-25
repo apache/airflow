@@ -76,7 +76,7 @@ class GrpcHook(BaseHook):
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
         self.extras = self.conn.extra_dejson
-        self.interceptors = interceptors if interceptors else []
+        self.interceptors = interceptors or []
         self.custom_connection_func = custom_connection_func
 
     def get_conn(self) -> grpc.Channel:
