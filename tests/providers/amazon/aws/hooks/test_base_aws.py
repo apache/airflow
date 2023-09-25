@@ -38,7 +38,7 @@ from botocore.utils import FileWebIdentityTokenLoader
 from moto import mock_dynamodb, mock_emr, mock_iam, mock_sts
 from moto.core import DEFAULT_ACCOUNT_ID
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,

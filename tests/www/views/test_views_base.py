@@ -251,7 +251,7 @@ def test_views_get(request, url, client, content):
 
 
 def _check_task_stats_json(resp):
-    return set(list(resp.json.items())[0][1][0].keys()) == {"state", "count"}
+    return set(next(iter(resp.json.items()))[1][0]) == {"state", "count"}
 
 
 @pytest.mark.parametrize(

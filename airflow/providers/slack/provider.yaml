@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.1.0
   - 8.0.0
   - 7.3.2
   - 7.3.1
@@ -84,3 +85,4 @@ connection-types:
 
 notifications:
   - airflow.providers.slack.notifications.slack.SlackNotifier
+  - airflow.providers.slack.notifications.slack_webhook.SlackWebhookNotifier

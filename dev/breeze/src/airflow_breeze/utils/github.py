@@ -71,6 +71,8 @@ ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 def get_active_airflow_versions(confirm: bool = True) -> list[str]:
     """
     Gets list of active Airflow versions from GitHub.
+
+    :param confirm: if True, will ask the user before proceeding with the versions found
     :return: list of active Airflow versions
     """
     from git import GitCommandError, Repo
@@ -100,7 +102,7 @@ def get_active_airflow_versions(confirm: bool = True) -> list[str]:
         match = ACTIVE_TAG_MATCH.match(tag)
         if match and match.group(1) == "2":
             all_active_tags.append(tag)
-    airflow_versions = sorted(all_active_tags, key=lambda x: Version(x))
+    airflow_versions = sorted(all_active_tags, key=Version)
     if confirm:
         get_console().print(f"All Airflow 2 versions: {all_active_tags}")
         answer = user_confirm(

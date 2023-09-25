@@ -51,7 +51,7 @@ class PigCliHook(BaseHook):
                 " PigOperator. You can also pass ``pig-properties`` in the PigCliHook `init`. Currently,"
                 f" the {pig_cli_conn_id} connection has those extras: `{conn_pig_properties}`."
             )
-        self.pig_properties = pig_properties if pig_properties else []
+        self.pig_properties = pig_properties or []
         self.conn = conn
         self.sub_process = None
 
@@ -79,7 +79,7 @@ class PigCliHook(BaseHook):
                 pig_opts_list = pig_opts.split()
                 pig_cmd.extend(pig_opts_list)
 
-            pig_cmd.extend(["-f", fname] + cmd_extra)
+            pig_cmd.extend(["-f", fname, *cmd_extra])
 
             if verbose:
                 self.log.info("%s", " ".join(pig_cmd))

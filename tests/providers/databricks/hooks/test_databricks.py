@@ -737,7 +737,7 @@ class TestDatabricksHook:
         mock_requests.get.assert_called_once_with(
             list_jobs_endpoint(HOST),
             json=None,
-            params={"limit": 25, "offset": 0, "expand_tasks": False},
+            params={"limit": 25, "page_token": "", "expand_tasks": False},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
@@ -749,7 +749,9 @@ class TestDatabricksHook:
     def test_list_jobs_success_multiple_pages(self, mock_requests):
         mock_requests.codes.ok = 200
         mock_requests.get.side_effect = [
-            create_successful_response_mock({**LIST_JOBS_RESPONSE, "has_more": True}),
+            create_successful_response_mock(
+                {**LIST_JOBS_RESPONSE, "has_more": True, "next_page_token": "PAGETOKEN"}
+            ),
             create_successful_response_mock(LIST_JOBS_RESPONSE),
         ]
 
@@ -759,11 +761,15 @@ class TestDatabricksHook:
 
         first_call_args = mock_requests.method_calls[0]
         assert first_call_args[1][0] == list_jobs_endpoint(HOST)
-        assert first_call_args[2]["params"] == {"limit": 25, "offset": 0, "expand_tasks": False}
+        assert first_call_args[2]["params"] == {"limit": 25, "page_token": "", "expand_tasks": False}
 
         second_call_args = mock_requests.method_calls[1]
         assert second_call_args[1][0] == list_jobs_endpoint(HOST)
-        assert second_call_args[2]["params"] == {"limit": 25, "offset": 1, "expand_tasks": False}
+        assert second_call_args[2]["params"] == {
+            "limit": 25,
+            "page_token": "PAGETOKEN",
+            "expand_tasks": False,
+        }
 
         assert len(jobs) == 2
         assert jobs == LIST_JOBS_RESPONSE["jobs"] * 2
@@ -778,7 +784,7 @@ class TestDatabricksHook:
         mock_requests.get.assert_called_once_with(
             list_jobs_endpoint(HOST),
             json=None,
-            params={"limit": 25, "offset": 0, "expand_tasks": False, "name": JOB_NAME},
+            params={"limit": 25, "page_token": "", "expand_tasks": False, "name": JOB_NAME},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
@@ -797,7 +803,7 @@ class TestDatabricksHook:
         mock_requests.get.assert_called_once_with(
             list_jobs_endpoint(HOST),
             json=None,
-            params={"limit": 25, "offset": 0, "expand_tasks": False, "name": job_name},
+            params={"limit": 25, "page_token": "", "expand_tasks": False, "name": job_name},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
@@ -820,7 +826,7 @@ class TestDatabricksHook:
         mock_requests.get.assert_called_once_with(
             list_jobs_endpoint(HOST),
             json=None,
-            params={"limit": 25, "offset": 0, "expand_tasks": False, "name": JOB_NAME},
+            params={"limit": 25, "page_token": "", "expand_tasks": False, "name": JOB_NAME},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
@@ -940,7 +946,7 @@ class TestRunState:
             assert run_state.is_terminal
 
     def test_is_terminal_false(self):
-        non_terminal_states = ["PENDING", "RUNNING", "TERMINATING"]
+        non_terminal_states = ["PENDING", "RUNNING", "TERMINATING", "QUEUED"]
         for state in non_terminal_states:
             run_state = RunState(state, "", "")
             assert not run_state.is_terminal

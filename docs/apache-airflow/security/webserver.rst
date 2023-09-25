@@ -169,7 +169,7 @@ Here is an example of what you might have in your webserver_config.py:
 
 .. code-block:: python
 
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     from flask_appbuilder.security.manager import AUTH_OAUTH
     import os
 
@@ -200,7 +200,7 @@ Here is an example of what you might have in your webserver_config.py:
     ]
 
 
-    class CustomSecurityManager(AirflowSecurityManager):
+    class CustomSecurityManager(FabAirflowSecurityManagerOverride):
         pass
 
 
@@ -213,7 +213,7 @@ webserver_config.py itself if you wish.
 
 .. code-block:: python
 
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     import logging
     from typing import Any, List, Union
     import os
@@ -244,7 +244,7 @@ webserver_config.py itself if you wish.
         return list(set(team_role_map.get(team, FAB_PUBLIC_ROLE) for team in team_list))
 
 
-    class GithubTeamAuthorizer(AirflowSecurityManager):
+    class GithubTeamAuthorizer(FabAirflowSecurityManagerOverride):
 
         # In this example, the oauth provider == 'github'.
         # If you ever want to support other providers, see how it is done here:

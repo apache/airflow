@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.1.0
+.....
+
+Latest change: 2023-09-01
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`e357f7b531 <https://github.com/apache/airflow/commit/e357f7b531e50981faa1199595c0e92a23a714b5>`_  2023-09-01   ``Add Slack Incoming Webhook Notifier (#33966)``
+`b4d4f55b47 <https://github.com/apache/airflow/commit/b4d4f55b479d07c13ab25bb2e80cb053378b56d7>`_  2023-08-31   ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+=================================================================================================  ===========  ===================================================================================================
+
 8.0.0
 .....
 
-Latest change: 2023-08-24
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `ed6a4fd116 <https://github.com/apache/airflow/commit/ed6a4fd1162407a2007d949765eab5749af1c3ac>`_  2023-08-24   ``Remove deprecated parts from Slack provider (#33557)``
 `0a7eae3fcb <https://github.com/apache/airflow/commit/0a7eae3fcbda0b2c4d2fb383e6b07157c2adc937>`_  2023-08-23   ``Replace deprecated slack notification in provider.yaml with new one (#33643)``
 `ea8519c055 <https://github.com/apache/airflow/commit/ea8519c0554d16b13d330a686f8479fc10cc58f2>`_  2023-08-18   ``Avoid importing pandas and numpy in runtime and module level (#33483)``

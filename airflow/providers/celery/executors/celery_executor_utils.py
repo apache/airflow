@@ -22,6 +22,7 @@ Much of this code is expensive to import/load, be careful where this module is i
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import math
 import os
@@ -99,15 +100,11 @@ def on_celery_import_modules(*args, **kwargs):
     import airflow.operators.python
     import airflow.operators.subdag  # noqa: F401
 
-    try:
+    with contextlib.suppress(ImportError):
         import numpy  # noqa: F401
-    except ImportError:
-        pass
 
-    try:
+    with contextlib.suppress(ImportError):
         import kubernetes.client  # noqa: F401
-    except ImportError:
-        pass
 
 
 @app.task

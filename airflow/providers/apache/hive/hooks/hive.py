@@ -163,7 +163,7 @@ class HiveCliHook(BaseHook):
 
         hive_params_list = self.hive_cli_params.split()
 
-        return [hive_bin] + cmd_extra + hive_params_list
+        return [hive_bin, *cmd_extra, *hive_params_list]
 
     def _validate_beeline_parameters(self, conn):
         if ":" in conn.host or "/" in conn.host or ";" in conn.host:
@@ -172,7 +172,7 @@ class HiveCliHook(BaseHook):
             )
         try:
             int_port = int(conn.port)
-            if int_port <= 0 or int_port > 65535:
+            if not 0 < int_port <= 65535:
                 raise Exception(f"The port used in beeline command ({conn.port}) should be in range 0-65535)")
         except (ValueError, TypeError) as e:
             raise Exception(f"The port used in beeline command ({conn.port}) should be a valid integer: {e})")
@@ -315,7 +315,7 @@ class HiveCliHook(BaseHook):
                     message = e.args[0].splitlines()[-2]
                     self.log.info(message)
                     error_loc = re.search(r"(\d+):(\d+)", message)
-                    if error_loc and error_loc.group(1).isdigit():
+                    if error_loc:
                         lst = int(error_loc.group(1))
                         begin = max(lst - 2, 0)
                         end = min(lst + 3, len(query.splitlines()))

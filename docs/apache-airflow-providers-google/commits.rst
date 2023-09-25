@@ -35,14 +35,83 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.9.0
+......
+
+Latest change: 2023-09-14
+
+=================================================================================================  ===========  ================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================================
+`b042042086 <https://github.com/apache/airflow/commit/b0420420864b6ada45260e0d00b1b6e72595a966>`_  2023-09-14   ``Remove unnecessary call to keys() method on dictionaries (#34260)``
+`05036e619c <https://github.com/apache/airflow/commit/05036e619c0c6dafded1451daac4e07e20aee33f>`_  2023-09-13   ``Refactor: Think positively in providers (#34279)``
+`3fa9d46ec7 <https://github.com/apache/airflow/commit/3fa9d46ec74ef8453fcf17fbd49280cb6fb37cef>`_  2023-09-12   ``Refactor: Simplify code in providers/google (#33229)``
+`4dcdc34996 <https://github.com/apache/airflow/commit/4dcdc349964647ade80702e3d34bbf819ddf7661>`_  2023-09-11   ``Add explicit support of stream (realtime) pipelines for CloudDataFusionStartPipelineOperator (#34271)``
+`94d07908a2 <https://github.com/apache/airflow/commit/94d07908a2188eb650bfab21d89a49b287aee35c>`_  2023-09-11   ``Refactor: Simplify comparisons (#34181)``
+`0110b22a60 <https://github.com/apache/airflow/commit/0110b22a603f86fbc6f1311ef1c9a23505ca6f87>`_  2023-09-11   ``Fix 'ComputeEngineInsertInstanceOperator' doesn't respect jinja-templated instance name when given in body argument (#34171)``
+`050a47add8 <https://github.com/apache/airflow/commit/050a47add822cde6d9abcd609df59c98caae13b0>`_  2023-09-11   ``Add 'expected_terminal_state' parameter to Dataflow operators (#34217)``
+`25d463c3e3 <https://github.com/apache/airflow/commit/25d463c3e33f8628e1bcbe4dc6924693ec141dc0>`_  2023-09-11   ``Deprecate AutoMLTrainModelOperator for NL (#34212)``
+`db38a6fc66 <https://github.com/apache/airflow/commit/db38a6fc667f336d080ad48f66dc814de77c27a6>`_  2023-09-11   ``GKEPodHook ignores gcp_conn_id parameter. (#34194)``
+`38ecd4c4da <https://github.com/apache/airflow/commit/38ecd4c4da65310f9461df769d274cb78b122630>`_  2023-09-10   ``Bump min common-sql provider version for Google provider (#34257)``
+`c5ec7cd294 <https://github.com/apache/airflow/commit/c5ec7cd294ed9363817b358765ed2a250ae76b6d>`_  2023-09-10   ``Simplify  to bool(...) (#34258)``
+`bf9769bebf <https://github.com/apache/airflow/commit/bf9769bebf712bb70033dd927115fff8c75d0f35>`_  2023-09-09   ``Make Google Dataform operators templated_fields more consistent (#34187)``
+`774125ae25 <https://github.com/apache/airflow/commit/774125ae253611627229509e672518ce0a58cf2e>`_  2023-09-09   ``fix: BigQuery job error message (#34208)``
+=================================================================================================  ===========  ================================================================================================================================
+
+10.8.0
+......
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ==========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`ff23a30e5b <https://github.com/apache/airflow/commit/ff23a30e5b51f4ba7316fa803a85b89b7dd5f6fe>`_  2023-09-07   ``fix(providers/google-marketing-platform): respect soft_fail argument when exception is raised (#34165)``
+`9c66132af6 <https://github.com/apache/airflow/commit/9c66132af6e75924c5dbc2c4536ab381582a9292>`_  2023-09-07   ``fix: docstring in endpoint_service.py (#34135)``
+`9079093291 <https://github.com/apache/airflow/commit/907909329195c6655d1e2989b05609466ef50563>`_  2023-09-07   ``Consolidate importing of os.path.* (#34060)``
+`a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+`c88e746494 <https://github.com/apache/airflow/commit/c88e746494a0ccc718687fe230b02390309c0ea7>`_  2023-09-04   ``Dynamic setting up of artifact versinos for Datafusion pipelines (#34068)``
+`ba59f3475c <https://github.com/apache/airflow/commit/ba59f3475c160102332bb36fb7414ed7b7346383>`_  2023-09-04   ``Add deferrable mode to Dataplex DataQuality. (#33954)``
+`4f20b0f442 <https://github.com/apache/airflow/commit/4f20b0f4421f44703f25d5b2970ba065a631d912>`_  2023-09-03   ``Move the try outside the loop when this is possible in Google provider (#33976)``
+`d757f6a3af <https://github.com/apache/airflow/commit/d757f6a3af24c3ec0d48c8c983d6ba5d6ed2202e>`_  2023-09-03   ``Fix BigQueryValueCheckOperator deferrable mode optimisation (#34018)``
+`fa5e54c4c5 <https://github.com/apache/airflow/commit/fa5e54c4c57631de353102af56633f05346685f9>`_  2023-09-03   ``Combine similar if logics in providers (#33987)``
+`47bd5dd0e1 <https://github.com/apache/airflow/commit/47bd5dd0e1e13af45206b94dd5518ada278a9552>`_  2023-09-03   ``Remove useless string join from providers (#33968)``
+`b7f84e913b <https://github.com/apache/airflow/commit/b7f84e913b6aa4cee7fa63009082b0608b3a0bf1>`_  2023-09-02   ``Update Azure fileshare hook to use azure-storage-file-share instead of azure-storage-file (#33904)``
+`875387afa5 <https://github.com/apache/airflow/commit/875387afa53c207364fa20b515d154100b5d0a8d>`_  2023-09-01   ``Refactor unneeded  jumps in providers (#33833)``
+`04e9b0bd78 <https://github.com/apache/airflow/commit/04e9b0bd784e7c0045e029c6ed4ec0ac4ad6066f>`_  2023-09-01   ``fix google CHANGELOG.rst (#34007)``
+`ff7dcf4e82 <https://github.com/apache/airflow/commit/ff7dcf4e829b06d3f8d19b9d14665bac0224b51c>`_  2023-09-01   ``replace loop by any when looking for a positive value in providers (#33984)``
+`a9bbb430fc <https://github.com/apache/airflow/commit/a9bbb430fcf6df7ac2677edfe5b0402c23cfe8e2>`_  2023-09-01   ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+`5d60c742a7 <https://github.com/apache/airflow/commit/5d60c742a74f419a9f33cbeebcf8fa6bfd2239b7>`_  2023-09-01   ``Fix Google 10.7.0 changelog (#33953)``
+`0a5e2281e0 <https://github.com/apache/airflow/commit/0a5e2281e084b228e697ffdd5d825b927fce9483>`_  2023-08-31   ``Remove some useless try/except from providers code (#33967)``
+`55976af32e <https://github.com/apache/airflow/commit/55976af32ea7d09831e2bcd21c0f3814d9b0eb3f>`_  2023-08-31   ``Replace sequence concatination by unpacking in Airflow providers (#33933)``
+`3b86842120 <https://github.com/apache/airflow/commit/3b868421208f171dd44733c6a3376037b388bcef>`_  2023-08-31   ``Remove a deprecated option from 'BigQueryHook.get_pandas_df' (#33819)``
+`a35c0d42cc <https://github.com/apache/airflow/commit/a35c0d42cce17fd0647d58f247a8bb9b8b8fab60>`_  2023-08-30   ``replace unnecessary dict comprehension by dict() in providers (#33857)``
+`eaf34718a4 <https://github.com/apache/airflow/commit/eaf34718a4170751c61eb027c0dd30f608595586>`_  2023-08-30   ``Fix Cloud Worflows system test (#33386)``
+`d361761dee <https://github.com/apache/airflow/commit/d361761deeffe628f3c17ab0debd0e11515c22da>`_  2023-08-30   ``Early delete a Dataproc cluster if started in the ERROR state. (#33668)``
+`075afe5a2a <https://github.com/apache/airflow/commit/075afe5a2add74d9e4e9fd57768b8354489cdb2b>`_  2023-08-30   ``allow impersonation_chain to be set on Google Cloud connection (#33715)``
+`3b3650e87d <https://github.com/apache/airflow/commit/3b3650e87d093d57a97b8701834c568f67327ab4>`_  2023-08-29   ``fix entry in Google provider CHANGELOG.rst (#33890)``
+`2663b177a6 <https://github.com/apache/airflow/commit/2663b177a666ee150f86bd16ad51526319fa7adb>`_  2023-08-28   ``Generate Python API docs for Google ADS (#33814)``
+`6802d4136f <https://github.com/apache/airflow/commit/6802d4136fab9b8a02faf22f48cb9f6d259fd523>`_  2023-08-27   ``Improve modules import in google provider by move some of them into a type-checking block (#33783)``
+`6d182beec6 <https://github.com/apache/airflow/commit/6d182beec6e86b372c37fb164a31c2f8811d8c03>`_  2023-08-26   ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+`b11525702c <https://github.com/apache/airflow/commit/b11525702c72cb53034aa29ccd6d0e1161ac475c>`_  2023-08-26   ``Use literal dict instead of calling dict() in providers (#33761)``
+`353b1482d3 <https://github.com/apache/airflow/commit/353b1482d3720c7e962022f25c7e5d3e105ed4f0>`_  2023-08-26   ``remove unnecessary and rewrite it using list in providers (#33763)``
+`784e0ef04b <https://github.com/apache/airflow/commit/784e0ef04b5013f4e370e9a0380f5c2589128c7f>`_  2023-08-26   ``Refactor: Simplify a few loops (#33736)``
+`3d01919a30 <https://github.com/apache/airflow/commit/3d01919a30acd85eec40fdd81029ed94613d280f>`_  2023-08-26   ``Avoid blocking event loop when using DataFusionAsyncHook by replacing sleep by asyncio.sleep (#33756)``
+`2a00f18ebb <https://github.com/apache/airflow/commit/2a00f18ebb7f0e286955a946844c14b72fcc3b05>`_  2023-08-26   ``E731: replace lambda by a def method in Airflow providers (#33757)``
+`c90eec9365 <https://github.com/apache/airflow/commit/c90eec936583d482a35f0dc8bfc13afc58a9c322>`_  2023-08-26   ``Use f-string instead of  in Airflow providers (#33752)``
+=================================================================================================  ===========  ==========================================================================================================
+
 10.7.0
 ......
 
-Latest change: 2023-08-25
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  ==========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`94c8291629 <https://github.com/apache/airflow/commit/94c82916294791df10d30a1cb444daf5d8a34304>`_  2023-08-25   ``Refactor: Use f-strings (#33734)``
 `ba0bab0114 <https://github.com/apache/airflow/commit/ba0bab0114a430ef0ac776980f7e29b34d48b726>`_  2023-08-25   ``Refactor: Use random.choices (#33631)``
 `66d0222947 <https://github.com/apache/airflow/commit/66d0222947bf6ec779064d25c16391e22c1a9368>`_  2023-08-25   ``Add CloudRunHook and operators (#33067)``
 `96efcfb830 <https://github.com/apache/airflow/commit/96efcfb8301ed938ce62d46a12b429b724e7cf0f>`_  2023-08-24   ``Further improvements for provider verification (#33670)``

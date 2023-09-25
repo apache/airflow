@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Any, Sequence
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
@@ -33,6 +33,7 @@ from airflow.providers.google.cloud.links.datafusion import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
+from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -708,6 +709,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         :ref:`howto/operator:CloudDataFusionStartPipelineOperator`
 
     :param pipeline_name: Your pipeline name.
+    :param pipeline_type: Optional pipeline type (BATCH by default).
     :param instance_name: The name of the instance.
     :param success_states: If provided the operator will wait for pipeline to be in one of
         the provided states.
@@ -752,6 +754,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         pipeline_name: str,
         instance_name: str,
         location: str,
+        pipeline_type: DataFusionPipelineType = DataFusionPipelineType.BATCH,
         runtime_args: dict[str, Any] | None = None,
         success_states: list[str] | None = None,
         namespace: str = "default",
@@ -767,6 +770,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.pipeline_name = pipeline_name
+        self.pipeline_type = pipeline_type
         self.runtime_args = runtime_args
         self.namespace = namespace
         self.instance_name = instance_name
@@ -783,7 +787,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         if success_states:
             self.success_states = success_states
         else:
-            self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
+            self.success_states = [*SUCCESS_STATES, PipelineStates.RUNNING]
 
     def execute(self, context: Context) -> str:
         hook = DataFusionHook(
@@ -800,6 +804,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         api_url = instance["apiEndpoint"]
         pipeline_id = hook.start_pipeline(
             pipeline_name=self.pipeline_name,
+            pipeline_type=self.pipeline_type,
             instance_url=api_url,
             namespace=self.namespace,
             runtime_args=self.runtime_args,
@@ -824,6 +829,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
                     instance_url=api_url,
                     namespace=self.namespace,
                     pipeline_name=self.pipeline_name,
+                    pipeline_type=self.pipeline_type.value,
                     pipeline_id=pipeline_id,
                     poll_interval=self.poll_interval,
                     gcp_conn_id=self.gcp_conn_id,
@@ -839,6 +845,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
                     success_states=self.success_states,
                     pipeline_id=pipeline_id,
                     pipeline_name=self.pipeline_name,
+                    pipeline_type=self.pipeline_type,
                     namespace=self.namespace,
                     instance_url=api_url,
                     timeout=self.pipeline_timeout,

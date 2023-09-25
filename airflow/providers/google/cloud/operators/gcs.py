@@ -797,9 +797,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         num_max_attempts=self.download_num_attempts,
                     )
                 except GoogleCloudError:
-                    if self.download_continue_on_fail:
-                        continue
-                    raise
+                    if not self.download_continue_on_fail:
+                        raise
 
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
@@ -847,9 +846,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                     )
                     files_uploaded.append(str(upload_file_name))
                 except GoogleCloudError:
-                    if self.upload_continue_on_fail:
-                        continue
-                    raise
+                    if not self.upload_continue_on_fail:
+                        raise
 
             return files_uploaded
 

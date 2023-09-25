@@ -103,6 +103,9 @@ spec:
       priorityClassName: {{ .Values.triggerer.priorityClassName }}
       {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       affinity:
         {{- if $affinity }}
           {{- toYaml $affinity | nindent 8 }}

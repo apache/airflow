@@ -24,7 +24,6 @@ import pytest
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import FactoryListResponse
-from pytest import param
 
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
@@ -661,12 +660,12 @@ def test_connection_failure_missing_tenant_id():
 @pytest.mark.parametrize(
     "uri",
     [
-        param(
+        pytest.param(
             "a://?extra__azure_data_factory__resource_group_name=abc"
             "&extra__azure_data_factory__factory_name=abc",
             id="prefix",
         ),
-        param("a://?resource_group_name=abc&factory_name=abc", id="no-prefix"),
+        pytest.param("a://?resource_group_name=abc&factory_name=abc", id="no-prefix"),
     ],
 )
 @patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_conn")
@@ -680,12 +679,12 @@ def test_provide_targeted_factory_backcompat_prefix_works(mock_connect, uri):
 @pytest.mark.parametrize(
     "uri",
     [
-        param(
+        pytest.param(
             "a://hi:yo@?extra__azure_data_factory__tenantId=ten"
             "&extra__azure_data_factory__subscriptionId=sub",
             id="prefix",
         ),
-        param("a://hi:yo@?tenantId=ten&subscriptionId=sub", id="no-prefix"),
+        pytest.param("a://hi:yo@?tenantId=ten&subscriptionId=sub", id="no-prefix"),
     ],
 )
 @patch("airflow.providers.microsoft.azure.hooks.data_factory.ClientSecretCredential")

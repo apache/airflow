@@ -74,6 +74,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.timezone import datetime as datetime_tz
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
@@ -338,8 +339,8 @@ class TestDag:
         # Default weight should be calculated using downstream descendants
         with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
             pipeline = [
-                [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(0, width)]
-                for i in range(0, depth)
+                [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(width)]
+                for i in range(depth)
             ]
             for i, stage in enumerate(pipeline):
                 if i == 0:
@@ -371,9 +372,9 @@ class TestDag:
                         priority_weight=weight,
                         weight_rule=WeightRule.UPSTREAM,
                     )
-                    for j in range(0, width)
+                    for j in range(width)
                 ]
-                for i in range(0, depth)
+                for i in range(depth)
             ]
             for i, stage in enumerate(pipeline):
                 if i == 0:
@@ -404,9 +405,9 @@ class TestDag:
                         priority_weight=weight,
                         weight_rule=WeightRule.ABSOLUTE,
                     )
-                    for j in range(0, width)
+                    for j in range(width)
                 ]
-                for i in range(0, depth)
+                for i in range(depth)
             ]
             for i, stage in enumerate(pipeline):
                 if i == 0:
@@ -859,7 +860,7 @@ class TestDag:
 
     def test_bulk_write_to_db(self):
         clear_db_dags()
-        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
+        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(4)]
 
         with assert_queries_count(5):
             DAG.bulk_write_to_db(dags)
@@ -4022,3 +4023,16 @@ class TestTaskClearingSetupTeardownBehavior:
         assert self.cleared_upstream(s1) == {s1, t1}
         assert self.cleared_downstream(s1) == {s1, t1}
         assert self.cleared_neither(s1) == {s1, t1}
+
+    def test_validate_setup_teardown_trigger_rule(self):
+        with DAG(
+            dag_id="direct_setup_trigger_rule", start_date=pendulum.now(), schedule=None, catchup=False
+        ) as dag:
+            s1, w1 = self.make_tasks(dag, "s1, w1")
+            s1 >> w1
+            dag.validate_setup_teardown()
+            w1.trigger_rule = TriggerRule.ONE_FAILED
+            with pytest.raises(
+                Exception, match="Setup tasks must be followed with trigger rule ALL_SUCCESS."
+            ):
+                dag.validate_setup_teardown()

@@ -27,7 +27,7 @@ import pytest
 import sqlalchemy
 from cryptography.fernet import Fernet
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection, crypto
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
@@ -103,7 +103,7 @@ class TestConnection:
             assert Fernet(key1).decrypt(test_connection._extra.encode()) == b"testextra"
 
         # Test decrypt of old value with new key
-        with conf_vars({("core", "fernet_key"): ",".join([key2.decode(), key1.decode()])}):
+        with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
             crypto._fernet = None
             assert test_connection.extra == "testextra"
 

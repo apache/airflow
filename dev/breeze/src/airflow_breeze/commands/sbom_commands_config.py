@@ -29,7 +29,7 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Update SBOM information flags",
             "options": [
-                "--airflow-site-dir",
+                "--airflow-site-directory",
                 "--airflow-version",
                 "--python",
                 "--include-provider-dependencies",

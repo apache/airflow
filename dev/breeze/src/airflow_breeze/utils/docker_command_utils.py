@@ -17,17 +17,16 @@
 """Various utils to prepare docker and docker compose commands."""
 from __future__ import annotations
 
+import copy
+import json
 import os
+import random
 import re
 import sys
-from copy import deepcopy
-from random import randint
 from subprocess import DEVNULL, CalledProcessError, CompletedProcess
+from typing import TYPE_CHECKING
 
-from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.params.common_build_params import CommonBuildParams
-from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -64,6 +63,11 @@ from airflow_breeze.utils.run_utils import (
     commit_sha,
     run_command,
 )
+
+if TYPE_CHECKING:
+    from airflow_breeze.params.build_ci_params import BuildCiParams
+    from airflow_breeze.params.common_build_params import CommonBuildParams
+    from airflow_breeze.params.shell_params import ShellParams
 
 # Those are volumes that are mounted when MOUNT_SELECTED is chosen (which is the default when
 # entering Breeze. MOUNT_SELECTED prevents to mount the files that you can have accidentally added
@@ -140,6 +144,16 @@ def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False
         ["--env-file", f"{AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci' / 'docker-compose' / '_docker.env' }"]
     )
     return extra_docker_flags
+
+
+def is_docker_rootless():
+    response = run_command(
+        ["docker", "info", "-f", "{{println .SecurityOptions}}"], capture_output=True, check=True, text=True
+    )
+    if "rootless" in response.stdout.strip():
+        get_console().print("[info]Docker is running in rootless mode.[/]\n")
+        return True
+    return False
 
 
 def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
@@ -369,7 +383,7 @@ def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParam
     value = "true" if raw_value is True else value
     value = "false" if raw_value is False else value
     if arg_name == "upgrade_to_newer_dependencies" and value == "true":
-        value = f"{randint(0, 2**32):x}"
+        value = f"{random.randrange(2**32):x}"
     return value
 
 
@@ -506,7 +520,7 @@ def construct_docker_push_command(
 def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCommandResult:
     build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
     for platform in image_params.platforms:
-        platform_image_params = deepcopy(image_params)
+        platform_image_params = copy.deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
         # as a workaround to https://github.com/docker/buildx/issues/1044
         platform_image_params.platform = platform
@@ -568,6 +582,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "COLLECT_ONLY", "false")
     set_value_to_default_if_not_set(env, "DB_RESET", "false")
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
+    set_value_to_default_if_not_set(env, "DOCKER_IS_ROOTLESS", "false")
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
     set_value_to_default_if_not_set(env, "ENABLE_TEST_COVERAGE", "false")
     set_value_to_default_if_not_set(env, "HELM_TEST_PACKAGE", "")
@@ -593,6 +608,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
     set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
     set_value_to_default_if_not_set(env, "UPGRADE_BOTO", "false")
+    set_value_to_default_if_not_set(env, "DOWNGRADE_SQLALCHEMY", "false")
     set_value_to_default_if_not_set(env, "UPGRADE_TO_NEWER_DEPENDENCIES", "false")
     set_value_to_default_if_not_set(env, "USE_PACKAGES_FROM_DIST", "false")
     set_value_to_default_if_not_set(env, "VERBOSE", "false")
@@ -640,6 +656,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
     "UPGRADE_BOTO": "upgrade_boto",
+    "DOWNGRADE_SQLALCHEMY": "downgrade_sqlalchemy",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
@@ -701,6 +718,8 @@ def prepare_broker_url(params, env_variables):
 def perform_environment_checks():
     check_docker_is_running()
     check_docker_version()
+    if is_docker_rootless():
+        os.environ["DOCKER_IS_ROOTLESS"] = "true"
     check_docker_compose_version()
 
 
@@ -718,7 +737,7 @@ def warm_up_docker_builder(image_params: CommonBuildParams):
         return
     docker_syntax = get_docker_syntax_version()
     get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
-    warm_up_image_param = deepcopy(image_params)
+    warm_up_image_param = copy.deepcopy(image_params)
     warm_up_image_param.image_tag = "warmup"
     warm_up_image_param.push = False
     build_command = prepare_base_build_command(image_params=warm_up_image_param)
@@ -800,23 +819,34 @@ def autodetect_docker_context():
 
     :return: name of the docker context to use
     """
-    output = run_command(["docker", "context", "ls", "-q"], capture_output=True, check=False, text=True)
-    if output.returncode != 0:
+    result = run_command(
+        ["docker", "context", "ls", "--format=json"],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if result.returncode != 0:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    context_list = output.stdout.splitlines()
-    if not context_list:
+    context_json = json.loads(result.stdout)
+    if isinstance(context_json, dict):
+        # In case there is one context it is returned as dict not array of dicts ¯\_(ツ)_/¯
+        context_json = [context_json]
+    known_contexts = {info["Name"]: info for info in context_json}
+    if not known_contexts:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    elif len(context_list) == 1:
-        get_console().print(f"[info]Using {context_list[0]} as context.[/]")
-        return context_list[0]
-    else:
-        for preferred_context in PREFERRED_CONTEXTS:
-            if preferred_context in context_list:
-                get_console().print(f"[info]Using {preferred_context} as context.[/]")
-                return preferred_context
-    fallback_context = context_list[0]
+    for preferred_context_name in PREFERRED_CONTEXTS:
+        try:
+            context = known_contexts[preferred_context_name]
+        except KeyError:
+            continue
+        # On Windows, some contexts are used for WSL2. We don't want to use those.
+        if context["DockerEndpoint"] == "npipe:////./pipe/dockerDesktopLinuxEngine":
+            continue
+        get_console().print(f"[info]Using {preferred_context_name} as context.[/]")
+        return preferred_context_name
+    fallback_context = next(iter(known_contexts))
     get_console().print(
         f"[warning]Could not use any of the preferred docker contexts {PREFERRED_CONTEXTS}.\n"
         f"Using {fallback_context} as context.[/]"

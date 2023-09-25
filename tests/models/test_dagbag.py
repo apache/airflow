@@ -42,7 +42,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
-from airflow.www.security import ApplessAirflowSecurityManager
+from airflow.www.security_appless import ApplessAirflowSecurityManager
 from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils import db
@@ -474,10 +474,10 @@ class TestDagBag:
         return dagbag, found_dags, os.fspath(path)
 
     def validate_dags(self, expected_parent_dag, actual_found_dags, actual_dagbag, should_be_found=True):
-        expected_dag_ids = list(map(lambda dag: dag.dag_id, expected_parent_dag.subdags))
+        expected_dag_ids = [dag.dag_id for dag in expected_parent_dag.subdags]
         expected_dag_ids.append(expected_parent_dag.dag_id)
 
-        actual_found_dag_ids = list(map(lambda dag: dag.dag_id, actual_found_dags))
+        actual_found_dag_ids = [dag.dag_id for dag in actual_found_dags]
 
         for dag_id in expected_dag_ids:
             actual_dagbag.log.info("validating %s", dag_id)
@@ -901,7 +901,7 @@ class TestDagBag:
             _sync_to_db()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
 
-    @patch("airflow.www.security.ApplessAirflowSecurityManager")
+    @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
     def test_sync_perm_for_dag(self, mock_security_manager):
         """
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag

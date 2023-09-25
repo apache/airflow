@@ -35,9 +35,9 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
-from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
@@ -319,7 +319,7 @@ def _confirm_delete(*, date: DateTime, tables: list[str]):
     )
     print(question)
     answer = input().strip()
-    if not answer == "delete rows":
+    if answer != "delete rows":
         raise SystemExit("User did not confirm; exiting.")
 
 
@@ -339,7 +339,7 @@ def _confirm_drop_archives(*, tables: list[str]):
         if show_tables:
             print(tables, "\n")
     answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
-    if not answer == "drop archived tables":
+    if answer != "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")
 
 
@@ -435,19 +435,19 @@ def run_cleanup(
         _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
     existing_tables = reflect_tables(tables=None, session=session).tables
     for table_name, table_config in effective_config_dict.items():
-        if table_name not in existing_tables:
+        if table_name in existing_tables:
+            with _suppress_with_logging(table_name, session):
+                _cleanup_table(
+                    clean_before_timestamp=clean_before_timestamp,
+                    dry_run=dry_run,
+                    verbose=verbose,
+                    **table_config.__dict__,
+                    skip_archive=skip_archive,
+                    session=session,
+                )
+                session.commit()
+        else:
             logger.warning("Table %s not found.  Skipping.", table_name)
-            continue
-        with _suppress_with_logging(table_name, session):
-            _cleanup_table(
-                clean_before_timestamp=clean_before_timestamp,
-                dry_run=dry_run,
-                verbose=verbose,
-                **table_config.__dict__,
-                skip_archive=skip_archive,
-                session=session,
-            )
-            session.commit()
 
 
 @provide_session

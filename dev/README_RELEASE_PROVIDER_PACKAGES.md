@@ -366,13 +366,19 @@ breeze build-docs --clean-build \
   ...
 ```
 
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. Example:
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+breeze build-docs providers-index cncf.kubernetes sftp --clean-build
+```
 
 If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
 ./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
 ```
-
 
 - Now you can preview the documentation.
 
@@ -408,9 +414,19 @@ If you have providers as list of provider ids because you just released them you
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
+breeze release-management publish-docs providers-index amazon cncf.kubernetes --override-versioned --run-in-parallel
+
+breeze release-management add-back-references amazon cncf.kubernetes
+```
+
+or with
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
 
-breeze release-management add-back-references amazon apache.beam google ....
+# No need to add back references as the script has this step as integral part
 ```
 
 

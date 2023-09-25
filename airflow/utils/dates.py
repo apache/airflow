@@ -23,9 +23,9 @@ from typing import Collection
 
 from croniter import croniter
 from dateutil.relativedelta import relativedelta  # for doctest
-from typing_extensions import Literal
 
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 
 cron_presets: dict[str, str] = {
@@ -243,12 +243,14 @@ def infer_time_unit(time_seconds_arr: Collection[float]) -> TimeUnit:
 def scale_time_units(time_seconds_arr: Collection[float], unit: TimeUnit) -> Collection[float]:
     """Convert an array of time durations in seconds to the specified time unit."""
     if unit == "minutes":
-        return [x / 60 for x in time_seconds_arr]
+        factor = 60
     elif unit == "hours":
-        return [x / (60 * 60) for x in time_seconds_arr]
+        factor = 60 * 60
     elif unit == "days":
-        return [x / (24 * 60 * 60) for x in time_seconds_arr]
-    return time_seconds_arr
+        factor = 24 * 60 * 60
+    else:
+        factor = 1
+    return [x / factor for x in time_seconds_arr]
 
 
 def days_ago(n, hour=0, minute=0, second=0, microsecond=0):

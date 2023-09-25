@@ -368,6 +368,17 @@ class TestWorker:
             "spec.template.spec.topologySpreadConstraints[0]", docs[0]
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_should_create_default_affinity(self):
         docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
 

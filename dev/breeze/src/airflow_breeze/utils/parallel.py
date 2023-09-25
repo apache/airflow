@@ -66,7 +66,7 @@ def get_temp_file_name() -> str:
 
 
 def get_output_files(titles: list[str]) -> list[Output]:
-    outputs = [Output(title=titles[i], file_name=get_temp_file_name()) for i in range(len(titles))]
+    outputs = [Output(title=title, file_name=get_temp_file_name()) for title in titles]
     for out in outputs:
         get_console().print(f"[info]Capturing output of {out.escaped_title}:[/] {out.file_name}")
     return outputs
@@ -357,7 +357,7 @@ def print_async_summary(completed_list: list[ApplyResult]) -> None:
 
 def get_completed_result_list(results: list[ApplyResult]) -> list[ApplyResult]:
     """Return completed results from the list."""
-    return list(filter(lambda result: result.ready(), results))
+    return [result for result in results if result.ready()]
 
 
 class SummarizeAfter(Enum):

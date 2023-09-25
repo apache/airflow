@@ -343,6 +343,7 @@ Dagre
 dagre
 DagRun
 dagrun
+DagRunPydantic
 dagruns
 DagRunState
 DAGs
@@ -379,6 +380,8 @@ DataScan
 dataScans
 Dataset
 dataset
+DatasetEvent
+DatasetEvents
 datasetId
 Datasets
 datasets
@@ -1051,6 +1054,7 @@ openapi
 openfaas
 openlineage
 oper
+OperatorLineage
 Opsgenie
 opsgenie
 Optimise
@@ -1071,6 +1075,7 @@ oversubscription
 PaaS
 Pagerduty
 pagerduty
+PagerdutyEventsHook
 pageviews
 paginator
 Papermill
@@ -1189,6 +1194,7 @@ Py
 py
 Pyarrow
 pyarrow
+pydantic
 pydruid
 pyexasol
 pyhive
@@ -1576,6 +1582,7 @@ tzinfo
 UA
 ui
 uid
+ulimit
 Umask
 umask
 Un

@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 5.3.0
 .....
 

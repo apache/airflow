@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import collections
+import contextlib
+import itertools
 import logging
 import multiprocessing
 import os
@@ -25,11 +27,11 @@ import pathlib
 import random
 import socket
 import sys
+import textwrap
 import threading
 import time
 from datetime import datetime, timedelta
 from logging.config import dictConfig
-from textwrap import dedent
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -499,7 +501,7 @@ class TestDagProcessorJobRunner:
             ["file_3.py", "file_2.py", "file_1.py"]
         )
 
-        manager.processor.set_file_paths(dag_files + ["file_4.py"])
+        manager.processor.set_file_paths([*dag_files, "file_4.py"])
         manager.processor.add_new_file_path_to_queue()
         assert manager.processor._file_path_queue == collections.deque(
             ["file_4.py", "file_3.py", "file_2.py", "file_1.py"]
@@ -832,14 +834,13 @@ class TestDagProcessorJobRunner:
         # To test this behaviour we need something that continually fills the
         # parent pipe's buffer (and keeps it full).
         def keep_pipe_full(pipe, exit_event):
-            n = 0
-            while True:
+            for n in itertools.count(1):
                 if exit_event.is_set():
                     break
 
                 req = CallbackRequest(str(dag_filepath))
+                logging.info("Sending CallbackRequests %d", n)
                 try:
-                    logging.info("Sending CallbackRequests %d", n + 1)
                     pipe.send(req)
                 except TypeError:
                     # This is actually the error you get when the parent pipe
@@ -847,7 +848,6 @@ class TestDagProcessorJobRunner:
                     break
                 except OSError:
                     break
-                n += 1
                 logging.debug("   Sent %d CallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
@@ -892,7 +892,7 @@ class TestDagProcessorJobRunner:
     @mock.patch("airflow.dag_processing.manager.Stats.timing")
     def test_send_file_processing_statsd_timing(self, statsd_timing_mock, tmp_path):
         path_to_parse = tmp_path / "temp_dag.py"
-        dag_code = dedent(
+        dag_code = textwrap.dedent(
             """
         from airflow import DAG
         dag = DAG(dag_id='temp_dag', schedule='0 0 * * *')
@@ -1343,10 +1343,8 @@ class TestDagFileProcessorAgent:
             async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
             log_file_loc = conf.get("logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION")
 
-            try:
+            with contextlib.suppress(OSError):
                 os.remove(log_file_loc)
-            except OSError:
-                pass
 
             # Starting dag processing with 0 max_runs to avoid redundant operations.
             processor_agent = DagFileProcessorAgent(
@@ -1393,10 +1391,8 @@ class TestDagFileProcessorAgent:
         async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
 
         log_file_loc = conf.get("logging", "DAG_PROCESSOR_MANAGER_LOG_LOCATION")
-        try:
+        with contextlib.suppress(OSError):
             os.remove(log_file_loc)
-        except OSError:
-            pass
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
         processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], False, async_mode)

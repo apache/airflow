@@ -24,7 +24,6 @@ from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.client import AppflowClient
-    from mypy_boto3_appflow.type_defs import TaskOutputTypeDef, TaskTypeDef
 
 
 class AppflowHook(AwsBaseHook):
@@ -93,9 +92,7 @@ class AppflowHook(AwsBaseHook):
         exec_details = last_execs[execution_id]
         self.log.info("Run complete, execution details: %s", exec_details)
 
-    def update_flow_filter(
-        self, flow_name: str, filter_tasks: list[TaskTypeDef], set_trigger_ondemand: bool = False
-    ) -> None:
+    def update_flow_filter(self, flow_name: str, filter_tasks, set_trigger_ondemand: bool = False) -> None:
         """
         Update the flow task filter; all filters will be removed if an empty array is passed to filter_tasks.
 
@@ -106,7 +103,7 @@ class AppflowHook(AwsBaseHook):
         """
         response = self.conn.describe_flow(flowName=flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
-        tasks: list[TaskTypeDef | TaskOutputTypeDef] = []
+        tasks = []
 
         # cleanup old filter tasks
         for task in response["tasks"]:

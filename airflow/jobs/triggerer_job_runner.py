@@ -60,7 +60,6 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models import TaskInstance
-    from airflow.serialization.pydantic.job import JobPydantic
     from airflow.triggers.base import BaseTrigger
 
 HANDLER_SUPPORTS_TRIGGERER = False
@@ -237,7 +236,7 @@ def setup_queue_listener():
         return None
 
 
-class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
+class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     """
     Run active triggers in asyncio and update their dependent tests/DAGs once their events have fired.
 
@@ -250,7 +249,7 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
 
     def __init__(
         self,
-        job: Job | JobPydantic,
+        job: Job,
         capacity=None,
     ):
         super().__init__(job)
@@ -468,8 +467,8 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         """
         watchdog = asyncio.create_task(self.block_watchdog())
         last_status = time.time()
-        while not self.stop:
-            try:
+        try:
+            while not self.stop:
                 # Run core logic
                 await self.create_triggers()
                 await self.cancel_triggers()
@@ -481,9 +480,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     count = len(self.triggers)
                     self.log.info("%i triggers currently running", count)
                     last_status = time.time()
-            except Exception:
-                self.stop = True
-                raise
+        except Exception:
+            self.stop = True
+            raise
         # Wait for watchdog to complete
         await watchdog
 
@@ -492,15 +491,11 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         while self.to_create:
             trigger_id, trigger_instance = self.to_create.popleft()
             if trigger_id not in self.triggers:
-                task_instance: TaskInstance = trigger_instance.task_instance
-                dag_id = task_instance.dag_id
-                run_id = task_instance.run_id
-                task_id = task_instance.task_id
-                map_index = task_instance.map_index
-                try_number = task_instance.try_number
+                ti: TaskInstance = trigger_instance.task_instance
                 self.triggers[trigger_id] = {
                     "task": asyncio.create_task(self.run_trigger(trigger_id, trigger_instance)),
-                    "name": f"{dag_id}/{run_id}/{task_id}/{map_index}/{try_number} (ID {trigger_id})",
+                    "name": f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number} "
+                    f"(ID {trigger_id})",
                     "events": 0,
                 }
             else:
@@ -607,12 +602,11 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
                 self.triggers[trigger_id]["events"] += 1
                 self.events.append((trigger_id, event))
-        except asyncio.CancelledError as err:
+        except asyncio.CancelledError:
             if timeout := trigger.task_instance.trigger_timeout:
                 timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
                 if timeout < timezone.utcnow():
                     self.log.error("Trigger cancelled due to timeout")
-            self.log.error("Trigger cancelled; message=%s", err)
             raise
         finally:
             # CancelledError will get injected when we're stopped - which is
@@ -688,8 +682,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             self.set_trigger_logging_metadata(new_trigger_orm.task_instance, new_id, new_trigger_instance)
             self.to_create.append((new_id, new_trigger_instance))
         # Enqueue orphaned triggers for cancellation
-        for old_id in cancel_trigger_ids:
-            self.to_cancel.append(old_id)
+        self.to_cancel.extend(cancel_trigger_ids)
 
     def set_trigger_logging_metadata(self, ti: TaskInstance, trigger_id, trigger):
         """

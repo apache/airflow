@@ -292,6 +292,11 @@ repos:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.14
+    hooks:
+      - id: validate-pyproject
+        name: Validate pyproject.toml
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes
@@ -412,7 +417,11 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_version_heads_map.py
         pass_filenames: false
-        files: ^airflow/migrations/versions|^airflow/__init__.py$
+        files: >
+          (?x)
+          ^scripts/ci/pre_commit/pre_commit_version_heads_map\.py$|
+          ^airflow/migrations/versions/.*$|^airflow/migrations/versions|
+          ^airflow/utils/db.py$
         additional_dependencies: ['packaging','google-re2']
       - id: update-version
         name: Update version to the latest version in the documentation
@@ -757,6 +766,12 @@ repos:
         exclude: ^tests/system/providers/google/cloud/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
+      - id: generate-pypi-readme
+        name: Generate PyPI README
+        entry: ./scripts/ci/pre_commit/pre_commit_generate_pypi_readme.py
+        language: python
+        files: ^README\.md$
+        pass_filenames: false
       - id: lint-markdown
         name: Run markdownlint
         description: Checks the style of Markdown files.

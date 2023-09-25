@@ -366,9 +366,10 @@ class PodGenerator:
         client_container = extend_object_field(base_container, client_container, "volume_devices")
         client_container = merge_objects(base_container, client_container)
 
-        return [client_container] + PodGenerator.reconcile_containers(
-            base_containers[1:], client_containers[1:]
-        )
+        return [
+            client_container,
+            *PodGenerator.reconcile_containers(base_containers[1:], client_containers[1:]),
+        ]
 
     @classmethod
     def construct_pod(
@@ -494,9 +495,9 @@ class PodGenerator:
             airflow_worker=airflow_worker,
         )
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
-        selector = ",".join(label_strings)
         if not airflow_worker:  # this filters out KPO pods even when we don't know the scheduler job id
-            selector += ",airflow-worker"
+            label_strings.append("airflow-worker")
+        selector = ",".join(label_strings)
         return selector
 
     @classmethod

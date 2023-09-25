@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.1.0
+.....
+
+Latest change: 2023-09-07
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`5eea4e632c <https://github.com/apache/airflow/commit/5eea4e632c8ae50812e07b1d844ea4f52e0d6fe1>`_  2023-09-07   ``Add OpenLineage support for DBT Cloud. (#33959)``
+`e403c74524 <https://github.com/apache/airflow/commit/e403c74524a980030ba120c3602de0c3dc867d86>`_  2023-09-06   ``Fix import in 'get_custom_facets'. (#34122)``
+`875387afa5 <https://github.com/apache/airflow/commit/875387afa53c207364fa20b515d154100b5d0a8d>`_  2023-09-01   ``Refactor unneeded  jumps in providers (#33833)``
+`b4d4f55b47 <https://github.com/apache/airflow/commit/b4d4f55b479d07c13ab25bb2e80cb053378b56d7>`_  2023-08-31   ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+`0d49d1fed9 <https://github.com/apache/airflow/commit/0d49d1fed970c324698efb3419d5a403de0a37eb>`_  2023-08-29   ``Allow to disable openlineage at operator level (#33685)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+=================================================================================================  ===========  ===================================================================================================
+
 1.0.2
 .....
 
-Latest change: 2023-08-24
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `626d3daa9b <https://github.com/apache/airflow/commit/626d3daa9b5348fec6dfb4d29edcff97bba20298>`_  2023-08-24   ``Add OpenLineage support for Trino. (#32910)``
 `1cdd82391e <https://github.com/apache/airflow/commit/1cdd82391e0f7a24ab7f0badbe8f44a54f51d757>`_  2023-08-21   ``Simplify conditions on len() in other providers (#33569)``
 `abef61ff3d <https://github.com/apache/airflow/commit/abef61ff3d6b9ae8dcb7f9dbbea78a9648a0c50b>`_  2023-08-20   ``Replace repr() with proper formatting (#33520)``

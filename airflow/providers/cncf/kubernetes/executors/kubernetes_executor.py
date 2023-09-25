@@ -23,6 +23,7 @@ KubernetesExecutor.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import multiprocessing
@@ -35,7 +36,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from sqlalchemy import select, update
 
-from airflow.exceptions import AirflowException
+from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException, PodReconciliationError
 
 try:
     from airflow.cli.cli_config import (
@@ -97,14 +98,6 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
-
-
-class PodMutationHookException(AirflowException):
-    """Raised when exception happens during Pod Mutation Hook execution."""
-
-
-class PodReconciliationError(AirflowException):
-    """Raised when an error is encountered while trying to merge pod configs."""
 
 
 # CLI Args
@@ -354,8 +347,8 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_scheduler.sync()
 
         last_resource_version: dict[str, str] = defaultdict(lambda: "0")
-        while True:
-            try:
+        with contextlib.suppress(Empty):
+            while True:
                 results = self.result_queue.get_nowait()
                 try:
                     key, state, pod_name, namespace, resource_version = results
@@ -373,8 +366,6 @@ class KubernetesExecutor(BaseExecutor):
                         self.result_queue.put(results)
                 finally:
                     self.result_queue.task_done()
-            except Empty:
-                break
 
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
@@ -386,8 +377,8 @@ class KubernetesExecutor(BaseExecutor):
 
         from kubernetes.client.rest import ApiException
 
-        for _ in range(self.kube_config.worker_pods_creation_batch_size):
-            try:
+        with contextlib.suppress(Empty):
+            for _ in range(self.kube_config.worker_pods_creation_batch_size):
                 task = self.task_queue.get_nowait()
 
                 try:
@@ -423,8 +414,6 @@ class KubernetesExecutor(BaseExecutor):
                     self.fail(key, e)
                 finally:
                     self.task_queue.task_done()
-            except Empty:
-                break
 
         # Run any pending timed events
         next_event = self.event_scheduler.run(blocking=False)
@@ -666,22 +655,20 @@ class KubernetesExecutor(BaseExecutor):
             assert self.task_queue
 
         self.log.debug("Executor shutting down, task_queue approximate size=%d", self.task_queue.qsize())
-        while True:
-            try:
+        with contextlib.suppress(Empty):
+            while True:
                 task = self.task_queue.get_nowait()
                 # This is a new task to run thus ok to ignore.
                 self.log.warning("Executor shutting down, will NOT run task=%s", task)
                 self.task_queue.task_done()
-            except Empty:
-                break
 
     def _flush_result_queue(self) -> None:
         if TYPE_CHECKING:
             assert self.result_queue
 
         self.log.debug("Executor shutting down, result_queue approximate size=%d", self.result_queue.qsize())
-        while True:
-            try:
+        with contextlib.suppress(Empty):
+            while True:
                 results = self.result_queue.get_nowait()
                 self.log.warning("Executor shutting down, flushing results=%s", results)
                 try:
@@ -700,8 +687,6 @@ class KubernetesExecutor(BaseExecutor):
                         )
                 finally:
                     self.result_queue.task_done()
-            except Empty:
-                break
 
     def end(self) -> None:
         """Called when the executor shuts down."""

@@ -201,7 +201,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         try:
             if append and self.s3_log_exists(remote_log_location):
                 old_log = self.s3_read(remote_log_location)
-                log = "\n".join([old_log, log]) if old_log else log
+                log = f"{old_log}\n{log}" if old_log else log
         except Exception:
             self.log.exception("Could not verify previous log to append")
             return False

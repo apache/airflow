@@ -153,7 +153,7 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         # If this is the first render of the template fields, exclude slack_message from rendering since
         # the SQL results haven't been retrieved yet.
         if self.times_rendered == 0:
-            fields_to_render: Iterable[str] = filter(lambda x: x != "slack_message", self.template_fields)
+            fields_to_render: Iterable[str] = (x for x in self.template_fields if x != "slack_message")
         else:
             fields_to_render = self.template_fields
 
@@ -237,7 +237,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
         parameters: Iterable | Mapping[str, Any] | None = None,
-        slack_conn_id: str,
+        slack_conn_id: str = SlackHook.default_conn_name,
         slack_filename: str,
         slack_channels: str | Sequence[str] | None = None,
         slack_initial_comment: str | None = None,

@@ -28,13 +28,18 @@ from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
 
+from deprecated.classic import deprecated
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
-from docker.types import LogConfig, Mount
+from docker.types import LogConfig, Mount, Ulimit
 from dotenv import dotenv_values
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.providers.docker.exceptions import (
+    DockerContainerFailedException,
+    DockerContainerFailedSkipException,
+)
 from airflow.providers.docker.hooks.docker import DockerHook
 
 if TYPE_CHECKING:
@@ -162,6 +167,8 @@ class DockerOperator(BaseOperator):
         dictionary of value where the key indicates the port to open inside the container
         and value indicates the host port that binds to the container port.
         Incompatible with ``host`` in ``network_mode``.
+    :param ulimits: List of ulimit options to set for the container. Each item should
+        be a :py:class:`docker.types.Ulimit` instance.
     """
 
     template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
@@ -221,6 +228,7 @@ class DockerOperator(BaseOperator):
         skip_exit_code: int | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
+        ulimits: list[Ulimit] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -273,6 +281,7 @@ class DockerOperator(BaseOperator):
         self.privileged = privileged
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
+        self.ulimits = ulimits or []
 
         self.container: dict = None  # type: ignore[assignment]
         self.retrieve_output = retrieve_output
@@ -320,6 +329,7 @@ class DockerOperator(BaseOperator):
             timeout=self.timeout,
         )
 
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> DockerHook:
         """Create and return an DockerHook (cached)."""
         return self.hook
@@ -335,7 +345,7 @@ class DockerOperator(BaseOperator):
             with TemporaryDirectory(prefix="airflowtmp", dir=self.host_tmp_dir) as host_tmp_dir_generated:
                 tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
                 try:
-                    return self._run_image_with_mounts(self.mounts + [tmp_mount], add_tmp_variable=True)
+                    return self._run_image_with_mounts([*self.mounts, tmp_mount], add_tmp_variable=True)
                 except APIError as e:
                     if host_tmp_dir_generated in str(e):
                         self.log.warning(
@@ -383,6 +393,7 @@ class DockerOperator(BaseOperator):
                 device_requests=self.device_requests,
                 log_config=LogConfig(config=docker_log_config),
                 ipc_mode=self.ipc_mode,
+                ulimits=self.ulimits,
             ),
             image=self.image,
             user=self.user,
@@ -403,12 +414,11 @@ class DockerOperator(BaseOperator):
 
             result = self.cli.wait(self.container["Id"])
             if result["StatusCode"] in self.skip_on_exit_code:
-                raise AirflowSkipException(
-                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping."
+                raise DockerContainerFailedSkipException(
+                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping.", logs=log_lines
                 )
             elif result["StatusCode"] != 0:
-                joined_log_lines = "\n".join(log_lines)
-                raise AirflowException(f"Docker container failed: {result!r} lines {joined_log_lines}")
+                raise DockerContainerFailedException(f"Docker container failed: {result!r}", logs=log_lines)
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()

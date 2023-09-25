@@ -20,14 +20,17 @@ from __future__ import annotations
 import io
 import json
 from contextlib import redirect_stdout
+from typing import TYPE_CHECKING
 
 import pytest
 
 from airflow.auth.managers.fab.cli_commands import role_command
 from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
-from airflow.auth.managers.fab.models import Role
 from airflow.cli import cli_parser
 from airflow.security import permissions
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.fab.models import Role
 
 TEST_USER1_EMAIL = "test-user1@example.com"
 TEST_USER2_EMAIL = "test-user2@example.com"

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import pytest
@@ -54,10 +55,12 @@ from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor impor
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils import db
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
@@ -585,9 +588,9 @@ class TestBaseSensor:
                 for retry_number in range(1, 10)
             ]
 
-            for i in range(0, len(intervals) - 1):
+            for interval1, interval2 in zip(intervals, intervals[1:]):
                 # intervals should be increasing or equals
-                assert intervals[i] <= intervals[i + 1]
+                assert interval1 <= interval2
             if poke_interval > 0:
                 # check if the intervals are increasing after some retries when poke_interval > 0
                 assert intervals[0] < intervals[-1]

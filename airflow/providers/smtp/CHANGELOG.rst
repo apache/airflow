@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+1.3.2
+.....
+
+Misc
+~~~~
+
+* ``Refactor unneeded  jumps in providers (#33833)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 1.3.1
 .....
 

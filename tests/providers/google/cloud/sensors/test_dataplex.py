@@ -22,7 +22,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataplex_v1.types import DataScanJob
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanResultTimeoutException
 from airflow.providers.google.cloud.sensors.dataplex import (
     DataplexDataQualityJobStatusSensor,

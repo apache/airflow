@@ -68,7 +68,7 @@ LOCATION = "europe-west1"
 BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
 FILE_NAME = "image1.jpg"
 
-GCP_VISION_PRODUCT_SET_ID = "product_set_explicit_id"
+GCP_VISION_PRODUCT_SET_ID = f"product_set_explicit_id_{ENV_ID}"
 GCP_VISION_PRODUCT_ID = "product_explicit_id"
 GCP_VISION_REFERENCE_IMAGE_ID = "reference_image_explicit_id"
 

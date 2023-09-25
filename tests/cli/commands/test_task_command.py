@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import logging
@@ -28,6 +29,7 @@ import unittest
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import sentinel
 
@@ -35,7 +37,6 @@ import pendulum
 import pytest
 import sqlalchemy.exc
 
-from airflow import DAG
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.cli.commands.task_command import LoggerMutationHelper
@@ -51,6 +52,9 @@ from airflow.utils.types import DagRunType
 from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
+
+if TYPE_CHECKING:
+    from airflow import DAG
 
 DEFAULT_DATE = timezone.datetime(2022, 1, 1)
 ROOT_FOLDER = os.path.realpath(
@@ -657,10 +661,8 @@ class TestLogsfromTaskRunCommand:
         self.root_filters = root.filters.copy()
         self.root_level = root.level
 
-        try:
+        with contextlib.suppress(OSError):
             os.remove(self.ti_log_file_path)
-        except OSError:
-            pass
 
     def teardown_method(self) -> None:
         root = self.root_logger
@@ -669,10 +671,8 @@ class TestLogsfromTaskRunCommand:
         root.filters[:] = self.root_filters
 
         reset(self.dag_id)
-        try:
+        with contextlib.suppress(OSError):
             os.remove(self.ti_log_file_path)
-        except OSError:
-            pass
 
     def assert_log_line(self, text, logs_list, expect_from_logging_mixin=False):
         """
@@ -816,7 +816,7 @@ class TestLogsfromTaskRunCommand:
             session.commit()
 
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is None
-            task_command.task_run(self.parser.parse_args(self.task_args + ["--pool", pool_name]))
+            task_command.task_run(self.parser.parse_args([*self.task_args, "--pool", pool_name]))
             assert session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
 
             session.delete(pool)
@@ -861,10 +861,8 @@ class TestLogsfromTaskRunCommand:
 
                 assert os.path.exists(log_file_path)
             finally:
-                try:
+                with contextlib.suppress(OSError):
                     os.remove(log_file_path)
-                except OSError:
-                    pass
 
     @mock.patch.object(task_command, "_run_task_by_selected_method")
     def test_root_logger_restored(self, run_task_mock, caplog):

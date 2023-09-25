@@ -97,7 +97,6 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from moto.core.exceptions import AWSError
-    from pytest import ExceptionInfo
 
 
 @pytest.fixture(scope="function")
@@ -1170,15 +1169,15 @@ class TestEksHooks:
 
         test_inputs = dict(
             deepcopy(
-                # Required Constants
-                [POD_EXECUTION_ROLE_ARN]
-                # Required Variables
-                + [
+                [
+                    # Required Constants
+                    POD_EXECUTION_ROLE_ARN,
+                    # Required Variables
                     (ClusterAttributes.CLUSTER_NAME, cluster_name),
                     (FargateProfileAttributes.FARGATE_PROFILE_NAME, fargate_profile_name),
+                    # Test Case Values
+                    (FargateProfileAttributes.SELECTORS, selectors),
                 ]
-                # Test Case Values
-                + [(FargateProfileAttributes.SELECTORS, selectors)]
             )
         )
 
@@ -1332,7 +1331,7 @@ def assert_all_arn_values_are_valid(expected_arn_values, pattern, arn_under_test
 
 
 def assert_client_error_exception_thrown(
-    expected_exception: type[AWSError], expected_msg: str, raised_exception: ExceptionInfo
+    expected_exception: type[AWSError], expected_msg: str, raised_exception: pytest.ExceptionInfo
 ) -> None:
     """
     Asserts that the raised exception is of the expected type

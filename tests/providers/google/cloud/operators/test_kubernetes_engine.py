@@ -320,6 +320,43 @@ class TestGKEPodOperator:
         assert cluster_url == CLUSTER_PRIVATE_URL if use_internal_ip else CLUSTER_URL
         assert ssl_ca_cert == SSL_CA_CERT
 
+    def test_default_gcp_conn_id(self):
+        gke_op = GKEStartPodOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+            image=IMAGE,
+        )
+        gke_op._cluster_url = CLUSTER_URL
+        gke_op._ssl_ca_cert = SSL_CA_CERT
+        hook = gke_op.hook
+
+        assert hook.gcp_conn_id == "google_cloud_default"
+
+    @mock.patch(
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection",
+        return_value=Connection(conn_id="test_conn"),
+    )
+    def test_gcp_conn_id(self, get_con_mock):
+        gke_op = GKEStartPodOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+            image=IMAGE,
+            gcp_conn_id="test_conn",
+        )
+        gke_op._cluster_url = CLUSTER_URL
+        gke_op._ssl_ca_cert = SSL_CA_CERT
+        hook = gke_op.hook
+
+        assert hook.gcp_conn_id == "test_conn"
+
     @pytest.mark.parametrize(
         "compatible_kpo, kwargs, expected_attributes",
         [

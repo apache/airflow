@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/ftp): respect soft_fail argument when exception is raised (#34161)``
+
+Misc
+~~~~
+
+* ``Consolidate importing of os.path.* (#34060)``
+* ``Refactor regex in providers (#33898)``
+
 3.5.1
 .....
 

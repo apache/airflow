@@ -27,6 +27,54 @@
 Changelog
 ---------
 
+7.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, we have changed AzureFileShareHook to use azure-storage-file-share library instead
+  of azure-storage-file this change has impact on existing hook method see below for details, removed deprecated
+  extra__azure_fileshare__ prefix from connection extras param and removed protocol param from connection extras
+
+* get_conn from AzureFileShareHook return None instead FileService
+* Remove protocol param from Azure fileshare connection extras
+* Remove deprecated extra__azure_fileshare__ prefix from Azure fileshare connection extras, list_files
+* Remove share_name, directory_name param from AzureFileShareHook method check_for_directory,
+  list_directories_and_files, create_directory in favor of AzureFileShareHook share_name and directory_path param
+* AzureFileShareHook method create_share and delete_share accept kwargs from ShareServiceClient.create_share
+  and ShareServiceClient.delete_share
+* Remove share_name, directory_name, file_name param from AzureFileShareHook method get_file, get_file_to_stream
+  and load_file in favor of AzureFileShareHook share_name and file_path
+* Remove AzureFileShareHook.check_for_file method
+* Remove AzureFileShareHook.load_string, AzureFileShareHook.load_stream in favor of AzureFileShareHook.load_data
+
+.. note::
+  ``LocalToAzureDataLakeStorageOperator`` class has been removed in favor of ``LocalFilesystemToADLSOperator``
+  ``AzureDataFactoryPipelineRunStatusAsyncSensor`` class has been removed in favor of ``AzureDataFactoryPipelineRunStatusSensor``
+
+* ``Update Azure fileshare hook to use azure-storage-file-share instead of azure-storage-file (#33904)``
+* ``Remove 'AzureDataFactoryPipelineRunStatusAsyncSensor' class (#34036)``
+* ``Remove 'LocalToAzureDataLakeStorageOperator' class (#34035)``
+
+Features
+~~~~~~~~
+
+* ``feat(providers/microsoft): add AzureContainerInstancesOperator.volume as template field (#34070)``
+* ``Add DefaultAzureCredential support to AzureContainerRegistryHook (#33825)``
+* ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerVolumeHook (#33822)``
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+* ``Improve docs on AzureBatchHook DefaultAzureCredential support (#34098)``
+* ``Remove  azure-storage-common from microsoft azure providers (#34038)``
+* ``Remove useless string join from providers (#33968)``
+* ``Refactor unneeded  jumps in providers (#33833)``
+
+
 6.3.0
 .....
 
@@ -36,12 +84,19 @@ Features
 * ``Add AzureBatchOperator example (#33716)``
 * ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerInstanceHook (#33467)``
 * ``Add DefaultAzureCredential auth for ADX service (#33627)``
+* ``feat(providers/microsoft): add DefaultAzureCredential to data_lake (#33433)``
+* ``Allow passing fully_qualified_namespace and credential to initialize Azure Service Bus Client (#33493)``
+* ``Add DefaultAzureCredential support to cosmos (#33436)``
+* ``Add DefaultAzureCredential support to AzureBatchHook (#33469)``
 
 Bug Fixes
 ~~~~~~~~~
 
 * ``Fix updating account url for WasbHook (#33457)``
 * ``Fix Azure Batch Hook instantation (#33731)``
+* ``Truncate Wasb storage account name if it's more than 24 characters (#33851)``
+* ``Remove duplicated message commit in Azure MessageHook (#33776)``
+* ``fix(providers/azure): remove json.dumps when querying AzureCosmosDBHook (#33653)``
 
 Misc
 ~~~~
@@ -51,11 +106,18 @@ Misc
 * ``Simplify conditions on len() in providers/microsoft (#33566)``
 * ``Set logging level to WARNING (#33314)``
 * ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+* ``Bump azure-mgmt-containerinstance>=7.0.0,<9.0.0 (#33696)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+* ``Optimise Airflow DB backend usage in Azure Provider (#33750)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Fix typos (double words and it's/its) (#33623)``
    * ``Further improvements for provider verification (#33670)``
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``Move Azure examples into system tests (#33727)``
 
 6.2.4
 .....

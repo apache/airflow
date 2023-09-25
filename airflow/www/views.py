@@ -561,7 +561,7 @@ def get_key_paths(input_dict):
     for key, value in input_dict.items():
         if isinstance(value, dict):
             for sub_key in get_key_paths(value):
-                yield ".".join((key, sub_key))
+                yield f"{key}.{sub_key}"
         else:
             yield key
 
@@ -971,12 +971,10 @@ class Airflow(AirflowBaseView):
         def _iter_parsed_moved_data_table_names():
             for table_name in inspect(session.get_bind()).get_table_names():
                 segments = table_name.split("__", 3)
-                if len(segments) < 3:
-                    continue
-                if segments[0] != settings.AIRFLOW_MOVED_TABLE_PREFIX:
-                    continue
-                # Second segment is a version marker that we don't need to show.
-                yield segments[-1], table_name
+                if len(segments) >= 3:
+                    if segments[0] == settings.AIRFLOW_MOVED_TABLE_PREFIX:
+                        # Second segment is a version marker that we don't need to show.
+                        yield segments[-1], table_name
 
         if (
             permissions.ACTION_CAN_ACCESS_MENU,
@@ -1062,10 +1060,12 @@ class Airflow(AirflowBaseView):
         """Cluster Activity view."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["no_status"] = state_color_mapping.pop(None)
+        standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         return self.render_template(
             "airflow/cluster_activity.html",
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
+            standalone_dag_processor=standalone_dag_processor,
         )
 
     @expose("/next_run_datasets_summary", methods=["POST"])
@@ -1087,8 +1087,8 @@ class Airflow(AirflowBaseView):
             filter_dag_ids = allowed_dag_ids
 
         dataset_triggered_dag_ids = [
-            dag.dag_id
-            for dag in (
+            dag_id
+            for dag_id in (
                 session.scalars(
                     select(DagModel.dag_id)
                     .where(DagModel.dag_id.in_(filter_dag_ids))
@@ -1528,16 +1528,16 @@ class Airflow(AirflowBaseView):
                     for key, value in content.items():
                         renderer = task.template_fields_renderers.get(key, key)
                         if renderer in renderers:
-                            html_dict[".".join([template_field, key])] = (
+                            html_dict[f"{template_field}.{key}"] = (
                                 renderers[renderer](value) if not no_dagrun else ""
                             )
                         else:
-                            html_dict[".".join([template_field, key])] = Markup(
+                            html_dict[f"{template_field}.{key}"] = Markup(
                                 "<pre><code>{}</pre></code>"
                             ).format(pformat(value) if not no_dagrun else "")
                 else:
                     for dict_keys in get_key_paths(content):
-                        template_path = ".".join((template_field, dict_keys))
+                        template_path = f"{template_field}.{dict_keys}"
                         renderer = task.template_fields_renderers.get(template_path, template_path)
                         if renderer in renderers:
                             content_value = get_value_from_path(dict_keys, content)
@@ -1590,6 +1590,9 @@ class Airflow(AirflowBaseView):
         task = dag.get_task(task_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
+
+        if not ti:
+            raise AirflowException(f"Task instance {task.task_id} not found.")
 
         pod_spec = None
         try:
@@ -2287,7 +2290,11 @@ class Airflow(AirflowBaseView):
         except AirflowException as ex:
             return redirect_or_json(origin, msg=str(ex), status="error", status_code=500)
 
-        assert isinstance(tis, collections.abc.Iterable)
+        if not isinstance(tis, collections.abc.Iterable):
+            raise AssertionError(
+                f"Expected dag.clear() to return an iterable for dry runs, got {tis} instead."
+            )
+
         details = [str(t) for t in tis]
 
         if not details:
@@ -2310,7 +2317,7 @@ class Airflow(AirflowBaseView):
     @auth.has_access(
         [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -2405,7 +2412,7 @@ class Airflow(AirflowBaseView):
     @auth.has_access(
         [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ]
     )
     @action_logging
@@ -3379,12 +3386,11 @@ class Airflow(AirflowBaseView):
             y_points = []
             x_points = []
             for ti in tis:
-                if ti.task_id != task.task_id:
-                    continue
-                dttm = wwwutils.epoch(ti.execution_date)
-                x_points.append(dttm)
-                # y value should reflect completed tries to have a 0 baseline.
-                y_points.append(ti.prev_attempted_tries)
+                if ti.task_id == task.task_id:
+                    dttm = wwwutils.epoch(ti.execution_date)
+                    x_points.append(dttm)
+                    # y value should reflect completed tries to have a 0 baseline.
+                    y_points.append(ti.prev_attempted_tries)
             if x_points:
                 chart.add_serie(name=task.task_id, x=x_points, y=y_points)
 
@@ -3476,14 +3482,13 @@ class Airflow(AirflowBaseView):
         for task in dag.tasks:
             task_id = task.task_id
             for ti in tis:
-                if ti.task_id != task.task_id:
-                    continue
-                ts = dag.get_run_data_interval(ti.dag_run).end
-                if ti.end_date:
-                    dttm = wwwutils.epoch(ti.execution_date)
-                    secs = (ti.end_date - ts).total_seconds()
-                    x_points[task_id].append(dttm)
-                    y_points[task_id].append(secs)
+                if ti.task_id == task.task_id:
+                    ts = dag.get_run_data_interval(ti.dag_run).end
+                    if ti.end_date:
+                        dttm = wwwutils.epoch(ti.execution_date)
+                        secs = (ti.end_date - ts).total_seconds()
+                        x_points[task_id].append(dttm)
+                        y_points[task_id].append(secs)
 
         # determine the most relevant time unit for the set of landing times
         # for the DAG
@@ -3796,11 +3801,11 @@ class Airflow(AirflowBaseView):
             data = {
                 "dag_run_types": {
                     **{dag_run_type.value: 0 for dag_run_type in DagRunType},
-                    **{run_type: sum_value for run_type, sum_value in dag_run_types},
+                    **dict(dag_run_types),
                 },
                 "dag_run_states": {
                     **{dag_run_state.value: 0 for dag_run_state in DagRunState},
-                    **{run_state: sum_value for run_state, sum_value in dag_run_states},
+                    **dict(dag_run_states),
                 },
                 "task_instance_states": {
                     "no_status": 0,
@@ -4647,7 +4652,7 @@ class ConnectionModelView(AirflowModelView):
                 select(Connection.conn_id).where(Connection.conn_id.in_(potential_connection_ids))
             )
 
-            found_conn_id_set = {conn_id for conn_id in query}
+            found_conn_id_set = set(query)
 
             possible_conn_id_iter = (
                 connection_id
@@ -5137,17 +5142,35 @@ class VariableModelView(AirflowModelView):
     @expose("/varimport", methods=["POST"])
     @auth.has_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
     @action_logging(event=f"{permissions.RESOURCE_VARIABLE.lower()}.varimport")
-    def varimport(self):
+    @provide_session
+    def varimport(self, session):
         """Import variables."""
         try:
             variable_dict = json.loads(request.files["file"].read())
+            action_on_existing = request.form.get("action_if_exists", "overwrite").lower()
         except Exception:
             self.update_redirect()
             flash("Missing file or syntax error.", "error")
             return redirect(self.get_redirect())
         else:
+            existing_keys = set()
+            if action_on_existing != "overwrite":
+                existing_keys = set(
+                    session.scalars(select(models.Variable.key).where(models.Variable.key.in_(variable_dict)))
+                )
+            if action_on_existing == "fail" and existing_keys:
+                failed_repr = ", ".join(repr(k) for k in sorted(existing_keys))
+                flash(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                logging.error(f"Failed. The variables with these keys: {failed_repr}  already exists.")
+                self.update_redirect()
+                return redirect(self.get_redirect())
+            skipped = set()
             suc_count = fail_count = 0
             for k, v in variable_dict.items():
+                if action_on_existing == "skip" and k in existing_keys:
+                    logging.warning("Variable: %s already exists, skipping.", k)
+                    skipped.add(k)
+                    continue
                 try:
                     models.Variable.set(k, v, serialize_json=not isinstance(v, str))
                 except Exception as exc:
@@ -5158,6 +5181,13 @@ class VariableModelView(AirflowModelView):
             flash(f"{suc_count} variable(s) successfully updated.")
             if fail_count:
                 flash(f"{fail_count} variable(s) failed to be updated.", "error")
+            if skipped:
+                skipped_repr = ", ".join(repr(k) for k in sorted(skipped))
+                flash(
+                    f"The variables with these keys: {skipped_repr} were skipped "
+                    "because they already exists",
+                    "warning",
+                )
             self.update_redirect()
             return redirect(self.get_redirect())
 
@@ -5225,6 +5255,8 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
+        "delete": "delete",
+        "edit": "edit",
         "list": "read",
         "action_clear": "edit",
         "action_muldelete": "delete",
@@ -5467,11 +5499,32 @@ class LogModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ["id", "dttm", "dag_id", "task_id", "event", "execution_date", "owner", "extra"]
-    search_columns = ["dttm", "dag_id", "task_id", "event", "execution_date", "owner", "extra"]
+    list_columns = [
+        "id",
+        "dttm",
+        "dag_id",
+        "task_id",
+        "event",
+        "execution_date",
+        "owner",
+        "owner_display_name",
+        "extra",
+    ]
+    search_columns = [
+        "dttm",
+        "dag_id",
+        "task_id",
+        "event",
+        "execution_date",
+        "owner",
+        "owner_display_name",
+        "extra",
+    ]
 
     label_columns = {
         "execution_date": "Logical Date",
+        "owner": "Owner ID",
+        "owner_display_name": "Owner Name",
     }
 
     base_order = ("dttm", "desc")
@@ -5603,7 +5656,9 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     class_permission_name = permissions.RESOURCE_TASK_INSTANCE
     method_permission_name = {
         "list": "read",
+        "delete": "delete",
         "action_clear": "edit",
+        "action_clear_downstream": "edit",
         "action_muldelete": "delete",
         "action_set_running": "edit",
         "action_set_failed": "edit",
@@ -5740,6 +5795,68 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "duration": duration_f,
     }
 
+    def _clear_task_instances(
+        self, task_instances: list[TaskInstance], session: Session, clear_downstream: bool = False
+    ) -> tuple[int, int]:
+        """
+        Clears task instances, optionally including their downstream dependencies.
+
+        :param task_instances: list of TIs to clear
+        :param clear_downstream: should downstream task instances be cleared as well?
+
+        :return: a tuple with:
+            - count of cleared task instances actually selected by the user
+            - count of downstream task instances that were additionally cleared
+        """
+        cleared_tis_count = 0
+        cleared_downstream_tis_count = 0
+
+        # Group TIs by dag id in order to call `get_dag` only once per dag
+        tis_grouped_by_dag_id = itertools.groupby(task_instances, lambda ti: ti.dag_id)
+
+        for dag_id, dag_tis in tis_grouped_by_dag_id:
+            dag = get_airflow_app().dag_bag.get_dag(dag_id)
+
+            tis_to_clear = list(dag_tis)
+            downstream_tis_to_clear = []
+
+            if clear_downstream:
+                tis_to_clear_grouped_by_dag_run = itertools.groupby(tis_to_clear, lambda ti: ti.dag_run)
+
+                for dag_run, dag_run_tis in tis_to_clear_grouped_by_dag_run:
+                    # Determine tasks that are downstream of the cleared TIs and fetch associated TIs
+                    # This has to be run for each dag run because the user may clear different TIs across runs
+                    task_ids_to_clear = [ti.task_id for ti in dag_run_tis]
+
+                    partial_dag = dag.partial_subset(
+                        task_ids_or_regex=task_ids_to_clear, include_downstream=True, include_upstream=False
+                    )
+
+                    downstream_task_ids_to_clear = [
+                        task_id for task_id in partial_dag.task_dict if task_id not in task_ids_to_clear
+                    ]
+
+                    # dag.clear returns TIs when in dry run mode
+                    downstream_tis_to_clear.extend(
+                        dag.clear(
+                            start_date=dag_run.execution_date,
+                            end_date=dag_run.execution_date,
+                            task_ids=downstream_task_ids_to_clear,
+                            include_subdags=False,
+                            include_parentdag=False,
+                            session=session,
+                            dry_run=True,
+                        )
+                    )
+
+            # Once all TIs are fetched, perform the actual clearing
+            models.clear_task_instances(tis=tis_to_clear + downstream_tis_to_clear, session=session, dag=dag)
+
+            cleared_tis_count += len(tis_to_clear)
+            cleared_downstream_tis_count += len(downstream_tis_to_clear)
+
+        return cleared_tis_count, cleared_downstream_tis_count
+
     @action(
         "clear",
         lazy_gettext("Clear"),
@@ -5753,21 +5870,45 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @provide_session
     @action_logging
     def action_clear(self, task_instances, session: Session = NEW_SESSION):
-        """Clears the action."""
+        """Clears an arbitrary number of task instances."""
         try:
-            dag_to_tis = collections.defaultdict(list)
-
-            for ti in task_instances:
-                dag = get_airflow_app().dag_bag.get_dag(ti.dag_id)
-                dag_to_tis[dag].append(ti)
-
-            for dag, task_instances_list in dag_to_tis.items():
-                models.clear_task_instances(task_instances_list, session, dag=dag)
-
+            count, _ = self._clear_task_instances(
+                task_instances=task_instances, session=session, clear_downstream=False
+            )
             session.commit()
-            flash(f"{len(task_instances)} task instances have been cleared")
+            flash(f"{count} task instance{'s have' if count > 1 else ' has'} been cleared")
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', "error")
+
+        self.update_redirect()
+        return redirect(self.get_redirect())
+
+    @action(
+        "clear_downstream",
+        lazy_gettext("Clear (including downstream tasks)"),
+        lazy_gettext(
+            "Are you sure you want to clear the state of the selected task"
+            " instance(s) and all their downstream dependencies, and set their dagruns to the QUEUED state?"
+        ),
+        single=False,
+    )
+    @action_has_dag_edit_access
+    @provide_session
+    @action_logging
+    def action_clear_downstream(self, task_instances, session: Session = NEW_SESSION):
+        """Clears an arbitrary number of task instances, including downstream dependencies."""
+        try:
+            selected_ti_count, downstream_ti_count = self._clear_task_instances(
+                task_instances=task_instances, session=session, clear_downstream=True
+            )
+            session.commit()
+            flash(
+                f"Cleared {selected_ti_count} selected task instance{'s' if selected_ti_count > 1 else ''} "
+                f"and {downstream_ti_count} downstream dependencies"
+            )
+        except Exception as e:
+            flash(f'Failed to clear task instances: "{e}"', "error")
+
         self.update_redirect()
         return redirect(self.get_redirect())
 

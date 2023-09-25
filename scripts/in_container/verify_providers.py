@@ -447,7 +447,6 @@ def find_all_entities(
                                     f"It should not match {unexpected_class_name_pattern}",
                                 )
                             )
-                        continue
             found_entities.add(imported_name)
     return VerifiedEntities(all_entities=found_entities, wrong_entities=wrong_entities)
 
@@ -576,7 +575,7 @@ def is_camel_case_with_acronyms(s: str):
         s = s[1:]
     if not s:
         return True
-    return s != s.lower() and s != s.upper() and "_" not in s and s[0].upper() == s[0]
+    return s[0].isupper() and not (s.islower() or s.isupper() or "_" in s)
 
 
 def check_if_classes_are_properly_named(

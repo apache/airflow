@@ -88,6 +88,7 @@ _REVISION_HEADS_MAP = {
     "2.6.0": "98ae134e6fff",
     "2.6.2": "c804e5c76e3e",
     "2.7.0": "405de8318b3a",
+    "2.8.0": "f7bf2a57d0a6",
 }
 
 
@@ -1446,9 +1447,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version, "dangling")
         if dangling_table_name in existing_table_names:
             invalid_row_count = bad_rows_query.count()
-            if invalid_row_count <= 0:
-                continue
-            else:
+            if invalid_row_count:
                 yield _format_dangling_error(
                     source_table=source_table.name,
                     target_table=dangling_table_name,

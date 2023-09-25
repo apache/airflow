@@ -28,7 +28,6 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from pytest import param
 
 from airflow import configuration
 from airflow.configuration import (
@@ -1482,8 +1481,8 @@ sql_alchemy_conn=sqlite://test
     @pytest.mark.parametrize(
         "key",
         [
-            param("deactivate_stale_dags_interval", id="old"),
-            param("parsing_cleanup_interval", id="new"),
+            pytest.param("deactivate_stale_dags_interval", id="old"),
+            pytest.param("parsing_cleanup_interval", id="new"),
         ],
     )
     def test_future_warning_only_for_code_ref(self, key):

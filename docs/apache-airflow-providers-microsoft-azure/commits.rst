@@ -28,14 +28,50 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.0.0
+.....
+
+Latest change: 2023-09-05
+
+=================================================================================================  ===========  ======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================
+`a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+`18ef30221e <https://github.com/apache/airflow/commit/18ef30221ec4b09c295d9e3ab7a21562197548f2>`_  2023-09-05   ``Improve docs on AzureBatchHook DefaultAzureCredential support (#34098)``
+`e294608c6a <https://github.com/apache/airflow/commit/e294608c6a8de6e5ee2b655fa1d461c0150c91b2>`_  2023-09-04   ``feat(providers/microsoft): add AzureContainerInstancesOperator.volume as template field (#34070)``
+`6f1f624f04 <https://github.com/apache/airflow/commit/6f1f624f04347a3c5f7aaa8093526b0d98ef01bb>`_  2023-09-03   ``Remove  azure-storage-common from microsoft azure providers (#34038)``
+`47bd5dd0e1 <https://github.com/apache/airflow/commit/47bd5dd0e1e13af45206b94dd5518ada278a9552>`_  2023-09-03   ``Remove useless string join from providers (#33968)``
+`d946ff40d6 <https://github.com/apache/airflow/commit/d946ff40d6bf336a75faf6480c80aea24721c037>`_  2023-09-02   ``Remove 'AzureDataFactoryPipelineRunStatusAsyncSensor' class (#34036)``
+`ae67a142b8 <https://github.com/apache/airflow/commit/ae67a142b854435804c7e3e0bdd199ea979277c5>`_  2023-09-02   ``Remove 'LocalToAzureDataLakeStorageOperator' class (#34035)``
+`b7f84e913b <https://github.com/apache/airflow/commit/b7f84e913b6aa4cee7fa63009082b0608b3a0bf1>`_  2023-09-02   ``Update Azure fileshare hook to use azure-storage-file-share instead of azure-storage-file (#33904)``
+`875387afa5 <https://github.com/apache/airflow/commit/875387afa53c207364fa20b515d154100b5d0a8d>`_  2023-09-01   ``Refactor unneeded  jumps in providers (#33833)``
+`539797fdfb <https://github.com/apache/airflow/commit/539797fdfb2e0b2aca82376095e74edaad775439>`_  2023-08-30   ``Add DefaultAzureCredential support to AzureContainerRegistryHook (#33825)``
+`23b15e6428 <https://github.com/apache/airflow/commit/23b15e64284261211cfbcb9eaaf76c0c6a0be547>`_  2023-08-30   ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerVolumeHook (#33822)``
+=================================================================================================  ===========  ======================================================================================================
+
 6.3.0
 .....
 
-Latest change: 2023-08-25
+Latest change: 2023-08-29
 
-=================================================================================================  ===========  ========================================================================================================
+=================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================================================================
+=================================================================================================  ===========  ==========================================================================================================
+`23174ef1bb <https://github.com/apache/airflow/commit/23174ef1bb20b9e00765e7de5dfad1ec7ca6f0cd>`_  2023-08-29   ``Prepare docs for Aug 2023 3rd wave of Providers (RC2) (#33868)``
+`9e2d607f43 <https://github.com/apache/airflow/commit/9e2d607f4305f34095cf80b106714802cff5aaf3>`_  2023-08-29   ``Truncate Wasb storage account name if it's more than 24 characters (#33851)``
+`9d5327806f <https://github.com/apache/airflow/commit/9d5327806fac61cd62abd30a6339b0cb26ad1ebf>`_  2023-08-28   ``Bump azure-mgmt-containerinstance>=7.0.0,<9.0.0 (#33696)``
+`76c2ade2c6 <https://github.com/apache/airflow/commit/76c2ade2c63abc3677b8fcd59af6f8779b613be7>`_  2023-08-28   ``feat(providers/microsoft): add DefaultAzureCredential to data_lake (#33433)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+`6d182beec6 <https://github.com/apache/airflow/commit/6d182beec6e86b372c37fb164a31c2f8811d8c03>`_  2023-08-26   ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+`4bae275edd <https://github.com/apache/airflow/commit/4bae275edd819eaf56c3382af7b152652b0ce0c0>`_  2023-08-26   ``Remove duplicated message commit in Azure MessageHook (#33776)``
+`3d575fed54 <https://github.com/apache/airflow/commit/3d575fed540e7521976303cd763a20e090e65d9e>`_  2023-08-26   ``Allow passing fully_qualified_namespace and credential to initialize Azure Service Bus Client (#33493)``
+`353b1482d3 <https://github.com/apache/airflow/commit/353b1482d3720c7e962022f25c7e5d3e105ed4f0>`_  2023-08-26   ``remove unnecessary and rewrite it using list in providers (#33763)``
+`03529d524f <https://github.com/apache/airflow/commit/03529d524fbebb4ff2c886a085966230314022f3>`_  2023-08-26   ``Add DefaultAzureCredential support to cosmos (#33436)``
+`faf32539d6 <https://github.com/apache/airflow/commit/faf32539d6a1be2bfba1b97e72e4508fb6896af6>`_  2023-08-26   ``Optimise Airflow DB backend usage in Azure Provider (#33750)``
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`947b504d5b <https://github.com/apache/airflow/commit/947b504d5ba5882b1d7d36251e24185e9f47b9e7>`_  2023-08-25   ``Add DefaultAzureCredential support to AzureBatchHook (#33469)``
+`55ff4cf935 <https://github.com/apache/airflow/commit/55ff4cf9351585dcd51cf324f4c2b538176b8aae>`_  2023-08-25   ``fix(providers/azure): remove json.dumps when querying AzureCosmosDBHook (#33653)``
+`95ece9feef <https://github.com/apache/airflow/commit/95ece9feefcd1cc4d4b4e94f832d23073200229c>`_  2023-08-25   ``Move Azure examples into system tests (#33727)``
 `38f2737153 <https://github.com/apache/airflow/commit/38f27371532b9f906bdeff0251d1c35956daf05c>`_  2023-08-25   ``Fix Azure Batch Hook instantation (#33731)``
 `0931abdb25 <https://github.com/apache/airflow/commit/0931abdb2563f1f46240c3b1ce82415e05bd48d4>`_  2023-08-25   ``Add AzureBatchOperator example (#33716)``
 `faa50cbe2f <https://github.com/apache/airflow/commit/faa50cbe2f6dbf816e599bbbb933ac4976a55778>`_  2023-08-24   ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerInstanceHook (#33467)``
@@ -48,7 +84,7 @@ Commit                                                                          
 `7700fb12cc <https://github.com/apache/airflow/commit/7700fb12cc6c7a97901662e6ac6aa1e4e932d969>`_  2023-08-20   ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
 `bd608a56ab <https://github.com/apache/airflow/commit/bd608a56abd1a6c2a98987daf7f092d2dabea555>`_  2023-08-17   ``Fix updating account url for WasbHook (#33457)``
 `4460356c03 <https://github.com/apache/airflow/commit/4460356c03e5c1dedd72ce87a8ccfb9b19a33d76>`_  2023-08-14   ``Set logging level to WARNING (#33314)``
-=================================================================================================  ===========  ========================================================================================================
+=================================================================================================  ===========  ==========================================================================================================
 
 6.2.4
 .....

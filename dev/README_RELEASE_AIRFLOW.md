@@ -828,6 +828,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ```shell script
     breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
     breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
+    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"

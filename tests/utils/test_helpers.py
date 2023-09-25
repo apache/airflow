@@ -19,13 +19,12 @@ from __future__ import annotations
 
 import itertools
 import re
+from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job
-from airflow.serialization.pydantic.job import JobPydantic
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
     at_most_one,
@@ -39,6 +38,9 @@ from airflow.utils.helpers import (
 from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+if TYPE_CHECKING:
+    from airflow.jobs.job import Job
 
 
 @pytest.fixture()
@@ -80,9 +82,9 @@ class TestHelpers:
         assert list(helpers.chunks([1, 2, 3], 2)) == [[1, 2], [3]]
 
     def test_reduce_in_chunks(self):
-        assert helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], []) == [[1, 2, 3, 4, 5]]
+        assert helpers.reduce_in_chunks(lambda x, y: [*x, y], [1, 2, 3, 4, 5], []) == [[1, 2, 3, 4, 5]]
 
-        assert helpers.reduce_in_chunks(lambda x, y: x + [y], [1, 2, 3, 4, 5], [], 2) == [[1, 2], [3, 4], [5]]
+        assert helpers.reduce_in_chunks(lambda x, y: [*x, y], [1, 2, 3, 4, 5], [], 2) == [[1, 2], [3, 4], [5]]
 
         assert helpers.reduce_in_chunks(lambda x, y: x + y[0] * y[1], [1, 2, 3, 4], 0, 2) == 14
 
@@ -333,7 +335,7 @@ class TestHelpers:
 class MockJobRunner(BaseJobRunner):
     job_type = "MockJob"
 
-    def __init__(self, job: Job | JobPydantic, func=None):
+    def __init__(self, job: Job, func=None):
         super().__init__(job)
         self.job = job
         self.job.job_type = self.job_type

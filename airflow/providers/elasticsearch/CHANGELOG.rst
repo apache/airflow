@@ -33,6 +33,23 @@ Changelog
   compatible with default distributions and without guarantees made, we recommend upgrading the version of
   Elasticsearch database to 8 to ensure compatibility with the language client.
 
+5.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make sure that only valid elasticsearch keys are passed to handler (#34119)``
+
+Misc
+~~~~
+
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+* ``Use f-string instead of  in Airflow providers (#33752)``
+
 5.0.1
 .....
 

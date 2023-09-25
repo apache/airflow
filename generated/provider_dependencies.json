@@ -25,14 +25,9 @@
       "apache-airflow-providers-http",
       "apache-airflow>=2.4.0",
       "asgiref",
-      "asgiref",
       "boto3>=1.28.0",
       "botocore>=1.31.0",
       "jsonpath_ng>=1.5.3",
-      "mypy-boto3-appflow>=1.28.0",
-      "mypy-boto3-rds>=1.28.0",
-      "mypy-boto3-redshift-data>=1.28.0",
-      "mypy-boto3-s3>=1.28.0",
       "redshift_connector>=2.0.888",
       "sqlalchemy_redshift>=0.8.6",
       "watchtower~=2.0.1"
@@ -243,7 +238,7 @@
   "celery": {
     "deps": [
       "apache-airflow>=2.4.0",
-      "celery>=5.3.0,<6",
+      "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
       "flower>=1.0.0",
       "google-re2>=1.0"
     ],
@@ -321,7 +316,8 @@
       "asgiref"
     ],
     "cross-providers-deps": [
-      "http"
+      "http",
+      "openlineage"
     ],
     "excluded-python-versions": []
   },
@@ -405,7 +401,7 @@
   "google": {
     "deps": [
       "PyOpenSSL",
-      "apache-airflow-providers-common-sql>=1.3.1",
+      "apache-airflow-providers-common-sql>=1.7.2",
       "apache-airflow>=2.4.0",
       "asgiref>=3.5.2",
       "gcloud-aio-auth>=4.0.0,<5.0.0",
@@ -560,15 +556,16 @@
       "azure-keyvault-secrets>=4.1.0",
       "azure-kusto-data>=4.1.0",
       "azure-mgmt-containerinstance>=7.0.0,<9.0.0",
+      "azure-mgmt-containerregistry>=8.0.0",
       "azure-mgmt-cosmosdb",
       "azure-mgmt-datafactory>=1.0.0,<2.0",
       "azure-mgmt-datalake-store>=0.5.0",
       "azure-mgmt-resource>=2.2.0",
+      "azure-mgmt-storage>=16.0.0",
       "azure-servicebus>=7.6.1",
       "azure-storage-blob>=12.14.0",
-      "azure-storage-common>=2.1.0",
       "azure-storage-file-datalake>=12.9.1",
-      "azure-storage-file>=2.1.0",
+      "azure-storage-file-share",
       "azure-synapse-spark"
     ],
     "cross-providers-deps": [
@@ -737,17 +734,6 @@
     "cross-providers-deps": [
       "common.sql",
       "google"
-    ],
-    "excluded-python-versions": []
-  },
-  "qubole": {
-    "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.4.0",
-      "qds-sdk>=1.10.4"
-    ],
-    "cross-providers-deps": [
-      "common.sql"
     ],
     "excluded-python-versions": []
   },

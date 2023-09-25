@@ -127,6 +127,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_insert_fields]
 
@@ -174,14 +175,13 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
     def check_body_fields(self) -> None:
         required_params = ["machine_type", "disks", "network_interfaces"]
         for param in required_params:
-            if param in self.body:
-                continue
-            readable_param = param.replace("_", " ")
-            raise AirflowException(
-                f"The body '{self.body}' should contain at least {readable_param} for the new operator "
-                f"in the '{param}' field. Check (google.cloud.compute_v1.types.Instance) "
-                f"for more details about body fields description."
-            )
+            if param not in self.body:
+                readable_param = param.replace("_", " ")
+                raise AirflowException(
+                    f"The body '{self.body}' should contain at least {readable_param} for the new operator "
+                    f"in the '{param}' field. Check (google.cloud.compute_v1.types.Instance) "
+                    f"for more details about body fields description."
+                )
 
     def _validate_inputs(self) -> None:
         super()._validate_inputs()
@@ -215,7 +215,7 @@ class ComputeEngineInsertInstanceOperator(ComputeEngineBaseOperator):
             )
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the should not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Instance already exists", self.resource_id)
@@ -307,6 +307,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_insert_from_template_fields]
 
@@ -385,7 +386,7 @@ class ComputeEngineInsertInstanceFromTemplateOperator(ComputeEngineBaseOperator)
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Instance already exists", self.resource_id)
@@ -870,6 +871,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_instance_template_insert_fields]
 
@@ -915,14 +917,13 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
     def check_body_fields(self) -> None:
         required_params = ["machine_type", "disks", "network_interfaces"]
         for param in required_params:
-            if param in self.body["properties"]:
-                continue
-            readable_param = param.replace("_", " ")
-            raise AirflowException(
-                f"The body '{self.body}' should contain at least {readable_param} for the new operator "
-                f"in the '{param}' field. Check (google.cloud.compute_v1.types.Instance) "
-                f"for more details about body fields description."
-            )
+            if param not in self.body["properties"]:
+                readable_param = param.replace("_", " ")
+                raise AirflowException(
+                    f"The body '{self.body}' should contain at least {readable_param} for the new operator "
+                    f"in the '{param}' field. Check (google.cloud.compute_v1.types.Instance) "
+                    f"for more details about body fields description."
+                )
 
     def _validate_all_body_fields(self) -> None:
         if self._field_validator:
@@ -959,7 +960,7 @@ class ComputeEngineInsertInstanceTemplateOperator(ComputeEngineBaseOperator):
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Template already exists.", existing_template)
@@ -1221,7 +1222,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info(
@@ -1454,6 +1455,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         "gcp_conn_id",
         "api_version",
         "impersonation_chain",
+        "resource_id",
     )
     # [END gce_igm_insert_fields]
 
@@ -1500,14 +1502,13 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
     def check_body_fields(self) -> None:
         required_params = ["base_instance_name", "target_size", "instance_template"]
         for param in required_params:
-            if param in self.body:
-                continue
-            readable_param = param.replace("_", " ")
-            raise AirflowException(
-                f"The body '{self.body}' should contain at least {readable_param} for the new operator "
-                f"in the '{param}' field. Check (google.cloud.compute_v1.types.Instance) "
-                f"for more details about body fields description."
-            )
+            if param not in self.body:
+                readable_param = param.replace("_", " ")
+                raise AirflowException(
+                    f"The body '{self.body}' should contain at least {readable_param} for the new operator "
+                    f"in the '{param}' field. Check (google.cloud.compute_v1.types.Instance) "
+                    f"for more details about body fields description."
+                )
 
     def _validate_all_body_fields(self) -> None:
         if self._field_validator:
@@ -1540,7 +1541,7 @@ class ComputeEngineInsertInstanceGroupManagerOperator(ComputeEngineBaseOperator)
         except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the Instance Group Manager should
             # not yet exist
-            if not e.code == 404:
+            if e.code != 404:
                 raise e
         else:
             self.log.info("The %s Instance Group Manager already exists", existing_instance_group_manager)

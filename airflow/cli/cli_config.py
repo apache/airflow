@@ -92,12 +92,8 @@ class Arg:
         self.flags = flags
         self.kwargs = {}
         for k, v in locals().items():
-            if v is _UNSET:
-                continue
-            if k in ("self", "flags"):
-                continue
-
-            self.kwargs[k] = v
+            if k not in ("self", "flags") and v is not _UNSET:
+                self.kwargs[k] = v
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser."""
@@ -556,6 +552,12 @@ ARG_VAR_EXPORT = Arg(
     ("file",),
     help="Export all variables to JSON file",
     type=argparse.FileType("w", encoding="UTF-8"),
+)
+ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
+    ("-a", "--action-on-existing-key"),
+    help="Action to take if we encounter a variable key that already exists.",
+    default="overwrite",
+    choices=("overwrite", "fail", "skip"),
 )
 
 # kerberos
@@ -1454,7 +1456,7 @@ VARIABLES_COMMANDS = (
         name="import",
         help="Import variables",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_import"),
-        args=(ARG_VAR_IMPORT, ARG_VERBOSE),
+        args=(ARG_VAR_IMPORT, ARG_VAR_ACTION_ON_EXISTING_KEY, ARG_VERBOSE),
     ),
     ActionCommand(
         name="export",
@@ -1619,7 +1621,7 @@ CONNECTIONS_COMMANDS = (
         name="add",
         help="Add a connection",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_add"),
-        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
+        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA, *ALTERNATIVE_CONN_SPECS_ARGS),
     ),
     ActionCommand(
         name="delete",

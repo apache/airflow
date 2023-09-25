@@ -28,14 +28,56 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.6.0
+.....
+
+Latest change: 2023-09-13
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`de92a81f00 <https://github.com/apache/airflow/commit/de92a81f002e6c1b3e74ad9d074438b65acb87b6>`_  2023-09-13   ``Move definition of Pod*Exceptions to pod_generator (#34346)``
+`b435b8edef <https://github.com/apache/airflow/commit/b435b8edefd181fa85e6cc6b2b822d113f562e27>`_  2023-09-09   ``Push to xcom before 'KubernetesPodOperator' deferral (#34209)``
+`b5057e0e1f <https://github.com/apache/airflow/commit/b5057e0e1fc6b7a47e38037a97cac862706747f0>`_  2023-09-09   ``Add 'progress_callback' parameter to 'KubernetesPodOperator' (#34153)``
+`c5016f754d <https://github.com/apache/airflow/commit/c5016f754df1b62046b9c1fce09574a69d8edebc>`_  2023-09-08   ``Refactor: Consolidate import textwrap in providers (#34220)``
+=================================================================================================  ===========  =========================================================================
+
+7.5.1
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`6e1de4f9b9 <https://github.com/apache/airflow/commit/6e1de4f9b97bcfc089cd9db67b6ce8b1be3e8142>`_  2023-09-07   ``fix(providers/spark-kubernetes): respect soft_fail argument when exception is raised (#34167)``
+`1005501365 <https://github.com/apache/airflow/commit/10055013652be3e76c964cbc844b075bb688f088>`_  2023-09-06   ``Used cached property for hook in SparkKubernetesOperator (#34130)``
+`7731255975 <https://github.com/apache/airflow/commit/7731255975b9ac1c8cf7b2e363aaa8b9cbba80b8>`_  2023-09-06   ``Refactor: Consolidate import datetime (#34110)``
+`5e6e107f73 <https://github.com/apache/airflow/commit/5e6e107f733df9d0130fb0e89d975b35f08fb911>`_  2023-09-05   ``Use 'cached_property' for hook in SparkKubernetesSensor (#34106)``
+`fa5e54c4c5 <https://github.com/apache/airflow/commit/fa5e54c4c57631de353102af56633f05346685f9>`_  2023-09-03   ``Combine similar if logics in providers (#33987)``
+`47bd5dd0e1 <https://github.com/apache/airflow/commit/47bd5dd0e1e13af45206b94dd5518ada278a9552>`_  2023-09-03   ``Remove useless string join from providers (#33968)``
+`875387afa5 <https://github.com/apache/airflow/commit/875387afa53c207364fa20b515d154100b5d0a8d>`_  2023-09-01   ``Refactor unneeded  jumps in providers (#33833)``
+`ff7dcf4e82 <https://github.com/apache/airflow/commit/ff7dcf4e829b06d3f8d19b9d14665bac0224b51c>`_  2023-09-01   ``replace loop by any when looking for a positive value in providers (#33984)``
+`1b122c1503 <https://github.com/apache/airflow/commit/1b122c15030e99cef9d4ff26d3781a7a9d6949bc>`_  2023-09-01   ``Move the try outside the loop when this is possible in kubernetes provider (#33977)``
+`55976af32e <https://github.com/apache/airflow/commit/55976af32ea7d09831e2bcd21c0f3814d9b0eb3f>`_  2023-08-31   ``Replace sequence concatination by unpacking in Airflow providers (#33933)``
+`f66df7f6bc <https://github.com/apache/airflow/commit/f66df7f6bc8a6ec6826bbfe8f66f58a8dde5f471>`_  2023-08-31   ``Replace dict.items by values when key is not used in providers (#33939)``
+=================================================================================================  ===========  =================================================================================================
+
 7.5.0
 .....
 
-Latest change: 2023-08-24
+Latest change: 2023-08-29
 
-=================================================================================================  ===========  =========================================================================================
+=================================================================================================  ===========  ================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =========================================================================================
+=================================================================================================  ===========  ================================================================================================================
+`23174ef1bb <https://github.com/apache/airflow/commit/23174ef1bb20b9e00765e7de5dfad1ec7ca6f0cd>`_  2023-08-29   ``Prepare docs for Aug 2023 3rd wave of Providers (RC2) (#33868)``
+`cede385e93 <https://github.com/apache/airflow/commit/cede385e938d4645fdbdfabd6c92c02fbfb95628>`_  2023-08-28   ``Always use 'Literal' from 'typing_extensions' (#33794)``
+`452a978337 <https://github.com/apache/airflow/commit/452a97833753175806bcb5077a566897a906a1c9>`_  2023-08-27   ``Improve modules import in cncf.kubernetes probvider by move some of them into a type-checking block (#33781)``
+`42bc8fcb6b <https://github.com/apache/airflow/commit/42bc8fcb6bab2b02ef2ff62c3015b54a1ad2df62>`_  2023-08-26   ``Update pod.py (#33779)``
+`b11525702c <https://github.com/apache/airflow/commit/b11525702c72cb53034aa29ccd6d0e1161ac475c>`_  2023-08-26   ``Use literal dict instead of calling dict() in providers (#33761)``
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `c477031039 <https://github.com/apache/airflow/commit/c47703103982ec4730ea28c8a5eda12ed2ce008a>`_  2023-08-24   ``Inspect container state rather than last_state when deciding whether to skip (#33702)``
 `85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
 `6130993d78 <https://github.com/apache/airflow/commit/6130993d781695bbd87e09d3665d8f0991bc32d0>`_  2023-08-24   ``Fix KubernetesPodOperator duplicating logs when interrupted (#33500)``
@@ -53,7 +95,7 @@ Commit                                                                          
 `46ffc25995 <https://github.com/apache/airflow/commit/46ffc259956d3782bb0c09e782fca634ff4215b9>`_  2023-08-14   ``Adding typing for KPO SCC objects (#33381)``
 `38aada7b8b <https://github.com/apache/airflow/commit/38aada7b8b6afab177c009b237dd5e75d60d51af>`_  2023-08-14   ``Introducing class constant to make worker pod log lines configurable (#33378)``
 `7e79997594 <https://github.com/apache/airflow/commit/7e799975948573ca2a1c4b2051d3eadc32bb8ba7>`_  2023-08-11   ``D205 Support - Providers - Final Pass (#33303)``
-=================================================================================================  ===========  =========================================================================================
+=================================================================================================  ===========  ================================================================================================================
 
 7.4.2
 .....
