@@ -744,12 +744,11 @@ class TestEcsExecutorConfig:
     def test_validate_config_defaults(self):
         """Assert that the defaults stated in the config.yml file match those in utils.CONFIG_DEFAULTS."""
         curr_dir = os.path.dirname(os.path.abspath(__file__))
-        config_filename = curr_dir.replace("tests", "airflow").replace(
-            "executors/ecs", "config_templates/config.yml"
-        )
+        executor_path = "aws/executors/ecs"
+        config_filename = curr_dir.replace("tests", "airflow").replace(executor_path, "provider.yaml")
 
         with open(config_filename) as config:
-            options = yaml.safe_load(config)[CONFIG_GROUP_NAME]["options"]
+            options = yaml.safe_load(config)["config"][CONFIG_GROUP_NAME]["options"]
             file_defaults = {
                 option: default for (option, value) in options.items() if (default := value.get("default"))
             }

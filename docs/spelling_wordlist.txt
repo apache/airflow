@@ -195,6 +195,7 @@ burstable
 bytestring
 cacert
 callables
+camelCase
 Cancelled
 cancelled
 carbonite
@@ -511,6 +512,7 @@ dynamodb
 dynload
 ec
 ecb
+ecs
 EdgeModifier
 EdgeModifiers
 EDITMSG
