@@ -22,7 +22,6 @@ import json
 import logging
 import re
 import secrets
-import shlex
 import string
 import warnings
 from collections.abc import Container
@@ -31,7 +30,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
-from kubernetes.stream import stream
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 
@@ -60,7 +58,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodManager,
     PodOperatorHookProtocol,
     PodPhase,
-    container_is_running,
     container_is_succeeded,
     get_container_termination_message,
 )
@@ -777,35 +774,7 @@ class KubernetesPodOperator(BaseOperator):
 
         return any(container.name == self.ISTIO_CONTAINER_NAME for container in remote_pod.spec.containers)
 
-    def kill_istio_sidecar(self, pod: V1Pod) -> None:
-        command = "/bin/sh -c 'curl -fsI -X POST http://localhost:15020/quitquitquit'"
-        command_to_container = shlex.split(command)
-        resp = stream(
-            self.client.connect_get_namespaced_pod_exec,
-            name=pod.metadata.name,
-            namespace=pod.metadata.namespace,
-            container=self.ISTIO_CONTAINER_NAME,
-            command=command_to_container,
-            stderr=True,
-            stdin=True,
-            stdout=True,
-            tty=False,
-            _preload_content=False,
-        )
-        output = []
-        while resp.is_open():
-            if resp.peek_stdout():
-                output.append(resp.read_stdout())
-
-        resp.close()
-        output_str = "".join(output)
-        self.log.info("Output of curl command to kill istio: %s", output_str)
-        resp.close()
-        if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
-            raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
-
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
-        istio_enabled = self.is_istio_enabled(pod)
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
                 should_delete_pod = (
@@ -819,16 +788,9 @@ class KubernetesPodOperator(BaseOperator):
                         and container_is_succeeded(pod, self.base_container_name)
                     )
                 )
-                if should_delete_pod and not istio_enabled:
+                if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
-                elif should_delete_pod and istio_enabled:
-                    if container_is_running(pod, self.ISTIO_CONTAINER_NAME):
-                        self.log.info("Deleting istio-proxy sidecar inside %s: ", pod.metadata.name)
-                        self.kill_istio_sidecar(pod)
-                        self.pod_manager.delete_pod(pod)
-                    else:
-                        self.pod_manager.delete_pod(pod)
                 else:
                     self.log.info("Skipping deleting pod: %s", pod.metadata.name)
 
