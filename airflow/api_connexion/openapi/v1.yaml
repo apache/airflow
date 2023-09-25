@@ -4302,7 +4302,7 @@ components:
             If set, don't actually run this operation. The response will contain the task instance
             planned to be affected, but won't be modified in any way.
           type: boolean
-          default: false
+          default: true
 
         new_state:
           $ref: '#/components/schemas/UpdateTaskState'

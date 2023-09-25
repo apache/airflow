@@ -1772,10 +1772,10 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.status_code == 200
         assert response2.json["state"] == NEW_STATE
 
-    def test_should_update_task_instance_state_default_dry_run_to_false(self, session):
+    def test_should_update_task_instance_state_default_dry_run_to_true(self, session):
         self.create_task_instances(session)
 
-        NEW_STATE = "failed"
+        NEW_STATE = "running"
 
         self.client.patch(
             self.ENDPOINT_URL,
