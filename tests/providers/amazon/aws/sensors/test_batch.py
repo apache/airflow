@@ -106,6 +106,33 @@ class TestBatchSensor:
         with pytest.raises(AirflowSkipException):
             deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    def test_fail_poke_failed_state(
+        self, mock_get_job_description, batch_sensor: BatchSensor, soft_fail, expected_exception
+    ):
+        mock_get_job_description.return_value = {"status": BatchClientHook.FAILURE_STATE}
+        message = f"Batch sensor failed. AWS Batch job status: {BatchClientHook.FAILURE_STATE}"
+        batch_sensor.soft_fail = soft_fail
+        with pytest.raises(expected_exception, match=message):
+            batch_sensor.poke({})
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    def test_fail_poke_unknown_state(
+        self, mock_get_job_description, batch_sensor: BatchSensor, soft_fail, expected_exception
+    ):
+        state = "unknown_state"
+        mock_get_job_description.return_value = {"status": state}
+        message = f"Batch sensor failed. Unknown AWS Batch job status: {state}"
+        batch_sensor.soft_fail = soft_fail
+        with pytest.raises(expected_exception, match=message):
+            batch_sensor.poke({})
+
 
 @pytest.fixture(scope="module")
 def batch_compute_environment_sensor() -> BatchComputeEnvironmentSensor:
@@ -173,6 +200,42 @@ class TestBatchComputeEnvironmentSensor:
             computeEnvironments=[ENVIRONMENT_NAME],
         )
         assert "AWS Batch compute environment failed" in str(ctx.value)
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch.object(BatchClientHook, "client")
+    def test_fail_poke_no_compute_env(
+        self,
+        mock_batch_client,
+        batch_compute_environment_sensor: BatchComputeEnvironmentSensor,
+        soft_fail,
+        expected_exception,
+    ):
+        compute_env = []
+        mock_batch_client.describe_compute_environments.return_value = {"computeEnvironments": compute_env}
+        message = "AWS Batch compute environment"
+        batch_compute_environment_sensor.soft_fail = soft_fail
+        with pytest.raises(expected_exception, match=message):
+            batch_compute_environment_sensor.poke({})
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch.object(BatchClientHook, "client")
+    def test_fail_poke_unknown_status(
+        self,
+        mock_batch_client,
+        batch_compute_environment_sensor: BatchComputeEnvironmentSensor,
+        soft_fail,
+        expected_exception,
+    ):
+        compute_env = [{"status": "unknown_status"}]
+        mock_batch_client.describe_compute_environments.return_value = {"computeEnvironments": compute_env}
+        message = "AWS Batch compute environment failed. AWS Batch compute environment status:"
+        batch_compute_environment_sensor.soft_fail = soft_fail
+        with pytest.raises(expected_exception, match=message):
+            batch_compute_environment_sensor.poke({})
 
 
 @pytest.fixture(scope="module")
@@ -242,3 +305,33 @@ class TestBatchJobQueueSensor:
             jobQueues=[JOB_QUEUE],
         )
         assert "AWS Batch job queue failed" in str(ctx.value)
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch.object(BatchClientHook, "client")
+    def test_fail_poke_no_jobqueues_status(
+        self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor, soft_fail, expected_exception
+    ):
+        job_queue = []
+        mock_batch_client.describe_job_queues.return_value = {"jobQueues": job_queue}
+        batch_job_queue_sensor.treat_non_existing_as_deleted = False
+        batch_job_queue_sensor.soft_fail = soft_fail
+        message = "AWS Batch job queue"
+        with pytest.raises(expected_exception, match=message):
+            batch_job_queue_sensor.poke({})
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch.object(BatchClientHook, "client")
+    def test_fail_poke_invalid_jobqueues_status(
+        self, mock_batch_client, batch_job_queue_sensor: BatchJobQueueSensor, soft_fail, expected_exception
+    ):
+        job_queue = [{"status": "UNKNOWN_STATUS"}]
+        mock_batch_client.describe_job_queues.return_value = {"jobQueues": job_queue}
+        batch_job_queue_sensor.treat_non_existing_as_deleted = False
+        batch_job_queue_sensor.soft_fail = soft_fail
+        message = "AWS Batch job queue"
+        with pytest.raises(expected_exception, match=message):
+            batch_job_queue_sensor.poke({})
