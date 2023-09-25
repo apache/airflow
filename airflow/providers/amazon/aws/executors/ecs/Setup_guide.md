@@ -124,7 +124,7 @@ To configure Airflow to utilize the ECS Executor and leverage the resources we'v
 ```
 export AIRFLOW__CORE__EXECUTOR='airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor'
 export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=<postgres-connection-string>
-export AIRFLOW__AWS_ECS_EXECUTOR__REGION=<executor-region>
+export AIRFLOW__AWS_ECS_EXECUTOR__REGION_NAME=<executor-region-name>
 export AIRFLOW__AWS_ECS_EXECUTOR__CLUSTER=<ecs-cluster-name>
 export AIRFLOW__AWS_ECS_EXECUTOR__CONTAINER_NAME=<ecs-container-name>
 export AIRFLOW__AWS_ECS_EXECUTOR__TASK_DEFINITION=<task-definition-name>

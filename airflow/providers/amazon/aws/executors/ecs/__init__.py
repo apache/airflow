@@ -93,10 +93,10 @@ class AwsEcsExecutor(BaseExecutor):
             AllEcsConfigKeys.AWS_CONN_ID,
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
         )
-        region = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION)
+        region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME)
         from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 
-        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region).conn
+        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.run_task_kwargs = self._load_run_kwargs()
 
     def sync(self):

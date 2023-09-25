@@ -97,7 +97,7 @@ class AllEcsConfigKeys(RunTaskKwargsConfigKeys):
     MAX_RUN_TASK_ATTEMPTS = "max_run_task_attempts"
     AWS_CONN_ID = "conn_id"
     RUN_TASK_KWARGS = "run_task_kwargs"
-    REGION = "region"
+    REGION_NAME = "region_name"
 
 
 class EcsExecutorException(Exception):

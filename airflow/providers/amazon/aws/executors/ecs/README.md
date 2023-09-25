@@ -47,7 +47,7 @@ In the case of conflicts, the order of precedence is:
 - CLUSTER - Name of the Amazon ECS Cluster. Required.
 - CONTAINER_NAME - Name of the container that will be used to execute Airflow tasks via the ECS executor.
 The container should be specified in the ECS Task Definition. Required.
-- REGION - The name of the AWS Region where Amazon ECS is configured. Required.
+- REGION_NAME - The name of the AWS Region where Amazon ECS is configured. Required.
 
 ### Optional config options:
 

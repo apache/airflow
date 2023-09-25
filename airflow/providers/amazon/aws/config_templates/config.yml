@@ -33,7 +33,7 @@ aws_ecs_executor:
       type: string
       example: "aws_default"
       default: "aws_default"
-    region:
+    region_name:
       description: |
         The name of the AWS Region where Amazon ECS is configured. Required.
       version_added: "2.8"
