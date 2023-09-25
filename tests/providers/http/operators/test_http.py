@@ -97,6 +97,7 @@ class TestSimpleHttpOp:
 
         # Paginated function which returns None at the second call
         has_returned: bool = False
+
         def pagination_function(response: Response) -> Union[dict, None]:
             nonlocal has_returned
             if not has_returned:
@@ -159,11 +160,12 @@ class TestSimpleHttpOp:
                 event={
                     "status": "success",
                     "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
-                }
+                },
             )
 
         # Paginated function which returns None at the second call
         has_returned: bool = False
+
         def pagination_function(response: Response) -> Union[dict, None]:
             nonlocal has_returned
             if not has_returned:

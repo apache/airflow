@@ -159,9 +159,12 @@ class SimpleHttpOperator(BaseOperator):
 
             return self.process_response(context=context, response=response)
 
-    def process_response(self, context: Context, response: Union[Response, List[Response]]) -> Union[str, List[str]]:
+    def process_response(
+        self, context: Context, response: Union[Response, List[Response]]
+    ) -> Union[str, List[str]]:
         """Process the response."""
         from airflow.utils.operator_helpers import determine_kwargs
+
         make_default_response: Callable = self._default_response_maker(response=response)
 
         if self.log_response:
@@ -203,15 +206,14 @@ class SimpleHttpOperator(BaseOperator):
                 next_page_params = self.pagination_function(response)
                 if not next_page_params:
                     return self.process_response(
-                        context=context,
-                        response=self._deferrable_paginated_responses
+                        context=context, response=self._deferrable_paginated_responses
                     )
                 self.defer(
                     trigger=HttpTrigger(
                         http_conn_id=self.http_conn_id,
                         auth_type=self.auth_type,
                         method=self.method,
-                        **self._merge_next_page_parameters(next_page_params)
+                        **self._merge_next_page_parameters(next_page_params),
                     ),
                     method_name="execute_complete",
                 )
@@ -233,5 +235,5 @@ class SimpleHttpOperator(BaseOperator):
             endpoint=next_page_params.get("endpoint") or self.endpoint,
             data=merge_dicts(self.data, next_page_params.get("data", {})),
             headers=merge_dicts(self.headers, next_page_params.get("headers", {})),
-            extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {}))
+            extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {})),
         )
