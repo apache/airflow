@@ -4816,8 +4816,6 @@ components:
       required: true
       description: The task ID.
 
-
-
     Event:
       in: query
       name: event
