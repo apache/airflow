@@ -23,7 +23,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
@@ -141,8 +141,16 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         if event:
             if event["status"] == "success":
                 return event["message"]
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
-        raise AirflowException("No event received in trigger callback")
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = "No event received in trigger callback"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)
 
 
 class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
@@ -248,8 +256,17 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         if event:
             if event["status"] == "success":
                 return event["message"]
+
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
-        raise AirflowException("No event received in trigger callback")
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = "No event received in trigger callback"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)
 
 
 class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
