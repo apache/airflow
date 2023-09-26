@@ -5475,7 +5475,7 @@ class TaskInstanceModelView(AirflowModelView):
         "priority_weight",
         "queue",
         "queued_dttm",
-        "try_number",
+        "prev_attempted_tries",
         "pool",
         "queued_by_job_id",
         "external_executor_id",
@@ -5506,6 +5506,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     label_columns = {
         "dag_run.execution_date": "Logical Date",
+        "prev_attempted_tries": "Try Number"
     }
 
     search_columns = [

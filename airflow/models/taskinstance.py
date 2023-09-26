@@ -1422,6 +1422,10 @@ class TaskInstance(Base, LoggingMixin):
         This is designed so that task logs end up in the right file.
         """
         return _get_try_number(task_instance=self)
+    
+    @try_number.expression
+    def try_number(cls):
+        return cls._try_number
 
     @try_number.setter
     def try_number(self, value: int) -> None:
