@@ -1852,8 +1852,8 @@ class AirflowConfigParser(ConfigParser):
                     raise AirflowConfigException(
                         f"The provider {provider} is attempting to contribute "
                         f"configuration section {provider_section} that "
-                        f"has already been added before. The source of it: {section_source}."
-                        "This is forbidden. A provider can only add new sections. It"
+                        f"has already been added before. The source of it: {section_source}. "
+                        "This is forbidden. A provider can only add new sections. It "
                         "cannot contribute options to existing sections or override other "
                         "provider's configuration.",
                         UserWarning,
