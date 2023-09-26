@@ -901,11 +901,9 @@ class Airflow(AirflowBaseView):
                 .unique()
                 .all()
             )
-            user_permissions = g.user.perms
-            can_create_dag_run = (
-                permissions.ACTION_CAN_CREATE,
-                permissions.RESOURCE_DAG_RUN,
-            ) in user_permissions
+            can_create_dag_run = get_auth_manager().is_authorized_dag(
+                method="POST", access_entity=DagAccessEntity.RUN, user=g.user
+            )
 
             dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
             if dataset_triggered_dag_ids:
@@ -934,7 +932,7 @@ class Airflow(AirflowBaseView):
 
             import_errors = select(errors.ImportError).order_by(errors.ImportError.id)
 
-            if (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG) not in user_permissions:
+            if not get_auth_manager().is_authorized_dag(method="GET"):
                 # if the user doesn't have access to all DAGs, only display errors from visible DAGs
                 import_errors = import_errors.join(
                     DagModel, DagModel.fileloc == errors.ImportError.filename
@@ -977,10 +975,9 @@ class Airflow(AirflowBaseView):
                         # Second segment is a version marker that we don't need to show.
                         yield segments[-1], table_name
 
-        if (
-            permissions.ACTION_CAN_ACCESS_MENU,
-            permissions.RESOURCE_ADMIN_MENU,
-        ) in user_permissions and conf.getboolean("webserver", "warn_deployment_exposure"):
+        if get_auth_manager().is_authorized_configuration(method="GET", user=g.user) and conf.getboolean(
+            "webserver", "warn_deployment_exposure"
+        ):
             robots_file_access_count = (
                 select(Log)
                 .where(Log.event == "robots")

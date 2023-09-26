@@ -143,7 +143,7 @@ def requires_access_dag(
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
-            dag_id: str | None = kwargs.get("dag_id")
+            dag_id: str | None = kwargs.get("dag_id") if kwargs.get("dag_id") != "~" else None
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
                     method=method,

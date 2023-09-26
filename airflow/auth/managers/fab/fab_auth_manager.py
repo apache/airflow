@@ -193,7 +193,8 @@ class FabAuthManager(BaseAuthManager):
         entity (e.g. DAG runs).
         2. ``dag_access`` is provided which means the user wants to access a sub entity of the DAG
         (e.g. DAG runs).
-            a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity
+            a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity.
+                However, if not specific DAG is targeted, just check the sub entity
             b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity
 
         :param method: The method to authorize.
@@ -209,9 +210,8 @@ class FabAuthManager(BaseAuthManager):
             resource_type = self._get_fab_resource_type(access_entity)
 
             if method == "GET":
-                return self._is_authorized_dag(
-                    method="GET", details=details, user=user
-                ) and self._is_authorized(method=method, resource_type=resource_type, user=user)
+                dag_level_check = self._is_authorized_dag(method="GET", details=details, user=user) if details and details.id else True
+                return dag_level_check and self._is_authorized(method=method, resource_type=resource_type, user=user)
             else:
                 return self._is_authorized_dag(
                     method="PUT", details=details, user=user
