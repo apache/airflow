@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.datetime import BranchDateTimeOperator
 from airflow.operators.empty import EmptyOperator
 

@@ -28,7 +28,7 @@ import textwrap
 from datetime import datetime, timedelta
 
 # The DAG object; we'll need this to instantiate a DAG
-from airflow import DAG
+from airflow.models.dag import DAG
 
 # Operators; we need this to operate!
 from airflow.operators.bash import BashOperator
