@@ -87,6 +87,8 @@ ENV AWS_SESSION_TOKEN=$aws_session_token
 
 ARG host_dag_path=./dags
 ENV HOST_DAG_PATH=$host_dag_path
+ARG container_dag_path=/opt/airflow/dags
+ENV CONTAINER_DAG_PATH=$container_dag_path
 # Set host_dag_path to the path of the DAGs on the host
 # COPY --chown=airflow:root $HOST_DAG_PATH $CONTAINER_DAG_PATH
 
@@ -97,7 +99,5 @@ ENTRYPOINT []
 # Use these arguments to load DAGs onto the container from S3
 ARG s3_url
 ENV S3_URL=$s3_url
-ARG container_dag_path=/opt/airflow/dags
-ENV CONTAINER_DAG_PATH=$container_dag_path
 # Uncomment the line if using S3 bucket as the source of DAGs
 # ENTRYPOINT ["/entrypoint.sh"]
