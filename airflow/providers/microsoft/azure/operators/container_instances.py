@@ -324,6 +324,9 @@ class AzureContainerInstancesOperator(BaseOperator):
                         self.log.exception(
                             "Exception while getting logs from container instance, retrying..."
                         )
+                    except AttributeError:
+                        self.log.error("Container log is broken, marking as failed.")
+                        return 1
 
                 if state == "Terminated":
                     self.log.info("Container exited with detail_status %s", detail_status)
