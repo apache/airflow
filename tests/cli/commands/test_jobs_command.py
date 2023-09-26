@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import contextlib
-import io
+from io import StringIO
 
 import pytest
 
@@ -54,7 +54,7 @@ class TestCliConfigList:
             session.commit()
             self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
 
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             jobs_command.check(self.parser.parse_args(["jobs", "check", "--job-type", "SchedulerJob"]))
         assert "Found one alive job." in temp_stdout.getvalue()
 
@@ -68,7 +68,7 @@ class TestCliConfigList:
             session.commit()
             self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
 
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             jobs_command.check(
                 self.parser.parse_args(
                     ["jobs", "check", "--job-type", "SchedulerJob", "--hostname", "HOSTNAME"]
@@ -90,7 +90,7 @@ class TestCliConfigList:
             session.commit()
             scheduler_job.heartbeat(heartbeat_callback=job_runner.heartbeat_callback)
         try:
-            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 jobs_command.check(
                     self.parser.parse_args(
                         ["jobs", "check", "--job-type", "SchedulerJob", "--limit", "100", "--allow-multiple"]
