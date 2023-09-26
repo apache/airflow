@@ -31,15 +31,14 @@ from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowException
 from airflow.models import (
-    DAG,
     DagBag,
-    DagModel,
     DagRun,
     TaskInstance,
     TaskInstance as TI,
     clear_task_instances,
 )
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRunNote
 from airflow.models.taskinstance import TaskInstanceNote
 from airflow.models.taskmap import TaskMap
