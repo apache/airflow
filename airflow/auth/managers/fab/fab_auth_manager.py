@@ -194,8 +194,9 @@ class FabAuthManager(BaseAuthManager):
         2. ``dag_access`` is provided which means the user wants to access a sub entity of the DAG
         (e.g. DAG runs).
             a. If ``method`` is GET, then check the user has READ permissions on the DAG and the sub entity.
-                However, if not specific DAG is targeted, just check the sub entity
-            b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity
+            b. Else, check the user has EDIT permissions on the DAG and ``method`` on the sub entity.
+
+            However, if no specific DAG is targeted, just check the sub entity.
 
         :param method: The method to authorize.
         :param access_entity: The dag access entity.
@@ -208,20 +209,16 @@ class FabAuthManager(BaseAuthManager):
         else:
             # Scenario 2
             resource_type = self._get_fab_resource_type(access_entity)
+            dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
+            dag_level_check = (
+                self._is_authorized_dag(method=dag_method, details=details, user=user)
+                if details and details.id
+                else True
+            )
 
-            if method == "GET":
-                dag_level_check = (
-                    self._is_authorized_dag(method="GET", details=details, user=user)
-                    if details and details.id
-                    else True
-                )
-                return dag_level_check and self._is_authorized(
-                    method=method, resource_type=resource_type, user=user
-                )
-            else:
-                return self._is_authorized_dag(
-                    method="PUT", details=details, user=user
-                ) and self._is_authorized(method=method, resource_type=resource_type, user=user)
+            return dag_level_check and self._is_authorized(
+                method=method, resource_type=resource_type, user=user
+            )
 
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
