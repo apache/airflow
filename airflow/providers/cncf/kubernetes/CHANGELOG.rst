@@ -135,7 +135,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``aDd documentation generation for CLI commands from executors (#33081)``
+* ``add documentation generation for CLI commands from executors (#33081)``
 
 
 .. Below changes are excluded from the changelog. Move them to
