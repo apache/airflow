@@ -120,7 +120,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                 if num_rows is not None:
                     self.log.info("Processed %s rows", num_rows)
                 return status
-            elif status == "FAILED" or status == "ABORTED":
+            elif status in ("FAILED", "ABORTED"):
                 raise ValueError(
                     f"Statement {statement_id!r} terminated with status {status}. "
                     f"Response details: {pformat(resp)}"
