@@ -133,6 +133,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
