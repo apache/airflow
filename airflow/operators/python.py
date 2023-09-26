@@ -532,7 +532,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"requirements", "index_urls", "venv_cache_path"} | set(PythonOperator.template_fields)
+        {"requirements", "index_urls", "venv_cache_path"}.union(PythonOperator.template_fields)
     )
     template_ext: Sequence[str] = (".txt",)
 
@@ -649,7 +649,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         hash_text = json.dumps(hash_dict, sort_keys=True)
         hash_object = hashlib_wrapper.md5(hash_text.encode())
         requirements_hash = hash_object.hexdigest()
-        return requirements_hash[0:8], hash_text
+        return requirements_hash[:8], hash_text
 
     def _ensure_venv_cache_exists(self, venv_cache_path: Path) -> Path:
         """Helper to ensure a valid virtual environment is set up and will create inplace."""
@@ -785,7 +785,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         exit code will be treated as a failure.
     """
 
-    template_fields: Sequence[str] = tuple({"python"} | set(PythonOperator.template_fields))
+    template_fields: Sequence[str] = tuple({"python"}.union(PythonOperator.template_fields))
 
     def __init__(
         self,
