@@ -28,7 +28,7 @@ from aiohttp.helpers import TimerNoop
 from googleapiclient.errors import HttpError
 from yarl import URL
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import mlengine as hook
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineAsyncHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (

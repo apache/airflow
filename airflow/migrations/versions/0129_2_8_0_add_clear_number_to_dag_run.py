@@ -27,7 +27,6 @@ Create Date: 2023-09-05 19:27:30.531558
 import sqlalchemy as sa
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision = "375a816bbbf4"
 down_revision = "405de8318b3a"
@@ -38,15 +37,22 @@ airflow_version = "2.8.0"
 
 def upgrade():
     """Apply add cleared column to dagrun"""
-    with op.batch_alter_table("dag_run") as batch_op:
-        batch_op.add_column(
-            sa.Column(
-                "clear_number",
-                sa.Integer,
-                default=0,
-                nullable=False,
+    conn = op.get_bind()
+    if conn.dialect.name == "mssql":
+        with op.batch_alter_table("dag_run") as batch_op:
+            batch_op.add_column(sa.Column("clear_number", sa.Integer, default=0))
+            batch_op.alter_column("clear_number", existing_type=sa.Integer, nullable=False)
+    else:
+        with op.batch_alter_table("dag_run") as batch_op:
+            batch_op.add_column(
+                sa.Column(
+                    "clear_number",
+                    sa.Integer,
+                    default=0,
+                    nullable=False,
+                    server_default="0",
+                )
             )
-        )
 
 
 def downgrade():

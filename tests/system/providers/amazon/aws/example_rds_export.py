@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsCancelExportTaskOperator,

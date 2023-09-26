@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from airflow_breeze.global_constants import PROVIDERS_INDEX_KEY
+
 providers_prefix = "apache-airflow-providers-"
 
 
 def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
     providers = []
     for short_form_provider in short_form_providers:
-        if short_form_provider == "providers-index":
+        if short_form_provider == PROVIDERS_INDEX_KEY:
             providers.append("apache-airflow-providers")
             continue
 
