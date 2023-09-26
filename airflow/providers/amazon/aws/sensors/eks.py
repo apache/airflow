@@ -21,7 +21,7 @@ from abc import abstractmethod
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
     EksHook,
@@ -52,9 +52,6 @@ NODEGROUP_TERMINAL_STATES = frozenset(
         NodegroupStates.DELETE_FAILED,
         NodegroupStates.NONEXISTENT,
     }
-)
-UNEXPECTED_TERMINAL_STATE_MSG = (
-    "Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
 )
 
 
@@ -109,9 +106,11 @@ class EksBaseSensor(BaseSensorOperator):
         self.log.info("Current state: %s", state)
         if state in (self.get_terminal_states() - {self.target_state}):
             # If we reach a terminal state which is not the target state:
-            raise AirflowException(
-                UNEXPECTED_TERMINAL_STATE_MSG.format(current_state=state, target_state=self.target_state)
-            )
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Terminal state reached. Current state: {state}, Expected state: {self.target_state}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         return state == self.target_state
 
     @abstractmethod
