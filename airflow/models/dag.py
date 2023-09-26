@@ -3978,7 +3978,7 @@ def _triggerer_is_healthy():
     return True
 
 
-def _run_task(ti: TaskInstance, session):
+def _run_task(ti: TaskInstance, session) -> TaskReturnCode | None:
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -4001,8 +4001,7 @@ def _run_task(ti: TaskInstance, session):
     except AirflowSkipException:
         log.info("Task Skipped, continuing")
     log.info("*****************************************************")
-    if ret is not None:
-        return ret
+    return ret
 
 
 def _get_or_create_dagrun(
