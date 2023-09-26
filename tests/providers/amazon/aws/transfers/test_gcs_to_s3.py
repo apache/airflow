@@ -207,8 +207,8 @@ class TestGCSToS3Operator:
             gcs_provide_file = mock_hook.return_value.provide_file
             gcs_provide_file.return_value.__enter__.return_value.name = f.name
             bucket_param_deprecated_message = (
-                "The 'bucket' parameter is deprecated and will be removed in a future version. "
-                "Please use 'gcs_bucket' instead."
+                "The ``bucket`` parameter is deprecated and will be removed in a future version. "
+                "Please use ``gcs_bucket`` instead."
             )
             with pytest.deprecated_call(match=bucket_param_deprecated_message):
                 operator = GCSToS3Operator(
@@ -228,7 +228,7 @@ class TestGCSToS3Operator:
             assert sorted(MOCK_FILES) == sorted(hook.list_keys("bucket", delimiter="/"))
         with pytest.raises(ValueError) as excinfo:
             GCSToS3Operator(task_id=TASK_ID, dest_s3_key=S3_BUCKET)
-        assert str(excinfo.value) == "You must pass either bucket or gcs_bucket."
+        assert str(excinfo.value) == "You must pass either ``bucket`` or ``gcs_bucket``."
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_with_replace(self, mock_hook):
