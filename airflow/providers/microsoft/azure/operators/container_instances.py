@@ -319,14 +319,14 @@ class AzureContainerInstancesOperator(BaseOperator):
                 if state in ["Running", "Terminated", "Succeeded"]:
                     try:
                         logs = self._ci_hook.get_logs(resource_group, name)
+                        if logs == None:
+                            self.log.exception("Container log is broken, marking as failed.")
+                            return 1
                         last_line_logged = self._log_last(logs, last_line_logged)
                     except CloudError:
                         self.log.exception(
                             "Exception while getting logs from container instance, retrying..."
                         )
-                    except AttributeError:
-                        self.log.exception("Container log is broken, marking as failed.")
-                        return 1
 
                 if state == "Terminated":
                     self.log.info("Container exited with detail_status %s", detail_status)
