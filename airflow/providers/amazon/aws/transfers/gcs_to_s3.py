@@ -129,7 +129,7 @@ class GCSToS3Operator(BaseOperator):
             self.gcs_bucket = bucket
         if gcs_bucket:
             self.gcs_bucket = gcs_bucket
-        else:
+        if not (bucket or gcs_bucket):
             raise ValueError("You must pass either ``bucket`` or ``gcs_bucket``.")
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
