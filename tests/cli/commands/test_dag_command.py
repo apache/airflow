@@ -849,5 +849,5 @@ class TestCliDags:
             task_two = two(task_one)
             op = MyOp(task_id="abc", tfield=str(task_two))
             task_two >> op
-        with pytest.raises(StopDagTest, match="Task has deferred but there triggerer is not running"):
+        with pytest.raises(StopDagTest, match="Task has deferred but triggerer component is not running"):
             dag.test()
