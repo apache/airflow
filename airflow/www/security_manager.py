@@ -603,6 +603,13 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
 
         session.commit()
 
+    def create_admin_standalone(self) -> tuple[str | None, str | None]:
+        """Perform the required steps when initializing airflow for standalone mode.
+
+        If necessary, returns the username and password to be printed in the console for users to log in.
+        """
+        return None, None
+
     def sync_roles(self) -> None:
         """
         Initialize default and custom roles with related permissions.
