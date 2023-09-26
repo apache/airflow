@@ -27,9 +27,9 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.exceptions import AirflowSkipException
+from airflow.models.dag import DAG
 from airflow.models.param import Param
 
 if TYPE_CHECKING:

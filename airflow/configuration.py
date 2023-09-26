@@ -19,7 +19,6 @@ from __future__ import annotations
 import contextlib
 import datetime
 import functools
-import io
 import itertools
 import json
 import logging
@@ -35,6 +34,7 @@ from base64 import b64encode
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
+from io import StringIO
 from json.decoder import JSONDecodeError
 from typing import IO, TYPE_CHECKING, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
 from urllib.parse import urlsplit
@@ -1792,7 +1792,7 @@ class AirflowConfigParser(ConfigParser):
         unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"
         unit_test_config = unit_test_config_file.read_text()
         self.remove_all_read_configurations()
-        with io.StringIO(unit_test_config) as test_config_file:
+        with StringIO(unit_test_config) as test_config_file:
             self.read_file(test_config_file)
         # set fernet key to a random value
         global FERNET_KEY

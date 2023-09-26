@@ -25,8 +25,8 @@ import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from airflow import DAG
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.models.param import Param
 from airflow.utils.trigger_rule import TriggerRule
 
