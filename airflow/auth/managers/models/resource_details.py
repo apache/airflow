@@ -17,32 +17,32 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Any
+from dataclasses import dataclass
+from enum import Enum
 
 
-class BaseUser:
-    """User model interface."""
+@dataclass
+class ConnectionDetails:
+    """Represents the details of a connection."""
 
-    @property
-    def is_authenticated(self) -> bool:
-        return not self.is_anonymous
+    conn_id: str
 
-    @property
-    @abstractmethod
-    def is_active(self) -> bool:
-        ...
 
-    @property
-    @abstractmethod
-    def is_anonymous(self) -> bool:
-        ...
+@dataclass
+class DagDetails:
+    """Represents the details of a DAG."""
 
-    @property
-    @abstractmethod
-    def perms(self) -> Any:
-        ...
+    id: str
 
-    @abstractmethod
-    def get_id(self) -> str:
-        ...
+
+class DagAccessEntity(Enum):
+    """Enum of DAG entities the user tries to access."""
+
+    AUDIT_LOG = "AUDIT_LOG"
+    CODE = "CODE"
+    DATASET = "DATASET"
+    DEPENDENCIES = "DEPENDENCIES"
+    RUN = "RUN"
+    TASK_INSTANCE = "TASK_INSTANCE"
+    TASK_LOGS = "TASK_LOGS"
+    XCOM = "XCOM"

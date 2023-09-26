@@ -1361,6 +1361,9 @@ class TaskInstance(Base, LoggingMixin):
         # can be changed when calling 'run'
         self.test_mode = False
 
+    def __hash__(self):
+        return hash((self.task_id, self.dag_id, self.run_id, self.map_index))
+
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
