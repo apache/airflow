@@ -133,6 +133,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
@@ -601,6 +602,13 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         admin.permissions = list(set(admin.permissions) | set(perms))
 
         session.commit()
+
+    def create_admin_standalone(self) -> tuple[str | None, str | None]:
+        """Perform the required steps when initializing airflow for standalone mode.
+
+        If necessary, returns the username and password to be printed in the console for users to log in.
+        """
+        return None, None
 
     def sync_roles(self) -> None:
         """
