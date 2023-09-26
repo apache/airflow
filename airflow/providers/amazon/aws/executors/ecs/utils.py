@@ -89,12 +89,12 @@ class RunTaskKwargsConfigKeys(BaseConfigKeys):
     SUBNETS = "subnets"
     TASK_DEFINITION = "task_definition"
     CONTAINER_NAME = "container_name"
-    MAX_RUN_TASK_ATTEMPTS = "max_run_task_attempts"
 
 
 class AllEcsConfigKeys(RunTaskKwargsConfigKeys):
     """All keys loaded into the config which are related to the ECS Executor."""
 
+    MAX_RUN_TASK_ATTEMPTS = "max_run_task_attempts"
     AWS_CONN_ID = "conn_id"
     RUN_TASK_KWARGS = "run_task_kwargs"
     REGION = "region"
