@@ -253,6 +253,14 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
                 True,
             ),
+            # Without read permissions on a specific DAG
+            (
+                "GET",
+                DagAccessEntity.TASK_INSTANCE,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
+                False,
+            ),
             # With read permissions on a specific DAG
             (
                 "GET",
