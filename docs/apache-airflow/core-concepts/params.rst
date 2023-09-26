@@ -160,9 +160,10 @@ JSON Schema Validation
     ):
 
 .. note::
-    Schema validation on DAG definitions is only made if a schedule is defined. If a manual or external trigger
-    is defined (e.g. via ``schedule=None``) then params are validated during submission. This allows to enforce
-    undefined parameters being defined at trigger time.
+    If ``schedule`` is defined for a DAG params with defaults must be valid. This is validated during DAG parsing.
+    If ``schedule=None`` then params are not validated while DAG is parsed but finally at trigger of DAG.
+    This is useful in cases where the DAG author does not want to provide defaults but wants to force users provide valid parameters
+    at time of trigger.
 
 .. note::
     As of now, for security reasons, one can not use :class:`~airflow.models.param.Param` objects derived out of custom classes. We are
@@ -314,8 +315,8 @@ The following features are supported in the Trigger UI Form:
 - If you want to render custom HTML as form on top of the provided features, you can use the ``custom_html_form`` attribute.
 
 .. note::
-    If the field is required you need to specify a valid default value as well. Exception is if DAG is defined with
-    ``schedule=None`` which enforces the user to provide a value in the form at time of submission.
+    If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
+    ``schedule=None`` the parameter value validation is made at time of trigger.
 
 For examples also please take a look to two example DAGs provided: ``example_params_trigger_ui`` and ``example_params_ui_tutorial``.
 
