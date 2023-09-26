@@ -320,7 +320,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                     try:
                         logs = self._ci_hook.get_logs(resource_group, name)
                         if logs is None:
-                            self.log.exception("Container log is broken, marking as failed.")
+                            self.log.error("Container log is broken, marking as failed.")
                             return 1
                         last_line_logged = self._log_last(logs, last_line_logged)
                     except CloudError:
