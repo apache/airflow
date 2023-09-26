@@ -210,8 +210,14 @@ class FabAuthManager(BaseAuthManager):
             resource_type = self._get_fab_resource_type(access_entity)
 
             if method == "GET":
-                dag_level_check = self._is_authorized_dag(method="GET", details=details, user=user) if details and details.id else True
-                return dag_level_check and self._is_authorized(method=method, resource_type=resource_type, user=user)
+                dag_level_check = (
+                    self._is_authorized_dag(method="GET", details=details, user=user)
+                    if details and details.id
+                    else True
+                )
+                return dag_level_check and self._is_authorized(
+                    method=method, resource_type=resource_type, user=user
+                )
             else:
                 return self._is_authorized_dag(
                     method="PUT", details=details, user=user
