@@ -838,9 +838,10 @@ class TestCliDags:
                     super().__init__(**kwargs)
 
                 def execute(self, context, event=None):
-                    # breakpoint()
-                    print("I AM DEFERRING")
-                    self.defer(trigger=TimeDeltaTrigger(timedelta(seconds=20)), method_name="execute")
+                    if event is None:
+                        print("I AM DEFERRING")
+                        self.defer(trigger=TimeDeltaTrigger(timedelta(seconds=20)), method_name="execute")
+                        return
                     print("RESUMING")
                     return self.tfield + 1
 

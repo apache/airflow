@@ -2818,7 +2818,6 @@ class DAG(LoggingMixin):
         # Instead of starting a scheduler, we run the minimal loop possible to check
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
-        wait_counter = 0
         while dr.state == DagRunState.RUNNING:
             session.expire_all()
             schedulable_tis, _ = dr.update_state(session=session)
@@ -2844,11 +2843,6 @@ class DAG(LoggingMixin):
                     raise
                 except Exception:
                     self.log.exception("Task failed; ti=%s", ti)
-            if schedulable_tis:
-                wait_counter = 0
-            else:
-                self.log.info("No schedulable tasks; sleeping; try=%s", (wait_counter := wait_counter + 1))
-                time.sleep(1)
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
