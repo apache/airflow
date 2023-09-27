@@ -316,10 +316,10 @@
 <text text-anchor="start" x="189.5" y="-1364.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
 <polygon fill="none" stroke="black" points="52.5,-1330 52.5,-1355 331.5,-1355 331.5,-1330 52.5,-1330"/>
 <text text-anchor="start" x="57.5" y="-1339.8" font-family="Helvetica,sans-Serif" font-size="14.00">login</text>
-<text text-anchor="start" x="91.5" y="-1339.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(500)]</text>
+<text text-anchor="start" x="91.5" y="-1339.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
 <polygon fill="none" stroke="black" points="52.5,-1305 52.5,-1330 331.5,-1330 331.5,-1305 52.5,-1305"/>
 <text text-anchor="start" x="57.5" y="-1314.8" font-family="Helvetica,sans-Serif" font-size="14.00">password</text>
-<text text-anchor="start" x="124.5" y="-1314.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(5000)]</text>
+<text text-anchor="start" x="124.5" y="-1314.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
 <polygon fill="none" stroke="black" points="52.5,-1280 52.5,-1305 331.5,-1305 331.5,-1280 52.5,-1280"/>
 <text text-anchor="start" x="57.5" y="-1289.8" font-family="Helvetica,sans-Serif" font-size="14.00">port</text>
 <text text-anchor="start" x="86.5" y="-1289.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>

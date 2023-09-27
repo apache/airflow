@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,33 +17,32 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from deprecated import deprecated
-
-from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
-
-if TYPE_CHECKING:
-    pass
-
-EXISTING_ROLES = {
-    "Admin",
-    "Viewer",
-    "User",
-    "Op",
-    "Public",
-}
+from dataclasses import dataclass
+from enum import Enum
 
 
-@deprecated(
-    reason="If you want to override the security manager, you should inherit from "
-    "`airflow.auth.managers.fab.security_manager.override.FabAirflowSecurityManagerOverride` "
-    "instead"
-)
-class AirflowSecurityManager(FabAirflowSecurityManagerOverride):
-    """Placeholder, just here to avoid breaking the code of users who inherit from this.
+@dataclass
+class ConnectionDetails:
+    """Represents the details of a connection."""
 
-    Do not use if writing new code.
-    """
+    conn_id: str
 
-    ...
+
+@dataclass
+class DagDetails:
+    """Represents the details of a DAG."""
+
+    id: str
+
+
+class DagAccessEntity(Enum):
+    """Enum of DAG entities the user tries to access."""
+
+    AUDIT_LOG = "AUDIT_LOG"
+    CODE = "CODE"
+    DATASET = "DATASET"
+    DEPENDENCIES = "DEPENDENCIES"
+    RUN = "RUN"
+    TASK_INSTANCE = "TASK_INSTANCE"
+    TASK_LOGS = "TASK_LOGS"
+    XCOM = "XCOM"

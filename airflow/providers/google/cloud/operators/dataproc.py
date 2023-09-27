@@ -1878,7 +1878,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 
@@ -2009,7 +2009,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 

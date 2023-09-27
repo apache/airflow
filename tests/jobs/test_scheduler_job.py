@@ -22,9 +22,7 @@ import contextlib
 import datetime
 import logging
 import os
-import shutil
 from datetime import timedelta
-from tempfile import mkdtemp
 from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -210,16 +208,14 @@ class TestSchedulerJob:
         scheduler_job.heartrate = 0
         run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
-    def test_no_orphan_process_will_be_left(self):
-        empty_dir = mkdtemp()
+    def test_no_orphan_process_will_be_left(self, tmp_path):
         current_process = psutil.Process()
         old_children = current_process.children(recursive=True)
         scheduler_job = Job(
             executor=MockExecutor(do_update=False),
         )
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=empty_dir, num_runs=1)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.fspath(tmp_path), num_runs=1)
         run_job(scheduler_job, execute_callable=self.job_runner._execute)
-        shutil.rmtree(empty_dir)
 
         # Remove potential noise created by previous tests.
         current_children = set(current_process.children(recursive=True)) - set(old_children)

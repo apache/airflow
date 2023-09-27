@@ -23,10 +23,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.transfers.hive_to_dynamodb import HiveToDynamoDBOperator
 from airflow.utils import db

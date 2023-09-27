@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import inspect
-import io
 import os
 import re
 from contextlib import redirect_stdout
+from io import StringIO
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -149,7 +149,7 @@ class TestDb:
     def test_offline_upgrade_revision_nothing(self, from_revision, to_revision):
         with mock.patch("airflow.utils.db.settings.engine.dialect"):
             with mock.patch("alembic.command.upgrade"):
-                with redirect_stdout(io.StringIO()) as temp_stdout:
+                with redirect_stdout(StringIO()) as temp_stdout:
                     upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=True)
                 stdout = temp_stdout.getvalue()
                 assert "nothing to do" in stdout

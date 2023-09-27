@@ -21,8 +21,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from azure.batch import models as batch_models
+from deprecated.classic import deprecated
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 
@@ -181,7 +182,12 @@ class AzureBatchOperator(BaseOperator):
     @cached_property
     def hook(self) -> AzureBatchHook:
         """Create and return an AzureBatchHook (cached)."""
-        return self.get_hook()
+        return AzureBatchHook(self.azure_batch_conn_id)
+
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    def get_hook(self) -> AzureBatchHook:
+        """Create and return an AzureBatchHook."""
+        return self.hook
 
     def _check_inputs(self) -> Any:
         if not self.os_family and not self.vm_publisher:
@@ -314,10 +320,6 @@ class AzureBatchOperator(BaseOperator):
             job_id=self.batch_job_id, terminate_reason="Job killed by user"
         )
         self.log.info("Azure Batch job (%s) terminated: %s", self.batch_job_id, response)
-
-    def get_hook(self) -> AzureBatchHook:
-        """Create and return an AzureBatchHook."""
-        return AzureBatchHook(azure_batch_conn_id=self.azure_batch_conn_id)
 
     def clean_up(self, pool_id: str | None = None, job_id: str | None = None) -> None:
         """

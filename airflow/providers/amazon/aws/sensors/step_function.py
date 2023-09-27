@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -76,7 +76,11 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
         output = json.loads(execution_status["output"]) if "output" in execution_status else None
 
         if state in self.FAILURE_STATES:
-            raise AirflowException(f"Step Function sensor failed. State Machine Output: {output}")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = f"Step Function sensor failed. State Machine Output: {output}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         if state in self.INTERMEDIATE_STATES:
             return False
@@ -85,7 +89,7 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
         self.xcom_push(context, "output", output)
         return True
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> StepFunctionHook:
         """Create and return a StepFunctionHook."""
         return self.hook

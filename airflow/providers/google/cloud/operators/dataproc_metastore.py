@@ -28,7 +28,7 @@ from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
 from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
 from googleapiclient.errors import HttpError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
