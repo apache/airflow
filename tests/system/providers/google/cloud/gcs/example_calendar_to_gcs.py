@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.calendar_to_gcs import GoogleCalendarToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -33,7 +33,7 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CALENDAR_ID = os.environ.get("CALENDAR_ID", "1234567890qwerty")
 API_VERSION = "v3"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
