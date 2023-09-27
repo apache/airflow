@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from io import BytesIO
 from typing import TYPE_CHECKING
 
 from airflow.utils.module_loading import qualname
@@ -57,14 +58,12 @@ def deserialize(classname: str, version: int, data: object) -> pd.DataFrame:
     if version > __version__:
         raise TypeError(f"serialized {version} of {classname} > {__version__}")
 
-    import io
-
     from pyarrow import parquet as pq
 
     if not isinstance(data, str):
         raise TypeError(f"serialized {classname} has wrong data type {type(data)}")
 
-    buf = io.BytesIO(bytes.fromhex(data))
-    df = pq.read_table(buf).to_pandas()
+    with BytesIO(bytes.fromhex(data)) as buf:
+        df = pq.read_table(buf).to_pandas()
 
     return df

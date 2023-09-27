@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobAutoScalingEventsSensor,
@@ -71,8 +71,11 @@ class TestDataflowJobStatusSensor:
             job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
         )
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
-    def test_poke_raise_exception(self, mock_hook):
+    def test_poke_raise_exception(self, mock_hook, soft_fail, expected_exception):
         mock_get_job = mock_hook.return_value.get_job
         task = DataflowJobStatusSensor(
             task_id=TEST_TASK_ID,
@@ -82,11 +85,12 @@ class TestDataflowJobStatusSensor:
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            soft_fail=soft_fail,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
 
         with pytest.raises(
-            AirflowException,
+            expected_exception,
             match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_CANCELLED}",
         ):
@@ -182,8 +186,11 @@ class DataflowJobMessagesSensorTest:
         )
         callback.assert_called_once_with(mock_fetch_job_messages_by_id.return_value)
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
-    def test_poke_raise_exception(self, mock_hook):
+    def test_poke_raise_exception(self, mock_hook, soft_fail, expected_exception):
         mock_get_job = mock_hook.return_value.get_job
         mock_fetch_job_messages_by_id = mock_hook.return_value.fetch_job_messages_by_id
         callback = mock.MagicMock()
@@ -197,11 +204,12 @@ class DataflowJobMessagesSensorTest:
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            soft_fail=soft_fail,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
         with pytest.raises(
-            AirflowException,
+            expected_exception,
             match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_DONE}",
         ):
@@ -255,8 +263,11 @@ class DataflowJobAutoScalingEventsSensorTest:
         )
         callback.assert_called_once_with(mock_fetch_job_autoscaling_events_by_id.return_value)
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
-    def test_poke_raise_exception_on_terminal_state(self, mock_hook):
+    def test_poke_raise_exception_on_terminal_state(self, mock_hook, soft_fail, expected_exception):
         mock_get_job = mock_hook.return_value.get_job
         mock_fetch_job_autoscaling_events_by_id = mock_hook.return_value.fetch_job_autoscaling_events_by_id
         callback = mock.MagicMock()
@@ -270,11 +281,12 @@ class DataflowJobAutoScalingEventsSensorTest:
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
+            soft_fail=soft_fail,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
         with pytest.raises(
-            AirflowException,
+            expected_exception,
             match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_DONE}",
         ):

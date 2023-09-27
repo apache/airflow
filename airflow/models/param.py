@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.utils.context import Context
 
 logger = logging.getLogger(__name__)
@@ -338,7 +339,7 @@ class DagParam(ResolveMixin):
 def process_params(
     dag: DAG,
     task: Operator,
-    dag_run: DagRun | None,
+    dag_run: DagRun | DagRunPydantic | None,
     *,
     suppress_exception: bool,
 ) -> dict[str, Any]:

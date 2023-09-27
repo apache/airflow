@@ -24,8 +24,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow import DAG, AirflowException
-from airflow.models import DagRun, TaskInstance
+from airflow.exceptions import AirflowException
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerBaseOperator,
     SageMakerCreateExperimentOperator,

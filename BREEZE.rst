@@ -43,7 +43,7 @@ Docker Desktop
 --------------
 
 - **Version**: Install the latest stable `Docker Desktop <https://docs.docker.com/get-docker/>`_
-  and add make sure it is in your PATH. ``Breeze`` detects if you are using version that is too
+  and make sure it is in your PATH. ``Breeze`` detects if you are using version that is too
   old and warns you to upgrade.
 - **Permissions**: Configure to run the ``docker`` commands directly and not only via root user.
   Your user should be in the ``docker`` group.
@@ -56,7 +56,7 @@ Docker Desktop
 - **Docker problems**: Sometimes it is not obvious that space is an issue when you run into
   a problem with Docker. If you see a weird behaviour, try ``breeze cleanup`` command.
   Also see `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
-- **Docker context**: In recent versions Docker Desktop is by default configured to use ``desktop-linux``
+- **Docker context**: Recent versions of Docker Desktop are by default configured to use ``desktop-linux``
   docker context that uses docker socket created in user home directory. Older versions (and plain docker)
   uses ``/var/run/docker.sock`` socket and ``default`` context. Breeze will attempt to detect if you have
   ``desktop-linux`` context configured and will use it if it is available, but you can force the
@@ -2274,11 +2274,11 @@ Generating Provider requirements
 .................................
 
 In order to generate SBOM information for providers, we need to generate requirements for them. This is
-done by the ``generate-provider-requirements`` command. This command generates requirements for the
+done by the ``generate-providers-requirements`` command. This command generates requirements for the
 selected provider and python version, using the airflow version specified.
 
-.. image:: ./images/breeze/output_sbom_generate-provider-requirements.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-provider-requirements.svg
+.. image:: ./images/breeze/output_sbom_generate-providers-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-providers-requirements.svg
   :width: 100%
   :alt: Breeze generate SBOM provider requirements
 
