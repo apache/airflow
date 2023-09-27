@@ -26,7 +26,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.suite.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
 
 DAG_ID = "example_local_to_drive"
@@ -42,7 +42,7 @@ MULTIPLE_FILES_LOCAL_PATHS = [str(Path(LOCAL_PATH) / FILE_NAME_1), str(Path(LOCA
 DRIVE_FOLDER = "test-folder"
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
