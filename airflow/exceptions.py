@@ -424,11 +424,3 @@ class DeserializingResultError(ValueError):
             "Error deserializing result. Note that result deserialization "
             "is not supported across major Python versions. Cause: " + str(self.__cause__)
         )
-
-
-class StopDagTest(AirflowException):
-    """
-    Raise when DAG.test should stop immediately.
-
-    :meta private:
-    """

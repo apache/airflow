@@ -87,7 +87,6 @@ from airflow.exceptions import (
     FailStopDagInvalidTriggerRule,
     ParamValidationError,
     RemovedInAirflow3Warning,
-    StopDagTest,
     TaskNotFound,
 )
 from airflow.jobs.job import run_job
@@ -284,6 +283,14 @@ def get_dataset_triggered_next_run_info(
             .where(DagScheduleDatasetReference.dag_id.in_(dag_ids))
         ).all()
     }
+
+
+class _StopDagTest(Exception):
+    """
+    Raise when DAG.test should stop immediately.
+
+    :meta private:
+    """
 
 
 @functools.total_ordering
@@ -2838,11 +2845,11 @@ class DAG(LoggingMixin):
                     ret = _run_task(ti, session=session)
                     if ret is TaskReturnCode.DEFERRED:
                         if not _triggerer_is_healthy():
-                            raise StopDagTest(
+                            raise _StopDagTest(
                                 "Task has deferred but triggerer component is not running. "
                                 "You can start the triggerer by running `airflow triggerer` in a terminal."
                             )
-                except StopDagTest:
+                except _StopDagTest:
                     raise
                 except Exception:
                     self.log.exception("Task failed; ti=%s", ti)

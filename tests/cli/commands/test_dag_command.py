@@ -34,9 +34,10 @@ from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.decorators import task
-from airflow.exceptions import AirflowException, StopDagTest
+from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import _StopDagTest
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.triggers.temporal import TimeDeltaTrigger
 from airflow.utils import timezone
@@ -849,5 +850,5 @@ class TestCliDags:
             task_two = two(task_one)
             op = MyOp(task_id="abc", tfield=str(task_two))
             task_two >> op
-        with pytest.raises(StopDagTest, match="Task has deferred but triggerer component is not running"):
+        with pytest.raises(_StopDagTest, match="Task has deferred but triggerer component is not running"):
             dag.test()
