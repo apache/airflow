@@ -21,8 +21,8 @@ from __future__ import annotations
 # [START example_subdag_operator]
 import datetime
 
-from airflow import DAG
 from airflow.example_dags.subdags.subdag import subdag
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SubDagOperator
 

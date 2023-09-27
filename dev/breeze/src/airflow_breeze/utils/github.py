@@ -79,7 +79,7 @@ def get_active_airflow_versions(confirm: bool = True) -> list[str]:
     from packaging.version import Version
 
     get_console().print(
-        "\n[warning]Make sure you have 'apache` remote added pointing to apache/airflow repository\n"
+        "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
     )
     get_console().print("[info]Fetching all released Airflow 2 versions from GitHub[/]\n")
     repo = Repo(AIRFLOW_SOURCES_ROOT)

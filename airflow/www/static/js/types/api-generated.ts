@@ -2287,6 +2287,14 @@ export interface components {
     DAGID: string;
     /** @description The task ID. */
     TaskID: string;
+    /** @description The name of event log. */
+    Event: string;
+    /** @description The owner's name of event log. */
+    Owner: string;
+    /** @description Timestamp to select event logs occurring before. */
+    Before: string;
+    /** @description Timestamp to select event logs occurring after. */
+    After: string;
     /** @description The map index. */
     MapIndex: number;
     /** @description The DAG run ID. */
@@ -2424,6 +2432,10 @@ export interface components {
     Paused: boolean;
     /** @description Only filter the XCom records which have the provided key. */
     FilterXcomKey: string;
+    /** @description Returns objects matched by the DAG ID. */
+    FilterDAGID: string;
+    /** @description Returns objects matched by the Task ID. */
+    FilterTaskID: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -3187,6 +3199,18 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** Returns objects matched by the DAG ID. */
+        dag_id?: components["parameters"]["FilterDAGID"];
+        /** Returns objects matched by the Task ID. */
+        task_id?: components["parameters"]["FilterTaskID"];
+        /** The name of event log. */
+        event?: components["parameters"]["Event"];
+        /** The owner's name of event log. */
+        owner?: components["parameters"]["Owner"];
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+        /** Timestamp to select event logs occurring after. */
+        after?: components["parameters"]["After"];
       };
     };
     responses: {
