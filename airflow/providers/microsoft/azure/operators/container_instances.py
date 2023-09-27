@@ -319,7 +319,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 if state in ["Running", "Terminated", "Succeeded"]:
                     try:
                         logs = self._ci_hook.get_logs(resource_group, name)
-                        if logs is None:
+                        if len(logs) > 0 and logs[0] is None:
                             self.log.error("Container log is broken, marking as failed.")
                             return 1
                         last_line_logged = self._log_last(logs, last_line_logged)
