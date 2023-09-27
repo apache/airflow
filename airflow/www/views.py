@@ -100,7 +100,7 @@ from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail,
 from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
-from airflow.models.mappedoperator import MappedOperator
+from airflow.models.operator import needs_expansion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.providers_manager import ProvidersManager
@@ -321,7 +321,10 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
-    grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
+    grouped_tis: dict[str, list[TaskInstance]] = collections.defaultdict(
+        list,
+        ((task_id, list(tis)) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)),
+    )
 
     sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
     if sort_order == "topological":
@@ -337,24 +340,12 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
     else:
         raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
 
-    def task_group_to_grid(item, grouped_tis, *, is_parent_mapped: bool):
+    def task_group_to_grid(item: AbstractOperator | TaskGroup) -> dict[str, Any]:
         if not isinstance(item, TaskGroup):
 
-            def _get_summary(task_instance):
-                return {
-                    "task_id": task_instance.task_id,
-                    "run_id": task_instance.run_id,
-                    "state": task_instance.state,
-                    "queued_dttm": task_instance.queued_dttm,
-                    "start_date": task_instance.start_date,
-                    "end_date": task_instance.end_date,
-                    "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
-                    "note": task_instance.note,
-                }
-
-            def _mapped_summary(ti_summaries):
-                run_id = None
-                record = None
+            def _mapped_summary(ti_summaries: list[TaskInstance]) -> Iterator[dict[str, Any]]:
+                run_id = ""
+                record: dict[str, Any] = {}
 
                 def set_overall_state(record):
                     for state in wwwutils.priority:
@@ -403,10 +394,22 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     set_overall_state(record)
                     yield record
 
-            if isinstance(item, MappedOperator) or is_parent_mapped:
-                instances = list(_mapped_summary(grouped_tis.get(item.task_id, [])))
+            if item_is_mapped := needs_expansion(item):
+                instances = list(_mapped_summary(grouped_tis[item.task_id]))
             else:
-                instances = list(map(_get_summary, grouped_tis.get(item.task_id, [])))
+                instances = [
+                    {
+                        "task_id": task_instance.task_id,
+                        "run_id": task_instance.run_id,
+                        "state": task_instance.state,
+                        "queued_dttm": task_instance.queued_dttm,
+                        "start_date": task_instance.start_date,
+                        "end_date": task_instance.end_date,
+                        "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
+                        "note": task_instance.note,
+                    }
+                    for task_instance in grouped_tis[item.task_id]
+                ]
 
             setup_teardown_type = {}
             if item.is_setup is True:
@@ -419,7 +422,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "instances": instances,
                 "label": item.label,
                 "extra_links": item.extra_links,
-                "is_mapped": isinstance(item, MappedOperator) or is_parent_mapped,
+                "is_mapped": item_is_mapped,
                 "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
@@ -428,12 +431,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
 
         # Task Group
         task_group = item
-        group_is_mapped = next(task_group.iter_mapped_task_groups(), None) is not None
-
-        children = [
-            task_group_to_grid(child, grouped_tis, is_parent_mapped=group_is_mapped)
-            for child in sort_children_fn(task_group)
-        ]
+        children = [task_group_to_grid(child) for child in sort_children_fn(task_group)]
 
         def get_summary(dag_run: DagRun):
             child_instances = [
@@ -532,16 +530,14 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "instances": [],
             }
 
-        if group_is_mapped:
-            mapped_group_summaries = get_mapped_group_summaries()
-
+        if next(task_group.iter_mapped_task_groups(), None) is not None:
             return {
                 "id": task_group.group_id,
                 "label": task_group.label,
                 "children": children,
                 "tooltip": task_group.tooltip,
-                "instances": mapped_group_summaries,
-                "is_mapped": group_is_mapped,
+                "instances": get_mapped_group_summaries(),
+                "is_mapped": True,
             }
 
         group_summaries = [get_summary(dr) for dr in dag_runs]
@@ -554,7 +550,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             "instances": group_summaries,
         }
 
-    return task_group_to_grid(dag.task_group, grouped_tis, is_parent_mapped=False)
+    return task_group_to_grid(dag.task_group)
 
 
 def get_key_paths(input_dict):
