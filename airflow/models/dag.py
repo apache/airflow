@@ -2850,6 +2850,8 @@ class DAG(LoggingMixin):
                                 "You can start the triggerer by running `airflow triggerer` in a terminal."
                             )
                 except _StopDagTest:
+                    # Let this exception bubble out and not be swallowed by the
+                    # except block below.
                     raise
                 except Exception:
                     self.log.exception("Task failed; ti=%s", ti)
