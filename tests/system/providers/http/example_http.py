@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
-from typing import Optional
 
 from airflow import DAG
 from airflow.providers.http.operators.http import SimpleHttpOperator
@@ -114,7 +113,7 @@ task_http_sensor_check = HttpSensor(
 # [START howto_operator_http_pagination_function]
 
 
-def get_next_page_cursor(response) -> Optional[dict]:
+def get_next_page_cursor(response) -> dict | None:
     """
     Take the raw `request.Response` object, and check for a cursor.
     If a cursor exists, this function creates and return parameters to call
@@ -129,8 +128,9 @@ task_get_paginated = SimpleHttpOperator(
     task_id="get_paginated",
     method="GET",
     endpoint="get",
+    data={"cursor": ""},
     pagination_function=get_next_page_cursor,
-    dag=dag
+    dag=dag,
 )
 # [END howto_operator_http_pagination_function]
 task_http_sensor_check >> task_post_op >> task_get_op >> task_get_op_response_filter
