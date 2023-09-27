@@ -85,7 +85,7 @@ To invoke an AWS lambda function you can use
     or operating system to allow for long connections with timeout or keep-alive settings.
 
 .. note::
-    You cannot verify the asynchronous invocation (``invocation_type="Event"``) of an Amazon Lambda function.
+    You cannot verify the asynchronous invocation (``invocation_type="Event"``) of an AWS Lambda function.
     The only way is `configuring destinations for asynchronous invocation <https://docs.aws.amazon.com/lambda/latest/dg/invocation-async.html#invocation-async-destinations>`_
     and sensing destination.
 
@@ -100,10 +100,10 @@ Sensors
 
 .. _howto/sensor:LambdaFunctionStateSensor:
 
-Wait on an Amazon Lambda function deployment state
-==================================================
+Wait on an AWS Lambda function deployment state
+===============================================
 
-To check the deployment state of an Amazon Lambda function until it reaches the target state or another terminal
+To check the deployment state of an AWS Lambda function until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.lambda_function.LambdaFunctionStateSensor`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
