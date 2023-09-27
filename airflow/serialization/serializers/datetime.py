@@ -71,15 +71,15 @@ def deserialize(classname: str, version: int, data: dict | str) -> datetime.date
     if isinstance(data, dict) and TIMEZONE in data:
         if version == 1:
             # try to deserialize unsupported timezones
-            mapping_us_timezones = {
+            timezone_mapping = {
                 "EDT": fixed_timezone(-4 * 3600),
                 "CDT": fixed_timezone(-5 * 3600),
                 "MDT": fixed_timezone(-6 * 3600),
                 "PDT": fixed_timezone(-7 * 3600),
                 "CEST": timezone("CET"),
             }
-            if data[TIMEZONE] in mapping_us_timezones:
-                tz = mapping_us_timezones[data[TIMEZONE]]
+            if data[TIMEZONE] in timezone_mapping:
+                tz = timezone_mapping[data[TIMEZONE]]
             else:
                 tz = timezone(data[TIMEZONE])
         else:
