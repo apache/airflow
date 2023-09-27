@@ -62,14 +62,14 @@ To invoke an AWS lambda function you can use
     for synchronous invocation (``invocation_type="RequestResponse"``) with a long timeout, your client might
     disconnect during synchronous invocation while it waits for a response.
 
-    If you encounter ``ReadTimeoutError`` exceptions, like that
+    If this happens you will see a ``ReadTimeoutError`` exception similar to this:
 
     .. code-block:: text
 
       urllib3.exceptions.ReadTimeoutError: AWSHTTPSConnectionPool(host='lambda.us-east-1.amazonaws.com', port=443): Read timed out. (read timeout=60)
 
-    Then you need to configure :ref:`howto/connection:aws` to allow ``botocore`` / ``boto3`` to use long connections with
-    timeout or keep-alive settings, in order to do this you need to add in Connection Extra
+    If you encounter this issue, configure :ref:`howto/connection:aws` to allow ``botocore`` / ``boto3`` to use long connections with
+    timeout or keep-alive settings in the Connection Extras field
 
     .. code-block:: json
 
