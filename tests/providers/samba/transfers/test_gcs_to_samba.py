@@ -33,9 +33,6 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEST_BUCKET = "test-bucket"
 DESTINATION_SMB = "destination_path"
 
-
-# TODO: After deprecating delimiter and wildcards in source objects,
-#       implement reverted changes from the first commit of PR #31261
 class TestGoogleCloudStorageToSambaOperator:
     @pytest.mark.parametrize(
         "source_object, target_object, keep_directory_structure",
@@ -49,9 +46,14 @@ class TestGoogleCloudStorageToSambaOperator:
     @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
     @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
     def test_execute_copy_single_file(
-        self, samba_hook_mock, gcs_hook_mock, source_object, target_object, keep_directory_structure
+        self,
+        samba_hook_mock,
+        gcs_hook_mock,
+        source_object,
+        target_object,
+        keep_directory_structure
     ):
-        task = GCSToSambaOperator(
+        operator = GCSToSambaOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=source_object,
@@ -62,21 +64,18 @@ class TestGoogleCloudStorageToSambaOperator:
             samba_conn_id=SAMBA_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        task.execute({})
+        operator.execute({})
         gcs_hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        samba_hook_mock.assert_called_once_with(SAMBA_CONN_ID)
-
+        samba_hook_mock.assert_called_once_with(samba_conn_id=SAMBA_CONN_ID)
         gcs_hook_mock.return_value.download.assert_called_with(
             bucket_name=TEST_BUCKET, object_name=source_object, filename=mock.ANY
         )
-
-        samba_hook_mock.return_value.store_file.assert_called_with(
+        samba_hook_mock.return_value.push_from_local.assert_called_with(
             os.path.join(DESTINATION_SMB, target_object), mock.ANY
         )
-
         gcs_hook_mock.return_value.delete.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -98,7 +97,7 @@ class TestGoogleCloudStorageToSambaOperator:
         target_object,
         keep_directory_structure,
     ):
-        task = GCSToSambaOperator(
+        operator = GCSToSambaOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
             source_object=source_object,
@@ -109,21 +108,18 @@ class TestGoogleCloudStorageToSambaOperator:
             samba_conn_id=SAMBA_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        task.execute(None)
+        operator.execute(None)
         gcs_hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        samba_hook_mock.assert_called_once_with(SAMBA_CONN_ID)
-
+        samba_hook_mock.assert_called_once_with(samba_conn_id=SAMBA_CONN_ID)
         gcs_hook_mock.return_value.download.assert_called_with(
             bucket_name=TEST_BUCKET, object_name=source_object, filename=mock.ANY
         )
-
-        samba_hook_mock.return_value.store_file.assert_called_with(
+        samba_hook_mock.return_value.push_from_local.assert_called_with(
             os.path.join(DESTINATION_SMB, target_object), mock.ANY
         )
-
         gcs_hook_mock.return_value.delete.assert_called_once_with(TEST_BUCKET, source_object)
 
     @pytest.mark.parametrize(
@@ -200,22 +196,19 @@ class TestGoogleCloudStorageToSambaOperator:
             samba_conn_id=SAMBA_CONN_ID,
         )
         operator.execute(None)
-
         gcs_hook_mock.return_value.list.assert_called_with(TEST_BUCKET, delimiter=delimiter, prefix=prefix)
-
         gcs_hook_mock.return_value.download.assert_has_calls(
             [
                 mock.call(bucket_name=TEST_BUCKET, object_name=gcs_file, filename=mock.ANY)
                 for gcs_file in gcs_files_list
             ]
         )
-        samba_hook_mock.return_value.store_file.assert_has_calls(
+        samba_hook_mock.return_value.push_from_local.assert_has_calls(
             [
                 mock.call(os.path.join(DESTINATION_SMB, target_object), mock.ANY)
                 for target_object in target_objects
             ]
         )
-
         gcs_hook_mock.return_value.delete.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -292,29 +285,30 @@ class TestGoogleCloudStorageToSambaOperator:
             samba_conn_id=SAMBA_CONN_ID,
         )
         operator.execute(None)
-
         gcs_hook_mock.return_value.list.assert_called_with(TEST_BUCKET, delimiter=delimiter, prefix=prefix)
-
         gcs_hook_mock.return_value.download.assert_has_calls(
             [
                 mock.call(bucket_name=TEST_BUCKET, object_name=gcs_file, filename=mock.ANY)
                 for gcs_file in gcs_files_list
             ]
         )
-        samba_hook_mock.return_value.store_file.assert_has_calls(
+        samba_hook_mock.return_value.push_from_local.assert_has_calls(
             [
                 mock.call(os.path.join(DESTINATION_SMB, target_object), mock.ANY)
                 for target_object in target_objects
             ]
         )
-
         gcs_hook_mock.return_value.delete.assert_has_calls(
             [mock.call(TEST_BUCKET, gcs_file) for gcs_file in gcs_files_list]
         )
 
     @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
     @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
-    def test_execute_more_than_one_wildcard_exception(self, samba_hook_mock, gcs_hook_mock):
+    def test_execute_more_than_one_wildcard_exception(
+        self,
+        samba_hook_mock,
+        gcs_hook_mock
+    ):
         operator = GCSToSambaOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
