@@ -68,7 +68,7 @@ To invoke an AWS lambda function you can use
 
       urllib3.exceptions.ReadTimeoutError: AWSHTTPSConnectionPool(host='lambda.us-east-1.amazonaws.com', port=443): Read timed out. (read timeout=60)
 
-    Than you need configure :ref:`howto/connection:aws` to allow ``botocore`` / ``boto3`` use long connections with
+    Then you need to configure :ref:`howto/connection:aws` to allow ``botocore`` / ``boto3`` to use long connections with
     timeout or keep-alive settings, in order to do this you need to add in Connection Extra
 
     .. code-block:: json
@@ -81,11 +81,11 @@ To invoke an AWS lambda function you can use
           }
         }
 
-    In additional you might need to configure your firewall, proxy,
+    In addition, you might need to configure your firewall, proxy,
     or operating system to allow for long connections with timeout or keep-alive settings.
 
 .. note::
-    You cannot verify the asynchronous invocation (``invocation_type="Event"``) of an AWS Lambda function.
+    You cannot describe the asynchronous invocation (``invocation_type="Event"``) of an AWS Lambda function.
     The only way is `configuring destinations for asynchronous invocation <https://docs.aws.amazon.com/lambda/latest/dg/invocation-async.html#invocation-async-destinations>`_
     and sensing destination.
 
