@@ -2207,6 +2207,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: bool = False,
         job_id: str | None = None,
         pool: str | None = None,
+        raise_on_defer: bool = False,
         session: Session = NEW_SESSION,
     ) -> TaskReturnCode | None:
         """
@@ -2261,6 +2262,8 @@ class TaskInstance(Base, LoggingMixin):
             except TaskDeferred as defer:
                 # The task has signalled it wants to defer execution based on
                 # a trigger.
+                if raise_on_defer:
+                    raise
                 self._defer_task(defer=defer, session=session)
                 self.log.info(
                     "Pausing task as DEFERRED. dag_id=%s, task_id=%s, execution_date=%s, start_date=%s",

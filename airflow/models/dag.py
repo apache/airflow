@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import collections
 import collections.abc
 import copy
 import functools
@@ -82,11 +84,11 @@ from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowDagInconsistent,
     AirflowException,
-    AirflowSkipException,
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
     ParamValidationError,
     RemovedInAirflow3Warning,
+    TaskDeferred,
     TaskNotFound,
 )
 from airflow.jobs.job import run_job
@@ -101,7 +103,6 @@ from airflow.models.taskinstance import (
     Context,
     TaskInstance,
     TaskInstanceKey,
-    TaskReturnCode,
     clear_task_instances,
 )
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
@@ -285,12 +286,11 @@ def get_dataset_triggered_next_run_info(
     }
 
 
-class _StopDagTest(Exception):
-    """
-    Raise when DAG.test should stop immediately.
+def _triggerer_is_healthy():
+    from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 
-    :meta private:
-    """
+    job = TriggererJobRunner.most_recent_job()
+    return job and job.is_alive()
 
 
 @functools.total_ordering
@@ -2844,21 +2844,12 @@ class DAG(LoggingMixin):
             if not scheduled_tis and ids_unrunnable:
                 self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
                 time.sleep(1)
+            triggerer_running = _triggerer_is_healthy()
             for ti in scheduled_tis:
                 try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
-                    ret = _run_task(ti, session=session)
-                    if ret is TaskReturnCode.DEFERRED:
-                        if not _triggerer_is_healthy():
-                            raise _StopDagTest(
-                                "Task has deferred but triggerer component is not running. "
-                                "You can start the triggerer by running `airflow triggerer` in a terminal."
-                            )
-                except _StopDagTest:
-                    # Let this exception bubble out and not be swallowed by the
-                    # except block below.
-                    raise
+                    _run_task(ti=ti, inline_trigger=not triggerer_running, session=session)
                 except Exception:
                     self.log.exception("Task failed; ti=%s", ti)
         if conn_file_path or variable_file_path:
@@ -3988,14 +3979,15 @@ class DagContext:
             return None
 
 
-def _triggerer_is_healthy():
-    from airflow.jobs.triggerer_job_runner import TriggererJobRunner
+def _run_trigger(trigger):
+    async def _run_trigger_main():
+        async for event in trigger.run():
+            return event
 
-    job = TriggererJobRunner.most_recent_job()
-    return job and job.is_alive()
+    return asyncio.run(_run_trigger_main())
 
 
-def _run_task(ti: TaskInstance, session) -> TaskReturnCode | None:
+def _run_task(*, ti: TaskInstance, inline_trigger: bool = False, session: Session):
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -4005,20 +3997,21 @@ def _run_task(ti: TaskInstance, session) -> TaskReturnCode | None:
     Args:
         ti: TaskInstance to run
     """
-    ret = None
-    log.info("*****************************************************")
-    if ti.map_index > 0:
-        log.info("Running task %s index %d", ti.task_id, ti.map_index)
-    else:
-        log.info("Running task %s", ti.task_id)
-    try:
-        ret = ti._run_raw_task(session=session)
-        session.flush()
-        log.info("%s ran successfully!", ti.task_id)
-    except AirflowSkipException:
-        log.info("Task Skipped, continuing")
-    log.info("*****************************************************")
-    return ret
+    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    while True:
+        try:
+            log.info("[DAG TEST] running task %s", ti)
+            ti._run_raw_task(session=session, raise_on_defer=inline_trigger)
+            break
+        except TaskDeferred as e:
+            log.info("[DAG TEST] running trigger in line")
+            event = _run_trigger(e.trigger)
+            ti.next_method = e.method_name
+            ti.next_kwargs = {"event": event.payload} if event else e.kwargs
+            log.info("[DAG TEST] Trigger completed")
+        session.merge(ti)
+        session.commit()
+    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
 
 
 def _get_or_create_dagrun(
