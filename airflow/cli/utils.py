@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Collection
 
 if TYPE_CHECKING:
     from io import IOBase
@@ -40,3 +40,10 @@ def is_stdout(fileio: IOBase) -> bool:
     .. warning:: *fileio* must be open for this check to be successful.
     """
     return fileio.fileno() == sys.stdout.fileno()
+
+
+def print_export_output(command_type: str, exported_items: Collection, file_is_stdout: bool, file_path: str):
+    if file_is_stdout:
+        print(f"\n{len(exported_items)} {command_type} successfully exported.", file=sys.stderr)
+    else:
+        print(f"{len(exported_items)} {command_type} successfully exported to {file_path}.")

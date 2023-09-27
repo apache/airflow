@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import warnings
 from pathlib import Path
 from typing import Any
@@ -29,7 +28,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import is_stdout
+from airflow.cli.utils import is_stdout, print_export_output
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
@@ -196,10 +195,7 @@ def connections_export(args):
 
         f.write(msg)
 
-    if file_is_stdout:
-        print(f"\n{len(connections)} connections successfully exported.", file=sys.stderr)
-    else:
-        print(f"{len(connections)} connections successfully exported to {args.file.name}.")
+    print_export_output("Connections", connections, file_is_stdout, args.file.name)
 
 
 alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password", "conn_schema", "conn_port"]
