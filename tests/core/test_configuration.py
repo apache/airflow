@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import copy
 import datetime
-import io
 import os
 import re
 import textwrap
 import warnings
+from io import StringIO
 from unittest import mock
 from unittest.mock import patch
 
@@ -709,7 +709,7 @@ notacommand = OK
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
     def test_write_should_respect_env_variable(self):
         parser = AirflowConfigParser()
-        with io.StringIO() as string_file:
+        with StringIO() as string_file:
             parser.write(string_file)
             content = string_file.getvalue()
         assert "dags_folder = /tmp/test_folder" in content
@@ -717,7 +717,7 @@ notacommand = OK
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
     def test_write_with_only_defaults_should_not_respect_env_variable(self):
         parser = AirflowConfigParser()
-        with io.StringIO() as string_file:
+        with StringIO() as string_file:
             parser.write(string_file, only_defaults=True)
             content = string_file.getvalue()
         assert "dags_folder = /tmp/test_folder" not in content
@@ -1536,14 +1536,14 @@ sql_alchemy_conn=sqlite://test
 
     def test_written_defaults_are_raw_for_defaults(self):
         test_conf = AirflowConfigParser()
-        with io.StringIO() as f:
+        with StringIO() as f:
             test_conf.write(f, only_defaults=True)
             string_written = f.getvalue()
         assert "%%(asctime)s" in string_written
 
     def test_written_defaults_are_raw_for_non_defaults(self):
         test_conf = AirflowConfigParser()
-        with io.StringIO() as f:
+        with StringIO() as f:
             test_conf.write(f)
             string_written = f.getvalue()
         assert "%%(asctime)s" in string_written

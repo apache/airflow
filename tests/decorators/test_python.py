@@ -893,7 +893,7 @@ def test_no_warnings(reset_logging_config, caplog):
 
 
 def test_task_decorator_dataset(dag_maker, session):
-    from airflow import Dataset
+    from airflow.datasets import Dataset
 
     result = None
     uri = "s3://test"

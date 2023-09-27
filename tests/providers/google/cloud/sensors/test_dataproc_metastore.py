@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.sensors.dataproc_metastore import MetastoreHivePartitionSensor
 
 DATAPROC_METASTORE_SENSOR_PATH = "airflow.providers.google.cloud.sensors.dataproc_metastore.{}"
@@ -106,14 +106,14 @@ class TestMetastoreHivePartitionSensor:
         )
         assert sensor.poke(context={}) == expected_result
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
     @pytest.mark.parametrize("empty_manifest", [dict(), list(), tuple(), None, ""])
     @mock.patch(DATAPROC_METASTORE_SENSOR_PATH.format("DataprocMetastoreHook"))
     @mock.patch(DATAPROC_METASTORE_SENSOR_PATH.format("parse_json_from_gcs"))
     def test_poke_empty_manifest(
-        self,
-        mock_parse_json_from_gcs,
-        mock_hook,
-        empty_manifest,
+        self, mock_parse_json_from_gcs, mock_hook, empty_manifest, soft_fail, expected_exception
     ):
         mock_parse_json_from_gcs.return_value = empty_manifest
 
@@ -124,18 +124,18 @@ class TestMetastoreHivePartitionSensor:
             table=TEST_TABLE,
             partitions=[PARTITION_1],
             gcp_conn_id=GCP_CONN_ID,
+            soft_fail=soft_fail,
         )
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             sensor.poke(context={})
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
     @mock.patch(DATAPROC_METASTORE_SENSOR_PATH.format("DataprocMetastoreHook"))
     @mock.patch(DATAPROC_METASTORE_SENSOR_PATH.format("parse_json_from_gcs"))
-    def test_poke_wrong_status(
-        self,
-        mock_parse_json_from_gcs,
-        mock_hook,
-    ):
+    def test_poke_wrong_status(self, mock_parse_json_from_gcs, mock_hook, soft_fail, expected_exception):
         error_message = "Test error message"
         mock_parse_json_from_gcs.return_value = {"code": 1, "message": error_message}
 
@@ -146,7 +146,8 @@ class TestMetastoreHivePartitionSensor:
             table=TEST_TABLE,
             partitions=[PARTITION_1],
             gcp_conn_id=GCP_CONN_ID,
+            soft_fail=soft_fail,
         )
 
-        with pytest.raises(AirflowException, match=f"Request failed: {error_message}"):
+        with pytest.raises(expected_exception, match=f"Request failed: {error_message}"):
             sensor.poke(context={})

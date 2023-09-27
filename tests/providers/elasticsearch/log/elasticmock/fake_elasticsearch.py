@@ -477,7 +477,7 @@ class FakeElasticsearch(Elasticsearch):
         matches = set()
         for target in targets:
             print(f"Loop over:::target = {target}")
-            if target == "_all" or target == "":
+            if target in ("_all", ""):
                 matches.update(self.__documents_dict)
             elif "*" in target:
                 matches.update(fnmatch.filter(self.__documents_dict, target))
