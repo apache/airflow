@@ -1005,8 +1005,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
     def __init__(
         self,
-        release_label: str,
-        job_type: str,
+        release_label: str | None = None,
+        job_type: str | None = None,
         client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
