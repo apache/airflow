@@ -3980,12 +3980,10 @@ class DagContext:
 
 
 def _triggerer_is_healthy():
-    from airflow.api.common.airflow_health import get_airflow_health
+    from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 
-    health = get_airflow_health()
-    if health["triggerer"]["status"] != "healthy":
-        return False
-    return True
+    job = TriggererJobRunner.most_recent_job()
+    return job and job.is_alive()
 
 
 def _run_task(ti: TaskInstance, session) -> TaskReturnCode | None:
