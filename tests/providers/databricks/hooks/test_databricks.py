@@ -34,6 +34,7 @@ from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
     GET_RUN_ENDPOINT,
     SUBMIT_RUN_ENDPOINT,
+    ClusterState,
     DatabricksHook,
     RunState,
 )
@@ -78,6 +79,9 @@ GET_RUN_RESPONSE = {
     "state": {"life_cycle_state": LIFE_CYCLE_STATE, "state_message": STATE_MESSAGE},
 }
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
+CLUSTER_STATE = "TERMINATED"
+CLUSTER_STATE_MESSAGE = "Inactive cluster terminated (inactive for 120 minutes)."
+GET_CLUSTER_RESPONSE = {"state": CLUSTER_STATE, "state_message": CLUSTER_STATE_MESSAGE}
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = ""
@@ -158,6 +162,11 @@ def repair_run_endpoint(host):
     """
     return f"https://{host}/api/2.1/jobs/runs/repair"
 
+def get_cluster_endpoint(host):
+    """
+    Utility function to generate the get run endpoint given the host.
+    """
+    return f"https://{host}/api/2.0/clusters/get"
 
 def start_cluster_endpoint(host):
     """
@@ -593,6 +602,26 @@ class TestDatabricksHook:
             repair_run_endpoint(HOST),
             json=json,
             params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_cluster_state(self, mock_requests):
+        """
+        Response example from https://docs.databricks.com/api/workspace/clusters/get
+        """
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = GET_CLUSTER_RESPONSE
+
+        cluster_state = self.hook.get_cluster_state(CLUSTER_ID)
+
+        assert cluster_state == ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        mock_requests.get.assert_called_once_with(
+            get_cluster_endpoint(HOST),
+            json=None,
+            params={"cluster_id": CLUSTER_ID},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
