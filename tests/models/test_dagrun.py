@@ -30,17 +30,11 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowException
-from airflow.models import (
-    DagBag,
-    DagRun,
-    TaskInstance,
-    TaskInstance as TI,
-    clear_task_instances,
-)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
-from airflow.models.dagrun import DagRunNote
-from airflow.models.taskinstance import TaskInstanceNote
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
@@ -59,6 +53,7 @@ from tests.test_utils.mock_operators import MockOperator
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
 
