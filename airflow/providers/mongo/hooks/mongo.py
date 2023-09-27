@@ -368,7 +368,7 @@ class MongoHook(BaseHook):
         return collection.delete_many(filter_doc, **kwargs)
 
     def distinct(
-        self, mongo_collection: str, distinct_key: str, filter_doc: dict | None, mongo_db: str | None = None, **kwargs
+        self, mongo_collection: str, distinct_key: str, filter_doc: dict | None = None, mongo_db: str | None = None, **kwargs
     ) -> list[Any]:
         """
         Returns a list of distinct values for the given key across a collection.
