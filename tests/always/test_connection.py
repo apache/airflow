@@ -27,7 +27,7 @@ import pytest
 import sqlalchemy
 from cryptography.fernet import Fernet
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection, crypto
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook

@@ -22,7 +22,7 @@ from typing import Any, Sequence
 
 from asgiref.sync import sync_to_async
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.module_loading import import_string

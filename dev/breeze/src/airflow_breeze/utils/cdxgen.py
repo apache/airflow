@@ -31,7 +31,11 @@ import yaml
 
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.github import download_constraints_file, download_file_from_github
+from airflow_breeze.utils.github import (
+    download_constraints_file,
+    download_file_from_github,
+    get_active_airflow_versions,
+)
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -209,6 +213,27 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
     get_console().print(
         f"[success]Generated {provider_id}:{provider_version} requirements in {provider_file}"
     )
+
+
+def build_all_airflow_versions_base_image(python_version: str):
+    """
+    Build an image with all airflow versions pre-installed in separate virtualenvs.
+    """
+    image_name = f"apache/airflow-dev/all_airflow_versions/python{python_version}"
+    dockerfile = f"""
+FROM ghcr.io/apache/airflow/main/ci/python{python_version}
+RUN pip install --upgrade pip
+    """
+    for airflow_version in get_active_airflow_versions():
+        dockerfile += f"""
+# Create the virtualenv and install the proper airflow version in it
+RUN python -m venv /opt/airflow/airflow-{airflow_version} && \
+/opt/airflow/airflow-{airflow_version}/bin/pip install --upgrade pip && \
+/opt/airflow/airflow-{airflow_version}/bin/pip install apache-airflow=={airflow_version} \
+    --constraint https://raw.githubusercontent.com/apache/airflow/\
+constraints-{airflow_version}/constraints-{python_version}.txt
+"""
+    run_command(["docker", "build", "--tag", image_name, "-"], input=dockerfile, text=True, check=True)
 
 
 @dataclass

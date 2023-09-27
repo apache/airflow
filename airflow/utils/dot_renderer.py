@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 import graphviz
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.utils.dag_edges import dag_edges

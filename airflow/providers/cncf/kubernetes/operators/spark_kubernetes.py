@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Sequence
 from kubernetes.client import ApiException
 from kubernetes.watch import Watch
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -78,7 +78,11 @@ class AthenaSensor(BaseSensorOperator):
         state = self.hook.poll_query_status(self.query_execution_id, self.max_retries, self.sleep_time)
 
         if state in self.FAILURE_STATES:
-            raise AirflowException("Athena sensor failed")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = "Athena sensor failed"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         if state in self.INTERMEDIATE_STATES:
             return False
