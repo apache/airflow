@@ -5504,10 +5504,7 @@ class TaskInstanceModelView(AirflowModelView):
         "queued_by_job_id",
     ]
 
-    label_columns = {
-        "dag_run.execution_date": "Logical Date",
-        "prev_attempted_tries": "Try Number"
-    }
+    label_columns = {"dag_run.execution_date": "Logical Date", "prev_attempted_tries": "Try Number"}
 
     search_columns = [
         "state",
