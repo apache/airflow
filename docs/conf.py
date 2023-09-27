@@ -37,6 +37,7 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
+from textwrap import dedent
 from typing import Any
 
 import yaml
@@ -113,6 +114,26 @@ project = PACKAGE_NAME
 version = PACKAGE_VERSION
 # The full version, including alpha/beta/rc tags.
 release = PACKAGE_VERSION
+
+if PACKAGE_NAME == "apache-airflow":
+    if PACKAGE_VERSION == "stable":
+        prolog = dedent(
+            """
+            .. warning::
+            A newer version of Apache Airflow has been released.
+
+            For documentation for the latest version of Apache Airflow, please see the `stable documentation <https://airflow.apache.org/docs/apache-airflow/stable/index.html>`_.
+            """
+        )
+elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
+    if PACKAGE_VERSION != "stable":
+        prolog = dedent(
+            """
+            .. warning::
+            TODO
+
+            """
+        )
 
 rst_epilog = f"""
 .. |version| replace:: {version}
