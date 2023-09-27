@@ -140,7 +140,28 @@ The ``BaseExecutor`` class interface contains a set of attributes that Airflow c
 CLI
 ^^^
 
-Executors may vend CLI commands which will be included in the ``airflow`` command line tool. Executors such as ``CeleryExecutor` and ``KubernetesExecutor`` for example, make use of this mechanism. The commands can be used to setup required workers, initialize environment or set other configuration. Commands are only vended for the currently configured executor.
+Executors may vend CLI commands which will be included in the ``airflow`` command line tool by implementing the ``get_cli_commands`` method. Executors such as ``CeleryExecutor`` and ``KubernetesExecutor`` for example, make use of this mechanism. The commands can be used to setup required workers, initialize environment or set other configuration. Commands are only vended for the currently configured executor. A pseudo-code example of implementing CLI command vending from an executor can be seen below:
+
+.. code-block:: python
+
+    @staticmethod
+    def get_cli_commands() -> list[GroupCommand]:
+        sub_commands = [
+            ActionCommand(
+                name="command_name",
+                help="Description of what this specific command does",
+                func=lazy_load_command("path.to.python.function.for.command"),
+                args=(),
+            ),
+        ]
+
+        return [
+            GroupCommand(
+                name="my_cool_executor",
+                help="Description of what this group of commands do",
+                subcommands=sub_commands,
+            ),
+        ]
 
 .. note::
     There are no strict rules in place, currently, for the Airflow command namespace. It is up to developers to use names for their CLI commands that are sufficiently unique so as to not cause conflicts with other Airflow executors or components.
@@ -151,8 +172,23 @@ Executors may vend CLI commands which will be included in the ``airflow`` comman
 Logging
 ^^^^^^^
 
-Executors may vend log messages which will be included in the Airflow task logs. This can be helpful if the execution environment has extra context in the case of task failures, which may be due to the execution environment itself rather than the Airflow task code. It can also be helpful to include setup/teardown logging from the execution environment.
-The ``KubernetesExecutor`` leverages this this capability to include logs from the pod which ran a specific Airflow task and display them in the logs for that Airflow task.
+Executors may vend log messages which will be included in the Airflow task logs by implementing the ``get_task_logs`` method. This can be helpful if the execution environment has extra context in the case of task failures, which may be due to the execution environment itself rather than the Airflow task code. It can also be helpful to include setup/teardown logging from the execution environment.
+The ``KubernetesExecutor`` leverages this this capability to include logs from the pod which ran a specific Airflow task and display them in the logs for that Airflow task. A pseudo-code example of implementing task log vending from an executor can be seen below:
+
+.. code-block:: python
+
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+        messages = []
+        log = []
+        try:
+            res = helper_function_to_fetch_logs_from_execution_env(ti, try_number)
+            for line in res:
+                log.append(remove_escape_codes(line.decode()))
+            if log:
+                messages.append("Found logs from execution environment!")
+        except Exception as e:  # No exception should cause task logs to fail
+            messages.append(f"Failed to find logs from execution environment: {e}")
+        return messages, ["\n".join(log)]
 
 Next Steps
 ^^^^^^^^^^
