@@ -203,9 +203,9 @@ def connections_export(args):
         f.write(msg)
 
     if file_is_stdout:
-        print("\nConnections successfully exported.", file=sys.stderr)
+        print(f"\n{len(connections)} connections successfully exported.", file=sys.stderr)
     else:
-        print(f"Connections successfully exported to {args.file.name}.")
+        print(f"{len(connections)} connections successfully exported to {args.file.name}.")
 
 
 alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password", "conn_schema", "conn_port"]
