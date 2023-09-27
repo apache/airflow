@@ -143,7 +143,6 @@ from airflow.www.widgets import AirflowModelListWidget, AirflowVariableShowWidge
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
@@ -338,7 +337,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
             return operator.methodcaller("hierarchical_alphabetical_sort")
         raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
 
-    def task_group_to_grid(item: AbstractOperator | TaskGroup) -> dict[str, Any]:
+    def task_group_to_grid(item: Operator | TaskGroup) -> dict[str, Any]:
         if not isinstance(item, TaskGroup):
 
             def _mapped_summary(ti_summaries: list[TaskInstance]) -> Iterator[dict[str, Any]]:
@@ -3371,7 +3370,7 @@ class Airflow(AirflowBaseView):
         if not dag or task_id not in dag.task_ids:
             return {"url": None, "error": f"can't find dag {dag} or task_id {task_id}"}, 404
 
-        task: AbstractOperator = dag.get_task(task_id)
+        task = dag.get_task(task_id)
         link_name = request.args.get("link_name")
         if link_name is None:
             return {"url": None, "error": "Link name not passed"}, 400
