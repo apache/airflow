@@ -76,7 +76,7 @@ Writing Your Own Executor
 -------------------------
 
 All Airflow executors implement a common interface so that they are pluggable and any executor has access to all abilities and integrations within Airflow. Primarily, the Airflow scheduler uses this interface to interact with the executor, but other components such as logging, CLI and backfill do as well.
-The public interface is the :class:`~airflow.executors.base_executor.BaseExecutor`. You can look through the code for the most detailed and up to date interface, but some important highlights are outlined below:
+The public interface is the :class:`~airflow.executors.base_executor.BaseExecutor`. You can look through the code for the most detailed and up to date interface, but some important highlights are outlined below.
 
 .. note::
     For more information about Airflow's public interface see :doc:`/public-airflow-interface`.
@@ -84,7 +84,7 @@ The public interface is the :class:`~airflow.executors.base_executor.BaseExecuto
 Some reasons you may want to write a custom executor include:
 
 * An executor does not exist which fits your specific use case, such as a specific tool or service for compute.
-* You'd like to use an executor that leverages a compute service but from your preferred cloud provider.
+* You'd like to use an executor that leverages a compute service from your preferred cloud provider.
 * You have a private tool/service for task execution that is only available to you or your organization.
 
 
@@ -106,7 +106,7 @@ Mandatory Methods to Implement
 The following methods must be overridden at minimum to have your executor supported by Airflow:
 
 * ``sync``: Sync will get called periodically during executor heartbeats. Implement this method to update the state of the tasks which the executor knows about. Optionally, attempting to execute queued tasks that have been received from the scheduler.
-* ``execute_async``: executes a command asynchronously. A command in this context is an Airflow CLI command to run an Airflow task. This method is called (after a few layers) during executor heartbeat which is run periodically by the scheduler. In practice, this method often just enqueues tasks into an internal or external queue of tasks to be run (e.g. ``KubernetesExecutor``). But can also execute the tasks directly as well (e.g. ``LocalExecutor``). This will depend on the executor.
+* ``execute_async``: Executes a command asynchronously. A command in this context is an Airflow CLI command to run an Airflow task. This method is called (after a few layers) during executor heartbeat which is run periodically by the scheduler. In practice, this method often just enqueues tasks into an internal or external queue of tasks to be run (e.g. ``KubernetesExecutor``). But can also execute the tasks directly as well (e.g. ``LocalExecutor``). This will depend on the executor.
 
 
 Optional Interface Methods to Implement
@@ -115,8 +115,8 @@ Optional Interface Methods to Implement
 The following methods aren't required to override to have a functional Airflow executor. However, some powerful capabilities and stability can come from implementing them:
 
 * ``start``: The Airflow scheduler (and backfill) job will call this method after it initializes the executor object. Any additional setup required by the executor can be completed here.
-* end: The Airflow scheduler (and backfill) job will call this method as it is tearing down. Any synchronous cleanup required to finish running jobs should be done here.
-* ``terminate``: More forcefully stop the executor, even killing/stopping in flight tasks instead of synchronously waiting for completion.
+* ``end``: The Airflow scheduler (and backfill) job will call this method as it is tearing down. Any synchronous cleanup required to finish running jobs should be done here.
+* ``terminate``: More forcefully stop the executor, even killing/stopping in-flight tasks instead of synchronously waiting for completion.
 * ``cleanup_stuck_queued_tasks``: If tasks are stuck in the queued state for longer than ``task_queued_timeout`` then they are collected by the scheduler and provided to the executor to have an opportunity to handle them (perform any graceful cleanup/teardown) via this method and return the Task Instances for a warning message displayed to users.
 * ``try_adopt_task_instances``: Tasks that have been abandoned (e.g. from a scheduler job that died) are provided to the executor to adopt or otherwise handle them via this method. Any tasks that cannot be adopted (by default the BaseExector assumes all cannot be adopted) should be returned.
 * ``get_cli_commands``: Executors may vend CLI commands to users by implementing this method, see the `CLI`_ section below for more details.
@@ -164,7 +164,7 @@ Executors may vend CLI commands which will be included in the ``airflow`` comman
         ]
 
 .. note::
-    There are no strict rules in place, currently, for the Airflow command namespace. It is up to developers to use names for their CLI commands that are sufficiently unique so as to not cause conflicts with other Airflow executors or components.
+    Currently there are no strict rules in place for the Airflow command namespace. It is up to developers to use names for their CLI commands that are sufficiently unique so as to not cause conflicts with other Airflow executors or components.
 
 .. note::
     When creating a new executor, or updating any existing executors, be sure to not import or execute any expensive operations/code at the module level. Executor classes are imported in several places and if they are slow to import this will negatively impact the performance of your Airflow environment, especially for CLI commands.
