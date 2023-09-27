@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import collections
+import contextlib
 import copy
 import datetime
 import itertools
@@ -349,9 +350,9 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                         if state in record["mapped_states"]:
                             record["state"] = state
                             break
-                    if None in record["mapped_states"]:
-                        # When turning the dict into JSON we can't have None as a key,
-                        # so use the string that the UI does.
+                    # When turning the dict into JSON we can't have None as a key,
+                    # so use the string that the UI does.
+                    with contextlib.suppress(KeyError):
                         record["mapped_states"]["no_status"] = record["mapped_states"].pop(None)
 
                 for ti_summary in ti_summaries:
