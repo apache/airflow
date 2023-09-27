@@ -121,7 +121,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import to_boolean
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup, task_group_to_dict
+from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
@@ -425,14 +425,9 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 **setup_teardown_type,
             }
 
-        def check_group_is_mapped(tg: TaskGroup | None) -> bool:
-            if tg is None:
-                return False
-            return isinstance(tg, MappedTaskGroup) or check_group_is_mapped(tg.parent_group)
-
         # Task Group
         task_group = item
-        group_is_mapped = check_group_is_mapped(task_group)
+        group_is_mapped = next(task_group.iter_mapped_task_groups(), None) is not None
 
         children = [
             task_group_to_grid(child, grouped_tis, is_parent_mapped=group_is_mapped)
