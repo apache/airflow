@@ -210,15 +210,13 @@ class FabAuthManager(BaseAuthManager):
             # Scenario 2
             resource_type = self._get_fab_resource_type(access_entity)
             dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
-            dag_level_check = (
-                self._is_authorized_dag(method=dag_method, details=details, user=user)
-                if details and details.id
-                else True
-            )
 
-            return dag_level_check and self._is_authorized(
-                method=method, resource_type=resource_type, user=user
-            )
+            if (details and details.id) and not self._is_authorized_dag(
+                method=dag_method, details=details, user=user
+            ):
+                return False
+
+            return self._is_authorized(method=method, resource_type=resource_type, user=user)
 
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
