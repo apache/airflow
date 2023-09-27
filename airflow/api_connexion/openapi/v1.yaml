@@ -983,6 +983,12 @@ paths:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/FilterDAGID'
+        - $ref: '#/components/parameters/FilterTaskID'
+        - $ref: '#/components/parameters/Event'
+        - $ref: '#/components/parameters/Owner'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/After'
       responses:
         '200':
           description: Success.
@@ -4810,6 +4816,40 @@ components:
       required: true
       description: The task ID.
 
+    Event:
+      in: query
+      name: event
+      schema:
+        type: string
+      required: false
+      description: The name of event log.
+
+    Owner:
+      in: query
+      name: owner
+      schema:
+        type: string
+      required: false
+      description: The owner's name of event log.
+
+    Before:
+      in: query
+      name: before
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: Timestamp to select event logs occurring before.
+
+    After:
+      in: query
+      name: after
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: Timestamp to select event logs occurring after.
+
     MapIndex:
       in: path
       name: map_index
@@ -5146,6 +5186,22 @@ components:
         type: string
       required: false
       description: Only filter the XCom records which have the provided key.
+
+    FilterDAGID:
+      in: query
+      name: dag_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the DAG ID.
+
+    FilterTaskID:
+      in: query
+      name: task_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the Task ID.
 
     # Other parameters
     FileToken:

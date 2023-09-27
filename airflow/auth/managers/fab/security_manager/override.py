@@ -20,6 +20,8 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import os
+import random
 import uuid
 import warnings
 from functools import cached_property
@@ -338,6 +340,43 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def create_builtin_roles(self):
         """Returns FAB builtin roles."""
         return self.appbuilder.app.config.get("FAB_ROLES", {})
+
+    def create_admin_standalone(self) -> tuple[str | None, str | None]:
+        """Create an Admin user with a random password so that users can access airflow."""
+        from airflow.configuration import AIRFLOW_HOME, make_group_other_inaccessible
+
+        user_name = "admin"
+
+        # We want a streamlined first-run experience, but we do not want to
+        # use a preset password as people will inevitably run this on a public
+        # server. Thus, we make a random password and store it in AIRFLOW_HOME,
+        # with the reasoning that if you can read that directory, you can see
+        # the database credentials anyway.
+        password_path = os.path.join(AIRFLOW_HOME, "standalone_admin_password.txt")
+
+        user_exists = self.find_user(user_name) is not None
+        we_know_password = os.path.isfile(password_path)
+
+        # If the user does not exist, make a random password and make it
+        if not user_exists:
+            print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
+            role = self.find_role("Admin")
+            assert role is not None
+            # password does not contain visually similar characters: ijlIJL1oO0
+            password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
+            with open(password_path, "w") as file:
+                file.write(password)
+            make_group_other_inaccessible(password_path)
+            self.add_user(user_name, "Admin", "User", "admin@example.com", role, password)
+            print(f"FlaskAppBuilder Authentication Manager: Created {user_name} user")
+        # If the user does exist, and we know its password, read the password
+        elif user_exists and we_know_password:
+            with open(password_path) as file:
+                password = file.read().strip()
+        # Otherwise we don't know the password
+        else:
+            password = None
+        return user_name, password
 
     def _init_config(self):
         """

@@ -148,6 +148,7 @@ combine-as-imports = true
 
 [tool.ruff.flake8-tidy-imports.banned-api]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
+"airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
 
 [tool.coverage.run]
 branch = true

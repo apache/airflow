@@ -2196,7 +2196,7 @@ class TestTaskInstance:
         Test that when a task that produces dataset has ran, that changing the consumer
         dag dataset will not cause primary key blank-out
         """
-        from airflow import Dataset
+        from airflow.datasets import Dataset
 
         with dag_maker(schedule=None, serialized=True) as dag1:
 
