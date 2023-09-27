@@ -21,6 +21,8 @@ import base64
 import pickle
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from requests import Response
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -29,7 +31,6 @@ from airflow.providers.http.triggers.http import HttpTrigger
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
-    from requests import Response
     from requests.auth import AuthBase
 
     from airflow.utils.context import Context

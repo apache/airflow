@@ -20,7 +20,6 @@ from __future__ import annotations
 import base64
 import contextlib
 import pickle
-from typing import Optional
 from unittest import mock
 
 import pytest
@@ -96,7 +95,7 @@ class TestSimpleHttpOp:
         """
         has_returned: bool = False
 
-        def pagination_function(response: Response) -> Optional[dict]:
+        def pagination_function(response: Response) -> dict | None:
             """Paginated function which returns None at the second call."""
             nonlocal has_returned
             if not has_returned:
@@ -168,7 +167,7 @@ class TestSimpleHttpOp:
 
         has_returned: bool = False
 
-        def pagination_function(response: Response) -> Optional[dict]:
+        def pagination_function(response: Response) -> dict | None:
             """Paginated function which returns None at the second call."""
             nonlocal has_returned
             if not has_returned:
