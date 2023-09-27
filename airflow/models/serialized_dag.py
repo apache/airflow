@@ -24,10 +24,12 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Collection
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_, select
+from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, exc, or_, select
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
+from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.exceptions import TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
@@ -44,6 +46,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
+    from airflow.models import Operator
     from airflow.models.dag import DAG
 
 log = logging.getLogger(__name__)
@@ -408,3 +411,18 @@ class SerializedDagModel(Base):
                 select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies"))
             )
         return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def get_serialized_dag(dag_id: str, task_id: str, session: Session = NEW_SESSION) -> Operator | None:
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        try:
+            model = session.get(SerializedDagModel, dag_id)
+            if model:
+                return model.dag.get_task(task_id)
+        except (exc.NoResultFound, TaskNotFound):
+            return None
+
+        return None

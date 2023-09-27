@@ -24,7 +24,7 @@ import boto3
 import pytest
 from moto import mock_s3
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,

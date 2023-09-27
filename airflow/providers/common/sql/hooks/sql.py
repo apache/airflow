@@ -36,7 +36,7 @@ import sqlparse
 from packaging.version import Version
 from sqlalchemy import create_engine
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.version import version
 

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import io
 import logging
 import os
 import pickle
@@ -27,6 +26,7 @@ import sys
 import weakref
 from contextlib import redirect_stdout
 from datetime import timedelta
+from io import StringIO
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -1357,7 +1357,7 @@ class TestDag:
             op3 = EmptyOperator(task_id="t3")
             op1 >> op2 >> op3
 
-            with redirect_stdout(io.StringIO()) as stdout:
+            with redirect_stdout(StringIO()) as stdout:
                 dag.tree_view()
                 stdout = stdout.getvalue()
 

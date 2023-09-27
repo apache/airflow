@@ -31,7 +31,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
 from airflow.utils.db_cleanup import (
