@@ -254,7 +254,7 @@ Set it to true for windows.
 
 .. code-block:: bash
 
-  $ git config --global core.autocrlf true
+  $ git config core.autocrlf true
 
 Typical development tasks
 #########################
