@@ -24,6 +24,7 @@ import itertools
 import json
 import logging
 import math
+import operator
 import sys
 import traceback
 import warnings
@@ -82,6 +83,7 @@ from airflow.api.common.mark_tasks import (
     set_state,
 )
 from airflow.auth.managers.models.resource_details import DagAccessEntity
+from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import (
@@ -294,7 +296,7 @@ def node_dict(node_id, label, node_class):
     }
 
 
-def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
+def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> dict[str, Any]:
     """
     Create a nested dict representation of the DAG's TaskGroup and its children.
 
@@ -326,18 +328,13 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
         ((task_id, list(tis)) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)),
     )
 
-    sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
-    if sort_order == "topological":
-
-        def sort_children_fn(task_group):
-            return task_group.topological_sort()
-
-    elif sort_order == "hierarchical_alphabetical":
-
-        def sort_children_fn(task_group):
-            return task_group.hierarchical_alphabetical_sort()
-
-    else:
+    @cache
+    def get_task_group_children_getter() -> operator.methodcaller:
+        sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
+        if sort_order == "topological":
+            return operator.methodcaller("topological_sort")
+        if sort_order == "hierarchical_alphabetical":
+            return operator.methodcaller("hierarchical_alphabetical_sort")
         raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
 
     def task_group_to_grid(item: AbstractOperator | TaskGroup) -> dict[str, Any]:
@@ -431,7 +428,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
 
         # Task Group
         task_group = item
-        children = [task_group_to_grid(child) for child in sort_children_fn(task_group)]
+        children = [task_group_to_grid(child) for child in get_task_group_children_getter()(item)]
 
         def get_summary(dag_run: DagRun):
             child_instances = [
