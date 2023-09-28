@@ -69,6 +69,10 @@ RUN_LIFE_CYCLE_STATES = [
 
 SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
 
+CREATE_REPO_ENDPOINT = ("POST", "api/2.0/repos")
+DELETE_REPO_ENDPOINT = ("DELETE", "api/2.0/repos/{repo_id}")
+UPDATE_REPO_ENDPOINT = ("PATCH", "api/2.0/repos/{repo_id}")
+
 
 class RunState:
     """Utility class for the run state concept of Databricks runs."""
@@ -526,8 +530,9 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: metadata from update
         """
-        repos_endpoint = ("PATCH", f"api/2.0/repos/{repo_id}")
-        return self._do_api_call(repos_endpoint, json)
+        modify_route = lambda tuple, repo_id: (tuple[0], tuple[1].format(repo_id=repo_id))
+        modified_update_repo_endpoint = modify_route(UPDATE_REPO_ENDPOINT, repo_id)
+        return self._do_api_call(modified_update_repo_endpoint, json)
 
     def delete_repo(self, repo_id: str):
         """
@@ -536,8 +541,9 @@ class DatabricksHook(BaseDatabricksHook):
         :param repo_id: ID of Databricks Repos
         :return:
         """
-        repos_endpoint = ("DELETE", f"api/2.0/repos/{repo_id}")
-        self._do_api_call(repos_endpoint)
+        modify_route = lambda t, repo_id: (t[0], t[1].format(repo_id=repo_id))
+        modified_delete_repo_endpoint = modify_route(DELETE_REPO_ENDPOINT, repo_id)
+        self._do_api_call(modified_delete_repo_endpoint)
 
     def create_repo(self, json: dict[str, Any]) -> dict:
         """
@@ -546,8 +552,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return:
         """
-        repos_endpoint = ("POST", "api/2.0/repos")
-        return self._do_api_call(repos_endpoint, json)
+        return self._do_api_call(CREATE_REPO_ENDPOINT, json)
 
     def get_repo_by_path(self, path: str) -> str | None:
         """
