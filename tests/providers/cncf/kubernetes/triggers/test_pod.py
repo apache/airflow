@@ -364,7 +364,7 @@ class TestKubernetesPodTrigger:
                     "namespace": NAMESPACE,
                     "status": "timeout",
                     "message": f"Pod took longer than {STARTUP_TIMEOUT_SECS} seconds to start."
-                    f" Check the pod events in kubernetes to determine why.",
+                    " Check the pod events in kubernetes to determine why.",
                 }
             )
             == actual

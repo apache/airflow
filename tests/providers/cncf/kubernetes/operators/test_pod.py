@@ -1849,9 +1849,7 @@ def test_default_container_logs():
 @patch(KUB_OP_PATH.format("post_complete_action"))
 @patch(HOOK_CLASS)
 @patch(KUB_OP_PATH.format("pod_manager"))
-def test_async_skip_kpo_wait_termination_with_timeout_event(
-    mock_manager, mocked_hook, post_complete_action
-):
+def test_async_skip_kpo_wait_termination_with_timeout_event(mock_manager, mocked_hook, post_complete_action):
     metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
     pending_state = mock.MagicMock(**metadata, **{"status.phase": "Pending"})
     mocked_hook.return_value.get_pod.return_value = pending_state
