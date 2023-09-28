@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-28T10:01:26Z
+# This constraints file was automatically generated on 2023-09-28T15:45:45Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -413,7 +413,7 @@ more-itertools==10.1.0
 moto==4.2.4
 msal-extensions==1.0.0
 msal==1.24.0
-msgpack==1.0.6
+msgpack==1.0.7
 msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
@@ -428,7 +428,7 @@ mysql-connector-python==8.1.0
 mysqlclient==2.2.0
 nbclient==0.8.0
 nbformat==5.9.2
-neo4j==5.12.0
+neo4j==5.13.0
 nh3==0.2.14
 nodeenv==1.8.0
 numpy==1.24.4
@@ -486,7 +486,7 @@ prompt-toolkit==3.0.39
 proto-plus==1.22.3
 protobuf==4.21.12
 psutil==5.9.5
-psycopg2-binary==2.9.7
+psycopg2-binary==2.9.8
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
