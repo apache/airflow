@@ -191,7 +191,7 @@ class ExtendedHttpOperator(SimpleHttpOperator):
     Extends the functionalities of the SimpleHttpOperator.
 
     Support advanced use-cases with a wider range of features. Depending on the usage,
-    this Operator car potentially be more memory and CPU intensive compared to the SimpleHttpOperator.
+    this Operator can potentially be more memory and CPU intensive compared to the SimpleHttpOperator.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
