@@ -29,9 +29,10 @@ from typing import TYPE_CHECKING
 
 from googleapiclient import discovery
 
-from airflow import models, settings
+from airflow import settings
 from airflow.decorators import task, task_group
-from airflow.models import Connection
+from airflow.models.connection import Connection
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
@@ -162,7 +163,7 @@ CONNECTIONS = [
 log = logging.getLogger(__name__)
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,

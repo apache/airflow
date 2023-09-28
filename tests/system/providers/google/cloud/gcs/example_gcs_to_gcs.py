@@ -25,9 +25,9 @@ import os
 import shutil
 from datetime import datetime
 
-from airflow import models
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
@@ -50,7 +50,7 @@ HOME = "/home/airflow/gcs"
 PREFIX = f"{HOME}/data/{DAG_ID}_{ENV_ID}/"
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

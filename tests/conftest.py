@@ -619,7 +619,7 @@ def dag_maker(request):
             **kwargs,
         ):
             from airflow import settings
-            from airflow.models import DAG
+            from airflow.models.dag import DAG
             from airflow.utils import timezone
 
             if session is None:
