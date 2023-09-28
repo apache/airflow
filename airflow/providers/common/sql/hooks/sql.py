@@ -218,6 +218,26 @@ class DbApiHook(BaseForDbApiHook):
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
+    def get_polars_df(self, sql, **kwargs):
+        """
+        Executes the sql and returns a polars dataframe.
+
+        :param sql: the sql statement to be executed (str) or a list of
+            sql statements to execute
+        :param parameters: The parameters to render the SQL query with.
+        :param kwargs: (optional) passed into polars.read_database method
+        """
+        try:
+            import polars as pl
+        except ImportError:
+            raise Exception(
+                "polars library not installed, run: pip install "
+                "'apache-airflow-providers-common-sql[polars]'."
+            )
+
+        with closing(self.get_conn()) as conn:
+            return pl.read_database(sql, connection=conn, **kwargs)
+
     def get_pandas_df_by_chunks(
         self, sql, parameters: Iterable | Mapping[str, Any] | None = None, *, chunksize: int | None, **kwargs
     ):
