@@ -530,8 +530,9 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: metadata from update
         """
-        repos_endpoint = UPDATE_REPO_ENDPOINT[1].format(repo_id=repo_id)
-        return self._do_api_call(repos_endpoint, json)
+        modify_route = lambda tuple, repo_id: (tuple[0], tuple[1].format(repo_id=repo_id))
+        modified_update_repo_endpoint = modify_route(UPDATE_REPO_ENDPOINT, repo_id)
+        return self._do_api_call(modified_update_repo_endpoint, json)
 
     def delete_repo(self, repo_id: str):
         """
@@ -540,8 +541,9 @@ class DatabricksHook(BaseDatabricksHook):
         :param repo_id: ID of Databricks Repos
         :return:
         """
-        repos_endpoint = DELETE_REPO_ENDPOINT[1].format(repo_id=repo_id)
-        self._do_api_call(repos_endpoint)
+        modify_route = lambda tuple, repo_id: (tuple[0], tuple[1].format(repo_id=repo_id))
+        modified_delete_repo_endpoint = modify_route(DELETE_REPO_ENDPOINT, repo_id)
+        self._do_api_call(modified_delete_repo_endpoint)
 
     def create_repo(self, json: dict[str, Any]) -> dict:
         """
