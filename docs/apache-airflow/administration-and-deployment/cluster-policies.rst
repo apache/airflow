@@ -67,8 +67,6 @@ There are two ways to configure cluster policies:
 
    .. versionadded:: 2.6
 
-   .. note:: |experimental|
-
    This method is more advanced and for people who are already comfortable with python packaging.
 
    First create your policy function in a module:

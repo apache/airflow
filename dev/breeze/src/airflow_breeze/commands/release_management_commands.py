@@ -26,7 +26,6 @@ import time
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from re import Pattern, match
 from typing import IO, Generator, NamedTuple
 
 import click
@@ -53,6 +52,7 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.common_options import (
     argument_packages,
     argument_packages_plus_all_providers,
+    argument_packages_plus_all_providers_for_shorthand,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
@@ -82,7 +82,7 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
     get_env_variables_for_docker_commands,
@@ -515,7 +515,7 @@ WHEEL_FILENAME_PATTERN = re.compile(rf"{WHEEL_FILENAME_PREFIX}(.*)-[0-9].*\.whl"
 
 
 def _get_all_providers_in_dist(
-    filename_prefix: str, filename_pattern: Pattern[str]
+    filename_prefix: str, filename_pattern: re.Pattern[str]
 ) -> Generator[str, None, None]:
     for file in DIST_DIR.glob(f"{filename_prefix}*.tar.gz"):
         matched = filename_pattern.match(file.name)
@@ -837,10 +837,13 @@ def run_publish_docs_in_parallel(
 )
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @option_airflow_site_directory
+@argument_packages_plus_all_providers_for_shorthand
 @click.option(
     "--package-filter",
-    help="List of packages to consider.",
-    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
+    "the short hand names or the glob pattern matching the full package name. "
+    "The list of short hand names can be found in --help output",
+    type=str,
     multiple=True,
 )
 @option_run_in_parallel
@@ -853,6 +856,7 @@ def run_publish_docs_in_parallel(
 def publish_docs(
     override_versioned: bool,
     airflow_site_directory: str,
+    packages_plus_all_providers: tuple[str],
     package_filter: tuple[str],
     run_in_parallel: bool,
     parallelism: int,
@@ -869,8 +873,10 @@ def publish_docs(
 
     available_packages = get_available_packages()
     package_filters = package_filter
+    current_packages = process_package_filters(
+        available_packages, package_filters, packages_plus_all_providers
+    )
 
-    current_packages = process_package_filters(available_packages, package_filters)
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
         print(f" - {pkg}")
@@ -974,7 +980,7 @@ def release_prod_images(
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     rebuild_or_pull_ci_image_if_needed(command_params=ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION))
-    if not match(r"^\d*\.\d*\.\d*$", airflow_version):
+    if not re.match(r"^\d*\.\d*\.\d*$", airflow_version):
         get_console().print(
             f"[warning]Skipping latest image tagging as this is a pre-release version: {airflow_version}"
         )
@@ -1087,16 +1093,19 @@ def release_prod_images(
                     f"{dockerhub_repo}:{airflow_version}-python{python}",
                     f"{dockerhub_repo}:latest-python{python}",
                 )
-        if slim_images:
-            alias_image(
-                f"{dockerhub_repo}:slim-{airflow_version}",
-                f"{dockerhub_repo}:slim-latest",
-            )
-        else:
-            alias_image(
-                f"{dockerhub_repo}:{airflow_version}",
-                f"{dockerhub_repo}:latest",
-            )
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            # only tag latest  "default" image when we build default python version
+            # otherwise if the non-default images complete before the default one, their jobs will fail
+            if slim_images:
+                alias_image(
+                    f"{dockerhub_repo}:slim-{airflow_version}",
+                    f"{dockerhub_repo}:slim-latest",
+                )
+            else:
+                alias_image(
+                    f"{dockerhub_repo}:{airflow_version}",
+                    f"{dockerhub_repo}:latest",
+                )
 
 
 def is_package_in_dist(dist_files: list[str], package: str) -> bool:
@@ -1225,9 +1234,7 @@ def generate_issue_content_providers(
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
         with Progress(console=get_console(), disable=disable_progress) as progress:
             task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
-            pr_list = list(all_prs)
-            for i in range(len(pr_list)):
-                pr_number = pr_list[i]
+            for pr_number in all_prs:
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )

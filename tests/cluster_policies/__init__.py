@@ -26,7 +26,8 @@ from airflow.exceptions import AirflowClusterPolicySkipDag, AirflowClusterPolicy
 from airflow.models.baseoperator import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.models import DAG, TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.taskinstance import TaskInstance
 
 
 # [START example_cluster_policy_rule]

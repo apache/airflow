@@ -177,6 +177,17 @@ class TestDagProcessor:
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"dagProcessor": {"enabled": True}, "schedulerName": "airflow-scheduler"},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={

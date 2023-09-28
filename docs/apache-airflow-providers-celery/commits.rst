@@ -28,14 +28,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.4
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`50cccbdf44 <https://github.com/apache/airflow/commit/50cccbdf4422c7a394709f5ce2f3d833dee16e9d>`_  2023-09-08   ``Fix bad "code cleanup" in celery executor (#34192)``
+`fa5e54c4c5 <https://github.com/apache/airflow/commit/fa5e54c4c57631de353102af56633f05346685f9>`_  2023-09-03   ``Combine similar if logics in providers (#33987)``
+`b6318ffabc <https://github.com/apache/airflow/commit/b6318ffabce8cc3fdb02c30842726476b7e1fcca>`_  2023-09-02   ``Limit celery by excluding 5.3.2 and 5.3.3 (#34031)``
+`a9bbb430fc <https://github.com/apache/airflow/commit/a9bbb430fcf6df7ac2677edfe5b0402c23cfe8e2>`_  2023-09-01   ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+=================================================================================================  ===========  ===================================================================================================
+
 3.3.3
 .....
 
-Latest change: 2023-08-23
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `b1a3b42880 <https://github.com/apache/airflow/commit/b1a3b4288022c67db22cbc7d24b0c4b2b122453b>`_  2023-08-23   ``Make auth managers provide their own airflow CLI commands (#33481)``
 `ae25a52ae3 <https://github.com/apache/airflow/commit/ae25a52ae342c9e0bc3afdb21d613447c3687f6c>`_  2023-08-21   ``Fix dependencies for celery and opentelemetry for Python 3.8 (#33579)``
 `4c4981d1ad <https://github.com/apache/airflow/commit/4c4981d1adf2bd8b28ffa7e6ed57162abb8feb8f>`_  2023-08-21   ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``

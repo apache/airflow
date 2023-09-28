@@ -40,12 +40,14 @@ from flask_appbuilder.views import IndexView, UtilView
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.www.extensions.init_auth_manager import get_auth_manager
+from airflow.www.extensions.init_auth_manager import get_auth_manager, init_auth_manager
 
 if TYPE_CHECKING:
+    from flask import Flask
     from flask_appbuilder import BaseView
     from flask_appbuilder.security.manager import BaseSecurityManager
     from sqlalchemy.orm import Session
+
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -69,7 +71,7 @@ def dynamic_class_import(class_path):
         return reduce(getattr, tmp[1:], package)
     except Exception as e:
         log.exception(e)
-        log.error(LOGMSG_ERR_FAB_ADDON_IMPORT.format(class_path, e))
+        log.error(LOGMSG_ERR_FAB_ADDON_IMPORT, class_path, e)
 
 
 class AirflowAppBuilder:
@@ -352,10 +354,10 @@ class AirflowAppBuilder:
                     addon_class.register_views()
                     addon_class.post_process()
                     self.addon_managers[addon] = addon_class
-                    log.info(LOGMSG_INF_FAB_ADDON_ADDED.format(str(addon)))
+                    log.info(LOGMSG_INF_FAB_ADDON_ADDED, addon)
                 except Exception as e:
                     log.exception(e)
-                    log.error(LOGMSG_ERR_FAB_ADDON_PROCESS.format(addon, e))
+                    log.error(LOGMSG_ERR_FAB_ADDON_PROCESS, addon, e)
 
     def _check_and_init(self, baseview):
         if hasattr(baseview, "datamodel"):
@@ -443,7 +445,7 @@ class AirflowAppBuilder:
             appbuilder.add_link("google", href="www.google.com", icon = "fa-google-plus")
         """
         baseview = self._check_and_init(baseview)
-        log.info(LOGMSG_INF_FAB_ADD_VIEW.format(baseview.__class__.__name__, name))
+        log.info(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, name)
 
         if not self._view_exists(baseview):
             baseview.appbuilder = self
@@ -544,7 +546,7 @@ class AirflowAppBuilder:
         :param baseview: A BaseView type class instantiated.
         """
         baseview = self._check_and_init(baseview)
-        log.info(LOGMSG_INF_FAB_ADD_VIEW.format(baseview.__class__.__name__, ""))
+        log.info(LOGMSG_INF_FAB_ADD_VIEW, baseview.__class__.__name__, "")
 
         if not self._view_exists(baseview):
             baseview.appbuilder = self
@@ -554,7 +556,7 @@ class AirflowAppBuilder:
                 self.register_blueprint(baseview, endpoint=endpoint, static_folder=static_folder)
                 self._add_permission(baseview)
         else:
-            log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS.format(baseview.__class__.__name__))
+            log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS, baseview.__class__.__name__)
         return baseview
 
     def security_cleanup(self):
@@ -620,7 +622,7 @@ class AirflowAppBuilder:
                 self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
             except Exception as e:
                 log.exception(e)
-                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW.format(str(e)))
+                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW, e)
 
     def _add_permissions_menu(self, name, update_perms=False):
         if self.update_perms or update_perms:
@@ -628,7 +630,7 @@ class AirflowAppBuilder:
                 self.sm.add_permissions_menu(name)
             except Exception as e:
                 log.exception(e)
-                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_MENU.format(str(e)))
+                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_MENU, e)
 
     def _add_menu_permissions(self, update_perms=False):
         if self.update_perms or update_perms:
@@ -655,22 +657,13 @@ class AirflowAppBuilder:
                         view.get_init_inner_views().append(v)
 
 
-def init_appbuilder(app) -> AirflowAppBuilder:
+def init_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
-    from airflow.www.security import AirflowSecurityManager
-
-    security_manager_class = app.config.get("SECURITY_MANAGER_CLASS") or AirflowSecurityManager
-
-    if not issubclass(security_manager_class, AirflowSecurityManager):
-        raise Exception(
-            """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
-             not FAB's security manager."""
-        )
-
+    auth_manager = init_auth_manager(app)
     return AirflowAppBuilder(
         app=app,
         session=settings.Session,
-        security_manager_class=security_manager_class,
+        security_manager_class=auth_manager.get_security_manager_override_class(),
         base_template="airflow/main.html",
         update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
         auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),

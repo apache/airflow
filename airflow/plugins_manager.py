@@ -340,9 +340,8 @@ def ensure_plugins_loaded():
         for plugin in plugins:
             registered_hooks.extend(plugin.hooks)
 
-    num_loaded = len(plugins)
-    if num_loaded > 0:
-        log.debug("Loading %d plugin(s) took %.2f seconds", num_loaded, timer.duration)
+    if plugins:
+        log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
 
 
 def initialize_web_ui_plugins():

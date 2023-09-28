@@ -21,7 +21,6 @@ from unittest.mock import patch
 
 import pytest
 from asana import Client
-from pytest import param
 
 from airflow.models import Connection
 from airflow.providers.asana.hooks.asana import AsanaHook
@@ -254,11 +253,11 @@ class TestAsanaHook:
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://?extra__asana__workspace=abc&extra__asana__project=abc",
                 id="prefix",
             ),
-            param("a://?workspace=abc&project=abc", id="no-prefix"),
+            pytest.param("a://?workspace=abc&project=abc", id="no-prefix"),
         ],
     )
     def test_backcompat_prefix_works(self, uri):

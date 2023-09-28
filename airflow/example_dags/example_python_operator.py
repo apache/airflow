@@ -29,8 +29,8 @@ from pprint import pprint
 
 import pendulum
 
-from airflow import DAG
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.operators.python import ExternalPythonOperator, PythonVirtualenvOperator, is_venv_installed
 
 log = logging.getLogger(__name__)

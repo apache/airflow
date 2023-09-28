@@ -264,7 +264,6 @@ def assign_prs(
 ):
     changes = get_changes(verbose, previous_release, current_release)
     changes = [change for change in changes if change.pr is not None]
-    prs = [change.pr for change in changes]
 
     g = Github(github_token)
     repo = g.get_repo("apache/airflow")
@@ -276,9 +275,7 @@ def assign_prs(
         console.print("\n[yellow]Implying --skip-assigned as summary report is enabled[/]\n")
         skip_assigned = True
     milestone = repo.get_milestone(milestone_number)
-    count_prs = len(prs)
-    if limit_pr_count:
-        count_prs = limit_pr_count
+    count_prs = limit_pr_count or len(changes)
     console.print(f"\n[green]Applying Milestone: {milestone.title} to {count_prs} merged PRs[/]\n")
     if dry_run:
         console.print("[yellow]Dry run mode![/]\n")
@@ -291,8 +288,8 @@ def assign_prs(
     changelog_changes: list[Change] = []
     doc_only_changes: list[Change] = []
     excluded_changes: list[Change] = []
-    for i in range(count_prs):
-        pr_number = prs[i]
+    for change in changes[:count_prs]:
+        pr_number = change.pr
         if pr_number is None:
             # Should not happen but MyPy is not happy
             continue
@@ -322,15 +319,15 @@ def assign_prs(
             if TYPE_DOC_ONLY_LABEL in label_names:
                 console.print("[yellow]It will be classified as doc-only change[/]\n")
                 if skip_assigned:
-                    doc_only_changes.append(changes[i])
+                    doc_only_changes.append(change)
             elif CHANGELOG_SKIP_LABEL in label_names:
                 console.print("[yellow]It will be excluded from changelog[/]\n")
                 if skip_assigned:
-                    excluded_changes.append(changes[i])
+                    excluded_changes.append(change)
             else:
                 console.print("[green]The change will be included in changelog[/]\n")
                 if skip_assigned:
-                    changelog_changes.append(changes[i])
+                    changelog_changes.append(change)
             if skip_assigned:
                 continue
         elif already_assigned_milestone_number is not None:
@@ -350,21 +347,21 @@ def assign_prs(
             if not dry_run:
                 update_milestone(repo, pr, milestone)
             if skip_assigned:
-                changelog_changes.append(changes[i])
+                changelog_changes.append(change)
         elif chosen_option in ("doc", "d"):
             console.print(f"Applying the label {doc_only_label} the PR #{pr_number}")
             if not dry_run:
                 pr.add_to_labels(doc_only_label)
                 update_milestone(repo, pr, milestone)
             if skip_assigned:
-                doc_only_changes.append(changes[i])
+                doc_only_changes.append(change)
         elif chosen_option in ("exclude", "e"):
             console.print(f"Applying the label {changelog_skip_label} the PR #{pr_number}")
             if not dry_run:
                 pr.add_to_labels(changelog_skip_label)
                 update_milestone(repo, pr, milestone)
             if skip_assigned:
-                excluded_changes.append(changes[i])
+                excluded_changes.append(change)
         elif chosen_option in ("skip", "s"):
             console.print(f"Skipping the PR #{pr_number}")
         elif chosen_option in ("quit", "q"):

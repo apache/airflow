@@ -506,6 +506,18 @@ class TestPodTemplateFile:
             "spec.topologySpreadConstraints[0]", docs[0]
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.schedulerName",
+            docs[0],
+        )
+
     def test_should_not_create_default_affinity(self):
         docs = render_chart(show_only=["templates/pod-template-file.yaml"], chart_dir=self.temp_chart_dir)
 
@@ -780,3 +792,14 @@ class TestPodTemplateFile:
         )
 
         assert 123 == jmespath.search("spec.terminationGracePeriodSeconds", docs[0])
+
+    def test_runtime_class_name_values_are_configurable(self):
+        docs = render_chart(
+            values={
+                "workers": {"runtimeClassName": "nvidia"},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.runtimeClassName", docs[0]) == "nvidia"

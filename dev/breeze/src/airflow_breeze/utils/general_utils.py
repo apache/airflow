@@ -16,20 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
+from airflow_breeze.global_constants import PROVIDERS_INDEX_KEY
+
+providers_prefix = "apache-airflow-providers-"
 
 
-class TestAthenaTrigger:
-    def test_serialize_recreate(self):
-        trigger = AthenaTrigger("query_id", 1, 5, "aws connection")
+def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
+    providers = []
+    for short_form_provider in short_form_providers:
+        if short_form_provider == PROVIDERS_INDEX_KEY:
+            providers.append("apache-airflow-providers")
+            continue
 
-        class_path, args = trigger.serialize()
-
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
-
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2
+        short_form_provider.split(".")
+        parts = "-".join(short_form_provider.split("."))
+        providers.append(providers_prefix + parts)
+    return tuple(providers)

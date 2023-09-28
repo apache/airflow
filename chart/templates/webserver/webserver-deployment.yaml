@@ -107,6 +107,9 @@ spec:
       {{- if .Values.webserver.priorityClassName }}
       priorityClassName: {{ .Values.webserver.priorityClassName }}
       {{- end }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity:
         {{- if $affinity }}
@@ -169,7 +172,7 @@ spec:
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          securityContext: {{ or $containerSecurityContext .Values.webserver.securityContexts.container .Values.securityContexts.container | nindent 12 }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}

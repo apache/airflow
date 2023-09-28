@@ -16,31 +16,85 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.exceptions import AirflowException
-from airflow.www.security import ApplessAirflowSecurityManager
+from airflow.www.security_appless import ApplessAirflowSecurityManager
+from airflow.www.security_manager import AirflowSecurityManagerV2
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.auth.managers.models.resource_details import ConnectionDetails, DagAccessEntity, DagDetails
+
+
+class EmptyAuthManager(BaseAuthManager):
+    def get_user_name(self) -> str:
+        raise NotImplementedError()
+
+    def get_user(self) -> BaseUser:
+        raise NotImplementedError()
+
+    def get_user_id(self) -> str:
+        raise NotImplementedError()
+
+    def is_authorized_configuration(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_connection(
+        self,
+        *,
+        method: ResourceMethod,
+        connection_details: ConnectionDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_dag(
+        self,
+        *,
+        method: ResourceMethod,
+        dag_access_entity: DagAccessEntity | None = None,
+        dag_details: DagDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_dataset(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_variable(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_website(self, *, user: BaseUser | None = None) -> bool:
+        raise NotImplementedError()
+
+    def is_logged_in(self) -> bool:
+        raise NotImplementedError()
+
+    def get_url_login(self, **kwargs) -> str:
+        raise NotImplementedError()
+
+    def get_url_logout(self) -> str:
+        raise NotImplementedError()
+
+    def get_url_user_profile(self) -> str | None:
+        raise NotImplementedError()
 
 
 @pytest.fixture
 def auth_manager():
-    class EmptyAuthManager(BaseAuthManager):
-        def get_user_name(self) -> str:
-            raise NotImplementedError()
-
-        def is_logged_in(self) -> bool:
-            raise NotImplementedError()
-
-        def get_url_login(self, **kwargs) -> str:
-            raise NotImplementedError()
-
-    return EmptyAuthManager()
+    return EmptyAuthManager(None)
 
 
 class TestBaseAuthManager:
     def test_get_security_manager_override_class_return_empty_class(self, auth_manager):
-        assert auth_manager.get_security_manager_override_class() is object
+        assert auth_manager.get_security_manager_override_class() is AirflowSecurityManagerV2
 
     def test_get_security_manager_not_defined(self, auth_manager):
         with pytest.raises(AirflowException, match="Security manager not defined."):

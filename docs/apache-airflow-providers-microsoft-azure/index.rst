@@ -82,7 +82,7 @@ Package apache-airflow-providers-microsoft-azure
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 6.3.0
+Release: 7.0.0
 
 Provider package
 ----------------
@@ -115,13 +115,14 @@ PIP package                       Version required
 ``azure-mgmt-datalake-store``     ``>=0.5.0``
 ``azure-mgmt-resource``           ``>=2.2.0``
 ``azure-storage-blob``            ``>=12.14.0``
-``azure-storage-common``          ``>=2.1.0``
-``azure-storage-file``            ``>=2.1.0``
+``azure-mgmt-storage``            ``>=16.0.0``
+``azure-storage-file-share``
 ``azure-servicebus``              ``>=7.6.1``
 ``azure-synapse-spark``
 ``adal``                          ``>=1.2.7``
 ``azure-storage-file-datalake``   ``>=12.9.1``
 ``azure-kusto-data``              ``>=4.1.0``
+``azure-mgmt-containerregistry``  ``>=8.0.0``
 ``azure-mgmt-containerinstance``  ``>=7.0.0,<9.0.0``
 ``azure-mgmt-datafactory``        ``>=1.0.0,<2.0``
 ================================  ==================
@@ -153,5 +154,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 6.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.3.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 6.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.3.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 7.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-7.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-7.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-7.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 7.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-7.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-7.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-7.0.0-py3-none-any.whl.sha512>`__)

@@ -28,6 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.0.0
+.....
+
+Latest change: 2023-09-05
+
+=================================================================================================  ===========  ======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================
+`a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+`18ef30221e <https://github.com/apache/airflow/commit/18ef30221ec4b09c295d9e3ab7a21562197548f2>`_  2023-09-05   ``Improve docs on AzureBatchHook DefaultAzureCredential support (#34098)``
+`e294608c6a <https://github.com/apache/airflow/commit/e294608c6a8de6e5ee2b655fa1d461c0150c91b2>`_  2023-09-04   ``feat(providers/microsoft): add AzureContainerInstancesOperator.volume as template field (#34070)``
+`6f1f624f04 <https://github.com/apache/airflow/commit/6f1f624f04347a3c5f7aaa8093526b0d98ef01bb>`_  2023-09-03   ``Remove  azure-storage-common from microsoft azure providers (#34038)``
+`47bd5dd0e1 <https://github.com/apache/airflow/commit/47bd5dd0e1e13af45206b94dd5518ada278a9552>`_  2023-09-03   ``Remove useless string join from providers (#33968)``
+`d946ff40d6 <https://github.com/apache/airflow/commit/d946ff40d6bf336a75faf6480c80aea24721c037>`_  2023-09-02   ``Remove 'AzureDataFactoryPipelineRunStatusAsyncSensor' class (#34036)``
+`ae67a142b8 <https://github.com/apache/airflow/commit/ae67a142b854435804c7e3e0bdd199ea979277c5>`_  2023-09-02   ``Remove 'LocalToAzureDataLakeStorageOperator' class (#34035)``
+`b7f84e913b <https://github.com/apache/airflow/commit/b7f84e913b6aa4cee7fa63009082b0608b3a0bf1>`_  2023-09-02   ``Update Azure fileshare hook to use azure-storage-file-share instead of azure-storage-file (#33904)``
+`875387afa5 <https://github.com/apache/airflow/commit/875387afa53c207364fa20b515d154100b5d0a8d>`_  2023-09-01   ``Refactor unneeded  jumps in providers (#33833)``
+`539797fdfb <https://github.com/apache/airflow/commit/539797fdfb2e0b2aca82376095e74edaad775439>`_  2023-08-30   ``Add DefaultAzureCredential support to AzureContainerRegistryHook (#33825)``
+`23b15e6428 <https://github.com/apache/airflow/commit/23b15e64284261211cfbcb9eaaf76c0c6a0be547>`_  2023-08-30   ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerVolumeHook (#33822)``
+=================================================================================================  ===========  ======================================================================================================
+
 6.3.0
 .....
 
@@ -36,6 +57,7 @@ Latest change: 2023-08-29
 =================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================
+`23174ef1bb <https://github.com/apache/airflow/commit/23174ef1bb20b9e00765e7de5dfad1ec7ca6f0cd>`_  2023-08-29   ``Prepare docs for Aug 2023 3rd wave of Providers (RC2) (#33868)``
 `9e2d607f43 <https://github.com/apache/airflow/commit/9e2d607f4305f34095cf80b106714802cff5aaf3>`_  2023-08-29   ``Truncate Wasb storage account name if it's more than 24 characters (#33851)``
 `9d5327806f <https://github.com/apache/airflow/commit/9d5327806fac61cd62abd30a6339b0cb26ad1ebf>`_  2023-08-28   ``Bump azure-mgmt-containerinstance>=7.0.0,<9.0.0 (#33696)``
 `76c2ade2c6 <https://github.com/apache/airflow/commit/76c2ade2c63abc3677b8fcd59af6f8779b613be7>`_  2023-08-28   ``feat(providers/microsoft): add DefaultAzureCredential to data_lake (#33433)``

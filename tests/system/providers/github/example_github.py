@@ -23,7 +23,7 @@ from typing import Any
 
 from github import GithubException
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.github.operators.github import GithubOperator
 from airflow.providers.github.sensors.github import GithubSensor, GithubTagSensor

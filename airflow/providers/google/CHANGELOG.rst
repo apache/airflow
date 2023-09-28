@@ -27,6 +27,86 @@
 Changelog
 ---------
 
+10.9.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add explicit support of stream (realtime) pipelines for CloudDataFusionStartPipelineOperator (#34271)``
+* ``Add 'expected_terminal_state' parameter to Dataflow operators (#34217)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'ComputeEngineInsertInstanceOperator' doesn't respect jinja-templated instance name when given in body argument (#34171)``
+* ``fix: BigQuery job error message (#34208)``
+* ``GKEPodHook ignores gcp_conn_id parameter. (#34194)``
+
+Misc
+~~~~
+
+* ``Bump min common-sql provider version for Google provider (#34257)``
+* ``Remove unnecessary call to keys() method on dictionaries (#34260)``
+* ``Refactor: Think positively in providers (#34279)``
+* ``Refactor: Simplify code in providers/google (#33229)``
+* ``Refactor: Simplify comparisons (#34181)``
+* ``Deprecate AutoMLTrainModelOperator for NL (#34212)``
+* ``Simplify  to bool(...) (#34258)``
+* ``Make Google Dataform operators templated_fields more consistent (#34187)``
+
+10.8.0
+......
+
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to Dataplex DataQuality. (#33954)``
+* ``allow impersonation_chain to be set on Google Cloud connection (#33715)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google-marketing-platform): respect soft_fail argument when exception is raised (#34165)``
+* ``fix: docstring in endpoint_service.py (#34135)``
+* ``Fix BigQueryValueCheckOperator deferrable mode optimisation (#34018)``
+* ``Dynamic setting up of artifact versions for Datafusion pipelines (#34068)``
+* ``Early delete a Dataproc cluster if started in the ERROR state. (#33668)``
+* ``Avoid blocking event loop when using DataFusionAsyncHook by replacing sleep by asyncio.sleep (#33756)``
+
+Misc
+~~~~
+
+* ``Consolidate importing of os.path.* (#34060)``
+* ``Refactor regex in providers (#33898)``
+* ``Move the try outside the loop when this is possible in Google provider (#33976)``
+* ``Combine similar if logics in providers (#33987)``
+* ``Remove useless string join from providers (#33968)``
+* ``Update Azure fileshare hook to use azure-storage-file-share instead of azure-storage-file (#33904)``
+* ``Refactor unneeded  jumps in providers (#33833)``
+* ``replace loop by any when looking for a positive value in providers (#33984)``
+* ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+* ``Remove some useless try/except from providers code (#33967)``
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Remove a deprecated option from 'BigQueryHook.get_pandas_df' (#33819)``
+* ``replace unnecessary dict comprehension by dict() in providers (#33857)``
+* ``Improve modules import in google provider by move some of them into a type-checking block (#33783)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``remove unnecessary and rewrite it using list in providers (#33763)``
+* ``Refactor: Simplify a few loops (#33736)``
+* ``E731: replace lambda by a def method in Airflow providers (#33757)``
+* ``Use f-string instead of  in Airflow providers (#33752)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix google CHANGELOG.rst (#34007)``
+   * ``Fix Google 10.7.0 changelog (#33953)``
+   * ``Fix Cloud Worflows system test (#33386)``
+   * ``fix entry in Google provider CHANGELOG.rst (#33890)``
+   * ``Generate Python API docs for Google ADS (#33814)``
+
 10.7.0
 ......
 

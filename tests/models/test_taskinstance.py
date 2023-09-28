@@ -35,9 +35,8 @@ from uuid import uuid4
 import pendulum
 import pytest
 import time_machine
-from pytest import param
 
-from airflow import models, settings
+from airflow import settings
 from airflow.decorators import task, task_group
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
@@ -61,7 +60,12 @@ from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
-from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, TaskInstanceNote
+from airflow.models.taskinstance import (
+    TaskInstance,
+    TaskInstance as TI,
+    TaskInstanceNote,
+    _run_finished_callback,
+)
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
@@ -387,7 +391,7 @@ class TestTaskInstance:
         """
 
         with pytest.raises(ValueError, match="pool slots .* cannot be less than 1"):
-            dag = models.DAG(dag_id="test_run_pooling_task")
+            dag = DAG(dag_id="test_run_pooling_task")
             EmptyOperator(
                 task_id="test_run_pooling_task_op",
                 dag=dag,
@@ -1165,7 +1169,7 @@ class TestTaskInstance:
             #   expect_passed
             # states: success, skipped, failed, upstream_failed, removed, done, success_setup, skipped_setup
             # all setups succeeded - one
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(6, 0, 0, 0, 0, 6, 1, 0),
@@ -1174,7 +1178,7 @@ class TestTaskInstance:
                 True,
                 id="all setups succeeded - one",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(7, 0, 0, 0, 0, 7, 2, 0),
@@ -1183,7 +1187,7 @@ class TestTaskInstance:
                 True,
                 id="all setups succeeded - two",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(5, 0, 1, 0, 0, 6, 0, 0),
@@ -1192,7 +1196,7 @@ class TestTaskInstance:
                 False,
                 id="setups failed - one",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(5, 0, 2, 0, 0, 7, 0, 0),
@@ -1201,7 +1205,7 @@ class TestTaskInstance:
                 False,
                 id="setups failed - two",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(5, 1, 0, 0, 0, 6, 0, 1),
@@ -1210,7 +1214,7 @@ class TestTaskInstance:
                 False,
                 id="setups skipped - one",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(5, 2, 0, 0, 0, 7, 0, 2),
@@ -1219,7 +1223,7 @@ class TestTaskInstance:
                 False,
                 id="setups skipped - two",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(5, 1, 1, 0, 0, 7, 0, 1),
@@ -1228,7 +1232,7 @@ class TestTaskInstance:
                 False,
                 id="one setup failed one setup skipped",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
@@ -1237,7 +1241,7 @@ class TestTaskInstance:
                 True,
                 id="is teardown one setup failed one setup success",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 0, 1, 0, 0, 7, 1, 0),
@@ -1246,7 +1250,7 @@ class TestTaskInstance:
                 True,
                 id="not teardown one setup failed one setup success",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
@@ -1255,7 +1259,7 @@ class TestTaskInstance:
                 True,
                 id="is teardown one setup success one setup skipped",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 2,
                 _UpstreamTIStates(6, 1, 0, 0, 0, 7, 1, 1),
@@ -1264,7 +1268,7 @@ class TestTaskInstance:
                 True,
                 id="not teardown one setup success one setup skipped",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 0, 0, 0, 0, 3, 1, 0),
@@ -1273,7 +1277,7 @@ class TestTaskInstance:
                 False,
                 id="not all done",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
@@ -1282,7 +1286,7 @@ class TestTaskInstance:
                 False,
                 id="is teardown not all done one failed",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 0, 1, 0, 0, 4, 1, 0),
@@ -1291,7 +1295,7 @@ class TestTaskInstance:
                 False,
                 id="not teardown not all done one failed",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
@@ -1300,7 +1304,7 @@ class TestTaskInstance:
                 False,
                 id="not all done one skipped",
             ),
-            param(
+            pytest.param(
                 "all_done_setup_success",
                 1,
                 _UpstreamTIStates(3, 1, 0, 0, 0, 4, 1, 0),
@@ -2192,7 +2196,7 @@ class TestTaskInstance:
         Test that when a task that produces dataset has ran, that changing the consumer
         dag dataset will not cause primary key blank-out
         """
-        from airflow import Dataset
+        from airflow.datasets import Dataset
 
         with dag_maker(schedule=None, serialized=True) as dag1:
 
@@ -2612,15 +2616,16 @@ class TestTaskInstance:
             assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize(
-        "finished_state, callback_type",
+        "finished_state",
         [
-            (State.SUCCESS, "on_success"),
-            (State.UP_FOR_RETRY, "on_retry"),
-            (State.FAILED, "on_failure"),
+            State.SUCCESS,
+            State.UP_FOR_RETRY,
+            State.FAILED,
         ],
     )
+    @patch("logging.Logger.exception")
     def test_finished_callbacks_handle_and_log_exception(
-        self, finished_state, callback_type, create_task_instance
+        self, mock_log, finished_state, create_task_instance
     ):
         called = completed = False
 
@@ -2630,24 +2635,15 @@ class TestTaskInstance:
             raise KeyError
             completed = True
 
-        for i, callback_input in enumerate([[on_finish_callable], on_finish_callable]):
-            ti = create_task_instance(
-                dag_id=f"test_finish_callback_{i}",
-                end_date=timezone.utcnow() + datetime.timedelta(days=10),
-                on_success_callback=callback_input,
-                on_retry_callback=callback_input,
-                on_failure_callback=callback_input,
-                state=finished_state,
-            )
-            ti._log = mock.Mock()
-            ti._run_finished_callback(callback_input, {}, callback_type)
+        for callback_input in [[on_finish_callable], on_finish_callable]:
+            _run_finished_callback(callbacks=callback_input, context={})
 
             assert called
             assert not completed
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
-            expected_message = f"Error when executing {callback_name} callback"
-            ti.log.exception.assert_called_once_with(expected_message)
+            expected_message = "Error when executing %s callback"
+            mock_log.assert_called_with(expected_message, callback_name)
 
     @provide_session
     def test_handle_failure(self, create_dummy_dag, session=None):
@@ -2815,13 +2811,13 @@ class TestTaskInstance:
 
         states = [State.RUNNING, State.FAILED, State.QUEUED, State.SCHEDULED, State.DEFERRED]
         tasks = []
-        for i in range(len(states)):
+        for i, state in enumerate(states):
             op = EmptyOperator(
                 task_id=f"reg_Task{i}",
                 dag=dag,
             )
             ti = TI(task=op, run_id=dr.run_id)
-            ti.state = states[i]
+            ti.state = state
             session.add(ti)
             tasks.append(ti)
 
@@ -2873,7 +2869,8 @@ class TestTaskInstance:
             ti.run()
         assert State.UP_FOR_RETRY == ti.state
 
-    def test_stacktrace_on_failure_starts_with_task_execute_method(self, dag_maker):
+    @patch.object(TaskInstance, "logger")
+    def test_stacktrace_on_failure_starts_with_task_execute_method(self, mock_get_log, dag_maker):
         def fail():
             raise AirflowException("maybe this will pass?")
 
@@ -2885,14 +2882,16 @@ class TestTaskInstance:
             )
         ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
         ti.task = task
-        with patch.object(TI, "log") as log, pytest.raises(AirflowException):
+        mock_log = mock.Mock()
+        mock_get_log.return_value = mock_log
+        with pytest.raises(AirflowException):
             ti.run()
-        log.error.assert_called_once()
-        assert log.error.call_args.args == ("Task failed with exception",)
-        exc_info = log.error.call_args.kwargs["exc_info"]
+        mock_log.error.assert_called_once()
+        assert mock_log.error.call_args.args == ("Task failed with exception",)
+        exc_info = mock_log.error.call_args.kwargs["exc_info"]
         filename = exc_info[2].tb_frame.f_code.co_filename
         formatted_exc = format_exception(*exc_info)
-        assert sys.modules[PythonOperator.__module__].__file__ == filename, "".join(formatted_exc)
+        assert sys.modules[TaskInstance.__module__].__file__ == filename, "".join(formatted_exc)
 
     def _env_var_check_callback(self):
         assert "test_echo_env_variables" == os.environ["AIRFLOW_CTX_DAG_ID"]

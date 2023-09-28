@@ -21,7 +21,6 @@ from __future__ import annotations
 import errno
 import json
 import os
-import os.path
 import platform
 import random
 import re
@@ -499,9 +498,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.gcp_conn_id = gcp_conn_id
         self.command_line_parameters: list[str] = []
         self.cloud_sql_proxy_socket_directory = self.path_prefix
-        self.sql_proxy_path = (
-            sql_proxy_binary_path if sql_proxy_binary_path else self.path_prefix + "_cloud_sql_proxy"
-        )
+        self.sql_proxy_path = sql_proxy_binary_path or f"{self.path_prefix}_cloud_sql_proxy"
         self.credentials_path = self.path_prefix + "_credentials.json"
         self._build_command_line_parameters()
 

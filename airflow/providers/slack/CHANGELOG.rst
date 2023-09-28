@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Slack Incoming Webhook Notifier (#33966)``
+
+Misc
+~~~~
+
+* ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 8.0.0
 .....
 
@@ -69,6 +83,7 @@ Breaking changes
 
 Misc
 ~~~~
+
 * ``Avoid importing pandas and numpy in runtime and module level (#33483)``
 * ``Consolidate import and usage of pandas (#33480)``
 

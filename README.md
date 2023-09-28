@@ -89,17 +89,19 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)           | Stable version (2.7.0)    |
-|-------------|------------------------------|---------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11      |
-| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)           |
-| Kubernetes  | 1.24, 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27    |
-| PostgreSQL  | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15        |
-| MySQL       | 5.7, 8.0, 8.1                | 5.7, 8.0                  |
-| SQLite      | 3.15.0+                      | 3.15.0+                   |
-| MSSQL       | 2017(\*), 2019(\*)           | 2017(\*), 2019(\*)        |
+|             | Main version (dev)           | Stable version (2.7.1) |
+|-------------|------------------------------|------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11   |
+| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
+| Kubernetes  | 1.24, 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27 |
+| PostgreSQL  | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15     |
+| MySQL       | 5.7, 8.0, 8.1                | 5.7, 8.0               |
+| SQLite      | 3.15.0+                      | 3.15.0+                |
+| MSSQL       | 2017(\*\*), 2019(\*\*)       | 2017(\*), 2019(\*)     |
 
 \* Experimental
+
+\*\* **Discontinued soon**, not recommended for the new installation
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).
@@ -170,15 +172,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.7.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.0/constraints-3.8.txt"
+pip install 'apache-airflow==2.7.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.7.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.0/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.7.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
@@ -290,7 +292,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.7.0                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.7.1                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |

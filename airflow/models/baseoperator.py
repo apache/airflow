@@ -920,7 +920,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
-        self.do_xcom_push = do_xcom_push
+        self.do_xcom_push: bool = do_xcom_push
 
         self.doc_md = doc_md
         self.doc_json = doc_json
@@ -1107,9 +1107,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if self.__from_mapped:
             pass  # Don't add to DAG -- the mapped task takes the place.
-        elif self.task_id not in dag.task_dict:
-            dag.add_task(self)
-        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
+        elif dag.task_dict.get(self.task_id) is not self:
             dag.add_task(self)
 
         self._dag = dag

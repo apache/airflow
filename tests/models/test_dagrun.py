@@ -30,18 +30,11 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowException
-from airflow.models import (
-    DAG,
-    DagBag,
-    DagModel,
-    DagRun,
-    TaskInstance,
-    TaskInstance as TI,
-    clear_task_instances,
-)
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dagrun import DagRunNote
-from airflow.models.taskinstance import TaskInstanceNote
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun, DagRunNote
+from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
@@ -60,6 +53,7 @@ from tests.test_utils.mock_operators import MockOperator
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
 
@@ -136,6 +130,7 @@ class TestDagRun:
         ti0.refresh_from_db()
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
         assert dr0.state == state
+        assert dr0.clear_number < 1
 
     @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
     def test_clear_task_instances_for_backfill_finished_dagrun(self, state, session):
@@ -154,6 +149,7 @@ class TestDagRun:
         ti0.refresh_from_db()
         dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
         assert dr0.state == DagRunState.QUEUED
+        assert dr0.clear_number == 1
 
     def test_dagrun_find(self, session):
         now = timezone.utcnow()

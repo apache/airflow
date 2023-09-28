@@ -36,7 +36,7 @@ Example Code:
     from datetime import datetime
     from airflow import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.providers.pagerduty.notifications.notifier import send_pagerduty_notification
+    from airflow.providers.pagerduty.notifications.pagerduty import send_pagerduty_notification
 
     with DAG(
         "pagerduty_notifier",

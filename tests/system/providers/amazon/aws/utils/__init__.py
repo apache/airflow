@@ -20,7 +20,7 @@ import inspect
 import json
 import logging
 import os
-from os.path import basename, splitext
+from pathlib import Path
 from time import sleep
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -70,7 +70,7 @@ def _get_test_name() -> str:
     test_filename: str = next(
         frame.filename for frame in inspect.stack() if TEST_FILE_IDENTIFIER in frame.filename
     )
-    return splitext(basename(test_filename))[0]
+    return Path(test_filename).stem
 
 
 def _validate_env_id(env_id: str) -> str:

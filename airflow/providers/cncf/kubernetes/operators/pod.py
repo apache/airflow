@@ -28,7 +28,7 @@ import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.stream import stream
@@ -245,6 +245,7 @@ class KubernetesPodOperator(BaseOperator):
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
         in V1PodSpec.
+    :param progress_callback: Callback function for receiving k8s container logs.
     """
 
     # This field can be overloaded at the instance level via base_container_name
@@ -328,6 +329,7 @@ class KubernetesPodOperator(BaseOperator):
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
+        progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -369,7 +371,7 @@ class KubernetesPodOperator(BaseOperator):
         self.get_logs = get_logs
         self.container_logs = container_logs
         if self.container_logs == KubernetesPodOperator.BASE_CONTAINER_NAME:
-            self.container_logs = base_container_name if base_container_name else self.BASE_CONTAINER_NAME
+            self.container_logs = base_container_name or self.BASE_CONTAINER_NAME
         self.image_pull_policy = image_pull_policy
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
@@ -428,6 +430,7 @@ class KubernetesPodOperator(BaseOperator):
         self.active_deadline_seconds = active_deadline_seconds
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
+        self._progress_callback = progress_callback
 
     @cached_property
     def _incluster_namespace(self):
@@ -505,7 +508,7 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def pod_manager(self) -> PodManager:
-        return PodManager(kube_client=self.client)
+        return PodManager(kube_client=self.client, progress_callback=self._progress_callback)
 
     @cached_property
     def hook(self) -> PodOperatorHookProtocol:
@@ -627,6 +630,10 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
+        ti = context["ti"]
+        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
+
         self.invoke_defer_method()
 
     def invoke_defer_method(self):
@@ -663,10 +670,6 @@ class KubernetesPodOperator(BaseOperator):
                     self.write_logs(pod)
                 raise AirflowException(event["message"])
             elif event["status"] == "success":
-                ti = context["ti"]
-                ti.xcom_push(key="pod_name", value=pod.metadata.name)
-                ti.xcom_push(key="pod_namespace", value=pod.metadata.namespace)
-
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
                     self.write_logs(pod)
@@ -801,7 +804,6 @@ class KubernetesPodOperator(BaseOperator):
             raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
-        istio_enabled = self.is_istio_enabled(pod)
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
                 should_delete_pod = (
@@ -815,12 +817,9 @@ class KubernetesPodOperator(BaseOperator):
                         and container_is_succeeded(pod, self.base_container_name)
                     )
                 )
-                if should_delete_pod and not istio_enabled:
+                if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
-                elif should_delete_pod and istio_enabled:
-                    self.log.info("Deleting istio-proxy sidecar inside %s: ", pod.metadata.name)
-                    self.kill_istio_sidecar(pod)
                 else:
                     self.log.info("Skipping deleting pod: %s", pod.metadata.name)
 

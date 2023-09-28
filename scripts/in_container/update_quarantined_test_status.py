@@ -21,7 +21,7 @@ import os
 import re
 import sys
 from datetime import datetime
-from os.path import dirname, join, realpath
+from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlsplit
 
@@ -152,7 +152,7 @@ def get_history_status(history: TestHistory):
         return "Stable"
     if all(history.states[0 : num_runs - 1]):
         return "Just one more"
-    if all(history.states[0 : int(num_runs / 2)]):
+    if all(history.states[0 : num_runs // 2]):
         return "Almost there"
     return "Flaky"
 
@@ -234,7 +234,7 @@ if __name__ == "__main__":
     print()
     print(table)
     print()
-    with open(join(dirname(realpath(__file__)), "quarantine_issue_header.md")) as f:
+    with Path(__file__).resolve().with_name("quarantine_issue_header.md").open() as f:
         header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).render(
             DATE_UTC_NOW=datetime.utcnow()
         )

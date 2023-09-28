@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState

@@ -275,9 +275,9 @@ class OracleHook(DbApiHook):
         :param replace: Whether to replace instead of insert
         """
         try:
-            import numpy
+            import numpy as np
         except ImportError:
-            numpy = None  # type: ignore
+            np = None  # type: ignore
 
         if target_fields:
             target_fields = ", ".join(target_fields)
@@ -297,7 +297,7 @@ class OracleHook(DbApiHook):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None or isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
                     lst.append("NULL")
-                elif numpy and isinstance(cell, numpy.datetime64):
+                elif np and isinstance(cell, np.datetime64):
                     lst.append("'" + str(cell) + "'")
                 elif isinstance(cell, datetime):
                     lst.append(f"to_date('{cell:%Y-%m-%d %H:%M:%S}','YYYY-MM-DD HH24:MI:SS')")
@@ -340,7 +340,7 @@ class OracleHook(DbApiHook):
         if self.supports_autocommit:
             self.set_autocommit(conn, False)
         cursor = conn.cursor()  # type: ignore[attr-defined]
-        values_base = target_fields if target_fields else rows[0]
+        values_base = target_fields or rows[0]
         prepared_stm = "insert into {tablename} {columns} values ({values})".format(
             tablename=table,
             columns="({})".format(", ".join(target_fields)) if target_fields else "",

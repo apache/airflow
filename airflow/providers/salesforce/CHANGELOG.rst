@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+5.4.3
+.....
+
+Misc
+~~~~
+
+* ``Always use 'Literal' from 'typing_extensions' (#33794)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 5.4.2
 .....
 

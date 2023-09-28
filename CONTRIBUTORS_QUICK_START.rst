@@ -248,6 +248,14 @@ Forking and cloning Project
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE <using-your-ide>`_
    chapter below.
 
+Note: For windows based machines, on cloning, the Git line endings may be different from unix based systems
+and might lead to unexpected behaviour on running breeze tooling. Manually setting a property will mitigate this issue.
+Set it to true for windows.
+
+.. code-block:: bash
+
+  $ git config core.autocrlf true
+
 Typical development tasks
 #########################
 

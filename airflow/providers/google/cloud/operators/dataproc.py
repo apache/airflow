@@ -1052,10 +1052,10 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         self.dataproc_jars = dataproc_jars
         self.region = region
 
-        self.job_error_states = job_error_states if job_error_states is not None else {"ERROR"}
+        self.job_error_states = job_error_states or {"ERROR"}
         self.impersonation_chain = impersonation_chain
         self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
-        self.project_id = self.hook.project_id if project_id is None else project_id
+        self.project_id = project_id or self.hook.project_id
         self.job_template: DataProcJobBuilder | None = None
         self.job: dict | None = None
         self.dataproc_job_id = None
@@ -1878,7 +1878,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 
@@ -2009,7 +2009,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 

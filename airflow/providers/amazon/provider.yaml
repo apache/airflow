@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 8.7.1
+  - 8.7.0
   - 8.6.0
   - 8.5.1
   - 8.5.0
@@ -79,7 +81,6 @@ dependencies:
   # NOTE!!! BOTOCORE version is always shifted by 3 MINOR VERSIONS from boto3
   # See https://github.com/boto/boto3/issues/2702
   - botocore>=1.31.0
-  - asgiref
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
   # change logging behaviour:
   # https://github.com/kislyuk/watchtower/blob/develop/Changes.rst#changes-for-v300-2022-01-26

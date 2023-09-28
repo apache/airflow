@@ -31,7 +31,6 @@ from airflow.providers.amazon.aws.sensors.eks import (
     CLUSTER_TERMINAL_STATES,
     FARGATE_TERMINAL_STATES,
     NODEGROUP_TERMINAL_STATES,
-    UNEXPECTED_TERMINAL_STATE_MSG,
     EksClusterStateSensor,
     EksFargateProfileStateSensor,
     EksNodegroupStateSensor,
@@ -75,8 +74,9 @@ class TestEksClusterStateSensor:
     def test_poke_reached_unexpected_terminal_state(
         self, mock_get_cluster_state, setUp, unexpected_terminal_state
     ):
-        expected_message = UNEXPECTED_TERMINAL_STATE_MSG.format(
-            current_state=unexpected_terminal_state, target_state=self.target_state
+        expected_message = (
+            f"Terminal state reached. Current state: {unexpected_terminal_state}, "
+            f"Expected state: {self.target_state}"
         )
         mock_get_cluster_state.return_value = unexpected_terminal_state
 
@@ -122,8 +122,9 @@ class TestEksFargateProfileStateSensor:
     def test_poke_reached_unexpected_terminal_state(
         self, mock_get_fargate_profile_state, setUp, unexpected_terminal_state
     ):
-        expected_message = UNEXPECTED_TERMINAL_STATE_MSG.format(
-            current_state=unexpected_terminal_state, target_state=self.target_state
+        expected_message = (
+            f"Terminal state reached. Current state: {unexpected_terminal_state}, "
+            f"Expected state: {self.target_state}"
         )
         mock_get_fargate_profile_state.return_value = unexpected_terminal_state
 
@@ -171,8 +172,9 @@ class TestEksNodegroupStateSensor:
     def test_poke_reached_unexpected_terminal_state(
         self, mock_get_nodegroup_state, setUp, unexpected_terminal_state
     ):
-        expected_message = UNEXPECTED_TERMINAL_STATE_MSG.format(
-            current_state=unexpected_terminal_state, target_state=self.target_state
+        expected_message = (
+            f"Terminal state reached. Current state: {unexpected_terminal_state}, "
+            f"Expected state: {self.target_state}"
         )
         mock_get_nodegroup_state.return_value = unexpected_terminal_state
 

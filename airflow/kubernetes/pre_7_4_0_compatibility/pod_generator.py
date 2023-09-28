@@ -495,9 +495,9 @@ class PodGenerator:
             airflow_worker=airflow_worker,
         )
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
-        selector = ",".join(label_strings)
         if not airflow_worker:  # this filters out KPO pods even when we don't know the scheduler job id
-            selector += ",airflow-worker"
+            label_strings.append("airflow-worker")
+        selector = ",".join(label_strings)
         return selector
 
     @classmethod

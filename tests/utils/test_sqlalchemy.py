@@ -25,12 +25,11 @@ from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
-from pytest import param
 from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
@@ -278,19 +277,19 @@ class TestExecutorConfigType:
     @pytest.mark.parametrize(
         "input",
         [
-            param(
+            pytest.param(
                 pickle.dumps("anything"),
                 id="anything",
             ),
-            param(
+            pytest.param(
                 pickle.dumps({"pod_override": BaseSerialization.serialize(TEST_POD)}),
                 id="serialized_pod",
             ),
-            param(
+            pytest.param(
                 pickle.dumps({"pod_override": TEST_POD}),
                 id="old_pickled_raw_pod",
             ),
-            param(
+            pytest.param(
                 pickle.dumps({"pod_override": {"name": "hi"}}),
                 id="arbitrary_dict",
             ),
