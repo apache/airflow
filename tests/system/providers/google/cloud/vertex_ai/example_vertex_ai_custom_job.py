@@ -31,7 +31,7 @@ from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -79,7 +79,7 @@ REPLICA_COUNT = 1
 LOCAL_TRAINING_SCRIPT_PATH = "california_housing_training_script.py"
 
 
-with models.DAG(
+with DAG(
     f"{DAG_ID}_custom",
     schedule="@once",
     start_date=datetime(2021, 1, 1),

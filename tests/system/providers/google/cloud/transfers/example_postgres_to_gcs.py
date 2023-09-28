@@ -26,9 +26,9 @@ from datetime import datetime
 
 from googleapiclient import discovery
 
-from airflow import models
 from airflow.decorators import task
-from airflow.models import Connection
+from airflow.models.connection import Connection
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.google.cloud.operators.cloud_sql import (
@@ -86,7 +86,7 @@ SQL_SELECT = f"SELECT * FROM {SQL_TABLE}"
 log = logging.getLogger(__name__)
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

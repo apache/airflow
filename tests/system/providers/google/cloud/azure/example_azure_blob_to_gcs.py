@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 from airflow.providers.microsoft.azure.sensors.wasb import (
     WasbBlobSensor,
