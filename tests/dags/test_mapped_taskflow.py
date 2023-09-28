@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import datetime
 
-from airflow import DAG
+from airflow.models.dag import DAG
 
 with DAG(dag_id="test_mapped_taskflow", start_date=datetime.datetime(2022, 1, 1)) as dag:
 
