@@ -811,7 +811,8 @@ class TestTriggerRuleDep:
 
     def test_all_skipped_tr_failure_upstream_failed(self, session, get_task_instance):
         """
-        All-skipped trigger rule failure if an upstream task is in a `upstream_failed` state
+        All-skipped trigger rule results in `upstream_failed`
+        if an upstream task is in a `upstream_failed` state
         """
         ti = get_task_instance(
             TriggerRule.ALL_SKIPPED,
@@ -826,7 +827,7 @@ class TestTriggerRuleDep:
         dep_statuses = tuple(
             TriggerRuleDep()._evaluate_trigger_rule(
                 ti=ti,
-                dep_context=DepContext(flag_upstream_failed=False),
+                dep_context=DepContext(flag_upstream_failed=True),
                 session=session,
             )
         )
