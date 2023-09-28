@@ -36,7 +36,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunJavaPipelineOperator
 from airflow.providers.google.cloud.operators.dataflow import CheckJobRunning
@@ -56,7 +56,7 @@ GCS_OUTPUT = f"gs://{BUCKET_NAME}"
 GCS_JAR = f"gs://{PUBLIC_BUCKET}/{REMOTE_JAR_FILE_PATH}"
 LOCATION = "europe-west3"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
