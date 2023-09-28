@@ -534,7 +534,7 @@ class DatabricksHook(BaseDatabricksHook):
         modified_update_repo_endpoint = modify_route(UPDATE_REPO_ENDPOINT, repo_id)
         return self._do_api_call(modified_update_repo_endpoint, json)
 
-    def delete_repo(self, repo_id: str):
+    def delete_repo(self, repo_id: str) -> None:
         """
         Deletes given Databricks Repos.
 
