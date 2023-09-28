@@ -624,7 +624,7 @@ class TestKubernetesPodOperator:
             ({"on_finish_action": "delete_succeeded_pod"}, True, False),
         ],
     )
-    @patch(f"{KPO_MODULE}.KubernetesPodOperator.kill_istio_sidecar")
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.is_istio_enabled")
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
@@ -633,7 +633,7 @@ class TestKubernetesPodOperator:
         find_pod_mock,
         await_pod_completion_mock,
         is_istio_enabled_mock,
-        kill_istio_sidecar_mock,
+        delete_pod_mock,
         task_kwargs,
         base_container_fail,
         expect_to_delete_pod,
@@ -662,13 +662,13 @@ class TestKubernetesPodOperator:
         cont_status_2.state.running = True
         cont_status_2.state.terminated = False
 
-        await_pod_completion_mock.return_value.spec.containers = [sidecar]
+        await_pod_completion_mock.return_value.spec.containers = [sidecar, cont_status_1, cont_status_2]
         await_pod_completion_mock.return_value.status.phase = "Running"
         await_pod_completion_mock.return_value.status.container_statuses = [cont_status_1, cont_status_2]
         await_pod_completion_mock.return_value.metadata.name = "pod-with-istio-sidecar"
         await_pod_completion_mock.return_value.metadata.namespace = "default"
 
-        find_pod_mock.return_value.spec.containers = [sidecar]
+        find_pod_mock.return_value.spec.containers = [sidecar, cont_status_1, cont_status_2]
         find_pod_mock.return_value.status.phase = "Running"
         find_pod_mock.return_value.status.container_statuses = [cont_status_1, cont_status_2]
         find_pod_mock.return_value.metadata.name = "pod-with-istio-sidecar"
@@ -678,6 +678,7 @@ class TestKubernetesPodOperator:
 
         context = create_context(k)
         context["ti"].xcom_push = MagicMock()
+
         if base_container_fail:
             self.await_pod_mock.side_effect = AirflowException("fake failure")
             with pytest.raises(AirflowException, match="my-failure"):
@@ -685,15 +686,11 @@ class TestKubernetesPodOperator:
         else:
             k.execute(context=context)
 
-        assert is_istio_enabled_mock(find_pod_mock.return_value)
-        if task_kwargs["on_finish_action"] == "delete_pod":
-            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
-        elif expect_to_delete_pod and base_container_fail:
-            kill_istio_sidecar_mock.assert_called_with(find_pod_mock.return_value)
-        elif expect_to_delete_pod and not base_container_fail:
-            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
+        if expect_to_delete_pod:
+            assert k.is_istio_enabled(find_pod_mock.return_value)
+            delete_pod_mock.assert_called_with(await_pod_completion_mock.return_value)
         else:
-            kill_istio_sidecar_mock.assert_not_called()
+            delete_pod_mock.assert_not_called()
 
     @pytest.mark.parametrize(
         "task_kwargs, should_be_deleted",

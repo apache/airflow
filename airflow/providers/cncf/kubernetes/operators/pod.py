@@ -804,7 +804,6 @@ class KubernetesPodOperator(BaseOperator):
             raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
-        istio_enabled = self.is_istio_enabled(pod)
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
                 should_delete_pod = (
@@ -818,12 +817,9 @@ class KubernetesPodOperator(BaseOperator):
                         and container_is_succeeded(pod, self.base_container_name)
                     )
                 )
-                if should_delete_pod and not istio_enabled:
+                if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
-                elif should_delete_pod and istio_enabled:
-                    self.log.info("Deleting istio-proxy sidecar inside %s: ", pod.metadata.name)
-                    self.kill_istio_sidecar(pod)
                 else:
                     self.log.info("Skipping deleting pod: %s", pod.metadata.name)
 

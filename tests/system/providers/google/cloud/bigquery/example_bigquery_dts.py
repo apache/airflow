@@ -26,8 +26,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
@@ -81,7 +81,7 @@ TRANSFER_CONFIG = {
 
 # [END howto_bigquery_dts_create_args]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
