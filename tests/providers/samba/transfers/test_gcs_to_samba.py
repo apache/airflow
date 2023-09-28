@@ -33,6 +33,7 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 TEST_BUCKET = "test-bucket"
 DESTINATION_SMB = "destination_path"
 
+
 class TestGoogleCloudStorageToSambaOperator:
     @pytest.mark.parametrize(
         "source_object, target_object, keep_directory_structure",
@@ -46,12 +47,7 @@ class TestGoogleCloudStorageToSambaOperator:
     @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
     @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
     def test_execute_copy_single_file(
-        self,
-        samba_hook_mock,
-        gcs_hook_mock,
-        source_object,
-        target_object,
-        keep_directory_structure
+        self, samba_hook_mock, gcs_hook_mock, source_object, target_object, keep_directory_structure
     ):
         operator = GCSToSambaOperator(
             task_id=TASK_ID,
@@ -304,11 +300,7 @@ class TestGoogleCloudStorageToSambaOperator:
 
     @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.GCSHook")
     @mock.patch("airflow.providers.samba.transfers.gcs_to_samba.SambaHook")
-    def test_execute_more_than_one_wildcard_exception(
-        self,
-        samba_hook_mock,
-        gcs_hook_mock
-    ):
+    def test_execute_more_than_one_wildcard_exception(self, samba_hook_mock, gcs_hook_mock):
         operator = GCSToSambaOperator(
             task_id=TASK_ID,
             source_bucket=TEST_BUCKET,
