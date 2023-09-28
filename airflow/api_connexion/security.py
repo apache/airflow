@@ -75,7 +75,7 @@ def _requires_access(*, is_authorized_callback: Callable[[], bool], func: Callab
     Define the behavior whether the user is authorized to access the resource.
 
     :param is_authorized_callback: callback to execute to figure whether the user is authorized to access
-        the resource?
+        the resource
     :param func: the function to call if the user is authorized
     :param args: the arguments of ``func``
     :param kwargs: the keyword arguments ``func``

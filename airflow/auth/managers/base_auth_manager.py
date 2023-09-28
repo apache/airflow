@@ -93,7 +93,7 @@ class BaseAuthManager(LoggingMixin):
         Return whether the user is authorized to perform a given action on configuration.
 
         :param method: the method to perform
-        :param details: optional details about the connection
+        :param details: optional details about the configuration
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
@@ -158,7 +158,7 @@ class BaseAuthManager(LoggingMixin):
         Return whether the user is authorized to perform a given action on a dataset.
 
         :param method: the method to perform
-        :param details: optional details about the variable
+        :param details: optional details about the dataset
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
@@ -174,7 +174,7 @@ class BaseAuthManager(LoggingMixin):
         Return whether the user is authorized to perform a given action on a pool.
 
         :param method: the method to perform
-        :param details: optional details about the variable
+        :param details: optional details about the pool
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
