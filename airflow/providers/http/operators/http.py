@@ -133,7 +133,7 @@ class SimpleHttpOperator(BaseOperator):
         if self.deferrable:
             self.execute_async(context=context)
         else:
-            self.execute_sync(context=context)
+            return self.execute_sync(context=context)
 
     def execute_sync(self, context: Context) -> Any:
         self.log.info("Calling HTTP method")
@@ -229,6 +229,7 @@ class ExtendedHttpOperator(SimpleHttpOperator):
                 response = self.hook.run(**self._merge_next_page_parameters(next_page_params))
                 all_responses.append(response)
             response = all_responses
+        return self.process_response(context=context, response=response)
 
     @staticmethod
     def default_response_maker(responses: list[Response]) -> list[str]:
