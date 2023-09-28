@@ -118,3 +118,24 @@ Here we pass form data to a ``POST`` operation which is equal to a usual form su
     :language: python
     :start-after: [START howto_operator_http_task_post_op_formenc]
     :end-before: [END howto_operator_http_task_post_op_formenc]
+
+
+ExtendedHttpOperator
+--------------------
+
+The :class:`~airflow.providers.http.operators.http.ExtendedHttpOperator` supports advanced HTTP / API use-cases with
+a wider range of features. Depending on the usage, this Operator car potentially be more memory and CPU intensive
+compared to the SimpleHttpOperator.
+
+
+First, you can also do a series of call on a paginated API. Let's assume your API returns a JSON body containing a cursor:
+You can write a ``pagination_function`` that will receive the raw ``request.Response`` object of your request, and
+generate new request parameters (as ``dict``) based on this cursor. The SimpleHttpOperator will repeat calls to the
+API until the function stop returning anything.
+
+In this case, by default, the result of the SimpleHttpOperator will be a list of text.
+
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+    :language: python
+    :start-after: [START howto_operator_http_pagination_function]
+    :end-before: [END howto_operator_http_pagination_function]

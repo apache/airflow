@@ -193,6 +193,10 @@ class ExtendedHttpOperator(SimpleHttpOperator):
     Support advanced use-cases with a wider range of features. Depending on the usage,
     this Operator car potentially be more memory and CPU intensive compared to the SimpleHttpOperator.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ExtendedHttpOperator`
+
     :param pagination_function: A callable that generates the parameters used to call the API again.
         Typically used when the API is paginated and returns for e.g a cursor, a 'next page id', or
         a 'next page URL'. When provided, the Operator will call the API repeatedly until this function
