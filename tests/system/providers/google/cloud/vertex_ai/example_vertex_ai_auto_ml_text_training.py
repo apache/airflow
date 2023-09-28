@@ -30,7 +30,7 @@ from datetime import datetime
 from google.cloud.aiplatform import schema
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -69,7 +69,7 @@ TEXT_DATA_CONFIG = [
     },
 ]
 
-with models.DAG(
+with DAG(
     f"{DAG_ID}_text_training_job",
     schedule="@once",
     start_date=datetime(2021, 1, 1),

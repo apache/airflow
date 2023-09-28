@@ -22,8 +22,8 @@ from __future__ import annotations
 import datetime
 import os
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCreateLakeOperator,
     DataplexCreateTaskOperator,
@@ -77,7 +77,7 @@ EXAMPLE_LAKE_BODY = {
 # [END howto_dataplex_lake_configuration]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime.datetime(2021, 1, 1),
     schedule="@once",

@@ -27,8 +27,8 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeleteFunctionOperator,
     CloudFunctionDeployFunctionOperator,
@@ -76,7 +76,7 @@ else:
 # [END howto_operator_gcf_deploy_variants]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     default_args=default_args,
     start_date=datetime(2021, 1, 1),
