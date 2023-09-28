@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-28T02:00:17Z
+# This constraints file was automatically generated on 2023-09-28T09:53:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -96,7 +96,7 @@ azure-kusto-data==4.2.0
 azure-mgmt-containerinstance==8.0.0
 azure-mgmt-containerregistry==10.2.0
 azure-mgmt-core==1.4.0
-azure-mgmt-cosmosdb==9.2.0
+azure-mgmt-cosmosdb==9.3.0
 azure-mgmt-datafactory==1.1.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
@@ -398,7 +398,7 @@ pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.19.0
 pycryptodomex==3.19.0
-pydantic==2.4.1
+pydantic==2.4.2
 pydantic_core==2.10.1
 pydata-google-auth==1.8.2
 pydot==1.4.2
