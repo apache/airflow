@@ -115,42 +115,50 @@ class SimpleHttpOperator(BaseOperator):
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
         self.deferrable = deferrable
 
+    @property
+    def hook(self) -> HttpHook:
+        hook = HttpHook(
+            self.method,
+            http_conn_id=self.http_conn_id,
+            auth_type=self.auth_type,
+            tcp_keep_alive=self.tcp_keep_alive,
+            tcp_keep_alive_idle=self.tcp_keep_alive_idle,
+            tcp_keep_alive_count=self.tcp_keep_alive_count,
+            tcp_keep_alive_interval=self.tcp_keep_alive_interval,
+        )
+        return hook
+
     def execute(self, context: Context) -> Any:
         if self.deferrable:
-            self.defer(
-                trigger=HttpTrigger(
-                    http_conn_id=self.http_conn_id,
-                    auth_type=self.auth_type,
-                    method=self.method,
-                    endpoint=self.endpoint,
-                    headers=self.headers,
-                    data=self.data,
-                    extra_options=self.extra_options,
-                ),
-                method_name="execute_complete",
-            )
+            self.execute_async(context=context)
         else:
-            http = HttpHook(
-                self.method,
+            self.execute_sync(context=context)
+
+    def execute_sync(self, context: Context) -> Any:
+        self.log.info("Calling HTTP method")
+        response = self.hook.run(self.endpoint, self.data, self.headers, self.extra_options)
+        return self.process_response(context=context, response=response)
+
+    def execute_async(self, context: Context) -> None:
+        self.defer(
+            trigger=HttpTrigger(
                 http_conn_id=self.http_conn_id,
                 auth_type=self.auth_type,
-                tcp_keep_alive=self.tcp_keep_alive,
-                tcp_keep_alive_idle=self.tcp_keep_alive_idle,
-                tcp_keep_alive_count=self.tcp_keep_alive_count,
-                tcp_keep_alive_interval=self.tcp_keep_alive_interval,
-            )
+                method=self.method,
+                endpoint=self.endpoint,
+                headers=self.headers,
+                data=self.data,
+                extra_options=self.extra_options,
+            ),
+            method_name="execute_complete",
+        )
 
-            self.log.info("Calling HTTP method")
-
-            response = http.run(self.endpoint, self.data, self.headers, self.extra_options)
-            return self.process_response(context=context, response=response)
-
-    def process_response(self, context: Context, response: Response) -> str:
+    def process_response(self, context: Context, response: Response | Any) -> str:
         """Process the response."""
         from airflow.utils.operator_helpers import determine_kwargs
 
         if self.log_response:
-            self.log.info(response.text)
+            self.log.info(self.default_response_maker(response))
         if self.response_check:
             kwargs = determine_kwargs(self.response_check, [response], context)
             if not self.response_check(response, **kwargs):
@@ -158,6 +166,10 @@ class SimpleHttpOperator(BaseOperator):
         if self.response_filter:
             kwargs = determine_kwargs(self.response_filter, [response], context)
             return self.response_filter(response, **kwargs)
+        return self.default_response_maker(response)
+
+    @staticmethod
+    def default_response_maker(response: Response) -> str:
         return response.text
 
     def execute_complete(self, context: Context, event: dict):
