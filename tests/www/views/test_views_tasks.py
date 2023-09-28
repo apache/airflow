@@ -30,8 +30,13 @@ import time_machine
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule, XCom
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
+from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor

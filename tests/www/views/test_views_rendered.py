@@ -23,8 +23,10 @@ from urllib.parse import quote_plus
 import pytest
 from markupsafe import escape
 
-from airflow.models import DAG, RenderedTaskInstanceFields, Variable
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
+from airflow.models.renderedtifields import RenderedTaskInstanceFields
+from airflow.models.variable import Variable
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedDAG

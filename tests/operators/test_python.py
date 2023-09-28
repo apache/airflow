@@ -26,7 +26,7 @@ import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -35,8 +35,8 @@ from slugify import slugify
 
 from airflow.decorators import task_group
 from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
-from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
@@ -59,6 +59,10 @@ from airflow.utils.types import NOTSET, DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.db import clear_db_runs
 
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+
+TI = TaskInstance
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, "tests", "config_templates")
 LOGGER_NAME = "airflow.task.operators"
