@@ -840,11 +840,9 @@ exit 0
             )
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception, kwargs, expected_message",
+        "kwargs, expected_message",
         (
             (
-                False,
-                AirflowException,
                 {
                     "external_task_ids": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE],
                     "failed_states": [State.FAILED],
@@ -853,8 +851,6 @@ exit 0
                 f" in DAG {TEST_DAG_ID} failed.",
             ),
             (
-                False,
-                AirflowException,
                 {
                     "external_task_group_id": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE],
                     "failed_states": [State.FAILED],
@@ -863,34 +859,21 @@ exit 0
                 f" in DAG '{TEST_DAG_ID}' failed.",
             ),
             (
-                False,
-                AirflowException,
                 {"failed_states": [State.FAILED]},
                 f"The external DAG {TEST_DAG_ID} failed.",
             ),
+        ),
+    )
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception",
+        (
             (
-                True,
-                AirflowSkipException,
-                {
-                    "external_task_ids": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE],
-                    "failed_states": [State.FAILED],
-                },
-                "Skipping due to soft_fail is set to True.",
+                False,
+                AirflowException,
             ),
             (
                 True,
                 AirflowSkipException,
-                {
-                    "external_task_group_id": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE],
-                    "failed_states": [State.FAILED],
-                },
-                "Skipping due to soft_fail is set to True.",
-            ),
-            (
-                True,
-                AirflowSkipException,
-                {"failed_states": [State.FAILED]},
-                "Skipping due to soft_fail is set to True.",
             ),
         ),
     )
