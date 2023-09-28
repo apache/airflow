@@ -59,7 +59,10 @@ def _replace_mount_point(path: str) -> str:
     :return: the path with the mount point replaced
     :rtype: str
     """
-    return path.replace(_get_mount_point(path), "")
+    mount_point = _get_mount_point(path)
+    fs = get_fs(mount_point)
+
+    return path.replace(mount_point, fs._root)
 
 
 def mount(
@@ -86,14 +89,16 @@ def mount(
     if encryption_type is None:
         encryption_type = "AES256"
 
-    uri = urlparse(mount_point)
+    uri = urlparse(source)
     scheme = uri.scheme
 
     if scheme not in SCHEME_TO_FS:
         raise ValueError(f"No registered filesystem for scheme: {scheme}")
 
     fs = SCHEME_TO_FS[scheme](dict())
-    MOUNT_POINTS[source] = fs
+    fs._root = fs._strip_protocol(source)
+
+    MOUNT_POINTS[mount_point] = fs
 
 
 def unmount(mount_point: str) -> None:
@@ -201,7 +206,18 @@ def ls(path, detail=True, **kwargs):
     List of strings if detail is False, or list of directory information
     dicts if detail is True.
     """
-    return get_fs(path).ls(_replace_mount_point(path), detail=detail, **kwargs)
+    mount_point = _get_mount_point(path)
+    info = get_fs(path).ls(_replace_mount_point(path), detail=detail, **kwargs)
+    print("mount_point ", mount_point)
+    if detail:
+        for i in info:
+            i["name"] = i["name"].replace(get_fs(path)._root, "").lstrip("/")
+            i["name"] = os.path.join(mount_point, i["name"])
+    else:
+        for i, c in enumerate(info):
+            info[i] = os.path.join(mount_point, c.replace(get_fs(path)._root, "").lstrip("/"))
+
+    return info
 
 
 def walk(path, maxdepth=None, topdown=True, on_error="omit", **kwargs):
