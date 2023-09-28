@@ -541,7 +541,7 @@ class DatabricksHook(BaseDatabricksHook):
         :param repo_id: ID of Databricks Repos
         :return:
         """
-        modify_route = lambda t, repo_id: (t[0], t[1].format(repo_id=repo_id))
+        modify_route = lambda tuple, repo_id: (tuple[0], tuple[1].format(repo_id=repo_id))
         modified_delete_repo_endpoint = modify_route(DELETE_REPO_ENDPOINT, repo_id)
         self._do_api_call(modified_delete_repo_endpoint)
 
