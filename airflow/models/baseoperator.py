@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import abc
-import collections
 import collections.abc
 import contextlib
 import copy

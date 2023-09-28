@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import contextlib
 import datetime
 import logging
 import os
+from collections import deque
 from datetime import timedelta
 from typing import Generator
 from unittest import mock
@@ -4810,8 +4810,8 @@ class TestSchedulerJob:
 
             return spy
 
-        num_queued_tis: collections.deque[int] = collections.deque([], 3)
-        num_finished_events: collections.deque[int] = collections.deque([], 3)
+        num_queued_tis: deque[int] = deque([], 3)
+        num_finished_events: deque[int] = deque([], 3)
 
         do_scheduling_spy = mock.patch.object(
             job_runner,
