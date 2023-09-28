@@ -189,7 +189,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         if append and self.oss_log_exists(oss_remote_log_location):
             head = self.hook.head_key(self.bucket_name, oss_remote_log_location)
             pos = head.content_length
-        self.log.info("log write pos is: %s", str(pos))
+        self.log.info("log write pos is: %s", pos)
         try:
             self.log.info("writing remote log: %s", oss_remote_log_location)
             self.hook.append_string(self.bucket_name, log, oss_remote_log_location, pos)
@@ -197,8 +197,8 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
             self.log.exception(
                 "Could not write logs to %s, log write pos is: %s, Append is %s",
                 oss_remote_log_location,
-                str(pos),
-                str(append),
+                pos,
+                append,
             )
             return False
         return True

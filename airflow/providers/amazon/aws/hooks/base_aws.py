@@ -839,7 +839,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return True, ", ".join(f"{k}={v!r}" for k, v in conn_info.items())
 
         except Exception as e:
-            return False, str(f"{type(e).__name__!r} error occurred while testing connection: {e}")
+            return False, f"{type(e).__name__!r} error occurred while testing connection: {e}"
 
     @cached_property
     def waiter_path(self) -> os.PathLike[str] | None:

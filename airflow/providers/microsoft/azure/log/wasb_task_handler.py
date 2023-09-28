@@ -147,7 +147,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             blob_names = self.hook.get_blobs_list(container_name=self.wasb_container, prefix=prefix)
         except HttpResponseError as e:
             messages.append(f"tried listing blobs with prefix={prefix} and container={self.wasb_container}")
-            messages.append("could not list blobs " + str(e))
+            messages.append(f"could not list blobs {e}")
             self.log.exception("can't list blobs")
 
         if blob_names:
