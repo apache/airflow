@@ -42,6 +42,7 @@ from google.cloud.bigquery import (
     QueryJob,
     SchemaField,
     UnknownJob,
+    QueryJobConfig,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
@@ -49,6 +50,7 @@ from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa
+import polars as pl
 from requests import Session
 from sqlalchemy import create_engine
 
@@ -269,6 +271,36 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         credentials, project_id = self.get_credentials_and_project_id()
 
         return read_gbq(sql, project_id=project_id, dialect=dialect, credentials=credentials, **kwargs)
+
+    def get_polars_df(
+        self,
+        sql: str,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        dialect: str | None = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        """Get a Polars DataFrame for the BigQuery results.
+
+        :param sql: The BigQuery SQL to execute.
+        :param parameters: The parameters to render the SQL query with (not
+            used, leave to override superclass method)
+        :param dialect: Dialect of BigQuery SQL – legacy SQL or standard SQL
+            defaults to use `self.use_legacy_sql` if not specified
+        :param kwargs: (optional) passed into polars.from_arrow method
+        """
+        if dialect is None:
+            dialect = "legacy" if self.use_legacy_sql else "standard"
+
+        project_id = self.get_project_id()
+        client = self.get_client(project_id=project_id)
+
+        job_config = QueryJobConfig(dialect=dialect)  # Specify the SQL dialect here
+        query_job = client.query(sql, job_config=job_config)  # API request
+        rows = query_job.result()  # Waits for query to finish
+
+        df = pl.from_arrow(rows.to_arrow(), **kwargs)
+
+        return df
 
     @GoogleBaseHook.fallback_to_default_project_id
     def table_exists(self, dataset_id: str, table_id: str, project_id: str) -> bool:

@@ -358,6 +358,7 @@ password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
 ]
+polars = ["polars>=0.19.5"]
 rabbitmq = [
     "amqp",
 ]
@@ -525,6 +526,7 @@ devel = get_unique_dependency_list(
         get_provider_dependencies("mysql"),
         pandas,
         password,
+        polars,
     ]
 )
 
@@ -569,6 +571,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "otel": otel,
     "pandas": pandas,
     "password": password,
+    "polars": polars,
     "rabbitmq": rabbitmq,
     "sentry": sentry,
     "statsd": statsd,

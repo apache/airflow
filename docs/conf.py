@@ -622,6 +622,7 @@ autodoc_mock_imports = [
     "pandas_gbq",
     "paramiko",
     "pinotdb",
+    "polars"
     "psycopg2",
     "pydruid",
     "pyhive",
@@ -668,6 +669,7 @@ intersphinx_mapping = {
         "jinja2",
         "mongodb",
         "pandas",
+        "polars"
         "python",
         "requests",
         "sqlalchemy",

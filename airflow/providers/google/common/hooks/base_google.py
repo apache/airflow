@@ -296,6 +296,11 @@ class GoogleBaseHook(BaseHook):
         credentials, _ = self.get_credentials_and_project_id()
         return credentials
 
+    def get_project_id(self) -> str:
+        """Returns the project_id str for Google API."""
+        _, project_id = self.get_credentials_and_project_id()
+        return project_id
+
     def _get_access_token(self) -> str:
         """Returns a valid access token from Google API Credentials."""
         credentials = self.get_credentials()

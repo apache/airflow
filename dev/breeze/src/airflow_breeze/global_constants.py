@@ -380,6 +380,7 @@ DEFAULT_EXTRAS = [
     "odbc",
     "openlineage",
     "pandas",
+    "polars"
     "postgres",
     "redis",
     "sendgrid",
