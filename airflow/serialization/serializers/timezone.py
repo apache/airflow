@@ -18,11 +18,17 @@
 from __future__ import annotations
 
 import datetime
-
+import sys
 from typing import TYPE_CHECKING, cast
 
-from airflow import PY39
 from airflow.utils.module_loading import qualname
+
+PY39 = sys.version_info >= (3, 9)
+
+if PY39:
+    from zoneinfo import ZoneInfo
+else:
+    from backports.zoneinfo import ZoneInfo
 
 if TYPE_CHECKING:
     from pendulum.tz.timezone import Timezone
@@ -33,8 +39,7 @@ if TYPE_CHECKING:
 serializers = [
     "pendulum.tz.timezone.FixedTimezone",
     "pendulum.tz.timezone.Timezone",
-    "backports.zoneinfo.ZoneInfo",
-    "zoneinfo.ZoneInfo",
+    qualname(ZoneInfo),
 ]
 deserializers = serializers
 
@@ -70,7 +75,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: object) -> Timezone | "ZoneInfo":
+def deserialize(classname: str, version: int, data: object) -> Timezone | ZoneInfo:
     from pendulum.tz import fixed_timezone, timezone
 
     if not isinstance(data, (str, int)):
@@ -83,15 +88,12 @@ def deserialize(classname: str, version: int, data: object) -> Timezone | "ZoneI
         return fixed_timezone(data)
 
     if "zoneinfo.ZoneInfo" in classname:  # capturing backports and stdlib
-        if PY39:
-            from zoneinfo import ZoneInfo
-        else:
-            from backports.zoneinfo import ZoneInfo
         return ZoneInfo(data)
 
     return timezone(data)
 
 
+# ported from pendulum.tz.timezone._get_tzinfo_name
 def _get_tzinfo_name(tzinfo: datetime.tzinfo | None) -> str | None:
     if tzinfo is None:
         return None

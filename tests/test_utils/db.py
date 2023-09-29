@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from airflow.auth.managers.fab.models import Permission, Resource, assoc_permission_role
-from airflow.jobs.job import Job
+#from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
     DagModel,

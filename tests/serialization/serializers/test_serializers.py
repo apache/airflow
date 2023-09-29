@@ -79,7 +79,6 @@ class TestSerializers:
         d = deserialize(s)
         assert i.timestamp() == d.timestamp()
 
-
     def test_deserialize_datetime_v1(self):
         s = {
             "__classname__": "pendulum.datetime.DateTime",
