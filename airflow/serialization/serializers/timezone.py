@@ -38,8 +38,10 @@ serializers = [
 
 if PY39:
     serializers.append("zoneinfo.ZoneInfo")
+    from zoneinfo import ZoneInfo
 else:
     serializers.append("backports.zoneinfo.ZoneInfo")
+    from backports.zoneinfo import ZoneInfo
 
 deserializers = serializers
 
@@ -75,9 +77,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(
-    classname: str, version: int, data: object
-) -> Timezone | "zoneinfo.ZoneInfo" | "backports.zoneinfo.ZoneInfo":
+def deserialize(classname: str, version: int, data: object) -> Timezone | ZoneInfo:
     from pendulum.tz import fixed_timezone, timezone
 
     if not isinstance(data, (str, int)):
@@ -90,11 +90,6 @@ def deserialize(
         return fixed_timezone(data)
 
     if "zoneinfo.ZoneInfo" in classname:  # capturing backports and stdlib
-        if PY39:
-            from zoneinfo import ZoneInfo
-        else:
-            from backports.zoneinfo import ZoneInfo
-
         return ZoneInfo(data)
 
     return timezone(data)
