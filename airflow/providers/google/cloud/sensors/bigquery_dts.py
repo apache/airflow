@@ -137,7 +137,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
             timeout=self.request_timeout,
             metadata=self.metadata,
         )
-        self.log.info("Status of %s run: %s", self.run_id, str(run.state))
+        self.log.info("Status of %s run: %s", self.run_id, run.state)
 
         if run.state in (TransferState.FAILED, TransferState.CANCELLED):
             # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
