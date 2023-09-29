@@ -57,6 +57,8 @@ export default function useExtraLinks({
             executionDate
           )}&link_name=${encodeURIComponent(
             link
+          )}&tryNumber=${encodeURIComponent(
+            tryNumber
           )}&map_index=${definedMapIndex}`;
           try {
             const datum = await axios.get<AxiosResponse, LinkData>(url);

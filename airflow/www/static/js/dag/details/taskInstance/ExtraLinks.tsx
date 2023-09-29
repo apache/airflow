@@ -43,6 +43,7 @@ const ExtraLinks = ({
     executionDate,
     mapIndex,
     extraLinks,
+    tryNumber,
   });
 
   if (!links?.length) return null;
