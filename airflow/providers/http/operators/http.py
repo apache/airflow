@@ -186,12 +186,9 @@ class SimpleHttpOperator(BaseOperator):
             raise AirflowException(f"Unexpected error in the operation: {event['message']}")
 
 
-class ExtendedHttpOperator(SimpleHttpOperator):
+class PaginatedHttpOperator(SimpleHttpOperator):
     """
-    Extends the functionalities of the SimpleHttpOperator.
-
-    Support advanced use-cases with a wider range of features. Depending on the usage,
-    this Operator can potentially be more memory and CPU intensive compared to the SimpleHttpOperator.
+    Extends the functionalities of the SimpleHttpOperator to provide pagination.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -201,7 +198,7 @@ class ExtendedHttpOperator(SimpleHttpOperator):
         Typically used when the API is paginated and returns for e.g a cursor, a 'next page id', or
         a 'next page URL'. When provided, the Operator will call the API repeatedly until this function
         returns None. Also, the result of the Operator will become by default a list of Response.text
-        objects (instead of a single response object). Same with the other parameter functions (like
+        objects (instead of a single response object). Same with the other injected functions (like
         response_check, response_filter, ...) which will also receive a list of Response object. This
         function should return a dict of parameters (`endpoint`, `data`, `headers`, `extra_options`),
         which will be merged and override the one used in the initial API call.

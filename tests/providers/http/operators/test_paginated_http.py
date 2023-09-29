@@ -25,11 +25,11 @@ from unittest import mock
 from requests import Response
 
 from airflow.exceptions import TaskDeferred
-from airflow.providers.http.operators.http import ExtendedHttpOperator
+from airflow.providers.http.operators.http import PaginatedHttpOperator
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
-class TestExtendedHttpOp:
+class TestPaginatedHttpOperator:
     def test_paginated_responses(self, requests_mock):
         """
         Test that the SimpleHttpOperator calls repetitively the API when a
@@ -51,7 +51,7 @@ class TestExtendedHttpOp:
                 )
 
         requests_mock.get("http://www.example.com", json={"value": 5})
-        operator = ExtendedHttpOperator(
+        operator = PaginatedHttpOperator(
             task_id="test_HTTP_op",
             method="GET",
             endpoint="/",
@@ -92,7 +92,7 @@ class TestExtendedHttpOp:
                 has_returned = True
                 return dict(endpoint="/")
 
-        operator = ExtendedHttpOperator(
+        operator = PaginatedHttpOperator(
             task_id="test_HTTP_op",
             pagination_function=pagination_function,
             deferrable=True,

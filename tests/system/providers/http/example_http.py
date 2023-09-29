@@ -23,7 +23,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.http.operators.http import SimpleHttpOperator, ExtendedHttpOperator
+from airflow.providers.http.operators.http import PaginatedHttpOperator, SimpleHttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -124,7 +124,7 @@ def get_next_page_cursor(response) -> dict | None:
         return dict(data={"cursor": next_cursor})
 
 
-task_get_paginated = ExtendedHttpOperator(
+task_get_paginated = PaginatedHttpOperator(
     task_id="get_paginated",
     method="GET",
     endpoint="get",
