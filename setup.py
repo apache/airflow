@@ -270,6 +270,9 @@ async_packages = [
 atlas = [
     "atlasclient>=0.1.2",
 ]
+backports = [
+    "backports.zoneinfo>=0.2.1;python_version<'3.9'",
+]
 celery = [
     # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
     # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
@@ -556,6 +559,7 @@ ADDITIONAL_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
 CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "aiobotocore": aiobotocore,
     "async": async_packages,
+    "backports": backports,
     "celery": celery,  # TODO: remove and move to a regular provider package in a separate PR
     "cgroups": cgroups,
     "cncf.kubernetes": kubernetes,  # TODO: remove and move to a regular provider package in a separate PR

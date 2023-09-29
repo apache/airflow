@@ -22,10 +22,17 @@ import decimal
 import numpy as np
 import pendulum.tz
 import pytest
+from dateutil.tz import tzutc
 from pendulum import DateTime
 
+from airflow import PY39
 from airflow.models.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
+
+if PY39:
+    from zoneinfo import ZoneInfo
+else:
+    from backports.zoneinfo import ZoneInfo
 
 
 class TestSerializers:
@@ -62,8 +69,18 @@ class TestSerializers:
         d = deserialize(s)
         assert i.timestamp() == d.timestamp()
 
-    def test_deserialize_datetime_v1(self):
+        i = DateTime(2022, 7, 10, tzinfo=tzutc())
+        s = serialize(i)
+        d = deserialize(s)
+        assert i.timestamp() == d.timestamp()
 
+        i = DateTime(2022, 7, 10, tzinfo=ZoneInfo("Europe/Paris"))
+        s = serialize(i)
+        d = deserialize(s)
+        assert i.timestamp() == d.timestamp()
+
+
+    def test_deserialize_datetime_v1(self):
         s = {
             "__classname__": "pendulum.datetime.DateTime",
             "__version__": 1,

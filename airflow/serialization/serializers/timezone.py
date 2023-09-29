@@ -17,8 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import datetime
 
+from typing import TYPE_CHECKING, cast
+
+from airflow import PY39
 from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
@@ -27,7 +30,12 @@ if TYPE_CHECKING:
     from airflow.serialization.serde import U
 
 
-serializers = ["pendulum.tz.timezone.FixedTimezone", "pendulum.tz.timezone.Timezone"]
+serializers = [
+    "pendulum.tz.timezone.FixedTimezone",
+    "pendulum.tz.timezone.Timezone",
+    "backports.zoneinfo.ZoneInfo",
+    "zoneinfo.ZoneInfo",
+]
 deserializers = serializers
 
 __version__ = 1
@@ -43,21 +51,26 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     0 without the special case), but passing 0 into ``pendulum.timezone`` does
     not give us UTC (but ``+00:00``).
     """
-    from pendulum.tz.timezone import FixedTimezone, Timezone
+    from pendulum.tz.timezone import FixedTimezone
 
     name = qualname(o)
+
     if isinstance(o, FixedTimezone):
         if o.offset == 0:
             return "UTC", name, __version__, True
         return o.offset, name, __version__, True
 
-    if isinstance(o, Timezone):
-        return o.name, name, __version__, True
+    tz_name = _get_tzinfo_name(cast(datetime.tzinfo, o))
+    if tz_name is not None:
+        return tz_name, name, __version__, True
+
+    if cast(datetime.tzinfo, o).utcoffset(None) == datetime.timedelta(0):
+        return "UTC", qualname(FixedTimezone), __version__, True
 
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: object) -> Timezone:
+def deserialize(classname: str, version: int, data: object) -> Timezone | "ZoneInfo":
     from pendulum.tz import fixed_timezone, timezone
 
     if not isinstance(data, (str, int)):
@@ -69,4 +82,28 @@ def deserialize(classname: str, version: int, data: object) -> Timezone:
     if isinstance(data, int):
         return fixed_timezone(data)
 
+    if "zoneinfo.ZoneInfo" in classname:  # capturing backports and stdlib
+        if PY39:
+            from zoneinfo import ZoneInfo
+        else:
+            from backports.zoneinfo import ZoneInfo
+        return ZoneInfo(data)
+
     return timezone(data)
+
+
+def _get_tzinfo_name(tzinfo: datetime.tzinfo | None) -> str | None:
+    if tzinfo is None:
+        return None
+
+    if hasattr(tzinfo, "key"):
+        # zoneinfo timezone
+        return tzinfo.key
+    elif hasattr(tzinfo, "name"):
+        # Pendulum timezone
+        return tzinfo.name
+    elif hasattr(tzinfo, "zone"):
+        # pytz timezone
+        return tzinfo.zone  # type: ignore[no-any-return]
+
+    return None
