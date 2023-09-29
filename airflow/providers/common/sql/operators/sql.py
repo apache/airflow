@@ -945,8 +945,8 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         sqlexp = ", ".join(self.metrics_sorted)
         sqlt = f"SELECT {sqlexp} FROM {table} WHERE {date_filter_column}="
 
-        self.sql1 = sqlt + "'{{ ds }}'"
-        self.sql2 = sqlt + "'{{ macros.ds_add(ds, " + str(self.days_back) + ") }}'"
+        self.sql1 = f"{sqlt}'{{{{ ds }}}}'"
+        self.sql2 = f"{sqlt}'{{{{ macros.ds_add(ds, {self.days_back}) }}}}'"
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
