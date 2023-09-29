@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -30,10 +31,15 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
 )
 
 FUNCTION_NAME = "function_name"
-PAYLOAD = '{"hello": "airflow"}'
-BYTES_PAYLOAD = b'{"hello": "airflow"}'
+PAYLOADS = [
+    pytest.param('{"hello": "airflow"}', id="string-payload"),
+    pytest.param(b'{"hello": "airflow"}', id="bytes-payload"),
+]
 ROLE_ARN = "role_arn"
 IMAGE_URI = "image_uri"
+LOG_RESPONSE = base64.b64encode(b"FOO\n\nBAR\n\n").decode()
+BAD_LOG_RESPONSE = LOG_RESPONSE[:-3]
+NO_LOG_RESPONSE_SENTINEL = type("NoLogResponseSentinel", (), {})()
 
 
 class TestLambdaCreateFunctionOperator:
@@ -86,10 +92,7 @@ class TestLambdaCreateFunctionOperator:
 
 
 class TestLambdaInvokeFunctionOperator:
-    @pytest.mark.parametrize(
-        "payload",
-        [PAYLOAD, BYTES_PAYLOAD],
-    )
+    @pytest.mark.parametrize("payload", PAYLOADS)
     def test_init(self, payload):
         lambda_operator = LambdaInvokeFunctionOperator(
             task_id="test",
@@ -106,27 +109,43 @@ class TestLambdaInvokeFunctionOperator:
 
     @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     @pytest.mark.parametrize(
-        "payload",
-        [PAYLOAD, BYTES_PAYLOAD],
+        "keep_empty_log_lines", [pytest.param(True, id="keep"), pytest.param(False, id="truncate")]
     )
-    def test_invoke_lambda(self, hook_mock, payload):
+    @pytest.mark.parametrize(
+        "log_result, expected_execution_logs",
+        [
+            pytest.param(LOG_RESPONSE, True, id="log-result"),
+            pytest.param(BAD_LOG_RESPONSE, False, id="corrupted-log-result"),
+            pytest.param(None, False, id="none-log-result"),
+            pytest.param(NO_LOG_RESPONSE_SENTINEL, False, id="no-response"),
+        ],
+    )
+    @pytest.mark.parametrize("payload", PAYLOADS)
+    def test_invoke_lambda(
+        self, hook_mock, payload, keep_empty_log_lines, log_result, expected_execution_logs, caplog
+    ):
         operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="a",
             invocation_type="b",
             log_type="c",
+            keep_empty_log_lines=keep_empty_log_lines,
             client_context="d",
             payload=payload,
             qualifier="f",
         )
         returned_payload = Mock()
         returned_payload.read().decode.return_value = "data was read"
-        hook_mock().invoke_lambda.return_value = {
+        fake_response = {
             "ResponseMetadata": "",
             "StatusCode": 200,
             "Payload": returned_payload,
         }
+        if log_result is not NO_LOG_RESPONSE_SENTINEL:
+            fake_response["LogResult"] = log_result
+        hook_mock().invoke_lambda.return_value = fake_response
 
+        caplog.set_level("INFO", "airflow.task.operators")
         value = operator.execute(None)
 
         assert value == "data was read"
@@ -160,7 +179,7 @@ class TestLambdaInvokeFunctionOperator:
             "ResponseMetadata": "",
             "StatusCode": 404,
             "FunctionError": "yes",
-            "Payload": Mock(),
+            "Payload": mock.Mock(),
         }
 
         with pytest.raises(ValueError):
