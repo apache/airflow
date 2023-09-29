@@ -897,58 +897,40 @@ exit 0
             op.execute(context={})
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception, response_get_current, response_exists, kwargs, expected_message",
+        "response_get_current, response_exists, kwargs, expected_message",
         (
-            (False, AirflowException, None, None, {}, f"The external DAG {TEST_DAG_ID} does not exist."),
+            (None, None, {}, f"The external DAG {TEST_DAG_ID} does not exist."),
             (
-                False,
-                AirflowException,
                 DAG(dag_id="test"),
                 False,
                 {},
                 f"The external DAG {TEST_DAG_ID} was deleted.",
             ),
             (
-                False,
-                AirflowException,
                 DAG(dag_id="test"),
                 True,
                 {"external_task_ids": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE]},
                 f"The external task {TEST_TASK_ID} in DAG {TEST_DAG_ID} does not exist.",
             ),
             (
-                False,
-                AirflowException,
                 DAG(dag_id="test"),
                 True,
                 {"external_task_group_id": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE]},
                 f"The external task group '{re.escape(str([TEST_TASK_ID, TEST_TASK_ID_ALTERNATE]))}'"
                 f" in DAG '{TEST_DAG_ID}' does not exist.",
             ),
-            (True, AirflowSkipException, None, None, {}, "Skipping due to soft_fail is set to True."),
+        ),
+    )
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception",
+        (
             (
-                True,
-                AirflowSkipException,
-                DAG(dag_id="test"),
                 False,
-                {},
-                "Skipping due to soft_fail is set to True.",
+                AirflowException,
             ),
             (
                 True,
                 AirflowSkipException,
-                DAG(dag_id="test"),
-                True,
-                {"external_task_ids": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE]},
-                "Skipping due to soft_fail is set to True.",
-            ),
-            (
-                True,
-                AirflowSkipException,
-                DAG(dag_id="test"),
-                True,
-                {"external_task_group_id": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE]},
-                "Skipping due to soft_fail is set to True.",
             ),
         ),
     )
@@ -985,6 +967,7 @@ exit 0
             check_existence=True,
             **kwargs,
         )
+        expected_message = "Skipping due to soft_fail is set to True." if soft_fail else expected_message
         with pytest.raises(expected_exception, match=expected_message):
             op.execute(context={})
 
