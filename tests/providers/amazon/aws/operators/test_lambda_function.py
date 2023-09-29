@@ -107,7 +107,8 @@ class TestLambdaInvokeFunctionOperator:
         assert lambda_operator.log_type == "None"
         assert lambda_operator.aws_conn_id == "aws_conn_test"
 
-    @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
+    @mock.patch.object(LambdaHook, "invoke_lambda")
+    @mock.patch.object(LambdaHook, "conn")
     @pytest.mark.parametrize(
         "keep_empty_log_lines", [pytest.param(True, id="keep"), pytest.param(False, id="truncate")]
     )
@@ -122,7 +123,14 @@ class TestLambdaInvokeFunctionOperator:
     )
     @pytest.mark.parametrize("payload", PAYLOADS)
     def test_invoke_lambda(
-        self, hook_mock, payload, keep_empty_log_lines, log_result, expected_execution_logs, caplog
+        self,
+        mock_conn,
+        mock_invoke,
+        payload,
+        keep_empty_log_lines,
+        log_result,
+        expected_execution_logs,
+        caplog,
     ):
         operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
@@ -143,13 +151,13 @@ class TestLambdaInvokeFunctionOperator:
         }
         if log_result is not NO_LOG_RESPONSE_SENTINEL:
             fake_response["LogResult"] = log_result
-        hook_mock().invoke_lambda.return_value = fake_response
+        mock_invoke.return_value = fake_response
 
         caplog.set_level("INFO", "airflow.task.operators")
         value = operator.execute(None)
 
         assert value == "data was read"
-        hook_mock().invoke_lambda.assert_called_once_with(
+        mock_invoke.assert_called_once_with(
             function_name="a",
             invocation_type="b",
             log_type="c",
@@ -157,6 +165,18 @@ class TestLambdaInvokeFunctionOperator:
             payload=payload,
             qualifier="f",
         )
+
+        # Validate log messages in task logs
+        if expected_execution_logs:
+            assert "The last 4 KB of the Lambda execution log" in caplog.text
+            assert "FOO" in caplog.messages
+            assert "BAR" in caplog.messages
+            if keep_empty_log_lines:
+                assert "" in caplog.messages
+            else:
+                assert "" not in caplog.messages
+        else:
+            assert "The last 4 KB of the Lambda execution log" not in caplog.text
 
     @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     def test_invoke_lambda_bad_http_code(self, hook_mock):
@@ -179,7 +199,7 @@ class TestLambdaInvokeFunctionOperator:
             "ResponseMetadata": "",
             "StatusCode": 404,
             "FunctionError": "yes",
-            "Payload": mock.Mock(),
+            "Payload": Mock(),
         }
 
         with pytest.raises(ValueError):
