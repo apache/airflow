@@ -815,13 +815,12 @@ class TestGetDags(TestDagEndpoint):
 
         assert_401(response)
 
-    def test_should_return_empty_list(self):
+    def test_should_respond_403_unauthorized(self):
         self._create_dag_models(1)
 
         response = self.client.get("api/v1/dags", environ_overrides={"REMOTE_USER": "test_no_permissions"})
 
-        assert response.status_code == 200
-        assert {"dags": [], "total_entries": 0} == response.json
+        assert response.status_code == 403
 
     def test_paused_true_returns_paused_dags(self, url_safe_serializer):
         self._create_dag_models(1, dag_id_prefix="TEST_DAG_PAUSED", is_paused=True)
@@ -1540,7 +1539,7 @@ class TestPatchDags(TestDagEndpoint):
 
         assert_401(response)
 
-    def test_should_return_empty_list(self):
+    def test_should_respond_403_unauthorized(self):
         self._create_dag_models(1)
         response = self.client.patch(
             "api/v1/dags?dag_id_pattern=~",
@@ -1550,8 +1549,7 @@ class TestPatchDags(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
 
-        assert response.status_code == 200
-        assert {"dags": [], "total_entries": 0} == response.json
+        assert response.status_code == 403
 
     def test_should_respond_200_and_pause_dags(self, url_safe_serializer):
         file_token = url_safe_serializer.dumps("/tmp/dag_1.py")

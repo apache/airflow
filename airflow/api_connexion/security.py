@@ -70,7 +70,7 @@ def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Cal
     return requires_access_decorator
 
 
-def _requires_access(*, is_authorized_callback: Callable[[], bool], func: Callable, args, kwargs):
+def _requires_access(*, is_authorized_callback: Callable[[], bool], func: Callable, args, kwargs) -> bool:
     """
     Define the behavior whether the user is authorized to access the resource.
 
@@ -140,16 +140,37 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[T], T]:
 def requires_access_dag(
     method: ResourceMethod, access_entity: DagAccessEntity | None = None
 ) -> Callable[[T], T]:
+    appbuilder = get_airflow_app().appbuilder
+
+    def _is_authorized_callback(dag_id: str):
+        def callback():
+            access = get_auth_manager().is_authorized_dag(
+                method=method,
+                access_entity=access_entity,
+                details=DagDetails(id=dag_id),
+            )
+
+            # ``access`` means here:
+            # - if a DAG id is provided (``dag_id`` not None): is the user authorized to access this DAG
+            # - if no DAG id is provided: is the user authorized to access all DAGs
+            if dag_id or access:
+                return access
+
+            # No DAG id is provided and the user is not authorized to access all DAGs
+            # If method is "GET", return whether the user has read access to any DAGs
+            # If method is "PUT", return whether the user has edit access to any DAGs
+            return (method == "GET" and any(appbuilder.sm.get_readable_dag_ids())) or (
+                method == "PUT" and any(appbuilder.sm.get_editable_dag_ids())
+            )
+
+        return callback
+
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
             dag_id: str | None = kwargs.get("dag_id") if kwargs.get("dag_id") != "~" else None
             return _requires_access(
-                is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
-                    method=method,
-                    access_entity=access_entity,
-                    details=DagDetails(id=dag_id),
-                ),
+                is_authorized_callback=_is_authorized_callback(dag_id),
                 func=func,
                 args=args,
                 kwargs=kwargs,

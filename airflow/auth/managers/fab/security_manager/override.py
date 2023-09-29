@@ -567,7 +567,18 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             for action in fab_action_name_to_method_name
             if action in user_actions
         ]
-        return self.get_permitted_dag_ids(user=user, user_methods=user_methods, session=session)
+        return self.get_permitted_dag_ids(user=user, methods=user_methods, session=session)
+
+    def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
+        """Checks if user has read or write access to some dags."""
+        if dag_id and dag_id != "~":
+            root_dag_id = self._get_root_dag_id(dag_id)
+            return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))
+
+        user = g.user
+        if action == permissions.ACTION_CAN_READ:
+            return any(self.get_readable_dag_ids(user))
+        return any(self.get_editable_dag_ids(user))
 
     """
     -----------

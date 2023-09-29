@@ -271,29 +271,30 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             user = g.user
         return user.roles
 
-    def get_readable_dag_ids(self, user) -> set[str]:
+    def get_readable_dag_ids(self, user=None) -> set[str]:
         """Gets the DAG IDs readable by authenticated user."""
-        return self.get_permitted_dag_ids(user, ["GET"])
+        return self.get_permitted_dag_ids(methods=["GET"], user=user)
 
-    def get_editable_dag_ids(self, user) -> set[str]:
+    def get_editable_dag_ids(self, user=None) -> set[str]:
         """Gets the DAG IDs editable by authenticated user."""
-        return self.get_permitted_dag_ids(user, ["PUT"])
+        return self.get_permitted_dag_ids(methods=["PUT"], user=user)
 
     @provide_session
     def get_permitted_dag_ids(
         self,
-        user,
-        user_methods: Container[ResourceMethod] | None = None,
+        *,
+        methods: Container[ResourceMethod] | None = None,
+        user=None,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """Generic function to get readable or writable DAGs for user."""
-        if not user_methods:
-            user_methods = ["PUT", "GET"]
+        if not methods:
+            methods = ["PUT", "GET"]
 
         dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
 
-        if ("GET" in user_methods and get_auth_manager().is_authorized_dag(method="GET", user=user)) or (
-            "PUT" in user_methods and get_auth_manager().is_authorized_dag(method="PUT", user=user)
+        if ("GET" in methods and get_auth_manager().is_authorized_dag(method="GET", user=user)) or (
+            "PUT" in methods and get_auth_manager().is_authorized_dag(method="PUT", user=user)
         ):
             return dag_ids
 
@@ -301,29 +302,22 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             dag_id
             for dag_id in dag_ids
             if (
-                "GET" in user_methods
+                "GET" in methods
                 and get_auth_manager().is_authorized_dag(
                     method="GET", details=DagDetails(id=dag_id), user=user
                 )
             )
             or (
-                "PUT" in user_methods
+                "PUT" in methods
                 and get_auth_manager().is_authorized_dag(
                     method="PUT", details=DagDetails(id=dag_id), user=user
                 )
             )
         }
 
-    def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
-        """Checks if user has read or write access to some dags."""
-        if dag_id and dag_id != "~":
-            root_dag_id = self._get_root_dag_id(dag_id)
-            return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))
-
-        user = g.user
-        if action == permissions.ACTION_CAN_READ:
-            return any(self.get_readable_dag_ids(user))
-        return any(self.get_editable_dag_ids(user))
+    def can_access_dags(self, user) -> bool:
+        """Checks if user has read access to some dags."""
+        return any(self.get_readable_dag_ids(user))
 
     def prefixed_dag_id(self, dag_id: str) -> str:
         """Returns the permission name for a DAG id."""
@@ -645,24 +639,13 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
     def check_authorization(
         self,
         perms: Sequence[tuple[str, str]] | None = None,
-        dag_id: str | None = None,
     ) -> bool:
         """Checks that the logged in user has the specified permissions."""
         if not perms:
             return True
 
         for perm in perms:
-            if perm in (
-                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
-            ):
-                can_access_all_dags = self.has_access(*perm)
-                if not can_access_all_dags:
-                    action = perm[0]
-                    if not self.can_access_some_dags(action, dag_id):
-                        return False
-            elif not self.has_access(*perm):
+            if not self.has_access(*perm):
                 return False
 
         return True

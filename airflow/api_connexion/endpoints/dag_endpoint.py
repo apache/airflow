@@ -34,7 +34,6 @@ from airflow.api_connexion.schemas.dag_schema import (
     dag_schema,
     dags_collection_schema,
 )
-from airflow.api_connexion.security import requires_authentication
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -69,7 +68,7 @@ def get_dag_details(*, dag_id: str) -> APIResponse:
     return dag_detail_schema.dump(dag)
 
 
-@requires_authentication
+@security.requires_access_dag("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_dags(
@@ -96,7 +95,7 @@ def get_dags(
     if dag_id_pattern:
         dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
-    readable_dags = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(g.user)
+    readable_dags = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
 
     dags_query = dags_query.where(DagModel.dag_id.in_(readable_dags))
     if tags:
@@ -132,7 +131,7 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
     return dag_schema.dump(dag)
 
 
-@security.requires_authentication
+@security.requires_access_dag("PUT")
 @format_parameters({"limit": check_limit})
 @provide_session
 def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None, update_mask=None):
