@@ -24,6 +24,7 @@ import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
+from airflow.providers.dingding.hooks.dingding import DingdingHook
 from airflow.providers.dingding.operators.dingding import DingdingOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -35,20 +36,10 @@ def failure_callback(context):
     """
     The function that will be executed on failure.
 
-    :param context: The context of the executed task.
+    :param context: The context of the executed DAG.
     """
-    message = (
-        f"AIRFLOW TASK FAILURE TIPS:\n"
-        f"DAG:    {context['task_instance'].dag_id}\n"
-        f"TASKS:  {context['task_instance'].task_id}\n"
-        f"Reason: {context['exception']}\n"
-    )
-    return DingdingOperator(
-        task_id="dingding_success_callback",
-        message_type="text",
-        message=message,
-        at_all=True,
-    ).execute(context)
+    message = f"The task {context['ti'].task_id} failed"
+    DingdingHook(message_type="text", message=message, at_all=True).send()
 
 
 # [END howto_operator_dingding_failure_callback]
