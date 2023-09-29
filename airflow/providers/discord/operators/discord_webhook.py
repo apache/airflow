@@ -77,11 +77,10 @@ class DiscordWebhookOperator(SimpleHttpOperator):
         self.avatar_url = avatar_url
         self.tts = tts
         self.proxy = proxy
-        self.hook: DiscordWebhookHook | None = None
 
-    def execute(self, context: Context) -> None:
-        """Call the DiscordWebhookHook to post message."""
-        self.hook = DiscordWebhookHook(
+    @property
+    def hook(self) -> DiscordWebhookHook:
+        hook = DiscordWebhookHook(
             self.http_conn_id,
             self.webhook_endpoint,
             self.message,
@@ -90,4 +89,8 @@ class DiscordWebhookOperator(SimpleHttpOperator):
             self.tts,
             self.proxy,
         )
+        return hook
+
+    def execute(self, context: Context) -> None:
+        """Call the DiscordWebhookHook to post a message."""
         self.hook.execute()
