@@ -1207,6 +1207,9 @@ additional-extras:
   - name: amazon
     dependencies:
       - apache-airflow-providers-amazon>=2.6.0
+  - name: polars
+    dependencies:
+      - polars>=0.19.5
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
