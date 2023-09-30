@@ -19,13 +19,16 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+import boto3
+from moto import mock_opensearch
 
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models import DAG, DagRun, TaskInstance, Connection
 from airflow.providers.amazon.aws.hooks.opensearch import OpenSearchHook
 from airflow.providers.amazon.aws.operators.opensearch import OpenSearchQueryOperator, \
     OpenSearchAddDocumentOperator, OpenSearchCreateIndexOperator
-from airflow.utils import timezone
+from airflow.utils import timezone, db
 from airflow.utils.timezone import datetime
+
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
@@ -35,7 +38,33 @@ MOCK_TEST_DATA = {
 
 
 class TestOpenSearchQueryOperator:
+
+    @mock_opensearch
+    def create_domain(self):
+        client = boto3.client("opensearch")
+        response = client.create_domain(DomainName=f"test-opensearch-cluster",
+                                        EngineVersion="2.7",
+                                        ClusterConfig={
+                                            "InstanceType": "t3.small.search",
+                                            "InstanceCount": 1,
+                                            "DedicatedMasterEnabled": False,
+                                            "ZoneAwarenessEnabled": False,
+                                        }, )
+        return response["endpoint"]
+
     def setup_method(self):
+        db.merge_conn(
+            Connection(
+                conn_id="opensearch_default",
+                conn_type="open_search",
+                host=self.create_domain(),
+                login="MyAWSSecretID",
+                password="MyAccessKey",
+                extra={
+                    "region_name": "us-east-1"
+                }
+            )
+        )
         args = {
             "owner": "airflow",
             "start_date": DEFAULT_DATE,
@@ -56,9 +85,9 @@ class TestOpenSearchQueryOperator:
         assert self.open_search.task_id == "test_opensearch_query_operator"
         assert self.open_search.opensearch_conn_id == "opensearch_default"
         assert self.open_search.query["size"] == 5
+        assert self.open_search.hook.region == "us-east-1"
 
     @mock.patch.object(OpenSearchHook, "search", return_value=MOCK_TEST_DATA)
-    @mock.patch.object(OpenSearchHook, "get_conn")
     def test_search_query(self, mock_search):
         self.open_search.execute({})
         mock_search.assert_called_once_with(
