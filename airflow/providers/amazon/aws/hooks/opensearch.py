@@ -33,6 +33,10 @@ class OpenSearchHook(AwsBaseHook):
     :param: open_search_conn_id: AWS Connection to use with Open Search
     :param: log_query: Whether to log the query used for Open Search
     """
+    conn_name_attr = "opensearch_conn_id"
+    default_conn_name = "opensearch_default"
+    conn_type = "opensearch"
+    hook_name = "AWS Open Search Hook"
 
     def __init__(self, *args: Any, open_search_conn_id: str, log_query: bool, **kwargs: Any):
         super().__init__(*args, **kwargs)

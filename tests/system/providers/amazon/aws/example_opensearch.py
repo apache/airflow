@@ -40,6 +40,7 @@ sys_test_context_task = SystemTestContextBuilder().build()
 
 
 class TestDoc(Document):
+    __test__ = False
     title = Text(fields={"raw": Keyword()})
     media_type = Text()
 
@@ -48,7 +49,6 @@ class TestDoc(Document):
 
     def save(self, **kwargs):
         return super().save(**kwargs)
-
 
 @task
 def create_open_search_cluster():
@@ -80,6 +80,7 @@ with DAG(
 ) as dag:
     test_context = sys_test_context_task()
     create_cluster = create_open_search_cluster()
+
     # [START howto_operator_opensearch_index]
     create_index = OpenSearchCreateIndexOperator(
         task_id="create_index_example",

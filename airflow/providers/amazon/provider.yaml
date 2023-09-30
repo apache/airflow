@@ -23,6 +23,14 @@ description: |
 
 suspended: false
 versions:
+  - 8.7.1
+  - 8.7.0
+  - 8.6.0
+  - 8.5.1
+  - 8.5.0
+  - 8.4.0
+  - 8.3.1
+  - 8.3.0
   - 8.2.0
   - 8.1.0
   - 8.0.0
@@ -563,6 +571,9 @@ triggers:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.triggers.ec2
+  - integration-name: AWS Lambda
+    python-modules:
+        - airflow.providers.amazon.aws.triggers.lambda_function
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.triggers.redshift_cluster

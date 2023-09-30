@@ -42,7 +42,7 @@ class OpenSearchQueryOperator(BaseOperator):
     :param: query: A Dictionary Open Search DSL query.
     :param: search_object: A Search object from opensearch-dsl.
     :param: index_name: The name of the index to search for documents.
-    :param: aws_conn_id: aws connection to use
+    :param: opensearch_conn_id: opensearch connection to use
     :param: log_query: Whether to log the query used. Defaults to True and logs query used.
     """
 
@@ -54,21 +54,21 @@ class OpenSearchQueryOperator(BaseOperator):
         query: dict | None = None,
         search_object: Search | None = None,
         index_name: str | None = None,
-        aws_conn_id: str = "aws_default",
+        opensearch_conn_id: str = "opensearch_default",
         log_query: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.query = query
         self.index_name = index_name
-        self.aws_conn_id = aws_conn_id
+        self.opensearch_conn_id = opensearch_conn_id
         self.log_query = log_query
         self.search_object = search_object
 
     @cached_property
     def hook(self) -> OpenSearchHook:
         """Gets an instance of an OpenSearchHook."""
-        return OpenSearchHook(open_search_conn_id=self.aws_conn_id, log_query=self.log_query)
+        return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=self.log_query)
 
     def execute(self, context: Context) -> Any:
         """Executes a search against a given index or a Search object on an AWS OpenSearch Cluster."""
@@ -106,21 +106,21 @@ class OpenSearchCreateIndexOperator(BaseOperator):
 
     :param: index_name: The name of the index to be created.
     :param: index_body: A dictionary that defines index settings
-    :param: aws_conn_id: aws connection to use
+    :param: opensearch_conn_id: opensearch connection to use
     """
 
     def __init__(
-        self, *, index_name: str, index_body: dict[str, Any], aws_conn_id: str = "aws_default", **kwargs
+        self, *, index_name: str, index_body: dict[str, Any], opensearch_conn_id: str = "opensearch_default", **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.index_name = index_name
         self.index_body = index_body
-        self.aws_conn_id = aws_conn_id
+        self.opensearch_conn_id = opensearch_conn_id
 
     @cached_property
     def hook(self) -> OpenSearchHook:
         """Gets an instance of an OpenSearchHook."""
-        return OpenSearchHook(open_search_conn_id=self.aws_conn_id, log_query=False)
+        return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
 
     def execute(self, context: Context) -> Any:
         """Creates an index on an AWS Open Search cluster."""
@@ -142,7 +142,7 @@ class OpenSearchAddDocumentOperator(BaseOperator):
     :param: document: A dictionary representation of the document.
     :param: document_id: The id for the document in the index.
     :param: doc_class: A Document subclassed object using opensearch-dsl
-    :param: aws_conn_id: aws connection to use
+    :param: opensearch_conn_id: opensearch connection to use
     """
 
     def __init__(
@@ -152,7 +152,7 @@ class OpenSearchAddDocumentOperator(BaseOperator):
         document: dict[str, Any] | None = None,
         doc_id: int | None = None,
         doc_class: Document | None = None,
-        aws_conn_id: str = "aws_default",
+        opensearch_conn_id: str = "opensearch_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -160,12 +160,12 @@ class OpenSearchAddDocumentOperator(BaseOperator):
         self.document = document
         self.doc_id = doc_id
         self.doc_class = doc_class
-        self.aws_conn_id = aws_conn_id
+        self.opensearch_conn_id = opensearch_conn_id
 
     @cached_property
     def hook(self) -> OpenSearchHook:
         """Gets an instance of an OpenSearchHook."""
-        return OpenSearchHook(open_search_conn_id=self.aws_conn_id, log_query=False)
+        return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
 
     def execute(self, context: Context) -> Any:
         """Saves a document to a given index on an AWS OpenSearch cluster."""
