@@ -23,14 +23,6 @@ description: |
 
 suspended: false
 versions:
-  - 8.7.1
-  - 8.7.0
-  - 8.6.0
-  - 8.5.1
-  - 8.5.0
-  - 8.4.0
-  - 8.3.1
-  - 8.3.0
   - 8.2.0
   - 8.1.0
   - 8.0.0
@@ -72,9 +64,9 @@ dependencies:
   - apache-airflow-providers-http
   # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
   # of candidates to consider. We should also make sure that all the below related packages have also the
-  # same minimum version specified. Boto3 1.28.0 has been released on July 6 2023. We should also make sure we
-  # set it to the version that `aiobotocore` supports (see `aiobotocore` optional dependency at the end
-  # of this file). Currently we set aiobotocore as minimum 2.5.3 - as this is was the first version
+  # same minimum version specified. Boto3 1.28.0 has been released on July 6, 2023. We should also make
+  # sure we set it to the version that `aiobotocore` supports (see `aiobotocore` optional dependency at
+  # the end of this file). Currently, we set aiobotocore as minimum 2.5.3 - as this it was the first version
   # that supported boto3 1.28. NOTE!!! BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
   # NOTE!!! Make sure to update _MIN_BOTO3_VERSION in setup.py when you update it here
   - boto3>=1.28.0
@@ -89,7 +81,14 @@ dependencies:
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
+  - mypy-boto3-rds>=1.24.0
+  - mypy-boto3-redshift-data>=1.24.0
+  - mypy-boto3-appflow>=1.24.0
   - asgiref
+  - mypy-boto3-s3>=1.24.0
+  - opensearch-py>=2.2.0
+  - opensearch-dsl>=2.1.0
+
 
 integrations:
   - integration-name: Amazon Athena
@@ -292,6 +291,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/appflow.rst
     tags: [aws]
+  - integration-name: AWS Open Search
+    external-doc-url: https://aws.amazon.com/opensearch-service/
+    logo: /integration-logos/aws/Amazon-OpenSearch-light.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/opensearch.rst
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -365,6 +370,9 @@ operators:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.operators.appflow
+  - integration-name: AWS Open Search
+    python-modules:
+      - airflow.providers.amazon.aws.operators.opensearch
 
 sensors:
   - integration-name: Amazon Athena
@@ -538,6 +546,9 @@ hooks:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.hooks.appflow
+  - integration-name: Amazon Open Search
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.opensearch
 
 triggers:
   - integration-name: Amazon Web Services
@@ -552,9 +563,6 @@ triggers:
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.triggers.ec2
-  - integration-name: AWS Lambda
-    python-modules:
-      - airflow.providers.amazon.aws.triggers.lambda_function
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.triggers.redshift_cluster
@@ -685,6 +693,8 @@ connection-types:
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
+  - hook-class-name: airflow.providers.amazon.aws.hooks.opensearch.OpenSearchHook
+    connection-type: opensearch
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier

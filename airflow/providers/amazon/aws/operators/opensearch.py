@@ -1,0 +1,189 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Sequence
+
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.opensearch import OpenSearchHook
+
+if TYPE_CHECKING:
+    from opensearch_dsl.document import Document
+    from opensearch_dsl.search import Search
+
+    from airflow.utils.context import Context
+
+
+class OpenSearchQueryOperator(BaseOperator):
+    """
+    Runs a query search against a given index on an AWS OpenSearch cluster and returns results.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:OpenSearchSearchOperator`
+
+    :param: query: A Dictionary Open Search DSL query.
+    :param: search_object: A Search object from opensearch-dsl.
+    :param: index_name: The name of the index to search for documents.
+    :param: aws_conn_id: aws connection to use
+    :param: log_query: Whether to log the query used. Defaults to True and logs query used.
+    """
+
+    template_fields: Sequence[str] = ["query"]
+
+    def __init__(
+        self,
+        *,
+        query: dict | None = None,
+        search_object: Search | None = None,
+        index_name: str | None = None,
+        aws_conn_id: str = "aws_default",
+        log_query: bool = True,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.query = query
+        self.index_name = index_name
+        self.aws_conn_id = aws_conn_id
+        self.log_query = log_query
+        self.search_object = search_object
+
+    @cached_property
+    def hook(self) -> OpenSearchHook:
+        """Gets an instance of an OpenSearchHook."""
+        return OpenSearchHook(open_search_conn_id=self.aws_conn_id, log_query=self.log_query)
+
+    def execute(self, context: Context) -> Any:
+        """Executes a search against a given index or a Search object on an AWS OpenSearch Cluster."""
+        result = None
+
+        if self.query is not None:
+            if not self.query.get("query"):
+                raise AirflowException("Query input is missing required field Query in dictionary")
+            if self.index_name is None:
+                raise AirflowException("Index name is required when using the query input.")
+            try:
+                result = self.hook.search(index_name=self.index_name, query=self.query)
+            except Exception as e:
+                raise AirflowException(e)
+        elif self.search_object is not None:
+            try:
+                result = self.search_object.using(self.hook.get_client()).execute()
+            except Exception as e:
+                raise AirflowException(e)
+        else:
+            raise AirflowException(
+                """Input missing required input of query or search_object.
+                Either query or search_object is required."""
+            )
+        return result
+
+
+class OpenSearchCreateIndexOperator(BaseOperator):
+    """
+    Creates a new index on an AWS Open Search cluster with a given index name.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:OpenSearchCreateIndexOperator`
+
+    :param: index_name: The name of the index to be created.
+    :param: index_body: A dictionary that defines index settings
+    :param: aws_conn_id: aws connection to use
+    """
+
+    def __init__(
+        self, *, index_name: str, index_body: dict[str, Any], aws_conn_id: str = "aws_default", **kwargs
+    ) -> None:
+        super().__init__(**kwargs)
+        self.index_name = index_name
+        self.index_body = index_body
+        self.aws_conn_id = aws_conn_id
+
+    @cached_property
+    def hook(self) -> OpenSearchHook:
+        """Gets an instance of an OpenSearchHook."""
+        return OpenSearchHook(open_search_conn_id=self.aws_conn_id, log_query=False)
+
+    def execute(self, context: Context) -> Any:
+        """Creates an index on an AWS Open Search cluster."""
+        try:
+            self.hook.get_client().indices.create(index=self.index_name, body=self.index_body)
+        except Exception as e:
+            raise AirflowException(e)
+
+
+class OpenSearchAddDocumentOperator(BaseOperator):
+    """
+    Runs a query search against a given index on an AWS OpenSearch cluster and returns results.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:OpenSearchAddDocumentOperator`
+
+    :param: index_name: The name of the index to put the document.
+    :param: document: A dictionary representation of the document.
+    :param: document_id: The id for the document in the index.
+    :param: doc_class: A Document subclassed object using opensearch-dsl
+    :param: aws_conn_id: aws connection to use
+    """
+
+    def __init__(
+        self,
+        *,
+        index_name: str | None = None,
+        document: dict[str, Any] | None = None,
+        doc_id: int | None = None,
+        doc_class: Document | None = None,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.index_name = index_name
+        self.document = document
+        self.doc_id = doc_id
+        self.doc_class = doc_class
+        self.aws_conn_id = aws_conn_id
+
+    @cached_property
+    def hook(self) -> OpenSearchHook:
+        """Gets an instance of an OpenSearchHook."""
+        return OpenSearchHook(open_search_conn_id=self.aws_conn_id, log_query=False)
+
+    def execute(self, context: Context) -> Any:
+        """Saves a document to a given index on an AWS OpenSearch cluster."""
+        if self.doc_class is not None:
+            try:
+                result = self.doc_class.save(using=self.hook.get_client())
+            except Exception as e:
+                raise AirflowException(e)
+        elif self.index_name is not None and self.document is not None and self.doc_id is not None:
+            try:
+                result = self.hook.index(
+                    index_name=self.index_name, document=self.document, doc_id=self.doc_id
+                )
+            except Exception as e:
+                raise AirflowException(e)
+        else:
+            raise AirflowException(
+                "Index name, document dictionary and doc_id or a Document subclassed object is required."
+            )
+
+        return result
