@@ -18,7 +18,6 @@
 """Processes DAGs."""
 from __future__ import annotations
 
-import collections
 import enum
 import importlib
 import inspect
@@ -30,7 +29,7 @@ import signal
 import sys
 import time
 import zipfile
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from importlib import import_module
 from pathlib import Path
@@ -386,7 +385,7 @@ class DagFileProcessorManager(LoggingMixin):
         super().__init__()
         # known files; this will be updated every `dag_dir_list_interval` and stuff added/removed accordingly
         self._file_paths: list[str] = []
-        self._file_path_queue: collections.deque[str] = collections.deque()
+        self._file_path_queue: deque[str] = deque()
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
@@ -743,7 +742,7 @@ class DagFileProcessorManager(LoggingMixin):
                 # Remove file paths matching request.full_filepath from self._file_path_queue
                 # Since we are already going to use that filepath to run callback,
                 # there is no need to have same file path again in the queue
-                self._file_path_queue = collections.deque(
+                self._file_path_queue = deque(
                     file_path for file_path in self._file_path_queue if file_path != request.full_filepath
                 )
             self._add_paths_to_queue([request.full_filepath], True)
@@ -986,7 +985,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._file_paths = new_file_paths
 
         # clean up the queues; remove anything queued which no longer in the list, including callbacks
-        self._file_path_queue = collections.deque(x for x in self._file_path_queue if x in new_file_paths)
+        self._file_path_queue = deque(x for x in self._file_path_queue if x in new_file_paths)
         Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
 
         callback_paths_to_del = [x for x in self._callback_to_execute if x not in new_file_paths]

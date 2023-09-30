@@ -122,7 +122,9 @@ Extra (optional)
     * ``config_kwargs``: Additional **kwargs** used to construct a
       `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__.
       To anonymously access public AWS resources (equivalent of `signature_version=botocore.UNSGINED`), set `"signature_version"="unsigned"` within `config_kwargs`.
-    * ``endpoint_url``: Endpoint URL for the connection.
+    * ``endpoint_url``: Global Endpoint URL for the connection. You could specify endpoint url per AWS service by utilize
+      ``service_config``, for more details please refer to :ref:`howto/connection:aws:per-service-endpoint-configuration`
+
     * ``verify``: Whether or not to verify SSL certificates.
 
     The following extra parameters used for specific AWS services:
@@ -342,6 +344,38 @@ The following settings may be used within the ``assume_role_with_saml`` containe
 
 Per-service configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _howto/connection:aws:per-service-endpoint-configuration:
+
+AWS Service Endpoint URL configuration
+""""""""""""""""""""""""""""""""""""""
+
+To use ``endpoint_url`` per specific AWS service in the single connection you might setup it in service config.
+For enforce to default ``botocore``/``boto3`` behaviour you might set value to ``null``.
+The precedence rules are as follows:
+
+  1. ``endpoint_url`` specified per service level.
+  2. ``endpoint_url`` specified in root level of connection extra. Please note that **sts** client which are
+     uses in assume role or test connection do not use global parameter.
+  3. Default ``botocore``/``boto3`` behaviour
+
+
+.. code-block:: json
+
+    {
+      "endpoint_url": "s3.amazonaws.com"
+      "service_config": {
+        "s3": {
+          "endpoint_url": "https://s3.eu-west-1.amazonaws.com"
+        },
+        "sts": {
+          "endpoint_url": "https://sts.eu-west-2.amazonaws.com"
+        },
+        "ec2": {
+          "endpoint_url": null
+        }
+      }
+    }
 
 S3 Bucket configurations
 """"""""""""""""""""""""

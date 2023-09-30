@@ -166,7 +166,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 elif self.should_wait(pod_phase=pod_status, container_state=container_state):
                     self.log.info("Container is not completed and still working.")
 
-                    if pod_status == PodPhase.PENDING and container_state == ContainerState.UNDEFINED:
+                    if pod_status == PodPhase.PENDING and container_state != ContainerState.RUNNING:
                         delta = datetime.datetime.now(tz=datetime.timezone.utc) - self.trigger_start_time
                         if delta.total_seconds() >= self.startup_timeout:
                             message = (
