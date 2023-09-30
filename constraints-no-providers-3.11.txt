@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-28T15:44:00Z
+# This constraints file was automatically generated on 2023-09-30T13:13:15Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -20,7 +20,7 @@ Flask-Limiter==3.5.0
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
-Flask-WTF==1.1.1
+Flask-WTF==1.1.2
 Flask==2.2.5
 Jinja2==3.1.2
 Mako==1.2.4
@@ -57,9 +57,9 @@ cachetools==5.3.1
 cattrs==23.1.2
 celery==5.3.4
 certifi==2023.7.22
-cffi==1.15.1
+cffi==1.16.0
 cgroupspy==0.2.2
-charset-normalizer==3.2.0
+charset-normalizer==3.3.0
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
@@ -72,11 +72,11 @@ connexion==2.14.2
 cron-descriptor==1.4.0
 croniter==1.4.1
 cryptography==41.0.4
-dask==2023.9.2
+dask==2023.9.3
 decorator==5.1.1
 dill==0.3.7
 distlib==0.3.7
-distributed==2023.9.2
+distributed==2023.9.3
 dnspython==2.4.2
 docutils==0.20.1
 email-validator==1.3.1
@@ -86,12 +86,12 @@ flower==2.0.1
 frozenlist==1.4.0
 fsspec==2023.9.2
 gevent==23.9.1
-google-auth==2.23.0
+google-auth==2.23.2
 google-re2==1.1
 googleapis-common-protos==1.60.0
 graphviz==0.20.1
 greenlet==3.0.0rc3
-grpcio==1.58.0
+grpcio==1.59.0
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
@@ -157,7 +157,7 @@ pycparser==2.21
 pydantic==2.4.2
 pydantic_core==2.10.1
 pykerberos==1.2.4
-pyspnego==0.9.2
+pyspnego==0.10.1
 python-daemon==3.0.1
 python-dateutil==2.8.2
 python-ldap==3.4.3
@@ -196,7 +196,7 @@ unicodecsv==0.14.1
 urllib3==1.26.16
 vine==5.0.0
 virtualenv==20.24.5
-wcwidth==0.2.6
+wcwidth==0.2.8
 websocket-client==1.6.3
 wrapt==1.15.0
 yarl==1.9.2
