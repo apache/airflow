@@ -1908,7 +1908,7 @@ export interface components {
        * @description If set, don't actually run this operation. The response will contain the task instance
        * planned to be affected, but won't be modified in any way.
        *
-       * @default false
+       * @default true
        */
       dry_run?: boolean;
       /**
