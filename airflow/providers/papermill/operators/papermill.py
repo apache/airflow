@@ -33,14 +33,7 @@ if TYPE_CHECKING:
 class NoteBook(File):
     """Jupyter notebook."""
 
-    # For compatibility with Airflow 2.3:
-    # 1. Use predefined set because `File.template_fields` introduced in Airflow 2.4
-    # 2. Use old styled annotations because `cattrs` doesn't work well with PEP 604.
-
-    template_fields: ClassVar[Collection[str]] = {
-        "parameters",
-        *(File.template_fields if hasattr(File, "template_fields") else {"url"}),
-    }
+    template_fields: ClassVar[Collection[str]] = {"parameters", *File.template_fields}
 
     type_hint: str | None = "jupyter_notebook"
     parameters: dict | None = {}

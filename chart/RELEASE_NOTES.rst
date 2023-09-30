@@ -76,7 +76,7 @@ New Features
 
 - Add support for scheduler name to PODs templates (#33843)
 - Support KEDA scaling for triggerer (#32302)
-- Add support for container lifecycle hooks (#32349)
+- Add support for container lifecycle hooks (#32349, #34677)
 - Support naming customization on helm chart resources (#31066)
 - Adding ``startupProbe`` to scheduler and webserver (#33107)
 - Allow disabling token mounts using ``automountServiceAccountToken`` (#32808)
