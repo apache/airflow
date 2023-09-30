@@ -29,12 +29,14 @@ interface LinkData {
 }
 
 export default function useExtraLinks({
+  tryNumber,
   dagId,
   taskId,
   executionDate,
   mapIndex,
   extraLinks,
 }: {
+  tryNumber: number;
   dagId: string;
   taskId: string;
   executionDate: string;
@@ -42,7 +44,7 @@ export default function useExtraLinks({
   extraLinks: string[];
 }) {
   return useQuery(
-    ["extraLinks", dagId, taskId, executionDate, mapIndex],
+    ["extraLinks", dagId, taskId, executionDate, mapIndex, tryNumber],
     async () => {
       const data = await Promise.all(
         extraLinks.map(async (link) => {
@@ -55,6 +57,8 @@ export default function useExtraLinks({
             executionDate
           )}&link_name=${encodeURIComponent(
             link
+          )}&tryNumber=${encodeURIComponent(
+            tryNumber
           )}&map_index=${definedMapIndex}`;
           try {
             const datum = await axios.get<AxiosResponse, LinkData>(url);
