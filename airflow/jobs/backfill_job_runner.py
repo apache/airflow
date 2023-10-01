@@ -591,6 +591,11 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
             try:
                 for task in self.dag.topological_sort(include_subdag_tasks=True):
+                    states_count_as_running = (
+                        self.STATES_COUNT_AS_RUNNING + (TaskInstanceState.DEFERRED,)
+                        if task.deferred_as_active
+                        else ()
+                    )
                     for key, ti in list(ti_status.to_run.items()):
                         # Attempt to workaround deadlock on backfill by attempting to commit the transaction
                         # state update few times before giving up
@@ -614,7 +619,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
                             num_running_task_instances_in_dag = DAG.get_num_task_instances(
                                 self.dag_id,
-                                states=self.STATES_COUNT_AS_RUNNING,
+                                states=states_count_as_running,
                                 session=session,
                             )
 
@@ -627,7 +632,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                                 num_running_task_instances_in_task = DAG.get_num_task_instances(
                                     dag_id=self.dag_id,
                                     task_ids=[task.task_id],
-                                    states=self.STATES_COUNT_AS_RUNNING,
+                                    states=states_count_as_running,
                                     session=session,
                                 )
 
@@ -641,7 +646,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                                     dag_id=self.dag_id,
                                     run_id=ti.run_id,
                                     task_ids=[task.task_id],
-                                    states=self.STATES_COUNT_AS_RUNNING,
+                                    states=states_count_as_running,
                                     session=session,
                                 )
 

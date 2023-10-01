@@ -486,6 +486,10 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("max_active_tis_per_dagrun")
 
     @property
+    def deferred_as_active(self) -> bool:
+        return bool(self.partial_kwargs.get("deferred_as_active"))
+
+    @property
     def resources(self) -> Resources | None:
         return self.partial_kwargs.get("resources")
 

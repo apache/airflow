@@ -3001,8 +3001,15 @@ class TaskInstance(Base, LoggingMixin):
         num_running_task_instances_query = session.query(func.count()).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
-            TaskInstance.state == TaskInstanceState.RUNNING,
         )
+        if self.task.deferred_as_active:
+            num_running_task_instances_query = num_running_task_instances_query.filter(
+                or_(TaskInstance.state == State.RUNNING, TaskInstance.state == State.DEFERRED)
+            )
+        else:
+            num_running_task_instances_query = num_running_task_instances_query.filter(
+                TaskInstance.state == State.RUNNING
+            )
         if same_dagrun:
             num_running_task_instances_query = num_running_task_instances_query.filter(
                 TaskInstance.run_id == self.run_id

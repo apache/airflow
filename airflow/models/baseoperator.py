@@ -215,6 +215,7 @@ _PARTIAL_DEFAULTS = {
     "weight_rule": DEFAULT_WEIGHT_RULE,
     "inlets": [],
     "outlets": [],
+    "deferred_as_active": False,
 }
 
 
@@ -249,6 +250,7 @@ def partial(
     sla: timedelta | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
+    deferred_as_active: bool | ArgNotSet = NOTSET,
     on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
     on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
@@ -311,6 +313,7 @@ def partial(
         "sla": sla,
         "max_active_tis_per_dag": max_active_tis_per_dag,
         "max_active_tis_per_dagrun": max_active_tis_per_dagrun,
+        "deferred_as_active": deferred_as_active,
         "on_execute_callback": on_execute_callback,
         "on_failure_callback": on_failure_callback,
         "on_retry_callback": on_retry_callback,
@@ -625,6 +628,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         runs across execution_dates.
     :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
         task instances per DAG run.
+    :param deferred_as_active: Whether to consider deferred tasks as active for the purpose of
+        max_active_tis_per_dag and max_active_tis_per_dagrun.
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -773,6 +778,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_concurrency: int | None = None,
         max_active_tis_per_dag: int | None = None,
         max_active_tis_per_dagrun: int | None = None,
+        deferred_as_active: bool = False,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
         inlets: Any | None = None,
@@ -919,6 +925,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
+        self.deferred_as_active: bool = deferred_as_active
         self.do_xcom_push: bool = do_xcom_push
 
         self.doc_md = doc_md
