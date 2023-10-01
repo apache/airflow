@@ -3016,9 +3016,7 @@ class TaskInstanceNote(Base):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(
-        Integer, nullable=True, foreign_key=ForeignKey("ab_user.id", name="task_instance_note_user_fkey")
-    )
+    user_id = Column(Integer, ForeignKey("ab_user.id", name="task_instance_note_user_fkey"), nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)

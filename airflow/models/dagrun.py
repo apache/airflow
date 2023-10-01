@@ -1408,8 +1408,8 @@ class DagRunNote(Base):
 
     user_id = Column(
         Integer,
+        ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
         nullable=True,
-        foreign_key=ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
     )
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
