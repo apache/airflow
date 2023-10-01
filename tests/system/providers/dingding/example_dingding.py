@@ -36,7 +36,7 @@ def failure_callback(context):
     """
     The function that will be executed on failure.
 
-    :param context: The context of the executed DAG.
+    :param context: The context of the executed task.
     """
     message = f"The task {context['ti'].task_id} failed"
     DingdingHook(message_type="text", message=message, at_all=True).send()
