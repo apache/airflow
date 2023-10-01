@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 _EXCEPTION_MESSAGE = """The old HDFS Hooks have been removed in 4.0.0 version of the apache.hdfs provider.

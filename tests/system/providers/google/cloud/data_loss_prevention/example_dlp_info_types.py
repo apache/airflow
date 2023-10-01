@@ -28,7 +28,7 @@ from pathlib import Path
 
 from google.cloud.dlp_v2.types import ContentItem, InspectConfig, InspectTemplate
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCreateStoredInfoTypeOperator,
     CloudDLPDeleteStoredInfoTypeOperator,
@@ -77,7 +77,7 @@ UPDATE_CUSTOM_INFO_TYPE = {
     }
 }
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

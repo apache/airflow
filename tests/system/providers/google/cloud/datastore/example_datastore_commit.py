@@ -24,18 +24,25 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow import models
+from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreAllocateIdsOperator,
     CloudDatastoreBeginTransactionOperator,
     CloudDatastoreCommitOperator,
+    CloudDatastoreDeleteOperationOperator,
+    CloudDatastoreExportEntitiesOperator,
+    CloudDatastoreGetOperationOperator,
+    CloudDatastoreImportEntitiesOperator,
 )
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 DAG_ID = "datastore_commit"
-
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 # [START how_to_keys_def]
 KEYS = [
     {
@@ -50,19 +57,21 @@ TRANSACTION_OPTIONS: dict[str, Any] = {"readWrite": {}}
 # [END how_to_transaction_def]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["datastore", "example"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID, location="EU"
+    )
     # [START how_to_allocate_ids]
     allocate_ids = CloudDatastoreAllocateIdsOperator(
         task_id="allocate_ids", partial_keys=KEYS, project_id=PROJECT_ID
     )
     # [END how_to_allocate_ids]
-
     # [START how_to_begin_transaction]
     begin_transaction_commit = CloudDatastoreBeginTransactionOperator(
         task_id="begin_transaction_commit",
@@ -70,7 +79,6 @@ with models.DAG(
         project_id=PROJECT_ID,
     )
     # [END how_to_begin_transaction]
-
     # [START how_to_commit_def]
     COMMIT_BODY = {
         "mode": "TRANSACTIONAL",
@@ -82,15 +90,65 @@ with models.DAG(
                 }
             }
         ],
-        "transaction": begin_transaction_commit.output,
+        "singleUseTransaction": {"readWrite": {}},
     }
     # [END how_to_commit_def]
-
     # [START how_to_commit_task]
     commit_task = CloudDatastoreCommitOperator(task_id="commit_task", body=COMMIT_BODY, project_id=PROJECT_ID)
     # [END how_to_commit_task]
+    # [START how_to_export_task]
+    export_task = CloudDatastoreExportEntitiesOperator(
+        task_id="export_task",
+        bucket=BUCKET_NAME,
+        project_id=PROJECT_ID,
+        overwrite_existing=True,
+    )
+    # [END how_to_export_task]
+    # [START how_to_import_task]
+    import_task = CloudDatastoreImportEntitiesOperator(
+        task_id="import_task",
+        bucket="{{ task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[2] }}",
+        file="{{ '/'.join(task_instance.xcom_pull('export_task')['response']['outputUrl'].split('/')[3:]) }}",
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_import_task]
+    # [START get_operation_state]
+    get_operation = CloudDatastoreGetOperationOperator(
+        task_id="get_operation", name="{{ task_instance.xcom_pull('export_task')['name'] }}"
+    )
+    # [END get_operation_state]
+    # [START delete_operation]
+    delete_export_operation = CloudDatastoreDeleteOperationOperator(
+        task_id="delete_export_operation",
+        name="{{ task_instance.xcom_pull('export_task')['name'] }}",
+    )
+    # [END delete_operation]
+    delete_export_operation.trigger_rule = TriggerRule.ALL_DONE
+    delete_import_operation = CloudDatastoreDeleteOperationOperator(
+        task_id="delete_import_operation",
+        name="{{ task_instance.xcom_pull('import_task')['name'] }}",
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
 
-    allocate_ids >> begin_transaction_commit >> commit_task
+    chain(
+        create_bucket,
+        allocate_ids,
+        begin_transaction_commit,
+        commit_task,
+        export_task,
+        import_task,
+        get_operation,
+        [delete_bucket, delete_export_operation, delete_import_operation],
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 
 from tests.system.utils import get_test_run  # noqa: E402

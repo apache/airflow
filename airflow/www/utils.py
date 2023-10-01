@@ -339,7 +339,7 @@ def generate_pages(
 
     output.append(previous_node.format(href_link=page_link, disabled=is_disabled))
 
-    mid = int(window / 2)
+    mid = window // 2
     last_page = num_of_pages - 1
 
     if current_page <= mid or num_of_pages < window:

@@ -36,6 +36,7 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
+from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 
 HOOK_STR = "airflow.providers.google.cloud.operators.datafusion.DataFusionHook"
 
@@ -235,12 +236,14 @@ class TestCloudDataFusionStartPipelineOperator:
             pipeline_name=PIPELINE_NAME,
             namespace=NAMESPACE,
             runtime_args=RUNTIME_ARGS,
+            pipeline_type=DataFusionPipelineType.BATCH,
         )
 
         mock_hook.return_value.wait_for_pipeline_state.assert_called_once_with(
             success_states=[*SUCCESS_STATES, PipelineStates.RUNNING],
             pipeline_id=PIPELINE_ID,
             pipeline_name=PIPELINE_NAME,
+            pipeline_type=DataFusionPipelineType.BATCH,
             namespace=NAMESPACE,
             instance_url=INSTANCE_URL,
             timeout=300,
@@ -275,11 +278,12 @@ class TestCloudDataFusionStartPipelineOperator:
             pipeline_name=PIPELINE_NAME,
             namespace=NAMESPACE,
             runtime_args=RUNTIME_ARGS,
+            pipeline_type=DataFusionPipelineType.BATCH,
         )
         mock_hook.return_value.wait_for_pipeline_state.assert_not_called()
 
 
-class TestCloudDataFusionStartPipelineOperatorAsynch:
+class TestCloudDataFusionStartPipelineOperatorAsync:
     @mock.patch(HOOK_STR)
     def test_asynch_execute_should_execute_successfully(self, mock_hook):
         """
@@ -374,6 +378,7 @@ class TestCloudDataFusionStartPipelineOperatorAsynch:
             pipeline_name=PIPELINE_NAME,
             namespace=NAMESPACE,
             runtime_args=RUNTIME_ARGS,
+            pipeline_type=DataFusionPipelineType.BATCH,
         )
 
     @mock.patch(HOOK_STR)

@@ -23,9 +23,9 @@ from datetime import datetime
 
 import boto3
 
-from airflow import models
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.lambda_function import (
     LambdaCreateFunctionOperator,
     LambdaInvokeFunctionOperator,
@@ -66,7 +66,7 @@ def delete_lambda(function_name: str):
     )
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

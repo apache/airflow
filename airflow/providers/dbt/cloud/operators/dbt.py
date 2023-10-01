@@ -117,7 +117,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
         self.additional_run_config = additional_run_config or {}
-        self.run_id: int
+        self.run_id: int | None = None
         self.deferrable = deferrable
 
     def execute(self, context: Context):
@@ -140,9 +140,9 @@ class DbtCloudRunJobOperator(BaseOperator):
         # run can be monitored via the operator link.
         context["ti"].xcom_push(key="job_run_url", value=job_run_url)
 
-        if self.wait_for_termination:
+        if self.wait_for_termination and isinstance(self.run_id, int):
             if self.deferrable is False:
-                self.log.info("Waiting for job run %s to terminate.", str(self.run_id))
+                self.log.info("Waiting for job run %s to terminate.", self.run_id)
 
                 if self.hook.wait_for_job_run_status(
                     run_id=self.run_id,
@@ -151,7 +151,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                     check_interval=self.check_interval,
                     timeout=self.timeout,
                 ):
-                    self.log.info("Job run %s has completed successfully.", str(self.run_id))
+                    self.log.info("Job run %s has completed successfully.", self.run_id)
                 else:
                     raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
 
@@ -173,7 +173,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                         method_name="execute_complete",
                     )
                 elif job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
-                    self.log.info("Job run %s has completed successfully.", str(self.run_id))
+                    self.log.info("Job run %s has completed successfully.", self.run_id)
                     return self.run_id
                 elif job_run_status in (
                     DbtCloudJobRunStatus.CANCELLED.value,
@@ -197,6 +197,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
         self.log.info(event["message"])
+        self.run_id = event["run_id"]
         return int(event["run_id"])
 
     def on_kill(self) -> None:
@@ -210,7 +211,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 check_interval=self.check_interval,
                 timeout=self.timeout,
             ):
-                self.log.info("Job run %s has been cancelled successfully.", str(self.run_id))
+                self.log.info("Job run %s has been cancelled successfully.", self.run_id)
 
     @cached_property
     def hook(self):
@@ -225,7 +226,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         """
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        if self.wait_for_termination is True:
+        if isinstance(self.run_id, int) and self.wait_for_termination is True:
             return generate_openlineage_events_from_dbt_cloud_run(operator=self, task_instance=task_instance)
         return OperatorLineage()
 

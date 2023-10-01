@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 import os
 import re
 import shlex
 import warnings
 from contextlib import redirect_stdout
+from io import StringIO
 from unittest import mock
 
 import pytest
@@ -49,7 +49,7 @@ class TestCliGetConnection:
         clear_db_connections(add_default_connections_back=True)
 
     def test_cli_connection_get(self):
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_get(
                 self.parser.parse_args(["connections", "get", "google_cloud_default", "--output", "json"])
             )
@@ -84,7 +84,7 @@ class TestCliListConnections:
 
     def test_cli_connections_list_as_json(self):
         args = self.parser.parse_args(["connections", "list", "--output", "json"])
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_list(args)
             print(stdout.getvalue())
             stdout = stdout.getvalue()
@@ -97,7 +97,7 @@ class TestCliListConnections:
         args = self.parser.parse_args(
             ["connections", "list", "--output", "json", "--conn-id", "http_default"]
         )
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_list(args)
             stdout = stdout.getvalue()
         assert "http_default" in stdout
@@ -546,7 +546,7 @@ class TestCliAddConnections:
     )
     @pytest.mark.execution_timeout(120)
     def test_cli_connection_add(self, cmd, expected_output, expected_conn):
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_add(self.parser.parse_args(cmd))
 
         stdout = stdout.getvalue()
@@ -666,7 +666,7 @@ class TestCliDeleteConnections:
             session=session,
         )
         # Delete connections
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_delete(self.parser.parse_args(["connections", "delete", "new1"]))
             stdout = stdout.getvalue()
 
@@ -819,7 +819,7 @@ class TestCliImportConnections:
         # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
         mock_parse_secret_file.return_value = expected_connections
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_import(
                 self.parser.parse_args(["connections", "import", "sample.json"])
             )
@@ -899,7 +899,7 @@ class TestCliImportConnections:
         # We're not testing the behavior of _parse_secret_file, assume it successfully reads JSON, YAML or env
         mock_parse_secret_file.return_value = expected_connections
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_import(
                 self.parser.parse_args(["connections", "import", "sample.json", "--overwrite"])
             )
@@ -943,7 +943,7 @@ class TestCliTestConnections:
         """Check that successful connection test result is displayed properly."""
         conn_id = "http_default"
         mock_test_conn.return_value = True, None
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
 
             assert "Connection success!" in stdout.getvalue()
@@ -954,7 +954,7 @@ class TestCliTestConnections:
         """Check that failed connection test result is displayed properly."""
         conn_id = "http_default"
         mock_test_conn.return_value = False, "Failed."
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             connection_command.connections_test(self.parser.parse_args(["connections", "test", conn_id]))
 
             assert "Connection failed!\nFailed.\n\n" in stdout.getvalue()
@@ -962,13 +962,13 @@ class TestCliTestConnections:
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_cli_connections_test_missing_conn(self):
         """Check a connection test on a non-existent connection raises a "Connection not found" message."""
-        with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
+        with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
             connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
         assert "Connection not found.\n\n" in stdout.getvalue()
 
     def test_cli_connections_test_disabled_by_default(self):
         """Check that test connection functionality is disabled by default."""
-        with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
+        with redirect_stdout(StringIO()) as stdout, pytest.raises(SystemExit):
             connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
         assert (
             "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "

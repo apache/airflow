@@ -28,14 +28,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.7.1
+.....
+
+Latest change: 2023-09-13
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`05036e619c <https://github.com/apache/airflow/commit/05036e619c0c6dafded1451daac4e07e20aee33f>`_  2023-09-13   ``Refactor: Think positively in providers (#34279)``
+`401e7bd531 <https://github.com/apache/airflow/commit/401e7bd53119e204bf68c75dca28b1e35676c056>`_  2023-09-12   ``Bugfix: Fix RDS triggers parameters so that they handle serialization/deserialization (#34222)``
+`7813d956d2 <https://github.com/apache/airflow/commit/7813d956d2188272e9da6177e873d74ae035f649>`_  2023-09-12   ``Remove unused parameter 'cluster_role_arn' from 'EksPodOperator''s docstring (#34300)``
+`891b33bee8 <https://github.com/apache/airflow/commit/891b33bee8ba56bef227198d944e6814154fd92f>`_  2023-09-11   ``Correct parameter names in docstring for 'S3CreateObjectOperator' (#34263)``
+`94d07908a2 <https://github.com/apache/airflow/commit/94d07908a2188eb650bfab21d89a49b287aee35c>`_  2023-09-11   ``Refactor: Simplify comparisons (#34181)``
+`f0467c9fd6 <https://github.com/apache/airflow/commit/f0467c9fd65e7146b44fc8f9fccb9ad750592371>`_  2023-09-11   ``Use a AwsBaseWaiterTrigger-based trigger in EmrAddStepsOperator deferred mode (#34216)``
+`c5ec7cd294 <https://github.com/apache/airflow/commit/c5ec7cd294ed9363817b358765ed2a250ae76b6d>`_  2023-09-10   ``Simplify  to bool(...) (#34258)``
+=================================================================================================  ===========  ==================================================================================================
+
 8.7.0
 .....
 
-Latest change: 2023-09-07
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  ====================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `4fa66d1700 <https://github.com/apache/airflow/commit/4fa66d17003f10d03a13eda659bca8670bdf5052>`_  2023-09-07   ``Refactor: Consolidate import and usage of random (#34108)``
 `9079093291 <https://github.com/apache/airflow/commit/907909329195c6655d1e2989b05609466ef50563>`_  2023-09-07   ``Consolidate importing of os.path.* (#34060)``
 `a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``

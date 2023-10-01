@@ -112,7 +112,7 @@ class SlackHook(BaseHook):
     def __init__(
         self,
         *,
-        slack_conn_id: str,
+        slack_conn_id: str = default_conn_name,
         base_url: str | None = None,
         timeout: int | None = None,
         proxy: str | None = None,

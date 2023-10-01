@@ -21,7 +21,7 @@ import sys
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import io
+    from io import IOBase
 
 
 class CliConflictError(Exception):
@@ -30,7 +30,7 @@ class CliConflictError(Exception):
     pass
 
 
-def is_stdout(fileio: io.IOBase) -> bool:
+def is_stdout(fileio: IOBase) -> bool:
     """Check whether a file IO is stdout.
 
     The intended use case for this helper is to check whether an argument parsed

@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import collections.abc
 import functools
+from collections import Counter
 from typing import TYPE_CHECKING, Iterator, KeysView, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
@@ -64,8 +64,8 @@ class _UpstreamTIStates(NamedTuple):
         :param ti: the ti that we want to calculate deps for
         :param finished_tis: all the finished tasks of the dag_run
         """
-        counter: dict[str, int] = collections.Counter()
-        setup_counter: dict[str, int] = collections.Counter()
+        counter: dict[str, int] = Counter()
+        setup_counter: dict[str, int] = Counter()
         for ti in finished_upstreams:
             curr_state = {ti.state: 1}
             counter.update(curr_state)
@@ -194,7 +194,7 @@ class TriggerRuleDep(BaseTIDep):
                 return
             # Otherwise we need to figure out which map indexes are depended on
             # for each upstream by the current task instance.
-            for upstream_id in relevant_tasks.keys():
+            for upstream_id in relevant_tasks:
                 map_indexes = _get_relevant_upstream_map_indexes(upstream_id)
                 if map_indexes is None:  # All tis of this upstream are dependencies.
                     yield (TaskInstance.task_id == upstream_id)
@@ -523,7 +523,7 @@ class TriggerRuleDep(BaseTIDep):
                             f"upstream_task_ids={task.upstream_task_ids}"
                         )
                     )
-                elif upstream_setup and not success_setup >= 1:
+                elif upstream_setup and not success_setup:
                     yield self._failing_status(
                         reason=(
                             f"Task's trigger rule '{trigger_rule}' requires at least one upstream setup task "

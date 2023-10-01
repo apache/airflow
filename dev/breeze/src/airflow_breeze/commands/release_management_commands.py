@@ -26,7 +26,6 @@ import time
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from re import Pattern, match
 from typing import IO, Generator, NamedTuple
 
 import click
@@ -516,7 +515,7 @@ WHEEL_FILENAME_PATTERN = re.compile(rf"{WHEEL_FILENAME_PREFIX}(.*)-[0-9].*\.whl"
 
 
 def _get_all_providers_in_dist(
-    filename_prefix: str, filename_pattern: Pattern[str]
+    filename_prefix: str, filename_pattern: re.Pattern[str]
 ) -> Generator[str, None, None]:
     for file in DIST_DIR.glob(f"{filename_prefix}*.tar.gz"):
         matched = filename_pattern.match(file.name)
@@ -981,7 +980,7 @@ def release_prod_images(
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     rebuild_or_pull_ci_image_if_needed(command_params=ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION))
-    if not match(r"^\d*\.\d*\.\d*$", airflow_version):
+    if not re.match(r"^\d*\.\d*\.\d*$", airflow_version):
         get_console().print(
             f"[warning]Skipping latest image tagging as this is a pre-release version: {airflow_version}"
         )
@@ -1235,9 +1234,7 @@ def generate_issue_content_providers(
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
         with Progress(console=get_console(), disable=disable_progress) as progress:
             task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
-            pr_list = list(all_prs)
-            for i in range(len(pr_list)):
-                pr_number = pr_list[i]
+            for pr_number in all_prs:
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )

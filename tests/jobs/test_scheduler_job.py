@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import contextlib
 import datetime
 import logging
 import os
-import shutil
+from collections import deque
 from datetime import timedelta
-from tempfile import mkdtemp
 from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -49,11 +47,14 @@ from airflow.jobs.backfill_job_runner import BackfillJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.models import DAG, DagBag, DagModel, DbCallbackRequest, Pool, TaskInstance
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.db_callback_request import DbCallbackRequest
+from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -102,8 +103,6 @@ def disable_load_example():
 
 @pytest.fixture(scope="module")
 def dagbag():
-    from airflow.models.dagbag import DagBag
-
     # Ensure the DAGs we are looking at from the DB are up-to-date
     non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
     non_serialized_dagbag.sync_to_db()
@@ -210,16 +209,14 @@ class TestSchedulerJob:
         scheduler_job.heartrate = 0
         run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
-    def test_no_orphan_process_will_be_left(self):
-        empty_dir = mkdtemp()
+    def test_no_orphan_process_will_be_left(self, tmp_path):
         current_process = psutil.Process()
         old_children = current_process.children(recursive=True)
         scheduler_job = Job(
             executor=MockExecutor(do_update=False),
         )
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=empty_dir, num_runs=1)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.fspath(tmp_path), num_runs=1)
         run_job(scheduler_job, execute_callable=self.job_runner._execute)
-        shutil.rmtree(empty_dir)
 
         # Remove potential noise created by previous tests.
         current_children = set(current_process.children(recursive=True)) - set(old_children)
@@ -2271,9 +2268,8 @@ class TestSchedulerJob:
         ex_date = dr.execution_date
 
         for tid, state in expected_task_states.items():
-            if state != State.FAILED:
-                continue
-            self.null_exec.mock_task_fail(dag_id, tid, dr.run_id)
+            if state == State.FAILED:
+                self.null_exec.mock_task_fail(dag_id, tid, dr.run_id)
 
         try:
             dag = DagBag().get_dag(dag.dag_id)
@@ -3038,7 +3034,6 @@ class TestSchedulerJob:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
-    @pytest.mark.skip(reason="This test needs fixing. It's very wrong now and always fails")
     def test_retry_handling_job(self):
         """
         Integration test of the scheduler not accidentally resetting
@@ -3047,9 +3042,11 @@ class TestSchedulerJob:
         dag = self.dagbag.get_dag("test_retry_handling_job")
         dag_task1 = dag.get_task("test_retry_handling_op")
         dag.clear()
+        dag.sync_to_db()
 
-        scheduler_job = Job(jobe_type=SchedulerJobRunner.job_type, heartrate=0)
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, dag_id=dag.dag_id, num_runs=1)
+        scheduler_job = Job(job_type=SchedulerJobRunner.job_type, heartrate=0)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
+        self.job_runner.processor_agent = mock.MagicMock()
         run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
         session = settings.Session()
@@ -4813,8 +4810,8 @@ class TestSchedulerJob:
 
             return spy
 
-        num_queued_tis: collections.deque[int] = collections.deque([], 3)
-        num_finished_events: collections.deque[int] = collections.deque([], 3)
+        num_queued_tis: deque[int] = deque([], 3)
+        num_finished_events: deque[int] = deque([], 3)
 
         do_scheduling_spy = mock.patch.object(
             job_runner,

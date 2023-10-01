@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from sqlalchemy import select, update
 
-from airflow.exceptions import AirflowException
+from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException, PodReconciliationError
 
 try:
     from airflow.cli.cli_config import (
@@ -98,14 +98,6 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
-
-
-class PodMutationHookException(AirflowException):
-    """Raised when exception happens during Pod Mutation Hook execution."""
-
-
-class PodReconciliationError(AirflowException):
-    """Raised when an error is encountered while trying to merge pod configs."""
 
 
 # CLI Args
@@ -446,10 +438,10 @@ class KubernetesExecutor(BaseExecutor):
         if self.kube_config.delete_worker_pods:
             if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
-                self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
+                self.log.info("Deleted pod: %s in namespace %s", key, namespace)
         else:
             self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
-            self.log.info("Patched pod %s in namespace %s to mark it as done", str(key), str(namespace))
+            self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
 
         try:
             self.running.remove(key)

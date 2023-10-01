@@ -38,11 +38,8 @@ from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
     AirflowConfigException,
+    AirflowException,
     RemovedInAirflow3Warning,
-)
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
-    PodMutationHookException,
-    PodReconciliationError,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
@@ -61,6 +58,14 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
+
+
+class PodMutationHookException(AirflowException):
+    """Raised when exception happens during Pod Mutation Hook execution."""
+
+
+class PodReconciliationError(AirflowException):
+    """Raised when an error is encountered while trying to merge pod configs."""
 
 
 def make_safe_label_value(string: str) -> str:

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import contextlib
-import io
 import json
 import logging
 import os
@@ -28,6 +27,7 @@ import sys
 import unittest
 from argparse import ArgumentParser
 from contextlib import contextmanager, redirect_stdout
+from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -54,7 +54,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
 if TYPE_CHECKING:
-    from airflow import DAG
+    from airflow.models.dag import DAG
 
 DEFAULT_DATE = timezone.datetime(2022, 1, 1)
 ROOT_FOLDER = os.path.realpath(
@@ -123,7 +123,7 @@ class TestCliTasks:
             ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"]
         )
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(args)
 
         # Check that prints, and log messages, are shown
@@ -138,7 +138,7 @@ class TestCliTasks:
         ds = now.strftime("%Y%m%d")
         args = self.parser.parse_args(["tasks", "test", "example_python_operator", "print_the_context"])
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(args)
 
         # Check that prints, and log messages, are shown
@@ -367,7 +367,7 @@ class TestCliTasks:
         )
 
     def test_cli_test_with_env_vars(self):
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_test(
                 self.parser.parse_args(
                     [
@@ -433,7 +433,7 @@ class TestCliTasks:
         """
         tasks render should render and displays templated fields for a given task
         """
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(["tasks", "render", "tutorial", "templated", "2016-01-01"])
             )
@@ -447,7 +447,7 @@ class TestCliTasks:
         """
         tasks render should render and displays templated fields for a given mapping task
         """
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(
                     [
@@ -484,7 +484,7 @@ class TestCliTasks:
 
             BashOperator.partial(task_id="some_command").expand(bash_command=commands)
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_render(
                 self.parser.parse_args(
                     [
@@ -569,7 +569,7 @@ class TestCliTasks:
         ti_start = ti2.start_date
         ti_end = ti2.end_date
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
                     [

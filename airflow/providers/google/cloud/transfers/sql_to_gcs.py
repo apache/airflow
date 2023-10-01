@@ -222,8 +222,8 @@ class BaseSQLToGCSOperator(BaseOperator):
     def _write_rows_to_parquet(parquet_writer: pq.ParquetWriter, rows):
         rows_pydic: dict[str, list[Any]] = {col: [] for col in parquet_writer.schema.names}
         for row in rows:
-            for ind, col in enumerate(parquet_writer.schema.names):
-                rows_pydic[col].append(row[ind])
+            for cell, col in zip(row, parquet_writer.schema.names):
+                rows_pydic[col].append(cell)
         tbl = pa.Table.from_pydict(rows_pydic, parquet_writer.schema)
         parquet_writer.write_table(tbl)
 
@@ -293,12 +293,12 @@ class BaseSQLToGCSOperator(BaseOperator):
             if self.export_format == "csv":
                 row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
-                    row = [value if value is not None else self.null_marker for value in row]
+                    row = [value or self.null_marker for value in row]
                 csv_writer.writerow(row)
             elif self.export_format == "parquet":
                 row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
-                    row = [value if value is not None else self.null_marker for value in row]
+                    row = [value or self.null_marker for value in row]
                 rows_buffer.append(row)
                 if len(rows_buffer) >= self.parquet_row_group_size:
                     self._write_rows_to_parquet(parquet_writer, rows_buffer)

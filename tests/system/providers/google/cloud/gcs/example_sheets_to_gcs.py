@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -32,7 +32,7 @@ DAG_ID = "example_sheets_to_gcs"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1234567890qwerty")
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),

@@ -182,7 +182,7 @@ def connections_export(args):
                     f"Unsupported file format. The file must have the extension {', '.join(file_formats)}."
                 )
 
-        if args.serialization_format and not filetype == ".env":
+        if args.serialization_format and filetype != ".env":
             raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
 
         with create_session() as session:
@@ -197,9 +197,9 @@ def connections_export(args):
         f.write(msg)
 
     if file_is_stdout:
-        print("\nConnections successfully exported.", file=sys.stderr)
+        print(f"\n{len(connections)} connections successfully exported.", file=sys.stderr)
     else:
-        print(f"Connections successfully exported to {args.file.name}.")
+        print(f"{len(connections)} connections successfully exported to {args.file.name}.")
 
 
 alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password", "conn_schema", "conn_port"]

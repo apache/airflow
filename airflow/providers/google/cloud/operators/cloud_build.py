@@ -202,7 +202,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         if not isinstance(self.build_raw, str):
             return
         with open(self.build_raw) as file:
-            if any(self.build_raw.endswith(ext) for ext in [".yaml", ".yml"]):
+            if self.build_raw.endswith((".yaml", ".yml")):
                 self.build = yaml.safe_load(file.read())
             if self.build_raw.endswith(".json"):
                 self.build = json.loads(file.read())
