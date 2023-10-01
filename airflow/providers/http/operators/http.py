@@ -192,7 +192,7 @@ class PaginatedHttpOperator(SimpleHttpOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:ExtendedHttpOperator`
+        :ref:`howto/operator:PaginatedHttpOperator`
 
     :param pagination_function: A callable that generates the parameters used to call the API again.
         Typically used when the API is paginated and returns for e.g a cursor, a 'next page id', or
