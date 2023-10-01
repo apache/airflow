@@ -25,7 +25,7 @@ from unittest import mock
 from requests import Response
 
 from airflow.exceptions import TaskDeferred
-from airflow.providers.http.operators.http import PaginatedHttpOperator
+from airflow.providers.http.operators.paginated import PaginatedHttpOperator
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")

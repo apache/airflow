@@ -123,7 +123,7 @@ Here we pass form data to a ``POST`` operation which is equal to a usual form su
 PaginatedHttpOperator
 --------------------
 
-The :class:`~airflow.providers.http.operators.http.PaginatedHttpOperator` allow to repeatedly call an API
+The :class:`~airflow.providers.http.operators.paginated.PaginatedHttpOperator` allow to repeatedly call an API
 endpoint, typically to loop over its pages. All API responses are stored in memory by the Operator and returned
 in one single result. Thus, it can be more memory and CPU intensive compared to the SimpleHttpOperator.
 

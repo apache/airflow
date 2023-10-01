@@ -23,7 +23,8 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.http.operators.http import PaginatedHttpOperator, SimpleHttpOperator
+from airflow.providers.http.operators.http import SimpleHttpOperator
+from airflow.providers.http.operators.paginated import PaginatedHttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
