@@ -136,6 +136,7 @@ def get_requirements_for_provider(
     airflow_version: str,
     provider_version: str | None = None,
     python_version: str = DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    force: bool = False,
 ) -> tuple[int, str]:
     provider_path_array = provider_id.split(".")
     if not provider_version:
@@ -148,6 +149,21 @@ def get_requirements_for_provider(
         f"provider-{provider_id}-{provider_version}-with-airflow-requirements.txt"
     )
     provider_file_name = f"provider-{provider_id}-{provider_version}-without-airflow-requirements.txt"
+    target_dir = FILES_DIR / TARGET_DIR_NAME
+    airflow_file = target_dir / airflow_file_name
+    provider_with_airflow_file = target_dir / provider_with_airflow_file_name
+
+    if os.path.exists(airflow_file) and os.path.exists(provider_with_airflow_file) and force is False:
+        get_console().print(
+            f"[warning] Requirements for provider {provider_id} version {provider_version} already exist, "
+            f"skipping. Set force=True to force generation."
+        )
+        return (
+            0,
+            f"Provider requirements already existed, skipped generation for {provider_id} version "
+            f"{provider_version}",
+        )
+
     command = f"""
 mkdir -pv {DOCKER_FILE_PREFIX}
 /opt/airflow/airflow-{airflow_version}/bin/pip freeze | sort > {DOCKER_FILE_PREFIX}{airflow_file_name}
@@ -173,9 +189,6 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
             ";".join(command.splitlines()[1:-1]),
         ]
     )
-    target_dir = FILES_DIR / TARGET_DIR_NAME
-    airflow_file = target_dir / airflow_file_name
-    provider_with_airflow_file = target_dir / provider_with_airflow_file_name
     get_console().print(f"[info]Airflow requirements in {airflow_file}")
     get_console().print(f"[info]Provider requirements in {provider_with_airflow_file}")
     base_packages = {package.split("==")[0] for package in airflow_file.read_text().splitlines()}
