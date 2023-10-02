@@ -72,6 +72,12 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         If set to None (null), requests for configurations will not be sent to Azure Key Vault
     :param vault_url: The URL of an Azure Key Vault to use
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "-"
+    :param tenant_id: The tenant id of an Azure Key Vault to use.
+        If not given, it falls back to ``DefaultAzureCredential``
+    :param client_id: The client id of an Azure Key Vault to use.
+        If not given, it falls back to ``DefaultAzureCredential``
+    :param client_secret: The client secret of an Azure Key Vault to use.
+        If not given, it falls back to ``DefaultAzureCredential``
     """
 
     def __init__(
