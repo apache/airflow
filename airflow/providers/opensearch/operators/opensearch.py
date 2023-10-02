@@ -25,8 +25,6 @@ from airflow.models import BaseOperator
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
 if TYPE_CHECKING:
-    from opensearch_dsl.search import Search
-    from opensearchpy import Document
 
     from airflow.utils.context import Context
 
@@ -52,7 +50,7 @@ class OpenSearchQueryOperator(BaseOperator):
         self,
         *,
         query: dict | None = None,
-        search_object: Search | None = None,
+        search_object: Any | None = None,
         index_name: str | None = None,
         opensearch_conn_id: str = "opensearch_default",
         log_query: bool = True,
@@ -137,7 +135,7 @@ class OpenSearchCreateIndexOperator(BaseOperator):
 
 class OpenSearchAddDocumentOperator(BaseOperator):
     """
-    Runs a query search against a given index on an OpenSearch cluster and returns results.
+    Adds a new document to a given Index. It will either add or overwrite an existing document.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -156,7 +154,7 @@ class OpenSearchAddDocumentOperator(BaseOperator):
         index_name: str | None = None,
         document: dict[str, Any] | None = None,
         doc_id: int | None = None,
-        doc_class: Document | None = None,
+        doc_class: Any | None = None,
         opensearch_conn_id: str = "opensearch_default",
         **kwargs,
     ) -> None:
@@ -176,7 +174,8 @@ class OpenSearchAddDocumentOperator(BaseOperator):
         """Saves a document to a given index on an OpenSearch cluster."""
         if self.doc_class is not None:
             try:
-                result = self.doc_class.save(using=self.hook.get_client)
+                doc = self.doc_class.init(using=self.hook.get_client)
+                result = doc.save(using=self.hook.get_client)
             except Exception as e:
                 raise AirflowException(e)
         elif self.index_name is not None and self.document is not None and self.doc_id is not None:
