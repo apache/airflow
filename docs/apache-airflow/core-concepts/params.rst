@@ -255,11 +255,11 @@ The following features are supported in the Trigger UI Form:
           - | Generates a HTML multi line text field,
             | every line edited will be made into a
             | string array as value.
-          - * | If you add the attribute ``example``
+          - * | If you add the attribute ``examples``
               | with a list, a multi-value select option
               | will be generated instead of a free text field.
             * | ``values_display={"a": "Alpha", "b": "Beta"}``:
-              | For multi-value selects ``example`` you can add
+              | For multi-value selects ``examples`` you can add
               | the attribute ``values_display`` with a dict and
               | map data values to display labels.
             * | If you add the attribute ``items``, a JSON entry

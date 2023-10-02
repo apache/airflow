@@ -52,6 +52,11 @@ hooks:
     python-modules:
       - airflow.providers.samba.hooks.samba
 
+transfers:
+  - source-integration-name: Google Cloud Storage (GCS)
+    target-integration-name: Samba
+    how-to-guide: /docs/apache-airflow-providers-samba/transfer/gcs_to_samba.rst
+    python-module: airflow.providers.samba.transfers.gcs_to_samba
 
 connection-types:
   - hook-class-name: airflow.providers.samba.hooks.samba.SambaHook
