@@ -23,7 +23,7 @@ import warnings
 from functools import cached_property
 
 from azure.core.exceptions import ResourceNotFoundError
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -81,6 +81,10 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         config_prefix: str = "airflow-config",
         vault_url: str = "",
         sep: str = "-",
+        *,
+        tenant_id: str = "",
+        client_id: str = "",
+        client_secret: str = "",
         **kwargs,
     ) -> None:
         super().__init__()
@@ -105,12 +109,19 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             logger.setLevel(logging.WARNING)
 
         self.sep = sep
+        self.tenant_id = tenant_id
+        self.client_id = client_id
+        self.client_secret = client_secret
         self.kwargs = kwargs
 
     @cached_property
     def client(self) -> SecretClient:
         """Create a Azure Key Vault client."""
-        credential = DefaultAzureCredential()
+        credential: ClientSecretCredential | DefaultAzureCredential
+        if all([self.tenant_id, self.client_id, self.client_secret]):
+            credential = ClientSecretCredential(self.tenant_id, self.client_id, self.client_secret)
+        else:
+            credential = DefaultAzureCredential()
         client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
         return client
 
