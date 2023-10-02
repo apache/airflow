@@ -160,8 +160,8 @@ JSON Schema Validation
     ):
 
 .. note::
-    If ``schedule`` is defined for a DAG params with defaults must be valid. This is validated during DAG parsing.
-    If ``schedule=None`` then params are not validated while DAG is parsed but finally at trigger of DAG.
+    If ``schedule`` is defined for a DAG, params with defaults must be valid. This is validated during DAG parsing.
+    If ``schedule=None`` then params are not validated during DAG parsing but before triggering a DAG.
     This is useful in cases where the DAG author does not want to provide defaults but wants to force users provide valid parameters
     at time of trigger.
 
