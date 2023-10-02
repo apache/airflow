@@ -14,37 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-opensearch
-name: Opensearch
-description: |
-    `Opensearch <https://opensearch.org/>`__
-
-suspended: false
-versions:
-  - 1.0.0
-
-dependencies:
-  - apache-airflow>=2.5.0
-  - opensearch-py>=2.2.0
-
-integrations:
-  - integration-name: Opensearch
-    external-doc-url: https://opensearch.org/
-    logo: /integration-logos/opensearch/opensearch.png
-    tags: [software]
-
-hooks:
-  - integration-name: Opensearch
-    python-modules:
-      - airflow.providers.opensearch.hooks.opensearch
-
-operators:
-  - integration-name: Opensearch
-    python-modules:
-      - airflow.providers.opensearch.operators.opensearch
-
-connection-types:
-  - hook-class-name: airflow.providers.opensearch.hooks.opensearch.OpenSearchHook
-    connection-type: opensearch

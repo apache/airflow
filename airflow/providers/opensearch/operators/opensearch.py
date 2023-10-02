@@ -22,18 +22,18 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.opensearch import OpenSearchHook
+from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
 if TYPE_CHECKING:
-    from opensearch_dsl.document import Document
     from opensearch_dsl.search import Search
+    from opensearchpy import Document
 
     from airflow.utils.context import Context
 
 
 class OpenSearchQueryOperator(BaseOperator):
     """
-    Runs a query search against a given index on an AWS OpenSearch cluster and returns results.
+    Runs a query search against a given index on an OpenSearch cluster and returns results.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -71,7 +71,7 @@ class OpenSearchQueryOperator(BaseOperator):
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=self.log_query)
 
     def execute(self, context: Context) -> Any:
-        """Executes a search against a given index or a Search object on an AWS OpenSearch Cluster."""
+        """Executes a search against a given index or a Search object on an OpenSearch Cluster."""
         result = None
 
         if self.query is not None:
@@ -85,7 +85,7 @@ class OpenSearchQueryOperator(BaseOperator):
                 raise AirflowException(e)
         elif self.search_object is not None:
             try:
-                result = self.search_object.using(self.hook.get_client()).execute()
+                result = self.search_object.using(self.hook.get_client).execute()
             except Exception as e:
                 raise AirflowException(e)
         else:
@@ -98,7 +98,7 @@ class OpenSearchQueryOperator(BaseOperator):
 
 class OpenSearchCreateIndexOperator(BaseOperator):
     """
-    Creates a new index on an AWS Open Search cluster with a given index name.
+    Creates a new index on an Open Search cluster with a given index name.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -110,7 +110,12 @@ class OpenSearchCreateIndexOperator(BaseOperator):
     """
 
     def __init__(
-        self, *, index_name: str, index_body: dict[str, Any], opensearch_conn_id: str = "opensearch_default", **kwargs
+        self,
+        *,
+        index_name: str,
+        index_body: dict[str, Any],
+        opensearch_conn_id: str = "opensearch_default",
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.index_name = index_name
@@ -123,16 +128,16 @@ class OpenSearchCreateIndexOperator(BaseOperator):
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
 
     def execute(self, context: Context) -> Any:
-        """Creates an index on an AWS Open Search cluster."""
+        """Creates an index on an Open Search cluster."""
         try:
-            self.hook.get_client().indices.create(index=self.index_name, body=self.index_body)
+            self.hook.get_client.indices.create(index=self.index_name, body=self.index_body)
         except Exception as e:
             raise AirflowException(e)
 
 
 class OpenSearchAddDocumentOperator(BaseOperator):
     """
-    Runs a query search against a given index on an AWS OpenSearch cluster and returns results.
+    Runs a query search against a given index on an OpenSearch cluster and returns results.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -168,10 +173,10 @@ class OpenSearchAddDocumentOperator(BaseOperator):
         return OpenSearchHook(open_search_conn_id=self.opensearch_conn_id, log_query=False)
 
     def execute(self, context: Context) -> Any:
-        """Saves a document to a given index on an AWS OpenSearch cluster."""
+        """Saves a document to a given index on an OpenSearch cluster."""
         if self.doc_class is not None:
             try:
-                result = self.doc_class.save(using=self.hook.get_client())
+                result = self.doc_class.save(using=self.hook.get_client)
             except Exception as e:
                 raise AirflowException(e)
         elif self.index_name is not None and self.document is not None and self.doc_id is not None:

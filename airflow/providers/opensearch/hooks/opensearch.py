@@ -34,14 +34,14 @@ class OpenSearchHook(BaseHook):
     :param: open_search_conn_id: Connection to use with Open Search
     :param: log_query: Whether to log the query used for Open Search
     """
+
     conn_name_attr = "opensearch_conn_id"
     default_conn_name = "opensearch_default"
     conn_type = "opensearch"
     hook_name = "OpenSearch Hook"
 
-    def __init__(self, *args: Any, open_search_conn_id: str, log_query: bool, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-        self.client = None
+    def __init__(self, open_search_conn_id: str, log_query: bool, **kwargs: Any):
+        super().__init__(**kwargs)
         self.conn_id = open_search_conn_id
         self.log_query = log_query
 
@@ -59,14 +59,14 @@ class OpenSearchHook(BaseHook):
 
         """
         auth = (self.conn.login, self.conn.password)
-        self.client = OpenSearch(
+        client = OpenSearch(
             hosts=[{"host": self.conn.host, "port": self.conn.port}],
             http_auth=auth,
             use_ssl=self.use_ssl,
             verify_certs=self.verify_certs,
             connection_class=RequestsHttpConnection,
         )
-        return self.client
+        return client
 
     def search(self, query: dict, index_name: str, **kwargs: Any) -> Any:
         """
@@ -77,7 +77,7 @@ class OpenSearchHook(BaseHook):
         """
         if self.log_query:
             self.log.info("Searching %s with Query: %s", index_name, query)
-        return self.client.search(body=query, index=index_name, **kwargs)
+        return self.get_client.search(body=query, index=index_name, **kwargs)
 
     def index(self, document: dict, index_name: str, doc_id: int, **kwargs: Any) -> Any:
         """
@@ -87,9 +87,9 @@ class OpenSearchHook(BaseHook):
         :param: index_name: the name of the index that this document will be associated with
         :param: doc_id: the numerical identifier that will be used to identify the document on the index.
         """
-        return self.client.index(index=index_name, id=doc_id, body=document, **kwargs)
+        return self.get_client.index(index=index_name, id=doc_id, body=document, **kwargs)
 
-    def delete(self, index_name: str, query: dict | None = None, doc_id: int | None = None):
+    def delete(self, index_name: str, query: dict | None = None, doc_id: int | None = None) -> Any:
         """
         Delete from an index by either a query or by the document id.
 
@@ -101,9 +101,9 @@ class OpenSearchHook(BaseHook):
         if query is not None:
             if self.log_query:
                 self.log.info("Deleting from %s using Query: %s", index_name, query)
-            return self.client.delete_by_query(index=index_name, body=query)
+            return self.get_client.delete_by_query(index=index_name, body=query)
         elif doc_id is not None:
-            return self.client.delete(index=index_name, id=doc_id)
+            return self.get_client.delete(index=index_name, id=doc_id)
         else:
             AirflowException("To delete a document you must include one of either a query or a document id. ")
 
@@ -117,10 +117,7 @@ class OpenSearchHook(BaseHook):
             },
             "placeholders": {
                 "extra": json.dumps(
-                    {
-                        "use_ssl": True,
-                        "verify_certs": True
-                    },
+                    {"use_ssl": True, "verify_certs": True},
                     indent=2,
                 ),
             },

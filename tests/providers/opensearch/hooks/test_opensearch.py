@@ -14,37 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
----
-package-name: apache-airflow-providers-opensearch
-name: Opensearch
-description: |
-    `Opensearch <https://opensearch.org/>`__
+from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
-suspended: false
-versions:
-  - 1.0.0
+MOCK_SEARCH_RETURN = {"status": "test"}
 
-dependencies:
-  - apache-airflow>=2.5.0
-  - opensearch-py>=2.2.0
 
-integrations:
-  - integration-name: Opensearch
-    external-doc-url: https://opensearch.org/
-    logo: /integration-logos/opensearch/opensearch.png
-    tags: [software]
+class TestOpenSearchHook:
+    def test_hook_search(self, mock_hook):
+        result = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True).search(
+            index_name="testIndex",
+            query={"size": 1, "query": {"multi_match": {"query": "test", "fields": ["testField"]}}},
+        )
 
-hooks:
-  - integration-name: Opensearch
-    python-modules:
-      - airflow.providers.opensearch.hooks.opensearch
+        assert result == MOCK_SEARCH_RETURN
 
-operators:
-  - integration-name: Opensearch
-    python-modules:
-      - airflow.providers.opensearch.operators.opensearch
-
-connection-types:
-  - hook-class-name: airflow.providers.opensearch.hooks.opensearch.OpenSearchHook
-    connection-type: opensearch
+    def test_hook_index(self, mock_hook):
+        result = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True).index(
+            index_name="test_index", document={"title": "Monty Python"}, doc_id=3
+        )
+        assert result == 3
