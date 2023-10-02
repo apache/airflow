@@ -341,7 +341,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     states=self.allowed_states,
                     trigger_start_time=utcnow(),
                     poll_interval=self.poll_interval,
-                    execution_timeout=self.execution_timeout
+                    execution_timeout=self.execution_timeout,
                 ),
                 method_name="execute_complete",
             )
