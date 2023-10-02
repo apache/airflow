@@ -526,7 +526,7 @@ class DatabricksHook(BaseDatabricksHook):
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
 
-    def build_endpoint(self, method: str, route: str, repo_id) -> tuple:
+    def build_endpoint(self, method: str, route: str, repo_id: str) -> tuple:
         """
         Builds the endpoint for the update and delete repo methods. 
 
