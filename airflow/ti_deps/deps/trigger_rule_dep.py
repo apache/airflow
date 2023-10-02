@@ -379,10 +379,8 @@ class TriggerRuleDep(BaseTIDep):
                     if skipped:
                         new_state = TaskInstanceState.SKIPPED
                 elif trigger_rule == TR.ALL_SKIPPED:
-                    if success or failed:
+                    if success or failed or upstream_failed:
                         new_state = TaskInstanceState.SKIPPED
-                    elif upstream_done and upstream_failed:
-                        new_state = TaskInstanceState.UPSTREAM_FAILED
                 elif trigger_rule == TR.ALL_DONE_SETUP_SUCCESS:
                     if upstream_done and upstream_setup and skipped_setup >= upstream_setup:
                         # when there is an upstream setup and they have all skipped, then skip
