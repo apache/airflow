@@ -313,9 +313,9 @@ setting the ``RATELIMIT_*`` configuration settings in ``webserver_config.py``.
 For example, to use Redis as a rate limit storage you can use the following configuration (you need
 to set ``redis_host`` to your Redis instance)
 
-```
-RATELIMIT_STORAGE_URI = 'redis://redis_host:6379/0
-```
+.. code-block:: python
+
+    RATELIMIT_STORAGE_URI = "redis://redis_host:6379/0"
 
 You can also configure other rate limit settings in ``webserver_config.py`` - for more details, see the
 `Flask Limiter rate limit configuration <https://flask-limiter.readthedocs.io/en/stable/configuration.html>`_.
