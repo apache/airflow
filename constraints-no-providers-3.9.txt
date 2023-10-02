@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-30T19:41:05Z
+# This constraints file was automatically generated on 2023-10-02T10:47:51Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -20,7 +20,7 @@ Flask-Limiter==3.5.0
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
-Flask-WTF==1.1.2
+Flask-WTF==1.2.1
 Flask==2.2.5
 Jinja2==3.1.2
 Mako==1.2.4
@@ -137,7 +137,7 @@ opentelemetry-proto==1.20.0
 opentelemetry-sdk==1.20.0
 opentelemetry-semantic-conventions==0.41b0
 ordered-set==4.1.0
-packaging==23.1
+packaging==23.2
 pandas==2.1.1
 partd==1.4.1
 pathspec==0.11.2

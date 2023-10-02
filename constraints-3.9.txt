@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-09-30T19:43:44Z
+# This constraints file was automatically generated on 2023-10-02T10:50:25Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -41,7 +41,7 @@ Flask-Limiter==3.5.0
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
-Flask-WTF==1.1.2
+Flask-WTF==1.2.1
 Flask==2.2.5
 GitPython==3.1.37
 JPype1==1.4.1
@@ -175,7 +175,7 @@ apache-beam==2.50.0
 apispec==6.3.0
 apprise==1.5.0
 argcomplete==3.1.2
-arrow==1.2.3
+arrow==1.3.0
 asana==3.2.1
 asgiref==3.7.2
 asn1crypto==1.5.1
@@ -278,7 +278,7 @@ executing==2.0.0
 facebook-business==18.0.1
 fastavro==1.8.3
 fasteners==0.19
-fastjsonschema==2.18.0
+fastjsonschema==2.18.1
 filelock==3.12.4
 flower==2.0.1
 frozenlist==1.4.0
@@ -368,14 +368,14 @@ importlib-resources==6.1.0
 impyla==0.18.0
 incremental==22.10.0
 inflection==0.5.1
-influxdb-client==1.37.0
+influxdb-client==1.38.0
 iniconfig==2.0.0
 ipdb==0.13.13
-ipython==8.16.0
+ipython==8.16.1
 isodate==0.6.1
 itsdangerous==2.1.2
 jaraco.classes==3.3.0
-jedi==0.19.0
+jedi==0.19.1
 jeepney==0.8.0
 jmespath==0.10.0
 json-merge-patch==0.2
@@ -455,7 +455,7 @@ ordered-set==4.1.0
 orjson==3.9.7
 oscrypto==1.3.0
 oss2==2.18.2
-packaging==23.1
+packaging==23.2
 pandas-gbq==0.19.2
 pandas==2.1.1
 papermill==2.4.0
