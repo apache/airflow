@@ -29,7 +29,7 @@ from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import utcnow
 
 if typing.TYPE_CHECKING:
-    from datetime import datetime, timedelta
+    from datetime import datetime
 
     from sqlalchemy.orm import Session
 
