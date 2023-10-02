@@ -70,8 +70,12 @@ RUN_LIFE_CYCLE_STATES = [
 SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
 
 CREATE_REPO_ENDPOINT = ("POST", "api/2.0/repos")
-DELETE_REPO_ENDPOINT = ("DELETE", "api/2.0/repos/{repo_id}")
-UPDATE_REPO_ENDPOINT = ("PATCH", "api/2.0/repos/{repo_id}")
+
+DELETE_REPO_METHOD = "DELETE"
+DELETE_REPO_ROUTE = "api/2.0/repos/{repo_id}"
+
+UPDATE_REPO_METHOD = "PATCH"
+UPDATE_REPO_ROUTE = "api/2.0/repos/{repo_id}"
 
 
 class RunState:
@@ -522,6 +526,17 @@ class DatabricksHook(BaseDatabricksHook):
         """
         self._do_api_call(UNINSTALL_LIBS_ENDPOINT, json)
 
+    def build_endpoint(self, method: str, route: str, repo_id) -> tuple:
+        """
+        Builds the endpoint for the update and delete repo methods. 
+
+        :param method: method type for the endpoint
+        :param route: route for the endpoint
+        :param repo_id: ID of Databricks repo
+        :return: completed endpoint
+        """
+        return (method, route.format(repo_id=repo_id))
+
     def update_repo(self, repo_id: str, json: dict[str, Any]) -> dict:
         """
         Updates given Databricks Repos.
@@ -530,9 +545,8 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: payload
         :return: metadata from update
         """
-        modify_route = lambda tuple, repo_id: (tuple[0], tuple[1].format(repo_id=repo_id))
-        modified_update_repo_endpoint = modify_route(UPDATE_REPO_ENDPOINT, repo_id)
-        return self._do_api_call(modified_update_repo_endpoint, json)
+        repos_endpoint = self.build_endpoint(UPDATE_REPO_METHOD, UPDATE_REPO_ROUTE, repo_id)
+        return self._do_api_call(repos_endpoint, json)
 
     def delete_repo(self, repo_id: str) -> None:
         """
@@ -541,9 +555,8 @@ class DatabricksHook(BaseDatabricksHook):
         :param repo_id: ID of Databricks Repos
         :return:
         """
-        modify_route = lambda tuple, repo_id: (tuple[0], tuple[1].format(repo_id=repo_id))
-        modified_delete_repo_endpoint = modify_route(DELETE_REPO_ENDPOINT, repo_id)
-        self._do_api_call(modified_delete_repo_endpoint)
+        repos_endpoint = self.build_endpoint(DELETE_REPO_METHOD, DELETE_REPO_ROUTE, repo_id)
+        self._do_api_call(repos_endpoint)
 
     def create_repo(self, json: dict[str, Any]) -> dict:
         """
