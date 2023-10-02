@@ -1350,6 +1350,23 @@ class TestDatabricksHookAsyncMethods:
             timeout=self.hook.timeout_seconds,
         )
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_get_cluster_state(self, mock_get):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_CLUSTER_RESPONSE)
+
+        async with self.hook:
+            cluster_state = await self.hook.async_get_cluster_state(CLUSTER_ID)
+
+        assert cluster_state == ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        mock_get.assert_called_once_with(
+            get_cluster_endpoint(HOST),
+            json={"cluster_id": CLUSTER_ID},
+            auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
 
 class TestDatabricksHookAsyncAadToken:
     """
