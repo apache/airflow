@@ -618,7 +618,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             for ti in executable_tis:
-                ti.emit_state_change_metric(TaskInstanceState.QUEUED)
+                # ti.start_date could be None when the scheduler queue a TI
+                # or when the backfill CLI send a TI to the executor
+                # in this case, this line must be skipped because emit_state_change_metric doesn't expect it
+                if ti.start_date is not None:
+                    ti.emit_state_change_metric(TaskInstanceState.QUEUED)
 
         for ti in executable_tis:
             make_transient(ti)

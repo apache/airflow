@@ -1415,6 +1415,37 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @mock.patch("airflow.models.taskinstance.TaskInstance.emit_state_change_metric", autospec=True)
+    def test_emit_state_change_metric_called_only_with_start_date(self, mock_emit_metric, dag_maker):
+        dag_id = "SchedulerJobTest.test_emit_state_change_metric_called_only_with_start_date"
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, session=session):
+            task1 = EmptyOperator(task_id="task1")
+            task2 = EmptyOperator(task_id="task2")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti1 = dr.get_task_instance(task1.task_id, session)
+        ti1.state = State.SCHEDULED
+        ti1.start_date = timezone.utcnow()
+
+        ti2 = dr.get_task_instance(task2.task_id, session)
+        ti2.state = State.SCHEDULED
+        ti2.start_date = None
+        session.flush()
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+        assert 2 == len(res)
+
+        mock_emit_metric.assert_called_once()
+        assert mock_emit_metric.call_args.args[0].task_id == task1.task_id
+        assert mock_emit_metric.call_args.args[1] == TaskInstanceState.QUEUED
+
+        session.rollback()
+        session.close()
+
     def test_enqueue_task_instances_with_queued_state(self, dag_maker, session):
         dag_id = "SchedulerJobTest.test_enqueue_task_instances_with_queued_state"
         task_id_1 = "dummy"
