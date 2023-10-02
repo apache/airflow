@@ -32,6 +32,8 @@ dependencies:
 integrations:
   - integration-name: Opensearch
     external-doc-url: https://opensearch.org/
+    how-to-guide:
+      - /docs/apache-airflow-providers-opensearch/operators/opensearch.rst
     logo: /integration-logos/opensearch/opensearch.png
     tags: [software]
 

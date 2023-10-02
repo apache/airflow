@@ -297,12 +297,7 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/appflow.rst
     tags: [aws]
-  - integration-name: AWS Open Search
-    external-doc-url: https://aws.amazon.com/opensearch-service/
-    logo: /integration-logos/aws/Amazon-OpenSearch-light.png
-    how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/opensearch.rst
-    tags: [aws]
+
 
 operators:
   - integration-name: Amazon Athena
@@ -376,9 +371,6 @@ operators:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.operators.appflow
-  - integration-name: AWS Open Search
-    python-modules:
-      - airflow.providers.amazon.aws.operators.opensearch
 
 sensors:
   - integration-name: Amazon Athena
@@ -552,9 +544,7 @@ hooks:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.hooks.appflow
-  - integration-name: Amazon Open Search
-    python-modules:
-      - airflow.providers.amazon.aws.hooks.opensearch
+
 
 triggers:
   - integration-name: Amazon Web Services
@@ -702,8 +692,7 @@ connection-types:
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
-  - hook-class-name: airflow.providers.amazon.aws.hooks.opensearch.OpenSearchHook
-    connection-type: opensearch
+
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
