@@ -119,9 +119,8 @@ Here we pass form data to a ``POST`` operation which is equal to a usual form su
     :start-after: [START howto_operator_http_task_post_op_formenc]
     :end-before: [END howto_operator_http_task_post_op_formenc]
 
-
 PaginatedHttpOperator
---------------------
+---------------------
 
 The :class:`~airflow.providers.http.operators.paginated.PaginatedHttpOperator` allow to repeatedly call an API
 endpoint, typically to loop over its pages. All API responses are stored in memory by the Operator and returned
@@ -129,7 +128,6 @@ in one single result. Thus, it can be more memory and CPU intensive compared to 
 
 By default, the result of the SimpleHttpOperator will be a list of Response.text (instead of one single
 Response.text object).
-
 
 First example - Let's assume your API returns a JSON body containing a cursor:
 You can write a ``pagination_function`` that will receive the raw ``request.Response`` object of your request, and

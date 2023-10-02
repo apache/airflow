@@ -68,6 +68,7 @@ operators:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
       - airflow.providers.http.operators.http
+      - airflow.providers.http.operators.paginated
 sensors:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
