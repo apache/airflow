@@ -23,7 +23,6 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow-providers-http",
-      "apache-airflow-providers-opensearch",
       "apache-airflow>=2.4.0",
       "asgiref",
       "boto3>=1.28.0",
