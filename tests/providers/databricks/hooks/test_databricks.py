@@ -1004,6 +1004,41 @@ class TestRunState:
         assert expected == RunState.from_json(json.dumps(state))
 
 
+class TestClusterState:
+    def test_is_terminal_true(self):
+        terminal_states = ["TERMINATING", "TERMINATED", "ERROR", "UNKNOWN"]
+        for state in terminal_states:
+            cluster_state = ClusterState(state, "")
+            assert cluster_state.is_terminal
+
+    def test_is_terminal_false(self):
+        non_terminal_states = ["PENDING", "RUNNING", "RESTARTING", "RESIZING"]
+        for state in non_terminal_states:
+            cluster_state = ClusterState(state, "")
+            assert not cluster_state.is_terminal
+
+    def test_is_terminal_with_nonexistent_life_cycle_state(self):
+        with pytest.raises(AirflowException):
+            cluster_state = ClusterState("blah", "")
+            assert cluster_state.is_terminal
+
+    def test_is_running(self):
+        running_states = ["RUNNING", "RESIZING"]
+        for state in running_states:
+            cluster_state = ClusterState(state, "")
+            assert cluster_state.is_running
+
+    def test_to_json(self):
+        cluster_state = ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        expected = json.dumps(GET_CLUSTER_RESPONSE)
+        assert expected == cluster_state.to_json()
+
+    def test_from_json(self):
+        state = GET_CLUSTER_RESPONSE
+        expected = ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        assert expected == ClusterState.from_json(json.dumps(state))
+
+
 def create_aad_token_for_resource(resource: str) -> dict:
     return {
         "token_type": "Bearer",
