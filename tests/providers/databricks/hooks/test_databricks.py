@@ -162,11 +162,13 @@ def repair_run_endpoint(host):
     """
     return f"https://{host}/api/2.1/jobs/runs/repair"
 
+
 def get_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
     return f"https://{host}/api/2.0/clusters/get"
+
 
 def start_cluster_endpoint(host):
     """
