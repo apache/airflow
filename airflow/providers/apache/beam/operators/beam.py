@@ -320,6 +320,13 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                 self.snake_case_pipeline_options["requirements_file"] = tmp_req_file.name
 
             if self.is_dataflow and self.dataflow_hook:
+                DataflowJobLink.persist(
+                    self,
+                    context,
+                    self.dataflow_config.project_id,
+                    self.dataflow_config.location,
+                    self.dataflow_job_id,
+                )
                 with self.dataflow_hook.provide_authorized_gcloud():
                     self.beam_hook.start_python_pipeline(
                         variables=self.snake_case_pipeline_options,
@@ -330,13 +337,6 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                         py_system_site_packages=self.py_system_site_packages,
                         process_line_callback=self.process_line_callback,
                     )
-                DataflowJobLink.persist(
-                    self,
-                    context,
-                    self.dataflow_config.project_id,
-                    self.dataflow_config.location,
-                    self.dataflow_job_id,
-                )
                 return {"dataflow_job_id": self.dataflow_job_id}
             else:
                 self.beam_hook.start_python_pipeline(
@@ -507,6 +507,13 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                 self.jar = tmp_gcs_file.name
 
             if is_dataflow and self.dataflow_hook:
+                DataflowJobLink.persist(
+                    self,
+                    context,
+                    self.dataflow_config.project_id,
+                    self.dataflow_config.location,
+                    self.dataflow_job_id,
+                )
                 is_running = False
                 if self.dataflow_config.check_if_running != CheckJobRunning.IgnoreJob:
                     is_running = (
@@ -542,13 +549,6 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                         )
                     if dataflow_job_name and self.dataflow_config.location:
                         multiple_jobs = self.dataflow_config.multiple_jobs or False
-                        DataflowJobLink.persist(
-                            self,
-                            context,
-                            self.dataflow_config.project_id,
-                            self.dataflow_config.location,
-                            self.dataflow_job_id,
-                        )
                         self.dataflow_hook.wait_for_done(
                             job_name=dataflow_job_name,
                             location=self.dataflow_config.location,
@@ -686,13 +686,6 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                 go_artifact.download_from_gcs(gcs_hook=gcs_hook, tmp_dir=tmp_dir)
 
             if is_dataflow and self.dataflow_hook:
-                with self.dataflow_hook.provide_authorized_gcloud():
-                    go_artifact.start_pipeline(
-                        beam_hook=self.beam_hook,
-                        variables=snake_case_pipeline_options,
-                        process_line_callback=process_line_callback,
-                    )
-
                 DataflowJobLink.persist(
                     self,
                     context,
@@ -700,6 +693,13 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                     self.dataflow_config.location,
                     self.dataflow_job_id,
                 )
+                with self.dataflow_hook.provide_authorized_gcloud():
+                    go_artifact.start_pipeline(
+                        beam_hook=self.beam_hook,
+                        variables=snake_case_pipeline_options,
+                        process_line_callback=process_line_callback,
+                    )
+
                 if dataflow_job_name and self.dataflow_config.location:
                     self.dataflow_hook.wait_for_done(
                         job_name=dataflow_job_name,
