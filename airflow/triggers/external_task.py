@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import typing
-from datetime import timedelta
 
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
@@ -30,7 +29,7 @@ from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import utcnow
 
 if typing.TYPE_CHECKING:
-    from datetime import datetime
+    from datetime import datetime, timedelta
 
     from sqlalchemy.orm import Session
 
