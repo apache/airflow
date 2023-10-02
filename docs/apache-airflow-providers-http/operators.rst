@@ -119,6 +119,8 @@ Here we pass form data to a ``POST`` operation which is equal to a usual form su
     :start-after: [START howto_operator_http_task_post_op_formenc]
     :end-before: [END howto_operator_http_task_post_op_formenc]
 
+.. _howto/operator:PaginatedHttpOperator:
+
 PaginatedHttpOperator
 ---------------------
 
