@@ -220,6 +220,31 @@ ingress:
       # the name of a pre-created Secret containing a TLS private key and certificate
       secretName: ""
 
+# Enable the creation of a Kubernetes HTTPRoute and HealthCheckPolicy
+httpRoute:
+  web:
+    # Enable web ingress resource
+    enabled: false
+    # Annotations for the web HTTPRoute
+    annotations: {}
+    # The hostnames or hosts configuration for the web HTTPRoute
+    hostnames: []
+    # The Gateway API configuration
+    gateway:
+      name: your-gateway
+      namespace: namespace-for-your-gateway
+  flower:
+    # Enable flower HTTPRoute resource
+    enabled: false
+    # Annotations for the flower HTTPRoute
+    annotations: {}
+    # The hostnames or hosts configuration for the flower HTTPRoute
+    hostnames: []
+    # The Gateway API configuration
+    gateway:
+      name: your-gateway
+      namespace: namespace-for-your-gateway
+
 # Network policy configuration
 networkPolicies:
   # Enabled network policies
