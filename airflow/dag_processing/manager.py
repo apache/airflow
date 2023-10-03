@@ -821,10 +821,10 @@ class DagFileProcessorManager(LoggingMixin):
         :param file_paths: list of paths to DAG definition files
         :param session: session for ORM operations
         """
+        query = delete(errors.ImportError)
+
         if file_paths:
-            query = delete(errors.ImportError).where(~errors.ImportError.filename.in_(file_paths))
-        else:
-            query = delete(errors.ImportError)
+            query = query.where(~errors.ImportError.filename.in_(file_paths))
 
         session.execute(query.execution_options(synchronize_session="fetch"))
         session.commit()
