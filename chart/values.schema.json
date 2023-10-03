@@ -776,7 +776,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v3.6.9"
+                            "default": "v4.0.0"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -7008,6 +7008,11 @@
                             "description": "Git revision.",
                             "type": "string",
                             "default": "HEAD"
+                        },
+                        "ref": {
+                            "description": "Git revision branch, tag, or hash.",
+                            "type": "string",
+                            "default": "v2-2-stable"
                         },
                         "depth": {
                             "description": "Repository depth.",
