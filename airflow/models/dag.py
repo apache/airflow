@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import collections.abc
 import copy
 import functools
@@ -27,6 +26,7 @@ import os
 import pathlib
 import pickle
 import sys
+import time
 import traceback
 import warnings
 import weakref
@@ -96,7 +96,13 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.param import DagParam, ParamsDict
-from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
+from airflow.models.taskinstance import (
+    Context,
+    TaskInstance,
+    TaskInstanceKey,
+    TaskReturnCode,
+    clear_task_instances,
+)
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.stats import Stats
@@ -123,7 +129,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
@@ -276,6 +282,14 @@ def get_dataset_triggered_next_run_info(
             .where(DagScheduleDatasetReference.dag_id.in_(dag_ids))
         ).all()
     }
+
+
+class _StopDagTest(Exception):
+    """
+    Raise when DAG.test should stop immediately.
+
+    :meta private:
+    """
 
 
 @functools.total_ordering
@@ -2811,12 +2825,33 @@ class DAG(LoggingMixin):
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == DagRunState.RUNNING:
+            session.expire_all()
             schedulable_tis, _ = dr.update_state(session=session)
-            for ti in schedulable_tis:
+            for s in schedulable_tis:
+                s.state = TaskInstanceState.SCHEDULED
+            session.commit()
+            # triggerer may mark tasks scheduled so we read from DB
+            all_tis = set(dr.get_task_instances(session=session))
+            scheduled_tis = {x for x in all_tis if x.state == TaskInstanceState.SCHEDULED}
+            ids_unrunnable = {x for x in all_tis if x.state not in State.finished} - scheduled_tis
+            if not scheduled_tis and ids_unrunnable:
+                self.log.warning("No tasks to run. unrunnable tasks: %s", ids_unrunnable)
+                time.sleep(1)
+            for ti in scheduled_tis:
                 try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
-                    _run_task(ti, session=session)
+                    ret = _run_task(ti, session=session)
+                    if ret is TaskReturnCode.DEFERRED:
+                        if not _triggerer_is_healthy():
+                            raise _StopDagTest(
+                                "Task has deferred but triggerer component is not running. "
+                                "You can start the triggerer by running `airflow triggerer` in a terminal."
+                            )
+                except _StopDagTest:
+                    # Let this exception bubble out and not be swallowed by the
+                    # except block below.
+                    raise
                 except Exception:
                     self.log.exception("Task failed; ti=%s", ti)
         if conn_file_path or variable_file_path:
@@ -3945,7 +3980,14 @@ class DagContext:
             return None
 
 
-def _run_task(ti: TaskInstance, session):
+def _triggerer_is_healthy():
+    from airflow.jobs.triggerer_job_runner import TriggererJobRunner
+
+    job = TriggererJobRunner.most_recent_job()
+    return job and job.is_alive()
+
+
+def _run_task(ti: TaskInstance, session) -> TaskReturnCode | None:
     """
     Run a single task instance, and push result to Xcom for downstream tasks.
 
@@ -3955,18 +3997,20 @@ def _run_task(ti: TaskInstance, session):
     Args:
         ti: TaskInstance to run
     """
+    ret = None
     log.info("*****************************************************")
     if ti.map_index > 0:
         log.info("Running task %s index %d", ti.task_id, ti.map_index)
     else:
         log.info("Running task %s", ti.task_id)
     try:
-        ti._run_raw_task(session=session)
+        ret = ti._run_raw_task(session=session)
         session.flush()
         log.info("%s ran successfully!", ti.task_id)
     except AirflowSkipException:
         log.info("Task Skipped, continuing")
     log.info("*****************************************************")
+    return ret
 
 
 def _get_or_create_dagrun(

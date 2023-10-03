@@ -25,7 +25,7 @@ from datetime import datetime
 
 from google.cloud.dataform_v1beta1 import WorkflowInvocation
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteDatasetOperator
 from airflow.providers.google.cloud.operators.dataform import (
     DataformCancelWorkflowInvocationOperator,
@@ -58,7 +58,7 @@ WORKSPACE_ID = f"example_dataform_workspace_{ENV_ID}"
 DATAFORM_SCHEMA_NAME = f"schema_{DAG_ID}_{ENV_ID}"
 
 # This DAG is not self-run we need to do some extra configuration to execute it in automation process
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

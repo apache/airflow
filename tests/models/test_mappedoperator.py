@@ -29,8 +29,8 @@ import pytest
 
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
-from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance

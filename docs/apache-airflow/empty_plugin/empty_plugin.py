@@ -22,8 +22,7 @@ from flask import Blueprint
 from flask_appbuilder import BaseView, expose
 
 from airflow.plugins_manager import AirflowPlugin
-from airflow.security import permissions
-from airflow.www.auth import has_access
+from airflow.www.auth import has_access_website
 
 
 class EmptyPluginView(BaseView):
@@ -32,11 +31,7 @@ class EmptyPluginView(BaseView):
     default_view = "index"
 
     @expose("/")
-    @has_access(
-        [
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
-        ]
-    )
+    @has_access_website()
     def index(self):
         """Create default view"""
         return self.render_template("empty_plugin/index.html", name="Empty Plugin")

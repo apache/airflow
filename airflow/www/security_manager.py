@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import warnings
 from typing import TYPE_CHECKING, Any, Collection, Container, Iterable, Sequence
 
@@ -133,6 +134,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
@@ -602,6 +604,13 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
 
         session.commit()
 
+    def create_admin_standalone(self) -> tuple[str | None, str | None]:
+        """Perform the required steps when initializing airflow for standalone mode.
+
+        If necessary, returns the username and password to be printed in the console for users to log in.
+        """
+        return None, None
+
     def sync_roles(self) -> None:
         """
         Initialize default and custom roles with related permissions.
@@ -723,9 +732,8 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
     def create_perm_vm_for_all_dag(self) -> None:
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
         # create perm for global logical dag
-        for resource_name in self.DAG_RESOURCES:
-            for action_name in self.DAG_ACTIONS:
-                self._merge_perm(action_name, resource_name)
+        for resource_name, action_name in itertools.product(self.DAG_RESOURCES, self.DAG_ACTIONS):
+            self._merge_perm(action_name, resource_name)
 
     def check_authorization(
         self,

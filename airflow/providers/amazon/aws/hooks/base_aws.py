@@ -246,7 +246,11 @@ class BaseSessionFactory(LoggingMixin):
         if assume_role_method not in ("assume_role", "assume_role_with_saml"):
             raise NotImplementedError(f"assume_role_method={assume_role_method} not expected")
 
-        sts_client = self.basic_session.client("sts", config=self.config)
+        sts_client = self.basic_session.client(
+            "sts",
+            config=self.config,
+            endpoint_url=self.conn.get_service_endpoint_url("sts", sts_connection_assume=True),
+        )
 
         if assume_role_method == "assume_role":
             sts_response = self._assume_role(sts_client=sts_client)
@@ -558,10 +562,33 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
         )
 
+    def _resolve_service_name(self, is_resource_type: bool = False) -> str:
+        """Resolve service name based on type or raise an error."""
+        if exactly_one(self.client_type, self.resource_type):
+            # It is possible to write simple conditions, however it make mypy unhappy.
+            if self.client_type:
+                if is_resource_type:
+                    raise LookupError("Requested `resource_type`, but `client_type` was set instead.")
+                return self.client_type
+            elif self.resource_type:
+                if not is_resource_type:
+                    raise LookupError("Requested `client_type`, but `resource_type` was set instead.")
+                return self.resource_type
+
+        raise ValueError(
+            f"Either client_type={self.client_type!r} or "
+            f"resource_type={self.resource_type!r} must be provided, not both."
+        )
+
+    @property
+    def service_name(self) -> str:
+        """Extracted botocore/boto3 service name from hook parameters."""
+        return self._resolve_service_name(is_resource_type=bool(self.resource_type))
+
     @property
     def service_config(self) -> dict:
-        service_name = self.client_type or self.resource_type
-        return self.conn_config.get_service_config(service_name)
+        """Config for hook-specific service from AWS Connection."""
+        return self.conn_config.get_service_config(service_name=self.service_name)
 
     @property
     def region_name(self) -> str | None:
@@ -609,19 +636,20 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         deferrable: bool = False,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session."""
-        client_type = self.client_type
+        service_name = self._resolve_service_name(is_resource_type=False)
         session = self.get_session(region_name=region_name, deferrable=deferrable)
+        endpoint_url = self.conn_config.get_service_endpoint_url(service_name=service_name)
         if not isinstance(session, boto3.session.Session):
             return session.create_client(
-                client_type,
-                endpoint_url=self.conn_config.endpoint_url,
+                service_name=service_name,
+                endpoint_url=endpoint_url,
                 config=self._get_config(config),
                 verify=self.verify,
             )
 
         return session.client(
-            client_type,
-            endpoint_url=self.conn_config.endpoint_url,
+            service_name=service_name,
+            endpoint_url=endpoint_url,
             config=self._get_config(config),
             verify=self.verify,
         )
@@ -632,11 +660,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         config: Config | None = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session."""
-        resource_type = self.resource_type
+        service_name = self._resolve_service_name(is_resource_type=True)
         session = self.get_session(region_name=region_name)
         return session.resource(
-            resource_type,
-            endpoint_url=self.conn_config.endpoint_url,
+            service_name=service_name,
+            endpoint_url=self.conn_config.get_service_endpoint_url(service_name=service_name),
             config=self._get_config(config),
             verify=self.verify,
         )
@@ -648,15 +676,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         :return: boto3.client or boto3.resource
         """
-        if not exactly_one(self.client_type, self.resource_type):
-            raise ValueError(
-                f"Either client_type={self.client_type!r} or "
-                f"resource_type={self.resource_type!r} must be provided, not both."
-            )
-        elif self.client_type:
+        if self.client_type:
             return self.get_client_type(region_name=self.region_name)
-        else:
-            return self.get_resource_type(region_name=self.region_name)
+        return self.get_resource_type(region_name=self.region_name)
 
     @property
     def async_conn(self):
@@ -730,7 +752,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         else:
             session = self.get_session(region_name=region_name)
             _client = session.client(
-                "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
+                service_name="iam",
+                endpoint_url=self.conn_config.get_service_endpoint_url("iam"),
+                config=self.config,
+                verify=self.verify,
             )
             return _client.get_role(RoleName=role)["Role"]["Arn"]
 
@@ -799,10 +824,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """
         try:
             session = self.get_session()
-            test_endpoint_url = self.conn_config.extra_config.get("test_endpoint_url")
             conn_info = session.client(
-                "sts",
-                endpoint_url=test_endpoint_url,
+                service_name="sts",
+                endpoint_url=self.conn_config.get_service_endpoint_url("sts", sts_test_connection=True),
             ).get_caller_identity()
             metadata = conn_info.pop("ResponseMetadata", {})
             if metadata.get("HTTPStatusCode") != 200:
@@ -815,7 +839,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return True, ", ".join(f"{k}={v!r}" for k, v in conn_info.items())
 
         except Exception as e:
-            return False, str(f"{type(e).__name__!r} error occurred while testing connection: {e}")
+            return False, f"{type(e).__name__!r} error occurred while testing connection: {e}"
 
     @cached_property
     def waiter_path(self) -> os.PathLike[str] | None:

@@ -32,7 +32,9 @@ from airflow.sensors.base import BaseSensorOperator
 
 class LambdaFunctionStateSensor(BaseSensorOperator):
     """
-    Poll the state of the Lambda until it reaches a target state; fails if the query fails.
+    Poll the deployment state of the AWS Lambda function until it reaches a target state.
+
+    Fails if the query fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

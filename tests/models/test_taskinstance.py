@@ -36,7 +36,7 @@ import pendulum
 import pytest
 import time_machine
 
-from airflow import models, settings
+from airflow import settings
 from airflow.decorators import task, task_group
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
@@ -391,7 +391,7 @@ class TestTaskInstance:
         """
 
         with pytest.raises(ValueError, match="pool slots .* cannot be less than 1"):
-            dag = models.DAG(dag_id="test_run_pooling_task")
+            dag = DAG(dag_id="test_run_pooling_task")
             EmptyOperator(
                 task_id="test_run_pooling_task_op",
                 dag=dag,
@@ -2196,7 +2196,7 @@ class TestTaskInstance:
         Test that when a task that produces dataset has ran, that changing the consumer
         dag dataset will not cause primary key blank-out
         """
-        from airflow import Dataset
+        from airflow.datasets import Dataset
 
         with dag_maker(schedule=None, serialized=True) as dag1:
 
