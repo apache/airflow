@@ -52,12 +52,7 @@ class OpenSearchHook(BaseHook):
 
     @cached_property
     def get_client(self) -> OpenSearch:
-        """
-
-        This function is intended for Operators that will take in arguments and use the high level
-        OpenSearch client which allows using Python objects to perform searches.
-
-        """
+        """This function is intended for Operators that forward high level client objects."""
         auth = (self.conn.login, self.conn.password)
         client = OpenSearch(
             hosts=[{"host": self.conn.host, "port": self.conn.port}],

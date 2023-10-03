@@ -25,7 +25,6 @@ from airflow.models import BaseOperator
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
 if TYPE_CHECKING:
-
     from airflow.utils.context import Context
 
 
