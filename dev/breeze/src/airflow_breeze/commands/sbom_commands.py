@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import click
@@ -45,12 +46,13 @@ from airflow_breeze.utils.common_options import (
     option_skip_cleanup,
     option_verbose,
 )
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.github import get_active_airflow_versions
 from airflow_breeze.utils.parallel import ShowLastLineProgressMatcher, check_async_run_results, run_with_pool
-from airflow_breeze.utils.path_utils import AIRFLOW_TMP_DIR_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_TMP_DIR_PATH, PROVIDER_METADATA_JSON_FILE_PATH
 from airflow_breeze.utils.shared_options import get_dry_run
 
 
@@ -248,7 +250,7 @@ def update_sbom_information(
 @click.option(
     "--provider-id",
     type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
-    required=True,
+    required=False,
     help="Provider to generate the requirements for",
     multiple=True,
 )
@@ -260,6 +262,11 @@ def update_sbom_information(
 @option_debug_resources
 @option_include_success_outputs
 @option_skip_cleanup
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Force update providers requirements even if they already exist.",
+)
 def generate_providers_requirements(
     airflow_version: str | None,
     python: str,
@@ -269,19 +276,41 @@ def generate_providers_requirements(
     debug_resources: bool,
     include_success_outputs: bool,
     skip_cleanup: bool,
+    force: bool,
 ):
-    provider_ids = provider_id
     perform_environment_checks()
-    if airflow_version is None:
-        airflow_version = get_active_airflow_versions(confirm=False)[-1]
-        get_console().print(f"[info]Using {airflow_version} as airflow version")
+
+    provider_ids = provider_id
+    if len(provider_ids) == 0:
+        user_confirm(
+            "You are about to generate all providers requirements based on the "
+            "`provider_metadata.json` file (for all releases). Do you want to proceed?",
+            quit_allowed=False,
+            default_answer=Answer.YES,
+        )
+        with open(PROVIDER_METADATA_JSON_FILE_PATH) as f:
+            provider_metadata = json.load(f)
+            providers_info = [
+                (p_id, p_version, info["associated_airflow_version"])
+                for (p_id, p_versions) in provider_metadata.items()
+                for (p_version, info) in p_versions.items()
+            ]
+    else:
+        if airflow_version is None:
+            airflow_version = get_active_airflow_versions(confirm=False)[-1]
+            get_console().print(f"[info]Using {airflow_version} as airflow version")
+        providers_info = [(provider_id, None, airflow_version) for provider_id in provider_ids]
+
     build_all_airflow_versions_base_image(python_version=python)
 
     if run_in_parallel:
-        parallelism = min(parallelism, len(provider_ids))
-        get_console().print(f"[info]Running {len(provider_ids)} jobs in parallel")
-        with ci_group(f"Generating provider requirements for {provider_ids}"):
-            all_params = [f"Generate provider requirements for {p_id}" for p_id in provider_ids]
+        parallelism = min(parallelism, len(providers_info))
+        get_console().print(f"[info]Running {len(providers_info)} jobs in parallel")
+        with ci_group(f"Generating provider requirements for {providers_info}"):
+            all_params = [
+                f"Generate provider requirements for {p_id} version {p_version}"
+                for (p_id, p_version, _) in providers_info
+            ]
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=all_params,
@@ -293,12 +322,13 @@ def generate_providers_requirements(
                         get_requirements_for_provider,
                         kwds={
                             "provider_id": p_id,
-                            "provider_version": None,
-                            "airflow_version": airflow_version,
+                            "provider_version": p_version,
+                            "airflow_version": a_version,
                             "python_version": python,
+                            "force": force,
                         },
                     )
-                    for index, p_id in enumerate(provider_ids)
+                    for (p_id, p_version, a_version) in providers_info
                 ]
         check_async_run_results(
             results=results,
@@ -308,10 +338,11 @@ def generate_providers_requirements(
             skip_cleanup=skip_cleanup,
         )
     else:
-        for p_id in provider_ids:
+        for p_id, p_version, a_version in providers_info:
             get_requirements_for_provider(
                 provider_id=p_id,
-                provider_version=None,
-                airflow_version=airflow_version,
+                provider_version=p_version,
+                airflow_version=a_version,
                 python_version=python,
+                force=force,
             )
