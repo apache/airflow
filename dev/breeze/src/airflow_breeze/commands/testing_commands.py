@@ -64,6 +64,7 @@ from airflow_breeze.utils.common_options import (
     option_test_type,
     option_upgrade_boto,
     option_use_airflow_version,
+    option_use_pendulum_prerelease,
     option_use_xdist,
     option_verbose,
 )
@@ -413,6 +414,7 @@ def _verify_parallelism_parameters(
 @option_excluded_parallel_test_types
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_use_pendulum_prerelease
 @option_collect_only
 @option_remove_arm_packages
 @option_skip_docker_compose_down
@@ -454,6 +456,7 @@ def command_for_tests(**kwargs):
 @option_excluded_parallel_test_types
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_use_pendulum_prerelease
 @option_collect_only
 @option_remove_arm_packages
 @option_skip_docker_compose_down
@@ -499,6 +502,7 @@ def command_for_db_tests(**kwargs):
 @option_excluded_parallel_test_types
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_use_pendulum_prerelease
 @option_collect_only
 @option_remove_arm_packages
 @option_skip_docker_compose_down
@@ -551,6 +555,7 @@ def _run_test_command(
     test_type: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
+    use_pendulum_prerelease: str,
     use_xdist: bool,
     mssql_version: str = "",
     mysql_version: str = "",
@@ -581,6 +586,7 @@ def _run_test_command(
         test_type=test_type,
         upgrade_boto=upgrade_boto,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        use_pendulum_prerelease=use_pendulum_prerelease,
         collect_only=collect_only,
         remove_arm_packages=remove_arm_packages,
         github_repository=github_repository,

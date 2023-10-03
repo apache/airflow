@@ -224,3 +224,20 @@ class UseAirflowVersionType(BetterChoice):
         if re.match(r"^\d*\.\d*\.\d*\S*$", value):
             return value
         return super().convert(value, param, ctx)
+
+
+class PreReleaseVersion(ParamType):
+    name = "PreReleaseVersion"
+
+    def convert(self, value, param, ctx):
+        from packaging.version import Version
+
+        if value:
+            try:
+                version = Version(value)
+            except ValueError:
+                self.fail(f"Unable to parse version {value!r}.", param, ctx)
+            else:
+                if not version.is_prerelease:
+                    self.fail(f"Expected pre-release version, but got {value!r}.", param, ctx)
+        return super().convert(value, param, ctx)

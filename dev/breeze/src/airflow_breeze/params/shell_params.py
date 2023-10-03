@@ -123,6 +123,7 @@ class ShellParams:
     verbose: bool = False
     upgrade_boto: bool = False
     downgrade_sqlalchemy: bool = False
+    use_pendulum_prerelease: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False

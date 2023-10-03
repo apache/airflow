@@ -57,6 +57,7 @@ from airflow_breeze.utils.custom_param_types import (
     DryRunOption,
     MySQLBackendVersionType,
     NotVerifiedBetterChoice,
+    PreReleaseVersion,
     UseAirflowVersionType,
     VerboseOption,
 )
@@ -658,6 +659,13 @@ option_downgrade_sqlalchemy = click.option(
     help="Downgrade SQLAlchemy to minimum supported version.",
     is_flag=True,
     envvar="DOWNGRADE_SQLALCHEMY",
+)
+option_use_pendulum_prerelease = click.option(
+    "--use-pendulum-prerelease",
+    help="Use pre-released version of pendulum.",
+    required=False,
+    type=PreReleaseVersion(),
+    envvar="USE_PENDULUM_PRERELEASE",
 )
 option_run_db_tests_only = click.option(
     "--run-db-tests-only",

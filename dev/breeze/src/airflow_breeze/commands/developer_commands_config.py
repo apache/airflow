@@ -126,6 +126,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--upgrade-boto",
                 "--downgrade-sqlalchemy",
+                "--use-pendulum-prerelease",
             ],
         },
         {
