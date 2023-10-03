@@ -233,6 +233,38 @@ class TestDruidDbApiHook:
 
         self.db_hook = TestDruidDBApiHook
 
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidDbApiHook.get_connection")
+    @patch("airflow.providers.apache.druid.hooks.druid.connect")
+    @pytest.mark.parametrize(
+        ("specified_context", "passed_context"),
+        [
+            (None, {}),
+            ({"query_origin": "airflow"}, {"query_origin": "airflow"}),
+        ],
+    )
+    def test_get_conn_with_context(
+        self, mock_connect, mock_get_connection, specified_context, passed_context
+    ):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "https"
+        get_conn_value.login = "test_login"
+        get_conn_value.password = "test_password"
+        get_conn_value.port = 10000
+        get_conn_value.extra_dejson = {"endpoint": "/test/endpoint", "schema": "https"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidDbApiHook(context=specified_context)
+        hook.get_conn()
+        mock_connect.assert_called_with(
+            host="test_host",
+            port=10000,
+            path="/test/endpoint",
+            scheme="https",
+            user="test_login",
+            password="test_password",
+            context=passed_context,
+        )
+
     def test_get_uri(self):
         db_hook = self.db_hook()
         assert "druid://host:1000/druid/v2/sql" == db_hook.get_uri()
