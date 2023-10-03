@@ -31,7 +31,7 @@ from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -111,7 +111,7 @@ DATASET_TO_UPDATE = {"display_name": "test-name"}
 TEST_UPDATE_MASK = {"paths": ["displayName"]}
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

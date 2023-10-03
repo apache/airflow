@@ -20,7 +20,6 @@
 """Setup.py for the Provider packages of Airflow project."""
 from __future__ import annotations
 
-import collections
 import difflib
 import glob
 import json
@@ -33,6 +32,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from collections import namedtuple
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -605,7 +605,7 @@ LICENCE_RST = """
 """
 Keeps information about historical releases.
 """
-ReleaseInfo = collections.namedtuple(
+ReleaseInfo = namedtuple(
     "ReleaseInfo", "release_version release_version_no_leading_zeros last_commit_hash content file_name"
 )
 

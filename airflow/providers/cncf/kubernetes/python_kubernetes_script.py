@@ -31,9 +31,9 @@ def _balance_parens(after_decorator):
     while num_paren:
         current = after_decorator.popleft()
         if current == "(":
-            num_paren = num_paren + 1
+            num_paren += 1
         elif current == ")":
-            num_paren = num_paren - 1
+            num_paren -= 1
     return "".join(after_decorator)
 
 

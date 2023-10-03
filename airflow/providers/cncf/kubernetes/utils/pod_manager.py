@@ -392,8 +392,12 @@ class PodManager(LoggingMixin):
             before=before_log(self.log, logging.INFO),
         )
         def consume_logs(
-            *, since_time: DateTime | None = None, follow: bool = True, termination_timeout: int = 120
-        ) -> DateTime | None:
+            *,
+            since_time: DateTime | None = None,
+            follow: bool = True,
+            termination_timeout: int = 120,
+            logs: PodLogsConsumer | None,
+        ) -> tuple[DateTime | None, PodLogsConsumer | None]:
             """
             Tries to follow container logs until container completes.
 
@@ -404,16 +408,17 @@ class PodManager(LoggingMixin):
             """
             last_captured_timestamp = None
             try:
-                logs = self.read_pod_logs(
-                    pod=pod,
-                    container_name=container_name,
-                    timestamps=True,
-                    since_seconds=(
-                        math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
-                    ),
-                    follow=follow,
-                    post_termination_timeout=termination_timeout,
-                )
+                if not logs:
+                    logs = self.read_pod_logs(
+                        pod=pod,
+                        container_name=container_name,
+                        timestamps=True,
+                        since_seconds=(
+                            math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
+                        ),
+                        follow=follow,
+                        post_termination_timeout=post_termination_timeout,
+                    )
                 for raw_line in logs:
                     line = raw_line.decode("utf-8", errors="backslashreplace")
                     line_timestamp, message = self.parse_log_line(line)
@@ -434,15 +439,19 @@ class PodManager(LoggingMixin):
                     pod.metadata.name,
                     exc_info=True,
                 )
-            return last_captured_timestamp or since_time
+            return last_captured_timestamp or since_time, logs
 
         # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
         # loop as we do here. But in a long-running process we might temporarily lose connectivity.
         # So the looping logic is there to let us resume following the logs.
+        logs = None
         last_log_time = since_time
         while True:
-            last_log_time = consume_logs(
-                since_time=last_log_time, follow=follow, termination_timeout=post_termination_timeout
+            last_log_time, logs = consume_logs(
+                since_time=last_log_time,
+                follow=follow,
+                termination_timeout=post_termination_timeout,
+                logs=logs,
             )
             if not self.container_is_running(pod, container_name=container_name):
                 return PodLoggingStatus(running=False, last_log_time=last_log_time)
@@ -729,23 +738,24 @@ class PodManager(LoggingMixin):
             self._exec_pod_command(resp, "kill -s SIGINT 1")
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
-        res = None
-        if resp.is_open():
-            self.log.info("Running command... %s\n", command)
-            resp.write_stdin(command + "\n")
-            while resp.is_open():
-                resp.update(timeout=1)
-                while resp.peek_stdout():
-                    res = res + resp.read_stdout() if res else resp.read_stdout()
-                error_res = None
-                while resp.peek_stderr():
-                    error_res = error_res + resp.read_stderr() if error_res else resp.read_stderr()
-                if error_res:
-                    self.log.info("stderr from command: %s", error_res)
-                    break
-                if res:
-                    return res
-        return res
+        res = ""
+        if not resp.is_open():
+            return None
+        self.log.info("Running command... %s", command)
+        resp.write_stdin(f"{command}\n")
+        while resp.is_open():
+            resp.update(timeout=1)
+            while resp.peek_stdout():
+                res += resp.read_stdout()
+            error_res = ""
+            while resp.peek_stderr():
+                error_res += resp.read_stderr()
+            if error_res:
+                self.log.info("stderr from command: %s", error_res)
+                break
+            if res:
+                return res
+        return None
 
 
 class OnFinishAction(str, enum.Enum):
