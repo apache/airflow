@@ -551,7 +551,7 @@ class DagFileProcessorManager(LoggingMixin):
                 .values(is_active=False)
                 .execution_options(synchronize_session="fetch")
             )
-            deactivated = len([dagmodel for dagmodel, in deactivated_dagmodel])
+            deactivated = deactivated_dagmodel.rowcount
             if deactivated:
                 cls.logger().info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
