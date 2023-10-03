@@ -1053,6 +1053,8 @@ Oozie
 openapi
 openfaas
 openlineage
+OpenSearch
+opensearch
 oper
 OperatorLineage
 Opsgenie

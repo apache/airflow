@@ -34,7 +34,7 @@ class OpenSearchQueryOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:OpenSearchSearchOperator`
+        :ref:`howto/operator:OpenSearchQueryOperator`
 
     :param: query: A Dictionary Open Search DSL query.
     :param: search_object: A Search object from opensearch-dsl.

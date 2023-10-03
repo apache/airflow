@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -35,8 +36,6 @@
 
     Connection types <connections/index>
     Operators <operators/index>
-    Logging for Tasks <logging/index>
-    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:
@@ -57,7 +56,6 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <example-dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-opensearch/>
     Installing from sources <installing-providers-from-sources>
 

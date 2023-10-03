@@ -42,7 +42,7 @@ to create a new index in an Open Search domain.
     :end-before: [END howto_operator_opensearch_create_index]
 
 
-.. _howto/operator:OpenSearchAddDocumentOperator
+.. _howto/operator:OpenSearchAddDocumentOperator:
 
 Add a Document to an Index on OpenSearch
 =========================================
@@ -57,7 +57,7 @@ to add single documents to an Open Search Index
     :end-before: [END howto_operator_opensearch_add_document]
 
 
-.. _howto/operator:OpenSearchQueryOperator
+.. _howto/operator:OpenSearchQueryOperator:
 
 Run a query against an Open Search Index
 =========================================
