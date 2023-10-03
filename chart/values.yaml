@@ -231,8 +231,8 @@ httpRoute:
     hostnames: []
     # The Gateway API configuration
     gateway:
-      name: your-gateway
-      namespace: namespace-for-your-gateway
+      name: ~
+      namespace: ~
   flower:
     # Enable flower HTTPRoute resource
     enabled: false
@@ -242,8 +242,8 @@ httpRoute:
     hostnames: []
     # The Gateway API configuration
     gateway:
-      name: your-gateway
-      namespace: namespace-for-your-gateway
+      name: ~
+      namespace: ~
 
 # Network policy configuration
 networkPolicies:

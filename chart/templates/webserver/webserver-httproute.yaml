@@ -41,8 +41,8 @@ metadata:
 spec:
   parentRefs:
     - kind: Gateway
-      name: {{ .Values.httpRoute.web.gateway.name }}
-      namespace: {{ .Values.httpRoute.web.gateway.namespace }}
+      name: {{ required "Name of the Gateway resource is required" .Values.httpRoute.web.gateway.name }}
+      namespace: {{ required "Namespace for the Gateway resource is required" .Values.httpRoute.web.gateway.namespace }}
   {{- with .Values.httpRoute.web.hostnames }}
   hostnames:
     {{- . | toYaml | nindent 4 }}
