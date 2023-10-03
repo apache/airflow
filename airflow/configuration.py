@@ -1802,8 +1802,7 @@ class AirflowConfigParser(ConfigParser):
 
         # Remove environment variables to ensure the unit test configs take effect.
         airflow_cfg_keys = {k for k in os.environ if re2.match(r"^AIRFLOW__[^_]+__[^_].+$", k.upper())}
-        for k in airflow_cfg_keys:
-            del os.environ[k]
+        os.environ = {k: v for k, v in os.environ.items() if k not in airflow_cfg_keys}
         if airflow_cfg_keys:
             log.info("Environment variables removed for unit tests: %s", ", ".join(sorted(airflow_cfg_keys)))
 
