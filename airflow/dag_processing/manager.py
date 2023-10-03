@@ -702,10 +702,10 @@ class DagFileProcessorManager(LoggingMixin):
                     DbCallbackRequest.processor_subdir == self.get_dag_directory(),
                 )
             query = query.order_by(DbCallbackRequest.priority_weight.asc()).limit(max_callbacks)
-            callbacks = with_row_locks(
+            query = with_row_locks(
                 query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
             )
-            callbacks = session.scalars(callbacks)
+            callbacks = session.scalars(query)
             for callback in callbacks:
                 try:
                     self._add_callback_to_queue(callback.get_callback_request())
