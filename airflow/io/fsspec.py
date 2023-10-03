@@ -16,7 +16,6 @@
 # under the License.
 """FileIO implementation for reading and writing table files that uses fsspec compatible filesystems."""
 import errno
-import json
 import logging
 import os
 from functools import lru_cache, partial
@@ -29,34 +28,24 @@ from typing import (
 from urllib.parse import urlparse
 
 import requests
-
-import requests
 from botocore import UNSIGNED
 from botocore.awsrequest import AWSRequest
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 from requests import HTTPError
 
-# from pyiceberg.catalog import TOKEN
-# from pyiceberg.exceptions import SignError
+from airflow.hooks.base import BaseHook
+
 from airflow.io import (
-    IO_KEY,
     GCS_ACCESS,
     GCS_CACHE_TIMEOUT,
     GCS_CONSISTENCY,
     GCS_DEFAULT_LOCATION,
     GCS_ENDPOINT,
-    GCS_PROJECT_ID,
     GCS_REQUESTER_PAYS,
     GCS_SESSION_KWARGS,
-    GCS_TOKEN,
     GCS_VERSION_AWARE,
-    S3_ACCESS_KEY_ID,
-    S3_ENDPOINT,
     S3_PROXY_URI,
-    S3_REGION,
-    S3_SECRET_ACCESS_KEY,
-    S3_SESSION_TOKEN,
     FileIO,
     InputFile,
     InputStream,
@@ -65,8 +54,10 @@ from airflow.io import (
     Properties,
     TOKEN,
 )
-from airflow.configuration import conf
 from airflow.io.exceptions import SignError
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.microsoft.azure.utils import get_field
 
 log = logging.getLogger(__name__)
 
@@ -102,26 +93,31 @@ def s3v4_rest_signer(properties: Properties, request: AWSRequest, **_: Any) -> A
 SIGNERS: Dict[str, Callable[[Properties, AWSRequest], AWSRequest]] = {"S3V4RestSigner": s3v4_rest_signer}
 
 
-def _file(_: Properties) -> LocalFileSystem:
+def _file(_: str | None) -> LocalFileSystem:
     return LocalFileSystem()
 
 
-def _s3(properties: Properties) -> AbstractFileSystem:
+def _s3(conn_id: str | None) -> AbstractFileSystem:
+    aws = AwsGenericHook(aws_conn_id=conn_id)
     from s3fs import S3FileSystem
 
     client_kwargs = {
-        "endpoint_url": properties.get(S3_ENDPOINT),
-        "aws_access_key_id": properties.get(S3_ACCESS_KEY_ID),
-        "aws_secret_access_key": properties.get(S3_SECRET_ACCESS_KEY),
-        "aws_session_token": properties.get(S3_SESSION_TOKEN),
-        "region_name": properties.get(S3_REGION),
+        "endpoint_url": aws.conn_config.endpoint_url,
+        "aws_access_key_id": aws.conn_config.aws_access_key_id,
+        "aws_secret_access_key": aws.conn_config.aws_secret_access_key,
+        "aws_session_token": aws.conn_config.aws_session_token,
+        "region_name": aws.conn_config.region_name,
     }
     config_kwargs = {}
     register_events: Dict[str, Callable[[Properties], None]] = {}
 
-    if signer := properties.get("s3.signer"):
+    if signer := aws.conn_config.extra_config.get("s3.signer"):
         log.info("Loading signer %s", signer)
         if singer_func := SIGNERS.get(signer):
+            properties: Properties = {
+                "uri": aws.conn_config.extra_config.get("s3.signer_uri"),
+                TOKEN: aws.conn_config.extra_config.get("s3.signer_token"),
+            }
             singer_func_with_properties = partial(singer_func, properties)
             register_events["before-sign.s3"] = singer_func_with_properties
 
@@ -130,7 +126,7 @@ def _s3(properties: Properties) -> AbstractFileSystem:
         else:
             raise ValueError(f"Signer not available: {signer}")
 
-    if proxy_uri := properties.get(S3_PROXY_URI):
+    if proxy_uri := aws.conn_config.extra_config.get(S3_PROXY_URI):
         config_kwargs["proxies"] = {"http": proxy_uri, "https": proxy_uri}
 
     fs = S3FileSystem(client_kwargs=client_kwargs, config_kwargs=config_kwargs)
@@ -141,35 +137,47 @@ def _s3(properties: Properties) -> AbstractFileSystem:
     return fs
 
 
-def _gs(properties: Properties) -> AbstractFileSystem:
+def _gs(conn_id: str | None) -> AbstractFileSystem:
     # https://gcsfs.readthedocs.io/en/latest/api.html#gcsfs.core.GCSFileSystem
     from gcsfs import GCSFileSystem
 
+    g = GoogleBaseHook(gcp_conn_id=conn_id)
+    creds = g.get_credentials()
+
     return GCSFileSystem(
-        project=properties.get(IO_KEY, GCS_PROJECT_ID),
-        access=properties.get(GCS_ACCESS, "full_control"),
-        token=properties.get(GCS_TOKEN),
-        consistency=properties.get(GCS_CONSISTENCY, "none"),
-        cache_timeout=properties.get(GCS_CACHE_TIMEOUT),
-        requester_pays=properties.get(GCS_REQUESTER_PAYS, False),
-        session_kwargs=json.loads(properties.get(GCS_SESSION_KWARGS, "{}")),
-        endpoint_url=properties.get(GCS_ENDPOINT),
-        default_location=properties.get(GCS_DEFAULT_LOCATION),
-        version_aware=properties.get(GCS_VERSION_AWARE, "false").lower() == "true",
+        project=g.project_id,
+        access=g.extras.get(GCS_ACCESS, "full_control"),
+        token=creds.token,
+        consistency=g.extras.get(GCS_CONSISTENCY, "none"),
+        cache_timeout=g.extras.get(GCS_CACHE_TIMEOUT),
+        requester_pays=g.extras.get(GCS_REQUESTER_PAYS, False),
+        session_kwargs=g.extras.get(GCS_SESSION_KWARGS, {}),
+        endpoint_url=g.extras.get(GCS_ENDPOINT),
+        default_location=g.extras.get(GCS_DEFAULT_LOCATION),
+        version_aware=g.extras.get(GCS_VERSION_AWARE, "false").lower() == "true",
     )
 
 
-def _adlfs(properties: Properties) -> AbstractFileSystem:
+def _adlfs(conn_id: str | None) -> AbstractFileSystem:
     from adlfs import AzureBlobFileSystem
 
+    conn = BaseHook.get_connection(conn_id)
+    extras = conn.extra_dejson
+
+    connection_string = get_field(conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="connection_string")
+    account_name = get_field(conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="account_name")
+    account_key = get_field(conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="account_key")
+    sas_token = get_field(conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="sas_token")
+    tenant = get_field(conn_id=conn_id, conn_type="azure_data_lake", extras=extras, field_name="tenant")
+
     return AzureBlobFileSystem(
-        connection_string=properties.get("adlfs.connection-string"),
-        account_name=properties.get("adlfs.account-name"),
-        account_key=properties.get("adlfs.account-key"),
-        sas_token=properties.get("adlfs.sas-token"),
-        tenant_id=properties.get("adlfs.tenant-id"),
-        client_id=properties.get("adlfs.client-id"),
-        client_secret=properties.get("adlfs.client-secret"),
+        connection_string=connection_string,
+        account_name=account_name,
+        account_key=account_key,
+        sas_token=sas_token,
+        tenant_id=tenant,
+        client_id=conn.login,
+        client_secret=conn.password,
     )
 
 
@@ -180,6 +188,7 @@ SCHEME_TO_FS = {
     "s3n": _s3,
     "abfs": _adlfs,
     "abfss": _adlfs,
+    "adl": _adlfs,
     "gs": _gs,
     "gcs": _gs,
 }

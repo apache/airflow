@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import shutil
 from typing import TYPE_CHECKING, Sequence, Optional
 
 from airflow.hooks.base import BaseHook
@@ -53,6 +54,5 @@ class FileTransfer(BaseOperator):
         else:
             dst = self.dst
 
-        with src.open("rb") as src, dst.open("wb") as dst:
-            
-        dst.write(src.read())
+        with src.open() as s, dst.create() as d:
+            shutil.copyfileobj(s, d)
