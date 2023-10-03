@@ -181,7 +181,7 @@ class WasbHook(BaseHook):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = ClientSecretCredential(tenant, app_id, app_secret, **client_secret_auth_config)
+            token_credential = ClientSecretCredential(tenant_id = tenant, client_id = app_id, client_secret = app_secret, **client_secret_auth_config)
             return BlobServiceClient(account_url=account_url, credential=token_credential, **extra)
 
         if self.public_read:
