@@ -96,7 +96,7 @@ with DAG(
 
     add_document_by_class = OpenSearchAddDocumentOperator(
         task_id="add_document_by_class",
-        doc_class=LogDocument(meta={"id": 2}, log_group_id=2, logger="airflow", message="Hello Airflow"),
+        doc_class=LogDocument(meta={"id": 2}, log_group_id=2, logger="airflow", message="hello airflow"),
     )
     # [END howto_operator_opensearch_add_document]
 
@@ -108,9 +108,7 @@ with DAG(
     )
 
     search_object = (
-        Search(index_name=INDEX_NAME)
-        .filter("term", logger="Airflow")
-        .query("match", message="Hellow Airflow")
+        Search(index_name=INDEX_NAME).filter("term", logger="airflow").query("match", message="hello airflow")
     )
 
     search_high_level = OpenSearchQueryOperator(task_id="high_level_query", search_object=search_object)
