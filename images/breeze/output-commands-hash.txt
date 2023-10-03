@@ -52,9 +52,9 @@ release-management:start-release:419f48f6a4ff4457cb9de7ff496aebbe
 release-management:update-constraints:02ec4b119150e3fdbac52026e94820ef
 release-management:verify-provider-packages:96dce5644aad6b37080acf77b3d8de3a
 release-management:856c346e8ec1cf320f656bcfe0af7451
-sbom:generate-providers-requirements:c09b5d10014dda99ff76e45cdd742fcd
+sbom:generate-providers-requirements:51e0c660a5f7846ada099e871ebd4c67
 sbom:update-sbom-information:653be48be70b4b7ff5172d491aadc694
-sbom:d77b8267b8b7e99c09c0eabd467b3d54
+sbom:b98ded4bbb76f0cb205cea32f3102aee
 setup:autocomplete:fffcd49e102e09ccd69b3841a9e3ea8e
 setup:check-all-params-in-groups:7aa55fa1b0f17a6f7b7ca225c6b82574
 setup:config:fd32471ee31894decf91984615771add
