@@ -408,25 +408,47 @@ class PodManager(LoggingMixin):
             """
             last_captured_timestamp = None
             try:
-                if not logs:
-                    logs = self.read_pod_logs(
-                        pod=pod,
-                        container_name=container_name,
-                        timestamps=True,
-                        since_seconds=(
-                            math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
-                        ),
-                        follow=follow,
-                        post_termination_timeout=post_termination_timeout,
-                    )
-                for raw_line in logs:
-                    line = raw_line.decode("utf-8", errors="backslashreplace")
-                    line_timestamp, message = self.parse_log_line(line)
+                logs = self.read_pod_logs(
+                    pod=pod,
+                    container_name=container_name,
+                    timestamps=True,
+                    since_seconds=(
+                        math.ceil((pendulum.now() - since_time).total_seconds()) if since_time else None
+                    ),
+                    follow=follow,
+                    post_termination_timeout=post_termination_timeout,
+                )
+                message_to_log = None
+                message_timestamp = None
+                progress_callback_lines = []
+                try:
+                    for raw_line in logs:
+                        line = raw_line.decode("utf-8", errors="backslashreplace")
+                        line_timestamp, message = self.parse_log_line(line)
+                        if line_timestamp:  # detect new log line
+                            if message_to_log is None:  # first line in the log
+                                message_to_log = message
+                                message_timestamp = line_timestamp
+                                progress_callback_lines.append(line)
+                            else:  # previous log line is complete
+                                if self._progress_callback:
+                                    for line in progress_callback_lines:
+                                        self._progress_callback(line)
+                                self.log.info("[%s] %s", container_name, message_to_log)
+                                last_captured_timestamp = message_timestamp
+                                message_to_log = message
+                                message_timestamp = line_timestamp
+                                progress_callback_lines = [line]
+                        else:  # continuation of the previous log line
+                            message_to_log = f"{message_to_log}\n{message}"
+                            progress_callback_lines.append(line)
+                finally:
+                    # log the last line and update the last_captured_timestamp
                     if self._progress_callback:
-                        self._progress_callback(line)
-                    if line_timestamp is not None:
-                        last_captured_timestamp = line_timestamp
-                    self.log.info("[%s] %s", container_name, message)
+                        for line in progress_callback_lines:
+                            self._progress_callback(line)
+                    self.log.info("[%s] %s", container_name, message_to_log)
+                    last_captured_timestamp = message_timestamp
             except BaseHTTPError as e:
                 self.log.warning(
                     "Reading of logs interrupted for container %r with error %r; will retry. "
@@ -570,16 +592,10 @@ class PodManager(LoggingMixin):
         """
         timestamp, sep, message = line.strip().partition(" ")
         if not sep:
-            self.log.error(
-                "Error parsing timestamp (no timestamp in message %r). "
-                "Will continue execution but won't update timestamp",
-                line,
-            )
             return None, line
         try:
             last_log_time = cast(DateTime, pendulum.parse(timestamp))
         except ParserError:
-            self.log.error("Error parsing timestamp. Will continue execution but won't update timestamp")
             return None, line
         return last_log_time, message
 
