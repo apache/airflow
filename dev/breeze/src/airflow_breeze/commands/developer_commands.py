@@ -75,6 +75,7 @@ from airflow_breeze.utils.common_options import (
     option_upgrade_boto,
     option_use_airflow_version,
     option_use_packages_from_dist,
+    option_use_pendulum_prerelease,
     option_verbose,
 )
 from airflow_breeze.utils.console import get_console
@@ -167,6 +168,7 @@ class TimerThread(threading.Thread):
 @option_include_mypy_volume
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_use_pendulum_prerelease
 @option_verbose
 @option_dry_run
 @option_github_repository
@@ -206,6 +208,7 @@ def shell(
     upgrade_boto: bool,
     downgrade_sqlalchemy: bool,
     standalone_dag_processor: bool,
+    use_pendulum_prerelease: str,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run():
@@ -246,6 +249,7 @@ def shell(
         upgrade_boto=upgrade_boto,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         standalone_dag_processor=standalone_dag_processor,
+        use_pendulum_prerelease=use_pendulum_prerelease,
     )
     sys.exit(result.returncode)
 

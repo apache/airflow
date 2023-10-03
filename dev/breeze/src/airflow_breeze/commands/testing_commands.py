@@ -55,6 +55,7 @@ from airflow_breeze.utils.common_options import (
     option_skip_cleanup,
     option_upgrade_boto,
     option_use_airflow_version,
+    option_use_pendulum_prerelease,
     option_verbose,
 )
 from airflow_breeze.utils.console import Output, get_console
@@ -363,6 +364,7 @@ def run_tests_in_parallel(
 )
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_use_pendulum_prerelease
 @click.option(
     "--collect-only",
     help="Collect tests only, do not run them.",
@@ -407,6 +409,7 @@ def command_for_tests(
     extra_pytest_args: tuple,
     upgrade_boto: bool,
     downgrade_sqlalchemy: bool,
+    use_pendulum_prerelease: str,
     collect_only: bool,
     remove_arm_packages: bool,
     github_repository: str,
@@ -428,6 +431,7 @@ def command_for_tests(
         test_type=test_type,
         upgrade_boto=upgrade_boto,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        use_pendulum_prerelease=use_pendulum_prerelease,
         collect_only=collect_only,
         remove_arm_packages=remove_arm_packages,
         github_repository=github_repository,

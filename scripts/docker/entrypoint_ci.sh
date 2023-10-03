@@ -350,6 +350,13 @@ if [[ ${DOWNGRADE_SQLALCHEMY=} == "true" ]]; then
     pip install --root-user-action ignore "sqlalchemy==${min_sqlalchemy_version}"
     pip check
 fi
+if [[ -n ${USE_PENDULUM_PRERELEASE:=} ]]; then
+    echo
+    echo "${COLOR_BLUE}Replace pendulum by pre-release version: ${USE_PENDULUM_PRERELEASE}${COLOR_RESET}"
+    echo
+    pip install --root-user-action ignore "pendulum==${USE_PENDULUM_PRERELEASE}"
+    pip check
+fi
 
 set +u
 # If we do not want to run tests, we simply drop into bash
