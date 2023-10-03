@@ -223,7 +223,7 @@ ingress:
 # Enable the creation of a Kubernetes HTTPRoute and HealthCheckPolicy
 httpRoute:
   web:
-    # Enable web ingress resource
+    # Enable web HTTPRoute resource
     enabled: false
     # Annotations for the web HTTPRoute
     annotations: {}
