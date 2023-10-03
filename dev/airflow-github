@@ -266,7 +266,9 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
             url="URL",
         )
     )
-
+    milestone_issues = sorted(
+        milestone_issues, key=lambda x: x.closed_at if x.closed_at else x.created_at, reverse=True
+    )
     for issue in milestone_issues:
         commit_in_main = get_commit_in_main_associated_with_pr(repo, issue)
         status = issue.state.capitalize()
