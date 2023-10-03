@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, select, true, tuple_
+from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
 from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.sql import Select
 from sqlalchemy.types import JSON, Text, TypeDecorator, UnicodeText
@@ -38,7 +38,6 @@ from airflow.utils.timezone import make_naive
 
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
-    from sqlalchemy.engine.result import ScalarResult
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Query, Session
     from sqlalchemy.sql import ColumnElement
@@ -412,7 +411,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
 
 
-def with_row_locks(query: select, session: Session, **kwargs) -> ScalarResult:
+def with_row_locks(query: Query, session: Session, **kwargs) -> Query:
     """
     Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
 
@@ -425,7 +424,7 @@ def with_row_locks(query: select, session: Session, **kwargs) -> ScalarResult:
 
     # Don't use row level locks if the MySQL dialect (Mariadb & MySQL < 8) does not support it.
     if USE_ROW_LEVEL_LOCKING and (dialect.name != "mysql" or dialect.supports_for_update_of):
-        return session.scalars(query.with_for_update(**kwargs))
+        return query.with_for_update(**kwargs)
     else:
         return query
 

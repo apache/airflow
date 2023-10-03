@@ -705,6 +705,7 @@ class DagFileProcessorManager(LoggingMixin):
             callbacks = with_row_locks(
                 query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
             )
+            callbacks = session.scalars(callbacks)
             for callback in callbacks:
                 try:
                     self._add_callback_to_queue(callback.get_callback_request())

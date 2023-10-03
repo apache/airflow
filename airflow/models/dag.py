@@ -3020,7 +3020,7 @@ class DAG(LoggingMixin):
             .options(joinedload(DagModel.task_outlet_dataset_references))
         )
         query = with_row_locks(query, of=DagModel, session=session)
-        orm_dags: list[DagModel] = query.unique().all()
+        orm_dags: list[DagModel] = session.scalars(query).unique().all()
         existing_dags = {orm_dag.dag_id: orm_dag for orm_dag in orm_dags}
         missing_dag_ids = dag_ids.difference(existing_dags)
 
