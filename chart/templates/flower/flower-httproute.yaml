@@ -50,7 +50,7 @@ spec:
   rules:
     - backendRefs:
         - name: {{ $fullname }}-flower
-          port: 8080
+          port: {{ .Values.ports.flowerUI }}
 
 ---
 apiVersion: networking.gke.io/v1

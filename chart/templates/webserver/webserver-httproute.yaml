@@ -50,7 +50,7 @@ spec:
   rules:
     - backendRefs:
         - name: {{ $fullname }}-webserver
-          port: 8080
+          port: {{ .Values.ports.airflowUI }}
 
 ---
 apiVersion: networking.gke.io/v1
