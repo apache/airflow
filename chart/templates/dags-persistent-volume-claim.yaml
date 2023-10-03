@@ -26,7 +26,6 @@ kind: PersistentVolumeClaim
 metadata:
   name: {{ template "airflow_dags_volume_claim" . }}
   labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
-    app.kubernetes.io/part-of: airflow
     app.kubernetes.io/component: dags-pvc
     tier: airflow
     component: dags-pvc

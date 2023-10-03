@@ -26,7 +26,6 @@ kind: ResourceQuota
 metadata:
   name: {{ .Release.Name }}-resource-quota
   labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
-    app.kubernetes.io/part-of: airflow
     app.kubernetes.io/component: resourcequota
     tier: resources
     component: resourcequota
