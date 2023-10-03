@@ -352,7 +352,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             self.log.info("External task %s has executed successfully.", self.external_task_id)
             return None
         elif event["status"] == "timeout":
-            raise AirflowException("Dag was not started within 1 minute, assuming fail.")
+            raise AirflowException("Dag was not started within timeout, assuming fail.")
         else:
             raise AirflowException(
                 "Error occurred while trying to retrieve task status. Please, check the "
