@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import os
 import random
 import re
@@ -143,6 +144,16 @@ def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False
         ["--env-file", f"{AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci' / 'docker-compose' / '_docker.env' }"]
     )
     return extra_docker_flags
+
+
+def is_docker_rootless():
+    response = run_command(
+        ["docker", "info", "-f", "{{println .SecurityOptions}}"], capture_output=True, check=True, text=True
+    )
+    if "rootless" in response.stdout.strip():
+        get_console().print("[info]Docker is running in rootless mode.[/]\n")
+        return True
+    return False
 
 
 def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
@@ -571,6 +582,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "COLLECT_ONLY", "false")
     set_value_to_default_if_not_set(env, "DB_RESET", "false")
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
+    set_value_to_default_if_not_set(env, "DOCKER_IS_ROOTLESS", "false")
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
     set_value_to_default_if_not_set(env, "ENABLE_TEST_COVERAGE", "false")
     set_value_to_default_if_not_set(env, "HELM_TEST_PACKAGE", "")
@@ -706,6 +718,8 @@ def prepare_broker_url(params, env_variables):
 def perform_environment_checks():
     check_docker_is_running()
     check_docker_version()
+    if is_docker_rootless():
+        os.environ["DOCKER_IS_ROOTLESS"] = "true"
     check_docker_compose_version()
 
 
@@ -805,23 +819,31 @@ def autodetect_docker_context():
 
     :return: name of the docker context to use
     """
-    output = run_command(["docker", "context", "ls", "-q"], capture_output=True, check=False, text=True)
-    if output.returncode != 0:
+    result = run_command(
+        ["docker", "context", "ls", "--format=json"],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if result.returncode != 0:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    context_list = output.stdout.splitlines()
-    if not context_list:
+    context_dicts = (json.loads(line) for line in result.stdout.splitlines() if line.strip())
+    known_contexts = {info["Name"]: info for info in context_dicts}
+    if not known_contexts:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    elif len(context_list) == 1:
-        get_console().print(f"[info]Using {context_list[0]} as context.[/]")
-        return context_list[0]
-    else:
-        for preferred_context in PREFERRED_CONTEXTS:
-            if preferred_context in context_list:
-                get_console().print(f"[info]Using {preferred_context} as context.[/]")
-                return preferred_context
-    fallback_context = context_list[0]
+    for preferred_context_name in PREFERRED_CONTEXTS:
+        try:
+            context = known_contexts[preferred_context_name]
+        except KeyError:
+            continue
+        # On Windows, some contexts are used for WSL2. We don't want to use those.
+        if context["DockerEndpoint"] == "npipe:////./pipe/dockerDesktopLinuxEngine":
+            continue
+        get_console().print(f"[info]Using {preferred_context_name} as context.[/]")
+        return preferred_context_name
+    fallback_context = next(iter(known_contexts))
     get_console().print(
         f"[warning]Could not use any of the preferred docker contexts {PREFERRED_CONTEXTS}.\n"
         f"Using {fallback_context} as context.[/]"

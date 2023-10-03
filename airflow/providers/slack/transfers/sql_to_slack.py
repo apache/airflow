@@ -237,7 +237,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
         parameters: Iterable | Mapping[str, Any] | None = None,
-        slack_conn_id: str,
+        slack_conn_id: str = SlackHook.default_conn_name,
         slack_filename: str,
         slack_channels: str | Sequence[str] | None = None,
         slack_initial_comment: str | None = None,

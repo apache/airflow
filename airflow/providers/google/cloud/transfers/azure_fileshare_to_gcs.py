@@ -21,8 +21,7 @@ import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook

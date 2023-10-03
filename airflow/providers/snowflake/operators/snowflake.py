@@ -22,9 +22,8 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
 
-from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,

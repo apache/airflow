@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 with DAG(

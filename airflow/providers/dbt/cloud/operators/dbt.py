@@ -142,7 +142,7 @@ class DbtCloudRunJobOperator(BaseOperator):
 
         if self.wait_for_termination and isinstance(self.run_id, int):
             if self.deferrable is False:
-                self.log.info("Waiting for job run %s to terminate.", str(self.run_id))
+                self.log.info("Waiting for job run %s to terminate.", self.run_id)
 
                 if self.hook.wait_for_job_run_status(
                     run_id=self.run_id,
@@ -151,7 +151,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                     check_interval=self.check_interval,
                     timeout=self.timeout,
                 ):
-                    self.log.info("Job run %s has completed successfully.", str(self.run_id))
+                    self.log.info("Job run %s has completed successfully.", self.run_id)
                 else:
                     raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
 
@@ -173,7 +173,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                         method_name="execute_complete",
                     )
                 elif job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
-                    self.log.info("Job run %s has completed successfully.", str(self.run_id))
+                    self.log.info("Job run %s has completed successfully.", self.run_id)
                     return self.run_id
                 elif job_run_status in (
                     DbtCloudJobRunStatus.CANCELLED.value,
@@ -211,7 +211,7 @@ class DbtCloudRunJobOperator(BaseOperator):
                 check_interval=self.check_interval,
                 timeout=self.timeout,
             ):
-                self.log.info("Job run %s has been cancelled successfully.", str(self.run_id))
+                self.log.info("Job run %s has been cancelled successfully.", self.run_id)
 
     @cached_property
     def hook(self):

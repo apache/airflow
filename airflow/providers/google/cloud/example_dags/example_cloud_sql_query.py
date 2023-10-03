@@ -43,7 +43,7 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_sql import CloudSQLExecuteQueryOperator
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -265,7 +265,7 @@ connection_names = [
 tasks = []
 
 
-with models.DAG(
+with DAG(
     dag_id="example_gcp_sql_query",
     start_date=datetime(2021, 1, 1),
     catchup=False,

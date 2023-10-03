@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -52,7 +52,7 @@ INSERT_ROWS_QUERY = (
 )
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,

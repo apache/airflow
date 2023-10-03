@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from dateutil import tz
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 
 

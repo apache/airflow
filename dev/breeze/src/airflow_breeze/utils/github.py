@@ -71,13 +71,15 @@ ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 def get_active_airflow_versions(confirm: bool = True) -> list[str]:
     """
     Gets list of active Airflow versions from GitHub.
+
+    :param confirm: if True, will ask the user before proceeding with the versions found
     :return: list of active Airflow versions
     """
     from git import GitCommandError, Repo
     from packaging.version import Version
 
     get_console().print(
-        "\n[warning]Make sure you have 'apache` remote added pointing to apache/airflow repository\n"
+        "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
     )
     get_console().print("[info]Fetching all released Airflow 2 versions from GitHub[/]\n")
     repo = Repo(AIRFLOW_SOURCES_ROOT)

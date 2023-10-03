@@ -25,8 +25,8 @@ import pathlib
 from datetime import datetime
 from math import ceil
 
-from airflow import models
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.mlengine import (
@@ -69,7 +69,7 @@ def generate_model_predict_input_data() -> list[int]:
     return [1, 4, 9, 16, 25, 36]
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
