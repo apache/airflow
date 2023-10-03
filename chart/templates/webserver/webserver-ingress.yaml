@@ -26,7 +26,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $fullname }}-ingress
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/component: airflow-ingress
     tier: airflow
     component: airflow-ingress
     release: {{ .Release.Name }}

@@ -983,3 +983,12 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{- define "kubernetes_recommended_labels" }}
+  app.kubernetes.io/name: airflow
+  app.kubernetes.io/version: "{{ .Chart.AppVersion }}"
+  app.kubernetes.io/instance: {{ .Release.Name }}
+  helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+  app.kubernetes.io/managed-by: {{ .Release.Service }}
+  app.kubernetes.io/part-of: airflow
+{{- end }}

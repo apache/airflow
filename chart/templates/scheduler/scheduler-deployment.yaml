@@ -47,7 +47,8 @@ apiVersion: apps/v1
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
   name: {{ include "airflow.fullname" . }}-scheduler
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/component: scheduler
     tier: airflow
     component: scheduler
     release: {{ .Release.Name }}

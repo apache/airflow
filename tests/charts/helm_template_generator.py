@@ -159,3 +159,24 @@ def render_k8s_object(obj, type_to_render):
     Function that renders dictionaries into k8s objects. For helm chart testing only.
     """
     return api_client._ApiClient__deserialize_model(obj, type_to_render)
+
+
+def get_chart_and_airflow_version():
+    """
+    Get the chart & airflow version from the chart
+    """
+    cmd = ["helm", "show", "chart", "./chart"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+
+    # Check if the command was successful
+    if result.returncode == 0:
+        # Load the YAML output
+        chart_info = yaml.safe_load(result.stdout)
+
+        # Extract the version and appVersion
+        chart_version = chart_info.get("version")
+        app_version = chart_info.get("appVersion")
+
+        return (chart_version, app_version)
+    else:
+        raise Exception(f"Failed to get chart info. Error in subprocess: {result.stderr}")

@@ -33,7 +33,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "airflow.fullname" . }}-webserver
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/component: webserver
     tier: airflow
     component: webserver
     release: {{ .Release.Name }}

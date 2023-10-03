@@ -26,7 +26,8 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-webserver-policy
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/component: airflow-webserver-policy
     tier: airflow
     component: airflow-webserver-policy
     release: {{ .Release.Name }}

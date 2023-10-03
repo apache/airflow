@@ -27,7 +27,7 @@ apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
   name: {{ $Global.Release.Name }}-{{ $e.name }}
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" $ | indent 2 }}
     release: {{ $Global.Release.Name }}
 preemptionPolicy: {{ default "PreemptLowerPriority" $e.preemptionPolicy }}
 value: {{ $e.value | required "value is required" }}

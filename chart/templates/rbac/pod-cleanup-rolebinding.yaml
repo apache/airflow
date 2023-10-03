@@ -25,7 +25,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ include "airflow.fullname" . }}-cleanup-rolebinding
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
     tier: airflow
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"

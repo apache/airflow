@@ -28,7 +28,8 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-flower-policy
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/component: airflow-flower-policy
     tier: airflow
     component: airflow-flower-policy
     release: {{ .Release.Name }}

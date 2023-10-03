@@ -26,7 +26,8 @@ apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
   name: {{ .Release.Name }}-triggerer
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/component: triggerer-horizontalpodautoscaler
     tier: airflow
     component: triggerer-horizontalpodautoscaler
     release: {{ .Release.Name }}

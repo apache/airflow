@@ -25,7 +25,7 @@ from unittest import mock
 import jmespath
 import pytest
 
-from tests.charts.helm_template_generator import render_chart
+from tests.charts.helm_template_generator import get_chart_and_airflow_version, render_chart
 
 OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
@@ -307,6 +307,7 @@ class TestBaseChartTest:
     def test_labels_are_valid(self):
         """Test labels are correctly applied on all objects created by this chart."""
         release_name = "test-basic"
+        chart_version, airflow_version = get_chart_and_airflow_version()
         k8s_objects = render_chart(
             name=release_name,
             values={
@@ -402,6 +403,12 @@ class TestBaseChartTest:
             expected_labels = {
                 "label1": "value1",
                 "label2": "value2",
+                "app.kubernetes.io/name": "airflow",
+                "app.kubernetes.io/version": airflow_version,
+                "app.kubernetes.io/instance": release_name,
+                "helm.sh/chart": f"airflow-{chart_version}",
+                "app.kubernetes.io/managed-by": "Helm",
+                "app.kubernetes.io/part-of": "airflow",
                 "tier": "airflow",
                 "release": release_name,
                 "heritage": "Helm",
@@ -409,6 +416,7 @@ class TestBaseChartTest:
             }
             if component:
                 expected_labels["component"] = component
+                expected_labels["app.kubernetes.io/component"] = component
             if k8s_object_name == f"{release_name}-scheduler":
                 expected_labels["executor"] = "CeleryExecutor"
             actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))

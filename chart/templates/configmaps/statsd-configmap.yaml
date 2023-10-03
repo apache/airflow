@@ -25,7 +25,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ include "airflow.fullname" . }}-statsd
-  labels:
+  labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/component: config
     tier: airflow
     component: config
     release: {{ .Release.Name }}

@@ -23,7 +23,11 @@ from unittest import mock
 import pytest
 import yaml
 
-from tests.charts.helm_template_generator import prepare_k8s_lookup_dict, render_chart
+from tests.charts.helm_template_generator import (
+    get_chart_and_airflow_version,
+    prepare_k8s_lookup_dict,
+    render_chart,
+)
 
 RELEASE_NAME = "test-extra-configmaps-secrets"
 
@@ -133,6 +137,7 @@ class TestExtraConfigMapsSecrets:
             assert configmap_obj["stringData"] == expected_string_data
 
     def test_extra_configmaps_secrets_labels(self):
+        chart_version, airflow_version = get_chart_and_airflow_version()
         k8s_objects = render_chart(
             name=RELEASE_NAME,
             values={
@@ -148,6 +153,12 @@ class TestExtraConfigMapsSecrets:
             "release": RELEASE_NAME,
             "heritage": "Helm",
             "chart": mock.ANY,
+            "app.kubernetes.io/name": "airflow",
+            "app.kubernetes.io/version": airflow_version,
+            "app.kubernetes.io/instance": RELEASE_NAME,
+            "helm.sh/chart": f"airflow-{chart_version}",
+            "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/part-of": "airflow",
         }
         for k8s_object in k8s_objects:
             assert k8s_object["metadata"]["labels"] == expected_labels
@@ -161,6 +172,7 @@ class TestExtraConfigMapsSecrets:
         ],
     )
     def test_extra_configmaps_secrets_additional_labels(self, chart_labels, local_labels):
+        chart_version, airflow_version = get_chart_and_airflow_version()
         k8s_objects = render_chart(
             name=RELEASE_NAME,
             values={
@@ -184,6 +196,12 @@ class TestExtraConfigMapsSecrets:
             "release": RELEASE_NAME,
             "heritage": "Helm",
             "chart": mock.ANY,
+            "app.kubernetes.io/name": "airflow",
+            "app.kubernetes.io/version": airflow_version,
+            "app.kubernetes.io/instance": RELEASE_NAME,
+            "helm.sh/chart": f"airflow-{chart_version}",
+            "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/part-of": "airflow",
         }
         for k8s_object in k8s_objects:
             assert k8s_object["metadata"]["labels"] == {**common_labels, **chart_labels, **local_labels}
