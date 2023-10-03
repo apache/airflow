@@ -65,6 +65,7 @@ class TestTaskStateTrigger:
             execution_dates=[timezone.datetime(2022, 1, 1)],
             poll_interval=0.2,
             trigger_start_time=trigger_start_time,
+            timeout=60
         )
 
         task = asyncio.create_task(trigger.run().__anext__())
@@ -95,6 +96,7 @@ class TestTaskStateTrigger:
             execution_dates=[timezone.datetime(2022, 1, 1)],
             poll_interval=5,
             trigger_start_time=trigger_start_time,
+            timeout=60
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.triggers.external_task.TaskStateTrigger"
