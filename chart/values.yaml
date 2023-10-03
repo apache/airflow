@@ -227,7 +227,7 @@ httpRoute:
     enabled: false
     # Annotations for the web HTTPRoute
     annotations: {}
-    # The hostnames or hosts configuration for the web HTTPRoute
+    # The hostnames for the web HTTPRoute
     hostnames: []
     # The Gateway API configuration
     gateway:
@@ -238,7 +238,7 @@ httpRoute:
     enabled: false
     # Annotations for the flower HTTPRoute
     annotations: {}
-    # The hostnames or hosts configuration for the flower HTTPRoute
+    # The hostnames for the flower HTTPRoute
     hostnames: []
     # The Gateway API configuration
     gateway:
