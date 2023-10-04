@@ -24,7 +24,6 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
-import pendulum
 from dateutil import relativedelta
 from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
 from sqlalchemy.dialects import mssql, mysql
@@ -34,7 +33,7 @@ from sqlalchemy.types import JSON, Text, TypeDecorator, UnicodeText
 from airflow import settings
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
-from airflow.utils.timezone import make_naive
+from airflow.utils.timezone import make_naive, utc
 
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
@@ -45,8 +44,6 @@ if TYPE_CHECKING:
     from sqlalchemy.types import TypeEngine
 
 log = logging.getLogger(__name__)
-
-utc = pendulum.tz.timezone("UTC")
 
 
 class UtcDateTime(TypeDecorator):

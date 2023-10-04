@@ -37,6 +37,7 @@ import pendulum
 import pytest
 import time_machine
 from dateutil.relativedelta import relativedelta
+from pendulum.tz.timezone import Timezone
 from sqlalchemy import inspect
 
 from airflow import settings
@@ -94,7 +95,6 @@ from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
-
 repo_root = Path(__file__).parents[2]
 
 
@@ -674,8 +674,8 @@ class TestDag:
         """
         Make sure DST transitions are properly observed
         """
-        local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55), dst_rule=pendulum.PRE_TRANSITION)
+        local_tz = Timezone("Europe/Zurich")
+        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55, fold=0))
         assert start.isoformat() == "2018-10-28T02:55:00+02:00", "Pre-condition: start date is in DST"
 
         utc = timezone.convert_to_utc(start)
@@ -703,8 +703,8 @@ class TestDag:
         """
         Make sure DST transitions are properly observed
         """
-        local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3), dst_rule=pendulum.PRE_TRANSITION)
+        local_tz = Timezone("Europe/Zurich")
+        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3, fold=0))
 
         utc = timezone.convert_to_utc(start)
 
@@ -732,8 +732,8 @@ class TestDag:
         """
         Make sure DST transitions are properly observed
         """
-        local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2), dst_rule=pendulum.PRE_TRANSITION)
+        local_tz = Timezone("Europe/Zurich")
+        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2, fold=0))
 
         utc = timezone.convert_to_utc(start)
 

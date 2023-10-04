@@ -21,15 +21,16 @@ import typing
 
 import dateutil.relativedelta
 import pendulum
-import pendulum.tz
 import pytest
 import time_machine
+from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.utils.timezone import utc
 
-TIMEZONE = pendulum.tz.timezone("UTC")
+TIMEZONE = utc
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)
 
 PREV_DATA_INTERVAL_END = START_DATE + datetime.timedelta(days=1)
@@ -216,7 +217,7 @@ def test_validate_failure() -> None:
         (
             CronTriggerTimetable(
                 "0 0 1 12 0",
-                timezone=pendulum.tz.timezone("Asia/Taipei"),
+                timezone=Timezone("Asia/Taipei"),
                 interval=dateutil.relativedelta.relativedelta(weekday=dateutil.relativedelta.MO),
             ),
             {"expression": "0 0 1 12 0", "timezone": "Asia/Taipei", "interval": {"weekday": [0]}},
@@ -229,5 +230,9 @@ def test_serialization(timetable: CronTriggerTimetable, data: dict[str, typing.A
     tt = CronTriggerTimetable.deserialize(data)
     assert isinstance(tt, CronTriggerTimetable)
     assert tt._expression == timetable._expression
-    assert tt._timezone == timetable._timezone
+    if hasattr(tt._timezone, "offset"):
+        assert tt._timezone == timetable._timezone
+    else:
+        # ``parse_timezone`` use separate cache with pendulum v2 for IANA timezone
+        assert tt._timezone.name == timetable._timezone.name
     assert tt._interval == timetable._interval

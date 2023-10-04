@@ -18,14 +18,20 @@
 from __future__ import annotations
 
 import datetime as dt
+from functools import lru_cache
 from typing import overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
+from pendulum.tz import fixed_timezone
+from pendulum.tz.timezone import FixedTimezone, Timezone
 
-# UTC time zone as a tzinfo instance.
-utc = pendulum.tz.timezone("UTC")
+# UTC time zone as a FixedTimezone instance (subclass of tzinfo)
+# This type uses for compatibility with type provided by pendulum 2.x
+# - in pendulum 2.x ``pendulum.tz.timezone`` returns FixedTimezone
+# - in pendulum 3.x ``pendulum.timezone`` returns Timezone
+utc = FixedTimezone(offset=0, name="UTC")
 
 
 def is_localized(value):
@@ -273,3 +279,24 @@ def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     if not joined:
         return "<1s"
     return joined
+
+
+@lru_cache(maxsize=None)
+def parse_timezone(name: str | int) -> Timezone | FixedTimezone:
+    """
+    Parse timezone and return one of the pendulum Timezone.
+
+    Provide the same interface as ``pendulum.tz.timezone(name)``
+
+    .. note::
+        This class for compatibility between pendulum 2 and 3.
+        In pendulum 3 ``pendulum.tz.timezone`` it is a module, which can't be used as parser
+        In pendulum 2 ``pendulum.timezone`` mypy failed on static check
+
+    :meta: private
+    """
+    if isinstance(name, int):
+        return fixed_timezone(name)
+    elif name.lower() == "utc":
+        return utc
+    return Timezone(name)
