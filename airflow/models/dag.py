@@ -222,7 +222,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
         return CronDataIntervalTimetable(interval, timezone)
-    raise ValueError(f"{interval!r} is not a valid schedule_interval.")
+    raise ValueError(f"{interval!r} is not a valid interval.")
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
