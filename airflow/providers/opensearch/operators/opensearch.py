@@ -20,6 +20,8 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from opensearchpy.exceptions import OpenSearchException
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
@@ -78,12 +80,12 @@ class OpenSearchQueryOperator(BaseOperator):
                 raise AirflowException("Index name is required when using the query input.")
             try:
                 result = self.hook.search(index_name=self.index_name, query=self.query)
-            except Exception as e:
+            except OpenSearchException as e:
                 raise AirflowException(e)
         elif self.search_object is not None:
             try:
                 result = self.search_object.using(self.hook.get_client).execute()
-            except Exception as e:
+            except OpenSearchException as e:
                 raise AirflowException(e)
         else:
             raise AirflowException(
@@ -95,7 +97,7 @@ class OpenSearchQueryOperator(BaseOperator):
 
 class OpenSearchCreateIndexOperator(BaseOperator):
     """
-    Creates a new index on an Open Search cluster with a given index name.
+    Create a new index on an Open Search cluster with a given index name.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -128,13 +130,13 @@ class OpenSearchCreateIndexOperator(BaseOperator):
         """Creates an index on an Open Search cluster."""
         try:
             self.hook.get_client.indices.create(index=self.index_name, body=self.index_body)
-        except Exception as e:
+        except OpenSearchException as e:
             raise AirflowException(e)
 
 
 class OpenSearchAddDocumentOperator(BaseOperator):
     """
-    Adds a new document to a given Index. It will either add or overwrite an existing document.
+    Add a new document to a given Index or overwrite an existing one.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -175,14 +177,14 @@ class OpenSearchAddDocumentOperator(BaseOperator):
             try:
                 doc = self.doc_class.init(using=self.hook.get_client)
                 result = doc.save(using=self.hook.get_client)
-            except Exception as e:
+            except OpenSearchException as e:
                 raise AirflowException(e)
         elif self.index_name is not None and self.document is not None and self.doc_id is not None:
             try:
                 result = self.hook.index(
                     index_name=self.index_name, document=self.document, doc_id=self.doc_id
                 )
-            except Exception as e:
+            except OpenSearchException as e:
                 raise AirflowException(e)
         else:
             raise AirflowException(

@@ -30,7 +30,7 @@ Operators
 Create an Index in Open Search
 ==============================
 
-Use the :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchCreateIndexOperator`
+Use :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchCreateIndexOperator`
 to create a new index in an Open Search domain.
 
 
@@ -47,7 +47,7 @@ to create a new index in an Open Search domain.
 Add a Document to an Index on OpenSearch
 =========================================
 
-Use the :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchAddDocumentOperator`
+Use :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchAddDocumentOperator`
 to add single documents to an Open Search Index
 
 .. exampleinclude:: /../../tests/system/providers/opensearch/example_opensearch.py
@@ -62,7 +62,7 @@ to add single documents to an Open Search Index
 Run a query against an Open Search Index
 =========================================
 
-Use the :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchQueryOperator`
+Use :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchQueryOperator`
 to run a query against an Open Search index.
 
 .. exampleinclude:: /../../tests/system/providers/opensearch/example_opensearch.py

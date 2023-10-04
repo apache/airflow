@@ -19,7 +19,7 @@
 
 OpenSearch Connection
 =====================
-The Open Search connection provides credentials for an OpenSearch instance.
+The OpenSearch connection provides credentials for an OpenSearch instance.
 
 Configuring the Connection
 --------------------------
@@ -30,8 +30,8 @@ Login (required)
 Password (required)
   The password for the login user.
 Extra (optional)
-  Specifying the extra parameters as a (json dictionary) that can be used in the Open Search connection.
+  Specifying the extra parameters as a (json dictionary) that can be used in the OpenSearch connection.
   The following parameters are all optional:
 
-  * ``use_ssl``: Boolean on requiring an ssl connection.
-  * ``verify_certs``: Boolean indicating to verify certs for ssl.
+  * ``use_ssl``: Boolean on requiring an ssl connection. Default is false.
+  * ``verify_certs``: Boolean indicating to verify certs for ssl. Default is false.

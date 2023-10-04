@@ -65,7 +65,7 @@ class OpenSearchHook(BaseHook):
 
     def search(self, query: dict, index_name: str, **kwargs: Any) -> Any:
         """
-        Runs a search query against the connected OpenSearch cluster.
+        Run a search query against the connected OpenSearch cluster.
 
         :param: query: The query for the search against OpenSearch.
         :param: index_name: The name of the index to search against
@@ -76,7 +76,7 @@ class OpenSearchHook(BaseHook):
 
     def index(self, document: dict, index_name: str, doc_id: int, **kwargs: Any) -> Any:
         """
-        Index a document on open search.
+        Index a document on OpenSearch.
 
         :param: document: A dictionary representation of the document
         :param: index_name: the name of the index that this document will be associated with
