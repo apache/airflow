@@ -29,7 +29,7 @@ from airflow.hooks.base import BaseHook
 
 class OpenSearchHook(BaseHook):
     """
-    This Hook provides a thin wrapper around the OpenSearch client.
+    Provide a thin wrapper around the OpenSearch client.
 
     :param: open_search_conn_id: Connection to use with Open Search
     :param: log_query: Whether to log the query used for Open Search
