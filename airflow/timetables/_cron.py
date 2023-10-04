@@ -22,14 +22,14 @@ from typing import TYPE_CHECKING, Any
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
-from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
-from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
+from airflow.utils.timezone import convert_to_utc, make_aware, make_naive, parse_timezone
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+    from pendulum.tz.timezone import Timezone
 
 
 def _is_schedule_fixed(expression: str) -> bool:
@@ -56,7 +56,7 @@ class CronMixin:
         self._expression = cron_presets.get(cron, cron)
 
         if isinstance(timezone, str):
-            timezone = Timezone(timezone)
+            timezone = parse_timezone(timezone)
         self._timezone = timezone
 
         try:

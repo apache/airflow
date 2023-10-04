@@ -63,6 +63,7 @@ from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import import_string, qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+from airflow.utils.timezone import parse_timezone
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
@@ -165,9 +166,9 @@ def encode_timezone(var: Timezone) -> str | int:
     )
 
 
-def decode_timezone(var: str | int) -> Timezone:
+def decode_timezone(var: str | int) -> Timezone | FixedTimezone:
     """Decode a previously serialized Pendulum Timezone."""
-    return pendulum.tz.timezone(var)
+    return parse_timezone(var)
 
 
 def _get_registered_timetable(importable_string: str) -> type[Timetable] | None:
@@ -605,7 +606,7 @@ class BaseSerialization:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
     _deserialize_datetime = pendulum.from_timestamp
-    _deserialize_timezone = pendulum.tz.timezone
+    _deserialize_timezone = parse_timezone
 
     @classmethod
     def _deserialize_timedelta(cls, seconds: int) -> datetime.timedelta:
