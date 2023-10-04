@@ -20,8 +20,8 @@ import inspect
 import json
 import logging
 import os
+import time
 from pathlib import Path
-from time import sleep
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -331,7 +331,7 @@ def _purge_logs(
             if not retry or retry_times == 0 or e.response["Error"]["Code"] != "ResourceNotFoundException":
                 raise e
 
-            sleep(PURGE_LOGS_INTERVAL_PERIOD)
+            time.sleep(PURGE_LOGS_INTERVAL_PERIOD)
             _purge_logs(
                 test_logs=test_logs,
                 force_delete=force_delete,
