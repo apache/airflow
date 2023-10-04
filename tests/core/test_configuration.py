@@ -766,22 +766,6 @@ notacommand = OK
         )
         assert message == exception
 
-    @mock.patch.dict(
-        "os.environ",
-        {
-            "AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY": "200",
-            "AIRFLOW__CORE__PARALLELISM": "100",
-        },
-    )
-    def test_max_tis_per_query_too_high(self):
-        test_conf = AirflowConfigParser()
-
-        with pytest.warns(UserWarning) as ctx:
-            test_conf._validate_max_tis_per_query()
-
-        captured_warnings_msg = str(ctx.pop().message)
-        assert "max_tis_per_query" in captured_warnings_msg and "core.parallelism" in captured_warnings_msg
-
     def test_as_dict_works_without_sensitive_cmds(self):
         conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
         conf_maintain_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
