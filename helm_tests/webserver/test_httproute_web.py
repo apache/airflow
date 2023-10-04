@@ -32,6 +32,16 @@ class TestHttpRouteWeb:
             show_only=["templates/webserver/webserver-httproute.yaml"],
         )  # checks that no validation exception is raised
 
+    def test_should_check_that_both_httproute_and_healthcheckpolicy_are_created(self):
+        docs = render_chart(
+            values={"httpRoute": {"web": {"enabled": True,
+                                          "gateway": {"name": "test-gateway", "namespace": "test"}}}},
+            show_only=["templates/webserver/webserver-httproute.yaml"],
+        )
+        assert 2 == len(docs)
+        assert "HTTPRoute" == jmespath.search("kind", docs[0])
+        assert "HealthCheckPolicy" == jmespath.search("kind", docs[1])
+
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
             values={"httpRoute": {"web": {"enabled": True,
@@ -44,7 +54,7 @@ class TestHttpRouteWeb:
     def test_should_set_httproute_gateway_name(self):
         docs = render_chart(
             values={"httpRoute": {"web": {"enabled": True,
-                                          "gateway": {"name": "foo"}}}},
+                                          "gateway": {"name": "foo", "namespace": "bar"}}}},
             show_only=["templates/webserver/webserver-httproute.yaml"],
         )
         assert "foo" == jmespath.search("spec.parentRefs[0].name", docs[0])
@@ -58,27 +68,19 @@ class TestHttpRouteWeb:
         assert not jmespath.search("spec.hostnames", docs[0])
 
     @pytest.mark.parametrize(
-        "global_value, web_value, expected",
+        "value, expected",
         [
-            (None, None, False),
-            (None, False, False),
-            (None, True, True),
-            (False, None, False),
-            (True, None, True),
-            (False, True, True),  # We will deploy it if _either_ are true
-            (True, False, True),
+            (None, False),
+            (False, False),
+            (True, True),
         ],
     )
-    def test_httproute_created(self, global_value, web_value, expected):
-        values={"httpRoute": {"web": {"gateway": {"name": "test-gateway", "namespace": "test"}}}},
-        if global_value is not None:
-            values["httpRoute"]["enabled"] = global_value
-        if web_value is not None:
-            values["httpRoute"]["web"] = {"enabled": web_value}
-        if values["httpRoute"] == {}:
-            del values["httpRoute"]
+    def test_httproute_created(self, value, expected):
+        values={"httpRoute": {"web": {"gateway": {"name": "test-gateway", "namespace": "test"}}}}
+        if value is not None:
+            values["httpRoute"]["web"]["enabled"] = value
         docs = render_chart(values=values, show_only=["templates/webserver/webserver-httproute.yaml"])
-        assert expected == (1 == len(docs))
+        assert expected == (2 == len(docs))
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
