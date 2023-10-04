@@ -20,8 +20,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from opensearchpy import Integer, Search, Text
+from opensearchpy import Integer, Text
 from opensearchpy.helpers.document import Document
+from opensearchpy.helpers.search import Search
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -106,9 +107,8 @@ with DAG(
         index_name="system_test",
         query={"query": {"bool": {"must": {"match": {"message": "hello world"}}}}},
     )
-
     search_object = (
-        Search(index_name=INDEX_NAME).filter("term", logger="airflow").query("match", message="hello airflow")
+        Search().index(INDEX_NAME).filter("term", logger="airflow").query("match", message="hello airflow")
     )
 
     search_high_level = OpenSearchQueryOperator(task_id="high_level_query", search_object=search_object)
