@@ -165,7 +165,10 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         :ref:`howto/operator:LambdaInvokeFunctionOperator`
 
     :param function_name: The name of the AWS Lambda function, version, or alias.
-    :param log_type: Set to Tail to include the execution log in the response. Otherwise, set to "None".
+    :param log_type: Set to Tail to include the execution log in the response and task logs.
+        Otherwise, set to "None". Applies to synchronously invoked functions only,
+        and returns the last 4 KB of the execution log.
+    :param keep_empty_log_lines: Whether or not keep empty lines in the execution log.
     :param qualifier: Specify a version or alias to invoke a published version of the function.
     :param invocation_type: AWS Lambda invocation type (RequestResponse, Event, DryRun)
     :param client_context: Data about the invoking client to pass to the function in the context object
@@ -181,6 +184,7 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         *,
         function_name: str,
         log_type: str | None = None,
+        keep_empty_log_lines: bool = True,
         qualifier: str | None = None,
         invocation_type: str | None = None,
         client_context: str | None = None,
@@ -192,6 +196,7 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         self.function_name = function_name
         self.payload = payload
         self.log_type = log_type
+        self.keep_empty_log_lines = keep_empty_log_lines
         self.qualifier = qualifier
         self.invocation_type = invocation_type
         self.client_context = client_context
@@ -218,6 +223,20 @@ class LambdaInvokeFunctionOperator(BaseOperator):
             qualifier=self.qualifier,
         )
         self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
+
+        if log_result := response.get("LogResult"):
+            log_records = self.hook.encode_log_result(
+                log_result,
+                keep_empty_lines=self.keep_empty_log_lines,
+            )
+            if log_records:
+                self.log.info(
+                    "The last 4 KB of the Lambda execution log (keep_empty_log_lines=%s).",
+                    self.keep_empty_log_lines,
+                )
+                for log_record in log_records:
+                    self.log.info(log_record)
+
         if response.get("StatusCode") not in success_status_codes:
             raise ValueError("Lambda function did not execute", json.dumps(response.get("ResponseMetadata")))
         payload_stream = response.get("Payload")
