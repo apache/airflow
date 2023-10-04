@@ -21,7 +21,6 @@ from typing import Dict, Callable, Any
 import requests
 from requests import HTTPError
 
-from airflow.io.exceptions import SignError
 from botocore import UNSIGNED
 from botocore.awsrequest import AWSRequest
 
@@ -35,6 +34,10 @@ S3_PROXY_URI = "s3.proxy-uri"
 log = logging.getLogger(__name__)
 
 schemes = ["s3", "s3a", "s3n"]
+
+
+class SignError(Exception):
+    """Raises when unable to sign a S3 request."""
 
 
 def get_fs(conn_id: str | None) -> AbstractFileSystem:
