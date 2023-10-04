@@ -75,6 +75,11 @@ class PsrpHook(BaseHook):
     or by setting this key as the extra fields of your connection.
     """
 
+    conn_name_attr = "psrp_conn_id"
+    default_conn_name = "psrp_default"
+    conn_type = "psrp"
+    hook_name = "PSRP"
+
     _conn: RunspacePool | None = None
     _wsman_ref: WeakKeyDictionary[RunspacePool, WSMan] = WeakKeyDictionary()
 
@@ -281,3 +286,8 @@ class PsrpHook(BaseHook):
             log(INFO, "Progress: %s (%s)", record.activity, record.description)
         else:
             log(WARNING, "Unsupported message type: %s", message_type)
+    
+    def test_connection(self):
+        """Test PSRP Connection."""
+        # To be implemented.
+        pass
