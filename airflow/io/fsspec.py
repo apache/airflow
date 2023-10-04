@@ -28,7 +28,6 @@ from urllib.parse import urlparse
 from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
-import airflow.providers
 from airflow.io import (
     FileIO,
     InputFile,
@@ -36,10 +35,12 @@ from airflow.io import (
     OutputFile,
     OutputStream,
 )
+from airflow.providers_manager import ProvidersManager
 from airflow.stats import Stats
-from airflow.utils.module_loading import iter_namespace
+from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
+
 
 def _file(_: str | None) -> LocalFileSystem:
     return LocalFileSystem()
@@ -53,7 +54,18 @@ SCHEME_TO_FS = {
 
 def _register_schemes() -> None:
     with Stats.timer("airflow.io.load_filesystems") as timer:
-        for _, name, _ in iter_namespace(airflow.providers):
+        manager = ProvidersManager()
+        for fs_module_name in manager.filesystem_module_names:
+            fs_module = import_string(fs_module_name)
+            for scheme in getattr(fs_module, "schemes", []):
+                if scheme in SCHEME_TO_FS:
+                    log.warning("Overriding scheme %s for %s", scheme, fs_module_name)
+                SCHEME_TO_FS[scheme] = getattr(fs_module, "get_fs", None)
+
+    log.debug("loading filesystems from providers took %.3f seconds", timer.duration)
+
+
+_register_schemes()
 
 
 class FsspecInputFile(InputFile):
