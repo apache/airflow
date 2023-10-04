@@ -14,6 +14,7 @@ On Ubuntu 20.04 you may get an error of ```mariadb_config not found```
 and mysql_config not found.
 
 Install MariaDB development headers:
+
       sudo apt-get install libmariadb-dev libmariadbclient-dev
 
 MacOS (Mojave/Catalina):
@@ -25,7 +26,8 @@ MacOS (Mojave/Catalina):
 - RAT docs here:
   ```https://creadur.apache.org/rat/.```
 - Requires Java and Apache Rat:
-      ```java -jar apache-rat.jar -E ./.rat-excludes -d```
+  
+      java -jar apache-rat.jar -E ./.rat-excludes -d
 
 **[optional] Airflow pulls in quite a lot of dependencies in order
 to connect to other services. You might want to test or run Airflow
