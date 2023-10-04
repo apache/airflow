@@ -28,10 +28,6 @@
       "boto3>=1.28.0",
       "botocore>=1.31.0",
       "jsonpath_ng>=1.5.3",
-      "mypy-boto3-appflow>=1.24.0",
-      "mypy-boto3-rds>=1.24.0",
-      "mypy-boto3-redshift-data>=1.24.0",
-      "mypy-boto3-s3>=1.24.0",
       "redshift_connector>=2.0.888",
       "sqlalchemy_redshift>=0.8.6",
       "watchtower~=2.0.1"
@@ -673,7 +669,7 @@
   },
   "opensearch": {
     "deps": [
-      "apache-airflow>=2.4.3",
+      "apache-airflow>=2.5.0",
       "opensearch-py>=2.2.0"
     ],
     "cross-providers-deps": [],
