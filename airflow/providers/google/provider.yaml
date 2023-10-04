@@ -703,6 +703,9 @@ sensors:
     python-modules:
       - airflow.providers.google.cloud.sensors.tasks
 
+filesystems:
+  - airflow.providers.google.cloud.fs.gcs
+
 hooks:
   - integration-name: Google Ads
     python-modules:
