@@ -45,10 +45,13 @@ class OpenSearchHook(BaseHook):
         self.conn_id = open_search_conn_id
         self.log_query = log_query
 
-        self.conn = self.get_connection(self.conn_id)
         self.use_ssl = self.conn.extra_dejson.get("use_ssl", False)
         self.verify_certs = self.conn.extra_dejson.get("verify_certs", False)
         self.__SERVICE = "es"
+
+    @cached_property
+    def conn(self):
+        return self.get_connection(self.conn_id)
 
     @cached_property
     def get_client(self) -> OpenSearch:
