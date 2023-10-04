@@ -928,6 +928,21 @@ logging:
       type: boolean
       example: ~
       default: "False"
+    json_serializer:
+      description: |
+        By default, for non-string logged messages all non-json-parsable objects are logged as `null` except
+        `datetime` objects which are ISO formatted. Users can optionally provide their own JSON serializer or
+        opt to use a `repr` serializer which calls `repr(object)` for any non-JSON-serializable objects in the
+        logged message. The `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize` uses
+        `repr` while `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy` uses
+        `null`. If a custom serializer is provide, it must adhear to `Callable[[Any], str]`
+        (`def my_serializer(o: Any) -> str`). Be aware, that if opting in to using the `repr` serializer, you
+        should take extra care that no new, sensitive, data is logged (e.g. credentials). If creating your own
+        json-serializer take special care to fail gracefully, without throwing.
+      type: string
+      version_added: 2.7.1
+      example: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize
+      default: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
