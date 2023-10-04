@@ -18,6 +18,8 @@
 """This module defines dep for pool slots availability."""
 from __future__ import annotations
 
+from sqlalchemy import select
+
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 
@@ -41,8 +43,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
         from airflow.models.pool import Pool  # To avoid a circular dependency
 
         pool_name = ti.pool
-
-        pools = session.query(Pool).filter(Pool.pool == pool_name).all()
+        pools = session.scalars(select(Pool).where(Pool.pool == pool_name)).all()
         if not pools:
             yield self._failing_status(
                 reason=f"Tasks using non-existent pool '{pool_name}' will not be scheduled"
