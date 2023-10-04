@@ -15,13 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
-.. _howto/operator:SqlToSlackOperator:
+.. _howto/operator:SqlToSlackWebhookOperator:
 
-SqlToSlackOperator
-==================
+SqlToSlackWebhookOperator
+=========================
 
-Use the :class:`~airflow.providers.slack.transfers.sql_to_slack` to post messages to predefined Slack
-channel.
+Use the :class:`~airflow.providers.slack.transfers.sql_to_slack` to post messages
+to predefined Slack channel through `Incoming Webhook <https://api.slack.com/messaging/webhooks>`__.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
@@ -31,8 +31,8 @@ and contain the resulting dataset (e.g. ASCII formatted dataframe).
 
 An example usage of the SqlToSlackOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/slack/example_sql_to_slack.py
+.. exampleinclude:: /../../tests/system/providers/slack/example_sql_to_slack_webhook.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_sql_to_slack]
-    :end-before: [END howto_operator_sql_to_slack]
+    :start-after: [START howto_operator_sql_to_slack_webhook]
+    :end-before: [END howto_operator_sql_to_slack_webhook]

@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
+from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
 
 SQL_TABLE = os.environ.get("SQL_TABLE", "test_table")
 SQL_CONN_ID = "presto_default"
@@ -38,16 +38,16 @@ with models.DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    # [START howto_operator_sql_to_slack]
-    SqlToSlackOperator(
+    # [START howto_operator_sql_to_slack_webhook]
+    SqlToSlackWebhookOperator(
         task_id="presto_to_slack",
         sql_conn_id=SQL_CONN_ID,
         sql=f"SELECT col FROM {SQL_TABLE}",
         slack_channel="my_channel",
-        slack_conn_id="slack_default",
+        slack_webhook_conn_id="slack_default",
         slack_message="message: {{ ds }}, {{ results_df }}",
     )
-    # [END howto_operator_sql_to_slack]
+    # [END howto_operator_sql_to_slack_webhook]
 
 
 from tests.system.utils import get_test_run  # noqa: E402
