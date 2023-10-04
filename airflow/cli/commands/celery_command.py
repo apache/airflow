@@ -87,6 +87,12 @@ def flower(args):
                 umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
+
+                # in daemon context stats client needs to be reinitialized.
+                from airflow.stats import Stats
+                Stats.instance = None
+                print('Stats reset done', file=stderr)
+
                 celery_app.start(options)
     else:
         celery_app.start(options)

@@ -77,6 +77,12 @@ def triggerer(args):
                 umask=int(settings.DAEMON_UMASK, 8),
             )
             with daemon_context, _serve_logs(args.skip_serve_logs):
+
+                # in daemon context stats client needs to be reinitialized.
+                from airflow.stats import Stats
+                Stats.instance = None
+                print('Stats reset done', file=stderr_handle)
+
                 run_job(job=triggerer_job_runner.job, execute_callable=triggerer_job_runner._execute)
     else:
         signal.signal(signal.SIGINT, sigint_handler)
