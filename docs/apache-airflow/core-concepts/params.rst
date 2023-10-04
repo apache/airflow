@@ -124,8 +124,10 @@ Another way to access your param is via a task's ``context`` kwarg.
         print(context["params"]["my_int_param"])
 
     PythonOperator(
-        task_id="print_my_int_param",
-        python_callable=print_my_int_param,
+      task_id="print_my_int_param",
+      python_callable=print_x,
+      provide_context=True,
+      params={"my_int_param": 12345},
     )
 
 JSON Schema Validation
