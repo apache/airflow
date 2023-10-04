@@ -196,9 +196,9 @@ class TestWasbHook:
         mocked_client_secret_credential.return_value = "spam-egg"
         WasbHook(wasb_conn_id=self.ad_conn_id).get_conn()
         mocked_client_secret_credential.assert_called_once_with(
-            "token",
-            "appID",
-            "appsecret",
+            tenant_id="token",
+            client_id="appID",
+            client_secret="appsecret",
             proxies=self.client_secret_auth_config["proxies"],
             connection_verify=self.client_secret_auth_config["connection_verify"],
             authority=self.client_secret_auth_config["authority"],
