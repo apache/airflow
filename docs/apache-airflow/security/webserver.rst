@@ -113,7 +113,7 @@ and leverage the REMOTE_USER method:
     from typing import Any, Callable
 
     from flask import current_app
-    from airflow.www.fab_security.manager import AUTH_REMOTE_USER
+    from flask_appbuilder.const import AUTH_REMOTE_USER
 
 
     class CustomMiddleware:
