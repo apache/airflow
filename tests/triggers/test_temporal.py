@@ -21,6 +21,7 @@ import datetime
 
 import pendulum
 import pytest
+from pendulum.tz.timezone import Timezone
 
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
@@ -64,9 +65,9 @@ def test_timedelta_trigger_serialization():
 @pytest.mark.parametrize(
     "tz",
     [
-        pendulum.tz.timezone("UTC"),
-        pendulum.tz.timezone("Europe/Paris"),
-        pendulum.tz.timezone("America/Toronto"),
+        Timezone("UTC"),
+        Timezone("Europe/Paris"),
+        Timezone("America/Toronto"),
     ],
 )
 @pytest.mark.asyncio

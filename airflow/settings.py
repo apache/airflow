@@ -40,6 +40,7 @@ from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.state import State
+from airflow.utils.timezone import parse_timezone, utc
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -54,9 +55,9 @@ try:
     if tz == "system":
         TIMEZONE = pendulum.tz.local_timezone()
     else:
-        TIMEZONE = pendulum.tz.timezone(tz)
+        TIMEZONE = parse_timezone(tz)
 except Exception:
-    TIMEZONE = pendulum.tz.timezone("UTC")
+    TIMEZONE = utc
 
 log.info("Configured default timezone %s", TIMEZONE)
 
