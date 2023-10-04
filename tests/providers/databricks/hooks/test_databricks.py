@@ -1356,7 +1356,7 @@ class TestDatabricksHookAsyncMethods:
         mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_CLUSTER_RESPONSE)
 
         async with self.hook:
-            cluster_state = await self.hook.async_get_cluster_state(CLUSTER_ID)
+            cluster_state = await self.hook.a_get_cluster_state(CLUSTER_ID)
 
         assert cluster_state == ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
         mock_get.assert_called_once_with(
