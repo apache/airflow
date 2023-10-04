@@ -194,7 +194,9 @@ class TestCloudwatchTaskHandler:
 
         with contextlib.ExitStack() as stack:
             if conf_json_serialize:
-                stack.enter_context(conf_vars({("logging", "json_serializer"): conf_json_serialize}))
+                stack.enter_context(
+                    conf_vars({("aws", "cloudwatch_task_handler_json_serializer"): conf_json_serialize})
+                )
 
             handler = self.cloudwatch_task_handler
             handler.set_context(self.ti)

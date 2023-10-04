@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import watchtower
 
@@ -33,22 +33,33 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
 
 
-def json_serialize_legacy(o):
-    """Json serializer replicating legacy watchtower behavior.
+def json_serialize_legacy(value: Any) -> str | None:
+    """
+    JSON serializer replicating legacy watchtower behavior.
 
     The legacy `watchtower@2.0.1` json serializer function that serialized
-    datetime objects as ISO format andall other non-JSON-serializable to `null`.
+    datetime objects as ISO format and all other non-JSON-serializable to `null`.
+
+    :param value: the object to serialize
+    :return: string representation of `value` if it is an instance of datetime or `None` otherwise
     """
-    if isinstance(o, (date, datetime)):
-        return o.isoformat()
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    else:
+        return None
 
 
-"""json serializer replicating current watchtower behavior
+def json_serialize(value: Any) -> str | None:
+    """
+    JSON serializer replicating current watchtower behavior.
 
-This provides customers with an accessible import,
-`airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize`
-"""
-json_serialize = watchtower._json_serialize_default
+    This provides customers with an accessible import,
+    `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize`
+
+    :param value: the object to serialize
+    :return: string representation of `value`
+    """
+    return watchtower._json_serialize_default(value)
 
 
 class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
@@ -87,7 +98,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def set_context(self, ti):
         super().set_context(ti)
-        self.json_serialize = conf.getimport("logging", "json_serializer")
+        self.json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer")
         self.handler = watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
             log_stream_name=self._render_filename(ti, ti.try_number),
