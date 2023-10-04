@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import re
+import time
 from collections import namedtuple
-from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
 from azure.mgmt.containerinstance.models import (
@@ -348,7 +348,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             except Exception:
                 self.log.exception("Exception while getting container groups")
 
-            sleep(1)
+            time.sleep(1)
 
     def _log_last(self, logs: list | None, last_line_logged: Any) -> Any | None:
         if logs:

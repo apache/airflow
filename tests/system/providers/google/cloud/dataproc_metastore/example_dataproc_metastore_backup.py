@@ -24,7 +24,7 @@ from __future__ import annotations
 import datetime
 import os
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreCreateBackupOperator,
     DataprocMetastoreCreateServiceOperator,
@@ -55,7 +55,7 @@ BACKUP = {
 }
 # [END how_to_cloud_dataproc_metastore_create_backup]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime.datetime(2021, 1, 1),
     schedule="@once",

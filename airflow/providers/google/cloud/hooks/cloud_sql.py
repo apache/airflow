@@ -954,7 +954,7 @@ class CloudSQLDatabaseHook(BaseHook):
     def _get_sqlproxy_instance_specification(self) -> str:
         instance_specification = self._get_instance_socket_name()
         if self.sql_proxy_use_tcp:
-            instance_specification += "=tcp:" + str(self.sql_proxy_tcp_port)
+            instance_specification += f"=tcp:{self.sql_proxy_tcp_port}"
         return instance_specification
 
     def create_connection(self) -> Connection:

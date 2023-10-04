@@ -33,9 +33,13 @@ from airflow import settings
 from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
+from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import _StopDagTest
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.triggers.temporal import TimeDeltaTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -815,3 +819,36 @@ class TestCliDags:
         )
         dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
+
+    def test_dag_test_no_triggerer(self, dag_maker):
+        with dag_maker() as dag:
+
+            @task
+            def one():
+                return 1
+
+            @task
+            def two(val):
+                return val + 1
+
+            class MyOp(BaseOperator):
+                template_fields = ("tfield",)
+
+                def __init__(self, tfield, **kwargs):
+                    self.tfield = tfield
+                    super().__init__(**kwargs)
+
+                def execute(self, context, event=None):
+                    if event is None:
+                        print("I AM DEFERRING")
+                        self.defer(trigger=TimeDeltaTrigger(timedelta(seconds=20)), method_name="execute")
+                        return
+                    print("RESUMING")
+                    return self.tfield + 1
+
+            task_one = one()
+            task_two = two(task_one)
+            op = MyOp(task_id="abc", tfield=str(task_two))
+            task_two >> op
+        with pytest.raises(_StopDagTest, match="Task has deferred but triggerer component is not running"):
+            dag.test()

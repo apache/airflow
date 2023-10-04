@@ -33,12 +33,13 @@ from unittest.mock import patch
 import psutil
 import pytest
 
-from airflow import DAG, settings
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import SIGSEGV_MESSAGE, LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
