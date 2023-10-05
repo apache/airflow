@@ -174,7 +174,7 @@ def users_export(args):
 
         with open(args.export, "w") as file:
             file.write(json.dumps(users, sort_keys=True, indent=4))
-            print_export_output("users", users, False, file.name)
+            print_export_output("users", users, file)
 
 
 @cli_utils.action_cli

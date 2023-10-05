@@ -170,7 +170,7 @@ def connections_export(args):
         provided_file_format = f".{(args.format or args.file_format).lower()}"
 
     with args.file as f:
-        if file_is_stdout := is_stdout(f):
+        if is_stdout(f):
             filetype = provided_file_format or default_format
         elif provided_file_format:
             filetype = provided_file_format
@@ -195,7 +195,7 @@ def connections_export(args):
 
         f.write(msg)
 
-    print_export_output("Connections", connections, file_is_stdout, args.file.name)
+    print_export_output("Connections", connections, f)
 
 
 alternative_conn_specs = ["conn_type", "conn_host", "conn_login", "conn_password", "conn_schema", "conn_port"]

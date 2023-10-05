@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import io
 import sys
 from typing import TYPE_CHECKING, Collection
 
@@ -42,8 +43,8 @@ def is_stdout(fileio: IOBase) -> bool:
     return fileio.fileno() == sys.stdout.fileno()
 
 
-def print_export_output(command_type: str, exported_items: Collection, file_is_stdout: bool, file_path: str):
-    if file_is_stdout:
+def print_export_output(command_type: str, exported_items: Collection, file: io.TextIOWrapper):
+    if is_stdout(file):
         print(f"\n{len(exported_items)} {command_type} successfully exported.", file=sys.stderr)
     else:
-        print(f"{len(exported_items)} {command_type} successfully exported to {file_path}.")
+        print(f"{len(exported_items)} {command_type} successfully exported to {file.name}.")
