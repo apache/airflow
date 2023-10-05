@@ -323,12 +323,20 @@ class PostgresHook(DbApiHook):
     def ingest_embedding(
         self, table: str, input_data: list[str], embeddings: list[float], vector_size: int
     ) -> None:
+        """
+        Store embedding vector in Postgres table.
+
+        :param table: The Name of the table
+        :param input_data: The source data from which the embedding has been created
+        :param embeddings: The embedding vector response from LLM service
+        :param vector_size: The size of vector. The maximum dimensions can be 2,000
+        """
         from pgvector.psycopg import register_vector
 
         self.conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         register_vector(self.conn)
         self.conn.execute(
-            "CREATE TABLE %s (id bigserial PRIMARY KEY, content text, embedding vector(%s))",
+            "CREATE TABLE IF NOT EXISTS %s (id bigserial PRIMARY KEY, content text, embedding vector(%s))",
             (table, vector_size),
         )
 
