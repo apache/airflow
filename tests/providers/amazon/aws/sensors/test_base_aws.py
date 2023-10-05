@@ -96,7 +96,7 @@ class TestAwsBaseSensor:
             assert op.region == region
 
     def test_ambiguous_region_name(self):
-        error_match = r"Ambiguous `region_name` provided, region_name='us-west-1', region='eu-west-1'"
+        error_match = r"Conflicting `region_name` provided, region_name='us-west-1', region='eu-west-1'"
         with pytest.raises(AirflowException, match=error_match):
             FakeDynamoDBSensor(
                 task_id="fake-task-id",

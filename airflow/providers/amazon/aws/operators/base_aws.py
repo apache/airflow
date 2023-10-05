@@ -138,8 +138,8 @@ class AwsBaseOperator(BaseOperator, Generic[_AwsHook]):
         """
         Return AWS Provider's hook based on ``aws_hook_class``.
 
-        This method implementation should be taken as a final for 
-        thin-wrapped Hooks around boto3.  For thick-wrapped Hooks developer 
+        This method implementation should be taken as a final for
+        thin-wrapped Hooks around boto3.  For thick-wrapped Hooks developer
         should consider to overwrite ``_hook_parameters`` method instead.
         """
         return self.aws_hook_class(**self._hook_parameters)

@@ -84,7 +84,7 @@ class AwsBaseSensor(BaseSensorOperator, Generic[_AwsHook]):
         botocore_config: dict | None = None,
         **kwargs,
     ):
-        # Validate if ``aws_hook_class`` properly set with
+        # Validate if ``aws_hook_class`` is properly set.
         if hasattr(self, "aws_hook_class"):
             try:
                 if not issubclass(self.aws_hook_class, AwsGenericHook):
@@ -102,7 +102,7 @@ class AwsBaseSensor(BaseSensorOperator, Generic[_AwsHook]):
             warnings.warn(_REGION_MSG, AirflowProviderDeprecationWarning, stacklevel=3)
             if region_name and region_name != region:
                 raise AirflowException(
-                    f"Ambiguous `region_name` provided, region_name={region_name!r}, region={region!r}."
+                    f"Conflicting `region_name` provided, region_name={region_name!r}, region={region!r}."
                 )
             region_name = region
 
@@ -114,7 +114,8 @@ class AwsBaseSensor(BaseSensorOperator, Generic[_AwsHook]):
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:
-        """Mapping parameters for build boto3-related hook.
+        """
+        Mapping parameters to build boto3-related hooks.
 
         Only required to be overwritten for thick-wrapped Hooks.
         """
@@ -131,8 +132,8 @@ class AwsBaseSensor(BaseSensorOperator, Generic[_AwsHook]):
         """
         Return AWS Provider's hook based on ``aws_hook_class``.
 
-        This method implementation should be taken as a final, which a good for
-        thin-wrapped Hooks around boto3, for thick-wrapped Hooks developer
+        This method implementation should be taken as a final for
+        thin-wrapped Hooks around boto3.  For thick-wrapped Hooks developer
         should consider to overwrite ``_hook_parameters`` method instead.
         """
         return self.aws_hook_class(**self._hook_parameters)
@@ -140,6 +141,6 @@ class AwsBaseSensor(BaseSensorOperator, Generic[_AwsHook]):
     @property
     @final
     def region(self) -> str | None:
-        """Alias for ``region_name``, uses for compatibility (deprecated)."""
+        """Alias for ``region_name``, used for compatibility (deprecated)."""
         warnings.warn(_REGION_MSG, AirflowProviderDeprecationWarning, stacklevel=3)
         return self.region_name

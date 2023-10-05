@@ -95,8 +95,8 @@ class TestAwsBaseOperator:
         with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
             assert op.region == region
 
-    def test_ambiguous_region_name(self):
-        error_match = r"Ambiguous `region_name` provided, region_name='us-west-1', region='eu-west-1'"
+    def test_conflicting_region_name(self):
+        error_match = r"Conflicting `region_name` provided, region_name='us-west-1', region='eu-west-1'"
         with pytest.raises(AirflowException, match=error_match):
             FakeS3Operator(
                 task_id="fake-task-id",
