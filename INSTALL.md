@@ -40,10 +40,12 @@ from your system wide versions**
       python3 -m venv PATH_TO_YOUR_VENV 
       source PATH_TO_YOUR_VENV/bin/activate
 
-### [required] Building and installing by pip (preferred)
+**[Required] Building and installing by pip (preferred)**
+
       pip install .
 
-#### Or directly
+**Or directly**
+
       python setup.py install
 
 **You can also install recommended version of the dependencies by using
@@ -98,6 +100,7 @@ to install automatically providers and all dependencies needed by that provider:
         --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
 
 The list of available extras:
+
 1. aiobotocore
 2. airbyte
 3. alibaba
