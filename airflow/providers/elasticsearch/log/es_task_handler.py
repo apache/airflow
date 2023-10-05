@@ -269,7 +269,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
-        logs = self.es_read(log_id, offset, metadata)
+        logs = self.es_read(log_id, offset)
         logs_by_host = self._group_logs_by_host(logs)
         next_offset = offset if not logs else attrgetter(self.offset_field)(logs[-1])
         # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
@@ -330,13 +330,12 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Just a safe-guard to preserve backwards-compatibility
         return log_line.message
 
-    def es_read(self, log_id: str, offset: int | str, metadata: dict) -> list | ElasticSearchResponse:
+    def es_read(self, log_id: str, offset: int | str) -> list | ElasticSearchResponse:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
         :param log_id: the log_id of the log to read.
         :param offset: the offset start to read log from.
-        :param metadata: log metadata, used for steaming log download.
         """
         query: dict[Any, Any] = {
             "query": {
