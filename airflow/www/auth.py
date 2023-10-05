@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
 from flask import flash, g, redirect, render_template, request
 
-from airflow.auth.managers.fab.decorators.auth import _has_access_fab
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagAccessEntity,
@@ -63,6 +62,8 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
+    from airflow.auth.managers.fab.decorators.auth import _has_access_fab
+
     return _has_access_fab(permissions)
 
 
