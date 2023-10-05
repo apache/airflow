@@ -23,13 +23,14 @@ from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
 from flask import flash, g, redirect, render_template, request
 
-from airflow.auth.managers.fab.decorators.auth import has_access_fab
+from airflow.auth.managers.fab.decorators.auth import _has_access_fab
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
 )
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.net import get_hostname
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -59,10 +60,10 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
     warnings.warn(
         "The 'has_access' decorator is deprecated. Please use one of the decorator `has_access_cluster_*`"
         "defined in airflow/www/auth.py instead.",
-        DeprecationWarning,
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    return has_access_fab(permissions)
+    return _has_access_fab(permissions)
 
 
 def _has_access_no_details(is_authorized_callback: Callable[[], bool]) -> Callable[[T], T]:

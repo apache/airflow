@@ -33,7 +33,7 @@ T = TypeVar("T", bound=Callable)
 log = logging.getLogger(__name__)
 
 
-def has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
+def _has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
     """
     Factory for decorator that checks current user's permissions against required permissions.
 
@@ -41,6 +41,8 @@ def has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Call
     ``airflow.www.auth.has_access``, which redirects to this decorator, is widely used in user plugins.
     Thus, we need to keep it.
     See https://github.com/apache/airflow/pull/33213#discussion_r1346287224
+
+    :meta private:
     """
 
     def requires_access_decorator(func: T):
