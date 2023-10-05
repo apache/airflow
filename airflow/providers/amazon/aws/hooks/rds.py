@@ -240,7 +240,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         try:
             response = self.conn.describe_db_instances(DBInstanceIdentifier=db_instance_id)
         except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "DBInstanceNotFoundFault":
+            if e.response["Error"]["Code"] == "DBInstanceNotFound":
                 raise AirflowNotFoundException(e)
             raise e
         return response["DBInstances"][0]["DBInstanceStatus"].lower()
