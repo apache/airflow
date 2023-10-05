@@ -21,13 +21,16 @@ MacOS (Mojave/Catalina):
 
       brew install sqlite mysql postgresql
 
-- [Required] Fetch the tarball and untar the source move into the directory that was untarred.
+- [Optional] Fetch the tarball and untar the source move into the directory that was untarred.
 - [Optional] Run Apache RAT (release audit tool) to validate license headers
 - RAT docs here:
   ```https://creadur.apache.org/rat/.```
 - Requires Java and Apache Rat:
   
       java -jar apache-rat.jar -E ./.rat-excludes -d
+- [Required] Instead of fetching and untarring the source tarball, you can use `pip` to directly install Apache Airflow with a specified version.
+
+      pip install apache-airflow==<version>
 
 **[optional] Airflow pulls in quite a lot of dependencies in order
 to connect to other services. You might want to test or run Airflow
