@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime
 import sys
-from typing import TYPE_CHECKING, cast, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.utils.module_loading import qualname
 
@@ -84,6 +84,7 @@ def deserialize(classname: str, version: int, data: object) -> Any:
 
     if classname == "zoneinfo.ZoneInfo":
         from zoneinfo import ZoneInfo
+
         return ZoneInfo(data)
 
     if classname == "backports.zoneinfo.ZoneInfo":
