@@ -403,6 +403,9 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
         # Glue Catalog sensor difficult to test
         "airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor",
+        # Base Classes
+        "airflow.providers.amazon.aws.operators.base_aws.AwsBaseOperator",
+        "airflow.providers.amazon.aws.sensors.base_aws.AwsBaseSensor",
     }
 
     DEPRECATED_CLASSES = {
