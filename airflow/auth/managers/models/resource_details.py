@@ -68,7 +68,6 @@ class DagAccessEntity(Enum):
 
     AUDIT_LOG = "AUDIT_LOG"
     CODE = "CODE"
-    DATASET = "DATASET"
     DEPENDENCIES = "DEPENDENCIES"
     IMPORT_ERRORS = "IMPORT_ERRORS"
     RUN = "RUN"

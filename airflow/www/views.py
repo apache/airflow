@@ -3565,7 +3565,8 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/object/next_run_datasets/<string:dag_id>")
-    @auth.has_access_dag("GET", DagAccessEntity.DATASET)
+    @auth.has_access_dag("GET", DagAccessEntity.RUN)
+    @auth.has_access_dataset("GET")
     def next_run_datasets(self, dag_id):
         """Returns datasets necessary, and their status, for the next dag run."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
