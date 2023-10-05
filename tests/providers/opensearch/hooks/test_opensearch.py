@@ -23,8 +23,9 @@ MOCK_SEARCH_RETURN = {"status": "test"}
 
 class TestOpenSearchHook:
     def test_hook_search(self, mock_hook):
-        result = OpenSearchHook(open_search_conn_id="opensearch_default", log_query=True).search(
-            index_name="testIndex",
+        hook = OpenSearchHook(open_search_conn_id="opensearch_default",  log_query=True)
+        result = hook.search(
+            index_name="testIndex", 
             query={"size": 1, "query": {"multi_match": {"query": "test", "fields": ["testField"]}}},
         )
 
