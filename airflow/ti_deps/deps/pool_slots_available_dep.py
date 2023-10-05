@@ -43,18 +43,17 @@ class PoolSlotsAvailableDep(BaseTIDep):
         from airflow.models.pool import Pool  # To avoid a circular dependency
 
         pool_name = ti.pool
-        pools = session.scalars(select(Pool).where(Pool.pool == pool_name)).all()
-        if not pools:
+
+        # Controlled by UNIQUE key in slot_pool table, only (at most) one result can be returned.
+        pool: Pool | None = session.scalar(select(Pool).where(Pool.pool == pool_name))
+        if pool is None:
             yield self._failing_status(
                 reason=f"Tasks using non-existent pool '{pool_name}' will not be scheduled"
             )
             return
-        # Controlled by UNIQUE key in slot_pool table,
-        # only one result can be returned.
-        open_slots = pools[0].open_slots(session=session)
 
-        occupied_states = pools[0].get_occupied_states()
-        if ti.state in occupied_states:
+        open_slots = pool.open_slots(session=session)
+        if ti.state in pool.get_occupied_states():
             open_slots += ti.pool_slots
 
         if open_slots <= (ti.pool_slots - 1):
