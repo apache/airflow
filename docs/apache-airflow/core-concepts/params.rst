@@ -126,7 +126,6 @@ Another way to access your param is via a task's ``context`` kwarg.
     PythonOperator(
         task_id="print_my_int_param",
         python_callable=print_my_int_param,
-        provide_context=True,
         params={"my_int_param": 12345},
     )
 
