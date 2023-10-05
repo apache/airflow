@@ -830,6 +830,8 @@ def autodetect_docker_context():
         return "default"
     try:
         context_dicts = json.loads(result.stdout)
+        if isinstance(context_dicts, dict):
+            context_dicts = [context_dicts]
     except json.decoder.JSONDecodeError:
         context_dicts = (json.loads(line) for line in result.stdout.splitlines() if line.strip())
     known_contexts = {info["Name"]: info for info in context_dicts}
