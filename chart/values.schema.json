@@ -20,6 +20,7 @@
         "Jobs",
         "Kubernetes",
         "Ingress",
+        "HTTPRoute",
         "Kerberos"
     ],
     "properties": {
@@ -453,6 +454,109 @@
                     }
                 }
             }
+        },
+        "httpRoute": {
+            "description": "HTTPRoute configuration.",
+            "type": "object",
+            "x-docsSection": "HTTPRoute",
+            "properties": {
+                "web": {
+                    "description": "Configuration for the HTTPRoute of the web Service.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable web HTTPRoute resource.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "annotations": {
+                            "description": "Annotations for the web HTTPRoute.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "hostnames": {
+                            "description": "The hostnames for the web HTTPRoute.",
+                            "type": "array",
+                            "default": [],
+                        },
+                        "gateway": {
+                            "description": "The Gateway API configuration",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "name": {
+                                    "description": "The name of the Gateway API resource",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                },
+                                "namespace": {
+                                    "description": "The namespace of the Gateway API resource",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                },
+                            },
+                        },
+                    },
+                },
+                "flower": {
+                    "description": "Configuration for the HTTPRoute of the flower Service.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable flower HTTPRoute resource.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "annotations": {
+                            "description": "Annotations for the flower HTTPRoute.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "hostnames": {
+                            "description": "The hostnames for the flower HTTPRoute.",
+                            "type": "array",
+                            "default": [],
+                        },
+                        "gateway": {
+                            "description": "The Gateway API configuration",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "name": {
+                                    "description": "The name of the Gateway API resource",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                },
+                                "namespace": {
+                                    "description": "The namespace of the Gateway API resource",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                },
+                            },
+                        },
+                    },
+                },
+            },
         },
         "networkPolicies": {
             "description": "Network policy configuration.",
