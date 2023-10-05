@@ -1,0 +1,130 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import pytest
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.hooks.base import BaseHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+
+TEST_CONN = "aws_test_conn"
+
+
+class FakeDynamoDbHook(AwsBaseHook):
+    """Hook for tests, implements thin-wrapper around dynamodb resource-client."""
+
+    def __init__(self, **kwargs):
+        kwargs.update({"client_type": None, "resource_type": "dynamodb"})
+        super().__init__(**kwargs)
+
+
+class FakeDynamoDBSensor(AwsBaseSensor):
+    aws_hook_class = FakeDynamoDbHook
+
+
+@pytest.fixture(autouse=True)
+def fake_conn(monkeypatch):
+    monkeypatch.setenv(f"AWS_CONN_{TEST_CONN.upper()}", '{"conn_type": "aws"}')
+
+
+class TestAwsBaseSensor:
+    def test_default_parameters(self):
+        op = FakeDynamoDBSensor(task_id="fake_task_id")
+        msg = "Attention! Changes in default parameters might produce breaking changes in multiple sensors"
+        assert op.aws_conn_id == "aws_default", msg
+        assert op.region_name is None, msg
+        assert op.verify is None, msg
+        assert op.botocore_config is None, msg
+
+    def test_parameters(self):
+        op = FakeDynamoDBSensor(
+            task_id="fake-task-id",
+            aws_conn_id=TEST_CONN,
+            region_name="eu-central-1",
+            verify=False,
+            botocore_config={"read_timeout": 777, "connect_timeout": 42},
+        )
+
+        assert op.aws_conn_id == TEST_CONN
+        assert op.region_name == "eu-central-1"
+        assert op.verify is False
+        assert op.botocore_config == {"read_timeout": 777, "connect_timeout": 42}
+
+        hook = op.hook
+        assert isinstance(hook, FakeDynamoDbHook)
+        assert hook.aws_conn_id == op.aws_conn_id
+        assert hook._region_name == op.region_name
+        assert hook._verify == op.verify
+        assert hook._config.read_timeout == 777
+        assert hook._config.connect_timeout == 42
+
+    @pytest.mark.parametrize(
+        "region, region_name",
+        [
+            pytest.param("eu-west-1", None, id="region-only"),
+            pytest.param("us-east-1", "us-east-1", id="non-ambiguous-params"),
+        ],
+    )
+    def test_deprecated_region_name(self, region, region_name):
+        warning_match = r"`region` is deprecated and will be removed"
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+            op = FakeDynamoDBSensor(
+                task_id="fake-task-id",
+                aws_conn_id=TEST_CONN,
+                region=region,
+                region_name=region_name,
+            )
+        assert op.region_name == region
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+            assert op.region == region
+
+    def test_ambiguous_region_name(self):
+        error_match = r"Ambiguous `region_name` provided, region_name='us-west-1', region='eu-west-1'"
+        with pytest.raises(AirflowException, match=error_match):
+            FakeDynamoDBSensor(
+                task_id="fake-task-id",
+                aws_conn_id=TEST_CONN,
+                region="eu-west-1",
+                region_name="us-west-1",
+            )
+
+    def test_no_aws_hook_class_attr(self):
+        class NoAwsHookClassSensor(AwsBaseSensor):
+            ...
+
+        error_match = r"Class attribute 'NoAwsHookClassSensor\.aws_hook_class' should be set"
+        with pytest.raises(AirflowException, match=error_match):
+            NoAwsHookClassSensor(task_id="fake-task-id")
+
+    def test_aws_hook_class_wrong_hook_type(self):
+        class WrongHookSensor(AwsBaseSensor):
+            aws_hook_class = BaseHook
+
+        error_match = r"Class attribute 'WrongHookSensor.aws_hook_class' is not a subclass of AwsGenericHook"
+        with pytest.raises(AirflowException, match=error_match):
+            WrongHookSensor(task_id="fake-task-id")
+
+    def test_aws_hook_class_class_instance(self):
+        class SoWrongSensor(AwsBaseSensor):
+            aws_hook_class = FakeDynamoDbHook()
+
+        error_match = r"Class attribute 'SoWrongSensor.aws_hook_class' is not a subclass of AwsGenericHook"
+        with pytest.raises(AirflowException, match=error_match):
+            SoWrongSensor(task_id="fake-task-id")
