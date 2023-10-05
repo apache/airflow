@@ -34,14 +34,9 @@ if TYPE_CHECKING:
 serializers = [
     "pendulum.tz.timezone.FixedTimezone",
     "pendulum.tz.timezone.Timezone",
+    "zoneinfo.ZoneInfo",
+    "backports.zoneinfo.ZoneInfo",
 ]
-
-if PY39:
-    serializers.append("zoneinfo.ZoneInfo")
-    from zoneinfo import ZoneInfo
-else:
-    serializers.append("backports.zoneinfo.ZoneInfo")
-    from backports.zoneinfo import ZoneInfo
 
 deserializers = serializers
 
@@ -89,7 +84,17 @@ def deserialize(classname: str, version: int, data: object) -> Timezone | ZoneIn
     if isinstance(data, int):
         return fixed_timezone(data)
 
-    if "zoneinfo.ZoneInfo" in classname:  # capturing backports and stdlib
+    if classname == "zoneinfo.ZoneInfo":
+        from zoneinfo import ZoneInfo
+        return ZoneInfo(data)
+
+    if classname == "backports.zoneinfo.ZoneInfo":
+        # python version might have been upgraded, so we need to check
+        try:
+            from backports.zoneinfo import ZoneInfo
+        except ImportError:
+            from zoneinfo import ZoneInfo
+
         return ZoneInfo(data)
 
     return timezone(data)
