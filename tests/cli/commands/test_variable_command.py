@@ -49,6 +49,15 @@ class TestCliVariables:
         with pytest.raises(KeyError):
             Variable.get("foo1")
 
+    def test_variables_set_with_description(self):
+        """Test variable_set command"""
+        variable_command.variables_set(
+            self.parser.parse_args(["variables", "set", "foo", "bar", "foo_bar_description"])
+        )
+        assert Variable.get("foo") is not None
+        with pytest.raises(KeyError):
+            Variable.get("foo1")
+
     def test_variables_get(self):
         Variable.set("foo", {"foo": "bar"}, serialize_json=True)
 
