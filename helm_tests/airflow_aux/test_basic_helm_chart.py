@@ -580,10 +580,10 @@ class TestBaseChartTest:
             show_only=["templates/secrets/metadata-connection-secret.yaml"],
             values={"pgbouncer": {"enabled": True}},
         )[0]
-        assert "postgresql://postgres:postgres@my-release-pgbouncer.default:6543/my-release-metadata?sslmode=disable" == base64.b64decode(
-            doc["data"]["connection"]
-        ).decode(
-            "utf-8"
+        assert (
+            "postgresql://postgres:postgres@my-release-pgbouncer.default:6543/"
+            "my-release-metadata?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
         )
 
     def test_postgres_connection_url_pgbouncer_use_standard_naming(self):
@@ -593,10 +593,10 @@ class TestBaseChartTest:
             show_only=["templates/secrets/metadata-connection-secret.yaml"],
             values={"useStandardNaming": True, "pgbouncer": {"enabled": True}},
         )[0]
-        assert "postgresql://postgres:postgres@my-release-airflow-pgbouncer.default:6543/my-release-metadata?sslmode=disable" == base64.b64decode(
-            doc["data"]["connection"]
-        ).decode(
-            "utf-8"
+        assert (
+            "postgresql://postgres:postgres@my-release-airflow-pgbouncer.default:6543/"
+            "my-release-metadata?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
         )
 
     def test_postgres_connection_url_name_override(self):
