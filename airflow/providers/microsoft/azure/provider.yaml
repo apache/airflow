@@ -64,7 +64,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - azure-batch>=8.0.0
   - azure-cosmos>=4.0.0
   - azure-mgmt-cosmosdb

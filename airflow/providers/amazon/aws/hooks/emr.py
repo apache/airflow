@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import json
+import time
 import warnings
-from time import sleep
 from typing import Any
 
 from botocore.exceptions import ClientError
@@ -509,7 +509,7 @@ class EmrContainerHook(AwsBaseHook):
                 final_query_state = query_state
                 break
             try_number += 1
-            sleep(poll_interval)
+            time.sleep(poll_interval)
         return final_query_state
 
     def stop_query(self, job_id: str) -> dict:

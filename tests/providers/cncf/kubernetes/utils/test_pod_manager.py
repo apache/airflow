@@ -284,11 +284,55 @@ class TestPodManager:
         self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
         self.mock_progress_callback.assert_has_calls([mock.call(message), mock.call(no_ts_message)])
 
-    def test_parse_invalid_log_line(self, caplog):
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    def test_fetch_container_logs_failures(self, mock_container_is_running):
+        last_timestamp_string = "2020-10-08T14:18:17.793417674Z"
+        messages = [
+            bytes("2020-10-08T14:16:17.793417674Z message", "utf-8"),
+            bytes("2020-10-08T14:17:17.793417674Z message", "utf-8"),
+            None,
+            bytes(f"{last_timestamp_string} message", "utf-8"),
+        ]
+        expected_call_count = len([message for message in messages if message is not None])
+
+        def consumer_iter():
+            while messages:
+                message = messages.pop(0)
+                if message is None:
+                    raise BaseHTTPError("Boom")
+                yield message
+
+        with mock.patch.object(PodLogsConsumer, "__iter__") as mock_consumer_iter:
+            mock_consumer_iter.side_effect = consumer_iter
+            mock_container_is_running.side_effect = [True, True, False]
+            status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
+        assert status.last_log_time == cast(DateTime, pendulum.parse(last_timestamp_string))
+        assert self.mock_progress_callback.call_count == expected_call_count
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_parse_multi_line_logs(self, mock_read_pod_logs, mock_container_is_running, caplog):
+        log = (
+            "2020-10-08T14:16:17.793417674Z message1 line1\n"
+            "message1 line2\n"
+            "message1 line3\n"
+            "2020-10-08T14:16:18.793417674Z message2 line1\n"
+            "message2 line2\n"
+            "2020-10-08T14:16:19.793417674Z message3 line1\n"
+        )
+        mock_read_pod_logs.return_value = [bytes(log_line, "utf-8") for log_line in log.split("\n")]
+        mock_container_is_running.return_value = False
+
         with caplog.at_level(logging.INFO):
-            self.pod_manager.parse_log_line("2020-10-08T14:16:17.793417674ZInvalidmessage\n")
-        assert "Invalidmessage" in caplog.text
-        assert "no timestamp in message" in caplog.text
+            self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
+
+        assert "message1 line1" in caplog.text
+        assert "message1 line2" in caplog.text
+        assert "message1 line3" in caplog.text
+        assert "message2 line1" in caplog.text
+        assert "message2 line2" in caplog.text
+        assert "message3 line1" in caplog.text
+        assert "ERROR" not in caplog.text
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
     def test_start_pod_retries_on_409_error(self, mock_run_pod_async):

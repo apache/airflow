@@ -346,4 +346,4 @@ class TaskInstancePydantic(BaseModelPydantic):
         return _get_previous_ti(task_instance=self, state=state, session=session)
 
 
-TaskInstancePydantic.update_forward_refs()
+TaskInstancePydantic.model_rebuild()
