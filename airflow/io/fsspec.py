@@ -108,7 +108,8 @@ class FsspecInputFile(InputFile):
         try:
             return self._fs.open(self.location, "rb")
         except FileNotFoundError as e:
-            # To have a consistent error handling experience, make sure exception contains missing file location.
+            # To have a consistent error handling experience,
+            # make sure exception contains missing file location.
             raise e if e.filename else FileNotFoundError(
                 errno.ENOENT, os.strerror(errno.ENOENT), self.location
             ) from e
@@ -172,7 +173,7 @@ class FsspecFileIO(FileIO):
     def __init__(self):
         self._scheme_to_fs = {}
         self._scheme_to_fs.update(SCHEME_TO_FS)
-        self.get_fs: Callable[[str], AbstractFileSystem] = lru_cache(self._get_fs)
+        self.get_fs: Callable[[str, str | None], AbstractFileSystem] = lru_cache(self._get_fs)
         super().__init__()
 
     def new_input(self, location: str, conn_id: str | None) -> FsspecInputFile:
@@ -187,7 +188,7 @@ class FsspecFileIO(FileIO):
             FsspecInputFile: An FsspecInputFile instance for the given location.
         """
         uri = urlparse(location)
-        fs = self.get_fs(uri.scheme)
+        fs = self.get_fs(uri.scheme, conn_id)
         return FsspecInputFile(location=location, fs=fs)
 
     def new_output(self, location: str, conn_id: str | None) -> FsspecOutputFile:
@@ -201,10 +202,10 @@ class FsspecFileIO(FileIO):
             FsspecOutputFile: An FsspecOutputFile instance for the given location.
         """
         uri = urlparse(location)
-        fs = self.get_fs(uri.scheme)
+        fs = self.get_fs(uri.scheme, conn_id)
         return FsspecOutputFile(location=location, fs=fs)
 
-    def delete(self, location: Union[str, InputFile, OutputFile]) -> None:
+    def delete(self, location: Union[str, InputFile, OutputFile], conn_id: str | None) -> None:
         """Delete the file at the given location.
 
         Args:
@@ -218,11 +219,11 @@ class FsspecFileIO(FileIO):
             str_location = location
 
         uri = urlparse(str_location)
-        fs = self.get_fs(uri.scheme)
+        fs = self.get_fs(uri.scheme, conn_id)
         fs.rm(str_location)
 
-    def _get_fs(self, scheme: str) -> AbstractFileSystem:
+    def _get_fs(self, scheme: str, conn_id: str | None) -> AbstractFileSystem:
         """Get a filesystem for a specific scheme."""
         if scheme not in self._scheme_to_fs:
             raise ValueError(f"No registered filesystem for scheme: {scheme}")
-        return self._scheme_to_fs[scheme](self.properties)
+        return self._scheme_to_fs[scheme](conn_id=conn_id)

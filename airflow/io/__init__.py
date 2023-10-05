@@ -230,6 +230,7 @@ class FileIO(ABC):
 
         Args:
             location (str): A URI or a path to a local file.
+            conn_id (str): The connection ID to use when getting the file.
         """
 
     @abstractmethod
@@ -238,15 +239,17 @@ class FileIO(ABC):
 
         Args:
             location (str): A URI or a path to a local file.
+            conn_id (str): The connection ID to use when getting the file.
         """
 
     @abstractmethod
-    def delete(self, location: Union[str, InputFile, OutputFile]) -> None:
+    def delete(self, location: Union[str, InputFile, OutputFile], conn_id: str | None) -> None:
         """Delete the file at the given path.
 
         Args:
             location (Union[str, InputFile, OutputFile]): A URI or a path to a local file--if an InputFile instance or
                 an OutputFile instance is provided, the location attribute for that instance is used as the URI to delete.
+            conn_id (str): The connection ID to use when deleting the file.
 
         Raises:
             PermissionError: If the file at location cannot be accessed due to a permission error.
@@ -262,8 +265,8 @@ SCHEMA_TO_FILE_IO: Dict[str, List[str]] = {
     "s3": [FSSPEC_FILE_IO],
     "s3a": [FSSPEC_FILE_IO],
     "s3n": [FSSPEC_FILE_IO],
-    # "gs": [ARROW_FILE_IO],
-    # "file": [ARROW_FILE_IO],
+    "gs": [FSSPEC_FILE_IO],
+    "file": [FSSPEC_FILE_IO],
     # "hdfs": [ARROW_FILE_IO],
     "abfs": [FSSPEC_FILE_IO],
     "abfss": [FSSPEC_FILE_IO],
@@ -282,9 +285,6 @@ def _import_file_io(io_impl: str) -> Optional[FileIO]:
     except ModuleNotFoundError:
         log.warning("Could not initialize FileIO: %s", io_impl)
         return None
-
-
-PY_IO_IMPL = "py-io-impl"
 
 
 def _infer_file_io_from_scheme(path: str) -> Optional[FileIO]:
