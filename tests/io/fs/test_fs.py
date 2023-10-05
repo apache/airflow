@@ -48,6 +48,14 @@ class TestFs:
 
         fs.unmount(MNT)
 
+    def test_mount_without_mountpoint(self):
+        mnt = fs.mount("s3://warehouse/")
+
+        assert isinstance(mnt.fs, S3FileSystem)
+        assert mnt.replace_mount_point("/foo") == "warehouse/foo"
+
+        fs.unmount(mnt.mount_point)
+
     def test_unmount(self):
         fs.mount("s3://warehouse/", MNT)
         fs.unmount(MNT)

@@ -18,9 +18,11 @@ from __future__ import annotations
 
 import functools
 import os.path
+import uuid
 from typing import cast
 from urllib.parse import urlparse
 from dataclasses import dataclass
+from os import PathLike
 
 from fsspec import AbstractFileSystem
 from fsspec.callbacks import NoOpCallback
@@ -29,7 +31,7 @@ from airflow.io.fsspec import SCHEME_TO_FS
 
 
 @dataclass
-class Mount:
+class Mount(PathLike):
     source: str
     mount_point: str
 
@@ -55,11 +57,20 @@ class Mount:
 
         return getattr(self.fs, method)(path, *args[1:], **kwargs)
 
+    def __fspath__(self):
+        return self.mount_point
+
     def __getattr__(self, item):
         return functools.partial(self.wrap, item)
 
     def replace_mount_point(self, path: str) -> str:
-        return path.replace(self.mount_point, self.source, 1).replace("//", "/")
+        new_path = path.replace(self.mount_point, self.source, 1).replace("//", "/")
+
+        # check for traversal?
+        if self.source not in new_path:
+            new_path = os.path.join(self.source, new_path.lstrip(os.sep))
+
+        return new_path
 
 
 MOUNTS: dict[str:Mount] = {}
@@ -112,7 +123,7 @@ def _rewrite_path(path: str, mnt: Mount) -> str:
     :return: the rewritten path
     :rtype: str
     """
-    return os.path.join(mnt.mount_point, path.replace(mnt.source, "").lstrip("/"))
+    return os.path.join(mnt.mount_point, path.replace(mnt.source, "").lstrip(os.sep))
 
 
 def _rewrite_info(info: dict, mnt: Mount) -> dict:
@@ -134,12 +145,12 @@ def _rewrite_info(info: dict, mnt: Mount) -> dict:
 
 def mount(
     source: str,
-    mount_point: str,
+    mount_point: str | None = None,
     conn_id: str | None = None,
     encryption_type: str | None = "",
     fs_type: AbstractFileSystem | None = None,
     remount: bool = False,
-) -> None:
+) -> Mount:
     """
     Mount a filesystem or object storage to a mount point.
 
@@ -156,7 +167,7 @@ def mount(
     :param remount: whether to remount the filesystem if it is already mounted
     :type remount: bool
     """
-    if not remount and mount_point in MOUNTS:
+    if not remount and mount_point and mount_point in MOUNTS:
         raise ValueError(f"Mount point {mount_point} already mounted")
 
     uri = urlparse(source)
@@ -165,17 +176,24 @@ def mount(
     if not fs_type and scheme not in SCHEME_TO_FS:
         raise ValueError(f"No registered filesystem for scheme: {scheme}")
 
-    try:
-        other = get_mount(mount_point)
-    except ValueError:
-        other = None
+    if mount_point:
+        try:
+            other = get_mount(mount_point)
+        except ValueError:
+            other = None
 
-    if other is not None and other.mount_point != mount_point:
-        raise ValueError(f"Cannot nest {mount_point} into existing mount point {other.mount_point}")
+        if other is not None and other.mount_point != mount_point:
+            raise ValueError(f"Cannot nest {mount_point} into existing mount point {other.mount_point}")
 
     fs = fs_type or SCHEME_TO_FS[scheme](conn_id)
+    source = fs._strip_protocol(source)
+    if not mount_point:
+        mount_point = source.lstrip("/") + "-" + str(uuid.uuid4())
 
-    MOUNTS[mount_point] = Mount(source=fs._strip_protocol(source), mount_point=mount_point, fs=fs)
+    mnt = Mount(source=source, mount_point=mount_point, fs=fs)
+    MOUNTS[mount_point] = mnt
+
+    return mnt
 
 
 def unmount(mount_point: str) -> None:
