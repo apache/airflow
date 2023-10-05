@@ -288,7 +288,7 @@ Setting up Breeze
 
    .. code-block:: bash
 
-      $ python -m pip install pipx packaging==23.1
+      $ python3 -m pip install pipx packaging==23.1
 
    Once the package is installed, execute the breeze command again. 
 
