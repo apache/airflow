@@ -54,7 +54,7 @@ def setup_connection():
             conn_id="opensearch_default",
             conn_type="opensearch",
             host="myopensearch.com",
-            login="test_usser",
+            login="test_user",
             password="test",
         )
     )

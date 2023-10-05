@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 from opensearchpy import Document, Keyword, Text
 
 from airflow.models import DAG
@@ -28,7 +29,7 @@ from airflow.utils.timezone import datetime
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
-MOCK_SEARCH_RETURN = {"status": "test"}
+EXPECTED_SEARCH_RETURN = {"status": "test"}
 
 
 class FakeDocument(Document):
@@ -40,14 +41,21 @@ class FakeDocument(Document):
         return super().save(**kwargs)
 
 
-class TestOpenSearchQueryOperator:
-    def setup_method(self):
-        args = {
+@pytest.fixture
+def dag_setup():
+    return DAG(
+        f"{TEST_DAG_ID}test_schedule_dag_once",
+        default_args={
             "owner": "airflow",
             "start_date": DEFAULT_DATE,
-        }
+        },
+        schedule="@once",
+    )
 
-        self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", default_args=args, schedule="@once")
+
+class TestOpenSearchQueryOperator:
+    def setup_method(self, dag_setup):
+        self.dag = dag_setup
 
         self.open_search = OpenSearchQueryOperator(
             task_id="test_opensearch_query_operator",
@@ -65,19 +73,15 @@ class TestOpenSearchQueryOperator:
 
     def test_search_query(self, mock_hook):
         result = self.open_search.execute({})
-        assert result == MOCK_SEARCH_RETURN
+        assert result == EXPECTED_SEARCH_RETURN
 
 
 class TestOpenSearchCreateIndexOperator:
     # This test does not test execute logic because there is only a redirect to the OpenSearch
     # client.
-    def setup_method(self):
-        args = {
-            "owner": "airflow",
-            "start_date": DEFAULT_DATE,
-        }
+    def setup_method(self, dag_setup):
 
-        self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", default_args=args, schedule="@once")
+        self.dag = dag_setup
 
         self.open_search = OpenSearchCreateIndexOperator(
             task_id="test_opensearch_query_operator", index_name="test_index", index_body={"test": 1}
@@ -90,13 +94,8 @@ class TestOpenSearchCreateIndexOperator:
 
 
 class TestOpenSearchAddDocumentOperator:
-    def setup_method(self):
-        args = {
-            "owner": "airflow",
-            "start_date": DEFAULT_DATE,
-        }
-
-        self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", default_args=args, schedule="@once")
+    def setup_method(self, dag_setup):
+        self.dag = dag_setup
 
         self.open_search = OpenSearchAddDocumentOperator(
             task_id="test_opensearch_doc_operator",
