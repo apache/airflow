@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime
 import sys
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, Any
 
 from airflow.utils.module_loading import qualname
 
@@ -72,7 +72,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(classname: str, version: int, data: object) -> Timezone | ZoneInfo:
+def deserialize(classname: str, version: int, data: object) -> Any:
     from pendulum.tz import fixed_timezone, timezone
 
     if not isinstance(data, (str, int)):
