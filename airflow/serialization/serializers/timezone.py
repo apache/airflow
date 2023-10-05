@@ -23,8 +23,6 @@ from typing import TYPE_CHECKING, Any, cast
 
 from airflow.utils.module_loading import qualname
 
-PY39 = sys.version_info >= (3, 9)
-
 if TYPE_CHECKING:
     from airflow.serialization.serde import U
 
