@@ -45,13 +45,6 @@ from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
 
-IO_KEY = "io"
-
-S3_ENDPOINT = "s3.endpoint"
-S3_ACCESS_KEY_ID = "s3.access-key-id"
-S3_SECRET_ACCESS_KEY = "s3.secret-access-key"
-S3_SESSION_TOKEN = "s3.session-token"
-S3_REGION = "s3.region"
 HDFS_HOST = "hdfs.host"
 HDFS_PORT = "hdfs.port"
 HDFS_USER = "hdfs.user"

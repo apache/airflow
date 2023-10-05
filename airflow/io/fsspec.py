@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""FileIO implementation for reading and writing table files that uses fsspec compatible filesystems."""
+"""FileIO implementation for reading and writing files that uses fsspec compatible filesystems."""
 import errno
 import logging
 import os
