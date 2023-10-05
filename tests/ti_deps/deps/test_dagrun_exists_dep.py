@@ -19,7 +19,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-from airflow.models import DAG, DagRun
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
 from airflow.utils.state import State
 

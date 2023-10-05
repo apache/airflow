@@ -69,7 +69,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -79,7 +79,7 @@ SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "test-id")
 DAG_ID = "example_sql_to_sheets"
 SQL = "select col2 from test_table"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule="@once",  # Override to match your needs

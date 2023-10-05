@@ -18,7 +18,7 @@
 """This module contains Google Dataproc Metastore operators."""
 from __future__ import annotations
 
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -700,7 +700,7 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
         the SDK.
         """
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-            sleep(time_to_wait)
+            time.sleep(time_to_wait)
             service = hook.get_service(
                 region=self.region,
                 project_id=self.project_id,
@@ -986,7 +986,7 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
         the SDK.
         """
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-            sleep(time_to_wait)
+            time.sleep(time_to_wait)
             service = hook.get_service(
                 region=self.region,
                 project_id=self.project_id,

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import collections
+import collections.abc
 import contextlib
 import copy
 import datetime
@@ -472,8 +472,8 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 .order_by(TaskInstance.task_id, TaskInstance.run_id)
             )
             # Group tis by run_id, and then map_index.
-            mapped_tis: Mapping[str, Mapping[int, list[TaskInstance]]] = collections.defaultdict(
-                lambda: collections.defaultdict(list),
+            mapped_tis: Mapping[str, Mapping[int, list[TaskInstance]]] = defaultdict(
+                lambda: defaultdict(list)
             )
             for ti in mapped_ti_query:
                 mapped_tis[ti.run_id][ti.map_index].append(ti)
@@ -494,7 +494,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 # TODO: This assumes TI map index has a one-to-one mapping to
                 # its parent mapped task group, which will not be true when we
                 # allow nested mapping in the future.
-                mapped_states: MutableMapping[str, int] = collections.defaultdict(int)
+                mapped_states: MutableMapping[str, int] = defaultdict(int)
                 for mis in mapped_instances.values():
                     child_states = {mi.state for mi in mis}
                     state = next(s for s in wwwutils.priority if s in child_states)
@@ -1215,11 +1215,9 @@ class Airflow(AirflowBaseView):
             )
         )
         data = get_task_stats_from_query(qry)
-        payload: dict[str, list[dict[str, Any]]] = collections.defaultdict(list)
-        for dag_id in filter_dag_ids:
-            for state in State.task_states:
-                count = data.get(dag_id, {}).get(state, 0)
-                payload[dag_id].append({"state": state, "count": count})
+        payload: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for dag_id, state in itertools.product(filter_dag_ids, State.task_states):
+            payload[dag_id].append({"state": state, "count": data.get(dag_id, {}).get(state, 0)})
         return flask.json.jsonify(payload)
 
     @expose("/last_dagruns", methods=["POST"])
@@ -3255,8 +3253,8 @@ class Airflow(AirflowBaseView):
             chart_attr=self.line_chart_attr,
         )
 
-        y_points: dict[str, list[float]] = collections.defaultdict(list)
-        x_points: dict[str, list[tuple[int]]] = collections.defaultdict(list)
+        y_points: dict[str, list[float]] = defaultdict(list)
+        x_points: dict[str, list[tuple[int]]] = defaultdict(list)
         for task in dag.tasks:
             task_id = task.task_id
             for ti in tis:

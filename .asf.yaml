@@ -24,7 +24,6 @@ github:
     - airflow
     - apache
     - apache-airflow
-    - hacktoberfest
     - python
     - scheduler
     - workflow

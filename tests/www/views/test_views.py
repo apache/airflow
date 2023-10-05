@@ -242,7 +242,9 @@ def test_mark_task_instance_state(test_app):
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
-    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+    from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
@@ -331,7 +333,9 @@ def test_mark_task_group_state(test_app):
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
-    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+    from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State

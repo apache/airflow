@@ -540,7 +540,7 @@ def test_expected_output_full_tests_needed(
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
                 "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
-                "mysql openlineage oracle postgres presto salesforce sftp ssh trino",
+                "mysql openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "needs-helm-tests": "false",
@@ -566,7 +566,7 @@ def test_expected_output_full_tests_needed(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.sql facebook google "
                 "hashicorp microsoft.azure microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce sftp ssh trino",
+                "presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
@@ -667,7 +667,7 @@ def test_expected_output_pull_request_v2_3(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
-                "openlineage oracle postgres presto salesforce sftp ssh trino",
+                "openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
@@ -691,6 +691,7 @@ def test_expected_output_pull_request_v2_3(
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
                 "--package-filter apache-airflow-providers-salesforce "
+                "--package-filter apache-airflow-providers-samba "
                 "--package-filter apache-airflow-providers-sftp "
                 "--package-filter apache-airflow-providers-ssh "
                 "--package-filter apache-airflow-providers-trino",
@@ -700,7 +701,7 @@ def test_expected_output_pull_request_v2_3(
                 "parallel-test-types-list-as-string": "Providers[amazon] Always CLI "
                 "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
-                "salesforce,sftp,ssh,trino] Providers[google]",
+                "salesforce,samba,sftp,ssh,trino] Providers[google]",
             },
             id="CLI tests and Google-related provider tests should run if cli/chart files changed",
         ),
@@ -987,6 +988,7 @@ def test_upgrade_to_newer_dependencies(
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
                 "--package-filter apache-airflow-providers-salesforce "
+                "--package-filter apache-airflow-providers-samba "
                 "--package-filter apache-airflow-providers-sftp "
                 "--package-filter apache-airflow-providers-ssh "
                 "--package-filter apache-airflow-providers-trino",
