@@ -299,21 +299,15 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         ):
             return dag_ids
 
+        def _is_permitted_dag_id(method: ResourceMethod, methods: Container[ResourceMethod], dag_id: str):
+            return method in methods and get_auth_manager().is_authorized_dag(
+                method=method, details=DagDetails(id=dag_id), user=user
+            )
+
         return {
             dag_id
             for dag_id in dag_ids
-            if (
-                "GET" in methods
-                and get_auth_manager().is_authorized_dag(
-                    method="GET", details=DagDetails(id=dag_id), user=user
-                )
-            )
-            or (
-                "PUT" in methods
-                and get_auth_manager().is_authorized_dag(
-                    method="PUT", details=DagDetails(id=dag_id), user=user
-                )
-            )
+            if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
         }
 
     def can_access_dags(self, user) -> bool:
