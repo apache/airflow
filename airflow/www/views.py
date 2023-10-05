@@ -3909,9 +3909,9 @@ class DagFilter(BaseFilter):
     """Filter using DagIDs."""
 
     def apply(self, query, func):
-        if get_auth_manager().is_authorized_dag(
-            method="GET", user=g.user
-        ) or get_auth_manager().is_authorized_dag(method="PUT", user=g.user):
+        if get_auth_manager().is_authorized_dag(method="GET", user=g.user):
+            return query
+        if get_auth_manager().is_authorized_dag(method="PUT", user=g.user):
             return query
         filter_dag_ids = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
         return query.where(self.model.dag_id.in_(filter_dag_ids))

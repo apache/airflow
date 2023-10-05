@@ -644,8 +644,4 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         if not perms:
             return True
 
-        for perm in perms:
-            if not self.has_access(*perm):
-                return False
-
-        return True
+        return all(self.has_access(*perm) for perm in perms)

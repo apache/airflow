@@ -74,12 +74,8 @@ def init_jinja_globals(app):
         }
 
         # Extra global specific to auth manager
-        extra_globals.update(
-            {
-                "auth_manager": get_auth_manager(),
-                "DagDetails": DagDetails,
-            }
-        )
+        extra_globals["auth_manager"] = get_auth_manager()
+        extra_globals["DagDetails"] = DagDetails
 
         backends = conf.get("api", "auth_backends")
         if backends and backends[0] != "airflow.api.auth.backend.deny_all":
