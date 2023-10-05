@@ -26,7 +26,6 @@ import logging
 import os
 import sys
 import traceback
-import warnings
 from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
@@ -736,96 +735,13 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             provider_uses_connection_types = True
         return provider_uses_connection_types
 
-    def _discover_hooks_from_hook_class_names(
-        self,
-        hook_class_names_registered: set[str],
-        already_registered_warning_connection_types: set[str],
-        package_name: str,
-        provider: ProviderInfo,
-        provider_uses_connection_types: bool,
-    ):
-        """
-        Discover hooks from "hook-class-names' property.
-
-        This property is deprecated but we should support it in Airflow 2.
-        The hook-class-names array contained just Hook names without connection type,
-        therefore we need to import all those classes immediately to know which connection types
-        are supported. This makes it impossible to selectively only import those hooks that are used.
-        :param already_registered_warning_connection_types: list of connection hooks that we should warn
-            about when finished discovery
-        :param package_name: name of the provider package
-        :param provider: class that keeps information about version and details of the provider
-        :param provider_uses_connection_types: determines whether the provider uses "connection-types" new
-           form of passing connection types
-        :return:
-        """
-        hook_class_names = provider.data.get("hook-class-names")
-        if hook_class_names:
-            for hook_class_name in hook_class_names:
-                if hook_class_name in hook_class_names_registered:
-                    # Silently ignore the hook class - it's already marked for lazy-import by
-                    # connection-types discovery
-                    continue
-                hook_info = self._import_hook(
-                    connection_type=None,
-                    provider_info=provider,
-                    hook_class_name=hook_class_name,
-                    package_name=package_name,
-                )
-                if not hook_info:
-                    # Problem why importing class - we ignore it. Log is written at import time
-                    continue
-                already_registered = self._hook_provider_dict.get(hook_info.connection_type)
-                if already_registered:
-                    if already_registered.package_name != package_name:
-                        already_registered_warning_connection_types.add(hook_info.connection_type)
-                    else:
-                        if already_registered.hook_class_name != hook_class_name:
-                            log.warning(
-                                "The hook connection type '%s' is registered twice in the"
-                                " package '%s' with different class names: '%s' and '%s'. "
-                                " Please fix it!",
-                                hook_info.connection_type,
-                                package_name,
-                                already_registered.hook_class_name,
-                                hook_class_name,
-                            )
-                else:
-                    self._hook_provider_dict[hook_info.connection_type] = HookClassProvider(
-                        hook_class_name=hook_class_name, package_name=package_name
-                    )
-                    self._hooks_lazy_dict[hook_info.connection_type] = hook_info
-
-            if not provider_uses_connection_types:
-                warnings.warn(
-                    f"The provider {package_name} uses `hook-class-names` "
-                    "property in provider-info and has no `connection-types` one. "
-                    "The 'hook-class-names' property has been deprecated in favour "
-                    "of 'connection-types' in Airflow 2.2. Use **both** in case you want to "
-                    "have backwards compatibility with Airflow < 2.2",
-                    DeprecationWarning,
-                )
-        for already_registered_connection_type in already_registered_warning_connection_types:
-            log.warning(
-                "The connection_type '%s' has been already registered by provider '%s.'",
-                already_registered_connection_type,
-                self._hook_provider_dict[already_registered_connection_type].package_name,
-            )
-
     def _discover_hooks(self) -> None:
         """Retrieve all connections defined in the providers via Hooks."""
         for package_name, provider in self._provider_dict.items():
             duplicated_connection_types: set[str] = set()
             hook_class_names_registered: set[str] = set()
-            provider_uses_connection_types = self._discover_hooks_from_connection_types(
+            self._discover_hooks_from_connection_types(
                 hook_class_names_registered, duplicated_connection_types, package_name, provider
-            )
-            self._discover_hooks_from_hook_class_names(
-                hook_class_names_registered,
-                duplicated_connection_types,
-                package_name,
-                provider,
-                provider_uses_connection_types,
             )
         self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
 
