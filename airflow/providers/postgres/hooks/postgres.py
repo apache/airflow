@@ -320,6 +320,21 @@ class PostgresHook(DbApiHook):
 
         return sql
 
+    def ingest_embedding(
+        self, table: str, input_data: list[str], embeddings: list[float], vector_size: int
+    ) -> None:
+        from pgvector.psycopg import register_vector
+
+        self.conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+        register_vector(self.conn)
+        self.conn.execute(
+            "CREATE TABLE %s (id bigserial PRIMARY KEY, content text, embedding vector(%s))",
+            (table, vector_size),
+        )
+
+        for content, embedding in zip(input_data, embeddings):
+            self.execute("INSERT INTO %s (content, embedding) VALUES (%s, %s)", (table, content, embedding))
+
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
         """Returns Postgres/Redshift specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
