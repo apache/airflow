@@ -717,7 +717,6 @@ class AirflowConfigParser(ConfigParser):
     def validate(self):
         self._validate_sqlite3_version()
         self._validate_enums()
-        self._validate_max_tis_per_query()
 
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
@@ -738,26 +737,6 @@ class AirflowConfigParser(ConfigParser):
         self._upgrade_auth_backends()
         self._upgrade_postgres_metastore_conn()
         self.is_validated = True
-
-    def _validate_max_tis_per_query(self) -> None:
-        """
-        Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
-
-        If not met, a warning message is printed to guide the user to correct it.
-
-        More info: https://github.com/apache/airflow/pull/32572
-        """
-        max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
-        parallelism = self.getint("core", "parallelism")
-
-        if max_tis_per_query > parallelism:
-            warnings.warn(
-                f"Config scheduler.max_tis_per_query (value: {max_tis_per_query}) "
-                f"should NOT be greater than core.parallelism (value: {parallelism}). "
-                "Will now use core.parallelism as the max task instances per query "
-                "instead of specified value.",
-                UserWarning,
-            )
 
     def _upgrade_auth_backends(self):
         """
