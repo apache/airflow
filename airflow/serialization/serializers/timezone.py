@@ -26,8 +26,6 @@ from airflow.utils.module_loading import qualname
 PY39 = sys.version_info >= (3, 9)
 
 if TYPE_CHECKING:
-    from pendulum.tz.timezone import Timezone
-
     from airflow.serialization.serde import U
 
 
