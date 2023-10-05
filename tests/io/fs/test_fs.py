@@ -46,6 +46,7 @@ class TestFs:
         assert isinstance(fs.get_fs("/mnt/warehouse"), S3FileSystem)
         assert fs.get_mount(MNT).replace_mount_point(FOO) == "warehouse/foo"
 
+
         fs.unmount(MNT)
 
     def test_mount_without_mountpoint(self):
@@ -53,6 +54,7 @@ class TestFs:
 
         assert isinstance(mnt.fs, S3FileSystem)
         assert mnt.replace_mount_point("/foo") == "warehouse/foo"
+        assert mnt / "foo" == os.path.join(mnt.mount_point, "foo")
 
         fs.unmount(mnt.mount_point)
 

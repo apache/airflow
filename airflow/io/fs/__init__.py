@@ -60,6 +60,12 @@ class Mount(PathLike):
     def __fspath__(self):
         return self.mount_point
 
+    def __str__(self):
+        return self.mount_point
+
+    def __truediv__(self, other):
+        return os.path.join(self.mount_point, other.lstrip(os.sep))
+
     def __getattr__(self, item):
         return functools.partial(self.wrap, item)
 
