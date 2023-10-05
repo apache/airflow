@@ -202,13 +202,16 @@ def mount(
     return mnt
 
 
-def unmount(mount_point: str) -> None:
+def unmount(mount_point: str | Mount) -> None:
     """
     Unmount a filesystem or object storage from a mount point.
 
     :param mount_point: the mount point to unmount
     :type mount_point: str
     """
+    if isinstance(mount_point, Mount):
+        mount_point = mount_point.mount_point
+
     if mount_point not in MOUNTS:
         raise ValueError(f"Mount point {mount_point} not mounted")
 

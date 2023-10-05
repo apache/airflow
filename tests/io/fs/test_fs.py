@@ -56,7 +56,7 @@ class TestFs:
         assert mnt.replace_mount_point("/foo") == "warehouse/foo"
         assert mnt / "foo" == os.path.join(mnt.mount_point, "foo")
 
-        fs.unmount(mnt.mount_point)
+        fs.unmount(mnt)
 
     def test_unmount(self):
         fs.mount("s3://warehouse/", MNT)
