@@ -282,6 +282,16 @@ Setting up Breeze
 
   $ breeze setup autocomplete
 
+.. note::
+   If you encounter an error like "ModuleNotFoundError: No module named 'airflow_breeze.params'",
+   you may execute the following command to install the specific packaging version:
+
+   .. code-block:: bash
+
+      $ python -m pip install pipx packaging==23.1
+
+   Once the package is installed, execute the breeze command again. 
+
 4. Initialize breeze environment with required python version and backend. This may take a while for first time.
 
 .. code-block:: bash
