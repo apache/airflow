@@ -88,7 +88,7 @@ def deserialize(classname: str, version: int, data: object) -> Any:
     if "zoneinfo.ZoneInfo" in classname:
         try:
             from zoneinfo import ZoneInfo
-        except ImportError
+        except ImportError:
             from backports.zoneinfo import ZoneInfo
 
         return ZoneInfo(data)
