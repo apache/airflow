@@ -28,7 +28,7 @@ from moto import mock_glue, mock_iam
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import GlueDataBrewHook, GlueJobHook
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -477,3 +477,15 @@ class TestGlueJobHook:
             await hook.async_job_completion("job_name", "run_id")
 
         assert get_state_mock.call_count == 3
+
+
+class TestGlueDataBrewHook:
+    job_name = "test-databrew-job"
+    runId = "test12345"
+
+    @mock.patch.object(GlueDataBrewHook, "get_job_state")
+    def test_get_job_state(self, get_job_state_mock: MagicMock):
+        get_job_state_mock.return_value = "SUCCEEDED"
+        hook = GlueDataBrewHook()
+        result = hook.get_job_state(self.job_name, self.runId)
+        assert result == "SUCCEEDED"

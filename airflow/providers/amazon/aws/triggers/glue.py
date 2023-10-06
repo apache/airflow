@@ -21,7 +21,7 @@ import asyncio
 from functools import cached_property
 from typing import Any, AsyncIterator
 
-from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import GlueDataBrewHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -148,3 +148,60 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
                     break
                 else:
                     await asyncio.sleep(self.waiter_delay)
+
+
+class GlueDataBrewJobCompleteTrigger(BaseTrigger):
+    """
+    Watches for a Glue DataBrew job, triggers when it finishes.
+
+    :param job_name: Glue DataBrew job name
+    :param run_id: the ID of the specific run to watch for that job
+    :param delay: Number of seconds to wait between two checks. Default is 10 seconds.
+    :param maxAttempts: Maximum number of attempts to wait for the job to complete. Default is 60 attempts.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        job_name: str,
+        run_id: str,
+        aws_conn_id: str,
+        delay: int = 10,
+        maxAttempts: int = 60,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.job_name = job_name
+        self.run_id = run_id
+        self.aws_conn_id = aws_conn_id
+        self.delay = delay
+        self.maxAttempts = maxAttempts
+
+    @property
+    def hook(self) -> GlueDataBrewHook:
+        return GlueDataBrewHook(aws_conn_id=self.aws_conn_id)
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            # dynamically generate the fully qualified name of the class
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
+            {
+                "job_name": self.job_name,
+                "run_id": self.run_id,
+                "aws_conn_id": self.aws_conn_id,
+                "delay": self.delay,
+                "maxAttempts": self.maxAttempts,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        async with self.hook.async_conn as client:
+            waiter = self.hook.get_waiter("job_complete", deferrable=True, client=client)
+            await waiter.wait(
+                Name=self.job_name,
+                RunId=self.run_id,
+                WaiterConfig={"Delay": self.delay, "maxAttempts": self.maxAttempts},
+            )
+
+        result = self.hook.get_job_state(self.job_name, self.run_id)
+        yield TriggerEvent({"status": result, "RunId": self.run_id, "JobName": self.job_name})
