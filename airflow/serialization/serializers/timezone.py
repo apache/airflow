@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import sys
 from typing import TYPE_CHECKING, Any, cast
 
 from airflow.utils.module_loading import qualname
