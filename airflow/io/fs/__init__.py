@@ -21,6 +21,7 @@ import os.path
 import uuid
 from dataclasses import dataclass
 from os import PathLike
+from pathlib import PurePath, PurePosixPath
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
@@ -58,14 +59,25 @@ class Mount(PathLike):
 
         return getattr(self.fs, method)(path, *args[1:], **kwargs)
 
-    def __fspath__(self):
-        return self.mount_point
-
     def __str__(self):
         return self.mount_point
 
+    def __fspath__(self):
+        return self.__str__()
+
+    def __enter__(self):
+        return self.fs
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        unmount(self.mount_point)
+
     def __truediv__(self, other):
-        return os.path.join(self.mount_point, other.lstrip(os.sep))
+        # if local we can run on nt or posix
+        if self.fs.fsid == "local":
+            return PurePath(self.mount_point) / other
+
+        # if remote we assume posix
+        return PurePosixPath(self.mount_point) / other
 
     def __getattr__(self, item):
         return functools.partial(self.wrap, item)
