@@ -435,11 +435,6 @@ class GlueDataBrewHook(AwsBaseHook):
         - :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    TERMINAL_STATES = ["STOPPED", "SUCCEEDED", "FAILED", "TIMEOUT"]
-    SUCCESS_STATES = ["SUCCEEDED"]
-    FAILURE_STATES = ["FAILED", "TIMEOUT"]
-    RUNNING_STATES = ["STARTING", "RUNNING", "STOPPING"]
-
     def __init__(self, *args, **kwargs):
         kwargs["client_type"] = "databrew"
         super().__init__(*args, **kwargs)
