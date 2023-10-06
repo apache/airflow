@@ -51,7 +51,7 @@ def _file(_: str | None) -> LocalFileSystem:
 
 
 # always support local file systems
-SCHEME_TO_FS = {
+SCHEME_TO_FS: dict[str, Callable] = {
     "file": _file,
 }
 
@@ -64,7 +64,11 @@ def _register_schemes() -> None:
             for scheme in getattr(fs_module, "schemes", []):
                 if scheme in SCHEME_TO_FS:
                     log.warning("Overriding scheme %s for %s", scheme, fs_module_name)
-                SCHEME_TO_FS[scheme] = getattr(fs_module, "get_fs", None)
+
+                method = getattr(fs_module, "get_fs", None)
+                if method is None:
+                    raise ImportError(f"Filesystem {fs_module_name} does not have a get_fs method")
+                SCHEME_TO_FS[scheme] = method
 
     log.debug("loading filesystems from providers took %.3f seconds", timer.duration)
 

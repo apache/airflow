@@ -101,7 +101,11 @@ def get_mount(path: str) -> Mount:
     if mount_point is None:
         raise ValueError(f"No mount point found for path: {path}")
 
-    return MOUNTS.get(mount_point)
+    mnt = MOUNTS.get(mount_point)
+    if mnt is None:
+        raise ValueError(f"Mount point {mount_point} not mounted")
+
+    return mnt
 
 
 def _replace_mount_point(path: str) -> str:

@@ -18,18 +18,20 @@ from __future__ import annotations
 
 import logging
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict
 
 import requests
 from botocore import UNSIGNED
 from requests import HTTPError
 
-from airflow.io import TOKEN, Properties
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 if TYPE_CHECKING:
     from botocore.awsrequest import AWSRequest
     from fsspec import AbstractFileSystem
+
+
+Properties = Dict[str, str]
 
 S3_PROXY_URI = "s3.proxy-uri"
 
@@ -55,7 +57,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     if conn_id is None:
         return S3FileSystem()
 
-    aws = AwsGenericHook(aws_conn_id=conn_id)
+    aws: AwsGenericHook = AwsGenericHook(aws_conn_id=conn_id)
 
     client_kwargs = {
         "endpoint_url": aws.conn_config.endpoint_url,
@@ -70,9 +72,14 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     if signer := aws.conn_config.extra_config.get("s3.signer"):
         log.info("Loading signer %s", signer)
         if singer_func := SIGNERS.get(signer):
+            uri = aws.conn_config.extra_config.get("s3.signer_uri")
+            token = aws.conn_config.extra_config.get("s3.signer_token")
+            if not uri or not token:
+                raise ValueError(f"Signer {signer} requires uri and token")
+
             properties: Properties = {
-                "uri": aws.conn_config.extra_config.get("s3.signer_uri"),
-                TOKEN: aws.conn_config.extra_config.get("s3.signer_token"),
+                "uri": uri,
+                "token": uri,
             }
             singer_func_with_properties = partial(singer_func, properties)
             register_events["before-sign.s3"] = singer_func_with_properties
@@ -94,11 +101,11 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
 
 
 def s3v4_rest_signer(properties: Properties, request: AWSRequest, **_: Any) -> AWSRequest:
-    if TOKEN not in properties:
+    if "token" not in properties:
         raise SignError("Signer set, but token is not available")
 
     signer_url = properties["uri"].rstrip("/")
-    signer_headers = {"Authorization": f"Bearer {properties[TOKEN]}"}
+    signer_headers = {"Authorization": f"Bearer {properties['token']}"}
     signer_body = {
         "method": request.method,
         "region": request.context["client_region"],

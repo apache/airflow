@@ -409,6 +409,7 @@
       "gcloud-aio-auth>=4.0.0,<5.0.0",
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage",
+      "gcsfs",
       "google-ads>=21.2.0",
       "google-api-core>=2.11.0",
       "google-api-python-client>=1.6.0",
@@ -550,6 +551,7 @@
   "microsoft.azure": {
     "deps": [
       "adal>=1.2.7",
+      "adlfs",
       "apache-airflow>=2.5.0",
       "azure-batch>=8.0.0",
       "azure-cosmos>=4.0.0",

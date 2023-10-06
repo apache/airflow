@@ -34,6 +34,7 @@ from io import SEEK_SET
 from types import TracebackType
 from typing import (
     Dict,
+    Optional,
     Protocol,
     runtime_checkable,
 )
@@ -48,7 +49,7 @@ HDFS_KERB_TICKET = "hdfs.kerberos_ticket"
 
 TOKEN = "token"
 
-Properties = Dict[str, str]
+Properties = Dict[str, Optional[str]]
 
 
 @runtime_checkable
