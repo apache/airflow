@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 def _require_fab(func: Callable) -> Callable:
     """
-    Raise an HTTP error 400 if the provider is not FAB.
+    Raise an HTTP error 400 if the auth manager is not FAB.
 
     Intended to decorate endpoints that have been migrated from Airflow API to FAB API.
     """
