@@ -1439,9 +1439,14 @@ class TestSchedulerJob:
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         assert 2 == len(res)
 
-        mock_emit_metric.assert_called_once()
-        assert mock_emit_metric.call_args.args[0].task_id == task1.task_id
-        assert mock_emit_metric.call_args.args[1] == TaskInstanceState.QUEUED
+        assert mock_emit_metric.call_count == 2
+        first_call_args = mock_emit_metric.call_args_list[0]
+        assert first_call_args.args[0].task_id == task1.task_id
+        assert first_call_args.args[1] == TaskInstanceState.QUEUED
+
+        second_call_args = mock_emit_metric.call_args_list[0]
+        assert second_call_args.args[0].task_id == task2.task_id
+        assert second_call_args.args[1] == TaskInstanceState.QUEUED
 
         session.rollback()
         session.close()
