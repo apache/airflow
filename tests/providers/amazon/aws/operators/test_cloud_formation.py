@@ -20,6 +20,8 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
+
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.cloud_formation import (
     CloudFormationCreateStackOperator,
@@ -31,19 +33,14 @@ DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 DEFAULT_ARGS = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
 
+@pytest.fixture
+def mocked_hook_client():
+    with mock.patch("airflow.providers.amazon.aws.hooks.cloud_formation.CloudFormationHook.conn") as m:
+        yield m
+
+
 class TestCloudFormationCreateStackOperator:
-    def setup_method(self):
-        # Mock out the cloudformation_client (moto fails with an exception).
-        self.cloudformation_client_mock = MagicMock()
-
-        # Mock out the emr_client creator
-        cloudformation_session_mock = MagicMock()
-        cloudformation_session_mock.client.return_value = self.cloudformation_client_mock
-        self.boto3_session_mock = MagicMock(return_value=cloudformation_session_mock)
-
-        self.mock_context = MagicMock()
-
-    def test_create_stack(self):
+    def test_create_stack(self, mocked_hook_client):
         stack_name = "myStack"
         timeout = 15
         template_body = "My stack body"
@@ -55,30 +52,15 @@ class TestCloudFormationCreateStackOperator:
             dag=DAG("test_dag_id", default_args=DEFAULT_ARGS),
         )
 
-        with mock.patch("boto3.session.Session", self.boto3_session_mock), mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            operator.execute(self.mock_context)
+        operator.execute(MagicMock())
 
-        self.cloudformation_client_mock.create_stack.assert_any_call(
+        mocked_hook_client.create_stack.assert_any_call(
             StackName=stack_name, TemplateBody=template_body, TimeoutInMinutes=timeout
         )
 
 
 class TestCloudFormationDeleteStackOperator:
-    def setup_method(self):
-        # Mock out the cloudformation_client (moto fails with an exception).
-        self.cloudformation_client_mock = MagicMock()
-
-        # Mock out the emr_client creator
-        cloudformation_session_mock = MagicMock()
-        cloudformation_session_mock.client.return_value = self.cloudformation_client_mock
-        self.boto3_session_mock = MagicMock(return_value=cloudformation_session_mock)
-
-        self.mock_context = MagicMock()
-
-    def test_delete_stack(self):
+    def test_delete_stack(self, mocked_hook_client):
         stack_name = "myStackToBeDeleted"
 
         operator = CloudFormationDeleteStackOperator(
@@ -87,10 +69,6 @@ class TestCloudFormationDeleteStackOperator:
             dag=DAG("test_dag_id", default_args=DEFAULT_ARGS),
         )
 
-        with mock.patch("boto3.session.Session", self.boto3_session_mock), mock.patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            operator.execute(self.mock_context)
+        operator.execute(MagicMock())
 
-        self.cloudformation_client_mock.delete_stack.assert_any_call(StackName=stack_name)
+        mocked_hook_client.delete_stack.assert_any_call(StackName=stack_name)

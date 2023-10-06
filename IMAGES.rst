@@ -22,20 +22,20 @@ Airflow Docker images
 
 Airflow has two main images (build from Dockerfiles):
 
-  * Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation
+  * Production image (Dockerfile) - that can be used to build your own production-ready Airflow installation.
     You can read more about building and using the production image in the
     `Docker stack <https://airflow.apache.org/docs/docker-stack/index.html>`_ documentation.
-    The image is built using `Dockerfile <Dockerfile>`_
+    The image is built using `Dockerfile <Dockerfile>`_.
 
   * CI image (Dockerfile.ci) - used for running tests and local development. The image is built using
-    `Dockerfile.ci <Dockerfile.ci>`_
+    `Dockerfile.ci <Dockerfile.ci>`_.
 
 PROD image
 -----------
 
 The PROD image is a multi-segment image. The first segment "airflow-build-image" contains all the
 build essentials and related dependencies that allow to install airflow locally. By default the image is
-build from a released version of Airflow from GitHub, but by providing some extra arguments you can also
+built from a released version of Airflow from GitHub, but by providing some extra arguments you can also
 build it from local sources. This is particularly useful in CI environment where we are using the image
 to run Kubernetes tests. See below for the list of arguments that should be provided to build
 production image from the local sources.
@@ -65,16 +65,16 @@ The easy way to build the CI/PROD images is to use `<BREEZE.rst>`_. It uses a nu
 and caches to build it efficiently and fast when you are developing Airflow and need to update to
 latest version.
 
-CI image, airflow package is always built from sources. When you execute the image, you can however use
+For CI image: Airflow package is always built from sources. When you execute the image, you can however use
 the ``--use-airflow-version`` flag (or ``USE_AIRFLOW_VERSION`` environment variable) to remove
 the preinstalled source version of Airflow and replace it with one of the possible installation methods:
 
-* "none" airflow is removed and not installed
-* "wheel" airflow is removed and replaced with "wheel" version available in dist
-* "sdist" airflow is removed and replaced with "sdist" version available in dist
-* "<VERSION>" airflow is removed and installed from PyPI (with the specified version)
+* "none" - airflow is removed and not installed
+* "wheel" - airflow is removed and replaced with "wheel" version available in dist
+* "sdist" - airflow is removed and replaced with "sdist" version available in dist
+* "<VERSION>" - airflow is removed and installed from PyPI (with the specified version)
 
-For PROD image by default production image is built from the latest sources when using Breeze, but when
+For PROD image: By default production image is built from the latest sources when using Breeze, but when
 you use it via docker build command, it uses the latest installed version of airflow and providers.
 However, you can choose different installation methods as described in
 `Building PROD docker images from released PIP packages <#building-prod-docker-images-from-released-packages>`_.
@@ -96,7 +96,7 @@ You can build the PROD image using current sources with this command:
 By adding ``--python <PYTHON_MAJOR_MINOR_VERSION>`` parameter you can build the
 image version for the chosen Python version.
 
-The images are build with default extras - different extras for CI and production image and you
+The images are built with default extras - different extras for CI and production image and you
 can change the extras via the ``--extras`` parameters and add new ones with ``--additional-extras``.
 
 For example if you want to build Python 3.8 version of production image with
@@ -187,7 +187,7 @@ For Production Image - which is far smaller and faster to build, it's better to 
 standard mechanism that docker uses. This is the default strategy for production images when
 `<BREEZE.rst>`_ builds are performed. The first time you run it, it will take considerably longer time than
 if you use the pull mechanism, but then when you do small, incremental changes to local sources,
-Dockerfile image= and scripts further rebuilds with local build cache will be considerably faster.
+Dockerfile image and scripts, further rebuilds with local build cache will be considerably faster.
 
 You can also disable build cache altogether. This is the strategy used by the scheduled builds in CI - they
 will always rebuild all the images from scratch.
