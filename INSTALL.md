@@ -44,9 +44,6 @@ from your system wide versions**
 
       pip install .
 
-**Or directly**
-
-      python setup.py install
 
 **You can also install recommended version of the dependencies by using
 constraint- ```python<PYTHON_MAJOR_MINOR_VERSION>.txt``` files as constraint file. This is needed in case
