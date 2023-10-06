@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
+Misc
+~~~~
+
+.. note::
+  In PR #34790 we removed the unused argument ``metadata`` from method ``es_read``.  We determined that ``es_read``
+  is an internal method and therefore not subject to backcompat, so we did not bump major version for this provider.
+  In order to make clearer that this is an internal method we renamed it with an underscore prefix ``_es_read``.
+
 .. note::
   Upgrade to Elasticsearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use Elasticsearch 8 package.
   As explained https://elasticsearch-py.readthedocs.io/en/stable , Elasticsearch language clients are only backwards
