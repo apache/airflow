@@ -36,7 +36,7 @@ paths:
       description: |
         Get a list of roles.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
       operationId: get_roles
       tags: [Role]
@@ -61,7 +61,7 @@ paths:
       description: |
         Create a new role.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
       operationId: post_role
       tags: [Role]
@@ -94,7 +94,7 @@ paths:
       description: |
         Get a role.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
       operationId: get_role
       tags: [Role]
@@ -117,7 +117,7 @@ paths:
       description: |
         Update a role.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
       operationId: patch_role
       tags: [Role]
@@ -151,7 +151,7 @@ paths:
       description: |
         Delete a role.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
       operationId: delete_role
       tags: [Role]
@@ -173,7 +173,7 @@ paths:
       description: |
         Get a list of permissions.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.role_and_permission_endpoint
       operationId: get_permissions
       tags: [Permission]
@@ -198,7 +198,7 @@ paths:
       description: |
         Get a list of users.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
       operationId: get_users
       tags: [User]
@@ -223,7 +223,7 @@ paths:
       description: |
         Create a new user with unique username and email.
 
-        *New in version 2.2.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
       operationId: post_user
       tags: [User]
@@ -257,7 +257,7 @@ paths:
       description: |
         Get a user with a specific username.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
       operationId: get_user
       tags: [User]
@@ -280,7 +280,7 @@ paths:
       description: |
         Update fields for a user.
 
-        *New in version 2.2.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
       operationId: patch_user
       tags: [User]
@@ -313,7 +313,7 @@ paths:
       description: |
         Delete a user with a specific username.
 
-        *New in version 2.2.0*
+        *New in version 2.8.0*
       x-openapi-router-controller: airflow.auth.managers.fab.api_endpoints.user_endpoint
       operationId: delete_user
       tags: [User]
@@ -337,34 +337,26 @@ components:
       description: |
         A user object.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       type: object
       properties:
         first_name:
           type: string
           description: |
             The user's first name.
-
-            *Changed in version 2.4.0*&#58; The requirement for this to be non-empty was removed.
         last_name:
           type: string
           description: |
             The user's last name.
-
-            *Changed in version 2.4.0*&#58; The requirement for this to be non-empty was removed.
         username:
           type: string
           description: |
             The username.
-
-            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
           minLength: 1
         email:
           type: string
           description: |
             The user's email.
-
-            *Changed in version 2.2.0*&#58; A minimum character length requirement ('minLength') is added.
           minLength: 1
         active:
           type: boolean
@@ -391,8 +383,6 @@ components:
           type: array
           description: |
             User roles.
-
-            *Changed in version 2.2.0*&#58; Field is no longer read-only.
           items:
             type: object
             properties:
@@ -416,7 +406,7 @@ components:
       description: |
         A user object with sensitive data.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       allOf:
         - $ref: '#/components/schemas/UserCollectionItem'
         - type: object
@@ -430,7 +420,7 @@ components:
       description: |
         Collection of users.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       allOf:
         - type: object
           properties:
@@ -444,15 +434,13 @@ components:
       description: |
         a role item.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       type: object
       properties:
         name:
           type: string
           description: |
             The name of the role
-
-            *Changed in version 2.3.0*&#58; A minimum character length requirement ('minLength') is added.
           minLength: 1
         actions:
           type: array
@@ -463,7 +451,7 @@ components:
       description: |
         A collection of roles.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       type: object
       allOf:
         - type: object
@@ -478,7 +466,7 @@ components:
       description: |
         An action Item.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       type: object
       properties:
         name:
@@ -490,7 +478,7 @@ components:
       description: |
         A collection of actions.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       type: object
       allOf:
         - type: object
@@ -505,7 +493,7 @@ components:
       description: |
         A resource on which permissions are granted.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       type: object
       properties:
         name:
@@ -517,7 +505,7 @@ components:
       description: |
         The Action-Resource item.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
       type: object
       properties:
         action:
@@ -602,7 +590,7 @@ components:
       description: |
         The username of the user.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
     RoleName:
       in: path
       name: role_name
@@ -621,7 +609,7 @@ components:
         The name of the field to order the results by.
         Prefix a field name with `-` to reverse the sort order.
 
-        *New in version 2.1.0*
+        *New in version 2.8.0*
 
     UpdateMask:
       in: query
