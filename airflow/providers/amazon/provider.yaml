@@ -88,7 +88,6 @@ dependencies:
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
-  - s3fs
   - asgiref
 
 integrations:
@@ -740,6 +739,9 @@ additional-extras:
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
+  - name: s3fs
+    dependencies:
+      - s3fs
 
 config:
   aws:

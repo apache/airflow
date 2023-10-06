@@ -80,7 +80,7 @@ class Mount(PathLike):
         return new_path
 
 
-MOUNTS: dict[str:Mount] = {}
+MOUNTS: dict[str, Mount] = {}
 
 
 def get_mount(path: str) -> Mount:

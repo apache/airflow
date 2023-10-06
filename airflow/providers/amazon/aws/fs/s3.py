@@ -14,20 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 from functools import partial
-from typing import Dict, Callable, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import requests
+from botocore import UNSIGNED
 from requests import HTTPError
 
-from botocore import UNSIGNED
-from botocore.awsrequest import AWSRequest
-
-from fsspec import AbstractFileSystem
-
-from airflow.io import Properties, TOKEN
+from airflow.io import TOKEN, Properties
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+
+if TYPE_CHECKING:
+    from botocore.awsrequest import AWSRequest
+    from fsspec import AbstractFileSystem
 
 S3_PROXY_URI = "s3.proxy-uri"
 
@@ -41,8 +43,19 @@ class SignError(Exception):
 
 
 def get_fs(conn_id: str | None) -> AbstractFileSystem:
+    try:
+        from s3fs import S3FileSystem
+    except ImportError:
+        raise ImportError(
+            "Airflow FS S3 protocol requires the s3fs library, but it is not installed as it requires"
+            "aiobotocore. Please install the s3 protocol support library by running: "
+            "pip install apache-airflow[s3]"
+        )
+
+    if conn_id is None:
+        return S3FileSystem()
+
     aws = AwsGenericHook(aws_conn_id=conn_id)
-    from s3fs import S3FileSystem
 
     client_kwargs = {
         "endpoint_url": aws.conn_config.endpoint_url,
@@ -52,7 +65,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
         "region_name": aws.conn_config.region_name,
     }
     config_kwargs = {}
-    register_events: Dict[str, Callable[[Properties], None]] = {}
+    register_events: dict[str, Callable[[Properties], None]] = {}
 
     if signer := aws.conn_config.extra_config.get("s3.signer"):
         log.info("Loading signer %s", signer)
@@ -108,4 +121,4 @@ def s3v4_rest_signer(properties: Properties, request: AWSRequest, **_: Any) -> A
     return request
 
 
-SIGNERS: Dict[str, Callable[[Properties, AWSRequest], AWSRequest]] = {"S3V4RestSigner": s3v4_rest_signer}
+SIGNERS: dict[str, Callable[[Properties, AWSRequest], AWSRequest]] = {"S3V4RestSigner": s3v4_rest_signer}

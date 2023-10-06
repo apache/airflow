@@ -14,17 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from fsspec import AbstractFileSystem
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import get_field
 
+if TYPE_CHECKING:
+    from fsspec import AbstractFileSystem
 
 schemes = ["abfs", "abfss", "adl"]
 
 
 def get_fs(conn_id: str | None) -> AbstractFileSystem:
     from adlfs import AzureBlobFileSystem
+
+    if conn_id is None:
+        return AzureBlobFileSystem()
 
     conn = BaseHook.get_connection(conn_id)
     extras = conn.extra_dejson

@@ -14,9 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from fsspec import AbstractFileSystem
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from fsspec import AbstractFileSystem
 
 GCS_TOKEN = "gcs.oauth2.token"
 GCS_TOKEN_EXPIRES_AT_MS = "gcs.oauth2.token-expires-at"
@@ -37,6 +42,9 @@ schemes = ["gs", "gcs"]
 def get_fs(conn_id: str | None) -> AbstractFileSystem:
     # https://gcsfs.readthedocs.io/en/latest/api.html#gcsfs.core.GCSFileSystem
     from gcsfs import GCSFileSystem
+
+    if conn_id is None:
+        return GCSFileSystem()
 
     g = GoogleBaseHook(gcp_conn_id=conn_id)
     creds = g.get_credentials()
