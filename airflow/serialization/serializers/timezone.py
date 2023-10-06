@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import sys
 from typing import TYPE_CHECKING, Any, cast
 
 from airflow.utils.module_loading import qualname
@@ -29,9 +30,14 @@ if TYPE_CHECKING:
 serializers = [
     "pendulum.tz.timezone.FixedTimezone",
     "pendulum.tz.timezone.Timezone",
-    "zoneinfo.ZoneInfo",
-    "backports.zoneinfo.ZoneInfo",
 ]
+
+PY39 = sys.version_info >= (3, 9)
+
+if PY39:
+    serializers.append("zoneinfo.ZoneInfo")
+else:
+    serializers.append("backports.zoneinfo.ZoneInfo")
 
 deserializers = serializers
 
@@ -79,17 +85,11 @@ def deserialize(classname: str, version: int, data: object) -> Any:
     if isinstance(data, int):
         return fixed_timezone(data)
 
-    if classname == "zoneinfo.ZoneInfo":
-        from zoneinfo import ZoneInfo
-
-        return ZoneInfo(data)
-
-    if classname == "backports.zoneinfo.ZoneInfo":
-        # python version might have been upgraded, so we need to check
+    if "zoneinfo.ZoneInfo" in classname:
         try:
-            from backports.zoneinfo import ZoneInfo
-        except ImportError:
             from zoneinfo import ZoneInfo
+        except ImportError:
+            from backports.zoneinfo import ZoneInfo
 
         return ZoneInfo(data)
 
