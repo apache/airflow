@@ -123,4 +123,4 @@ class DagRunPydantic(BaseModelPydantic):
         )
 
 
-DagRunPydantic.update_forward_refs()
+DagRunPydantic.model_rebuild()

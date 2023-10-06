@@ -2274,11 +2274,11 @@ Generating Provider requirements
 .................................
 
 In order to generate SBOM information for providers, we need to generate requirements for them. This is
-done by the ``generate-provider-requirements`` command. This command generates requirements for the
+done by the ``generate-providers-requirements`` command. This command generates requirements for the
 selected provider and python version, using the airflow version specified.
 
-.. image:: ./images/breeze/output_sbom_generate-provider-requirements.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-provider-requirements.svg
+.. image:: ./images/breeze/output_sbom_generate-providers-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-providers-requirements.svg
   :width: 100%
   :alt: Breeze generate SBOM provider requirements
 
@@ -2553,9 +2553,10 @@ to add it to one of the providers, you need to add it to the ``provider.yaml`` f
 directory - but remember that this should be followed by running pre-commit that will automatically update
 the ``generated/provider_dependencies.json`` directory with the new dependencies:
 
-```
-pre-commit run update-providers-dependencies  --all-files
-```
+.. code-block:: bash
+
+    pre-commit run update-providers-dependencies  --all-files
+
 
 You can also run the pre-commit by ``breeze static-checks --type update-providers-dependencies --all-files``
 command - which provides autocomplete.
@@ -2565,17 +2566,18 @@ After you've updated the dependencies, you need to rebuild the image:
 Breeze will automatically detect when you updated dependencies and it will propose you to build image next
 time when you enter it. You can answer ``y`` during 10 seconds to get it done for you.
 
-```
-breeze ci-image build
-```
+.. code-block:: bash
+
+    breeze ci-image build
+
 
 Sometimes, when you have conflicting change in dependencies (i.e. dependencies in the old constraints
 are conflicting with the new specification, you might want to build the image with
 ``--upgrade-to-newer-dependencies`` flag:
 
-```
-breeze ci-image build --upgrade-to-newer-dependencies
-```
+.. code-block:: bash
+
+    breeze ci-image build --upgrade-to-newer-dependencies
 
 
 System (debian) dependencies
@@ -2592,9 +2594,9 @@ other scripts (for example ``install_postgres.sh`` or ``install_mysql.sh``).
 
 After you modify the dependencies in the scripts, you need to inline them by running pre-commit:
 
-```
-pre-commit run update-inlined-dockerfile-scripts --all-files
-```
+.. code-block:: bash
+
+    pre-commit run update-inlined-dockerfile-scripts --all-files
 
 You can also run the pre-commit by ``breeze static-checks --type update-inlined-dockerfile-scripts --all-files``
 command - which provides autocomplete.
@@ -2605,17 +2607,18 @@ After you've updated the dependencies, you need to rebuild the image:
 Breeze will automatically detect when you updated dependencies and it will propose you to build image next
 time when you enter it. You can answer ``y`` during 10 seconds to get it done for you.
 
-```
-breeze ci-image build
-```
+.. code-block:: bash
+
+    breeze ci-image build
 
 Sometimes, when you have conflicting change in dependencies (i.e. dependencies in the old constraints
 are conflicting with the new specification, you might want to build the image with
 ``--upgrade-to-newer-dependencies`` flag:
 
-```
-breeze ci-image build --upgrade-to-newer-dependencies
-```
+.. code-block:: bash
+
+    breeze ci-image build --upgrade-to-newer-dependencies
+
 
 Node (yarn) dependencies
 ........................

@@ -726,8 +726,6 @@ workers:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   env: []
 
@@ -901,8 +899,6 @@ scheduler:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   env: []
 
@@ -1303,9 +1299,6 @@ webserver:
     securityContexts:
       container: {}
 
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
-
   env: []
 
 # Airflow Triggerer Config
@@ -1470,9 +1463,6 @@ triggerer:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
-
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   env: []
 

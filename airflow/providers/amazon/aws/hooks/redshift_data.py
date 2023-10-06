@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from pprint import pformat
-from time import sleep
 from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -127,7 +127,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                 )
             else:
                 self.log.info("Query %s", status)
-            sleep(poll_interval)
+            time.sleep(poll_interval)
 
     def get_table_primary_key(
         self,

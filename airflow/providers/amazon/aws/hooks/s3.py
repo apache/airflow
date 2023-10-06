@@ -26,6 +26,7 @@ import logging
 import os
 import re
 import shutil
+import time
 import warnings
 from contextlib import suppress
 from copy import deepcopy
@@ -35,7 +36,6 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from time import sleep
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -350,7 +350,8 @@ class S3Hook(AwsBaseHook):
         :param delimiter: the delimiter marks key hierarchy.
         :return: False if the prefix does not exist in the bucket and True if it does.
         """
-        prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
+        if not prefix.endswith(delimiter):
+            prefix += delimiter
         prefix_split = re.split(rf"(\w+[{delimiter}])$", prefix, 1)
         previous_level = prefix_split[0]
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
@@ -544,7 +545,8 @@ class S3Hook(AwsBaseHook):
         :param delimiter: the delimiter marks key hierarchy.
         :return: False if the prefix does not exist in the bucket and True if it does.
         """
-        prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
+        if not prefix.endswith(delimiter):
+            prefix += delimiter
         prefix_split = re.split(rf"(\w+[{delimiter}])$", prefix, 1)
         previous_level = prefix_split[0]
         plist = await self.list_prefixes_async(client, bucket_name, previous_level, delimiter)
@@ -576,8 +578,7 @@ class S3Hook(AwsBaseHook):
             response = paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter=delimiter)
             async for page in response:
                 if "Contents" in page:
-                    _temp = [k for k in page["Contents"] if isinstance(k.get("Size", None), (int, float))]
-                    keys = keys + _temp
+                    keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), (int, float)))
         return keys
 
     @staticmethod
@@ -1288,7 +1289,7 @@ class S3Hook(AwsBaseHook):
                 if not bucket_keys:
                     break
                 if retry:  # Avoid first loop
-                    sleep(500)
+                    time.sleep(500)
 
                 self.delete_objects(bucket=bucket_name, keys=bucket_keys)
 

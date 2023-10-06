@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import warnings
 from typing import TYPE_CHECKING, Any, Collection, Container, Iterable, Sequence
 
@@ -731,9 +732,8 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
     def create_perm_vm_for_all_dag(self) -> None:
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
         # create perm for global logical dag
-        for resource_name in self.DAG_RESOURCES:
-            for action_name in self.DAG_ACTIONS:
-                self._merge_perm(action_name, resource_name)
+        for resource_name, action_name in itertools.product(self.DAG_RESOURCES, self.DAG_ACTIONS):
+            self._merge_perm(action_name, resource_name)
 
     def check_authorization(
         self,

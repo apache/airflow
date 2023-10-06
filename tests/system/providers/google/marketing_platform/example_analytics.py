@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.marketing_platform.operators.analytics import (
     GoogleAnalyticsDataImportUploadOperator,
     GoogleAnalyticsDeletePreviousDataUploadsOperator,
@@ -43,7 +43,7 @@ WEB_PROPERTY_ID = os.environ.get("GA_WEB_PROPERTY", "UA-12345678-1")
 WEB_PROPERTY_AD_WORDS_LINK_ID = os.environ.get("GA_WEB_PROPERTY_AD_WORDS_LINK_ID", "rQafFTPOQdmkx4U-fxUfhj")
 DATA_ID = "kjdDu3_tQa6n8Q1kXFtSmg"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs,
     start_date=datetime(2021, 1, 1),

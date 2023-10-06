@@ -17,7 +17,7 @@
 """This module contains Google DataFusion operators."""
 from __future__ import annotations
 
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.retry import exponential_sleep_generator
@@ -267,7 +267,7 @@ class CloudDataFusionCreateInstanceOperator(GoogleCloudBaseOperator):
             for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
                 if instance["state"] != "CREATING":
                     break
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
                 instance = hook.get_instance(
                     instance_name=self.instance_name, location=self.location, project_id=self.project_id
                 )

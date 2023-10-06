@@ -25,7 +25,7 @@ from datetime import datetime
 
 from google.cloud.redis_v1 import FailoverInstanceRequest, Instance
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreCreateInstanceAndImportOperator,
@@ -68,7 +68,7 @@ FIRST_INSTANCE = {"tier": Instance.Tier.BASIC, "memory_size_gb": 1}
 SECOND_INSTANCE = {"tier": Instance.Tier.STANDARD_HA, "memory_size_gb": 3}
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),

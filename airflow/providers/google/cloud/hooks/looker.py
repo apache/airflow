@@ -194,7 +194,7 @@ class LookerHook(BaseHook):
         return methods40.Looker40SDK(
             auth_session.AuthSession(settings, transport, serialize.deserialize40, "4.0"),
             serialize.deserialize40,
-            serialize.serialize,
+            serialize.serialize40,
             transport,
             "4.0",
         )
