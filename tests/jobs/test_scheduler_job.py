@@ -1444,7 +1444,7 @@ class TestSchedulerJob:
         assert first_call_args.args[0].task_id == task1.task_id
         assert first_call_args.args[1] == TaskInstanceState.QUEUED
 
-        second_call_args = mock_emit_metric.call_args_list[0]
+        second_call_args = mock_emit_metric.call_args_list[1]
         assert second_call_args.args[0].task_id == task2.task_id
         assert second_call_args.args[1] == TaskInstanceState.QUEUED
 
