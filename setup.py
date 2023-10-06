@@ -462,7 +462,7 @@ _devel_only_static_checks = [
 
 _devel_only_tests = [
     "aioresponses",
-    "backports.zoneinfo>=0.2.1;python_version<'3.9'",
+    "backports.zoneinfo>=0.2.1",
     "beautifulsoup4>=4.7.1",
     "coverage>=7.2",
     "pytest",

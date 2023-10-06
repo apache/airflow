@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import sys
 from typing import TYPE_CHECKING, Any, cast
 
 from airflow.utils.module_loading import qualname
@@ -29,9 +30,13 @@ if TYPE_CHECKING:
 serializers = [
     "pendulum.tz.timezone.FixedTimezone",
     "pendulum.tz.timezone.Timezone",
-    "zoneinfo.ZoneInfo",
     "backports.zoneinfo.ZoneInfo",
 ]
+
+PY39 = sys.version_info >= (3, 9)
+
+if PY39:
+    serializers.append("zoneinfo.ZoneInfo")
 
 deserializers = serializers
 
