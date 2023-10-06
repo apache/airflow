@@ -27,11 +27,6 @@
 Changelog
 ---------
 
-5.1.0
-.....
-
-Misc
-~~~~
 
 .. note::
   In PR #34790 we removed the unused argument ``metadata`` from method ``es_read``.  We determined that ``es_read``
