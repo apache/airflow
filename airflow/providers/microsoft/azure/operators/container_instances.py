@@ -30,7 +30,7 @@ from azure.mgmt.containerinstance.models import (
     IpAddress,
     ResourceRequests,
     ResourceRequirements,
-    Volume,
+    Volume as _AzureVolume,
     VolumeMount,
 )
 from msrestazure.azure_exceptions import CloudError
@@ -44,14 +44,14 @@ from airflow.providers.microsoft.azure.hooks.container_volume import AzureContai
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-_AzureVolume = namedtuple(
-    "_AzureVolume",
+Volume = namedtuple(
+    "Volume",
     ["conn_id", "account_name", "share_name", "mount_path", "read_only"],
 )
 
 DEFAULT_ENVIRONMENT_VARIABLES: dict[str, str] = {}
 DEFAULT_SECURED_VARIABLES: Sequence[str] = []
-DEFAULT_VOLUMES: Sequence[_AzureVolume] = []
+DEFAULT_VOLUMES: Sequence[Volume] = []
 DEFAULT_MEMORY_IN_GB = 2.0
 DEFAULT_CPU = 1.0
 
@@ -207,7 +207,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 e = EnvironmentVariable(name=key, value=value)
             environment_variables.append(e)
 
-        volumes: list[Volume] = []
+        volumes: list[_AzureVolume] = []
         volume_mounts: list[VolumeMount | VolumeMount] = []
         for conn_id, account_name, share_name, mount_path, read_only in self.volumes:
             hook = AzureContainerVolumeHook(conn_id)
