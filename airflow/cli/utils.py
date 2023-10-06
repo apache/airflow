@@ -44,7 +44,7 @@ def is_stdout(fileio: IOBase) -> bool:
 
 
 def print_export_output(command_type: str, exported_items: Collection, file: io.TextIOWrapper):
-    if is_stdout(file):
+    if not file.closed and is_stdout(file):
         print(f"\n{len(exported_items)} {command_type} successfully exported.", file=sys.stderr)
     else:
         print(f"{len(exported_items)} {command_type} successfully exported to {file.name}.")
