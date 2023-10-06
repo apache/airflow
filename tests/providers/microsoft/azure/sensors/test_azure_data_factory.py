@@ -125,7 +125,11 @@ class TestAzureDataFactoryPipelineRunStatusSensor:
 class TestAzureDataFactoryPipelineRunStatusSensorWithAsync:
     RUN_ID = "7f8c6c72-c093-11ec-a83d-0242ac120007"
     SENSOR = AzureDataFactoryPipelineRunStatusSensor(
-        task_id="pipeline_run_sensor_async", run_id=RUN_ID, deferrable=True
+        task_id="pipeline_run_sensor_async",
+        run_id=RUN_ID,
+        resource_group_name="resource-group-name",
+        factory_name="factory-name",
+        deferrable=True,
     )
 
     @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")
