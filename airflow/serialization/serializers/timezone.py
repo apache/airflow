@@ -37,7 +37,7 @@ PY39 = sys.version_info >= (3, 9)
 if PY39:
     serializers.append("zoneinfo.ZoneInfo")
 else:
-    serializers.append("backports.zoneinfo.ZoneInfo"),
+    serializers.append("backports.zoneinfo.ZoneInfo")
 
 deserializers = serializers
 
