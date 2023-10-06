@@ -19,19 +19,23 @@ from __future__ import annotations
 import functools
 import os.path
 import uuid
-from typing import cast
-from urllib.parse import urlparse
 from dataclasses import dataclass
 from os import PathLike
+from typing import TYPE_CHECKING, cast
+from urllib.parse import urlparse
 
-from fsspec import AbstractFileSystem
 from fsspec.callbacks import NoOpCallback
 
 from airflow.io.fsspec import SCHEME_TO_FS
 
+if TYPE_CHECKING:
+    from fsspec import AbstractFileSystem
+
 
 @dataclass
 class Mount(PathLike):
+    """Manages a mount point for a filesystem or object storage."""
+
     source: str
     mount_point: str
 
@@ -44,11 +48,8 @@ class Mount(PathLike):
         Wrap a filesystem method to replace the mount point with the original source.
 
         :param method: the method to wrap
-        :type method: str
         :param args: the arguments to pass to the method
-        :type args: tuple
         :param kwargs: the keyword arguments to pass to the method
-        :type kwargs: dict
         :return: the result of the method
         :rtype: Any
         """
@@ -87,9 +88,8 @@ def get_mount(path: str) -> Mount:
     Get the mount point for a given path.
 
     :param path: the path to get the mount point for
-    :type path: str
     :return: the mount point
-    :rtype: str
+    :rtype: Mount
     """
     mount_point = None
     mount_points = sorted(MOUNTS.keys(), key=len, reverse=True)
@@ -109,7 +109,6 @@ def _replace_mount_point(path: str) -> str:
     Replace the mount point in a path with the original source.
 
     :param path: the path to replace the mount point in
-    :type path: str
     :return: the path with the mount point replaced
     :rtype: str
     """
@@ -123,9 +122,7 @@ def _rewrite_path(path: str, mnt: Mount) -> str:
     Rewrite a path to include the mount point and remove the original source.
 
     :param path: the path to rewrite
-    :type path: str
     :param mnt: the mount point to include in the path
-    :type mnt: Mount
     :return: the rewritten path
     :rtype: str
     """
@@ -137,9 +134,7 @@ def _rewrite_info(info: dict, mnt: Mount) -> dict:
     Rewrite the path in a file info dict to include the mount point and remove the original source.
 
     :param info: the file info dict to rewrite
-    :type info: dict
     :param mnt: the mount point to include in the path
-    :type mnt: Mount
     :return: the rewritten file info dict
     :rtype: dict
     """
@@ -161,17 +156,11 @@ def mount(
     Mount a filesystem or object storage to a mount point.
 
     :param source: the source path to mount
-    :type source: str
     :param mount_point: the target mount point
-    :type mount_point: str
     :param conn_id: the connection to use to connect to the filesystem
-    :type conn_id: str
     :param encryption_type: the encryption type to use to connect to the filesystem
-    :type encryption_type: str
     :param fs_type: the filesystem type to use to connect to the filesystem
-    :type fs_type: AbstractFileSystem
     :param remount: whether to remount the filesystem if it is already mounted
-    :type remount: bool
     """
     if not remount and mount_point and mount_point in MOUNTS:
         raise ValueError(f"Mount point {mount_point} already mounted")
@@ -207,7 +196,6 @@ def unmount(mount_point: str | Mount) -> None:
     Unmount a filesystem or object storage from a mount point.
 
     :param mount_point: the mount point to unmount
-    :type mount_point: str
     """
     if isinstance(mount_point, Mount):
         mount_point = mount_point.mount_point
@@ -223,7 +211,6 @@ def get_fs(mount_point: str) -> AbstractFileSystem:
     Get the filesystem for a given mount point or path.
 
     :param mount_point: the path to get the filesystem for
-    :type mount_point: str
     :return: the filesystem
     :rtype: AbstractFileSystem
     """
@@ -232,7 +219,7 @@ def get_fs(mount_point: str) -> AbstractFileSystem:
 
 def mkdir(path, create_parents=True, **kwargs):
     """
-    Create directory entry at path
+    Create directory entry at path.
 
     For systems that don't have true directories, may create an for
     this instance only and not touch the real filesystem
@@ -250,7 +237,7 @@ def mkdir(path, create_parents=True, **kwargs):
 
 
 def makedirs(path, exist_ok=False):
-    """Recursively make directories
+    """Recursively make directories.
 
     Creates directory at path and any intervening required directories.
     Raises exception if, for instance, the path already exists but is a
@@ -267,7 +254,7 @@ def makedirs(path, exist_ok=False):
 
 
 def rmdir(path):
-    """Remove a directory, if empty"""
+    """Remove a directory, if empty."""
     get_mount(path).rmdir(path)
 
 
@@ -324,7 +311,7 @@ def ls(path, detail=True, **kwargs):
 
 
 def walk(path, maxdepth=None, topdown=True, on_error="omit", **kwargs):
-    """Return all files belows path
+    """Return all files belows path.
 
     List all files, recursing into subdirectories; output is iterator-style,
     like ``os.walk()``. For a simple list of files, ``find()`` is available.
@@ -423,7 +410,7 @@ def find(path, maxdepth=None, withdirs=False, detail=False, **kwargs):
 
 
 def du(path, total=True, maxdepth=None, withdirs=False, **kwargs):
-    """Space used by files and optionally directories within a path
+    """Space used by files and optionally directories within a path.
 
     Directory size does not include the size of its contents.
 
@@ -481,7 +468,7 @@ def glob(path, maxdepth=None, **kwargs):
 
 
 def exists(path, **kwargs):
-    """Is there a file at the given path?
+    """Is there a file at the given path?.
 
     Parameters
     ----------
@@ -493,7 +480,7 @@ def exists(path, **kwargs):
 
 
 def lexists(path, **kwargs):
-    """Is there a file at the given path?
+    """Is there a file at the given path?.
 
     Parameters
     ----------
@@ -505,7 +492,7 @@ def lexists(path, **kwargs):
 
 
 def checksum(path):
-    """Unique value for current version of file
+    """Unique value for current version of file.
 
     If the checksum is the same from one moment to another, the contents
     are guaranteed to be the same. If the checksum changes, the contents
@@ -519,27 +506,27 @@ def checksum(path):
 
 
 def size(path):
-    """Size in bytes of file"""
+    """Size in bytes of file."""
     return get_mount(path).size(path)
 
 
 def sizes(paths):
-    """Size in bytes of each file in a list of paths"""
+    """Size in bytes of each file in a list of paths."""
     return [size(p) for p in paths]
 
 
 def isdir(path):
-    """Is this entry a directory?"""
+    """Is this entry a directory?."""
     return get_mount(path).isdir(path)
 
 
 def isfile(path):
-    """Is this entry a file?"""
+    """Is this entry a file?."""
     return get_mount(path).isfile(path)
 
 
 def islink(path):
-    """Is this entry a link?"""
+    """Is this entry a link?."""
     return get_mount(path).islink(path)
 
 
@@ -556,7 +543,7 @@ def read_text(path, encoding=None, errors=None, newline=None, **kwargs):
 
 
 def write_text(path, data, encoding=None, errors=None, newline=None, **kwargs):
-    """Write string data to file
+    """Write string data to file.
 
     Parameters
     ----------
@@ -577,7 +564,7 @@ def write_text(path, data, encoding=None, errors=None, newline=None, **kwargs):
 
 
 def cat_file(path, start=None, end=None, **kwargs):
-    """Get the content of a file
+    """Get the content of a file.
 
     Parameters
     ----------
@@ -592,12 +579,12 @@ def cat_file(path, start=None, end=None, **kwargs):
 
 
 def pipe_file(path, value, **kwargs):
-    """Set the bytes of given file"""
+    """Set the bytes of given file."""
     return get_mount(path).pipe_file(path, value=value, **kwargs)
 
 
 def pipe(path, value=None, **kwargs):
-    """Put value into path
+    """Put value into path.
 
     (counterpart to ``cat``)
 
@@ -621,7 +608,7 @@ def cat_ranges(paths, starts, ends, max_gap=None, on_error="return", **kwargs):
 
 
 def cat(path, recursive=False, on_error="raise", **kwargs):
-    """Fetch (potentially multiple) paths' contents
+    """Fetch (potentially multiple) paths' contents.
 
     Parameters
     ----------
@@ -650,7 +637,7 @@ def cat(path, recursive=False, on_error="raise", **kwargs):
 
 
 def get_file(rpath, lpath, callback=NoOpCallback(), outfile=None, **kwargs):
-    """Copy single remote file to local"""
+    """Copy single remote file to local."""
     raise NotImplementedError()
 
 
@@ -675,7 +662,7 @@ def get(
 
 
 def copy(path1, path2, recursive=False, maxdepth=None, on_error=None, **kwargs):
-    """Copy between two locations
+    """Copy between two locations.
 
     on_error : "raise", "ignore"
         If raise, any not-found exceptions will be raised; if ignore any
@@ -705,7 +692,7 @@ def copy(path1, path2, recursive=False, maxdepth=None, on_error=None, **kwargs):
 
 
 def mv(path1, path2, recursive=False, maxdepth=None, **kwargs):
-    """Move between two locations
+    """Move between two locations.
 
     If the destination is on the same filesystem, this will be a true move,
     otherwise a copy and delete.
@@ -775,7 +762,7 @@ def open(
     **kwargs,
 ):
     """
-    Return a file-like object from the filesystem
+    Return a file-like object from the filesystem.
 
     The resultant instance must function correctly in a context ``with``
     block.
@@ -807,7 +794,7 @@ def open(
 
 
 def touch(path, truncate=True, **kwargs):
-    """Create empty file, or update timestamp
+    """Create empty file, or update timestamp.
 
     Parameters
     ----------
@@ -821,12 +808,12 @@ def touch(path, truncate=True, **kwargs):
 
 
 def ukey(path):
-    """Hash of file properties, to tell if it has changed"""
+    """Hash of file properties, to tell if it has changed."""
     return get_mount(path).ukey(path)
 
 
 def read_block(path, offset, length, delimiter=None):
-    """Read a block of bytes from
+    r"""Read a block of bytes from.
 
     Starting at ``offset`` of the file, read ``length`` bytes.  If
     ``delimiter`` is set then we ensure that the read starts and stops at
@@ -849,13 +836,13 @@ def read_block(path, offset, length, delimiter=None):
 
     Examples
     --------
-    >>> fs.read_block('data/file.csv', 0, 13)  # doctest: +SKIP
+    >>> fs.read_block('data/file.csv', 0, 13)
     b'Alice, 100\\nBo'
-    >>> fs.read_block('data/file.csv', 0, 13, delimiter=b'\\n')  # doctest: +SKIP
+    >>> fs.read_block('data/file.csv', 0, 13, delimiter=b'\\n')
     b'Alice, 100\\nBob, 200\\n'
 
     Use ``length=None`` to read to the end of the file.
-    >>> fs.read_block('data/file.csv', 0, None, delimiter=b'\\n')  # doctest: +SKIP
+    >>> fs.read_block('data/file.csv', 0, None, delimiter=b'\\n')
     b'Alice, 100\\nBob, 200\\nCharlie, 300'
 
     See Also
@@ -866,12 +853,12 @@ def read_block(path, offset, length, delimiter=None):
 
 
 def created(path):
-    """Creation time of file"""
+    """Creation time of file."""
     return get_mount(path).created(path)
 
 
 def modified(path):
-    """Return the modified timestamp of a file as a datetime.datetime"""
+    """Return the modified timestamp of a file as a datetime.datetime."""
     return get_mount(path).modified(path)
 
 
@@ -945,7 +932,7 @@ def download(rpath, lpath, recursive=False, **kwargs):
 
 
 def sign(path, expiration=100, **kwargs):
-    """Create a signed URL representing the given path
+    """Create a signed URL representing the given path.
 
     Some implementations allow temporary URLs to be generated, as a
     way of delegating credentials.

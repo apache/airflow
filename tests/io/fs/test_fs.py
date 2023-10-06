@@ -46,7 +46,6 @@ class TestFs:
         assert isinstance(fs.get_fs("/mnt/warehouse"), S3FileSystem)
         assert fs.get_mount(MNT).replace_mount_point(FOO) == "warehouse/foo"
 
-
         fs.unmount(MNT)
 
     def test_mount_without_mountpoint(self):
@@ -121,31 +120,39 @@ class TestFs:
 
     @pytest.mark.parametrize(
         "fn, args, fn2, path, expected_args, expected_kwargs",
-    [
-        ("du", {}, "du", FOO, BAR, {"total": True, "maxdepth": None, "withdirs": False}),
-        ("created", {}, "created", FOO, BAR, {}),
-        ("exists", {}, "exists", FOO, BAR, {}),
-        ("lexists", {}, "lexists", FOO, BAR, {}),
-        ("checksum", {}, "checksum", FOO, BAR, {}),
-        ("size", {}, "size", FOO, BAR, {}),
-        ("isdir", {}, "isdir", FOO, BAR, {}),
-        ("isfile", {}, "isfile", FOO, BAR, {}),
-        ("islink", {}, "islink", FOO, BAR, {}),
-        ("makedirs", {}, "makedirs", FOO, BAR, {"exist_ok": False}),
-        ("touch", {}, "touch", FOO, BAR, {"truncate": True}),
-        ("mkdir", {}, "mkdir", FOO, BAR, {"create_parents": True}),
-        ("modified", {}, "modified", FOO, BAR, {}),
-        ("read_text", {}, "read_text", FOO, BAR, {"encoding": None, "errors": None, "newline": None}),
-        ("read_bytes", {}, "cat_file", FOO, BAR, {"start": None, "end": None}),
-        ("rm", {}, "rm", FOO, BAR, {}),
-        ("rmdir", {}, "rmdir", FOO, BAR, {}),
-        ("cat_file", {}, "cat_file", FOO, BAR, {"end": None, "start": None}),
-        ("pipe", {}, "pipe", FOO, BAR, {"value": None}),
-        ("pipe_file", {"value": b"foo"}, "pipe_file", FOO, BAR, {"value": b"foo"}),
-        ("write_bytes", {"value": b"foo"}, "pipe_file", FOO, BAR, {"value": b"foo"}),
-        ("write_text", {"data": "foo"}, "write_text", FOO, BAR, {"data": "foo", "encoding": None, "errors": None, "newline": None}),
-        ("ukey", {}, "ukey", FOO, BAR, {}),
-    ])
+        [
+            ("du", {}, "du", FOO, BAR, {"total": True, "maxdepth": None, "withdirs": False}),
+            ("created", {}, "created", FOO, BAR, {}),
+            ("exists", {}, "exists", FOO, BAR, {}),
+            ("lexists", {}, "lexists", FOO, BAR, {}),
+            ("checksum", {}, "checksum", FOO, BAR, {}),
+            ("size", {}, "size", FOO, BAR, {}),
+            ("isdir", {}, "isdir", FOO, BAR, {}),
+            ("isfile", {}, "isfile", FOO, BAR, {}),
+            ("islink", {}, "islink", FOO, BAR, {}),
+            ("makedirs", {}, "makedirs", FOO, BAR, {"exist_ok": False}),
+            ("touch", {}, "touch", FOO, BAR, {"truncate": True}),
+            ("mkdir", {}, "mkdir", FOO, BAR, {"create_parents": True}),
+            ("modified", {}, "modified", FOO, BAR, {}),
+            ("read_text", {}, "read_text", FOO, BAR, {"encoding": None, "errors": None, "newline": None}),
+            ("read_bytes", {}, "cat_file", FOO, BAR, {"start": None, "end": None}),
+            ("rm", {}, "rm", FOO, BAR, {}),
+            ("rmdir", {}, "rmdir", FOO, BAR, {}),
+            ("cat_file", {}, "cat_file", FOO, BAR, {"end": None, "start": None}),
+            ("pipe", {}, "pipe", FOO, BAR, {"value": None}),
+            ("pipe_file", {"value": b"foo"}, "pipe_file", FOO, BAR, {"value": b"foo"}),
+            ("write_bytes", {"value": b"foo"}, "pipe_file", FOO, BAR, {"value": b"foo"}),
+            (
+                "write_text",
+                {"data": "foo"},
+                "write_text",
+                FOO,
+                BAR,
+                {"data": "foo", "encoding": None, "errors": None, "newline": None},
+            ),
+            ("ukey", {}, "ukey", FOO, BAR, {}),
+        ],
+    )
     def test_standard_api(self, fn, args, fn2, path, expected_args, expected_kwargs):
         _fs = mock.Mock()
         _fs._strip_protocol.return_value = "/"
@@ -188,4 +195,3 @@ class TestFs:
         fs.rm(_to)
         fs.unmount(MNT)
         fs.unmount(FAKE)
-

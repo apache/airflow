@@ -18,20 +18,38 @@
 from __future__ import annotations
 
 import shutil
-from typing import TYPE_CHECKING, Sequence, Optional
+from typing import TYPE_CHECKING
 
-from airflow.hooks.base import BaseHook
-from airflow.io import OutputFile, InputFile
-from airflow.io.fsspec import FsspecInputFile, FsspecOutputFile, FsspecFileIO
+from airflow.io.fsspec import FsspecFileIO
 from airflow.models import BaseOperator
 
 if TYPE_CHECKING:
+    from airflow.io import InputFile, OutputFile
     from airflow.utils.context import Context
 
 
 class FileTransfer(BaseOperator):
-    def __init__(self, *, src: str | InputFile, dst: str | OutputFile, source_conn_id: Optional[str],
-                 dest_conn_id: Optional[str], **kwargs) -> None:
+    """
+    Copies a file from a source to a destination.
+
+    This streams the file from the source to the destination, so it does not
+    need to fit into memory.
+
+    :param src: The source file path or InputFile object.
+    :param dst: The destination file path or OutputFile object.
+    :param source_conn_id: The optional source connection id.
+    :param dest_conn_id: The optional destination connection id.
+    """
+
+    def __init__(
+        self,
+        *,
+        src: str | InputFile,
+        dst: str | OutputFile,
+        source_conn_id: str | None,
+        dest_conn_id: str | None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
 
         self.src = src

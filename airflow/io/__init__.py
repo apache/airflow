@@ -34,11 +34,7 @@ from io import SEEK_SET
 from types import TracebackType
 from typing import (
     Dict,
-    List,
-    Optional,
     Protocol,
-    Type,
-    Union,
     runtime_checkable,
 )
 from urllib.parse import urlparse
@@ -85,9 +81,9 @@ class InputStream(Protocol):
     @abstractmethod
     def __exit__(
         self,
-        exctype: Optional[Type[BaseException]],
-        excinst: Optional[BaseException],
-        exctb: Optional[TracebackType],
+        exctype: type[BaseException] | None,
+        excinst: BaseException | None,
+        exctb: TracebackType | None,
     ) -> None:
         """Perform cleanup when exiting the scope of a 'with' statement."""
 
@@ -115,9 +111,9 @@ class OutputStream(Protocol):  # pragma: no cover
     @abstractmethod
     def __exit__(
         self,
-        exctype: Optional[Type[BaseException]],
-        excinst: Optional[BaseException],
-        exctb: Optional[TracebackType],
+        exctype: type[BaseException] | None,
+        excinst: BaseException | None,
+        exctb: TracebackType | None,
     ) -> None:
         """Perform cleanup when exiting the scope of a 'with' statement."""
 
@@ -243,12 +239,13 @@ class FileIO(ABC):
         """
 
     @abstractmethod
-    def delete(self, location: Union[str, InputFile, OutputFile], conn_id: str | None) -> None:
+    def delete(self, location: str | InputFile | OutputFile, conn_id: str | None) -> None:
         """Delete the file at the given path.
 
         Args:
-            location (Union[str, InputFile, OutputFile]): A URI or a path to a local file--if an InputFile instance or
-                an OutputFile instance is provided, the location attribute for that instance is used as the URI to delete.
+            location (Union[str, InputFile, OutputFile]): A URI or a path to a local file--if an InputFile
+                instance or an OutputFile instance is provided, the location attribute for that instance is
+                used as the URI to delete.
             conn_id (str): The connection ID to use when deleting the file.
 
         Raises:
@@ -261,7 +258,7 @@ FSSPEC_FILE_IO = "airflow.io.fsspec.FsspecFileIO"
 
 # Mappings from the Java FileIO impl to a Python one. The list is ordered by preference.
 # If an implementation isn't installed, it will fall back to the next one.
-SCHEMA_TO_FILE_IO: Dict[str, List[str]] = {
+SCHEMA_TO_FILE_IO: dict[str, list[str]] = {
     "s3": [FSSPEC_FILE_IO],
     "s3a": [FSSPEC_FILE_IO],
     "s3n": [FSSPEC_FILE_IO],
@@ -273,7 +270,7 @@ SCHEMA_TO_FILE_IO: Dict[str, List[str]] = {
 }
 
 
-def _import_file_io(io_impl: str) -> Optional[FileIO]:
+def _import_file_io(io_impl: str) -> FileIO | None:
     try:
         path_parts = io_impl.split(".")
         if len(path_parts) < 2:
@@ -287,7 +284,7 @@ def _import_file_io(io_impl: str) -> Optional[FileIO]:
         return None
 
 
-def _infer_file_io_from_scheme(path: str) -> Optional[FileIO]:
+def _infer_file_io_from_scheme(path: str) -> FileIO | None:
     parsed_url = urlparse(path)
     if parsed_url.scheme:
         if file_ios := SCHEMA_TO_FILE_IO.get(parsed_url.scheme):

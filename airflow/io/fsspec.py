@@ -15,17 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 """FileIO implementation for reading and writing files that uses fsspec compatible filesystems."""
+from __future__ import annotations
+
 import errno
 import logging
 import os
 from functools import lru_cache
 from typing import (
+    TYPE_CHECKING,
     Callable,
-    Union,
 )
 from urllib.parse import urlparse
 
-from fsspec import AbstractFileSystem
 from fsspec.implementations.local import LocalFileSystem
 
 from airflow.io import (
@@ -38,6 +39,9 @@ from airflow.io import (
 from airflow.providers_manager import ProvidersManager
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string
+
+if TYPE_CHECKING:
+    from fsspec import AbstractFileSystem
 
 log = logging.getLogger(__name__)
 
@@ -155,8 +159,8 @@ class FsspecOutputFile(OutputFile):
         Note:
             If overwrite is set to False, a check is first performed to verify that the file does not exist.
             This is not thread-safe and a possibility does exist that the file can be created by a concurrent
-            process after the existence check yet before the output stream is created. In such a case, the default
-            behavior will truncate the contents of the existing file when opening the output stream.
+            process after the existence check yet before the output stream is created. In such a case, the
+            default behavior will truncate the contents of the existing file when opening the output stream.
         """
         if not overwrite and self.exists():
             raise FileExistsError(f"Cannot create file, file already exists: {self.location}")
@@ -205,13 +209,13 @@ class FsspecFileIO(FileIO):
         fs = self.get_fs(uri.scheme, conn_id)
         return FsspecOutputFile(location=location, fs=fs)
 
-    def delete(self, location: Union[str, InputFile, OutputFile], conn_id: str | None) -> None:
+    def delete(self, location: str | InputFile | OutputFile, conn_id: str | None) -> None:
         """Delete the file at the given location.
 
         Args:
             location (Union[str, InputFile, OutputFile]): The URI to the file--if an InputFile instance or an
-                OutputFile instance is provided, the location attribute for that instance is used as the location
-                to delete.
+                OutputFile instance is provided, the location attribute for that instance is used as the
+                location to delete.
         """
         if isinstance(location, (InputFile, OutputFile)):
             str_location = location.location  # Use InputFile or OutputFile location
