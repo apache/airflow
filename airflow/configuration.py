@@ -314,7 +314,11 @@ class AirflowConfigParser(ConfigParser):
             for s, s_c in self.configuration_description.items()
             for k, item in s_c.get("options").items()  # type: ignore[union-attr]
         }
-        sensitive = {(section, key) for (section, key), v in flattened.items() if v.get("sensitive") is True}
+        sensitive = {
+            (section.lower(), key.lower())
+            for (section, key), v in flattened.items()
+            if v.get("sensitive") is True
+        }
         depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
         depr_section = {
             (self.deprecated_sections[s][0], k) for s, k in sensitive if s in self.deprecated_sections
