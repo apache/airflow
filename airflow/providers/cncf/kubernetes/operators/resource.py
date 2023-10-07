@@ -61,12 +61,14 @@ class KubernetesResourceBaseOperator(BaseOperator):
         yaml_conf: str,
         namespace: str | None = None,
         kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
+        config_file: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self._namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id
         self.yaml_conf = yaml_conf
+        self.config_file = config_file
 
     @cached_property
     def client(self) -> ApiClient:
@@ -74,7 +76,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> KubernetesHook:
-        hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
+        hook = KubernetesHook(conn_id=self.kubernetes_conn_id, config_file=self.config_file)
         return hook
 
     def get_namespace(self) -> str:
