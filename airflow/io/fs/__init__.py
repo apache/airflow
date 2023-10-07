@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import functools
 import os.path
-import uuid
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import PurePath, PurePosixPath
@@ -26,6 +25,7 @@ from typing import TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
 from fsspec.callbacks import NoOpCallback
+from fsspec.utils import tokenize
 
 from airflow.io.fsspec import SCHEME_TO_FS
 
@@ -73,7 +73,7 @@ class Mount(PathLike):
 
     def __truediv__(self, other):
         # if local we can run on nt or posix
-        if self.fs.fsid == "local":
+        if self.fsid == "local":
             return PurePath(self.mount_point) / other
 
         # if remote we assume posix
@@ -90,6 +90,21 @@ class Mount(PathLike):
             new_path = os.path.join(self.source, new_path.lstrip(os.sep))
 
         return new_path
+
+    @property
+    def fsid(self) -> str:
+        """
+        Get the filesystem ID for this mount in order to be able to compare across instances.
+
+        The underlying `fsid` is returned from the filesystem if available, otherwise it is generated
+        from the protocol and connection ID.
+
+        :return: deterministic the filesystem ID
+        """
+        try:
+            return self.fs.fsid
+        except NotImplementedError:
+            return f"{self.fs.protocol}-{self.conn_id or 'env'}"
 
 
 MOUNTS: dict[str, Mount] = {}
@@ -195,11 +210,11 @@ def mount(
 
         if other is not None and other.mount_point != mount_point:
             raise ValueError(f"Cannot nest {mount_point} into existing mount point {other.mount_point}")
+    else:
+        mount_point = cast(str, tokenize(source.lstrip("/")))
 
     fs = fs_type or SCHEME_TO_FS[scheme](conn_id)
     source = fs._strip_protocol(source)
-    if not mount_point:
-        mount_point = source.lstrip("/") + "-" + str(uuid.uuid4())
 
     mnt = Mount(source=source, mount_point=mount_point, fs=fs)
     MOUNTS[mount_point] = mnt
@@ -691,7 +706,7 @@ def copy(path1, path2, recursive=False, maxdepth=None, on_error=None, **kwargs):
     path1 = mnt1.replace_mount_point(path1)
     path2 = mnt2.replace_mount_point(path2)
 
-    if mnt1.fs.fsid == mnt2.fs.fsid:
+    if mnt1.fsid == mnt2.fsid:
         # use fs directly instead of relying on the rewrite mechanism
         return mnt1.fs.copy(
             path1,
@@ -729,7 +744,7 @@ def mv(path1, path2, recursive=False, maxdepth=None, **kwargs):
     mnt1 = get_mount(path1)
     mnt2 = get_mount(path2)
 
-    if mnt1.fs.fsid == mnt2.fs.fsid:
+    if mnt1.fsid == mnt2.fsid:
         # use fs directly instead of relying on the rewrite mechanism
         return mnt1.fs.mv(
             mnt1.replace_mount_point(path1),

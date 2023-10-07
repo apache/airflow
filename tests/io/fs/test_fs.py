@@ -53,7 +53,7 @@ class TestFs:
 
         assert isinstance(mnt.fs, S3FileSystem)
         assert mnt.replace_mount_point("/foo") == "warehouse/foo"
-        assert mnt / "foo" == os.path.join(mnt.mount_point, "foo")
+        assert str(mnt / "foo") == os.path.join(mnt.mount_point, "foo")
 
         fs.unmount(mnt)
 
