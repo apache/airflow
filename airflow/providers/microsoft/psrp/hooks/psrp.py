@@ -78,7 +78,7 @@ class PsrpHook(BaseHook):
     conn_name_attr = "psrp_conn_id"
     default_conn_name = "psrp_default"
     conn_type = "psrp"
-    hook_name = "PSRP"
+    hook_name = "PowerShell Remoting Protocol"
 
     _conn: RunspacePool | None = None
     _wsman_ref: WeakKeyDictionary[RunspacePool, WSMan] = WeakKeyDictionary()
