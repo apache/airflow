@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+8.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  AzureDataFactoryHook methods and AzureDataFactoryRunPipelineOperator arguments resource_group_name and factory_name is
+  now required instead of kwargs
+
+* resource_group_name and factory_name is now required argument in AzureDataFactoryHook method get_factory, update_factory,
+  create_factory, delete_factory, get_linked_service, delete_linked_service, get_dataset, delete_dataset, get_dataflow,
+  update_dataflow, create_dataflow, delete_dataflow, get_pipeline, delete_pipeline, run_pipeline, get_pipeline_run,
+  get_trigger, get_pipeline_run_status, cancel_pipeline_run, create_trigger, delete_trigger, start_trigger,
+  stop_trigger, get_adf_pipeline_run_status, cancel_pipeline_run
+* resource_group_name and factory_name is now required in AzureDataFactoryRunPipelineOperator
+* Remove class ``PipelineRunInfo`` from ``airflow.providers.microsoft.azure.hooks.data_factory``
+
 7.0.0
 .....
 
