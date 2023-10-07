@@ -84,8 +84,11 @@ class TestKubernetesXResourceOperator:
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
         self.dag = DAG("test_dag_id", default_args=args)
 
+    @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.CoreV1Api.create_namespaced_persistent_volume_claim")
-    def test_create_application_from_yaml(self, mock_create_namespaced_persistent_volume_claim, context):
+    def test_create_application_from_yaml(
+        self, mock_create_namespaced_persistent_volume_claim, mock_load_kube_config, context
+    ):
         op = KubernetesCreateResourceOperator(
             yaml_conf=TEST_VALID_RESOURCE_YAML,
             dag=self.dag,
@@ -113,9 +116,10 @@ class TestKubernetesXResourceOperator:
 
         assert mock_create_namespaced_persistent_volume_claim.call_count == 2
 
+    @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.CoreV1Api.delete_namespaced_persistent_volume_claim")
     def test_single_delete_application_from_yaml(
-        self, mock_delete_namespaced_persistent_volume_claim, context
+        self, mock_delete_namespaced_persistent_volume_claim, mock_load_kube_config, context
     ):
         op = KubernetesDeleteResourceOperator(
             yaml_conf=TEST_VALID_RESOURCE_YAML,
@@ -129,9 +133,10 @@ class TestKubernetesXResourceOperator:
 
         mock_delete_namespaced_persistent_volume_claim.assert_called()
 
+    @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.CoreV1Api.delete_namespaced_persistent_volume_claim")
     def test_multi_delete_application_from_yaml(
-        self, mock_delete_namespaced_persistent_volume_claim, context
+        self, mock_delete_namespaced_persistent_volume_claim, mock_load_kube_config, context
     ):
         op = KubernetesDeleteResourceOperator(
             yaml_conf=TEST_VALID_LIST_RESOURCE_YAML,
