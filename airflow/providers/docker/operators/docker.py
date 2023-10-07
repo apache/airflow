@@ -453,11 +453,11 @@ class DockerOperator(BaseOperator):
                 # 0 byte file, it can't be anything else than None
                 return None
             # no need to port to a file since we intend to deserialize
-            file_standin = BytesIO(b"".join(archived_result))
-            tar = tarfile.open(fileobj=file_standin)
-            file = tar.extractfile(stat["name"])
-            lib = getattr(self, "pickling_library", pickle)
-            return lib.loads(file.read())
+            with BytesIO(b"".join(archived_result)) as f:
+                tar = tarfile.open(fileobj=f)
+                file = tar.extractfile(stat["name"])
+                lib = getattr(self, "pickling_library", pickle)
+                return lib.load(file)
 
         try:
             return copy_from_docker(self.container["Id"], self.retrieve_output_path)

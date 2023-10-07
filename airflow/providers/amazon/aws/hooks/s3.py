@@ -21,7 +21,6 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import gzip as gz
-import io
 import logging
 import os
 import re
@@ -1120,10 +1119,8 @@ class S3Hook(AwsBaseHook):
         if compression == "gzip":
             bytes_data = gz.compress(bytes_data)
 
-        file_obj = io.BytesIO(bytes_data)
-
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
-        file_obj.close()
+        with BytesIO(bytes_data) as f:
+            self._upload_file_obj(f, key, bucket_name, replace, encrypt, acl_policy)
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1155,9 +1152,8 @@ class S3Hook(AwsBaseHook):
         :param acl_policy: The string to specify the canned ACL policy for the
             object to be uploaded
         """
-        file_obj = io.BytesIO(bytes_data)
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
-        file_obj.close()
+        with BytesIO(bytes_data) as f:
+            self._upload_file_obj(f, key, bucket_name, replace, encrypt, acl_policy)
 
     @unify_bucket_name_and_key
     @provide_bucket_name
