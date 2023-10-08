@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-05T20:39:16Z
+# This constraints file was automatically generated on 2023-10-08T21:52:55Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -15,7 +15,7 @@ Deprecated==1.2.14
 Flask-AppBuilder==4.3.6
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
-Flask-Caching==2.0.2
+Flask-Caching==2.1.0
 Flask-JWT-Extended==4.5.3
 Flask-Limiter==3.5.0
 Flask-Login==0.6.2
@@ -28,7 +28,7 @@ JPype1==1.4.1
 JayDeBeApi==1.2.3
 Jinja2==3.1.2
 Mako==1.2.4
-Markdown==3.4.4
+Markdown==3.5
 MarkupSafe==2.1.3
 PyGithub==2.1.1
 PyHive==0.7.0
@@ -47,7 +47,7 @@ Werkzeug==2.2.3
 adal==1.2.7
 aiobotocore==2.6.0
 aiofiles==23.2.1
-aiohttp==3.8.5
+aiohttp==3.8.6
 aioitertools==0.11.0
 aioresponses==0.7.4
 aiosignal==1.3.1
@@ -66,7 +66,7 @@ aliyun-python-sdk-core==2.14.0
 aliyun-python-sdk-kms==2.16.2
 amqp==5.1.1
 analytics-python==1.4.post1
-annotated-types==0.5.0
+annotated-types==0.6.0
 ansiwrap==0.8.4
 anyascii==0.3.2
 anyio==4.0.0
@@ -97,7 +97,7 @@ azure-mgmt-containerinstance==8.0.0
 azure-mgmt-containerregistry==10.2.0
 azure-mgmt-core==1.4.0
 azure-mgmt-cosmosdb==9.3.0
-azure-mgmt-datafactory==1.1.0
+azure-mgmt-datafactory==3.1.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
@@ -116,7 +116,7 @@ beautifulsoup4==4.12.2
 billiard==4.1.0
 bitarray==2.8.2
 black==23.9.1
-blinker==1.6.2
+blinker==1.6.3
 boto3==1.28.17
 botocore==1.31.17
 cachelib==0.9.0
@@ -524,7 +524,7 @@ traitlets==5.11.2
 trino==0.327.0
 twine==4.0.2
 types-Deprecated==1.2.9.3
-types-Markdown==3.4.2.10
+types-Markdown==3.5.0.0
 types-PyMySQL==1.1.0.1
 types-PyYAML==6.0.12.12
 types-certifi==2021.10.8.3
@@ -554,9 +554,9 @@ userpath==1.9.1
 vertica-python==1.3.5
 vine==5.0.0
 virtualenv==20.24.5
-watchtower==2.0.1
+watchtower==3.0.1
 wcwidth==0.2.8
-websocket-client==1.6.3
+websocket-client==1.6.4
 wrapt==1.15.0
 xmltodict==0.13.0
 yamllint==1.32.0
