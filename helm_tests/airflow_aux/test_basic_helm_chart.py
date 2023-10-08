@@ -645,6 +645,28 @@ class TestBaseChartTest:
 
         assert obj["preemptionPolicy"] == "PreemptLowerPriority"
 
+    def test_redis_broker_connection_url(self):
+        # no nameoverride, redis
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/redis-secrets.yaml"],
+            values={"redis": {"enabled": True, "password": "test1234"}},
+        )[1]
+        assert "redis://:test1234@my-release-redis:6379/0" == base64.b64decode(
+            doc["data"]["connection"]
+        ).decode("utf-8")
+
+    def test_redis_broker_connection_url_use_standard_naming(self):
+        # no nameoverride, redis and useStandardNaming
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/redis-secrets.yaml"],
+            values={"useStandardNaming": True, "redis": {"enabled": True, "password": "test1234"}},
+        )[1]
+        assert "redis://:test1234@my-release-airflow-redis:6379/0" == base64.b64decode(
+            doc["data"]["connection"]
+        ).decode("utf-8")
+
     @staticmethod
     def default_trigger_obj(version):
         if version == "default":
