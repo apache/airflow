@@ -1440,13 +1440,13 @@ class TestSchedulerJob:
         assert 2 == len(res)
 
         assert mock_emit_metric.call_count == 2
-        first_call_args = mock_emit_metric.call_args_list[0]
-        assert first_call_args.args[0].task_id == task1.task_id
-        assert first_call_args.args[1] == TaskInstanceState.QUEUED
 
-        second_call_args = mock_emit_metric.call_args_list[1]
-        assert second_call_args.args[0].task_id == task2.task_id
-        assert second_call_args.args[1] == TaskInstanceState.QUEUED
+        for call_args in mock_emit_metric.call_args_list:
+            assert call_args.args[0].start_date is not None
+            assert call_args.args[1] == TaskInstanceState.QUEUED
+
+        task_ids = list(sorted([call_args.args[0].task_id for call_args in mock_emit_metric.call_args_list]))
+        assert task_ids == [task1.task_id, task2.task_id]
 
         session.rollback()
         session.close()
