@@ -61,7 +61,7 @@ def variables_get(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def variables_set(args):
-    """Create new variable with a given name and value."""
+    """Create new variable with a given name, value and description."""
     Variable.set(args.key, args.value, args.description or None, serialize_json=args.json)
     print(f"Variable {args.key} created")
 
