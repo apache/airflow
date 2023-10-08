@@ -227,7 +227,6 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         self.processor_agent: DagFileProcessorAgent | None = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
-        self._paused_dag_without_running_dagruns: set = set()
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
