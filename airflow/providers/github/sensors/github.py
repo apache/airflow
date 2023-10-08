@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from github import GithubException
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.github.hooks.github import GithubHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -136,9 +136,9 @@ class GithubTagSensor(BaseGithubRepositorySensor):
                 result = self.tag_name in all_tags
 
         except GithubException as github_error:  # type: ignore[misc]
-            raise AirflowException(f"Failed to execute GithubSensor, error: {str(github_error)}")
+            raise AirflowException(f"Failed to execute GithubSensor, error: {github_error}")
         except Exception as e:
-            raise AirflowException(f"GitHub operator error: {str(e)}")
+            raise AirflowException(f"GitHub operator error: {e}")
 
         if result is True:
             self.log.info("Tag %s exists in %s repository, Success.", self.tag_name, self.repository_name)

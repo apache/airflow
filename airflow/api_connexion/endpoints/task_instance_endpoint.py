@@ -16,17 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, TypeVar
 
+from flask import g
 from marshmallow import ValidationError
 from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.sql import ClauseElement, Select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
-from airflow.api_connexion.exceptions import BadRequest, NotFound
+from airflow.api_connexion.exceptions import BadRequest, NotFound, PermissionDenied
 from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceCollection,
@@ -41,7 +41,6 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_reference_schema,
     task_instance_schema,
 )
-from airflow.api_connexion.types import APIResponse
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.operator import needs_expansion
@@ -52,6 +51,12 @@ from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.www.extensions.init_auth_manager import get_auth_manager
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import ClauseElement, Select
+
+    from airflow.api_connexion.types import APIResponse
 
 T = TypeVar("T")
 
@@ -269,7 +274,7 @@ def get_mapped_task_instances(
 def _convert_ti_states(states: Iterable[str] | None) -> list[TaskInstanceState | None] | None:
     if not states:
         return None
-    return [None if s == "none" else TaskInstanceState(s) for s in states]
+    return [None if s in ("none", None) else TaskInstanceState(s) for s in states]
 
 
 def _apply_array_filter(query: Select, key: ClauseElement, values: Iterable[Any] | None) -> Select:
@@ -396,10 +401,25 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
+    dag_ids = data["dag_ids"]
+    if dag_ids:
+        cannot_access_dag_ids = set()
+        for id in dag_ids:
+            if not get_airflow_app().appbuilder.sm.can_read_dag(id, g.user):
+                cannot_access_dag_ids.add(id)
+        if cannot_access_dag_ids:
+            raise PermissionDenied(
+                detail=f"User not allowed to access these DAGs: {list(cannot_access_dag_ids)}"
+            )
+    else:
+        dag_ids = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+
     states = _convert_ti_states(data["state"])
     base_query = select(TI).join(TI.dag_run)
 
-    base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])
+    base_query = _apply_array_filter(base_query, key=TI.dag_id, values=dag_ids)
+    base_query = _apply_array_filter(base_query, key=TI.run_id, values=data["dag_run_ids"])
+    base_query = _apply_array_filter(base_query, key=TI.task_id, values=data["task_ids"])
     base_query = _apply_range_filter(
         base_query,
         key=DR.execution_date,

@@ -71,19 +71,21 @@ ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 def get_active_airflow_versions(confirm: bool = True) -> list[str]:
     """
     Gets list of active Airflow versions from GitHub.
+
+    :param confirm: if True, will ask the user before proceeding with the versions found
     :return: list of active Airflow versions
     """
     from git import GitCommandError, Repo
     from packaging.version import Version
 
     get_console().print(
-        "\n[warning]Make sure you have 'apache` remote added pointing to apache/airflow repository\n"
+        "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
     )
     get_console().print("[info]Fetching all released Airflow 2 versions from GitHub[/]\n")
     repo = Repo(AIRFLOW_SOURCES_ROOT)
     all_active_tags: list[str] = []
     try:
-        ref_tags = repo.git.ls_remote("--tags", "apache").split("\n")
+        ref_tags = repo.git.ls_remote("--tags", "apache").splitlines()
     except GitCommandError as ex:
         get_console().print(
             "[error]Could not fetch tags from `apache` remote! Make sure to have it configured.\n"
@@ -100,7 +102,7 @@ def get_active_airflow_versions(confirm: bool = True) -> list[str]:
         match = ACTIVE_TAG_MATCH.match(tag)
         if match and match.group(1) == "2":
             all_active_tags.append(tag)
-    airflow_versions = sorted(all_active_tags, key=lambda x: Version(x))
+    airflow_versions = sorted(all_active_tags, key=Version)
     if confirm:
         get_console().print(f"All Airflow 2 versions: {all_active_tags}")
         answer = user_confirm(

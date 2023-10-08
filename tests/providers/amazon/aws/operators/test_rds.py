@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -26,7 +27,6 @@ from moto import mock_rds
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsBaseOperator,
@@ -44,6 +44,9 @@ from airflow.providers.amazon.aws.operators.rds import (
 )
 from airflow.providers.amazon.aws.triggers.rds import RdsDbAvailableTrigger, RdsDbStoppedTrigger
 from airflow.utils import timezone
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 

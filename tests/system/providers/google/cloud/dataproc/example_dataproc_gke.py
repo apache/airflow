@@ -30,8 +30,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
-from airflow.operators.bash import BashOperator
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
@@ -47,8 +46,8 @@ DAG_ID = "dataproc-gke"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 REGION = "us-central1"
-CLUSTER_NAME = f"cluster-test-build-in-gke{ENV_ID}"
-GKE_CLUSTER_NAME = f"test-dataproc-gke-cluster-{ENV_ID}"
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
+GKE_CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}-gke".replace("_", "-")
 WORKLOAD_POOL = f"{PROJECT_ID}.svc.id.goog"
 GKE_CLUSTER_CONFIG = {
     "name": GKE_CLUSTER_NAME,
@@ -84,25 +83,18 @@ VIRTUAL_CLUSTER_CONFIG = {
 # [END how_to_cloud_dataproc_create_cluster_in_gke_config]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "dataproc", "gke"],
 ) as dag:
     create_gke_cluster = GKECreateClusterOperator(
         task_id="create_gke_cluster",
         project_id=PROJECT_ID,
         location=REGION,
         body=GKE_CLUSTER_CONFIG,
-    )
-
-    add_iam_policy_binding = BashOperator(
-        task_id="add_iam_policy_binding",
-        bash_command=f"gcloud projects add-iam-policy-binding {PROJECT_ID} "
-        f"--member=serviceAccount:{WORKLOAD_POOL}[{GKE_NAMESPACE}/agent] "
-        "--role=roles/iam.workloadIdentityUser",
     )
 
     # [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
@@ -132,11 +124,14 @@ with models.DAG(
     )
 
     (
+        # TEST SETUP
         create_gke_cluster
-        >> add_iam_policy_binding
+        # TEST BODY
         >> create_cluster_in_gke
-        >> delete_gke_cluster
+        # TEST TEARDOWN
+        # >> delete_gke_cluster
         >> delete_dataproc_cluster
+        >> delete_gke_cluster
     )
 
     from tests.system.utils.watcher import watcher

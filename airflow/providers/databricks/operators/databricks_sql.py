@@ -22,7 +22,6 @@ import csv
 import json
 from typing import TYPE_CHECKING, Any, Sequence
 
-from databricks.sql.types import Row
 from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
@@ -31,6 +30,8 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
 if TYPE_CHECKING:
+    from databricks.sql.types import Row
+
     from airflow.utils.context import Context
 
 
@@ -77,6 +78,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
 
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
+    conn_id_field = "databricks_conn_id"
 
     def __init__(
         self,
@@ -296,7 +298,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         escape_key: bool = True,
     ) -> str:
         formatted_opts = ""
-        if opts is not None and len(opts) > 0:
+        if opts:
             pairs = [
                 f"{escaper.escape_item(k) if escape_key else k} = {escaper.escape_item(v)}"
                 for k, v in opts.items()
@@ -337,13 +339,11 @@ class DatabricksCopyIntoOperator(BaseOperator):
             elif isinstance(self._validate, int):
                 if self._validate < 0:
                     raise AirflowException(
-                        "Number of rows for validation should be positive, got: " + str(self._validate)
+                        f"Number of rows for validation should be positive, got: {self._validate}"
                     )
                 validation = f"VALIDATE {self._validate} ROWS\n"
             else:
-                raise AirflowException(
-                    "Incorrect data type for validate parameter: " + str(type(self._validate))
-                )
+                raise AirflowException(f"Incorrect data type for validate parameter: {type(self._validate)}")
         # TODO: think on how to make sure that table_name and expression_list aren't used for SQL injection
         sql = f"""COPY INTO {self._table_name}{storage_cred}
 FROM {location}

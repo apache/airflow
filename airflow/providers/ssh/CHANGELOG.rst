@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+3.7.3
+.....
+
+Misc
+~~~~
+
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+* ``E731: replace lambda by a def method in Airflow providers (#33757)``
+
+3.7.2
+.....
+
+Misc
+~~~~
+
+* ``Use str.splitlines() to split lines in providers (#33593)``
+* ``Simplify conditions on len() in other providers (#33569)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 3.7.1
 .....
 

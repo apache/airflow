@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import re
+import time
 from collections import namedtuple
-from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
 from azure.mgmt.containerinstance.models import (
@@ -119,18 +119,18 @@ class AzureContainerInstancesOperator(BaseOperator):
                 )
     """
 
-    template_fields: Sequence[str] = ("name", "image", "command", "environment_variables")
+    template_fields: Sequence[str] = ("name", "image", "command", "environment_variables", "volumes")
     template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
     def __init__(
         self,
         *,
         ci_conn_id: str,
-        registry_conn_id: str | None,
         resource_group: str,
         name: str,
         image: str,
         region: str,
+        registry_conn_id: str | None = None,
         environment_variables: dict | None = None,
         secured_variables: str | None = None,
         volumes: list | None = None,
@@ -295,7 +295,6 @@ class AzureContainerInstancesOperator(BaseOperator):
             try:
                 cg_state = self._ci_hook.get_state(resource_group, name)
                 instance_view = cg_state.containers[0].instance_view
-
                 # If there is no instance view, we show the provisioning state
                 if instance_view is not None:
                     c_state = instance_view.current_state
@@ -349,7 +348,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             except Exception:
                 self.log.exception("Exception while getting container groups")
 
-            sleep(1)
+            time.sleep(1)
 
     def _log_last(self, logs: list | None, last_line_logged: Any) -> Any | None:
         if logs:

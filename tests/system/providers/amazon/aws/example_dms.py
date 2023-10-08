@@ -29,9 +29,9 @@ from typing import cast
 import boto3
 from sqlalchemy import Column, MetaData, String, Table, create_engine
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.dms import (
     DmsCreateTaskOperator,
     DmsDeleteTaskOperator,

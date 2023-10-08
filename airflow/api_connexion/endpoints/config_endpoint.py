@@ -123,8 +123,7 @@ def get_value(section: str, option: str) -> Response:
                 "Config not found.", detail=f"The option [{section}/{option}] is not found in config."
             )
 
-        print(conf.sensitive_config_values)
-        if (section, option) in conf.sensitive_config_values:
+        if (section.lower(), option.lower()) in conf.sensitive_config_values:
             value = "< hidden >"
         else:
             value = conf.get(section, option)

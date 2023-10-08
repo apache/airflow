@@ -27,6 +27,29 @@
 Changelog
 ---------
 
+5.6.1
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+* ``Use literal dict instead of calling dict() in providers (#33761)``
+
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, postgres: add OpenLineage support for Postgres (#31617)``
+
+Misc
+~~~~
+
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
 5.5.2
 .....
 

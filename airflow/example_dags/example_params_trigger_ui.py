@@ -23,17 +23,20 @@ from __future__ import annotations
 
 import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from airflow import DAG
 from airflow.decorators import task
-from airflow.models.dagrun import DagRun
+from airflow.models.dag import DAG
 from airflow.models.param import Param
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils.trigger_rule import TriggerRule
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
 
 with DAG(
     dag_id=Path(__file__).stem,
-    description=__doc__[0 : __doc__.find(".")],
+    description=__doc__.partition(".")[0],
     doc_md=__doc__,
     schedule=None,
     start_date=datetime.datetime(2022, 3, 4),
@@ -86,13 +89,13 @@ with DAG(
 
     @task(task_id="print_greetings", trigger_rule=TriggerRule.ALL_DONE)
     def print_greetings(greetings1, greetings2, greetings3) -> None:
-        for g in greetings1 if greetings1 else []:
+        for g in greetings1 or []:
             print(g)
-        for g in greetings2 if greetings2 else []:
+        for g in greetings2 or []:
             print(g)
-        for g in greetings3 if greetings3 else []:
+        for g in greetings3 or []:
             print(g)
-        if not greetings1 and not greetings2 and not greetings3:
+        if not (greetings1 or greetings2 or greetings3):
             print("sad, nobody to greet :-(")
 
     lang_select = select_languages()

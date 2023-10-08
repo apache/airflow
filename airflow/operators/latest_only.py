@@ -23,10 +23,10 @@ from typing import TYPE_CHECKING, Iterable
 import pendulum
 
 from airflow.operators.branch import BaseBranchOperator
-from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.models import DAG, DagRun
+    from airflow.utils.context import Context
 
 
 class LatestOnlyOperator(BaseBranchOperator):

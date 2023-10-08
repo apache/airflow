@@ -42,6 +42,9 @@ const GanttTooltip = ({ task, instance }: Props) => {
       <Text>
         Task{isGroup ? " Group" : ""}: {task.label}
       </Text>
+      {!!instance?.tryNumber && instance.tryNumber > 1 && (
+        <Text>Try Number: {instance.tryNumber}</Text>
+      )}
       <br />
       {instance?.queuedDttm && (
         <Text>

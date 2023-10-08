@@ -936,7 +936,7 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GCSToGCSOperator`
+        :ref:`howto/operator:CloudDataTransferServiceGCSToGCSOperator`
 
     **Example**:
 
@@ -989,6 +989,7 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         If set to True, 'wait' must be set to True.
     """
 
+    # [START gcp_transfer_gcs_to_gcs_template_fields]
     template_fields: Sequence[str] = (
         "gcp_conn_id",
         "source_bucket",
@@ -999,6 +1000,8 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         "object_conditions",
         "google_impersonation_chain",
     )
+    # [END gcp_transfer_gcs_to_gcs_template_fields]
+
     ui_color = "#e09411"
 
     def __init__(

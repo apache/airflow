@@ -26,8 +26,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineDeleteInstanceOperator,
@@ -69,12 +69,12 @@ GCE_INSTANCE_BODY = {
 }
 # [END howto_operator_gce_args_common]
 
-with models.DAG(
+with DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "compute-ssh"],
 ) as dag:
     # [START howto_operator_gce_insert]
     gce_instance_insert = ComputeEngineInsertInstanceOperator(
@@ -95,7 +95,7 @@ with models.DAG(
             project_id=PROJECT_ID,
             use_oslogin=False,
             use_iap_tunnel=False,
-            cmd_timeout=100,
+            cmd_timeout=1,
         ),
         command="echo metadata_without_iap_tunnel1",
     )

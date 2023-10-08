@@ -40,7 +40,9 @@ class TestGcpBodyFieldValidator:
 
         validator = GcpBodyFieldValidator(specification, "v1")
 
-        with pytest.raises(AttributeError):
+        with pytest.raises(
+            RuntimeError, match="The body to validate is `None`. Please provide a dictionary to validate."
+        ):
             validator.validate(body)
 
     def test_validate_should_fail_if_specification_is_none(self):

@@ -16,27 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-import sys
+from unittest import mock
 
+import pytest
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.storage_transfer_v1 import TransferOperation
 
-from airflow import AirflowException
-from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
-
-import pytest
-
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
 )
 from airflow.providers.google.cloud.triggers.cloud_storage_transfer_service import (
     CloudStorageTransferServiceCreateJobsTrigger,
 )
+from airflow.triggers.base import TriggerEvent
 
 PROJECT_ID = "test-project"
 JOB_0 = "test-job-0"
@@ -53,7 +46,6 @@ CLASS_PATH = (
 ASYNC_HOOK_CLASS_PATH = (
     "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service.CloudDataTransferServiceAsyncHook"
 )
-PYTHON_VERSION = (sys.version_info.major, sys.version_info.minor, sys.version_info.micro)
 
 
 @pytest.fixture(scope="session")
@@ -69,7 +61,7 @@ def mock_jobs(names: list[str], latest_operation_names: list[str | None]):
     for job, name in zip(jobs, names):
         job.name = name
     mock_obj = mock.MagicMock()
-    mock_obj.__aiter__.return_value = (job for job in jobs)
+    mock_obj.__aiter__.return_value = iter(jobs)
     return mock_obj
 
 
@@ -116,10 +108,6 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
 
         assert actual_event == expected_event
 
-    @pytest.mark.skipif(
-        (3, 7, 7) < PYTHON_VERSION < (3, 8, 0),
-        reason="Unresolved issue in asynctest: https://github.com/Martiusweb/asynctest/issues/152",
-    )
     @pytest.mark.parametrize(
         "status",
         [
@@ -157,10 +145,6 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
         assert actual_event == expected_event
         mock_sleep.assert_called_once_with(POLL_INTERVAL)
 
-    @pytest.mark.skipif(
-        (3, 7, 7) < PYTHON_VERSION < (3, 8, 0),
-        reason="Unresolved issue in asynctest: https://github.com/Martiusweb/asynctest/issues/152",
-    )
     @pytest.mark.parametrize(
         "latest_operations_names, expected_failed_job",
         [
@@ -193,10 +177,6 @@ class TestCloudStorageTransferServiceCreateJobsTrigger:
 
         assert actual_event == expected_event
 
-    @pytest.mark.skipif(
-        (3, 7, 7) < PYTHON_VERSION < (3, 8, 0),
-        reason="Unresolved issue in asynctest: https://github.com/Martiusweb/asynctest/issues/152",
-    )
     @pytest.mark.parametrize(
         "job_statuses, failed_operation, expected_status",
         [

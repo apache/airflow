@@ -27,7 +27,7 @@ from datetime import datetime
 
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator,
@@ -50,33 +50,35 @@ from airflow.providers.google.cloud.operators.gcs import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "example_automl_model"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_AUTOML_LOCATION = "us-central1"
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-RESOURCE_DATA_BUCKET = "system-tests-resources"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 
-DATASET_NAME = "test_dataset_model"
+DATASET_NAME = f"md_tabular_{ENV_ID}".replace("-", "_")
 DATASET = {
     "display_name": DATASET_NAME,
     "tables_dataset_metadata": {"target_column_spec_id": ""},
 }
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-model/bank-marketing.csv"
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/bank-marketing-split.csv"
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 IMPORT_OUTPUT_CONFIG = {
-    "gcs_destination": {"output_uri_prefix": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-model"}
+    "gcs_destination": {"output_uri_prefix": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl"}
 }
 
-MODEL_NAME = "test_model"
+# change the name here
+MODEL_NAME = f"md_tabular_{ENV_ID}".replace("-", "_")
 MODEL = {
     "display_name": MODEL_NAME,
     "tables_model_metadata": {"train_budget_milli_node_hours": 1000},
 }
 
 PREDICT_VALUES = [
+    Value(string_value="TRAINING"),
     Value(string_value="51"),
     Value(string_value="blue-collar"),
     Value(string_value="married"),
@@ -108,17 +110,17 @@ def get_target_column_spec(columns_specs: list[dict], column_name: str) -> str:
     raise Exception(f"Unknown target column: {column_name}")
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={
         "get_target_column_spec": get_target_column_spec,
-        "target": "Class",
+        "target": "Deposit",
         "extract_object_id": extract_object_id,
     },
-    tags=["example", "automl"],
+    tags=["example", "automl", "model"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -130,9 +132,9 @@ with models.DAG(
     move_dataset_file = GCSSynchronizeBucketsOperator(
         task_id="move_data_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="automl-model",
+        source_object="automl/datasets/model",
         destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object="automl-model",
+        destination_object="automl",
         recursive=True,
     )
 
@@ -255,9 +257,7 @@ with models.DAG(
 
     (
         # TEST SETUP
-        create_bucket
-        >> move_dataset_file
-        >> create_dataset
+        [create_bucket >> move_dataset_file, create_dataset]
         >> import_dataset
         >> list_tables_spec
         >> list_columns_spec

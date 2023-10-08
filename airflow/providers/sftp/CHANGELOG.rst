@@ -27,6 +27,45 @@
 Changelog
 ---------
 
+4.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/sftp): respect soft_fail argument when exception is raised (#34169)``
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+4.6.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add parameter sftp_prefetch to SFTPToGCSOperator (#33274)``
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers - Final Pass (#33303)``
+
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, sftp: add OpenLineage support for sftp provider (#31360)``
+
 4.4.0
 .....
 

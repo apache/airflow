@@ -66,9 +66,14 @@
 {% if auth_manager.is_logged_in() %}
   <li class="dropdown">
     <a class="dropdown-toggle" href="#">
-       <span class="navbar-user-icon" title="{{ auth_manager.get_user_name() }}">
-         {% set user_names = auth_manager.get_user_name().split(" ", 1) %}
-         <span>{% for name in user_names %}{{ name[0].upper() }}{% endfor %}</span>
+       <span class="navbar-user-icon" title="{{ auth_manager.get_user_display_name() }}">
+         {% set user_display_name = auth_manager.get_user_display_name() %}
+         {% if user_display_name %}
+          {% set user_display_names = user_display_name.split(" ", 1) %}
+          <span>{% for name in user_display_names %}{{ name[0].upper() }}{% endfor %}</span>
+         {% else %}
+          <span class="material-icons">person</span>
+         {% endif %}
        </span>
        <b class="caret"></b>
     </a>
@@ -78,7 +83,7 @@
         <li><a href="{{user_profile_url}}"><span class="material-icons">account_circle</span>{{_("Your Profile")}}</a></li>
         <li role="separator" class="divider"></li>
       {% endif %}
-      <li><a href="{{appbuilder.get_url_for_logout}}"><span class="material-icons">exit_to_app</span>{{_("Log Out")}}</a></li>
+      <li><a href="{{auth_manager.get_url_logout()}}"><span class="material-icons">exit_to_app</span>{{_("Log Out")}}</a></li>
     </ul>
   </li>
 {% else %}

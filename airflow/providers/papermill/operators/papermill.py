@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Collection, Optional, Sequence
+from typing import TYPE_CHECKING, ClassVar, Collection, Sequence
 
 import attr
 import papermill as pm
@@ -33,17 +33,10 @@ if TYPE_CHECKING:
 class NoteBook(File):
     """Jupyter notebook."""
 
-    # For compatibility with Airflow 2.3:
-    # 1. Use predefined set because `File.template_fields` introduced in Airflow 2.4
-    # 2. Use old styled annotations because `cattrs` doesn't work well with PEP 604.
+    template_fields: ClassVar[Collection[str]] = {"parameters", *File.template_fields}
 
-    template_fields: ClassVar[Collection[str]] = {
-        "parameters",
-        *(File.template_fields if hasattr(File, "template_fields") else {"url"}),
-    }
-
-    type_hint: Optional[str] = "jupyter_notebook"  # noqa: UP007
-    parameters: Optional[dict] = {}  # noqa: UP007
+    type_hint: str | None = "jupyter_notebook"
+    parameters: dict | None = {}
 
     meta_schema: str = __name__ + ".NoteBook"
 

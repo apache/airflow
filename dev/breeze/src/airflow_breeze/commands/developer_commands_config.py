@@ -99,6 +99,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--package-format",
             ],
         },
+        {
+            "name": "Upgrading/downgrading selected packages",
+            "options": [
+                "--upgrade-boto",
+                "--downgrade-sqlalchemy",
+            ],
+        },
     ],
     "breeze compile-www-assets": [
         {

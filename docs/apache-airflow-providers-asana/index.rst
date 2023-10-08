@@ -77,7 +77,7 @@ Package apache-airflow-providers-asana
 `Asana <https://app.asana.com/>`__
 
 
-Release: 2.2.1
+Release: 2.2.2
 
 Provider package
 ----------------
@@ -101,5 +101,5 @@ The minimum Apache Airflow version supported by this provider package is ``2.4.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.4.0``
-``asana``           ``>=0.10``
+``asana``           ``>=0.10,<4.0.0``
 ==================  ==================

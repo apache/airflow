@@ -231,7 +231,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.7.0.dev0'
+  version: '2.8.0.dev0'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -983,6 +983,12 @@ paths:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/FilterDAGID'
+        - $ref: '#/components/parameters/FilterTaskID'
+        - $ref: '#/components/parameters/Event'
+        - $ref: '#/components/parameters/Owner'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/After'
       responses:
         '200':
           description: Success.
@@ -3158,7 +3164,7 @@ components:
         occupied_slots:
           type: integer
           readOnly: true
-          description: The number of slots used by running/queued tasks at the moment.
+          description: The number of slots used by running/queued tasks at the moment. May include deferred tasks if 'include_deferred' is set to true.
         running_slots:
           type: integer
           readOnly: true
@@ -3175,6 +3181,13 @@ components:
           type: integer
           readOnly: true
           description: The number of slots used by scheduled tasks at the moment.
+        deferred_slots:
+          type: integer
+          readOnly: true
+          description: |
+            The number of slots used by deferred tasks at the moment. Relevant if 'include_deferred' is set to true.
+
+            *New in version 2.7.0*
         description:
           type: string
           description: |
@@ -3182,6 +3195,12 @@ components:
 
             *New in version 2.3.0*
           nullable: true
+        include_deferred:
+          type: boolean
+          description: |
+            If set to true, deferred tasks are considered when calculating open pool slots.
+
+            *New in version 2.7.0*
 
     PoolCollection:
       type: object
@@ -3228,7 +3247,6 @@ components:
           items:
             $ref: '#/components/schemas/Provider'
 
-
     SLAMiss:
       type: object
       properties:
@@ -3256,6 +3274,7 @@ components:
 
     Trigger:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3272,6 +3291,7 @@ components:
 
     Job:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3335,7 +3355,6 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
-          nullable: true
         try_number:
           type: integer
         map_index:
@@ -3371,7 +3390,6 @@ components:
           type: string
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
-          nullable: true
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3380,10 +3398,8 @@ components:
           type: object
         trigger:
           $ref: '#/components/schemas/Trigger'
-          nullable: true
         triggerer_job:
           $ref: '#/components/schemas/Job'
-          nullable: true
         note:
           type: string
           description: |
@@ -3561,7 +3577,6 @@ components:
 
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
-              nullable: true
               $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
@@ -3699,10 +3714,8 @@ components:
           readOnly: true
         execution_timeout:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_delay:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -4285,12 +4298,7 @@ components:
           type: boolean
 
         new_state:
-          description: Expected new state.
-          type: string
-          enum:
-            - success
-            - failed
-            - skipped
+          $ref: '#/components/schemas/UpdateTaskState'
 
     UpdateTaskInstance:
       type: object
@@ -4300,15 +4308,10 @@ components:
             If set, don't actually run this operation. The response will contain the task instance
             planned to be affected, but won't be modified in any way.
           type: boolean
-          default: false
+          default: true
 
         new_state:
-          description: Expected new state.
-          type: string
-          enum:
-            - success
-            - failed
-            - skipped
+          $ref: '#/components/schemas/UpdateTaskState'
 
     SetTaskInstanceNote:
       type: object
@@ -4416,6 +4419,26 @@ components:
             Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
+        dag_run_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific DAG Run IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
+        task_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific task IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
         execution_date_gte:
           type: string
           format: date-time
@@ -4506,6 +4529,7 @@ components:
     TimeDelta:
       description: Time delta
       type: object
+      nullable: true
       required:
         - __type
         - days
@@ -4646,8 +4670,14 @@ components:
 
         *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
         *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
+
+        *Changed in version 2.7.0*&#58; Field becomes nullable and null primitive is added as a possible value.
+        *Changed in version 2.7.0*&#58; 'none' state is deprecated in favor of null.
+
       type: string
+      nullable: true
       enum:
+        - null
         - success
         - running
         - failed
@@ -4661,6 +4691,19 @@ components:
         - deferred
         - removed
         - restarting
+
+
+    UpdateTaskState:
+      description: |
+        Expected new state. Only a subset of TaskState are available.
+
+        Other states are managed directly by the scheduler or the workers and cannot be updated manually through the REST API.
+
+      type: string
+      enum:
+        - success
+        - failed
+        - skipped
 
     DagState:
       description: |
@@ -4772,6 +4815,40 @@ components:
         type: string
       required: true
       description: The task ID.
+
+    Event:
+      in: query
+      name: event
+      schema:
+        type: string
+      required: false
+      description: The name of event log.
+
+    Owner:
+      in: query
+      name: owner
+      schema:
+        type: string
+      required: false
+      description: The owner's name of event log.
+
+    Before:
+      in: query
+      name: before
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: Timestamp to select event logs occurring before.
+
+    After:
+      in: query
+      name: after
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: Timestamp to select event logs occurring after.
 
     MapIndex:
       in: path
@@ -5109,6 +5186,22 @@ components:
         type: string
       required: false
       description: Only filter the XCom records which have the provided key.
+
+    FilterDAGID:
+      in: query
+      name: dag_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the DAG ID.
+
+    FilterTaskID:
+      in: query
+      name: task_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the Task ID.
 
     # Other parameters
     FileToken:

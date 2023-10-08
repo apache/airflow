@@ -383,6 +383,7 @@ class TestPoolApiExperimental(TestBase):
                 pool=name,
                 slots=i,
                 description=name,
+                include_deferred=False,
             )
             self.session.add(pool)
             self.pools.append(pool)
@@ -434,6 +435,7 @@ class TestPoolApiExperimental(TestBase):
         assert pool["pool"] == "foo"
         assert pool["slots"] == 1
         assert pool["description"] == ""
+        assert pool["include_deferred"] is False
         assert self._get_pool_count() == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_with_bad_name(self):

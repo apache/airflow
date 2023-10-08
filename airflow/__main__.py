@@ -38,7 +38,6 @@ from airflow.configuration import write_webserver_configuration_if_needed
 
 
 def main():
-    """Main executable function."""
     conf = configuration.conf
     if conf.get("core", "security") == "kerberos":
         os.environ["KRB5CCNAME"] = conf.get("kerberos", "ccache")

@@ -31,7 +31,7 @@ from airflow.configuration import conf
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
@@ -113,14 +113,14 @@ class S3KeySensor(BaseSensorOperator):
         }]
         """
         if self.wildcard_match:
-            prefix = re.split(r"[\[\*\?]", key, 1)[0]
+            prefix = re.split(r"[\[*?]", key, 1)[0]
             keys = self.hook.get_file_metadata(prefix, bucket_name)
             key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
-            if len(key_matches) == 0:
+            if not key_matches:
                 return False
 
             # Reduce the set of metadata to size only
-            files = list(map(lambda f: {"Size": f["Size"]}, key_matches))
+            files = [{"Size": f["Size"]} for f in key_matches]
         else:
             obj = self.hook.head_object(key, bucket_name)
             if obj is None:
@@ -157,14 +157,14 @@ class S3KeySensor(BaseSensorOperator):
                 aws_conn_id=self.aws_conn_id,
                 verify=self.verify,
                 poke_interval=self.poke_interval,
-                should_check_fn=True if self.check_fn else False,
+                should_check_fn=bool(self.check_fn),
             ),
             method_name="execute_complete",
         )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> bool | None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -176,10 +176,13 @@ class S3KeySensor(BaseSensorOperator):
                 self._defer()
 
         if event["status"] == "error":
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
         return None
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> S3Hook:
         """Create and return an S3Hook."""
         return self.hook
@@ -297,10 +300,14 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
                 )
                 return False
 
-            raise AirflowException(
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = (
                 f"Illegal behavior: objects were deleted in"
                 f" {os.path.join(self.bucket_name, self.prefix)} between pokes."
             )
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         if self.last_activity_time:
             self.inactivity_seconds = int((datetime.now() - self.last_activity_time).total_seconds())
@@ -355,10 +362,13 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event and event["status"] == "error":
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
         return None

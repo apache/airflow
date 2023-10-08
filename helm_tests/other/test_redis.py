@@ -42,28 +42,6 @@ CELERY_EXECUTORS_PARAMS = ["CeleryExecutor", "CeleryKubernetesExecutor"]
 class TestRedis:
     """Tests redis."""
 
-    def test_default_automount_service_account_token(self):
-        docs = render_chart(
-            values={
-                "redis": {
-                    "serviceAccount": {"create": True},
-                },
-            },
-            show_only=["templates/redis/redis-serviceaccount.yaml"],
-        )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
-
-    def test_overriden_automount_service_account_token(self):
-        docs = render_chart(
-            values={
-                "redis": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
-                },
-            },
-            show_only=["templates/redis/redis-serviceaccount.yaml"],
-        )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
-
     @staticmethod
     def get_broker_url_in_broker_url_secret(k8s_obj_by_key):
         broker_url_in_obj = b64decode(
@@ -265,6 +243,17 @@ class TestRedis:
         )
         assert 2 == len(docs)
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -350,3 +339,29 @@ class TestRedis:
             show_only=["templates/redis/redis-statefulset.yaml"],
         )
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
+
+
+class TestRedisServiceAccount:
+    """Tests redis service account."""
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/redis/redis-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/redis/redis-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

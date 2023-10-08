@@ -17,14 +17,16 @@
 from __future__ import annotations
 
 import logging
+import os
 import warnings
 from functools import cached_property
-from os import path
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 from connexion import FlaskApi, ProblemException, Resolver
 from connexion.decorators.validation import RequestBodyValidator
 from connexion.exceptions import BadRequestProblem
-from flask import Flask, request
+from flask import request
 
 from airflow.api_connexion.exceptions import common_error_handler
 from airflow.configuration import conf
@@ -32,10 +34,13 @@ from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
 from airflow.utils.yaml import safe_load
 
+if TYPE_CHECKING:
+    from flask import Flask
+
 log = logging.getLogger(__name__)
 
 # airflow/www/extensions/init_views.py => airflow/
-ROOT_APP_DIR = path.abspath(path.join(path.dirname(__file__), path.pardir, path.pardir))
+ROOT_APP_DIR = Path(__file__).parents[2].resolve()
 
 
 def init_flash_views(app):
@@ -249,7 +254,7 @@ def init_api_connexion(app: Flask) -> None:
         else:
             return views.method_not_allowed(ex)
 
-    with open(path.join(ROOT_APP_DIR, "api_connexion", "openapi", "v1.yaml")) as f:
+    with ROOT_APP_DIR.joinpath("api_connexion", "openapi", "v1.yaml").open() as f:
         specification = safe_load(f)
     api_bp = FlaskApi(
         specification=specification,
@@ -257,7 +262,7 @@ def init_api_connexion(app: Flask) -> None:
         base_path=base_path,
         options={
             "swagger_ui": conf.getboolean("webserver", "enable_swagger_ui", fallback=True),
-            "swagger_path": path.join(ROOT_APP_DIR, "www", "static", "dist", "swagger-ui"),
+            "swagger_path": os.fspath(ROOT_APP_DIR.joinpath("www", "static", "dist", "swagger-ui")),
         },
         strict_validation=True,
         validate_responses=True,
@@ -275,7 +280,7 @@ def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
     if not standalone_api and not conf.getboolean("webserver", "run_internal_api", fallback=False):
         return
 
-    with open(path.join(ROOT_APP_DIR, "api_internal", "openapi", "internal_api_v1.yaml")) as f:
+    with ROOT_APP_DIR.joinpath("api_internal", "openapi", "internal_api_v1.yaml").open() as f:
         specification = safe_load(f)
     api_bp = FlaskApi(
         specification=specification,

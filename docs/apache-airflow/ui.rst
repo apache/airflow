@@ -28,7 +28,7 @@ DAGs View
 .........
 List of the DAGs in your environment, and a set of shortcuts to useful pages.
 You can see exactly how many tasks succeeded, failed, or are currently
-running at a glance. To hide completed tasks set show_recent_stats_for_completed_runs = False
+running at a glance. To hide completed tasks set ``show_recent_stats_for_completed_runs = False``
 
 In order to filter DAGs (e.g by team), you can add tags in each DAG.
 The filter is saved in a cookie and can be reset by the reset button.
@@ -166,9 +166,9 @@ DAG over many runs.
 
 Landing Times
 .............
-Airflow landing times are calculated from the task's scheduled time to
-the time the task finishes, either with success or another state (see
-:ref:`concepts:task-instances`).
+
+The landing time for a task instance is the delta between the dag run's data interval end
+(typically this means, when the dag "should" run) and the task instance completion time.
 
 ------------
 

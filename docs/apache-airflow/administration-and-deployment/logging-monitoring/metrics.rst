@@ -182,6 +182,7 @@ Name                                                                   Descripti
 ``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
                                                                        previously in REMOVED state in the DB is added to DAG file)
 ``task_instance_created_<operator_name>``                              Number of tasks instances created for a given Operator
+``triggerer_heartbeat``                                                Triggerer heartbeats
 ``triggers.blocked_main_thread``                                       Number of triggers that blocked the main thread (likely due to not being
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event
@@ -198,7 +199,7 @@ Gauges
 =================================================== ========================================================================
 Name                                                Description
 =================================================== ========================================================================
-``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on it's
+``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on its
                                                     configuration
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
 ``dag_processing.total_parse_time``                 Seconds taken to scan and import ``dag_processing.file_path_queue_size`` DAG files
@@ -214,6 +215,7 @@ Name                                                Description
 ``pool.open_slots.<pool_name>``                     Number of open slots in the pool
 ``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
 ``pool.running_slots.<pool_name>``                  Number of running slots in the pool
+``pool.deferred_slots.<pool_name>``                 Number of deferred slots in the pool
 ``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
 ``triggers.running.<hostname>``                     Number of triggers currently running for a triggerer (described by hostname)
 =================================================== ========================================================================
@@ -230,7 +232,7 @@ Name                                                Description
 ``dag.<dag_id>.<task_id>.queued_duration``          Seconds a task spends in the Queued state, before being Running
 ``dag_processing.last_duration.<dag_file>``         Seconds taken to load the given DAG file
 ``dagrun.duration.success.<dag_id>``                Seconds taken for a DagRun to reach success state
-``dagrun.duration.failed.<dag_id>``                 Milliseconds taken for a DagRun to reach failed state
+``dagrun.duration.failed.<dag_id>``                 Seconds taken for a DagRun to reach failed state
 ``dagrun.schedule_delay.<dag_id>``                  Seconds of delay between the scheduled DagRun
                                                     start date and the actual DagRun start date
 ``scheduler.critical_section_duration``             Milliseconds spent in the critical section of scheduler loop --

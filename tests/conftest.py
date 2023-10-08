@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import sys
 from contextlib import ExitStack, suppress
@@ -41,6 +42,11 @@ os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
 os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44") or "true"
+
+if platform.system() == "Darwin":
+    # mocks from unittest.mock work correctly in subprocesses only if they are created by "fork" method
+    # but macOS uses "spawn" by default
+    os.environ["AIRFLOW__CORE__MP_START_METHOD"] = "fork"
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
@@ -134,7 +140,7 @@ def trace_sql(request):
             # It is very unlikely that the user wants to display only numbers, but probably
             # the user just wants to count the queries.
             exit_stack.enter_context(count_queries(print_fn=pytest_print))
-        elif any(c for c in ["time", "trace", "sql", "parameters"]):
+        elif any(c in columns for c in ["time", "trace", "sql", "parameters"]):
             exit_stack.enter_context(
                 trace_queries(
                     display_num="num" in columns,
@@ -613,7 +619,7 @@ def dag_maker(request):
             **kwargs,
         ):
             from airflow import settings
-            from airflow.models import DAG
+            from airflow.models.dag import DAG
             from airflow.utils import timezone
 
             if session is None:
@@ -942,3 +948,12 @@ def initialize_providers_manager():
     from airflow.providers_manager import ProvidersManager
 
     ProvidersManager().initialize_providers_configuration()
+
+
+@pytest.fixture(autouse=True, scope="function")
+def close_all_sqlalchemy_sessions():
+    from sqlalchemy.orm import close_all_sessions
+
+    close_all_sessions()
+    yield
+    close_all_sessions()

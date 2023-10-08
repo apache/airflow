@@ -22,8 +22,8 @@ import re
 from datetime import datetime, timedelta
 from enum import Enum
 
-from airflow import DAG
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
@@ -106,7 +106,7 @@ def chain_as_grid(*tasks: BashOperator):
     """
     if len(tasks) > 100 * 99 / 2:
         raise ValueError("Cannot generate grid DAGs with lateral size larger than 100 tasks.")
-    grid_size = min(n for n in range(100) if n * (n + 1) / 2 >= len(tasks))
+    grid_size = next(n for n in range(100) if n * (n + 1) / 2 >= len(tasks))
 
     def index(i, j):
         """

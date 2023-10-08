@@ -22,7 +22,6 @@ virtual environment.
 from __future__ import annotations
 
 import logging
-import shutil
 import sys
 import tempfile
 import time
@@ -30,9 +29,9 @@ from pprint import pprint
 
 import pendulum
 
-from airflow import DAG
 from airflow.decorators import task
-from airflow.operators.python import ExternalPythonOperator, PythonVirtualenvOperator
+from airflow.models.dag import DAG
+from airflow.operators.python import ExternalPythonOperator, PythonVirtualenvOperator, is_venv_installed
 
 log = logging.getLogger(__name__)
 
@@ -81,12 +80,12 @@ with DAG(
             """This is a function that will run within the DAG execution"""
             time.sleep(random_base)
 
-        sleeping_task = my_sleeping_function(random_base=float(i) / 10)
+        sleeping_task = my_sleeping_function(random_base=i / 10)
 
         run_this >> log_the_sql >> sleeping_task
     # [END howto_operator_python_kwargs]
 
-    if not shutil.which("virtualenv"):
+    if not is_venv_installed():
         log.warning("The virtalenv_python example task requires virtualenv, please install it.")
     else:
         # [START howto_operator_python_venv]

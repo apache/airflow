@@ -18,7 +18,6 @@
 """Provides lineage support functions."""
 from __future__ import annotations
 
-import itertools
 import logging
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
@@ -38,7 +37,7 @@ log = logging.getLogger(__name__)
 
 
 def get_backend() -> LineageBackend | None:
-    """Gets the lineage backend if defined in the configs."""
+    """Get the lineage backend if defined in the configs."""
     clazz = conf.getimport("lineage", "backend", fallback=None)
 
     if clazz:
@@ -99,7 +98,7 @@ def apply_lineage(func: T) -> T:
 
 def prepare_lineage(func: T) -> T:
     """
-    Prepares the lineage inlets and outlets.
+    Prepare the lineage inlets and outlets.
 
     Inlets can be:
 
@@ -142,7 +141,7 @@ def prepare_lineage(func: T) -> T:
                 _inlets = self.xcom_pull(
                     context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS, session=session
                 )
-                self.inlets.extend(i for i in itertools.chain.from_iterable(_inlets))
+                self.inlets.extend(i for it in _inlets for i in it)
 
         elif self.inlets:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")

@@ -28,6 +28,22 @@
 Changelog
 ---------
 
+3.5.2
+.....
+
+Misc
+~~~~
+
+* ``Custom fetch all handler for vertica to not miss errors (#34041)``
+
+3.5.1
+.....
+
+Misc
+~~~~
+
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
 3.5.0
 .....
 

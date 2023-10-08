@@ -10,7 +10,6 @@
 .airflowignore
 .babelrc
 .coverage
-.coveragerc
 .codecov.yml
 .codespellignorelines
 .eslintignore
@@ -114,6 +113,7 @@ chart/.gitignore
 chart/values.schema.json
 chart/Chart.lock
 chart/values_schema.schema.json
+chart/Chart.yaml
 
 # Generated autocomplete files
 ./dev/breeze/autocomplete/*
@@ -133,3 +133,6 @@ chart/*.iml
 
 # Sha files
 .*sha256
+
+# DOAP file
+doap_airflow.rdf

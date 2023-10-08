@@ -37,15 +37,13 @@ console = Console(width=400, color_system="standard")
 def verify_all_commands_described_in_docs():
     errors = []
     doc_content = (AIRFLOW_SOURCES_DIR / "BREEZE.rst").read_text()
-    for file_name in os.listdir(BREEZE_IMAGES_DIR):
-        if file_name.startswith("output_") and file_name.endswith(".svg"):
-            command = file_name[len("output_") : -len(".svg")]
-            if command == "breeze-commands":
-                continue
-            if file_name not in doc_content:
-                errors.append(command)
-            else:
+    for file_path in BREEZE_IMAGES_DIR.glob("output_*.svg"):
+        command = file_path.stem[len("output_") :]
+        if command != "breeze-commands":
+            if file_path.name in doc_content:
                 console.print(f"[green]OK. The {command} screenshot is embedded in BREEZE.rst.")
+            else:
+                errors.append(command)
     if errors:
         console.print("[red]Some of Breeze commands are not described in BREEZE.rst:[/]")
         for command in errors:

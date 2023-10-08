@@ -24,7 +24,7 @@ from datetime import datetime
 
 from google.api_core.retry import Retry
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCancelOperationOperator,
     DataprocCreateBatchOperator,
@@ -40,10 +40,10 @@ DAG_ID = "dataproc_batch"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 REGION = "europe-west1"
 
-BATCH_ID = f"test-batch-id-{ENV_ID}"
-BATCH_ID_2 = f"test-batch-id-{ENV_ID}-2"
-BATCH_ID_3 = f"test-batch-id-{ENV_ID}-3"
-BATCH_ID_4 = f"test-batch-id-{ENV_ID}-4"
+BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
+BATCH_ID_2 = f"batch-{ENV_ID}-{DAG_ID}-2".replace("_", "-")
+BATCH_ID_3 = f"batch-{ENV_ID}-{DAG_ID}-3".replace("_", "-")
+BATCH_ID_4 = f"batch-{ENV_ID}-{DAG_ID}-4".replace("_", "-")
 
 BATCH_CONFIG = {
     "spark_batch": {
@@ -53,7 +53,7 @@ BATCH_CONFIG = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -154,19 +154,15 @@ with models.DAG(
     delete_batch_4.trigger_rule = TriggerRule.ALL_DONE
 
     (
-        create_batch
-        >> create_batch_2
-        >> create_batch_3
+        # TEST SETUP
+        [create_batch, create_batch_2, create_batch_3]
+        # TEST BODY
         >> batch_async_sensor
-        >> get_batch
-        >> get_batch_2
-        >> list_batches
+        >> [get_batch, get_batch_2, list_batches]
         >> create_batch_4
         >> cancel_operation
-        >> delete_batch
-        >> delete_batch_2
-        >> delete_batch_3
-        >> delete_batch_4
+        # TEST TEARDOWN
+        >> [delete_batch, delete_batch_2, delete_batch_3, delete_batch_4]
     )
 
     from tests.system.utils.watcher import watcher

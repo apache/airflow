@@ -99,6 +99,7 @@ jobs:
         run: breeze ci-image build
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          COMMIT_SHA: ${{ github.sha }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
       - name: "Start ARM instance"
@@ -117,6 +118,8 @@ jobs:
           ${{ needs.build-info.outputs.skipLatest }}
           ${{ needs.build-info.outputs.limitPlatform }}
           --limit-python ${{ matrix.python-version }}
+        env:
+          COMMIT_SHA: ${{ github.sha }}
       - name: >
           Release slim images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
         run: >
@@ -126,6 +129,8 @@ jobs:
           ${{ needs.build-info.outputs.skipLatest }}
           ${{ needs.build-info.outputs.limitPlatform }}
           --limit-python ${{ matrix.python-version }} --slim-images
+        env:
+          COMMIT_SHA: ${{ github.sha }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always() && github.repository == 'apache/airflow'

@@ -25,28 +25,6 @@ from tests.charts.helm_template_generator import render_chart
 class TestMigrateDatabaseJob:
     """Tests migrate DB job."""
 
-    def test_default_automount_service_account_token(self):
-        docs = render_chart(
-            values={
-                "migrateDatabaseJob": {
-                    "serviceAccount": {"create": True},
-                },
-            },
-            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
-        )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
-
-    def test_overriden_automount_service_account_token(self):
-        docs = render_chart(
-            values={
-                "migrateDatabaseJob": {
-                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
-                },
-            },
-            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
-        )
-        assert jmespath.search("automountServiceAccountToken", docs[0]) is False
-
     def test_should_run_by_default(self):
         docs = render_chart(show_only=["templates/jobs/migrate-database-job.yaml"])
         assert "Job" == docs[0]["kind"]
@@ -123,6 +101,17 @@ class TestMigrateDatabaseJob:
         )
         assert "dynamic-pods" == jmespath.search(
             "spec.template.spec.tolerations[0].key",
+            docs[0],
+        )
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
             docs[0],
         )
 
@@ -288,6 +277,7 @@ class TestMigrateDatabaseJob:
         [
             ("1.10.14", "airflow upgradedb"),
             ("2.0.2", "airflow db upgrade"),
+            ("2.7.1", "airflow db migrate"),
         ],
     )
     def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
@@ -345,3 +335,29 @@ class TestMigrateDatabaseJob:
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+
+class TestMigrateDatabaseJobServiceAccount:
+    """Tests migrate database job service account."""
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

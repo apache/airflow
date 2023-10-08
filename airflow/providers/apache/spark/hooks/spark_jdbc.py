@@ -181,6 +181,8 @@ class SparkJDBCHook(SparkSubmitHook):
         arguments = []
         arguments += ["-cmdType", self._cmd_type]
         if self._jdbc_connection["url"]:
+            if "?" in jdbc_conn["conn_prefix"]:
+                raise ValueError("The jdbc extra conn_prefix should not contain a '?'")
             arguments += [
                 "-url",
                 f"{jdbc_conn['conn_prefix']}{jdbc_conn['url']}/{jdbc_conn['schema']}",

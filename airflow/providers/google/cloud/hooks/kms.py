@@ -19,14 +19,16 @@
 from __future__ import annotations
 
 import base64
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.kms_v1 import KeyManagementServiceClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 def _b64encode(s: bytes) -> str:

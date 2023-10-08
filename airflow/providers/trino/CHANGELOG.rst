@@ -27,6 +27,40 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for Trino. (#32910)``
+
+Misc
+~~~~
+
+* ``Consolidate import and usage of pandas (#33480)``
+
+5.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add more accurate typing for DbApiHook.run method (#31846)``
+* ``Add deprecation info to the providers modules and classes docstring (#32536)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Snowflake to Zendesk (inclusive) (#32359)``
+
 5.2.0
 .....
 

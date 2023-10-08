@@ -24,6 +24,7 @@ from tempfile import TemporaryDirectory
 import jmespath
 import pytest
 
+from helm_tests.airflow_aux.test_container_lifecycle import CONTAINER_LIFECYCLE_PARAMETERS
 from tests.charts.helm_template_generator import render_chart
 
 
@@ -319,7 +320,7 @@ class TestPodTemplateFile:
         )
 
         assert re.search("Pod", docs[0]["kind"])
-        assert {"configMap": {"name": "release-name-airflow-config"}, "name": "config"} in jmespath.search(
+        assert {"configMap": {"name": "release-name-config"}, "name": "config"} in jmespath.search(
             "spec.volumes", docs[0]
         )
         assert {
@@ -503,6 +504,18 @@ class TestPodTemplateFile:
         assert "dynamic-pods" == tolerations[0]["key"]
         assert expected_topology_spread_constraints == jmespath.search(
             "spec.topologySpreadConstraints[0]", docs[0]
+        )
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.schedulerName",
+            docs[0],
         )
 
     def test_should_not_create_default_affinity(self):
@@ -750,3 +763,43 @@ class TestPodTemplateFile:
         )
 
         assert "test-priority" == jmespath.search("spec.priorityClassName", docs[0])
+
+    def test_workers_container_lifecycle_webhooks_are_configurable(self, hook_type="preStop"):
+        lifecycle_hook_params = CONTAINER_LIFECYCLE_PARAMETERS[hook_type]
+        lifecycle_hooks_config = {hook_type: lifecycle_hook_params["lifecycle_templated"]}
+        docs = render_chart(
+            name=lifecycle_hook_params["release_name"],
+            values={
+                "workers": {"containerLifecycleHooks": lifecycle_hooks_config},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert lifecycle_hook_params["lifecycle_parsed"] == jmespath.search(
+            f"spec.containers[0].lifecycle.{hook_type}", docs[0]
+        )
+
+    def test_termination_grace_period_seconds(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "terminationGracePeriodSeconds": 123,
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert 123 == jmespath.search("spec.terminationGracePeriodSeconds", docs[0])
+
+    def test_runtime_class_name_values_are_configurable(self):
+        docs = render_chart(
+            values={
+                "workers": {"runtimeClassName": "nvidia"},
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.runtimeClassName", docs[0]) == "nvidia"

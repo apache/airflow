@@ -57,7 +57,7 @@ releasing new versions of the providers. This means that the code changes in the
 reviewed by Airflow committers and merged when they are accepted by them. Also we must have sufficient
 test coverage and documentation that allow us to maintain the providers, and our users to use them.
 
-Thy providers - their latest version in "main" branch of airflow repository - are installed and tested together
+The providers - their latest version in "main" branch of airflow repository - are installed and tested together
 with other community providers and one of the key properties of the community providers is that the latest
 version of providers contribute their dependencies to constraints of Airflow, published when Airflow Core is
 released. This means that when users are using constraints published by Airflow, they can install all
@@ -120,8 +120,8 @@ Airflow version to the next MINOR release, when 12 months passed since the first
 MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 2.5.0 in the first Provider's release after 19th of September 2023. The 19th of September 2022 is the date when the
-first ``PATCHLEVEL`` of 2.4 (2.4.0) has been released.
+to 2.6.0 in the first Provider's release after 2nd of December 2023. The 2nd of December 2022 is the date when the
+first ``PATCHLEVEL`` of 2.5 (2.5.0) has been released.
 
 When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
 (unless there are other breaking changes in the provider). The reason for that is that people who use

@@ -30,6 +30,11 @@ description: |
 
 suspended: false
 versions:
+  - 10.9.0
+  - 10.8.0
+  - 10.7.0
+  - 10.6.0
+  - 10.5.0
   - 10.4.0
   - 10.3.0
   - 10.2.0
@@ -70,8 +75,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
-  - apache-airflow-providers-common-sql>=1.3.1
+  - apache-airflow>=2.5.0
+  - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
@@ -93,7 +98,7 @@ dependencies:
   - google-cloud-dataform>=0.5.0
   - google-cloud-dataplex>=1.4.2
   - google-cloud-dataproc>=5.4.0
-  - google-cloud-dataproc-metastore>=1.10.0
+  - google-cloud-dataproc-metastore>=1.12.0
   - google-cloud-dlp>=3.12.0
   - google-cloud-kms>=2.15.0
   - google-cloud-language>=2.9.0
@@ -115,6 +120,8 @@ dependencies:
   - google-cloud-videointelligence>=2.11.0
   - google-cloud-vision>=3.4.0
   - google-cloud-workflows>=1.10.0
+  - google-cloud-run>=0.9.0
+  - google-cloud-batch>=0.13.0
   - grpcio-gcp>=0.2.2
   - httpx
   - json-merge-patch>=0.2
@@ -179,6 +186,16 @@ integrations:
     external-doc-url: https://cloud.google.com/composer
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
+    tags: [google]
+  - integration-name: Google Cloud Run
+    external-doc-url: https://cloud.google.com/run
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_run.rst
+    tags: [google]
+  - integration-name: Google Cloud Batch
+    external-doc-url: https://cloud.google.com/batch
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_batch.rst
     tags: [google]
   - integration-name: Google Cloud Dataform
     external-doc-url: https://cloud.google.com/dataform/
@@ -318,6 +335,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/dataflow.rst
     logo: /integration-logos/gcp/Cloud-Dataflow.png
+    tags: [gcp]
+  - integration-name: Google Data Pipelines
+    external-doc-url: https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/datapipeline.rst
     tags: [gcp]
   - integration-name: Google Data Fusion
     external-doc-url: https://cloud.google.com/data-fusion/
@@ -476,6 +498,9 @@ operators:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_run
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_memorystore
@@ -494,6 +519,9 @@ operators:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.operators.dataflow
+  - integration-name: Google Data Pipelines
+    python-modules:
+      - airflow.providers.google.cloud.operators.datapipeline
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.operators.datafusion
@@ -601,6 +629,10 @@ operators:
   - integration-name: Google Cloud Dataform
     python-modules:
       - airflow.providers.google.cloud.operators.dataform
+  - integration-name: Google Cloud Batch
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_batch
+
 
 sensors:
   - integration-name: Google BigQuery
@@ -689,6 +721,9 @@ hooks:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_run
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_memorystore
@@ -708,6 +743,9 @@ hooks:
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.hooks.dataflow
+  - integration-name: Google Data Pipelines
+    python-modules:
+      - airflow.providers.google.cloud.hooks.datapipeline
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.hooks.datafusion
@@ -837,6 +875,9 @@ hooks:
   - integration-name: Google Cloud Dataform
     python-modules:
       - airflow.providers.google.cloud.hooks.dataform
+  - integration-name: Google Cloud Batch
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_batch
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service
@@ -851,6 +892,9 @@ triggers:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_run
   - integration-name: Google Cloud Storage Transfer Service
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_storage_transfer_service
@@ -863,6 +907,9 @@ triggers:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.triggers.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataplex
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.triggers.dataproc
@@ -878,6 +925,9 @@ triggers:
   - integration-name: Google Cloud Pub/Sub
     python-modules:
       - airflow.providers.google.cloud.triggers.pubsub
+  - integration-name: Google Cloud
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_batch
 
 transfers:
   - source-integration-name: Presto
@@ -899,9 +949,6 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gdrive_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.gdrive_to_gcs
-  - source-integration-name: Microsoft SQL Server (MSSQL)
-    target-integration-name: Google Cloud Storage (GCS)
-    python-module: airflow.providers.google.cloud.transfers.mssql_to_gcs
   - source-integration-name: Microsoft Azure FileShare
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/azure_fileshare_to_gcs.rst
@@ -1062,6 +1109,12 @@ extra-links:
   - airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocClusterLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocJobLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocWorkflowLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocWorkflowTemplateLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocBatchLink
+  - airflow.providers.google.cloud.links.dataproc.DataprocBatchesListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreLink
   - airflow.providers.google.cloud.links.dataprep.DataprepFlowLink
