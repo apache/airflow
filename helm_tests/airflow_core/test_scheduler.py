@@ -430,10 +430,13 @@ class TestScheduler:
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"persistence": {"enabled": False}, "emptyDirConfig": { "sizeLimit": "10Gi" }},
-                {"emptyDir": { "sizeLimit": "10Gi" }}
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
             ),
-            ({"persistence": {"enabled": True}}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
+            (
+                {"persistence": {"enabled": True}},
+                {"persistentVolumeClaim": {"claimName": "release-name-logs"}},
+            ),
             (
                 {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},

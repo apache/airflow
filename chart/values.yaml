@@ -2066,7 +2066,7 @@ redis:
     # Annotations to add to redis volumes
     annotations: {}
 
-  # Configuration for emptyDir volume (if redis.persistence.enabled == false)
+  # Configuration for empty dir volume (if redis.persistence.enabled == false)
   # emptyDirConfig:
   #   sizeLimit: 1Gi
   #   medium: Memory
@@ -2445,7 +2445,7 @@ dags:
     # - name: ""
     #   value: ""
 
-    # Configuration for emptyDir volume
+    # Configuration for empty dir volume
     # emptyDirConfig:
     #   sizeLimit: 1Gi
     #   medium: Memory
@@ -2459,6 +2459,11 @@ dags:
     #   memory: 128Mi
 
 logs:
+  # Configuration for empty dir volume (if logs.persistence.enabled == false)
+  # emptyDirConfig:
+  #   sizeLimit: 1Gi
+  #   medium: Memory
+
   persistence:
     # Enable persistent volume for storing logs
     enabled: false
@@ -2470,8 +2475,3 @@ logs:
     storageClassName:
     ## the name of an existing PVC to use
     existingClaim:
-
-  # Configuration for emptyDir volume (if logs.persistence.enabled == false)
-  # emptyDirConfig:
-  #   sizeLimit: 1Gi
-  #   medium: Memory

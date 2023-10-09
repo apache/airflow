@@ -6165,7 +6165,7 @@
                     }
                 },
                 "emptyDirConfig": {
-                    "description": "Configuration for redis emptyDir volume.",
+                    "description": "Configuration for redis empty dir volume.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
                     "default": null
@@ -7053,7 +7053,7 @@
                             ]
                         },
                         "emptyDirConfig": {
-                            "description": "Configuration for dags emptyDir volume.",
+                            "description": "Configuration for dags empty dir volume.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
                             "default": null
@@ -7249,7 +7249,7 @@
                     }
                 },
                 "emptyDirConfig": {
-                    "description": "Configuration for logs emptyDir volume.",
+                    "description": "Configuration for logs empty dir volume.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
                     "default": null

@@ -343,10 +343,10 @@ class TestRedis:
     @pytest.mark.parametrize(
         "redis_values, expected",
         [
-            ({"persistence": { "enabled": False }}, {"emptyDir": {}}),
+            ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"persistence": { "enabled": False }, "emptyDirConfig": { "sizeLimit": "10Gi" }},
-                {"emptyDir": { "sizeLimit": "10Gi" }}
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
             ),
         ],
     )

@@ -271,10 +271,7 @@ class TestPodTemplateFile:
         "dags_gitsync_values, expected",
         [
             ({"enabled": True}, {"emptyDir": {}}),
-            (
-                {"enabled": True, "emptyDirConfig": { "sizeLimit": "10Gi" }},
-                {"emptyDir": { "sizeLimit": "10Gi" }}
-            ),
+            ({"enabled": True, "emptyDirConfig": {"sizeLimit": "10Gi"}}, {"emptyDir": {"sizeLimit": "10Gi"}}),
         ],
     )
     def test_should_use_empty_dir_for_gitsync_without_persistence(self, dags_gitsync_values, expected):
@@ -290,10 +287,13 @@ class TestPodTemplateFile:
         [
             ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"persistence": {"enabled": False}, "emptyDirConfig": { "sizeLimit": "10Gi" }},
-                {"emptyDir": { "sizeLimit": "10Gi" }}
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
             ),
-            ({"persistence": {"enabled": True}}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
+            (
+                {"persistence": {"enabled": True}},
+                {"persistentVolumeClaim": {"claimName": "release-name-logs"}},
+            ),
             (
                 {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
