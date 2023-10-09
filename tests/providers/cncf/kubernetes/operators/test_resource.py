@@ -81,6 +81,7 @@ class TestKubernetesXResourceOperator:
             dag=self.dag,
             kubernetes_conn_id="kubernetes_default",
             task_id="test_task_id",
+            config_file="/foo/bar",
         )
 
         op.execute(context)
@@ -98,6 +99,7 @@ class TestKubernetesXResourceOperator:
             dag=self.dag,
             kubernetes_conn_id="kubernetes_default",
             task_id="test_task_id",
+            config_file="/foo/bar",
         )
 
         op.execute(context)
@@ -113,6 +115,7 @@ class TestKubernetesXResourceOperator:
             dag=self.dag,
             kubernetes_conn_id="kubernetes_default",
             task_id="test_task_id",
+            config_file="/foo/bar",
         )
 
         op.execute(context)
