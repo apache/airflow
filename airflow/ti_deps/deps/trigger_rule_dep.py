@@ -139,10 +139,12 @@ class TriggerRuleDep(BaseTIDep):
                 for op in ti.task.iter_mapped_dependencies():
                     yield op.task_id
             task_group = ti.task.task_group
-            if task_group:
-                groups = task_group.iter_mapped_task_groups()
-                if groups:
-                    yield from (op.task_id for tg in groups for op in tg.iter_mapped_dependencies())
+            if task_group and task_group.iter_mapped_task_groups():
+                yield from (
+                    op.task_id
+                    for tg in task_group.iter_mapped_task_groups()
+                    for op in tg.iter_mapped_dependencies()
+                )
 
         @functools.lru_cache
         def _get_relevant_upstream_map_indexes(upstream_id: str) -> int | range | None:
