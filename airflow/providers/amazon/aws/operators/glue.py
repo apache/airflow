@@ -275,7 +275,7 @@ class GlueDataBrewStartJobOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
 
     @cached_property
-    def data_brew_hook(self) -> GlueDataBrewHook:
+    def hook(self) -> GlueDataBrewHook:
         return GlueDataBrewHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context):
