@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-09T19:24:15Z
+# This constraints file was automatically generated on 2023-10-09T23:21:59Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -86,7 +86,7 @@ flower==2.0.1
 frozenlist==1.4.0
 fsspec==2023.9.2
 gevent==23.9.1
-google-auth==2.23.2
+google-auth==2.23.3
 google-re2==1.1
 googleapis-common-protos==1.60.0
 graphviz==0.20.1

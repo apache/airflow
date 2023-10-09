@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-09T19:20:25Z
+# This constraints file was automatically generated on 2023-10-09T23:18:03Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -195,7 +195,7 @@ google-api-core==2.12.0
 google-api-python-client==2.102.0
 google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.1.0
-google-auth==2.23.2
+google-auth==2.23.3
 google-cloud-aiplatform==1.34.0
 google-cloud-appengine-logging==1.3.2
 google-cloud-audit-log==0.2.5
@@ -335,9 +335,9 @@ oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.0
-openlineage-integration-common==1.3.1
-openlineage-python==1.3.1
-openlineage_sql==1.3.1
+openlineage-integration-common==1.4.1
+openlineage-python==1.4.1
+openlineage_sql==1.4.1
 openpyxl==3.1.2
 opentelemetry-api==1.20.0
 opentelemetry-exporter-otlp-proto-common==1.20.0
