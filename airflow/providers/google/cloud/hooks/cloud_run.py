@@ -20,17 +20,8 @@ from __future__ import annotations
 import itertools
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from google.cloud.run_v2 import (
-    CreateJobRequest,
-    DeleteJobRequest,
-    GetJobRequest,
-    Job,
-    JobsAsyncClient,
-    JobsClient,
-    ListJobsRequest,
-    RunJobRequest,
-    UpdateJobRequest,
-)
+from google.cloud.run_v2 import (CreateJobRequest, DeleteJobRequest, GetJobRequest, Job, JobsAsyncClient,
+                                 JobsClient, ListJobsRequest, RunJobRequest, UpdateJobRequest)
 from google.longrunning import operations_pb2
 
 from airflow.exceptions import AirflowException
@@ -113,9 +104,9 @@ class CloudRunHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def execute_job(
-        self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self, job_name: str, region: str, overrides: {} = None, project_id: str = PROVIDE_PROJECT_ID
     ) -> operation.Operation:
-        run_job_request = RunJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        run_job_request = RunJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides)
         operation = self.get_conn().run_job(request=run_job_request)
         return operation
 
