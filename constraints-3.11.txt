@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-08T09:54:23Z
+# This constraints file was automatically generated on 2023-10-09T14:40:02Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -35,7 +35,7 @@ Deprecated==1.2.14
 Flask-AppBuilder==4.3.6
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
-Flask-Caching==2.0.2
+Flask-Caching==2.1.0
 Flask-JWT-Extended==4.5.3
 Flask-Limiter==3.5.0
 Flask-Login==0.6.2
@@ -565,7 +565,7 @@ ruff==0.0.292
 s3transfer==0.6.2
 scramp==1.4.4
 scrapbook==0.5.0
-semver==3.0.1
+semver==3.0.2
 sendgrid==6.10.0
 sentinels==1.0.0
 sentry-sdk==1.31.0
