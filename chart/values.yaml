@@ -2445,7 +2445,7 @@ dags:
     # - name: ""
     #   value: ""
 
-    # Configuration for emptyDir volume (if dags.persistence.enabled == false)
+    # Configuration for emptyDir volume
     # emptyDirConfig:
     #   sizeLimit: 1Gi
     #   medium: Memory
