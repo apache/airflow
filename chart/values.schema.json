@@ -6164,6 +6164,12 @@
                         }
                     }
                 },
+                "emptyDirConfig": {
+                    "description": "Configuration for redis emptyDir volume.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
+                    "default": null
+                },
                 "resources": {
                     "description": "Resources for the Redis pods",
                     "type": "object",
@@ -7046,6 +7052,12 @@
                                 }
                             ]
                         },
+                        "emptyDirConfig": {
+                            "description": "Configuration for dags emptyDir volume.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
+                            "default": null
+                        },
                         "containerLifecycleHooks": {
                             "description": "Container Lifecycle Hooks definition for the git sync sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
                             "type": "object",
@@ -7235,6 +7247,12 @@
                             "default": null
                         }
                     }
+                },
+                "emptyDirConfig": {
+                    "description": "Configuration for logs emptyDir volume.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
+                    "default": null
                 }
             }
         }
