@@ -25,7 +25,7 @@ from airflow.providers.amazon.aws.operators.glue import (
 )
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-DAG_ID = "example_databrew_dag"
+DAG_ID = "example_databrew"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
