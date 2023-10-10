@@ -90,7 +90,9 @@ capabilities authenticated users may have:
    create a Webserver Denial of Service situation and should be trusted
    not to misuse this capability.
 
-4. **Normal Users**: They can view and interact with the UI and API.
+4. **Audit log users**: They can view audit events for the whole Airflow installation.
+
+5. **Normal Users**: They can view and interact with the UI and API.
    They are able to view and edit DAGs, task instances, and DAG runs, and view task logs.
 
 For more information on the capabilities of authenticated UI users, see :doc:`/security/access-control`.

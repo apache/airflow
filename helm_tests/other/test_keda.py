@@ -260,10 +260,16 @@ class TestKeda:
         assert "KEDA_DB_CONN" in worker_container_env_vars
 
         secret_data = jmespath.search("data", metadata_connection_secret)
+        connection_secret = base64.b64decode(secret_data["connection"]).decode()
+        keda_connection_secret = base64.b64decode(secret_data["kedaConnection"]).decode()
         assert "connection" in secret_data.keys()
-        assert "@release-name-pgbouncer" in base64.b64decode(secret_data["connection"]).decode()
+        assert "@release-name-pgbouncer" in connection_secret
+        assert ":6543" in connection_secret
+        assert "/release-name-metadata" in connection_secret
         assert "kedaConnection" in secret_data.keys()
-        assert "@release-name-postgresql" in base64.b64decode(secret_data["kedaConnection"]).decode()
+        assert "@release-name-postgresql" in keda_connection_secret
+        assert ":5432" in keda_connection_secret
+        assert "/postgres" in keda_connection_secret
 
         autoscaler_connection_env_var = jmespath.search(
             "spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler
