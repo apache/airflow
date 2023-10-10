@@ -302,18 +302,28 @@ Setting up Breeze
 5. When you enter Breeze environment you should see prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command.
-   Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
+   
+
+.. code-block:: bash
+
+  root@b76fcb399bb6:/opt/airflow# airflow db reset
+
+
+6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
    tests, however - the test database will be initialized automatically for you.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
-  root@b76fcb399bb6:/opt/airflow# airflow users create --role Admin --username admin --password admin \
-    --email admin@example.com --firstname foo --lastname bar
+        root@b76fcb399bb6:/opt/airflow# airflow users create \
+                --username admin \
+                --firstname FIRST_NAME \
+                --lastname LAST_NAME \
+                --role Admin \
+                --email admin@example.org
 
 
-6. Exiting Breeze environment. After successfully finishing above command will leave you in container,
+7. Exiting Breeze environment. After successfully finishing above command will leave you in container,
    type ``exit`` to exit the container. The database created before will remain and servers will be
    running though, until you stop breeze environment completely.
 
@@ -322,7 +332,7 @@ Setting up Breeze
   root@b76fcb399bb6:/opt/airflow#
   root@b76fcb399bb6:/opt/airflow# exit
 
-6. You can stop the environment (which means deleting the databases and database servers running in the
+8. You can stop the environment (which means deleting the databases and database servers running in the
    background) via ``breeze down`` command.
 
 .. code-block:: bash
