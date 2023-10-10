@@ -30,7 +30,7 @@ DAG_ID = "example_databrew"
 sys_test_context_task = SystemTestContextBuilder().build()
 
 
-@dag(DAG_ID, schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
+@dag(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
 def run_job():
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
