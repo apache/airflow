@@ -30,7 +30,7 @@ can also customize it and configure it as you want by overriding Python logger c
 be configured by providing custom logging configuration object. Some configuration options require
 that the logging config class be overwritten. You can do it by copying the default
 configuration of Airflow and modifying it to suit your needs. The default configuration can be seen in the
-`airflow_local_settings.py template <https://github.com/apache/airflow/blob/|airflow_version|/airflow/config_templates/airflow_local_settings.py>`_
+`airflow_local_settings.py template <https://github.com/apache/airflow/blob/|airflow-version|/airflow/config_templates/airflow_local_settings.py>`_
 and you can see the loggers and handlers used there. Except the custom loggers and handlers configurable there
 via the ``airflow.cfg``, the logging methods in Airflow follow the usual Python logging convention,
 that Python objects log to loggers that follow naming convention of ``<package>.<module_name>``.
