@@ -2369,6 +2369,16 @@ scheduler:
       type: string
       example: ~
       default: "^[A-Za-z0-9_.~:+-]+$"
+    default_cron_timetable:
+      description: |
+        Which Timetable to use when a cron string is provided to `schedule` argument of
+        a DAG. CronDataIntervalTimetable is the legacy Airflow behavior suitable for
+        DAGs with well-defined data_interval. CronTriggerTimetable is closer to the
+        behavior of cron itself.
+      version_added: 2.8.0
+      type: string
+      example: ~
+      default: "CronDataIntervalTimetable"
 triggerer:
   description: ~
   options:
