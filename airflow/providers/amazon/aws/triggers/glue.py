@@ -157,7 +157,7 @@ class GlueDataBrewJobCompleteTrigger(BaseTrigger):
     :param job_name: Glue DataBrew job name
     :param run_id: the ID of the specific run to watch for that job
     :param delay: Number of seconds to wait between two checks. Default is 10 seconds.
-    :param maxAttempts: Maximum number of attempts to wait for the job to complete. Default is 60 attempts.
+    :param max_attempts: Maximum number of attempts to wait for the job to complete. Default is 60 attempts.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
