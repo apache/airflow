@@ -32,10 +32,13 @@ sys_test_context_task = SystemTestContextBuilder().build()
 
 @dag(DAG_ID, schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
 def run_job():
+    test_context = sys_test_context_task()
+    env_id = test_context["ENV_ID"]
+
+    job_name = f"{env_id}-databrew-job"
+
     # [START howto_operator_glue_databrew_start]
-
-    GlueDataBrewStartJobOperator(task_id="startjob", deferrable=True, job_name=JOB_NAME, delay=15)
-
+    start_job = GlueDataBrewStartJobOperator(task_id="startjob", deferrable=True, job_name=job_name, delay=15)
     # [END howto_operator_glue_databrew_start]
 
     chain(test_context, start_job)
