@@ -50,7 +50,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
     """
     Factory for decorator that checks current user's permissions against required permissions.
 
-    Deprecated. Do not use this decorator, use one of the decorator `has_access_cluster_*` defined in
+    Deprecated. Do not use this decorator, use one of the decorator `has_access_*` defined in
     airflow/www/auth.py instead.
     This decorator will only work with FAB authentication and not with other auth providers.
 
@@ -58,7 +58,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
     https://github.com/apache/airflow/pull/33213#discussion_r1346287224
     """
     warnings.warn(
-        "The 'has_access' decorator is deprecated. Please use one of the decorator `has_access_cluster_*`"
+        "The 'has_access' decorator is deprecated. Please use one of the decorator `has_access_*`"
         "defined in airflow/www/auth.py instead.",
         RemovedInAirflow3Warning,
         stacklevel=2,
