@@ -38,17 +38,13 @@ def run_job():
 
     # [END howto_operator_glue_databrew_start]
 
-
-test_context = sys_test_context_task()
-
-
-chain(test_context, run_job)
-
-from tests.system.utils.watcher import watcher  # noqa: E402
-
-# This test needs watcher in order to properly mark success/failure
-# when "tearDown" task with trigger rule is part of the DAG
-list(dag.tasks) >> watcher()
+    chain(test_context, start_job)
+    
+    from tests.system.utils.watcher import watcher  # noqa: E402
+    
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 
