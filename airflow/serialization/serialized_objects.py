@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from inspect import signature
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union
 
-import cattr
+import attrs
 import lazy_object_proxy
 import pendulum
 from dateutil import relativedelta
@@ -1214,7 +1214,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 log.error("Operator Link class %r not registered", _operator_link_class_path)
                 return {}
 
-            op_predefined_extra_link: BaseOperatorLink = cattr.structure(data, single_op_link_class)
+            op_link_parameters = {param: cls.deserialize(value) for param, value in data.items()}
+            op_predefined_extra_link: BaseOperatorLink = single_op_link_class(**op_link_parameters)
 
             op_predefined_extra_links.update({op_predefined_extra_link.name: op_predefined_extra_link})
 
@@ -1234,9 +1235,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """
         serialize_operator_extra_links = []
         for operator_extra_link in operator_extra_links:
-            op_link_arguments = cattr.unstructure(operator_extra_link)
-            if not isinstance(op_link_arguments, dict):
-                op_link_arguments = {}
+            op_link_arguments = {
+                param: cls.serialize(value) for param, value in attrs.asdict(operator_extra_link).items()
+            }
 
             module_path = (
                 f"{operator_extra_link.__class__.__module__}.{operator_extra_link.__class__.__name__}"

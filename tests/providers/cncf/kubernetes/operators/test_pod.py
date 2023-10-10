@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from contextlib import contextmanager, nullcontext
+from io import BytesIO
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -25,7 +26,6 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1PodSecurityContext, V1PodStatus, models as k8s
 from urllib3 import HTTPResponse
-from urllib3.packages.six import BytesIO
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
@@ -1841,3 +1841,27 @@ def test_default_container_logs():
 
     k = TestSubclassKPO(task_id="task")
     assert k.container_logs == "test-base-container"
+
+
+@patch(KUB_OP_PATH.format("post_complete_action"))
+@patch(HOOK_CLASS)
+@patch(KUB_OP_PATH.format("pod_manager"))
+def test_async_skip_kpo_wait_termination_with_timeout_event(mock_manager, mocked_hook, post_complete_action):
+    metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
+    pending_state = mock.MagicMock(**metadata, **{"status.phase": "Pending"})
+    mocked_hook.return_value.get_pod.return_value = pending_state
+    ti_mock = MagicMock()
+
+    event = {"status": "timeout", "message": "timeout", "name": TEST_NAME, "namespace": TEST_NAMESPACE}
+
+    k = KubernetesPodOperator(task_id="task", deferrable=True)
+
+    # assert that the AirflowException is raised when the timeout event is present
+    with pytest.raises(AirflowException):
+        k.execute_complete({"ti": ti_mock}, event)
+
+    # assert that the await_pod_completion is not called
+    mock_manager.await_pod_completion.assert_not_called()
+
+    # assert that the cleanup is called
+    post_complete_action.assert_called_once()

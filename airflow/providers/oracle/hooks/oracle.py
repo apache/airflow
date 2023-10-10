@@ -193,9 +193,9 @@ class OracleHook(DbApiHook):
             if dsn is None:
                 dsn = conn.host
                 if conn.port is not None:
-                    dsn += ":" + str(conn.port)
+                    dsn += f":{conn.port}"
                 if service_name:
-                    dsn += "/" + service_name
+                    dsn += f"/{service_name}"
                 elif conn.schema:
                     warnings.warn(
                         """Using conn.schema to pass the Oracle Service Name is deprecated.
@@ -203,7 +203,7 @@ class OracleHook(DbApiHook):
                         AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
-                    dsn += "/" + conn.schema
+                    dsn += f"/{conn.schema}"
             conn_config["dsn"] = dsn
 
         if "events" in conn.extra_dejson:
@@ -298,7 +298,7 @@ class OracleHook(DbApiHook):
                 elif cell is None or isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
                     lst.append("NULL")
                 elif np and isinstance(cell, np.datetime64):
-                    lst.append("'" + str(cell) + "'")
+                    lst.append(f"'{cell}'")
                 elif isinstance(cell, datetime):
                     lst.append(f"to_date('{cell:%Y-%m-%d %H:%M:%S}','YYYY-MM-DD HH24:MI:SS')")
                 else:
