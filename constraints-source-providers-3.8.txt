@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-09T23:18:02Z
+# This constraints file was automatically generated on 2023-10-10T08:20:14Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -90,10 +90,10 @@ azure-common==1.1.28
 azure-core==1.29.4
 azure-cosmos==4.5.1
 azure-datalake-store==0.0.53
-azure-identity==1.14.0
+azure-identity==1.14.1
 azure-keyvault-secrets==4.7.0
 azure-kusto-data==4.2.0
-azure-mgmt-containerinstance==8.0.0
+azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.2.0
 azure-mgmt-core==1.4.0
 azure-mgmt-cosmosdb==9.3.0
@@ -148,7 +148,7 @@ connexion==2.14.2
 coverage==7.3.2
 crcmod==1.7
 cron-descriptor==1.4.0
-croniter==1.4.1
+croniter==2.0.0
 cryptography==41.0.4
 curlify==2.2.1
 dask==2023.4.1
@@ -564,7 +564,7 @@ websocket-client==1.6.4
 wrapt==1.15.0
 xmltodict==0.13.0
 yamllint==1.32.0
-yandexcloud==0.235.0
+yandexcloud==0.236.0
 yarl==1.9.2
 zeep==4.2.1
 zenpy==2.0.40

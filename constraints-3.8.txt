@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-09T23:24:44Z
+# This constraints file was automatically generated on 2023-10-10T08:26:48Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -249,7 +249,7 @@ connexion==2.14.2
 coverage==7.3.2
 crcmod==1.7
 cron-descriptor==1.4.0
-croniter==1.4.1
+croniter==2.0.0
 cryptography==41.0.4
 curlify==2.2.1
 dask==2023.4.1
@@ -665,7 +665,7 @@ websocket-client==1.6.4
 wrapt==1.15.0
 xmltodict==0.13.0
 yamllint==1.32.0
-yandexcloud==0.235.0
+yandexcloud==0.236.0
 yarl==1.9.2
 zeep==4.2.1
 zenpy==2.0.40
