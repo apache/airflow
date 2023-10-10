@@ -119,6 +119,7 @@ Avro
 avro
 aws
 awsbatch
+awslogs
 Azkaban
 Azri
 backcompat
@@ -1591,6 +1592,7 @@ umask
 Un
 un
 unarchived
+uncomment
 uncommenting
 Undead
 undead

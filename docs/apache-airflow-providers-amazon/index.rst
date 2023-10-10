@@ -41,6 +41,7 @@
     Secrets backends <secrets-backends/index>
     Logging for Tasks <logging/index>
     Configuration <configurations-ref>
+    ECS Executor <ecs-executor>
 
 .. toctree::
     :hidden:
