@@ -18,9 +18,22 @@
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, cast
 
+from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
-from azure.mgmt.containerinstance.models import ContainerGroup
+
+from airflow.exceptions import AirflowException
+
+if TYPE_CHECKING:
+    from azure.mgmt.containerinstance.models import (
+        ContainerGroup,
+        ContainerPropertiesInstanceView,
+        ContainerState,
+        Event,
+    )
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
@@ -47,7 +60,47 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def __init__(self, azure_conn_id: str = default_conn_name) -> None:
         super().__init__(sdk_client=ContainerInstanceManagementClient, conn_id=azure_conn_id)
-        self.connection = self.get_conn()
+
+    @cached_property
+    def connection(self):
+        return self.get_conn()
+
+    def get_conn(self) -> Any:
+        """
+        Authenticates the resource using the connection id passed during init.
+
+        :return: the authenticated client.
+        """
+        conn = self.get_connection(self.conn_id)
+        tenant = conn.extra_dejson.get("tenantId")
+
+        key_path = conn.extra_dejson.get("key_path")
+        if key_path:
+            if not key_path.endswith(".json"):
+                raise AirflowException("Unrecognised extension for key file.")
+            self.log.info("Getting connection using a JSON key file.")
+            return get_client_from_auth_file(client_class=self.sdk_client, auth_path=key_path)
+
+        key_json = conn.extra_dejson.get("key_json")
+        if key_json:
+            self.log.info("Getting connection using a JSON config.")
+            return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
+
+        credential: ClientSecretCredential | DefaultAzureCredential
+        if all([conn.login, conn.password, tenant]):
+            self.log.info("Getting connection using specific credentials and subscription_id.")
+            credential = ClientSecretCredential(
+                client_id=conn.login, client_secret=conn.password, tenant_id=cast(str, tenant)
+            )
+        else:
+            self.log.info("Using DefaultAzureCredential as credential")
+            credential = DefaultAzureCredential()
+
+        subscription_id = cast(str, conn.extra_dejson.get("subscriptionId"))
+        return ContainerInstanceManagementClient(
+            credential=credential,
+            subscription_id=subscription_id,
+        )
 
     def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:
         """
@@ -74,8 +127,10 @@ class AzureContainerInstanceHook(AzureBaseHook):
             stacklevel=2,
         )
         cg_state = self.get_state(resource_group, name)
-        c_state = cg_state.containers[0].instance_view.current_state
-        return (c_state.state, c_state.exit_code, c_state.detail_status)
+        container = cg_state.containers[0]
+        instance_view: ContainerPropertiesInstanceView = container.instance_view  # type: ignore[assignment]
+        c_state: ContainerState = instance_view.current_state  # type: ignore[assignment]
+        return c_state.state, c_state.exit_code, c_state.detail_status
 
     def get_messages(self, resource_group: str, name: str) -> list:
         """
@@ -91,8 +146,10 @@ class AzureContainerInstanceHook(AzureBaseHook):
             stacklevel=2,
         )
         cg_state = self.get_state(resource_group, name)
-        instance_view = cg_state.containers[0].instance_view
-        return [event.message for event in instance_view.events]
+        container = cg_state.containers[0]
+        instance_view: ContainerPropertiesInstanceView = container.instance_view  # type: ignore[assignment]
+        events: list[Event] = instance_view.events  # type: ignore[assignment]
+        return [event.message for event in events]
 
     def get_state(self, resource_group: str, name: str) -> ContainerGroup:
         """

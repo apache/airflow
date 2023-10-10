@@ -41,7 +41,12 @@ class TestAzureContainerInstanceHook:
                 conn_type="azure_container_instances",
                 login="login",
                 password="key",
-                extra=json.dumps({"tenantId": "tenant_id", "subscriptionId": "subscription_id"}),
+                extra=json.dumps(
+                    {
+                        "tenantId": "63e85d06-62e4-11ee-8c99-0242ac120002",
+                        "subscriptionId": "63e85d06-62e4-11ee-8c99-0242ac120003",
+                    }
+                ),
             )
         )
 
