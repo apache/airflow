@@ -373,7 +373,7 @@ spec:
             claimName: {{ template "airflow_dags_volume_claim" . }}
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
-          emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 -}}
+          emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
         {{- if  .Values.dags.gitSync.sshKeySecret }}
           {{- include "git_sync_ssh_key_volume" . | indent 8 }}
         {{- end }}
@@ -384,7 +384,7 @@ spec:
             claimName: {{ template "airflow_logs_volume_claim" . }}
   {{- else if not $persistence }}
         - name: logs
-          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 -}}
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
     - metadata:
