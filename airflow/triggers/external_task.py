@@ -22,6 +22,7 @@ import typing
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
 
+from airflow.configuration import conf
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -72,7 +73,7 @@ class TaskStateTrigger(BaseTrigger):
         self.poll_interval = poll_interval
         self.trigger_start_time = trigger_start_time
         self.states = states if states else [TaskInstanceState.SUCCESS.value]
-        self._timeout_sec = timeout
+        self._timeout_sec = 60 if timeout == conf.getfloat("sensors", "default_timeout") else timeout
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serialize TaskStateTrigger arguments and classpath."""
