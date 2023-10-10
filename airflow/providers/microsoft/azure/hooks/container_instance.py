@@ -25,7 +25,8 @@ from azure.common.client_factory import get_client_from_auth_file, get_client_fr
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
 if TYPE_CHECKING:
     from azure.mgmt.containerinstance.models import (
@@ -34,9 +35,6 @@ if TYPE_CHECKING:
         ContainerState,
         Event,
     )
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
 
 class AzureContainerInstanceHook(AzureBaseHook):
@@ -110,7 +108,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param name: the name of the container group
         :param container_group: the properties of the container group
         """
-        self.connection.container_groups.create_or_update(resource_group, name, container_group)
+        self.connection.container_groups.begin_create_or_update(resource_group, name, container_group)
 
     def get_state_exitcode_details(self, resource_group: str, name: str) -> tuple:
         """
@@ -159,7 +157,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param name: the name of the container group
         :return: ContainerGroup
         """
-        return self.connection.container_groups.get(resource_group, name, raw=False)
+        return self.connection.container_groups.get(resource_group, name)
 
     def get_logs(self, resource_group: str, name: str, tail: int = 1000) -> list:
         """
@@ -170,7 +168,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param tail: the size of the tail
         :return: A list of log messages
         """
-        logs = self.connection.container.list_logs(resource_group, name, name, tail=tail)
+        logs = self.connection.containers.list_logs(resource_group, name, name, tail=tail)
         return logs.content.splitlines(True)
 
     def delete(self, resource_group: str, name: str) -> None:
@@ -180,7 +178,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
         :param resource_group: the name of the resource group
         :param name: the name of the container group
         """
-        self.connection.container_groups.delete(resource_group, name)
+        self.connection.container_groups.begin_delete(resource_group, name)
 
     def exists(self, resource_group: str, name: str) -> bool:
         """
