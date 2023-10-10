@@ -16,7 +16,7 @@
 # under the License.
 
 """
-This module contains different internal mixin classes for internal of Amazon Provider.
+This module contains different mixin classes for internal use within the Amazon provider.
 
 .. warning::
     Only for internal usage, this module and all classes might be changed, renamed or removed in the future
