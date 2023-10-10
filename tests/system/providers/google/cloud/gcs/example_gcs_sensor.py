@@ -24,8 +24,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceAsyncSensor,
@@ -54,7 +54,7 @@ def workaround_in_debug_executor(cls):
     This method creates dummy property to overwrite it and force poke method to always return True.
     """
     cls.mode = dummy_mode_property()
-    cls.poke = lambda self, ctx: True
+    cls.poke = lambda self, context: True
 
 
 def dummy_mode_property():
@@ -67,7 +67,7 @@ def dummy_mode_property():
     return property(mode_getter, mode_setter)
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -179,6 +179,7 @@ with models.DAG(
             gcs_object_exists_defered,
             gcs_object_exists_async,
             gcs_object_with_prefix_exists,
+            gcs_object_with_prefix_exists_async,
         ],
         # TEST TEARDOWN
         delete_bucket,
@@ -188,6 +189,7 @@ with models.DAG(
         # TEST BODY
         gcs_upload_session_complete,
         gcs_update_object_exists,
+        gcs_update_object_exists_async,
         delete_bucket,
     )
 

@@ -1277,7 +1277,7 @@ class TestCloudSQLAsyncHook:
             timer=TimerNoop(),
             traces=[],
             loop=mock.Mock(),
-            session=session,
+            session=None,
         )
         response.status = 200
         mocked_get.return_value = response
@@ -1300,7 +1300,7 @@ class TestCloudSQLAsyncHook:
             timer=TimerNoop(),
             traces=[],
             loop=mock.Mock(),
-            session=session,
+            session=None,
         )
         response.status = 200
         mocked_get.return_value = response

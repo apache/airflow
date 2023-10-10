@@ -266,7 +266,7 @@ class AbstractOperator(Templater, DAGNode):
             yield task
             if task.is_setup:
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
 
     def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
@@ -290,7 +290,7 @@ class AbstractOperator(Templater, DAGNode):
             if has_no_teardowns or task.downstream_task_ids.intersection(downstream_teardown_ids):
                 yield task
                 for t in task.downstream_list:
-                    if t.is_teardown and not t == self:
+                    if t.is_teardown and t != self:
                         yield t
 
     def get_upstreams_only_setups(self) -> Iterable[Operator]:
@@ -365,11 +365,9 @@ class AbstractOperator(Templater, DAGNode):
 
         :meta private:
         """
-        parent = self.task_group
-        while parent is not None:
-            if isinstance(parent, MappedTaskGroup):
-                yield parent
-            parent = parent.task_group
+        if (group := self.task_group) is None:
+            return
+        yield from group.iter_mapped_task_groups()
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """Get the mapped task group "closest" to this task in the DAG.

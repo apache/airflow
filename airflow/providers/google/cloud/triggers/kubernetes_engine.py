@@ -201,7 +201,7 @@ class GKEOperationTrigger(BaseTrigger):
                         }
                     )
                     return
-                elif status == Operation.Status.RUNNING or status == Operation.Status.PENDING:
+                elif status in (Operation.Status.RUNNING, Operation.Status.PENDING):
                     self.log.info("Operation is still running.")
                     self.log.info("Sleeping for %ss...", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)

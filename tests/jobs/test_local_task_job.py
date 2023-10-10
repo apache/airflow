@@ -33,12 +33,13 @@ from unittest.mock import patch
 import psutil
 import pytest
 
-from airflow import DAG, settings
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import SIGSEGV_MESSAGE, LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -315,9 +316,7 @@ class TestLocalTaskJob:
             job_runner.heartbeat_callback = lambda session: heartbeat_records.append(job.latest_heartbeat)
             run_job(job=job, execute_callable=job_runner._execute)
             assert len(heartbeat_records) > 2
-            for i in range(1, len(heartbeat_records)):
-                time1 = heartbeat_records[i - 1]
-                time2 = heartbeat_records[i]
+            for time1, time2 in zip(heartbeat_records, heartbeat_records[1:]):
                 # Assert that difference small enough
                 delta = (time2 - time1).total_seconds()
                 assert abs(delta - job.heartrate) < 0.8

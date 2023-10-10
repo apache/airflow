@@ -59,8 +59,8 @@ DAGs
 
 The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
 instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file. You can also instantiate
-them via :class::`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
-can also have parameters specified via :class::`~airflow.models.param.Param` class.
+them via :class:`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
+can also have parameters specified via :class:`~airflow.models.param.Param` class.
 
 Airflow has a set of example DAGs that you can use to learn how to write DAGs
 

@@ -41,7 +41,8 @@ class GCSToS3Operator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GCSToS3Operator`
 
-    :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
+    :param gcs_bucket: The Google Cloud Storage bucket to find the objects. (templated)
+    :param bucket: (Deprecated) Use ``gcs_bucket`` instead.
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
     :param delimiter: (Deprecated) The delimiter by which you want to filter the objects. (templated)
@@ -87,7 +88,7 @@ class GCSToS3Operator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "bucket",
+        "gcs_bucket",
         "prefix",
         "delimiter",
         "dest_s3_key",
@@ -99,7 +100,8 @@ class GCSToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        bucket: str,
+        gcs_bucket: str | None = None,
+        bucket: str | None = None,
         prefix: str | None = None,
         delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -117,7 +119,18 @@ class GCSToS3Operator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
-        self.bucket = bucket
+        if bucket:
+            warnings.warn(
+                "The ``bucket`` parameter is deprecated and will be removed in a future version. "
+                "Please use ``gcs_bucket`` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.gcs_bucket = bucket
+        if gcs_bucket:
+            self.gcs_bucket = gcs_bucket
+        if not (bucket or gcs_bucket):
+            raise ValueError("You must pass either ``bucket`` or ``gcs_bucket``.")
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
@@ -161,13 +174,13 @@ class GCSToS3Operator(BaseOperator):
 
         self.log.info(
             "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
-            self.bucket,
+            self.gcs_bucket,
             self.delimiter,
             self.prefix,
         )
 
         list_kwargs = {
-            "bucket_name": self.bucket,
+            "bucket_name": self.gcs_bucket,
             "prefix": self.prefix,
             "delimiter": self.delimiter,
             "user_project": self.gcp_user_project,
@@ -193,12 +206,12 @@ class GCSToS3Operator(BaseOperator):
             # filter all the objects (return empty list) instead of empty
             # prefix returning all the objects
             if prefix:
-                prefix = prefix if prefix.endswith("/") else f"{prefix}/"
+                prefix = prefix.rstrip("/") + "/"
             # look for the bucket and the prefix to avoid look into
             # parent directories/keys
             existing_files = s3_hook.list_keys(bucket_name, prefix=prefix)
             # in case that no files exists, return an empty array to avoid errors
-            existing_files = existing_files if existing_files is not None else []
+            existing_files = existing_files or []
             # remove the prefix for the existing files to allow the match
             existing_files = [file.replace(prefix, "", 1) for file in existing_files]
             gcs_files = list(set(gcs_files) - set(existing_files))
@@ -206,7 +219,7 @@ class GCSToS3Operator(BaseOperator):
         if gcs_files:
             for file in gcs_files:
                 with gcs_hook.provide_file(
-                    object_name=file, bucket_name=self.bucket, user_project=self.gcp_user_project
+                    object_name=file, bucket_name=self.gcs_bucket, user_project=self.gcp_user_project
                 ) as local_tmp_file:
                     dest_key = os.path.join(self.dest_s3_key, file)
                     self.log.info("Saving file to %s", dest_key)

@@ -299,7 +299,9 @@ deprecated_api = [
     "requests>=2.26.0",
 ]
 doc = [
-    "astroid>=2.12.3",
+    # sphinx-autoapi fails with astroid 3.0, see: https://github.com/readthedocs/sphinx-autoapi/issues/407
+    # This was fixed in sphinx-autoapi 3.0, however it has requirement sphinx>=6.1, but we stuck on 5.x
+    "astroid>=2.12.3, <3.0",
     "checksumdir",
     # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
     # https://github.com/pallets/click/issues/2558
@@ -460,6 +462,7 @@ _devel_only_static_checks = [
 
 _devel_only_tests = [
     "aioresponses",
+    "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
     "coverage>=7.2",
     "pytest",

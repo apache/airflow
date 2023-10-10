@@ -27,6 +27,7 @@ from __future__ import annotations
 # * when starting new release branch (for example `v2-1-test`)
 # * when renaming a branch
 #
+import itertools
 import subprocess
 
 import rich_click as click
@@ -52,19 +53,18 @@ def pull_push_all_images(
     target_branch: str,
     target_repo: str,
 ):
-    for python in PYTHON_VERSIONS:
-        for image in images:
-            source_image = image.format(
-                prefix=source_prefix, branch=source_branch, repo=source_repo, python=python
-            )
-            target_image = image.format(
-                prefix=target_prefix, branch=target_branch, repo=target_repo, python=python
-            )
-            print(f"Copying image: {source_image} -> {target_image}")
-            subprocess.run(
-                ["regctl", "image", "copy", "--force-recursive", "--digest-tags", source_image, target_image],
-                check=True,
-            )
+    for python, image in itertools.product(PYTHON_VERSIONS, images):
+        source_image = image.format(
+            prefix=source_prefix, branch=source_branch, repo=source_repo, python=python
+        )
+        target_image = image.format(
+            prefix=target_prefix, branch=target_branch, repo=target_repo, python=python
+        )
+        print(f"Copying image: {source_image} -> {target_image}")
+        subprocess.run(
+            ["regctl", "image", "copy", "--force-recursive", "--digest-tags", source_image, target_image],
+            check=True,
+        )
 
 
 @click.group(invoke_without_command=True)

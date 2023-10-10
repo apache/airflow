@@ -87,6 +87,7 @@ const mockPoolsData = {
       queued_slots: 0,
       running_slots: 0,
       scheduled_slots: 0,
+      deferred_slots: 0,
       slots: 128,
     },
   ],
