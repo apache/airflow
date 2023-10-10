@@ -167,7 +167,7 @@ class GlueDataBrewJobCompleteTrigger(BaseTrigger):
         run_id: str,
         aws_conn_id: str,
         delay: int = 10,
-        maxAttempts: int = 60,
+        max_attempts: int = 60,
         **kwargs,
     ):
         super().__init__(**kwargs)
