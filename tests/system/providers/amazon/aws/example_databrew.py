@@ -27,11 +27,7 @@ from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 DAG_ID = "example_databrew_dag"
 
-# Externally fetched variables:
-JOB_NAME = "JOB_NAME"
-
-
-sys_test_context_task = SystemTestContextBuilder().add_variable(JOB_NAME).build()
+sys_test_context_task = SystemTestContextBuilder().build()
 
 
 @dag(DAG_ID, schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
