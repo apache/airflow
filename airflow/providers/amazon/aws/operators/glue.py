@@ -315,10 +315,11 @@ class GlueDataBrewStartJobOperator(BaseOperator):
         return resp
 
     def execute_complete(self, context: Context, event=None) -> dict[str, str]:
-        result = {}
-        result["job_name"] = event.get("jobName", "")
-        result["run_id"] = event.get("runId", "")
-        result["status"] = event.get("status", "")
+        result = {
+                "job_name": event.get("jobName", ""),
+                "run_id": event.get("runId", ""),
+                "status": event.get("status", ""),
+        }
         self.log.info(
             "AWS Glue DataBrew Job: %s runId: %s status: %s",
             result["job_name"],
