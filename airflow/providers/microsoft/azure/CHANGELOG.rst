@@ -34,8 +34,9 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 .. warning::
-  AzureDataFactoryHook methods and AzureDataFactoryRunPipelineOperator arguments resource_group_name and factory_name is
-  now required instead of kwargs
+   In this version of the provider, we have removed network_profile param from AzureContainerInstancesOperator and
+   AzureDataFactoryHook methods and AzureDataFactoryRunPipelineOperator arguments resource_group_name and factory_name
+   is now required instead of kwargs
 
 * resource_group_name and factory_name is now required argument in AzureDataFactoryHook method get_factory, update_factory,
   create_factory, delete_factory, get_linked_service, delete_linked_service, get_dataset, delete_dataset, get_dataflow,
@@ -44,6 +45,10 @@ Breaking changes
   stop_trigger, get_adf_pipeline_run_status, cancel_pipeline_run
 * resource_group_name and factory_name is now required in AzureDataFactoryRunPipelineOperator
 * Remove class ``PipelineRunInfo`` from ``airflow.providers.microsoft.azure.hooks.data_factory``
+* Remove ``network_profile`` param from ``AzureContainerInstancesOperator``
+* Remove deprecated ``extra__azure__tenantId`` from azure_container_instance connection extras
+* Remove deprecated ``extra__azure__subscriptionId`` from azure_container_instance connection extras
+
 
 7.0.0
 .....
