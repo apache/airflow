@@ -106,6 +106,6 @@ def build_task_kwargs() -> dict:
     try:
         json.loads(json.dumps(task_kwargs))
     except JSONDecodeError:
-        raise ValueError(f"AWS ECS Executor config values must be JSON serializable.")
+        raise ValueError("AWS ECS Executor config values must be JSON serializable.")
 
     return task_kwargs
