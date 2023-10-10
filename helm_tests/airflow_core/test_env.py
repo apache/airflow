@@ -30,3 +30,13 @@ def test_should_add_airflow_home():
     assert {"name": "AIRFLOW_HOME", "value": exp_path} in jmespath.search(
         "spec.template.spec.containers[0].env", docs[0]
     )
+
+
+def test_should_add_airflow_home_notset():
+    docs = render_chart(
+        values={},
+        show_only=["templates/webserver/webserver-deployment.yaml"],
+    )
+    assert {"name": "AIRFLOW_HOME", "value": "/opt/airflow"} in jmespath.search(
+        "spec.template.spec.containers[0].env", docs[0]
+    )
