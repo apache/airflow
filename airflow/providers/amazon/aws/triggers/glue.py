@@ -175,7 +175,7 @@ class GlueDataBrewJobCompleteTrigger(BaseTrigger):
         self.run_id = run_id
         self.aws_conn_id = aws_conn_id
         self.delay = delay
-        self.maxAttempts = maxAttempts
+        self.max_attempts = max_attempts
 
     @property
     def hook(self) -> GlueDataBrewHook:
