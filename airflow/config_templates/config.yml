@@ -2382,7 +2382,7 @@ scheduler:
         CronDataIntervalTimetable, the logical_date is the beginning of the data interval,
         but the DAG Run will try to schedule at the end of the data interval. For more differences
         between the two Timetables, see https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/timetable.html#differences-between-the-two-cron-timetables
-      version_added: 2.8.0
+      version_added: 2.9.0
       type: boolean
       example: ~
       default: "True"
