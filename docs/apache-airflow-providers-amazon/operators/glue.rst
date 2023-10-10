@@ -100,6 +100,8 @@ use :class:`~airflow.providers.amazon.aws.sensors.glue.GlueJobSensor`
     :start-after: [START howto_sensor_glue]
     :end-before: [END howto_sensor_glue]
 
+.. _howto/sensor:GlueDataBrewStartJobOperator:
+
 Start an AWS Glue DataBrew job
 ==============================
 
