@@ -52,6 +52,7 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
 
     Deprecated. Do not use this decorator, use one of the decorator `has_access_cluster_*` defined in
     airflow/www/auth.py instead.
+    This decorator will only work with FAB authentication and not with other auth providers.
 
     This decorator is widely used in user plugins, do not remove it. See
     https://github.com/apache/airflow/pull/33213#discussion_r1346287224
