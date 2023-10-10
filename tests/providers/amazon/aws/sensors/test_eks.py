@@ -31,7 +31,6 @@ from airflow.providers.amazon.aws.sensors.eks import (
     CLUSTER_TERMINAL_STATES,
     FARGATE_TERMINAL_STATES,
     NODEGROUP_TERMINAL_STATES,
-    UNEXPECTED_TERMINAL_STATE_MSG,
     EksClusterStateSensor,
     EksFargateProfileStateSensor,
     EksNodegroupStateSensor,
@@ -42,13 +41,9 @@ FARGATE_PROFILE_NAME = "test_profile"
 NODEGROUP_NAME = "test_nodegroup"
 TASK_ID = "test_eks_sensor"
 
-CLUSTER_PENDING_STATES = frozenset(frozenset({state for state in ClusterStates}) - CLUSTER_TERMINAL_STATES)
-FARGATE_PENDING_STATES = frozenset(
-    frozenset({state for state in FargateProfileStates}) - FARGATE_TERMINAL_STATES
-)
-NODEGROUP_PENDING_STATES = frozenset(
-    frozenset({state for state in NodegroupStates}) - NODEGROUP_TERMINAL_STATES
-)
+CLUSTER_PENDING_STATES = frozenset(ClusterStates) - frozenset(CLUSTER_TERMINAL_STATES)
+FARGATE_PENDING_STATES = frozenset(FargateProfileStates) - frozenset(FARGATE_TERMINAL_STATES)
+NODEGROUP_PENDING_STATES = frozenset(NodegroupStates) - frozenset(NODEGROUP_TERMINAL_STATES)
 
 
 class TestEksClusterStateSensor:
@@ -79,8 +74,9 @@ class TestEksClusterStateSensor:
     def test_poke_reached_unexpected_terminal_state(
         self, mock_get_cluster_state, setUp, unexpected_terminal_state
     ):
-        expected_message = UNEXPECTED_TERMINAL_STATE_MSG.format(
-            current_state=unexpected_terminal_state, target_state=self.target_state
+        expected_message = (
+            f"Terminal state reached. Current state: {unexpected_terminal_state}, "
+            f"Expected state: {self.target_state}"
         )
         mock_get_cluster_state.return_value = unexpected_terminal_state
 
@@ -126,8 +122,9 @@ class TestEksFargateProfileStateSensor:
     def test_poke_reached_unexpected_terminal_state(
         self, mock_get_fargate_profile_state, setUp, unexpected_terminal_state
     ):
-        expected_message = UNEXPECTED_TERMINAL_STATE_MSG.format(
-            current_state=unexpected_terminal_state, target_state=self.target_state
+        expected_message = (
+            f"Terminal state reached. Current state: {unexpected_terminal_state}, "
+            f"Expected state: {self.target_state}"
         )
         mock_get_fargate_profile_state.return_value = unexpected_terminal_state
 
@@ -175,8 +172,9 @@ class TestEksNodegroupStateSensor:
     def test_poke_reached_unexpected_terminal_state(
         self, mock_get_nodegroup_state, setUp, unexpected_terminal_state
     ):
-        expected_message = UNEXPECTED_TERMINAL_STATE_MSG.format(
-            current_state=unexpected_terminal_state, target_state=self.target_state
+        expected_message = (
+            f"Terminal state reached. Current state: {unexpected_terminal_state}, "
+            f"Expected state: {self.target_state}"
         )
         mock_get_nodegroup_state.return_value = unexpected_terminal_state
 

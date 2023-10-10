@@ -32,6 +32,13 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Guides
+
+    GCSToSambaOperator types <transfer/gcs_to_samba>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/samba/index>
@@ -43,6 +50,13 @@
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-samba/>
     Installing from sources <installing-providers-from-sources>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/samba/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -61,7 +75,7 @@ Package apache-airflow-providers-samba
 `Samba <https://www.samba.org/>`__
 
 
-Release: 4.2.1
+Release: 4.2.2
 
 Provider package
 ----------------

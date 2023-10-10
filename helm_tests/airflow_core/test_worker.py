@@ -368,6 +368,17 @@ class TestWorker:
             "spec.template.spec.topologySpreadConstraints[0]", docs[0]
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_should_create_default_affinity(self):
         docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
 
@@ -802,3 +813,25 @@ class TestWorkerServiceAccount:
             assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
         else:
             assert docs == []
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

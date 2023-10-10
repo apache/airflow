@@ -40,7 +40,7 @@ class KafkaConsumerHook(KafkaBaseHook):
         return Consumer(config)
 
     def get_consumer(self) -> Consumer:
-        """Returns a Consumer that has been subscribed to topics."""
+        """Return a Consumer that has been subscribed to topics."""
         consumer = self.get_conn
         consumer.subscribe(self.topics)
 

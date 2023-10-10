@@ -26,7 +26,7 @@ isort:skip_file
 """
 from __future__ import annotations
 
-__version__ = "2.7.0.dev0"
+__version__ = "2.8.0.dev0"
 
 # flake8: noqa: F401
 
@@ -49,8 +49,7 @@ if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
 # very easily cause import cycles in the conf init/validate code (since downstream code from
 # those functions likely import settings).
 # configuration is therefore initted early here, simply by importing it.
-from airflow import configuration
-from airflow import settings
+from airflow import configuration, settings
 
 __all__ = ["__version__", "login", "DAG", "PY36", "PY37", "PY38", "PY39", "PY310", "XComArg"]
 
@@ -77,21 +76,31 @@ PY39 = sys.version_info >= (3, 9)
 PY310 = sys.version_info >= (3, 10)
 PY311 = sys.version_info >= (3, 11)
 
-# Things to lazy import in form {local_name: ('target_module', 'target_name')}
-__lazy_imports: dict[str, tuple[str, str]] = {
-    "DAG": (".models.dag", "DAG"),
-    "Dataset": (".datasets", "Dataset"),
-    "XComArg": (".models.xcom_arg", "XComArg"),
-    "AirflowException": (".exceptions", "AirflowException"),
-    "version": (".version", ""),
+# Things to lazy import in form {local_name: ('target_module', 'target_name', 'deprecated')}
+__lazy_imports: dict[str, tuple[str, str, bool]] = {
+    "DAG": (".models.dag", "DAG", False),
+    "Dataset": (".datasets", "Dataset", False),
+    "XComArg": (".models.xcom_arg", "XComArg", False),
+    "version": (".version", "", False),
+    # Deprecated lazy imports
+    "AirflowException": (".exceptions", "AirflowException", True),
 }
 
 
 def __getattr__(name: str):
     # PEP-562: Lazy loaded attributes on python modules
-    module_path, attr_name = __lazy_imports.get(name, ("", ""))
+    module_path, attr_name, deprecated = __lazy_imports.get(name, ("", "", False))
     if not module_path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    elif deprecated:
+        import warnings
+
+        warnings.warn(
+            f"Import {name!r} directly from the airflow module is deprecated and "
+            f"will be removed in the future. Please import it from 'airflow{module_path}.{attr_name}'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     import importlib
 
@@ -125,7 +134,7 @@ if not settings.LAZY_LOAD_PLUGINS:
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-    from airflow.models.dag import DAG
-    from airflow.models.xcom_arg import XComArg
     from airflow.exceptions import AirflowException
+    from airflow.models.dag import DAG
     from airflow.models.dataset import Dataset
+    from airflow.models.xcom_arg import XComArg

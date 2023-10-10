@@ -97,6 +97,31 @@ class TestConfigmap:
 
         assert jmespath.search('data."krb5.conf"', docs[0]) == "krb5\ncontent"
 
+    @pytest.mark.parametrize(
+        "executor, af_version, should_be_created",
+        [
+            ("KubernetesExecutor", "1.10.11", False),
+            ("KubernetesExecutor", "1.10.12", True),
+            ("KubernetesExecutor", "2.0.0", True),
+            ("CeleryExecutor", "1.10.11", False),
+            ("CeleryExecutor", "2.0.0", False),
+        ],
+    )
+    def test_pod_template_created(self, executor, af_version, should_be_created):
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "airflowVersion": af_version,
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        keys = jmespath.search("data", docs[0]).keys()
+        if should_be_created:
+            assert "pod_template_file.yaml" in keys
+        else:
+            assert "pod_template_file.yaml" not in keys
+
     def test_pod_template_is_templated(self):
         docs = render_chart(
             values={
@@ -115,3 +140,25 @@ metadata:
 
         pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
         assert "mylabel: release-name" in pod_template_file
+
+    def test_default_flower_url_prefix(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+        expected = "flower_url_prefix = "
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        assert expected in cfg.splitlines()
+
+    def test_overriden_flower_url_prefix(self):
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "ingress": {"flower": {"path": "/overriden-path"}}},
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        expected = "flower_url_prefix = /overriden-path"
+
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        assert expected in cfg.splitlines()

@@ -40,6 +40,8 @@ Create an AWS Lambda function
 
 To create an AWS lambda function you can use
 :class:`~airflow.providers.amazon.aws.operators.lambda_function.LambdaCreateFunctionOperator`.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
+the aiobotocore module to be installed.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
     :language: python
@@ -55,6 +57,38 @@ Invoke an AWS Lambda function
 To invoke an AWS lambda function you can use
 :class:`~airflow.providers.amazon.aws.operators.lambda_function.LambdaInvokeFunctionOperator`.
 
+.. note::
+    According to `Lambda.Client.invoke <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda/client/invoke.html>`_ documentation
+    for synchronous invocation (``invocation_type="RequestResponse"``) with a long timeout, your client might
+    disconnect during synchronous invocation while it waits for a response.
+
+    If this happens you will see a ``ReadTimeoutError`` exception similar to this:
+
+    .. code-block:: text
+
+      urllib3.exceptions.ReadTimeoutError: AWSHTTPSConnectionPool(host='lambda.us-east-1.amazonaws.com', port=443): Read timed out. (read timeout=60)
+
+    If you encounter this issue, configure :ref:`howto/connection:aws` to allow ``botocore`` / ``boto3`` to use long connections with
+    timeout or keep-alive settings in the Connection Extras field
+
+    .. code-block:: json
+
+        {
+          "config_kwargs": {
+            "connect_timeout": 900,
+            "read_timeout": 900,
+            "tcp_keepalive": true
+          }
+        }
+
+    In addition, you might need to configure your firewall, proxy,
+    or operating system to allow for long connections with timeout or keep-alive settings.
+
+.. note::
+    You cannot describe the asynchronous invocation (``invocation_type="Event"``) of an AWS Lambda function.
+    The only way is `configuring destinations for asynchronous invocation <https://docs.aws.amazon.com/lambda/latest/dg/invocation-async.html#invocation-async-destinations>`_
+    and sensing destination.
+
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
     :language: python
     :dedent: 4
@@ -66,10 +100,10 @@ Sensors
 
 .. _howto/sensor:LambdaFunctionStateSensor:
 
-Wait on an Amazon Lambda function state
-=======================================
+Wait on an AWS Lambda function deployment state
+===============================================
 
-To check the state of an Amazon Lambda function until it reaches the target state or another terminal
+To check the deployment state of an AWS Lambda function until it reaches the target state or another terminal
 state you can use :class:`~airflow.providers.amazon.aws.sensors.lambda_function.LambdaFunctionStateSensor`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py

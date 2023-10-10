@@ -111,6 +111,9 @@ class TestCeleryExecutor:
     def test_supports_sentry(self):
         assert CeleryExecutor.supports_sentry
 
+    def test_cli_commands_vended(self):
+        assert CeleryExecutor.get_cli_commands()
+
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self, caplog):
         caplog.set_level(
@@ -312,6 +315,7 @@ def register_signals():
 
 
 @pytest.mark.execution_timeout(200)
+@pytest.mark.quarantined
 def test_send_tasks_to_celery_hang(register_signals):
     """
     Test that celery_executor does not hang after many runs.

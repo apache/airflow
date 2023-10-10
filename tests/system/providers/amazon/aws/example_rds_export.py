@@ -18,9 +18,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
     RdsCancelExportTaskOperator,
@@ -128,6 +128,7 @@ with DAG(
     )
     # [END howto_operator_rds_cancel_export]
     cancel_export.check_interval = 10
+    cancel_export.max_attempts = 120
 
     # [START howto_sensor_rds_export_task_existence]
     export_sensor = RdsExportTaskExistenceSensor(

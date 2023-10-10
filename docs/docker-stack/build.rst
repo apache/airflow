@@ -349,7 +349,7 @@ You should be aware, about a few things:
   The DAGs in production image are in ``/opt/airflow/dags`` folder.
 
 * You can build your image without any need for Airflow sources. It is enough that you place the
-  ``Dockerfile`` and any files that are referred to (such as Dag files) in a separate directory and run
+  ``Dockerfile`` and any files that are referred to (such as DAG files) in a separate directory and run
   a command ``docker build . --pull --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
   and ``my-tag`` is the tag you want to tag the image with.
 
@@ -533,7 +533,7 @@ Before attempting to customize the image, you need to download flexible and cust
 You can extract the officially released version of the Dockerfile from the
 `released sources <https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html>`_.
 You can also conveniently download the latest released version
-`from GitHub <https://raw.githubusercontent.com/apache/airflow/|version|/Dockerfile>`_. You can save it
+`from GitHub <https://raw.githubusercontent.com/apache/airflow/|airflow-version|/Dockerfile>`_. You can save it
 in any directory - there is no need for any other files to be present there. If you wish to use your own
 files (for example custom configuration of ``pip`` or your own ``requirements`` or custom dependencies,
 you need to use ``DOCKER_CONTEXT_FILES`` build arg and place the files in the directory pointed at by

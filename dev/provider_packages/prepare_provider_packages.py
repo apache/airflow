@@ -20,26 +20,25 @@
 """Setup.py for the Provider packages of Airflow project."""
 from __future__ import annotations
 
-import collections
 import difflib
 import glob
 import json
 import logging
 import os
+import random
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import textwrap
+from collections import namedtuple
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import lru_cache
-from os.path import dirname, relpath
 from pathlib import Path
-from random import choice
 from shutil import copyfile
 from typing import Any, Generator, Iterable, NamedTuple
 
@@ -55,11 +54,11 @@ from yaml import safe_load
 
 ALL_PYTHON_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 
-MIN_AIRFLOW_VERSION = "2.4.0"
+MIN_AIRFLOW_VERSION = "2.5.0"
 # In case you have some providers that you want to have different min-airflow version for,
 # Add them as exceptions here. Make sure to remove it once the min-airflow version is bumped
 # to the same version that is required by the exceptional provider
-MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.6.0"}
+MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.7.0"}
 
 INITIAL_CHANGELOG_CONTENT = """
  .. Licensed to the Apache Software Foundation (ASF) under one
@@ -261,7 +260,7 @@ def get_target_folder() -> str:
 
     :return: the folder path
     """
-    return os.path.abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, "provider_packages"))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, "provider_packages"))
 
 
 def get_target_providers_folder() -> str:
@@ -353,8 +352,7 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
     install_requires = [
         apply_version_suffix(clause) for clause in ALL_DEPENDENCIES[provider_package_id][DEPS]
     ]
-    prefix = "\n    "
-    return prefix + prefix.join(install_requires)
+    return "".join(f"\n    {ir}" for ir in install_requires)
 
 
 def get_setup_requirements() -> str:
@@ -483,7 +481,7 @@ def convert_git_changes_to_table(
     """
     from tabulate import tabulate
 
-    lines = changes.split("\n")
+    lines = changes.splitlines()
     headers = ["Commit", "Committed", "Subject"]
     table_data = []
     changes_list: list[Change] = []
@@ -607,7 +605,7 @@ LICENCE_RST = """
 """
 Keeps information about historical releases.
 """
-ReleaseInfo = collections.namedtuple(
+ReleaseInfo = namedtuple(
     "ReleaseInfo", "release_version release_version_no_leading_zeros last_commit_hash content file_name"
 )
 
@@ -871,8 +869,7 @@ def get_additional_package_info(provider_package_path: str) -> str:
         for line in additional_info_lines:
             if line.startswith(" -->"):
                 skip_comment = False
-                continue
-            if not skip_comment:
+            elif not skip_comment:
                 result += line
         return result
     return ""
@@ -1058,7 +1055,7 @@ def get_all_changes_for_package(
     changes_table += changes_table_for_version
     if verbose:
         print_changes_table(changes_table)
-    return True, list_of_list_of_changes if len(list_of_list_of_changes) > 0 else None, changes_table
+    return True, list_of_list_of_changes or None, changes_table
 
 
 def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
@@ -1156,7 +1153,7 @@ def get_provider_jinja_context(
         "PIP_REQUIREMENTS_TABLE": pip_requirements_table,
         "PIP_REQUIREMENTS_TABLE_RST": pip_requirements_table_rst,
         "PROVIDER_INFO": provider_info,
-        "CHANGELOG_RELATIVE_PATH": relpath(
+        "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.source_provider_package_path,
             provider_details.documentation_provider_package_path,
         ),
@@ -1216,7 +1213,7 @@ def get_type_of_changes(answer: str | None) -> TypeOfChange:
     given_answer = ""
     if answer and answer.lower() in ["yes", "y"]:
         # Simulate all possible non-terminal answers
-        return choice(
+        return random.choice(
             [
                 TypeOfChange.DOCUMENTATION,
                 TypeOfChange.BUGFIX,
@@ -1337,7 +1334,7 @@ def update_release_notes(
         version_suffix=version_suffix,
     )
     jinja_context["DETAILED_CHANGES_RST"] = changes
-    jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
+    jinja_context["DETAILED_CHANGES_PRESENT"] = bool(changes)
     update_changelog_rst(
         jinja_context,
         provider_package_id,
@@ -1676,12 +1673,12 @@ def verify_changelog_exists(package: str) -> str:
 def list_providers_packages():
     """List all provider packages."""
     providers = get_all_providers()
-    # For now we should exclude open-lineage from being consider for releasing until it is ready to
-    # be released
-    if "openlineage" in providers:
-        providers.remove("openlineage")
+    # if provider needs to be not considered in release add it here
+    # this is useful for cases where provider is WIP for a long period thus we don't want to release it yet.
+    providers_to_remove_from_release = []
     for provider in providers:
-        console.print(provider)
+        if provider not in providers_to_remove_from_release:
+            console.print(provider)
 
 
 @cli.command()

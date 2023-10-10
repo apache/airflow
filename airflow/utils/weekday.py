@@ -50,7 +50,7 @@ class WeekDay(enum.IntEnum):
 
     @classmethod
     def convert(cls, day: str | WeekDay) -> int:
-        """Helper function that returns the day number in the week."""
+        """Return the day number in the week."""
         if isinstance(day, WeekDay):
             return day
         return cls.get_weekday_number(week_day_str=day)

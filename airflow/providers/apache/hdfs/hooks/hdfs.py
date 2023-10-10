@@ -16,14 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 _EXCEPTION_MESSAGE = """The old HDFS Hooks have been removed in 4.0.0 version of the apache.hdfs provider.
 Please convert your DAGs to use the WebHdfsHook or downgrade the provider to below 4.*
 if you want to continue using it.
 If you want to use earlier provider you can downgrade to latest released 3.* version
-using `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints)
+using `pip install apache-airflow-providers-apache-hdfs==3.2.1` (no constraints)
 """
 
 
@@ -34,7 +34,7 @@ class HDFSHookException(AirflowException):
     Please convert your DAGs to use the WebHdfsHook or downgrade the provider
     to below 4.* if you want to continue using it. If you want to use earlier
     provider you can downgrade to latest released 3.* version using
-    `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints).
+    `pip install apache-airflow-providers-apache-hdfs==3.2.1` (no constraints).
     """
 
     def __init__(self, *args, **kwargs):
@@ -48,7 +48,7 @@ class HDFSHook(BaseHook):
     Please convert your DAGs to use the WebHdfsHook or downgrade the provider
     to below 4.*. if you want to continue using it. If you want to use earlier
     provider you can downgrade to latest released 3.* version using
-    `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints).
+    `pip install apache-airflow-providers-apache-hdfs==3.2.1` (no constraints).
     """
 
     def __init__(self, *args, **kwargs):

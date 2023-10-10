@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import datetime
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from kubernetes.client import ApiException
 from kubernetes.watch import Watch
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 
@@ -81,7 +82,9 @@ class SparkKubernetesOperator(BaseOperator):
         self.config_file = config_file
         self.watch = watch
 
-        self.hook = KubernetesHook(
+    @cached_property
+    def hook(self) -> KubernetesHook:
+        return KubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
             config_file=self.config_file,

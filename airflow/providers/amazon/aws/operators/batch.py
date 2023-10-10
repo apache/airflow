@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.links.batch import (
     BatchJobDefinitionLink,
@@ -126,9 +127,21 @@ class BatchOperator(BaseOperator):
     @property
     def operator_extra_links(self):
         op_extra_links = [BatchJobDetailsLink()]
-        if self.wait_for_completion:
+
+        if isinstance(self, MappedOperator):
+            wait_for_completion = self.partial_kwargs.get(
+                "wait_for_completion"
+            ) or self.expand_input.value.get("wait_for_completion")
+            array_properties = self.partial_kwargs.get("array_properties") or self.expand_input.value.get(
+                "array_properties"
+            )
+        else:
+            wait_for_completion = self.wait_for_completion
+            array_properties = self.array_properties
+
+        if wait_for_completion:
             op_extra_links.extend([BatchJobDefinitionLink(), BatchJobQueueLink()])
-        if not self.array_properties:
+        if not array_properties:
             # There is no CloudWatch Link to the parent Batch Job available.
             op_extra_links.append(CloudWatchEventsLink())
 
@@ -149,7 +162,7 @@ class BatchOperator(BaseOperator):
         parameters: dict | None = None,
         job_id: str | None = None,
         waiters: Any | None = None,
-        max_retries: int | None = None,
+        max_retries: int = 4200,
         status_retries: int | None = None,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
@@ -223,7 +236,7 @@ class BatchOperator(BaseOperator):
                 timeout=self.execution_timeout,
                 trigger=BatchJobTrigger(
                     job_id=self.job_id,
-                    waiter_max_attempts=self.max_retries or 10,
+                    waiter_max_attempts=self.max_retries,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     waiter_delay=self.poll_interval,
@@ -346,7 +359,12 @@ class BatchOperator(BaseOperator):
             else:
                 self.hook.wait_for_job(self.job_id)
 
-        awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
+        awslogs = []
+        try:
+            awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
+        except AirflowException as ae:
+            self.log.warning("Cannot determine where to find the AWS logs for this Batch job: %s", ae)
+
         if awslogs:
             self.log.info("AWS Batch job (%s) CloudWatch Events details found. Links to logs:", self.job_id)
             link_builder = CloudWatchEventsLink()

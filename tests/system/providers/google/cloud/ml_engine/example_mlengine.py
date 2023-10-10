@@ -25,8 +25,8 @@ import pathlib
 from datetime import datetime
 from math import ceil
 
-from airflow import models
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.mlengine import (
@@ -49,14 +49,14 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
 DAG_ID = "example_gcp_mlengine"
 PREDICT_FILE_NAME = "predict.json"
-MODEL_NAME = f"example_ml_model_{ENV_ID}"
-BUCKET_NAME = f"example_ml_bucket_{ENV_ID}"
+MODEL_NAME = f"model_{DAG_ID}_{ENV_ID}".replace("_", "-")
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 BUCKET_PATH = f"gs://{BUCKET_NAME}"
 JOB_DIR = f"{BUCKET_PATH}/job-dir"
 SAVED_MODEL_PATH = f"{JOB_DIR}/"
 PREDICTION_INPUT = f"{BUCKET_PATH}/{PREDICT_FILE_NAME}"
 PREDICTION_OUTPUT = f"{BUCKET_PATH}/prediction_output/"
-TRAINER_URI = "gs://system-tests-resources/example_gcp_mlengine/trainer-0.2.tar.gz"
+TRAINER_URI = "gs://airflow-system-tests-resources/ml-engine/trainer-0.2.tar.gz"
 TRAINER_PY_MODULE = "trainer.task"
 SUMMARY_TMP = f"{BUCKET_PATH}/tmp/"
 SUMMARY_STAGING = f"{BUCKET_PATH}/staging/"
@@ -69,7 +69,7 @@ def generate_model_predict_input_data() -> list[int]:
     return [1, 4, 9, 16, 25, 36]
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -104,8 +104,8 @@ with models.DAG(
         project_id=PROJECT_ID,
         region="us-central1",
         job_id="training-job-{{ ts_nodash }}-{{ params.model_name }}",
-        runtime_version="2.1",
-        python_version="3.8",
+        runtime_version="1.15",
+        python_version="3.7",
         job_dir=JOB_DIR,
         package_uris=[TRAINER_URI],
         training_python_module=TRAINER_PY_MODULE,
@@ -148,10 +148,10 @@ with models.DAG(
             "name": "v1",
             "description": "First-version",
             "deployment_uri": JOB_DIR,
-            "runtime_version": "2.1",
+            "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
-            "pythonVersion": "3.8",
+            "pythonVersion": "3.7",
         },
     )
     # [END howto_operator_gcp_mlengine_create_version1]
@@ -165,10 +165,10 @@ with models.DAG(
             "name": "v2",
             "description": "Second version",
             "deployment_uri": JOB_DIR,
-            "runtime_version": "2.1",
+            "runtime_version": "1.15",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
-            "pythonVersion": "3.8",
+            "pythonVersion": "3.7",
         },
     )
     # [END howto_operator_gcp_mlengine_create_version2]

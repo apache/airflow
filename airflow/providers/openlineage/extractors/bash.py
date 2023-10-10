@@ -17,13 +17,17 @@
 
 from __future__ import annotations
 
+from openlineage.client.facet import SourceCodeJobFacet
+
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.plugins.facets import (
     UnknownOperatorAttributeRunFacet,
     UnknownOperatorInstance,
 )
-from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys, is_source_enabled
-from openlineage.client.facet import SourceCodeJobFacet
+from airflow.providers.openlineage.utils.utils import (
+    get_filtered_unknown_operator_keys,
+    is_source_enabled,
+)
 
 """
 :meta private:
@@ -45,7 +49,7 @@ class BashExtractor(BaseExtractor):
     def get_operator_classnames(cls) -> list[str]:
         return ["BashOperator"]
 
-    def extract(self) -> OperatorLineage | None:
+    def _execute_extraction(self) -> OperatorLineage | None:
         job_facets: dict = {}
         if is_source_enabled():
             job_facets = {
@@ -72,3 +76,6 @@ class BashExtractor(BaseExtractor):
                 )
             },
         )
+
+    def extract(self) -> OperatorLineage | None:
+        return super().extract()

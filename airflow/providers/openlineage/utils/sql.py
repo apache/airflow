@@ -23,10 +23,9 @@ from enum import IntEnum
 from typing import TYPE_CHECKING, Dict, List, Optional
 
 from attrs import define
-from sqlalchemy import Column, MetaData, Table, and_, union_all
-
 from openlineage.client.facet import SchemaDatasetFacet, SchemaField
 from openlineage.client.run import Dataset
+from sqlalchemy import Column, MetaData, Table, and_, union_all
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -74,7 +73,7 @@ class TableSchema:
         return Dataset(
             namespace=namespace,
             name=name,
-            facets={"schema": SchemaDatasetFacet(fields=self.fields)} if len(self.fields) > 0 else {},
+            facets={"schema": SchemaDatasetFacet(fields=self.fields)} if self.fields else {},
         )
 
 
@@ -156,11 +155,22 @@ def create_information_schema_query(
     metadata = MetaData(sqlalchemy_engine)
     select_statements = []
     for db, schema_mapping in tables_hierarchy.items():
-        schema, table_name = information_schema_table_name.split(".")
+        # Information schema table name is expected to be "< information_schema schema >.<view/table name>"
+        # usually "information_schema.columns". In order to use table identifier correct for various table
+        # we need to pass first part of dot-separated identifier as `schema` argument to `sqlalchemy.Table`.
         if db:
-            schema = f"{db}.{schema}"
+            # Use database as first part of table identifier.
+            schema = db
+            table_name = information_schema_table_name
+        else:
+            # When no database passed, use schema as first part of table identifier.
+            schema, table_name = information_schema_table_name.split(".")
         information_schema_table = Table(
-            table_name, metadata, *[Column(column) for column in columns], schema=schema
+            table_name,
+            metadata,
+            *[Column(column) for column in columns],
+            schema=schema,
+            quote=False,
         )
         filter_clauses = create_filter_clauses(schema_mapping, information_schema_table, uppercase_names)
         select_statements.append(information_schema_table.select().filter(*filter_clauses))

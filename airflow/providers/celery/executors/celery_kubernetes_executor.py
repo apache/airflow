@@ -20,15 +20,22 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.callbacks.base_callback_sink import BaseCallbackSink
-from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+
+try:
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+except ImportError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
+
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
+    from airflow.callbacks.base_callback_sink import BaseCallbackSink
+    from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
     from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -250,3 +257,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         if not self.callback_sink:
             raise ValueError("Callback sink is not ready.")
         self.callback_sink.send(request)
+
+    @staticmethod
+    def get_cli_commands() -> list:
+        return CeleryExecutor.get_cli_commands() + KubernetesExecutor.get_cli_commands()

@@ -17,12 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
 
 TASK_ID = "step_function_execution_sensor"
@@ -88,3 +89,18 @@ class TestStepFunctionExecutionSensor:
         )
 
         assert sensor.poke(self.mock_context)
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.step_function.StepFunctionHook.describe_execution")
+    def test_fail_poke(self, describe_execution, soft_fail, expected_exception):
+        sensor = StepFunctionExecutionSensor(
+            task_id=TASK_ID, execution_arn=EXECUTION_ARN, aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME
+        )
+        sensor.soft_fail = soft_fail
+        output = '{"test": "test"}'
+        describe_execution.return_value = {"status": "FAILED", "output": output}
+        message = f"Step Function sensor failed. State Machine Output: {json.loads(output)}"
+        with pytest.raises(expected_exception, match=message):
+            sensor.poke(context={})

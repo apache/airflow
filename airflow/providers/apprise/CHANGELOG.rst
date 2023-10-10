@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+1.0.2
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve D301 in Apprise Provider (#33852)``
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+1.0.1
+.....
+
+Misc
+~~~~
+
+* ``Replace Ruff setting known-third-party with namespace-packages (#32873)``
+
 1.0.0
 .....
 

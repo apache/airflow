@@ -27,8 +27,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator,
     ComputeEngineDeleteInstanceGroupManagerOperator,
@@ -108,9 +108,9 @@ UPDATE_POLICY = {
 # [END howto_operator_compute_igm_update_template_args]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],

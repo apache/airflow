@@ -20,6 +20,8 @@ from typing import TYPE_CHECKING, Callable
 
 import sqlparse
 from attrs import define
+from openlineage.client.facet import BaseFacet, ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
+from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.utils.sql import (
@@ -28,11 +30,9 @@ from airflow.providers.openlineage.utils.sql import (
     get_table_schemas,
 )
 from airflow.typing_compat import TypedDict
-from openlineage.client.facet import BaseFacet, ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
-from openlineage.client.run import Dataset
-from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 if TYPE_CHECKING:
+    from openlineage.client.run import Dataset
     from sqlalchemy.engine import Engine
 
     from airflow.hooks.base import BaseHook
@@ -291,6 +291,6 @@ class SQLParser:
             else:
                 db = None
             schemas = hierarchy.setdefault(normalize_name(db) if db else db, {})
-            tables = schemas.setdefault(normalize_name(table.schema) if table.schema else db, [])
+            tables = schemas.setdefault(normalize_name(table.schema) if table.schema else None, [])
             tables.append(table.name)
         return hierarchy

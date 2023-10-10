@@ -20,9 +20,9 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.ecs import EcsTaskStates
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.amazon.aws.sensors.ecs import EcsTaskStateSensor
@@ -122,8 +122,6 @@ with DAG(
                 "assignPublicIp": "ENABLED",
             },
         },
-        # You must set `reattach=True` in order to get ecs_task_arn if you plan to use a Sensor.
-        reattach=True,
     )
     # [END howto_operator_ecs]
 

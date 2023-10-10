@@ -25,9 +25,10 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
+from airflow.providers.google.cloud.operators.dataflow import DataflowStopJobOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -37,7 +38,7 @@ DAG_ID = "dataflow_native_python"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
-PYTHON_FILE_NAME = "wordcount_debugging.txt"
+PYTHON_FILE_NAME = "wordcount_debugging.py"
 GCS_TMP = f"gs://{BUCKET_NAME}/temp/"
 GCS_STAGING = f"gs://{BUCKET_NAME}/staging/"
 GCS_OUTPUT = f"gs://{BUCKET_NAME}/output"
@@ -52,7 +53,7 @@ default_args = {
     }
 }
 
-with models.DAG(
+with DAG(
     DAG_ID,
     default_args=default_args,
     schedule="@once",
@@ -97,6 +98,14 @@ with models.DAG(
         py_system_site_packages=False,
     )
 
+    # [START howto_operator_stop_dataflow_job]
+    stop_dataflow_job = DataflowStopJobOperator(
+        task_id="stop_dataflow_job",
+        location=LOCATION,
+        job_name_prefix="start-python-pipeline",
+    )
+    # [END howto_operator_stop_dataflow_job]
+
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
@@ -108,6 +117,7 @@ with models.DAG(
         # TEST BODY
         >> start_python_job
         >> start_python_job_local
+        >> stop_dataflow_job
         # TEST TEARDOWN
         >> delete_bucket
     )

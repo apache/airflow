@@ -39,8 +39,28 @@ class TestOpenLineageProviderPlugin:
     @pytest.mark.parametrize(
         "mocks, expected",
         [
-            ([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"}, 0)], 0),
-            ([conf_vars({("openlineage", "disabled"): "False"})], 1),
+            ([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"})], 0),
+            (
+                [
+                    conf_vars(
+                        {("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'}
+                    ),
+                    patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "true"}),
+                ],
+                0,
+            ),
+            ([patch.dict(os.environ, {"OPENLINEAGE_DISABLED": "false"})], 0),
+            (
+                [
+                    conf_vars(
+                        {
+                            ("openlineage", "disabled"): "False",
+                            ("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}',
+                        }
+                    )
+                ],
+                1,
+            ),
             (
                 [
                     conf_vars({("openlineage", "disabled"): "False"}),
@@ -48,7 +68,16 @@ class TestOpenLineageProviderPlugin:
                 ],
                 0,
             ),
-            ([], 1),
+            ([], 0),
+            ([patch.dict(os.environ, {"OPENLINEAGE_URL": "http://localhost:8080"})], 1),
+            (
+                [
+                    conf_vars(
+                        {("openlineage", "transport"): '{"type": "http", "url": "http://localhost:5000"}'}
+                    )
+                ],
+                1,
+            ),
         ],
     )
     def test_plugin_disablements(self, mocks, expected):
@@ -58,4 +87,5 @@ class TestOpenLineageProviderPlugin:
             from airflow.providers.openlineage.plugins.openlineage import OpenLineageProviderPlugin
 
             plugin = OpenLineageProviderPlugin()
+
             assert len(plugin.listeners) == expected

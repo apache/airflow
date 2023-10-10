@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -41,7 +41,7 @@ VOICE = {"language_code": "en-US", "ssml_gender": "FEMALE"}
 AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 # [END howto_operator_text_to_speech_api_arguments]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

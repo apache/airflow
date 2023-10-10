@@ -22,7 +22,7 @@ from typing import Any, Sequence
 
 from asgiref.sync import sync_to_async
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.module_loading import import_string
@@ -49,7 +49,7 @@ class AwaitMessageTrigger(BaseTrigger):
         defaults to None
     :param poll_timeout: How long the Kafka client should wait before returning from a poll request to
         Kafka (seconds), defaults to 1
-    :param poll_interval: How long the the trigger should sleep after reaching the end of the Kafka log
+    :param poll_interval: How long the trigger should sleep after reaching the end of the Kafka log
         (seconds), defaults to 5
 
     """

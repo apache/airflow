@@ -146,6 +146,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-airflow-k8s-not-used                                | Check airflow.kubernetes imports are not used                |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-airflow-provider-compatibility                      | Check compatibility of Providers with Airflow                |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-apache-license-rat                                  | Check if licenses are OK for Apache                          |         |
@@ -162,6 +164,8 @@ require Breeze Docker image to be built locally.
 | check-builtin-literals                                    | Require literal syntax when initializing builtin types       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -182,6 +186,8 @@ require Breeze Docker image to be built locally.
 | check-extras-order                                        | Check order of extras in Dockerfile                          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-google-re2-as-dependency                            | Check google-re2 is declared as dependency when needed       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -258,6 +264,8 @@ require Breeze Docker image to be built locally.
 | fix-encoding-pragma                                       | Remove encoding header from Python files                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python                 |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| generate-pypi-readme                                      | Generate PyPI README                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | identity                                                  | Print input to the static check hooks for troubleshooting    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -350,6 +358,8 @@ require Breeze Docker image to be built locally.
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-version                                            | Update version to the latest version in the documentation    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| validate-pyproject                                        | Validate pyproject.toml                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -478,7 +488,7 @@ Run all checks for all changes in my branch since branched from main:
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --only-my-changes
+     breeze static-checks --type mypy-core --only-my-changes
 
 More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
 

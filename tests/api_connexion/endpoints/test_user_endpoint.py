@@ -22,10 +22,10 @@ import pytest
 from sqlalchemy.sql.functions import count
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.auth.managers.fab.models import User
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.www.fab_security.sqla.models import User
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 
@@ -617,7 +617,7 @@ class TestPatchUser(TestUserEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400, response.json
-        assert response.json["detail"] == "{'%s': ['Missing data for required field.']}" % field
+        assert response.json["detail"] == f"{{'{field}': ['Missing data for required field.']}}"
 
     @pytest.mark.usefixtures("autoclean_admin_user")
     def test_username_can_be_updated(self, autoclean_user_payload, autoclean_username):

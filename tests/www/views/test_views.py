@@ -24,7 +24,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import initialize_config, write_webserver_configuration_if_needed
+from airflow.configuration import (
+    initialize_config,
+    write_default_airflow_configuration_if_needed,
+    write_webserver_configuration_if_needed,
+)
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.utils.task_group import TaskGroup
 from airflow.www import views
@@ -68,8 +72,9 @@ def test_webserver_configuration_config_file(mock_webserver_config_global, admin
 
     config_file = str(tmp_path / "my_custom_webserver_config.py")
     with mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": config_file}):
-        conf = initialize_config()
+        conf = write_default_airflow_configuration_if_needed()
         write_webserver_configuration_if_needed(conf)
+        initialize_config()
         assert airflow.configuration.WEBSERVER_CONFIG == config_file
 
     assert os.path.isfile(config_file)
@@ -237,7 +242,9 @@ def test_mark_task_instance_state(test_app):
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
-    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+    from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
@@ -326,7 +333,9 @@ def test_mark_task_group_state(test_app):
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
-    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+    from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State

@@ -44,8 +44,8 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
         run_id: str,
         azure_data_factory_conn_id: str,
         poke_interval: float,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
     ):
         super().__init__()
         self.run_id = run_id
@@ -103,8 +103,8 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
                     if executed_after_token_refresh:
                         await hook.refresh_conn()
                         executed_after_token_refresh = False
-                        continue
-                    raise
+                    else:
+                        raise
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
@@ -128,8 +128,8 @@ class AzureDataFactoryTrigger(BaseTrigger):
         run_id: str,
         azure_data_factory_conn_id: str,
         end_time: float,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         wait_for_termination: bool = True,
         check_interval: int = 60,
     ):
@@ -207,8 +207,8 @@ class AzureDataFactoryTrigger(BaseTrigger):
                         if executed_after_token_refresh:
                             await hook.refresh_conn()
                             executed_after_token_refresh = False
-                            continue
-                        raise
+                        else:
+                            raise
 
                 yield TriggerEvent(
                     {
@@ -233,7 +233,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
                         resource_group_name=self.resource_group_name,
                         factory_name=self.factory_name,
                     )
-                    self.log.info("Unexpected error %s caught. Cancel pipeline run %s", str(e), self.run_id)
+                    self.log.info("Unexpected error %s caught. Cancel pipeline run %s", e, self.run_id)
                 except Exception as err:
                     yield TriggerEvent({"status": "error", "message": str(err), "run_id": self.run_id})
             yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})

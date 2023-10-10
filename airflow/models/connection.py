@@ -21,6 +21,7 @@ import json
 import logging
 import warnings
 from json import JSONDecodeError
+from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
@@ -30,6 +31,7 @@ from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException, RemovedInAirflow3Warning
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.secrets.cache import SecretCache
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.module_loading import import_string
@@ -38,7 +40,7 @@ log = logging.getLogger(__name__)
 
 
 def parse_netloc_to_hostname(*args, **kwargs):
-    """This method is deprecated."""
+    """Do not use, this method is deprecated."""
     warnings.warn("This method is deprecated.", RemovedInAirflow3Warning)
     return _parse_netloc_to_hostname(*args, **kwargs)
 
@@ -91,8 +93,8 @@ class Connection(Base, LoggingMixin):
     description = Column(Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"))
     host = Column(String(500))
     schema = Column(String(500))
-    login = Column(String(500))
-    _password = Column("password", String(5000))
+    login = Column(Text())
+    _password = Column("password", Text())
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
@@ -141,7 +143,7 @@ class Connection(Base, LoggingMixin):
     @staticmethod
     def _validate_extra(extra, conn_id) -> None:
         """
-        Here we verify that ``extra`` is a JSON-encoded Python dict.
+        Verify that ``extra`` is a JSON-encoded Python dict.
 
         From Airflow 3.0, we should no longer suppress these errors but raise instead.
         """
@@ -172,7 +174,7 @@ class Connection(Base, LoggingMixin):
             mask_secret(self.password)
 
     def parse_from_uri(self, **uri):
-        """This method is deprecated. Please use uri parameter in constructor."""
+        """Use uri parameter in constructor, this method is deprecated."""
         warnings.warn(
             "This method is deprecated. Please use uri parameter in constructor.",
             RemovedInAirflow3Warning,
@@ -218,7 +220,7 @@ class Connection(Base, LoggingMixin):
 
     @staticmethod
     def _create_host(protocol, host) -> str | None:
-        """Returns the connection host with the protocol."""
+        """Return the connection host with the protocol."""
         if not host:
             return host
         if protocol:
@@ -377,9 +379,9 @@ class Connection(Base, LoggingMixin):
 
     def log_info(self):
         """
-        This method is deprecated.
+        Read each field individually or use the default representation (`__repr__`).
 
-        You can read each field individually or use the default representation (`__repr__`).
+        This method is deprecated.
         """
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
@@ -395,9 +397,9 @@ class Connection(Base, LoggingMixin):
 
     def debug_info(self):
         """
-        This method is deprecated.
+        Read each field individually or use the default representation (`__repr__`).
 
-        You can read each field individually or use the default representation (`__repr__`).
+        This method is deprecated.
         """
         warnings.warn(
             "This method is deprecated. You can read each field individually or "
@@ -451,10 +453,20 @@ class Connection(Base, LoggingMixin):
         :param conn_id: connection id
         :return: connection
         """
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        try:
+            uri = SecretCache.get_connection_uri(conn_id)
+            return Connection(conn_id=conn_id, uri=uri)
+        except SecretCache.NotPresentException:
+            pass  # continue business
+
+        # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
+                    SecretCache.save_connection_uri(conn_id, conn.get_uri())
                     return conn
             except Exception:
                 log.exception(
@@ -464,6 +476,9 @@ class Connection(Base, LoggingMixin):
                 )
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"conn_id": self.conn_id, "description": self.description, "uri": self.get_uri()}
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:

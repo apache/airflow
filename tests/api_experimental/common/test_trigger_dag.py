@@ -23,7 +23,8 @@ import pytest
 
 from airflow.api.common.trigger_dag import _trigger_dag
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from tests.test_utils import db
 

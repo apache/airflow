@@ -89,6 +89,14 @@ class TestSQLParser:
             is_cross_db=True,
         ) == {"db": {"schema1": ["Table2"]}, "db2": {"schema1": ["Table1"]}}
 
+        # cross db, no db & schema parsed
+        assert SQLParser._get_tables_hierarchy(
+            [DbTableMeta("Table1"), DbTableMeta("Table2")],
+            normalize_name_lower,
+            database="Db",
+            is_cross_db=True,
+        ) == {"db": {None: ["Table1", "Table2"]}}
+
     def test_normalize_sql(self):
         assert SQLParser.normalize_sql("select * from asdf") == "select * from asdf"
 
@@ -130,13 +138,14 @@ class TestSQLParser:
 
         hook = MagicMock()
 
-        rows = lambda name: [
-            (DB_SCHEMA_NAME, name, "ID", 1, "int4"),
-            (DB_SCHEMA_NAME, name, "AMOUNT_OFF", 2, "int4"),
-            (DB_SCHEMA_NAME, name, "CUSTOMER_EMAIL", 3, "varchar"),
-            (DB_SCHEMA_NAME, name, "STARTS_ON", 4, "timestamp"),
-            (DB_SCHEMA_NAME, name, "ENDS_ON", 5, "timestamp"),
-        ]
+        def rows(name):
+            return [
+                (DB_SCHEMA_NAME, name, "ID", 1, "int4"),
+                (DB_SCHEMA_NAME, name, "AMOUNT_OFF", 2, "int4"),
+                (DB_SCHEMA_NAME, name, "CUSTOMER_EMAIL", 3, "varchar"),
+                (DB_SCHEMA_NAME, name, "STARTS_ON", 4, "timestamp"),
+                (DB_SCHEMA_NAME, name, "ENDS_ON", 5, "timestamp"),
+            ]
 
         hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [
             rows("TABLE_IN"),
@@ -164,13 +173,14 @@ class TestSQLParser:
 
         hook = MagicMock()
 
-        rows = lambda schema, table: [
-            (schema, table, "ID", 1, "int4"),
-            (schema, table, "AMOUNT_OFF", 2, "int4"),
-            (schema, table, "CUSTOMER_EMAIL", 3, "varchar"),
-            (schema, table, "STARTS_ON", 4, "timestamp"),
-            (schema, table, "ENDS_ON", 5, "timestamp"),
-        ]
+        def rows(schema, table):
+            return [
+                (schema, table, "ID", 1, "int4"),
+                (schema, table, "AMOUNT_OFF", 2, "int4"),
+                (schema, table, "CUSTOMER_EMAIL", 3, "varchar"),
+                (schema, table, "STARTS_ON", 4, "timestamp"),
+                (schema, table, "ENDS_ON", 5, "timestamp"),
+            ]
 
         sql = """CREATE TABLE table_out (
             ID int,

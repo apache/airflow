@@ -598,6 +598,7 @@ class TestBackfillJob:
         pool = Pool(
             pool="pool_with_two_slots",
             slots=slots,
+            include_deferred=False,
         )
         session.add(pool)
         session.commit()
@@ -961,7 +962,7 @@ class TestBackfillJob:
         Test that queued tasks are executed by BackfillJobRunner
         """
         session = settings.Session()
-        pool = Pool(pool="test_backfill_pooled_task_pool", slots=1)
+        pool = Pool(pool="test_backfill_pooled_task_pool", slots=1, include_deferred=False)
         session.add(pool)
         session.commit()
         session.close()
@@ -2054,7 +2055,7 @@ class TestBackfillJob:
     def test_backfill_disable_retry(self, dag_maker, disable_retry, try_number, exception):
         with dag_maker(
             dag_id="test_disable_retry",
-            schedule_interval="@daily",
+            schedule="@daily",
             default_args={
                 "retries": 2,
                 "retry_delay": datetime.timedelta(seconds=3),

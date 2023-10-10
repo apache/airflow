@@ -207,7 +207,7 @@ class GCSToGCSOperator(BaseOperator):
                 stacklevel=2,
             )
         self.source_object = source_object
-        if source_objects and any([WILDCARD in obj for obj in source_objects]):
+        if source_objects and any(WILDCARD in obj for obj in source_objects):
             warnings.warn(
                 "Usage of wildcard (*) in 'source_objects' is deprecated, utilize 'match_glob' instead",
                 AirflowProviderDeprecationWarning,
@@ -233,6 +233,8 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
         self.match_glob = match_glob
+        self.resolved_source_objects: set[str] = set()
+        self.resolved_target_objects: set[str] = set()
 
     def execute(self, context: Context):
 
@@ -305,7 +307,7 @@ class GCSToGCSOperator(BaseOperator):
             ]
 
         objects = set(objects) - set(existing_objects)
-        if len(objects) > 0:
+        if objects:
             self.log.info("%s files are going to be synced: %s.", len(objects), objects)
         else:
             self.log.info("There are no new files to sync. Have a nice day!")
@@ -427,7 +429,7 @@ class GCSToGCSOperator(BaseOperator):
         # Check whether the prefix is a root directory for all the rest of objects.
         _pref = prefix.rstrip("/")
         is_directory = prefix.endswith("/") or all(
-            [obj.replace(_pref, "", 1).startswith("/") for obj in source_objects]
+            obj.replace(_pref, "", 1).startswith("/") for obj in source_objects
         )
 
         if is_directory:
@@ -540,7 +542,35 @@ class GCSToGCSOperator(BaseOperator):
             destination_object,
         )
 
+        self.resolved_source_objects.add(source_object)
+        if not destination_object:
+            self.resolved_target_objects.add(source_object)
+        else:
+            self.resolved_target_objects.add(destination_object)
+
         hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
 
         if self.move_object:
             hook.delete(self.source_bucket, source_object)
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """
+        Implementing _on_complete because execute method does preprocessing on internals.
+
+        This means we won't have to normalize self.source_object and self.source_objects,
+        destination bucket and so on.
+        """
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        return OperatorLineage(
+            inputs=[
+                Dataset(namespace=f"gs://{self.source_bucket}", name=source)
+                for source in sorted(self.resolved_source_objects)
+            ],
+            outputs=[
+                Dataset(namespace=f"gs://{self.destination_bucket}", name=target)
+                for target in sorted(self.resolved_target_objects)
+            ],
+        )

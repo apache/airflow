@@ -22,8 +22,8 @@ from datetime import datetime
 
 import pytest
 
-from airflow import DAG
 from airflow.models import DagBag
+from airflow.models.dag import DAG
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator

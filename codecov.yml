@@ -25,7 +25,7 @@ codecov:
 coverage:
   precision: 2
   round: down
-  range: "85...100"
+  range: 60..85
   status:
     project:
       default:
@@ -52,6 +52,8 @@ coverage:
           - v2-5-test
           - v2-6-stable
           - v2-6-test
+          - v2-7-stable
+          - v2-7-test
         if_not_found: success
         if_ci_failed: error
         informational: true
@@ -79,6 +81,8 @@ coverage:
           - v2-5-test
           - v2-6-stable
           - v2-6-test
+          - v2-7-stable
+          - v2-7-test
         if_no_uploads: error
         if_not_found: success
         if_ci_failed: error

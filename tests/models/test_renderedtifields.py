@@ -24,14 +24,12 @@ from datetime import date, timedelta
 from unittest import mock
 
 import pytest
-from sqlalchemy.orm.session import make_transient
 
 from airflow import settings
-from airflow.configuration import TEST_DAGS_FOLDER
 from airflow.models import Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.operators.bash import BashOperator
-from airflow.utils.session import create_session
+from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timezone import datetime
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
@@ -156,44 +154,46 @@ class TestRenderedTaskInstanceFields:
         ],
     )
     def test_delete_old_records(
-        self, rtif_num, num_to_keep, remaining_rtifs, expected_query_count, dag_maker
+        self, rtif_num, num_to_keep, remaining_rtifs, expected_query_count, dag_maker, session
     ):
         """
         Test that old records are deleted from rendered_task_instance_fields table
         for a given task_id and dag_id.
         """
-        session = settings.Session()
-        with dag_maker("test_delete_old_records") as dag:
-            task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
-        rtif_list = []
-        for num in range(rtif_num):
-            dr = dag_maker.create_dagrun(run_id=str(num), execution_date=dag.start_date + timedelta(days=num))
-            ti = dr.task_instances[0]
-            ti.task = task
-            rtif_list.append(RTIF(ti))
+        with set_current_task_instance_session(session=session):
+            with dag_maker("test_delete_old_records") as dag:
+                task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
+            rtif_list = []
+            for num in range(rtif_num):
+                dr = dag_maker.create_dagrun(
+                    run_id=str(num), execution_date=dag.start_date + timedelta(days=num)
+                )
+                ti = dr.task_instances[0]
+                ti.task = task
+                rtif_list.append(RTIF(ti))
 
-        session.add_all(rtif_list)
-        session.flush()
+            session.add_all(rtif_list)
+            session.flush()
 
-        result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
+            result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
 
-        for rtif in rtif_list:
-            assert rtif in result
+            for rtif in rtif_list:
+                assert rtif in result
 
-        assert rtif_num == len(result)
+            assert rtif_num == len(result)
 
-        # Verify old records are deleted and only 'num_to_keep' records are kept
-        # For other DBs,an extra query is fired in RenderedTaskInstanceFields.delete_old_records
-        expected_query_count_based_on_db = (
-            expected_query_count + 1
-            if session.bind.dialect.name == "mssql" and expected_query_count != 0
-            else expected_query_count
-        )
+            # Verify old records are deleted and only 'num_to_keep' records are kept
+            # For other DBs,an extra query is fired in RenderedTaskInstanceFields.delete_old_records
+            expected_query_count_based_on_db = (
+                expected_query_count + 1
+                if session.bind.dialect.name == "mssql" and expected_query_count != 0
+                else expected_query_count
+            )
 
-        with assert_queries_count(expected_query_count_based_on_db):
-            RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
-        result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
-        assert remaining_rtifs == len(result)
+            with assert_queries_count(expected_query_count_based_on_db):
+                RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
+            result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
+            assert remaining_rtifs == len(result)
 
     @pytest.mark.parametrize(
         "num_runs, num_to_keep, remaining_rtifs, expected_query_count",
@@ -210,40 +210,41 @@ class TestRenderedTaskInstanceFields:
         Test that old records are deleted from rendered_task_instance_fields table
         for a given task_id and dag_id with mapped tasks.
         """
-        with dag_maker("test_delete_old_records", session=session) as dag:
-            mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
-        for num in range(num_runs):
-            dr = dag_maker.create_dagrun(
-                run_id=f"run_{num}", execution_date=dag.start_date + timedelta(days=num)
+        with set_current_task_instance_session(session=session):
+            with dag_maker("test_delete_old_records", session=session) as dag:
+                mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
+            for num in range(num_runs):
+                dr = dag_maker.create_dagrun(
+                    run_id=f"run_{num}", execution_date=dag.start_date + timedelta(days=num)
+                )
+
+                mapped.expand_mapped_task(dr.run_id, session=dag_maker.session)
+                session.refresh(dr)
+                for ti in dr.task_instances:
+                    ti.task = dag.get_task(ti.task_id)
+                    session.add(RTIF(ti))
+            session.flush()
+
+            result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id).all()
+            assert len(result) == num_runs * 2
+
+            # Verify old records are deleted and only 'num_to_keep' records are kept
+            # For other DBs,an extra query is fired in RenderedTaskInstanceFields.delete_old_records
+            expected_query_count_based_on_db = (
+                expected_query_count + 1
+                if session.bind.dialect.name == "mssql" and expected_query_count != 0
+                else expected_query_count
             )
 
-            mapped.expand_mapped_task(dr.run_id, session=dag_maker.session)
-            session.refresh(dr)
-            for ti in dr.task_instances:
-                ti.task = dag.get_task(ti.task_id)
-                session.add(RTIF(ti))
-        session.flush()
-
-        result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id).all()
-        assert len(result) == num_runs * 2
-
-        # Verify old records are deleted and only 'num_to_keep' records are kept
-        # For other DBs,an extra query is fired in RenderedTaskInstanceFields.delete_old_records
-        expected_query_count_based_on_db = (
-            expected_query_count + 1
-            if session.bind.dialect.name == "mssql" and expected_query_count != 0
-            else expected_query_count
-        )
-
-        with assert_queries_count(expected_query_count_based_on_db):
-            RTIF.delete_old_records(
-                task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
-            )
-        result = session.query(RTIF).filter_by(dag_id=dag.dag_id, task_id=mapped.task_id).all()
-        rtif_num_runs = Counter(rtif.run_id for rtif in result)
-        assert len(rtif_num_runs) == remaining_rtifs
-        # Check that we have _all_ the data for each row
-        assert len(result) == remaining_rtifs * 2
+            with assert_queries_count(expected_query_count_based_on_db):
+                RTIF.delete_old_records(
+                    task_id=mapped.task_id, dag_id=dr.dag_id, num_to_keep=num_to_keep, session=session
+                )
+            result = session.query(RTIF).filter_by(dag_id=dag.dag_id, task_id=mapped.task_id).all()
+            rtif_num_runs = Counter(rtif.run_id for rtif in result)
+            assert len(rtif_num_runs) == remaining_rtifs
+            # Check that we have _all_ the data for each row
+            assert len(result) == remaining_rtifs * 2
 
     def test_write(self, dag_maker):
         """
@@ -301,51 +302,6 @@ class TestRenderedTaskInstanceFields:
             "test",
             {"bash_command": "echo test_val_updated", "env": None},
         ) == result_updated
-
-    @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
-    @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True, side_effect=lambda d, _=None: d)
-    def test_get_k8s_pod_yaml(self, redact, dag_maker):
-        """
-        Test that k8s_pod_yaml is rendered correctly, stored in the Database,
-        and are correctly fetched using RTIF.get_k8s_pod_yaml
-        """
-        with dag_maker("test_get_k8s_pod_yaml") as dag:
-            task = BashOperator(task_id="test", bash_command="echo hi")
-        dr = dag_maker.create_dagrun()
-        dag.fileloc = TEST_DAGS_FOLDER + "/test_get_k8s_pod_yaml.py"
-
-        ti = dr.task_instances[0]
-        ti.task = task
-
-        render_k8s_pod_yaml = mock.patch.object(
-            ti, "render_k8s_pod_yaml", return_value={"I'm a": "pod"}
-        ).start()
-
-        rtif = RTIF(ti=ti)
-
-        assert ti.dag_id == rtif.dag_id
-        assert ti.task_id == rtif.task_id
-        assert ti.run_id == rtif.run_id
-
-        expected_pod_yaml = {"I'm a": "pod"}
-
-        assert rtif.k8s_pod_yaml == render_k8s_pod_yaml.return_value
-        # K8s pod spec dict was passed to redact
-        redact.assert_any_call(rtif.k8s_pod_yaml)
-
-        with create_session() as session:
-            session.add(rtif)
-            session.flush()
-
-            assert expected_pod_yaml == RTIF.get_k8s_pod_yaml(ti=ti, session=session)
-            make_transient(ti)
-            # "Delete" it from the DB
-            session.rollback()
-
-            # Test the else part of get_k8s_pod_yaml
-            # i.e. for the TIs that are not stored in RTIF table
-            # Fetching them will return None
-            assert RTIF.get_k8s_pod_yaml(ti=ti, session=session) is None
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
     @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True)

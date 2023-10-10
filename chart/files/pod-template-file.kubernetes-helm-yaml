@@ -23,6 +23,7 @@
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
+{{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -64,6 +65,9 @@ spec:
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
       securityContext: {{ $containerSecurityContext | nindent 8 }}
+      {{- if $containerLifecycleHooks }}
+      lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 8 }}
+      {{- end }}
       name: base
       resources: {{- toYaml .Values.workers.resources | nindent 8 }}
       volumeMounts:
@@ -86,7 +90,7 @@ spec:
   priorityClassName: {{ .Values.workers.priorityClassName }}
   {{- end }}
   {{- if .Values.workers.runtimeClassName }}
-  priorityClassName: {{ .Values.workers.runtimeClassName }}
+  runtimeClassName: {{ .Values.workers.runtimeClassName }}
   {{- end }}
   {{- if or .Values.registry.secretName .Values.registry.connection }}
   imagePullSecrets:
@@ -99,6 +103,10 @@ spec:
   securityContext: {{ $securityContext | nindent 4 }}
   nodeSelector: {{- toYaml $nodeSelector | nindent 4 }}
   affinity: {{- toYaml $affinity | nindent 4 }}
+  {{- if .Values.schedulerName }}
+  schedulerName: {{ .Values.schedulerName }}
+  {{- end }}
+  terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}
   topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}

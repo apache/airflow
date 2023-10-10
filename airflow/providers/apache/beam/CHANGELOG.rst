@@ -26,6 +26,57 @@
 Changelog
 ---------
 
+5.2.3
+.....
+
+Misc
+~~~~
+
+* ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+5.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix wrong OR condition when evaluating beam version < 2.39.0 (#33308)``
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+   * ``D205 Support - Providers - Final Pass (#33303)``
+
+5.2.1
+.....
+
+Misc
+~~~~
+
+* ``Allow downloading requirements file from GCS in 'BeamRunPythonPipelineOperator' (#31645)``
+
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to 'BeamRunPythonPipelineOperator' (#31471)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 5.1.1
 .....
 

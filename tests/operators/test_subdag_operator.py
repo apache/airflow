@@ -24,7 +24,9 @@ import pytest
 
 import airflow
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SkippedStatePropagationOptions, SubDagOperator
 from airflow.utils.session import create_session
@@ -88,8 +90,8 @@ class TestSubDagOperator:
         subdag = DAG("parent.child", default_args=default_args)
 
         session = airflow.settings.Session()
-        pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1)
-        pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10)
+        pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1, include_deferred=False)
+        pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10, include_deferred=False)
         session.add(pool_1)
         session.add(pool_10)
         session.commit()
@@ -116,8 +118,8 @@ class TestSubDagOperator:
         subdag = DAG("parent.child", default_args=default_args)
 
         session = airflow.settings.Session()
-        pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1)
-        pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10)
+        pool_1 = airflow.models.Pool(pool="test_pool_1", slots=1, include_deferred=False)
+        pool_10 = airflow.models.Pool(pool="test_pool_10", slots=10, include_deferred=False)
         session.add(pool_1)
         session.add(pool_10)
         session.commit()

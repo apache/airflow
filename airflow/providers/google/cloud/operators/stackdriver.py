@@ -20,7 +20,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
@@ -31,6 +30,8 @@ from airflow.providers.google.cloud.links.stackdriver import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 

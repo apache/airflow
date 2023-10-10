@@ -17,19 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import collections.abc
 import contextlib
 import copy
-import datetime
 import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
 
 import attr
-import pendulum
-from sqlalchemy.orm.session import Session
 
-from airflow import settings
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
@@ -45,37 +40,47 @@ from airflow.models.abstractoperator import (
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
     NotMapped,
-    TaskStateChangeCallback,
 )
 from airflow.models.expandinput import (
     DictOfListsExpandInput,
-    ExpandInput,
     ListOfDictsExpandInput,
-    OperatorExpandArgument,
-    OperatorExpandKwargsArgument,
     is_mappable,
 )
-from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
-from airflow.utils.context import Context, context_update_for_unmapped
+from airflow.utils.context import context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
-from airflow.utils.operator_resources import Resources
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.task_instance_session import get_current_task_instance_session
 from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    import jinja2  # Slow import.
+    import datetime
 
+    import jinja2  # Slow import.
+    import pendulum
+    from sqlalchemy.orm.session import Session
+
+    from airflow.models.abstractoperator import (
+        TaskStateChangeCallback,
+    )
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
+    from airflow.models.expandinput import (
+        ExpandInput,
+        OperatorExpandArgument,
+        OperatorExpandKwargsArgument,
+    )
     from airflow.models.operator import Operator
+    from airflow.models.param import ParamsDict
     from airflow.models.xcom_arg import XComArg
+    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.utils.context import Context
+    from airflow.utils.operator_resources import Resources
     from airflow.utils.task_group import TaskGroup
+    from airflow.utils.trigger_rule import TriggerRule
 
 ValidationSource = Union[Literal["expand"], Literal["partial"]]
 
@@ -324,24 +329,6 @@ class MappedOperator(AbstractOperator):
                 f"{self.task_id!r}."
             )
 
-    @AbstractOperator.is_setup.setter  # type: ignore[attr-defined]
-    def is_setup(self, value):
-        """
-        Setter for is_setup property. Disabled for MappedOperator.
-
-        :meta private:
-        """
-        raise ValueError("Cannot set is_setup for mapped operator.")
-
-    @AbstractOperator.is_teardown.setter  # type: ignore[attr-defined]
-    def is_teardown(self, value):
-        """
-        Setter for is_teardown property. Disabled for MappedOperator.
-
-        :meta private:
-        """
-        raise ValueError("Cannot set is_teardown for mapped operator.")
-
     @classmethod
     @cache
     def get_serialized_fields(cls):
@@ -354,9 +341,9 @@ class MappedOperator(AbstractOperator):
             "task_group",
             "upstream_task_ids",
             "supports_lineage",
-            "is_setup",
-            "is_teardown",
-            "on_failure_fail_dagrun",
+            "_is_setup",
+            "_is_teardown",
+            "_on_failure_fail_dagrun",
         }
 
     @staticmethod
@@ -408,8 +395,23 @@ class MappedOperator(AbstractOperator):
 
     @trigger_rule.setter
     def trigger_rule(self, value):
-        # required for mypy which complains about overriding writeable attr with read-only property
-        raise ValueError("Cannot set trigger_rule for mapped operator.")
+        self.partial_kwargs["trigger_rule"] = value
+
+    @property
+    def is_setup(self) -> bool:
+        return bool(self.partial_kwargs.get("is_setup"))
+
+    @is_setup.setter
+    def is_setup(self, value: bool) -> None:
+        self.partial_kwargs["is_setup"] = value
+
+    @property
+    def is_teardown(self) -> bool:
+        return bool(self.partial_kwargs.get("is_teardown"))
+
+    @is_teardown.setter
+    def is_teardown(self, value: bool) -> None:
+        self.partial_kwargs["is_teardown"] = value
 
     @property
     def depends_on_past(self) -> bool:
@@ -564,18 +566,18 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("doc_rst")
 
     def get_dag(self) -> DAG | None:
-        """Implementing Operator."""
+        """Implement Operator."""
         return self.dag
 
     @property
     def output(self) -> XComArg:
-        """Returns reference to XCom pushed by current operator."""
+        """Return reference to XCom pushed by current operator."""
         from airflow.models.xcom_arg import XComArg
 
         return XComArg(operator=self)
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
-        """Implementing DAGNode."""
+        """Implement DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
     def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
@@ -640,12 +642,18 @@ class MappedOperator(AbstractOperator):
             else:
                 raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
+            is_setup = kwargs.pop("is_setup", False)
+            is_teardown = kwargs.pop("is_teardown", False)
+            on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
             op = self.operator_class(**kwargs, _airflow_from_mapped=True)
             # We need to overwrite task_id here because BaseOperator further
             # mangles the task_id based on the task hierarchy (namely, group_id
             # is prepended, and '__N' appended to deduplicate). This is hacky,
             # but better than duplicating the whole mangling logic.
             op.task_id = self.task_id
+            op.is_setup = is_setup
+            op.is_teardown = is_teardown
+            op.on_failure_fail_dagrun = on_failure_fail_dagrun
             return op
 
         # After a mapped operator is serialized, there's no real way to actually
@@ -656,6 +664,8 @@ class MappedOperator(AbstractOperator):
 
         op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
         SerializedBaseOperator.populate_operator(op, self.operator_class)
+        if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
+            SerializedBaseOperator.set_task_dag_references(op, self.dag)
         return op
 
     def _get_specified_expand_input(self) -> ExpandInput:
@@ -709,12 +719,13 @@ class MappedOperator(AbstractOperator):
         if not jinja_env:
             jinja_env = self.get_template_env()
 
-        # Ideally we'd like to pass in session as an argument to this function,
-        # but we can't easily change this function signature since operators
-        # could override this. We can't use @provide_session since it closes and
-        # expunges everything, which we don't want to do when we are so "deep"
-        # in the weeds here. We don't close this session for the same reason.
-        session = settings.Session()
+        # We retrieve the session here, stored by _run_raw_task in set_current_task_session
+        # context manager - we cannot pass the session via @provide_session because the signature
+        # of render_template_fields is defined by BaseOperator and there are already many subclasses
+        # overriding it, so changing the signature is not an option. However render_template_fields is
+        # always executed within "_run_raw_task" so we make sure that _run_raw_task uses the
+        # set_current_task_session context manager to store the session in the current task.
+        session = get_current_task_instance_session()
 
         mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)

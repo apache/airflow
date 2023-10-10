@@ -19,16 +19,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, literal, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, select
 
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.utils.db import exists_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.dagrun import DagRun
+    from sqlalchemy.orm import Session
+
     from airflow.models.operator import Operator
 
 _SUCCESSFUL_STATES = (TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)
@@ -57,13 +59,11 @@ class PrevDagrunDep(BaseTIDep):
 
         This function exists for easy mocking in tests.
         """
-        return (
-            session.scalar(
-                select(literal(True))
-                .where(TI.dag_id == dagrun.dag_id, TI.task_id == task_id, TI.run_id == dagrun.run_id)
-                .limit(1)
-            )
-            is not None
+        return exists_query(
+            TI.dag_id == dagrun.dag_id,
+            TI.task_id == task_id,
+            TI.run_id == dagrun.run_id,
+            session=session,
         )
 
     @staticmethod
@@ -72,17 +72,11 @@ class PrevDagrunDep(BaseTIDep):
 
         This function exists for easy mocking in tests.
         """
-        return (
-            session.scalar(
-                select(literal(True))
-                .where(
-                    TI.dag_id == ti.dag_id,
-                    TI.task_id == ti.task_id,
-                    TI.execution_date < ti.execution_date,
-                )
-                .limit(1)
-            )
-            is not None
+        return exists_query(
+            TI.dag_id == ti.dag_id,
+            TI.task_id == ti.task_id,
+            TI.execution_date < ti.execution_date,
+            session=session,
         )
 
     @staticmethod
@@ -116,18 +110,12 @@ class PrevDagrunDep(BaseTIDep):
         """
         if not task.downstream_task_ids:
             return False
-        return (
-            session.scalar(
-                select(literal(True))
-                .where(
-                    TI.dag_id == dagrun.dag_id,
-                    TI.task_id.in_(task.downstream_task_ids),
-                    TI.run_id == dagrun.run_id,
-                    or_(TI.state.is_(None), TI.state.not_in(_SUCCESSFUL_STATES)),
-                )
-                .limit(1)
-            )
-            is not None
+        return exists_query(
+            TI.dag_id == dagrun.dag_id,
+            TI.task_id.in_(task.downstream_task_ids),
+            TI.run_id == dagrun.run_id,
+            or_(TI.state.is_(None), TI.state.not_in(_SUCCESSFUL_STATES)),
+            session=session,
         )
 
     @provide_session
@@ -152,9 +140,9 @@ class PrevDagrunDep(BaseTIDep):
         # Don't depend on the previous task instance if we are the first task.
         catchup = ti.task.dag and ti.task.dag.catchup
         if catchup:
-            last_dagrun = dr.get_previous_scheduled_dagrun(session)
+            last_dagrun = DagRun.get_previous_scheduled_dagrun(dr.id, session)
         else:
-            last_dagrun = dr.get_previous_dagrun(session=session)
+            last_dagrun = DagRun.get_previous_dagrun(dr, session=session)
 
         # First ever run for this DAG.
         if not last_dagrun:

@@ -29,6 +29,57 @@
 Changelog
 ---------
 
+4.1.5
+.....
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+
+4.1.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+4.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate conn_prefix in extra field for Spark JDBC hook (#32946)``
+
+4.1.2
+.....
+
+.. note::
+
+    The provider now expects ``apache-airflow-providers-cncf-kubernetes`` in version 7.4.0+ installed
+    in order to run Spark on Kubernetes jobs. You can install the provider with ``cncf.kubernetes`` extra with
+    ``pip install apache-airflow-providers-spark[cncf.kubernetes]`` to get the right version of the
+    ``cncf.kubernetes`` provider installed.
+
+Misc
+~~~~
+
+* ``Move all k8S classes to cncf.kubernetes provider (#32767)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 4.1.1
 .....
 

@@ -24,7 +24,6 @@ import pytest
 from pypsrp.host import PSHost
 from pypsrp.messages import MessageType
 from pypsrp.powershell import PSInvocationState
-from pytest import raises
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -124,7 +123,7 @@ class TestPsrpHook:
             return conn
 
         hook.get_connection = get_connection
-        with raises(AirflowException, match="Unexpected extra configuration keys: foo"):
+        with pytest.raises(AirflowException, match="Unexpected extra configuration keys: foo"):
             hook.get_conn()
 
     @pytest.mark.parametrize(

@@ -20,13 +20,8 @@ from __future__ import annotations
 import json
 from unittest import mock
 
-import pytest
-
 from airflow.models import Connection
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-
-# Make sure that the optional package 'mysql-connector-python' is installed (which is not by default)
-pytest.importorskip("mysql")
 
 
 class TestMySqlHookConnMySqlConnectorPython:
@@ -84,3 +79,14 @@ class TestMySqlHookConnMySqlConnectorPython:
         args, kwargs = mock_connect.call_args
         assert args == ()
         assert kwargs["ssl_disabled"] == 1
+
+    @mock.patch("mysql.connector.connect")
+    def test_get_conn_init_command(self, mock_connect):
+        extra_dict = self.connection.extra_dejson
+        self.connection.extra = json.dumps(extra_dict)
+        self.db_hook.init_command = "SET time_zone = '+00:00';"
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs["init_command"] == "SET time_zone = '+00:00';"

@@ -22,7 +22,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY, DOCKER_DEFAULT_PLATFORM
+from airflow_breeze.global_constants import (
+    ALLOWED_BUILD_PROGRESS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    DOCKER_DEFAULT_PLATFORM,
+)
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
 
@@ -46,11 +50,12 @@ class CommonBuildParams:
     airflow_constraints_location: str = ""
     build_id: int = 0
     builder: str = "autodetect"
+    build_progress: str = ALLOWED_BUILD_PROGRESS[0]
     constraints_github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
+    commit_sha: str = ""
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
     docker_cache: str = "registry"
-    empty_image: bool = False
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
@@ -62,9 +67,8 @@ class CommonBuildParams:
     push: bool = False
     python: str = "3.8"
     tag_as_latest: bool = False
-    upgrade_to_newer_dependencies: bool = False
-    upgrade_on_failure: bool = False
     dry_run: bool = False
+    version_suffix_for_pypi: str = ""
     verbose: bool = False
 
     @property
@@ -95,7 +99,10 @@ class CommonBuildParams:
 
     @property
     def extra_docker_build_flags(self) -> list[str]:
-        raise NotImplementedError()
+        extra_flass = []
+        if self.build_progress:
+            extra_flass.append(f"--progress={self.build_progress}")
+        return extra_flass
 
     @property
     def docker_cache_directive(self) -> list[str]:

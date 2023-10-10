@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import os
+from io import StringIO
 from unittest.mock import call, patch
 
 import pytest
@@ -67,10 +67,9 @@ class TestSparkSubmitHook:
     @staticmethod
     def cmd_args_to_dict(list_cmd):
         return_dict = {}
-        for arg in list_cmd:
-            if arg.startswith("--"):
-                pos = list_cmd.index(arg)
-                return_dict[arg] = list_cmd[pos + 1]
+        for arg1, arg2 in zip(list_cmd, list_cmd[1:]):
+            if arg1.startswith("--"):
+                return_dict[arg1] = arg2
         return return_dict
 
     def setup_method(self):
@@ -242,8 +241,8 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_spark_process_runcmd(self, mock_popen):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.wait.return_value = 0
 
         # When
@@ -695,8 +694,8 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_yarn_process_on_kill(self, mock_popen, mock_renew_from_kt):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.poll.return_value = None
         mock_popen.return_value.wait.return_value = 0
         log_lines = [
@@ -773,12 +772,12 @@ class TestSparkSubmitHook:
         assert kill_cmd[3] == "--kill"
         assert kill_cmd[4] == "driver-20171128111415-0001"
 
-    @patch("airflow.kubernetes.kube_client.get_kube_client")
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_k8s_process_on_kill(self, mock_popen, mock_client_method):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.poll.return_value = None
         mock_popen.return_value.wait.return_value = 0
         client = mock_client_method.return_value

@@ -28,14 +28,80 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.1
+.....
+
+Latest change: 2023-08-27
+
+=================================================================================================  ===========  ======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+`6d182beec6 <https://github.com/apache/airflow/commit/6d182beec6e86b372c37fb164a31c2f8811d8c03>`_  2023-08-26   ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+`b11525702c <https://github.com/apache/airflow/commit/b11525702c72cb53034aa29ccd6d0e1161ac475c>`_  2023-08-26   ``Use literal dict instead of calling dict() in providers (#33761)``
+=================================================================================================  ===========  ======================================================================================================
+
+5.0.0
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`d06c14f527 <https://github.com/apache/airflow/commit/d06c14f52757321f2049bb54212421f68bf3ed06>`_  2023-08-24   ``Set snowflake_conn_id on Snowflake Operators to avoid error (#33681)``
+`c88ff1d7c2 <https://github.com/apache/airflow/commit/c88ff1d7c2ff235582d46593b11edbdf7d76b4c9>`_  2023-08-23   ``Bump apache-airflow-providers-snowflake due to breaking changes (#33615)``
+`86423b41e1 <https://github.com/apache/airflow/commit/86423b41e170f4f26bf165623a14e98192bc5d5d>`_  2023-08-21   ``Remove deprecated 'S3ToSnowflake' and 'SnowflakeToSlack' operators (#33558)``
+=================================================================================================  ===========  ===============================================================================
+
+4.4.2
+.....
+
+Latest change: 2023-08-11
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`9736143468 <https://github.com/apache/airflow/commit/9736143468cfe034e65afb3df3031ab3626f0f6d>`_  2023-08-07   ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+=================================================================================================  ===========  ==========================================================================
+
+4.4.1
+.....
+
+Latest change: 2023-08-05
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+`2ab78ec441 <https://github.com/apache/airflow/commit/2ab78ec441a748ae4d99e429fe336b80a601d7b1>`_  2023-07-31   ``Fix connection parameters of 'SnowflakeValueCheckOperator' (#32605)``
+=================================================================================================  ===========  =======================================================================
+
+4.4.0
+.....
+
+Latest change: 2023-07-29
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`5b082c38a6 <https://github.com/apache/airflow/commit/5b082c38a66b1a0b6b496e0d3b15a6684339e1d1>`_  2023-07-21   ``openlineage, snowflake: add OpenLineage support for Snowflake (#31696)``
+`60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
+`e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
+=================================================================================================  ===========  ================================================================================
+
 4.3.1
 .....
 
-Latest change: 2023-07-09
+Latest change: 2023-07-12
 
 =================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
 `c6f151fa8f <https://github.com/apache/airflow/commit/c6f151fa8f569687f3d889bce04bc270f114d208>`_  2023-07-09   ``Fix an issue that crashes Airflow Webserver when passed invalid private key path to Snowflake (#32016)``
 `53d9421905 <https://github.com/apache/airflow/commit/53d9421905c3c268744c3e43601db63bc7b6fa87>`_  2023-07-07   ``build(pre-commit): check deferrable default value (#32370)``
 `21e8f878a3 <https://github.com/apache/airflow/commit/21e8f878a3c91250d0d198c6c3675b4b350fcb61>`_  2023-07-06   ``D205 Support - Providers: Snowflake to Zendesk (inclusive) (#32359)``

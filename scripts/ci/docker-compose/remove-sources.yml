@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
 services:
   airflow:
     # Removes airflow sources from container

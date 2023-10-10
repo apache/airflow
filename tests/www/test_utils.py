@@ -69,7 +69,7 @@ class TestUtils:
         assert min(window, total_pages) + extra_links == len(ulist_items)
 
         page_items = ulist_items[2:-2]
-        mid = int(len(page_items) / 2)
+        mid = len(page_items) // 2
         all_nodes = []
         pages = []
 
@@ -77,7 +77,7 @@ class TestUtils:
             last_page = total_pages - 1
 
             if current_page <= mid or total_pages < window:
-                pages = list(range(0, min(total_pages, window)))
+                pages = list(range(min(total_pages, window)))
             elif mid < current_page < last_page - mid:
                 pages = list(range(current_page - mid, current_page + mid + 1))
             else:
@@ -104,8 +104,7 @@ class TestUtils:
 
         if sorting_key and sorting_direction:
             if pages[0] == 0:
-                pages = pages[1:]
-                pages = list(map(lambda x: str(x), pages))
+                pages = [str(page) for page in pages[1:]]
 
             assert pages == all_nodes
 
@@ -133,7 +132,7 @@ class TestUtils:
     def test_params_none_and_zero(self):
         query_str = utils.get_params(a=0, b=None, c="true")
         # The order won't be consistent, but that doesn't affect behaviour of a browser
-        pairs = list(sorted(query_str.split("&")))
+        pairs = sorted(query_str.split("&"))
         assert ["a=0", "c=true"] == pairs
 
     def test_params_all(self):
@@ -429,11 +428,11 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     assert len(set(x.run_id for x in dag_runs)) == 3
     run_id_for_single_delete = "scheduled__2023-01-01T00:00:00+00:00"
     # we have 3 runs with this same run_id
-    assert len(list(x for x in dag_runs if x.run_id == run_id_for_single_delete)) == 3
+    assert sum(1 for x in dag_runs if x.run_id == run_id_for_single_delete) == 3
     # each is a different dag
 
     # if we delete one, it shouldn't delete the others
-    one_run = [x for x in dag_runs if x.run_id == run_id_for_single_delete][0]
+    one_run = next(x for x in dag_runs if x.run_id == run_id_for_single_delete)
     assert interface.delete(item=one_run) is True
     session.commit()
     dag_runs = session.query(DagRun).all()

@@ -20,11 +20,11 @@ You need to set all env variables to request the data.
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime
-from os import getenv
 
-from airflow import DAG
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
@@ -34,9 +34,9 @@ sys_test_context_task = SystemTestContextBuilder().build()
 
 DAG_ID = "example_google_api_sheets_to_s3"
 
-GOOGLE_SHEET_ID = getenv("GOOGLE_SHEET_ID", "test-google-sheet-id")
-GOOGLE_SHEET_RANGE = getenv("GOOGLE_SHEET_RANGE", "test-google-sheet-range")
-S3_DESTINATION_KEY = getenv("S3_DESTINATION_KEY", "s3://test-bucket/key.json")
+GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "test-google-sheet-id")
+GOOGLE_SHEET_RANGE = os.getenv("GOOGLE_SHEET_RANGE", "test-google-sheet-range")
+S3_DESTINATION_KEY = os.getenv("S3_DESTINATION_KEY", "s3://test-bucket/key.json")
 
 with DAG(
     dag_id=DAG_ID,

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
@@ -28,9 +28,12 @@ from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.job_schema import JobSchema
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
-from airflow.models import SlaMiss, TaskInstance
+from airflow.models import TaskInstance
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from airflow.models import SlaMiss
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
@@ -100,6 +103,8 @@ class TaskInstanceBatchFormSchema(Schema):
     page_offset = fields.Int(load_default=0, validate=validate.Range(min=0))
     page_limit = fields.Int(load_default=100, validate=validate.Range(min=1))
     dag_ids = fields.List(fields.Str(), load_default=None)
+    dag_run_ids = fields.List(fields.Str(), load_default=None)
+    task_ids = fields.List(fields.Str(), load_default=None)
     execution_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
     execution_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
     start_date_gte = fields.DateTime(load_default=None, validate=validate_istimezone)
@@ -108,7 +113,7 @@ class TaskInstanceBatchFormSchema(Schema):
     end_date_lte = fields.DateTime(load_default=None, validate=validate_istimezone)
     duration_gte = fields.Int(load_default=None)
     duration_lte = fields.Int(load_default=None)
-    state = fields.List(fields.Str(), load_default=None)
+    state = fields.List(fields.Str(allow_none=True), load_default=None)
     pool = fields.List(fields.Str(), load_default=None)
     queue = fields.List(fields.Str(), load_default=None)
 
@@ -133,7 +138,7 @@ class ClearTaskInstanceFormSchema(Schema):
 
     @validates_schema
     def validate_form(self, data, **kwargs):
-        """Validates clear task instance form."""
+        """Validate clear task instance form."""
         if data["only_failed"] and data["only_running"]:
             raise ValidationError("only_failed and only_running both are set to True")
         if data["start_date"] and data["end_date"]:
@@ -167,7 +172,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     @validates_schema
     def validate_form(self, data, **kwargs):
-        """Validates set task instance state form."""
+        """Validate set task instance state form."""
         if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
             raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
@@ -175,7 +180,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 class SetSingleTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of updating state of a single task instance."""
 
-    dry_run = fields.Boolean(dump_default=True)
+    dry_run = fields.Boolean(load_default=True)
     new_state = TaskInstanceStateField(
         required=True,
         validate=validate.OneOf(

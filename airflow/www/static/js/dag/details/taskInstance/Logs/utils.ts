@@ -82,6 +82,7 @@ export const parseLogs = (
         // @ts-ignore
         const localDateTime = moment
           .utc(dateTime)
+          // @ts-ignore
           .tz(timezone)
           .format(defaultFormatWithTZ);
         parsedLine = line.replace(dateTime, localDateTime);

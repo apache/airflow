@@ -164,6 +164,17 @@ class TestFlowerDeployment:
             "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"flower": {"enabled": True}, "schedulerName": "airflow-scheduler"},
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -577,3 +588,29 @@ class TestFlowerServiceAccount:
 
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_default_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "serviceAccount": {
+                        "create": True,
+                    },
+                }
+            },
+            show_only=["templates/flower/flower-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is True
+
+    def test_overriden_automount_service_account_token(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "serviceAccount": {"create": True, "automountServiceAccountToken": False},
+                }
+            },
+            show_only=["templates/flower/flower-serviceaccount.yaml"],
+        )
+        assert jmespath.search("automountServiceAccountToken", docs[0]) is False

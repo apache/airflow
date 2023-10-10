@@ -24,18 +24,20 @@
 """
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1 import ModelServiceClient
-from google.cloud.aiplatform_v1.services.model_service.pagers import ListModelsPager
-from google.cloud.aiplatform_v1.types import Model, model_service
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1.services.model_service.pagers import ListModelsPager
+    from google.cloud.aiplatform_v1.types import Model, model_service
 
 
 class ModelServiceHook(GoogleBaseHook):
