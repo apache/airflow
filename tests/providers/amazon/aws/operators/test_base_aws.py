@@ -22,6 +22,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.utils import timezone
 
 TEST_CONN = "aws_test_conn"
 
@@ -36,6 +37,22 @@ class FakeS3Hook(AwsBaseHook):
 
 class FakeS3Operator(AwsBaseOperator):
     aws_hook_class = FakeS3Hook
+
+    def execute(self, context):
+        """For test purpose"""
+        from botocore.config import Config
+
+        hook = self.hook
+
+        assert self.aws_conn_id == hook.aws_conn_id
+        assert self.region_name == hook._region_name
+        assert self.verify == hook._verify
+
+        botocore_config = hook._config
+        if botocore_config:
+            assert isinstance(botocore_config, Config)
+        else:
+            assert botocore_config is None
 
 
 @pytest.fixture(autouse=True)
@@ -73,6 +90,29 @@ class TestAwsBaseOperator:
         assert hook._verify == op.verify
         assert hook._config.read_timeout == 777
         assert hook._config.connect_timeout == 42
+
+    @pytest.mark.parametrize(
+        "op_kwargs",
+        [
+            pytest.param(
+                {
+                    "aws_conn_id": TEST_CONN,
+                    "region_name": "eu-central-1",
+                    "verify": False,
+                    "botocore_config": {"read_timeout": 777, "connect_timeout": 42},
+                },
+                id="all-params-provided",
+            ),
+            pytest.param({}, id="default-only"),
+        ],
+    )
+    def test_execute(self, op_kwargs, dag_maker):
+        with dag_maker("test_aws_base_operator"):
+            FakeS3Operator(task_id="fake-task-id", **op_kwargs)
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["fake-task-id"].run()
 
     @pytest.mark.parametrize(
         "region, region_name",

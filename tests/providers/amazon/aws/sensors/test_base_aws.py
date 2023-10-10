@@ -22,6 +22,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.utils import timezone
 
 TEST_CONN = "aws_test_conn"
 
@@ -36,6 +37,24 @@ class FakeDynamoDbHook(AwsBaseHook):
 
 class FakeDynamoDBSensor(AwsBaseSensor):
     aws_hook_class = FakeDynamoDbHook
+
+    def poke(self, context):
+        """For test purpose"""
+        from botocore.config import Config
+
+        hook = self.hook
+
+        assert self.aws_conn_id == hook.aws_conn_id
+        assert self.region_name == hook._region_name
+        assert self.verify == hook._verify
+
+        botocore_config = hook._config
+        if botocore_config:
+            assert isinstance(botocore_config, Config)
+        else:
+            assert botocore_config is None
+
+        return True
 
 
 @pytest.fixture(autouse=True)
@@ -73,6 +92,29 @@ class TestAwsBaseSensor:
         assert hook._verify == op.verify
         assert hook._config.read_timeout == 777
         assert hook._config.connect_timeout == 42
+
+    @pytest.mark.parametrize(
+        "op_kwargs",
+        [
+            pytest.param(
+                {
+                    "aws_conn_id": TEST_CONN,
+                    "region_name": "eu-central-1",
+                    "verify": False,
+                    "botocore_config": {"read_timeout": 777, "connect_timeout": 42},
+                },
+                id="all-params-provided",
+            ),
+            pytest.param({}, id="default-only"),
+        ],
+    )
+    def test_execute(self, dag_maker, op_kwargs):
+        with dag_maker("test_aws_base_sensor"):
+            FakeDynamoDBSensor(task_id="fake-task-id", **op_kwargs, poke_interval=1)
+
+        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        tis["fake-task-id"].run()
 
     @pytest.mark.parametrize(
         "region, region_name",
