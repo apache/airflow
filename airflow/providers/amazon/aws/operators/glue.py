@@ -282,11 +282,11 @@ class GlueDataBrewStartJobOperator(BaseOperator):
         resp = {}
         resp["job_name"] = self.job_name
 
-        job = self.data_brew_hook.conn.start_job_run(Name=self.job_name)
+        job = self.hook.conn.start_job_run(Name=self.job_name)
         run_id = job["RunId"]
         resp["run_id"] = run_id
 
-        status = self.data_brew_hook.get_job_state(self.job_name, run_id)
+        status = self.hook.get_job_state(self.job_name, run_id)
         resp["status"] = status
 
         self.log.info(
@@ -306,9 +306,7 @@ class GlueDataBrewStartJobOperator(BaseOperator):
             self.log.info(
                 "Waiting for AWS Glue DataBrew Job: %s. Run Id: %s to complete.", self.job_name, run_id
             )
-            status = self.data_brew_hook.job_completion(
-                job_name=self.job_name, delay=self.delay, run_id=run_id
-            )
+            status = self.hook.job_completion(job_name=self.job_name, delay=self.delay, run_id=run_id)
             self.log.info("Glue DataBrew Job: %s status: %s", self.job_name, status)
             resp["status"] = status
 
@@ -316,9 +314,9 @@ class GlueDataBrewStartJobOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event=None) -> dict[str, str]:
         result = {
-                "job_name": event.get("jobName", ""),
-                "run_id": event.get("runId", ""),
-                "status": event.get("status", ""),
+            "job_name": event.get("jobName", ""),
+            "run_id": event.get("runId", ""),
+            "status": event.get("status", ""),
         }
         self.log.info(
             "AWS Glue DataBrew Job: %s runId: %s status: %s",

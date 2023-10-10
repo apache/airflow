@@ -23,6 +23,7 @@ from typing import Any, AsyncIterator
 
 from airflow.providers.amazon.aws.hooks.glue import GlueDataBrewHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
+from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -150,7 +151,7 @@ class GlueCatalogPartitionTrigger(BaseTrigger):
                     await asyncio.sleep(self.waiter_delay)
 
 
-class GlueDataBrewJobCompleteTrigger(BaseTrigger):
+class GlueDataBrewJobCompleteTrigger(AwsBaseWaiterTrigger):
     """
     Watches for a Glue DataBrew job, triggers when it finishes.
 
@@ -170,38 +171,19 @@ class GlueDataBrewJobCompleteTrigger(BaseTrigger):
         max_attempts: int = 60,
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        self.job_name = job_name
-        self.run_id = run_id
-        self.aws_conn_id = aws_conn_id
-        self.delay = delay
-        self.max_attempts = max_attempts
-
-    @property
-    def hook(self) -> GlueDataBrewHook:
-        return GlueDataBrewHook(aws_conn_id=self.aws_conn_id)
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        return (
-            # dynamically generate the fully qualified name of the class
-            self.__class__.__module__ + "." + self.__class__.__qualname__,
-            {
-                "job_name": self.job_name,
-                "run_id": self.run_id,
-                "aws_conn_id": self.aws_conn_id,
-                "delay": self.delay,
-                "maxAttempts": self.maxAttempts,
-            },
+        super().__init__(
+            serialized_fields={"job_name": job_name, "run_id": run_id},
+            waiter_name="job_complete",
+            waiter_args={"Name": job_name, "RunId": run_id},
+            failure_message=f"Error while waiting for job {job_name} with run id {run_id} to complete",
+            status_message=f"Run id: {run_id}",
+            status_queries=["State"],
+            return_value=run_id,
+            return_key="run_id",
+            waiter_delay=delay,
+            waiter_max_attempts=max_attempts,
+            aws_conn_id=aws_conn_id,
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:
-        async with self.hook.async_conn as client:
-            waiter = self.hook.get_waiter("job_complete", deferrable=True, client=client)
-            await waiter.wait(
-                Name=self.job_name,
-                RunId=self.run_id,
-                WaiterConfig={"Delay": self.delay, "maxAttempts": self.maxAttempts},
-            )
-
-        result = self.hook.get_job_state(self.job_name, self.run_id)
-        yield TriggerEvent({"status": result, "RunId": self.run_id, "JobName": self.job_name})
+    def hook(self) -> GlueDataBrewHook:
+        return GlueDataBrewHook(aws_conn_id=self.aws_conn_id)

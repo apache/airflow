@@ -439,7 +439,7 @@ class GlueDataBrewHook(AwsBaseHook):
         kwargs["client_type"] = "databrew"
         super().__init__(*args, **kwargs)
 
-    def job_completion(self, job_name: str, run_id: str, delay: int = 10, maxAttempts: int = 60) -> str:
+    def job_completion(self, job_name: str, run_id: str, delay: int = 10, max_attempts: int = 60) -> str:
         """
         Wait until Glue DataBrew job reaches terminal status.
 
@@ -452,7 +452,7 @@ class GlueDataBrewHook(AwsBaseHook):
         self.get_waiter("job_complete").wait(
             Name=job_name,
             RunId=run_id,
-            WaiterConfig={"Delay": delay, "maxAttempts": maxAttempts},
+            WaiterConfig={"Delay": delay, "maxAttempts": max_attempts},
         )
 
         status = self.get_job_state(job_name, run_id)
