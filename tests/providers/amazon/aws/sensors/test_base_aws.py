@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
@@ -95,9 +95,9 @@ class TestAwsBaseSensor:
         with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
             assert op.region == region
 
-    def test_ambiguous_region_name(self):
+    def test_conflicting_region_name(self):
         error_match = r"Conflicting `region_name` provided, region_name='us-west-1', region='eu-west-1'"
-        with pytest.raises(AirflowException, match=error_match):
+        with pytest.raises(ValueError, match=error_match):
             FakeDynamoDBSensor(
                 task_id="fake-task-id",
                 aws_conn_id=TEST_CONN,
@@ -110,7 +110,7 @@ class TestAwsBaseSensor:
             ...
 
         error_match = r"Class attribute 'NoAwsHookClassSensor\.aws_hook_class' should be set"
-        with pytest.raises(AirflowException, match=error_match):
+        with pytest.raises(AttributeError, match=error_match):
             NoAwsHookClassSensor(task_id="fake-task-id")
 
     def test_aws_hook_class_wrong_hook_type(self):
@@ -118,7 +118,7 @@ class TestAwsBaseSensor:
             aws_hook_class = BaseHook
 
         error_match = r"Class attribute 'WrongHookSensor.aws_hook_class' is not a subclass of AwsGenericHook"
-        with pytest.raises(AirflowException, match=error_match):
+        with pytest.raises(AttributeError, match=error_match):
             WrongHookSensor(task_id="fake-task-id")
 
     def test_aws_hook_class_class_instance(self):
@@ -126,5 +126,5 @@ class TestAwsBaseSensor:
             aws_hook_class = FakeDynamoDbHook()
 
         error_match = r"Class attribute 'SoWrongSensor.aws_hook_class' is not a subclass of AwsGenericHook"
-        with pytest.raises(AirflowException, match=error_match):
+        with pytest.raises(AttributeError, match=error_match):
             SoWrongSensor(task_id="fake-task-id")

@@ -23,7 +23,7 @@ from typing import Any, Generic, TypeVar
 
 from typing_extensions import final
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -33,6 +33,10 @@ _REGION_MSG = "`region` is deprecated and will be removed in the future. Please 
 
 class AwsBaseSensor(BaseSensorOperator, Generic[_AwsHook]):
     """Base AWS (Amazon) Sensor Class for build sensors in top of AWS Hooks.
+
+    .. warning::
+        Only for internal usage, this class might be changed, renamed or removed in the future
+        without any further notice.
 
     Examples:
      .. code-block:: python
@@ -71,6 +75,7 @@ class AwsBaseSensor(BaseSensorOperator, Generic[_AwsHook]):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+    :meta private:
     """
 
     aws_hook_class: type[_AwsHook]
@@ -91,17 +96,17 @@ class AwsBaseSensor(BaseSensorOperator, Generic[_AwsHook]):
                     raise TypeError
             except TypeError:
                 # Raise if ``aws_hook_class`` is not a class or not a subclass of Generic/Base AWS Hook
-                raise AirflowException(
+                raise AttributeError(
                     f"Class attribute '{type(self).__name__}.aws_hook_class' "
                     f"is not a subclass of AwsGenericHook."
                 ) from None
         else:
-            raise AirflowException(f"Class attribute '{type(self).__name__}.aws_hook_class' should be set.")
+            raise AttributeError(f"Class attribute '{type(self).__name__}.aws_hook_class' should be set.")
 
         if region := kwargs.pop("region", None):
             warnings.warn(_REGION_MSG, AirflowProviderDeprecationWarning, stacklevel=3)
             if region_name and region_name != region:
-                raise AirflowException(
+                raise ValueError(
                     f"Conflicting `region_name` provided, region_name={region_name!r}, region={region!r}."
                 )
             region_name = region

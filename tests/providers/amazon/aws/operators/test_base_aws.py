@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
@@ -97,7 +97,7 @@ class TestAwsBaseOperator:
 
     def test_conflicting_region_name(self):
         error_match = r"Conflicting `region_name` provided, region_name='us-west-1', region='eu-west-1'"
-        with pytest.raises(AirflowException, match=error_match):
+        with pytest.raises(ValueError, match=error_match):
             FakeS3Operator(
                 task_id="fake-task-id",
                 aws_conn_id=TEST_CONN,
@@ -110,7 +110,7 @@ class TestAwsBaseOperator:
             ...
 
         error_match = r"Class attribute 'NoAwsHookClassOperator\.aws_hook_class' should be set"
-        with pytest.raises(AirflowException, match=error_match):
+        with pytest.raises(AttributeError, match=error_match):
             NoAwsHookClassOperator(task_id="fake-task-id")
 
     def test_aws_hook_class_wrong_hook_type(self):
@@ -120,7 +120,7 @@ class TestAwsBaseOperator:
         error_match = (
             r"Class attribute 'WrongHookOperator.aws_hook_class' is not a subclass of AwsGenericHook"
         )
-        with pytest.raises(AirflowException, match=error_match):
+        with pytest.raises(AttributeError, match=error_match):
             WrongHookOperator(task_id="fake-task-id")
 
     def test_aws_hook_class_class_instance(self):
@@ -128,5 +128,5 @@ class TestAwsBaseOperator:
             aws_hook_class = FakeS3Hook()
 
         error_match = r"Class attribute 'SoWrongOperator.aws_hook_class' is not a subclass of AwsGenericHook"
-        with pytest.raises(AirflowException, match=error_match):
+        with pytest.raises(AttributeError, match=error_match):
             SoWrongOperator(task_id="fake-task-id")
