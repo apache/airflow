@@ -113,7 +113,7 @@ and leverage the REMOTE_USER method:
     from typing import Any, Callable
 
     from flask import current_app
-    from airflow.www.fab_security.manager import AUTH_REMOTE_USER
+    from flask_appbuilder.const import AUTH_REMOTE_USER
 
 
     class CustomMiddleware:
@@ -169,14 +169,14 @@ Here is an example of what you might have in your webserver_config.py:
 
 .. code-block:: python
 
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     from flask_appbuilder.security.manager import AUTH_OAUTH
     import os
 
     AUTH_TYPE = AUTH_OAUTH
     AUTH_ROLES_SYNC_AT_LOGIN = True  # Checks roles on every login
     AUTH_USER_REGISTRATION = True  # allow users who are not already in the FAB DB to register
-    # Make sure to replace this with the path to your security manager class
-    FAB_SECURITY_MANAGER_CLASS = "your_module.your_security_manager_class"
+
     AUTH_ROLES_MAPPING = {
         "Viewer": ["Viewer"],
         "Admin": ["Admin"],
@@ -199,13 +199,21 @@ Here is an example of what you might have in your webserver_config.py:
         },
     ]
 
+
+    class CustomSecurityManager(FabAirflowSecurityManagerOverride):
+        pass
+
+
+    # Make sure to replace this with your own implementation of AirflowSecurityManager class
+    SECURITY_MANAGER_CLASS = CustomSecurityManager
+
 Here is an example of defining a custom security manager.
 This class must be available in Python's path, and could be defined in
 webserver_config.py itself if you wish.
 
 .. code-block:: python
 
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     import logging
     from typing import Any, List, Union
     import os
@@ -236,7 +244,7 @@ webserver_config.py itself if you wish.
         return list(set(team_role_map.get(team, FAB_PUBLIC_ROLE) for team in team_list))
 
 
-    class GithubTeamAuthorizer(AirflowSecurityManager):
+    class GithubTeamAuthorizer(FabAirflowSecurityManagerOverride):
 
         # In this example, the oauth provider == 'github'.
         # If you ever want to support other providers, see how it is done here:
@@ -305,9 +313,9 @@ setting the ``RATELIMIT_*`` configuration settings in ``webserver_config.py``.
 For example, to use Redis as a rate limit storage you can use the following configuration (you need
 to set ``redis_host`` to your Redis instance)
 
-```
-RATELIMIT_STORAGE_URI = 'redis://redis_host:6379/0
-```
+.. code-block:: python
+
+    RATELIMIT_STORAGE_URI = "redis://redis_host:6379/0"
 
 You can also configure other rate limit settings in ``webserver_config.py`` - for more details, see the
 `Flask Limiter rate limit configuration <https://flask-limiter.readthedocs.io/en/stable/configuration.html>`_.

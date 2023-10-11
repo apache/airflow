@@ -26,7 +26,7 @@ import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -162,7 +162,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:  # pragma: no cover
-            raise AirflowException(f"Response: {e.response.content} Status Code: {e.response.status_code}")
+            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
         json_response = response.json()
         self.log.info("Snowflake SQL POST API response: %s", json_response)
         if "statementHandles" in json_response:
@@ -226,9 +227,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 response.raise_for_status()
                 self.log.info(response.json())
             except requests.exceptions.HTTPError as e:
-                raise AirflowException(
-                    f"Response: {e.response.content}, Status Code: {e.response.status_code}"
-                )
+                msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+                raise AirflowException(msg)
 
     def _process_response(self, status_code, resp):
         self.log.info("Snowflake SQL GET statements status API response: %s", resp)
@@ -271,8 +271,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         """
         self.log.info("Retrieving status for query id %s", query_id)
         header, params, url = self.get_request_url_header_params(query_id)
-        async with aiohttp.ClientSession(headers=header) as session:
-            async with session.get(url, params=params) as response:
-                status_code = response.status
-                resp = await response.json()
-                return self._process_response(status_code, resp)
+        async with aiohttp.ClientSession(headers=header) as session, session.get(
+            url, params=params
+        ) as response:
+            status_code = response.status
+            resp = await response.json()
+            return self._process_response(status_code, resp)

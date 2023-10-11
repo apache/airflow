@@ -38,9 +38,8 @@ def test_user_can_view_configuration(admin_client):
     resp = admin_client.get("configuration", follow_redirects=True)
     for section, key in conf.sensitive_config_values:
         value = conf.get(section, key, fallback="")
-        if not value:
-            continue
-        check_content_in_response(html.escape(value), resp)
+        if value:
+            check_content_in_response(html.escape(value), resp)
 
 
 @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
@@ -48,11 +47,8 @@ def test_configuration_redacted(admin_client):
     resp = admin_client.get("configuration", follow_redirects=True)
     for section, key in conf.sensitive_config_values:
         value = conf.get(section, key, fallback="")
-        if not value or value == "airflow":
-            continue
-        if value.startswith("db+postgresql"):  # this is in configuration comment
-            continue
-        check_content_not_in_response(value, resp)
+        if value and value != "airflow" and not value.startswith("db+postgresql"):
+            check_content_not_in_response(value, resp)
 
 
 @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
@@ -60,9 +56,8 @@ def test_configuration_redacted_in_running_configuration(admin_client):
     resp = admin_client.get("configuration", follow_redirects=True)
     for section, key in conf.sensitive_config_values:
         value = conf.get(section, key, fallback="")
-        if not value or value == "airflow":
-            continue
-        check_content_not_in_response("<td class='code'>" + html.escape(value) + "</td", resp)
+        if value and value != "airflow":
+            check_content_not_in_response("<td class='code'>" + html.escape(value) + "</td", resp)
 
 
 @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})

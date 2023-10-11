@@ -347,7 +347,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
             },
-            id="Providers tests tests run without amazon tests if no amazon file changed",
+            id="Providers tests run without amazon tests if no amazon file changed",
         ),
         pytest.param(
             ("airflow/providers/amazon/file.py",),
@@ -540,7 +540,7 @@ def test_expected_output_full_tests_needed(
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
                 "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
-                "mysql openlineage oracle postgres presto salesforce sftp ssh trino",
+                "mysql openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "needs-helm-tests": "false",
@@ -566,7 +566,7 @@ def test_expected_output_full_tests_needed(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.sql facebook google "
                 "hashicorp microsoft.azure microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce sftp ssh trino",
+                "presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
@@ -667,7 +667,7 @@ def test_expected_output_pull_request_v2_3(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
-                "openlineage oracle postgres presto salesforce sftp ssh trino",
+                "openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
@@ -691,6 +691,7 @@ def test_expected_output_pull_request_v2_3(
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
                 "--package-filter apache-airflow-providers-salesforce "
+                "--package-filter apache-airflow-providers-samba "
                 "--package-filter apache-airflow-providers-sftp "
                 "--package-filter apache-airflow-providers-ssh "
                 "--package-filter apache-airflow-providers-trino",
@@ -700,7 +701,7 @@ def test_expected_output_pull_request_v2_3(
                 "parallel-test-types-list-as-string": "Providers[amazon] Always CLI "
                 "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
-                "salesforce,sftp,ssh,trino] Providers[google]",
+                "salesforce,samba,sftp,ssh,trino] Providers[google]",
             },
             id="CLI tests and Google-related provider tests should run if cli/chart files changed",
         ),
@@ -900,13 +901,14 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    "files, expected_outputs, pr_labels",
     [
         pytest.param(
             ("airflow/models/dag.py",),
             {
                 "upgrade-to-newer-dependencies": "false",
             },
+            (),
             id="Regular source changed",
         ),
         pytest.param(
@@ -914,6 +916,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "true",
             },
+            (),
             id="Setup.py changed",
         ),
         pytest.param(
@@ -921,6 +924,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "true",
             },
+            (),
             id="Setup.cfg changed",
         ),
         pytest.param(
@@ -928,6 +932,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "false",
             },
+            (),
             id="Provider.yaml changed",
         ),
         pytest.param(
@@ -935,17 +940,28 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "true",
             },
+            (),
             id="Generated provider_dependencies changed",
+        ),
+        pytest.param(
+            ("airflow/models/dag.py",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            ("upgrade to newer dependencies",),
+            id="Regular source changed",
         ),
     ],
 )
-def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs: dict[str, str]):
+def test_upgrade_to_newer_dependencies(
+    files: tuple[str, ...], expected_outputs: dict[str, str], pr_labels: tuple[str]
+):
     stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
-        pr_labels=(),
         default_branch="main",
+        pr_labels=pr_labels,
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
@@ -972,6 +988,7 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
                 "--package-filter apache-airflow-providers-salesforce "
+                "--package-filter apache-airflow-providers-samba "
                 "--package-filter apache-airflow-providers-sftp "
                 "--package-filter apache-airflow-providers-ssh "
                 "--package-filter apache-airflow-providers-trino",
@@ -1001,7 +1018,6 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
                 "--package-filter apache-airflow-providers-oracle "
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-qubole "
                 "--package-filter apache-airflow-providers-slack "
                 "--package-filter apache-airflow-providers-snowflake "
                 "--package-filter apache-airflow-providers-sqlite "
@@ -1132,53 +1148,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
-
-
-@pytest.mark.parametrize(
-    "files, labels, expected_outputs, should_fail",
-    [
-        pytest.param(
-            ("airflow/providers/yandex/test.py",),
-            (),
-            None,
-            True,
-            id="Suspended provider changes should fail",
-        ),
-        pytest.param(
-            ("airflow/providers/yandex/test.py",),
-            ("allow suspended provider changes",),
-            {"affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED},
-            False,
-            id="Suspended provider changes should not fail if appropriate label is set",
-        ),
-        pytest.param(
-            ("airflow/providers/yandex/test.py", "airflow/providers/airbyte/test.py"),
-            ("allow suspended provider changes",),
-            {"affected-providers-list-as-string": "airbyte http"},
-            False,
-            id="Only non-suspended provider changes should be listed",
-        ),
-    ],
-)
-def test_suspended_providers(
-    files: tuple[str, ...], labels: tuple[str], expected_outputs: dict[str, str], should_fail: bool
-):
-    failed = False
-    try:
-        stderr = str(
-            SelectiveChecks(
-                files=files,
-                commit_ref="HEAD",
-                github_event=GithubEvents.PULL_REQUEST,
-                pr_labels=labels,
-                default_branch="main",
-            )
-        )
-    except SystemExit:
-        failed = True
-    assert failed == should_fail
-    if not failed:
-        assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(

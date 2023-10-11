@@ -22,9 +22,8 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
 
-from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -213,6 +212,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {
@@ -282,6 +282,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {
@@ -362,6 +363,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
         if any([warehouse, database, role, schema, authenticator, session_parameters]):
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {

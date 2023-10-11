@@ -29,13 +29,10 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
-from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
-from google.protobuf.duration_pb2 import Duration
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -64,6 +61,10 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
+    from google.api_core import operation
+    from google.protobuf.duration_pb2 import Duration
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.utils.context import Context
 
 
@@ -244,12 +245,13 @@ class ClusterGenerator:
         return PreemptibilityType(preemptibility.upper())
 
     def _get_init_action_timeout(self) -> dict:
-        match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
+        match = re.fullmatch(r"(\d+)([sm])", self.init_action_timeout)
         if match:
-            val = float(match.group(1))
-            if match.group(2) == "s":
-                return {"seconds": int(val)}
-            elif match.group(2) == "m":
+            val = int(match.group(1))
+            unit = match.group(2)
+            if unit == "s":
+                return {"seconds": val}
+            elif unit == "m":
                 return {"seconds": int(timedelta(minutes=val).total_seconds())}
 
         raise AirflowException(
@@ -594,13 +596,17 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         if cluster.status.state != cluster.status.State.ERROR:
             return
         self.log.info("Cluster is in ERROR state")
+        self.log.info("Gathering diagnostic information.")
         gcs_uri = hook.diagnose_cluster(
             region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
         )
         self.log.info("Diagnostic information for cluster %s available at: %s", self.cluster_name, gcs_uri)
         if self.delete_on_error:
             self._delete_cluster(hook)
-            raise AirflowException("Cluster was created but was in ERROR state.")
+            # The delete op is asynchronous and can cause further failure if the cluster finishes
+            # deleting between catching AlreadyExists and checking state
+            self._wait_for_cluster_in_deleting_state(hook)
+            raise AirflowException("Cluster was created in an ERROR state then deleted.")
         raise AirflowException("Cluster was created but is in ERROR state")
 
     def _wait_for_cluster_in_deleting_state(self, hook: DataprocHook) -> None:
@@ -609,7 +615,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             if time_left < 0:
                 raise AirflowException(f"Cluster {self.cluster_name} is still DELETING state, aborting")
             time.sleep(time_to_sleep)
-            time_left = time_left - time_to_sleep
+            time_left -= time_to_sleep
             try:
                 self._get_cluster(hook)
             except NotFound:
@@ -624,7 +630,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             if time_left < 0:
                 raise AirflowException(f"Cluster {self.cluster_name} is still CREATING state, aborting")
             time.sleep(time_to_sleep)
-            time_left = time_left - time_to_sleep
+            time_left -= time_to_sleep
             cluster = self._get_cluster(hook)
         return cluster
 
@@ -667,6 +673,22 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 raise
             self.log.info("Cluster already exists.")
             cluster = self._get_cluster(hook)
+        except AirflowException as ae:
+            # There still could be a cluster created here in an ERROR state which
+            # should be deleted immediately rather than consuming another retry attempt
+            # (assuming delete_on_error is true (default))
+            # This reduces overall the number of task attempts from 3 to 2 to successful cluster creation
+            # assuming the underlying GCE issues have resolved within that window. Users can configure
+            # a higher number of retry attempts in powers of two with 30s-60s wait interval
+            try:
+                cluster = self._get_cluster(hook)
+                self._handle_error_state(hook, cluster)
+            except AirflowException as ae_inner:
+                # We could get any number of failures here, including cluster not found and we
+                # can just ignore to ensure we surface the original cluster create failure
+                self.log.error(ae_inner, exc_info=True)
+            finally:
+                raise ae
 
         # Check if cluster is not in ERROR state
         self._handle_error_state(hook, cluster)
@@ -790,18 +812,17 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
             return None
 
         timeout = None
-        match = re.match(r"^(\d+)([smdh])$", self.graceful_decommission_timeout)
+        match = re.fullmatch(r"(\d+)([smdh])", self.graceful_decommission_timeout)
         if match:
-            if match.group(2) == "s":
-                timeout = int(match.group(1))
-            elif match.group(2) == "m":
-                val = float(match.group(1))
+            val = int(match.group(1))
+            unit = match.group(2)
+            if unit == "s":
+                timeout = val
+            elif unit == "m":
                 timeout = int(timedelta(minutes=val).total_seconds())
-            elif match.group(2) == "h":
-                val = float(match.group(1))
+            elif unit == "h":
                 timeout = int(timedelta(hours=val).total_seconds())
-            elif match.group(2) == "d":
-                val = float(match.group(1))
+            elif unit == "d":
                 timeout = int(timedelta(days=val).total_seconds())
 
         if not timeout:
@@ -1031,10 +1052,10 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         self.dataproc_jars = dataproc_jars
         self.region = region
 
-        self.job_error_states = job_error_states if job_error_states is not None else {"ERROR"}
+        self.job_error_states = job_error_states or {"ERROR"}
         self.impersonation_chain = impersonation_chain
         self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
-        self.project_id = self.hook.project_id if project_id is None else project_id
+        self.project_id = project_id or self.hook.project_id
         self.job_template: DataProcJobBuilder | None = None
         self.job: dict | None = None
         self.dataproc_job_id = None
@@ -1578,8 +1599,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
     @staticmethod
     def _generate_temp_filename(filename):
-        date = time.strftime("%Y%m%d%H%M%S")
-        return f"{date}_{str(uuid.uuid4())[:8]}_{ntpath.basename(filename)}"
+        return f"{time:%Y%m%d%H%M%S}_{uuid.uuid4()!s:.8}_{ntpath.basename(filename)}"
 
     def _upload_file_temp(self, bucket, local_file):
         """Upload a local file to a Google Cloud Storage bucket."""
@@ -1858,7 +1878,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 
@@ -1989,7 +2009,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 

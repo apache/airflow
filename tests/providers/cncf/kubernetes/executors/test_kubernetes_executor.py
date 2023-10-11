@@ -30,7 +30,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -92,7 +92,7 @@ class TestAirflowKubernetesScheduler:
     @staticmethod
     def _is_valid_pod_id(name):
         regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-        return len(name) <= 253 and all(ch.lower() == ch for ch in name) and re.match(regex, name)
+        return len(name) <= 253 and name.islower() and re.match(regex, name)
 
     @staticmethod
     def _is_safe_label_value(value):
@@ -450,7 +450,7 @@ class TestKubernetesExecutor:
                 ),
             )
 
-            assert list(executor.event_buffer.values())[0][1] == "Invalid executor_config passed"
+            assert next(iter(executor.event_buffer.values()))[1] == "Invalid executor_config passed"
         finally:
             executor.end()
 

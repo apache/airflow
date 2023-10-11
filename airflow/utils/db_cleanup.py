@@ -27,23 +27,27 @@ import logging
 import os
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pendulum import DateTime
 from sqlalchemy import and_, column, false, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.orm import Query, Session, aliased
+from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
-from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.models import Base
+from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
+    from sqlalchemy.orm import Query, Session
+
+    from airflow.models import Base
 
 logger = logging.getLogger(__file__)
 
@@ -83,13 +87,13 @@ class _TableConfig:
 
     @property
     def readable_config(self):
-        return dict(
-            table=self.orm_model.name,
-            recency_column=str(self.recency_column),
-            keep_last=self.keep_last,
-            keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
-            keep_last_group_by=str(self.keep_last_group_by),
-        )
+        return {
+            "table": self.orm_model.name,
+            "recency_column": str(self.recency_column),
+            "keep_last": self.keep_last,
+            "keep_last_filters": [str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
+            "keep_last_group_by": str(self.keep_last_group_by),
+        }
 
 
 config_list: list[_TableConfig] = [
@@ -194,6 +198,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     session.execute(delete)
     session.commit()
     if skip_archive:
+        metadata.bind = session.get_bind()
         target_table.drop()
     session.commit()
     print("Finished Performing Delete")
@@ -314,7 +319,7 @@ def _confirm_delete(*, date: DateTime, tables: list[str]):
     )
     print(question)
     answer = input().strip()
-    if not answer == "delete rows":
+    if answer != "delete rows":
         raise SystemExit("User did not confirm; exiting.")
 
 
@@ -334,7 +339,7 @@ def _confirm_drop_archives(*, tables: list[str]):
         if show_tables:
             print(tables, "\n")
     answer = input("Enter 'drop archived tables' (without quotes) to proceed.\n").strip()
-    if not answer == "drop archived tables":
+    if answer != "drop archived tables":
         raise SystemExit("User did not confirm; exiting.")
 
 
@@ -430,19 +435,19 @@ def run_cleanup(
         _confirm_delete(date=clean_before_timestamp, tables=sorted(effective_table_names))
     existing_tables = reflect_tables(tables=None, session=session).tables
     for table_name, table_config in effective_config_dict.items():
-        if table_name not in existing_tables:
+        if table_name in existing_tables:
+            with _suppress_with_logging(table_name, session):
+                _cleanup_table(
+                    clean_before_timestamp=clean_before_timestamp,
+                    dry_run=dry_run,
+                    verbose=verbose,
+                    **table_config.__dict__,
+                    skip_archive=skip_archive,
+                    session=session,
+                )
+                session.commit()
+        else:
             logger.warning("Table %s not found.  Skipping.", table_name)
-            continue
-        with _suppress_with_logging(table_name, session):
-            _cleanup_table(
-                clean_before_timestamp=clean_before_timestamp,
-                dry_run=dry_run,
-                verbose=verbose,
-                **table_config.__dict__,
-                skip_archive=skip_archive,
-                session=session,
-            )
-            session.commit()
 
 
 @provide_session

@@ -29,6 +29,26 @@
 Changelog
 ---------
 
+4.1.5
+.....
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+
+4.1.4
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
 4.1.3
 .....
 

@@ -35,7 +35,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf.kubernetes,daskexecutor,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -44,7 +44,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.6.3"
+ARG AIRFLOW_VERSION="2.7.1"
 
 ARG PYTHON_BASE_IMAGE="python:3.8-slim-bullseye"
 
@@ -73,6 +73,7 @@ FROM scratch as scripts
 
 # The content below is automatically copied from scripts/docker/install_os_dependencies.sh
 COPY <<"EOF" /install_os_dependencies.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 DOCKER_CLI_VERSION=20.10.9
@@ -175,42 +176,31 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
 COPY <<"EOF" /install_mysql.sh
+#!/usr/bin/env bash
 set -euo pipefail
 declare -a packages
 
-MYSQL_VERSION="8.0"
-readonly MYSQL_VERSION
-MARIADB_VERSION="10.5"
-readonly MARIADB_VERSION
+MYSQL_LTS_VERSION="8.0"
+MARIADB_LTS_VERSION="10.11"
+readonly MYSQL_LTS_VERSION
+readonly MARIADB_LTS_VERSION
 
 COLOR_BLUE=$'\e[34m'
 readonly COLOR_BLUE
 COLOR_YELLOW=$'\e[1;33m'
 readonly COLOR_YELLOW
+COLOR_RED=$'\e[1;31m'
+readonly COLOR_RED
 COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 
-install_mysql_client() {
-    if [[ "${1}" == "dev" ]]; then
-        packages=("libmysqlclient-dev" "mysql-client")
-    elif [[ "${1}" == "prod" ]]; then
-        packages=("libmysqlclient21" "mysql-client")
-    else
-        echo
-        echo "Specify either prod or dev"
-        echo
-        exit 1
-    fi
+export_key() {
+    local key="${1}"
+    local name="${2:-mysql}"
 
-    echo
-    echo "${COLOR_BLUE}Installing mysql client version ${MYSQL_VERSION}: ${1}${COLOR_RESET}"
-    echo
-
-    local key="467B942D3A79BD29"
-    readonly key
-
+    echo "${COLOR_BLUE}Verify and export GPG public key ${key}${COLOR_RESET}"
     GNUPGHOME="$(mktemp -d)"
     export GNUPGHOME
     set +e
@@ -220,11 +210,37 @@ install_mysql_client() {
         gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
     done
     set -e
-    gpg --export "${key}" > /etc/apt/trusted.gpg.d/mysql.gpg
+    gpg --export "${key}" > "/etc/apt/trusted.gpg.d/${name}.gpg"
     gpgconf --kill all
     rm -rf "${GNUPGHOME}"
     unset GNUPGHOME
-    echo "deb http://repo.mysql.com/apt/debian/ $(lsb_release -cs) mysql-${MYSQL_VERSION}" > /etc/apt/sources.list.d/mysql.list
+}
+
+install_mysql_client() {
+    if [[ "${1}" == "dev" ]]; then
+        packages=("libmysqlclient-dev" "mysql-client")
+    elif [[ "${1}" == "prod" ]]; then
+        # `libmysqlclientXX` where XX is number, and it should be increased every new GA MySQL release, for example
+        # 18 - MySQL 5.6.48
+        # 20 - MySQL 5.7.42
+        # 21 - MySQL 8.0.34
+        # 22 - MySQL 8.1
+        packages=("libmysqlclient21" "mysql-client")
+    else
+        echo
+        echo "${COLOR_RED}Specify either prod or dev${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+
+    export_key "467B942D3A79BD29" "mysql"
+
+    echo
+    echo "${COLOR_BLUE}Installing Oracle MySQL client version ${MYSQL_LTS_VERSION}: ${1}${COLOR_RESET}"
+    echo
+
+    echo "deb http://repo.mysql.com/apt/debian/ $(lsb_release -cs) mysql-${MYSQL_LTS_VERSION}" > \
+        /etc/apt/sources.list.d/mysql.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
@@ -232,21 +248,38 @@ install_mysql_client() {
 }
 
 install_mariadb_client() {
+    # List of compatible package Oracle MySQL -> MariaDB:
+    # `mysql-client` -> `mariadb-client` or `mariadb-client-compat` (11+)
+    # `libmysqlclientXX` (where XX is a number) -> `libmariadb3-compat`
+    # `libmysqlclient-dev` -> `libmariadb-dev-compat`
+    #
+    # Different naming against Debian repo which we used before
+    # that some of packages might contains `-compat` suffix, Debian repo -> MariaDB repo:
+    # `libmariadb-dev` -> `libmariadb-dev-compat`
+    # `mariadb-client-core` -> `mariadb-client` or `mariadb-client-compat` (11+)
     if [[ "${1}" == "dev" ]]; then
-        packages=("libmariadb-dev" "mariadb-client-core-${MARIADB_VERSION}")
+        packages=("libmariadb-dev-compat" "mariadb-client")
     elif [[ "${1}" == "prod" ]]; then
-        packages=("mariadb-client-core-${MARIADB_VERSION}")
+        packages=("libmariadb3-compat" "mariadb-client")
     else
         echo
-        echo "Specify either prod or dev"
+        echo "${COLOR_RED}Specify either prod or dev${COLOR_RESET}"
         echo
         exit 1
     fi
 
+    export_key "0xF1656F24C74CD1D8" "mariadb"
+
     echo
-    echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_VERSION}: ${1}${COLOR_RESET}"
-    echo "${COLOR_YELLOW}MariaDB client binary compatible with MySQL client.${COLOR_RESET}"
+    echo "${COLOR_BLUE}Installing MariaDB client version ${MARIADB_LTS_VERSION}: ${1}${COLOR_RESET}"
+    echo "${COLOR_YELLOW}MariaDB client protocol-compatible with MySQL client.${COLOR_RESET}"
     echo
+
+    curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+    echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(lsb_release -cs) main" > \
+        /etc/apt/sources.list.d/mariadb.list
+    # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
+    printf "Package: *\nPin: release o=MariaDB\nPin-Priority: 999\n" > /etc/apt/preferences.d/mariadb
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
@@ -264,6 +297,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_mssql.sh
 COPY <<"EOF" /install_mssql.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
@@ -343,6 +377,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_postgres.sh
 COPY <<"EOF" /install_postgres.sh
+#!/usr/bin/env bash
 set -euo pipefail
 declare -a packages
 
@@ -384,6 +419,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_pip_version.sh
 COPY <<"EOF" /install_pip_version.sh
+#!/usr/bin/env bash
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
@@ -398,6 +434,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow_dependencies_from_branch_tip.sh
 COPY <<"EOF" /install_airflow_dependencies_from_branch_tip.sh
+#!/usr/bin/env bash
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -444,6 +481,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/common.sh
 COPY <<"EOF" /common.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 function common::get_colors() {
@@ -586,17 +624,42 @@ function install_airflow_and_providers_from_docker_context_files(){
         return
     fi
 
-    echo
-    echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with eager upgrade${COLOR_RESET}"
-    echo
-    # force reinstall all airflow + provider package local files with eager upgrade
-    set -x
-    pip install "${pip_flags[@]}" --root-user-action ignore --upgrade --upgrade-strategy eager \
-        ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-        ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
-        ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
-    set +x
+    if [[ ${USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES=} == "true" ]]; then
+        local python_version
+        python_version=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+        local local_constraints_file=/docker-context-files/constraints-"${python_version}"/${AIRFLOW_CONSTRAINTS_MODE}-"${python_version}".txt
 
+        if [[ -f "${local_constraints_file}" ]]; then
+            echo
+            echo "${COLOR_BLUE}Installing docker-context-files packages with constraints found in ${local_constraints_file}${COLOR_RESET}"
+            echo
+            # force reinstall all airflow + provider packages with constraints found in
+            set -x
+            pip install "${pip_flags[@]}" --root-user-action ignore --upgrade \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint "${local_constraints_file}" \
+                ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+            set +x
+        else
+            echo
+            echo "${COLOR_BLUE}Installing docker-context-files packages with constraints from GitHub${COLOR_RESET}"
+            echo
+            set -x
+            pip install "${pip_flags[@]}" --root-user-action ignore \
+                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
+                ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+            set +x
+        fi
+    else
+        echo
+        echo "${COLOR_BLUE}Installing docker-context-files packages without constraints${COLOR_RESET}"
+        echo
+        set -x
+        pip install "${pip_flags[@]}" --root-user-action ignore \
+            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+        set +x
+    fi
     common::install_pip_version
     pip check
 }
@@ -633,6 +696,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_airflow.sh
 COPY <<"EOF" /install_airflow.sh
+#!/usr/bin/env bash
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
@@ -718,6 +782,7 @@ EOF
 
 # The content below is automatically copied from scripts/docker/install_additional_dependencies.sh
 COPY <<"EOF" /install_additional_dependencies.sh
+#!/usr/bin/env bash
 set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
@@ -1271,6 +1336,12 @@ COPY --from=scripts common.sh install_pip_version.sh \
 # is installed from docker-context files rather than from PyPI)
 ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
 
+# Normally constraints are not used when context packages are build - because we might have packages
+# that are conflicting with Airflow constraints, however there are cases when we want to use constraints
+# for example in CI builds when we already have source-package constraints - either from github branch or
+# from eager-upgraded constraints by the CI builds
+ARG USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES="false"
+
 # In case of Production build image segment we want to pre-install main version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
 # The Airflow (and providers in case INSTALL_PROVIDERS_FROM_SOURCES is "false")
@@ -1295,6 +1366,7 @@ ARG VERSION_SUFFIX_FOR_PYPI=""
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
+    USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES=${USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES} \
     VERSION_SUFFIX_FOR_PYPI=${VERSION_SUFFIX_FOR_PYPI}
 
 WORKDIR ${AIRFLOW_HOME}
@@ -1327,7 +1399,7 @@ RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
 
 ##############################################################################################
 # This is the actual Airflow image - much smaller than the build one. We copy
-# installed Airflow and all it's dependencies from the build image to make it smaller.
+# installed Airflow and all its dependencies from the build image to make it smaller.
 ##############################################################################################
 FROM ${PYTHON_BASE_IMAGE} as main
 

@@ -27,7 +27,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunGoPipelineOperator
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
@@ -61,7 +61,7 @@ default_args = {
     }
 }
 
-with models.DAG(
+with DAG(
     "example_beam_native_go",
     start_date=datetime(2021, 1, 1),
     schedule="@once",

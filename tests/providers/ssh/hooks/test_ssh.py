@@ -48,18 +48,18 @@ conn.sendall(b'hello')
 
 
 def generate_key_string(pkey: paramiko.PKey, passphrase: str | None = None):
-    key_fh = StringIO()
-    pkey.write_private_key(key_fh, password=passphrase)
-    key_fh.seek(0)
-    key_str = key_fh.read()
+    with StringIO() as key_fh:
+        pkey.write_private_key(key_fh, password=passphrase)
+        key_fh.seek(0)
+        key_str = key_fh.read()
     return key_str
 
 
 def generate_host_key(pkey: paramiko.PKey):
-    key_fh = StringIO()
-    pkey.write_private_key(key_fh)
-    key_fh.seek(0)
-    key_obj = paramiko.RSAKey(file_obj=key_fh)
+    with StringIO() as key_fh:
+        pkey.write_private_key(key_fh)
+        key_fh.seek(0)
+        key_obj = paramiko.RSAKey(file_obj=key_fh)
     return key_obj.get_base64()
 
 
@@ -77,7 +77,7 @@ TEST_CMD_TIMEOUT = 5
 TEST_CMD_TIMEOUT_NOT_SET = "NOT SET"
 TEST_CMD_TIMEOUT_EXTRA = 15
 
-PASSPHRASE = "".join(random.choice(string.ascii_letters) for i in range(10))
+PASSPHRASE = "".join(random.choices(string.ascii_letters, k=10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
 
 TEST_DISABLED_ALGORITHMS = {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}

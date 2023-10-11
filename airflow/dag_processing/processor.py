@@ -18,25 +18,21 @@ from __future__ import annotations
 
 import importlib
 import logging
-import multiprocessing
 import os
 import signal
 import threading
 import time
 import zipfile
 from contextlib import redirect_stderr, redirect_stdout, suppress
-from datetime import datetime, timedelta
-from multiprocessing.connection import Connection as MultiprocessingConnection
+from datetime import timedelta
 from typing import TYPE_CHECKING, Iterable, Iterator
 
 from setproctitle import setproctitle
-from sqlalchemy import delete, exc, func, or_
-from sqlalchemy.orm.session import Session
+from sqlalchemy import delete, func, or_, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import (
-    CallbackRequest,
     DagCallbackRequest,
     SlaCallbackRequest,
     TaskCallbackRequest,
@@ -44,11 +40,12 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import SlaMiss, errors
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance, TaskInstance as TI
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.email import get_email_address_list, send_email
@@ -59,6 +56,14 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    import multiprocessing
+    from datetime import datetime
+    from multiprocessing.connection import Connection as MultiprocessingConnection
+
+    from sqlalchemy.orm.session import Session
+
+    from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
 
@@ -428,31 +433,27 @@ class DagFileProcessor(LoggingMixin):
         if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
             cls.logger().info("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
-
         qry = (
-            session.query(TI.task_id, func.max(DR.execution_date).label("max_ti"))
+            select(TI.task_id, func.max(DR.execution_date).label("max_ti"))
             .join(TI.dag_run)
-            .filter(TI.dag_id == dag.dag_id)
-            .filter(or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED))
-            .filter(TI.task_id.in_(dag.task_ids))
+            .where(TI.dag_id == dag.dag_id)
+            .where(or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED))
+            .where(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id)
             .subquery("sq")
         )
         # get recorded SlaMiss
         recorded_slas_query = set(
-            session.query(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.execution_date).filter(
-                SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id.in_(dag.task_ids)
+            session.execute(
+                select(SlaMiss.dag_id, SlaMiss.task_id, SlaMiss.execution_date).where(
+                    SlaMiss.dag_id == dag.dag_id, SlaMiss.task_id.in_(dag.task_ids)
+                )
             )
         )
-
-        max_tis: Iterator[TI] = (
-            session.query(TI)
+        max_tis: Iterator[TI] = session.scalars(
+            select(TI)
             .join(TI.dag_run)
-            .filter(
-                TI.dag_id == dag.dag_id,
-                TI.task_id == qry.c.task_id,
-                DR.execution_date == qry.c.max_ti,
-            )
+            .where(TI.dag_id == dag.dag_id, TI.task_id == qry.c.task_id, DR.execution_date == qry.c.max_ti)
         )
 
         ts = timezone.utcnow()
@@ -490,23 +491,18 @@ class DagFileProcessor(LoggingMixin):
             if sla_misses:
                 session.add_all(sla_misses)
         session.commit()
-
-        slas: list[SlaMiss] = (
-            session.query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa
-            .all()
-        )
+        slas: list[SlaMiss] = session.scalars(
+            select(SlaMiss).where(~SlaMiss.notification_sent, SlaMiss.dag_id == dag.dag_id)
+        ).all()
         if slas:
             sla_dates: list[datetime] = [sla.execution_date for sla in slas]
-            fetched_tis: list[TI] = (
-                session.query(TI)
-                .filter(
+            fetched_tis: list[TI] = session.scalars(
+                select(TI).where(
                     TI.dag_id == dag.dag_id,
                     TI.execution_date.in_(sla_dates),
                     TI.state != TaskInstanceState.SUCCESS,
                 )
-                .all()
-            )
+            ).all()
             blocking_tis: list[TI] = []
             for ti in fetched_tis:
                 if ti.task_id in dag.task_ids:
@@ -566,8 +562,8 @@ class DagFileProcessor(LoggingMixin):
                     cls.logger().warning(
                         "Task %s doesn't exist in DAG anymore, skipping SLA miss notification.", sla.task_id
                     )
-                    continue
-                tasks_missed_sla.append(task)
+                else:
+                    tasks_missed_sla.append(task)
 
             emails: set[str] = set()
             for task in tasks_missed_sla:
@@ -628,7 +624,7 @@ class DagFileProcessor(LoggingMixin):
         for filename, stacktrace in import_errors.items():
             if filename in existing_import_error_files:
                 session.query(errors.ImportError).filter(errors.ImportError.filename == filename).update(
-                    dict(filename=filename, timestamp=timezone.utcnow(), stacktrace=stacktrace),
+                    {"filename": filename, "timestamp": timezone.utcnow(), "stacktrace": stacktrace},
                     synchronize_session="fetch",
                 )
             else:
@@ -741,25 +737,28 @@ class DagFileProcessor(LoggingMixin):
     @provide_session
     def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
         dag = dagbag.dags[request.dag_id]
-        dag_run = dag.get_dagrun(run_id=request.run_id, session=session)
-        dag.handle_callback(
-            dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
-        )
+        callbacks, context = DAG.fetch_callback(
+            dag=dag,
+            dag_run_id=request.run_id,
+            success=not request.is_failure_callback,
+            reason=request.msg,
+            session=session,
+        ) or (None, None)
+
+        if callbacks and context:
+            DAG.execute_callback(callbacks, context, dag.dag_id)
 
     def _execute_task_callbacks(self, dagbag: DagBag | None, request: TaskCallbackRequest, session: Session):
         if not request.is_failure_callback:
             return
 
         simple_ti = request.simple_task_instance
-        ti: TI | None = (
-            session.query(TI)
-            .filter_by(
-                dag_id=simple_ti.dag_id,
-                run_id=simple_ti.run_id,
-                task_id=simple_ti.task_id,
-                map_index=simple_ti.map_index,
-            )
-            .one_or_none()
+        ti = TaskInstance.get_task_instance(
+            dag_id=simple_ti.dag_id,
+            run_id=simple_ti.run_id,
+            task_id=simple_ti.task_id,
+            map_index=simple_ti.map_index,
+            session=session,
         )
         if not ti:
             return
@@ -775,14 +774,10 @@ class DagFileProcessor(LoggingMixin):
             # `handle_failure` so that the state of the TI gets progressed.
             #
             # Since handle_failure _really_ wants a task, we do our best effort to give it one
-            from airflow.models.serialized_dag import SerializedDagModel
+            task = SerializedDagModel.get_serialized_dag(
+                dag_id=simple_ti.dag_id, task_id=simple_ti.task_id, session=session
+            )
 
-            try:
-                model = session.get(SerializedDagModel, simple_ti.dag_id)
-                if model:
-                    task = model.dag.get_task(simple_ti.task_id)
-            except (exc.NoResultFound, TaskNotFound):
-                pass
         if task:
             ti.refresh_from_task(task)
 
@@ -835,7 +830,7 @@ class DagFileProcessor(LoggingMixin):
             Stats.incr("dag_file_refresh_error", 1, 1, tags={"file_path": file_path})
             return 0, 0
 
-        if len(dagbag.dags) > 0:
+        if dagbag.dags:
             self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)

@@ -21,7 +21,6 @@ import logging
 import logging.config
 import os
 import re
-import tempfile
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -33,7 +32,10 @@ from kubernetes.client import models as k8s
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import DAG, DagRun, TaskInstance, Trigger
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.trigger import Trigger
 from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,
@@ -254,23 +256,22 @@ class TestFileTaskLogHandler:
         mock_read_local.assert_called_with(path)
         assert actual == ("*** the messages\nthe log", {"end_of_log": True, "log_pos": 7})
 
-    def test__read_from_local(self):
+    def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
 
-        with tempfile.TemporaryDirectory() as td:
-            file1 = Path(td, "hello1.log")
-            file2 = Path(td, "hello1.log.suffix.log")
-            file1.write_text("file1 content")
-            file2.write_text("file2 content")
-            fth = FileTaskHandler("")
-            assert fth._read_from_local(file1) == (
-                [
-                    "Found local files:",
-                    f"  * {td}/hello1.log",
-                    f"  * {td}/hello1.log.suffix.log",
-                ],
-                ["file1 content", "file2 content"],
-            )
+        path1 = tmp_path / "hello1.log"
+        path2 = tmp_path / "hello1.log.suffix.log"
+        path1.write_text("file1 content")
+        path2.write_text("file2 content")
+        fth = FileTaskHandler("")
+        assert fth._read_from_local(path1) == (
+            [
+                "Found local files:",
+                f"  * {path1}",
+                f"  * {path2}",
+            ],
+            ["file1 content", "file2 content"],
+        )
 
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor.get_task_log"
@@ -423,16 +424,14 @@ class TestFileTaskLogHandler:
         assert actual_kwargs["namespace"] == namespace_to_call
         actual_selector = actual_kwargs["label_selector"]
         assert re.match(
-            ",".join(
-                [
-                    "airflow_version=.+?",
-                    "dag_id=dag_for_testing_file_task_handler",
-                    "kubernetes_executor=True",
-                    "run_id=manual__2016-01-01T0000000000-2b88d1d57",
-                    "task_id=task_for_testing_file_log_handler",
-                    "try_number=2",
-                    "airflow-worker",
-                ]
+            (
+                "airflow_version=.+?,"
+                "dag_id=dag_for_testing_file_task_handler,"
+                "kubernetes_executor=True,"
+                "run_id=manual__2016-01-01T0000000000-2b88d1d57,"
+                "task_id=task_for_testing_file_log_handler,"
+                "try_number=2,"
+                "airflow-worker"
             ),
             actual_selector,
         )
@@ -455,7 +454,7 @@ class TestFileTaskLogHandler:
         assert FileTaskHandler.add_triggerer_suffix(sample, job_id="123") == sample + ".trigger.123.log"
 
     @pytest.mark.parametrize("is_a_trigger", [True, False])
-    def test_set_context_trigger(self, create_dummy_dag, dag_maker, is_a_trigger, session):
+    def test_set_context_trigger(self, create_dummy_dag, dag_maker, is_a_trigger, session, tmp_path):
         create_dummy_dag(dag_id="test_fth", task_id="dummy")
         (ti,) = dag_maker.create_dagrun(execution_date=pendulum.datetime(2023, 1, 1, tz="UTC")).task_instances
         assert isinstance(ti, TaskInstance)
@@ -466,14 +465,13 @@ class TestFileTaskLogHandler:
             t.triggerer_job = job
             ti.triggerer = t
             t.task_instance = ti
-        with tempfile.TemporaryDirectory() as td:
-            h = FileTaskHandler(base_log_folder=td)
-            h.set_context(ti)
-            expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=1.log"
-            if is_a_trigger:
-                expected += f".trigger.{job.id}.log"
-            actual = h.handler.baseFilename
-            assert actual.replace(td + "/", "") == expected
+        h = FileTaskHandler(base_log_folder=os.fspath(tmp_path))
+        h.set_context(ti)
+        expected = "dag_id=test_fth/run_id=test/task_id=dummy/attempt=1.log"
+        if is_a_trigger:
+            expected += f".trigger.{job.id}.log"
+        actual = h.handler.baseFilename
+        assert actual == os.fspath(tmp_path / expected)
 
 
 class TestFilenameRendering:

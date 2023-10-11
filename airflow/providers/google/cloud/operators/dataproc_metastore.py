@@ -18,7 +18,7 @@
 """This module contains Google Dataproc Metastore operators."""
 from __future__ import annotations
 
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -26,10 +26,9 @@ from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.metastore_v1 import MetadataExport, MetadataManagementActivity
 from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
 from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
-from google.protobuf.field_mask_pb2 import FieldMask
 from googleapiclient.errors import HttpError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
@@ -37,6 +36,8 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
+    from google.protobuf.field_mask_pb2 import FieldMask
+
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -699,7 +700,7 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
         the SDK.
         """
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-            sleep(time_to_wait)
+            time.sleep(time_to_wait)
             service = hook.get_service(
                 region=self.region,
                 project_id=self.project_id,
@@ -985,7 +986,7 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
         the SDK.
         """
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-            sleep(time_to_wait)
+            time.sleep(time_to_wait)
             service = hook.get_service(
                 region=self.region,
                 project_id=self.project_id,

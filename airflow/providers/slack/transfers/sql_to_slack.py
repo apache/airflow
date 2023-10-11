@@ -19,18 +19,19 @@ from __future__ import annotations
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
-from pandas import DataFrame
 from tabulate import tabulate
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.slack.utils import parse_filename
 
 if TYPE_CHECKING:
+    import pandas as pd
+
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
 
 
@@ -70,7 +71,7 @@ class BaseSqlToSlackOperator(BaseOperator):
             )
         return hook
 
-    def _get_query_results(self) -> DataFrame:
+    def _get_query_results(self) -> pd.DataFrame:
         sql_hook = self._get_hook()
 
         self.log.info("Running SQL query: %s", self.sql)
@@ -102,8 +103,6 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
     :param sql_hook_params: Extra config params to be passed to the underlying hook.
            Should match the desired hook constructor params.
     :param slack_conn_id: The connection id for Slack.
-    :param slack_webhook_token: The token to use to authenticate to Slack. If this is not provided, the
-        'slack_conn_id' attribute needs to be specified in the 'password' field.
     :param slack_channel: The channel to send message. Override default from Slack connection.
     :param results_df_name: The name of the JINJA template's dataframe variable, default is 'results_df'
     :param parameters: The parameters to pass to the SQL query
@@ -119,9 +118,8 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         *,
         sql: str,
         sql_conn_id: str,
+        slack_conn_id: str,
         sql_hook_params: dict | None = None,
-        slack_conn_id: str | None = None,
-        slack_webhook_token: str | None = None,
         slack_channel: str | None = None,
         slack_message: str,
         results_df_name: str = "results_df",
@@ -134,16 +132,10 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         )
 
         self.slack_conn_id = slack_conn_id
-        self.slack_webhook_token = slack_webhook_token
         self.slack_channel = slack_channel
         self.slack_message = slack_message
         self.results_df_name = results_df_name
         self.kwargs = kwargs
-
-        if not self.slack_conn_id and not self.slack_webhook_token:
-            raise AirflowException(
-                "SqlToSlackOperator requires either a `slack_conn_id` or a `slack_webhook_token` argument"
-            )
 
     def _render_and_send_slack_message(self, context, df) -> None:
         # Put the dataframe into the context and render the JINJA template fields
@@ -155,15 +147,13 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         slack_hook.send(text=self.slack_message, channel=self.slack_channel)
 
     def _get_slack_hook(self) -> SlackWebhookHook:
-        return SlackWebhookHook(
-            slack_webhook_conn_id=self.slack_conn_id, webhook_token=self.slack_webhook_token
-        )
+        return SlackWebhookHook(slack_webhook_conn_id=self.slack_conn_id)
 
     def render_template_fields(self, context, jinja_env=None) -> None:
         # If this is the first render of the template fields, exclude slack_message from rendering since
         # the SQL results haven't been retrieved yet.
         if self.times_rendered == 0:
-            fields_to_render: Iterable[str] = filter(lambda x: x != "slack_message", self.template_fields)
+            fields_to_render: Iterable[str] = (x for x in self.template_fields if x != "slack_message")
         else:
             fields_to_render = self.template_fields
 
@@ -247,7 +237,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
         parameters: Iterable | Mapping[str, Any] | None = None,
-        slack_conn_id: str,
+        slack_conn_id: str = SlackHook.default_conn_name,
         slack_filename: str,
         slack_channels: str | Sequence[str] | None = None,
         slack_initial_comment: str | None = None,

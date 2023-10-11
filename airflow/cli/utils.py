@@ -17,11 +17,20 @@
 
 from __future__ import annotations
 
-import io
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from io import IOBase
 
 
-def is_stdout(fileio: io.IOBase) -> bool:
+class CliConflictError(Exception):
+    """Error for when CLI commands are defined twice by different sources."""
+
+    pass
+
+
+def is_stdout(fileio: IOBase) -> bool:
     """Check whether a file IO is stdout.
 
     The intended use case for this helper is to check whether an argument parsed

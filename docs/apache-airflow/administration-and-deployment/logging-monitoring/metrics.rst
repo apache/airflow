@@ -199,7 +199,7 @@ Gauges
 =================================================== ========================================================================
 Name                                                Description
 =================================================== ========================================================================
-``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on it's
+``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on its
                                                     configuration
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
 ``dag_processing.total_parse_time``                 Seconds taken to scan and import ``dag_processing.file_path_queue_size`` DAG files
@@ -232,7 +232,7 @@ Name                                                Description
 ``dag.<dag_id>.<task_id>.queued_duration``          Seconds a task spends in the Queued state, before being Running
 ``dag_processing.last_duration.<dag_file>``         Seconds taken to load the given DAG file
 ``dagrun.duration.success.<dag_id>``                Seconds taken for a DagRun to reach success state
-``dagrun.duration.failed.<dag_id>``                 Milliseconds taken for a DagRun to reach failed state
+``dagrun.duration.failed.<dag_id>``                 Seconds taken for a DagRun to reach failed state
 ``dagrun.schedule_delay.<dag_id>``                  Seconds of delay between the scheduled DagRun
                                                     start date and the actual DagRun start date
 ``scheduler.critical_section_duration``             Milliseconds spent in the critical section of scheduler loop --

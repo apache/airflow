@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import time
+import warnings
 from datetime import datetime, timedelta
 from functools import cached_property
-from time import sleep
 from typing import TYPE_CHECKING, cast
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
@@ -51,6 +52,7 @@ class AppflowBaseOperator(BaseOperator):
     :param source_field: The field name to apply filters
     :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
+    :param max_attempts: how many times to check for status before timing out
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
     :param wait_for_completion: whether to wait for the run to end to return
@@ -58,29 +60,33 @@ class AppflowBaseOperator(BaseOperator):
 
     ui_color = "#2bccbd"
 
+    template_fields = ("flow_name", "source", "source_field", "filter_date")
+
     UPDATE_PROPAGATION_TIME: int = 15
 
     def __init__(
         self,
-        source: str,
         flow_name: str,
         flow_update: bool,
+        source: str | None = None,
         source_field: str | None = None,
         filter_date: str | None = None,
         poll_interval: int = 20,
+        max_attempts: int = 60,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
         wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if source not in SUPPORTED_SOURCES:
+        if source is not None and source not in SUPPORTED_SOURCES:
             raise ValueError(f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!")
         self.filter_date = filter_date
         self.flow_name = flow_name
         self.source = source
         self.source_field = source_field
         self.poll_interval = poll_interval
+        self.max_attempts = max_attempts
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.flow_update = flow_update
@@ -95,12 +101,13 @@ class AppflowBaseOperator(BaseOperator):
         self.filter_date_parsed: datetime | None = (
             datetime.fromisoformat(self.filter_date) if self.filter_date else None
         )
-        self.connector_type = self._get_connector_type()
+        if self.source is not None:
+            self.connector_type = self._get_connector_type()
         if self.flow_update:
             self._update_flow()
             # while schedule flows will pick up the update right away, on-demand flows might use out of date
             # info if triggered right after an update, so we need to wait a bit for the DB to be consistent.
-            sleep(AppflowBaseOperator.UPDATE_PROPAGATION_TIME)
+            time.sleep(AppflowBaseOperator.UPDATE_PROPAGATION_TIME)
 
         self._run_flow(context)
 
@@ -118,6 +125,7 @@ class AppflowBaseOperator(BaseOperator):
         execution_id = self.hook.run_flow(
             flow_name=self.flow_name,
             poll_interval=self.poll_interval,
+            max_attempts=self.max_attempts,
             wait_for_completion=self.wait_for_completion,
         )
         task_instance = context["task_instance"]
@@ -127,13 +135,13 @@ class AppflowBaseOperator(BaseOperator):
 
 class AppflowRunOperator(AppflowBaseOperator):
     """
-    Execute a Appflow run with filters as is.
+    Execute a Appflow run as is.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AppflowRunOperator`
 
-    :param source: The source name (Supported: salesforce, zendesk)
+    :param source: Obsolete, unnecessary for this operator
     :param flow_name: The flow name
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
@@ -143,18 +151,21 @@ class AppflowRunOperator(AppflowBaseOperator):
 
     def __init__(
         self,
-        source: str,
         flow_name: str,
+        source: str | None = None,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: str | None = None,
         wait_for_completion: bool = True,
         **kwargs,
     ) -> None:
-        if source not in {"salesforce", "zendesk"}:
-            raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunOperator"))
+        if source is not None:
+            warnings.warn(
+                "The `source` parameter is unused when simply running a flow, please remove it.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         super().__init__(
-            source=source,
             flow_name=flow_name,
             flow_update=False,
             source_field=None,
@@ -227,8 +238,6 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
     :param wait_for_completion: whether to wait for the run to end to return
     """
 
-    template_fields = ("filter_date",)
-
     def __init__(
         self,
         source: str,
@@ -297,8 +306,6 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
     :param wait_for_completion: whether to wait for the run to end to return
     """
 
-    template_fields = ("filter_date",)
-
     def __init__(
         self,
         source: str,
@@ -364,8 +371,6 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
     :param region: aws region to use
     :param wait_for_completion: whether to wait for the run to end to return
     """
-
-    template_fields = ("filter_date",)
 
     def __init__(
         self,

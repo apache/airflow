@@ -16,14 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
-
-import boto3
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
 from airflow.utils.helpers import exactly_one
+
+if TYPE_CHECKING:
+    import boto3
 
 
 class EmrClusterLink(BaseAwsLink):

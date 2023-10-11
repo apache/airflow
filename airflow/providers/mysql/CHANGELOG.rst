@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add init_command parameter to MySqlHook (#33359)``
+* ``Add 'local_infile' parameter to 'S3ToMySqlOperator' (#33459)``
+
 5.2.1
 .....
 

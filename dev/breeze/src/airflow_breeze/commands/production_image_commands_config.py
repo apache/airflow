@@ -31,11 +31,10 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             "options": [
                 "--python",
                 "--install-airflow-version",
-                "--upgrade-to-newer-dependencies",
-                "--upgrade-on-failure",
                 "--image-tag",
                 "--tag-as-latest",
                 "--docker-cache",
+                "--build-progress",
             ],
         },
         {
@@ -79,6 +78,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
             "name": "Customization options (for specific customization needs)",
             "options": [
                 "--install-packages-from-context",
+                "--use-constraints-for-context-packages",
                 "--cleanup-context",
                 "--disable-mysql-client-installation",
                 "--disable-mssql-client-installation",

@@ -202,6 +202,17 @@ class TestTriggerer:
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
         assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -620,3 +631,67 @@ class TestTriggererLogGroomer(LogGroomerTestBase):
 
     obj_name = "triggerer"
     folder = "triggerer"
+
+
+class TestTriggererKedaAutoScaler:
+    """Tests triggerer keda autoscaler."""
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "keda": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    @pytest.mark.parametrize(
+        "query, expected_query",
+        [
+            # default query
+            (
+                None,
+                "SELECT ceil(COUNT(*)::decimal / 1000) FROM trigger",
+            ),
+            # test custom static query
+            (
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+            ),
+            # test custom template query
+            (
+                "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.triggerer.default_capacity 2 }})"
+                " FROM trigger",
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+            ),
+        ],
+    )
+    def test_should_use_keda_query(self, query, expected_query):
+
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "enabled": True,
+                    "keda": {"enabled": True, **({"query": query} if query else {})},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+        assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])

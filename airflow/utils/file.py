@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import ast
-import io
 import logging
 import os
 import zipfile
+from io import TextIOWrapper
 from pathlib import Path
 from typing import Generator, NamedTuple, Pattern, Protocol, overload
 
@@ -189,7 +189,7 @@ def open_maybe_zipped(fileloc, mode="r"):
     """
     _, archive, filename = ZIP_REGEX.search(fileloc).groups()
     if archive and zipfile.is_zipfile(archive):
-        return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
+        return TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
     else:
         return open(fileloc, mode=mode)
 
@@ -244,12 +244,10 @@ def _find_path_from_directory(
             patterns_by_dir.update({dirpath: patterns.copy()})
 
         for file in files:
-            if file == ignore_file_name:
-                continue
-            abs_file_path = Path(root) / file
-            if ignore_rule_type.match(abs_file_path, patterns):
-                continue
-            yield str(abs_file_path)
+            if file != ignore_file_name:
+                abs_file_path = Path(root) / file
+                if not ignore_rule_type.match(abs_file_path, patterns):
+                    yield str(abs_file_path)
 
 
 def find_path_from_directory(
@@ -310,16 +308,11 @@ def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> l
     file_paths = []
 
     for file_path in find_path_from_directory(directory, ".airflowignore"):
+        path = Path(file_path)
         try:
-            if not os.path.isfile(file_path):
-                continue
-            _, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-            if file_ext != ".py" and not zipfile.is_zipfile(file_path):
-                continue
-            if not might_contain_dag(file_path, safe_mode):
-                continue
-
-            file_paths.append(file_path)
+            if path.is_file() and (path.suffix == ".py" or zipfile.is_zipfile(path)):
+                if might_contain_dag(file_path, safe_mode):
+                    file_paths.append(file_path)
         except Exception:
             log.exception("Error while examining %s", file_path)
 

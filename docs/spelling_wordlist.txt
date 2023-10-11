@@ -11,6 +11,7 @@ actionCard
 Acyclic
 acyclic
 AddressesType
+adf
 adhoc
 adls
 adobjects
@@ -34,6 +35,7 @@ Alibaba
 alibaba
 allAuthenticatedUsers
 allowinsert
+allowlist
 allUsers
 alphanumerics
 Alphasort
@@ -154,6 +156,7 @@ BaseView
 BaseXCom
 bashrc
 batchGet
+BatchServiceClient
 bc
 bcc
 bdist
@@ -341,6 +344,7 @@ Dagre
 dagre
 DagRun
 dagrun
+DagRunPydantic
 dagruns
 DagRunState
 DAGs
@@ -377,6 +381,8 @@ DataScan
 dataScans
 Dataset
 dataset
+DatasetEvent
+DatasetEvents
 datasetId
 Datasets
 datasets
@@ -789,6 +795,7 @@ isfile
 ish
 isn
 isort
+istio
 iterable
 iterables
 iteratively
@@ -1048,6 +1055,7 @@ openapi
 openfaas
 openlineage
 oper
+OperatorLineage
 Opsgenie
 opsgenie
 Optimise
@@ -1068,6 +1076,7 @@ oversubscription
 PaaS
 Pagerduty
 pagerduty
+PagerdutyEventsHook
 pageviews
 paginator
 Papermill
@@ -1186,6 +1195,7 @@ Py
 py
 Pyarrow
 pyarrow
+pydantic
 pydruid
 pyexasol
 pyhive
@@ -1573,6 +1583,7 @@ tzinfo
 UA
 ui
 uid
+ulimit
 Umask
 umask
 Un

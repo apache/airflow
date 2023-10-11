@@ -24,7 +24,7 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ .Release.Name }}-webserver-pdb
+  name: {{ include "airflow.fullname" . }}-webserver-pdb
   labels:
     tier: airflow
     component: webserver

@@ -31,6 +31,15 @@ Lifecycle Events
 
 Lifecycle events allow you to react to start and stop events for an Airflow ``Job``, like  ``SchedulerJob`` or ``BackfillJob``.
 
+DagRun State Change Events
+--------------------------
+
+- ``on_dag_run_running``
+- ``on_dag_run_success``
+- ``on_dag_run_failed``
+
+DagRun state change events occur when a ``DagRun`` changes state.
+
 TaskInstance State Change Events
 --------------------------------
 

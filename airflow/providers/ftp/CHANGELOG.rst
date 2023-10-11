@@ -27,6 +27,32 @@
 Changelog
 ---------
 
+3.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/ftp): respect soft_fail argument when exception is raised (#34161)``
+
+Misc
+~~~~
+
+* ``Consolidate importing of os.path.* (#34060)``
+* ``Refactor regex in providers (#33898)``
+
+3.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers - Final Pass (#33303)``
+
 3.5.0
 .....
 

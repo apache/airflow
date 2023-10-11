@@ -28,6 +28,14 @@
 Changelog
 ---------
 
+3.5.2
+.....
+
+Misc
+~~~~
+
+* ``Custom fetch all handler for vertica to not miss errors (#34041)``
+
 3.5.1
 .....
 

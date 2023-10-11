@@ -27,10 +27,11 @@
 {{- $topologySpreadConstraints := or .Values.redis.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "localPodSecurityContext" .Values.redis }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.redis }}
+{{- $containerLifecycleHooks := .Values.redis.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Release.Name }}-redis
+  name: {{ include "airflow.fullname" . }}-redis
   labels:
     tier: airflow
     component: redis
@@ -41,7 +42,7 @@ metadata:
       {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  serviceName: {{ .Release.Name }}-redis
+  serviceName: {{ include "airflow.fullname" . }}-redis
   selector:
     matchLabels:
       tier: airflow
@@ -71,6 +72,9 @@ spec:
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "redis.serviceAccountName" . }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
@@ -81,6 +85,9 @@ spec:
           image: {{ template "redis_image" . }}
           imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           command: ["/bin/sh"]
           resources: {{- toYaml .Values.redis.resources | nindent 12 }}
           args: ["-c", "redis-server --requirepass ${REDIS_PASSWORD}"]

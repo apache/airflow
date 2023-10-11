@@ -22,7 +22,13 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from azure.mgmt.containerinstance.models import ContainerState, Event
+from azure.mgmt.containerinstance.models import (
+    Container,
+    ContainerGroup,
+    ContainerPropertiesInstanceView,
+    ContainerState,
+    Event,
+)
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.container_instances import AzureContainerInstancesOperator
@@ -35,10 +41,12 @@ def make_mock_cg(container_state, events=None):
     """
     events = events or []
     instance_view_dict = {"current_state": container_state, "events": events}
-    instance_view = namedtuple("InstanceView", instance_view_dict.keys())(*instance_view_dict.values())
+    instance_view = namedtuple("ContainerPropertiesInstanceView", instance_view_dict.keys())(
+        *instance_view_dict.values()
+    )
 
     container_dict = {"instance_view": instance_view}
-    container = namedtuple("Container", container_dict.keys())(*container_dict.values())
+    container = namedtuple("Containers", container_dict.keys())(*container_dict.values())
 
     container_g_dict = {"containers": [container]}
     container_g = namedtuple("ContainerGroup", container_g_dict.keys())(*container_g_dict.values())
@@ -53,23 +61,42 @@ def make_mock_cg_with_missing_events(container_state):
     This can happen, when the container group is provisioned, but not started.
     """
     instance_view_dict = {"current_state": container_state, "events": None}
-    instance_view = namedtuple("InstanceView", instance_view_dict.keys())(*instance_view_dict.values())
+    instance_view = namedtuple("ContainerPropertiesInstanceView", instance_view_dict.keys())(
+        *instance_view_dict.values()
+    )
 
     container_dict = {"instance_view": instance_view}
-    container = namedtuple("Container", container_dict.keys())(*container_dict.values())
+    container = namedtuple("Containers", container_dict.keys())(*container_dict.values())
 
     container_g_dict = {"containers": [container]}
     container_g = namedtuple("ContainerGroup", container_g_dict.keys())(*container_g_dict.values())
     return container_g
 
 
+def make_mock_container(state: str, exit_code: int, detail_status: str, events: Event | None = None):
+    container = Container(name="hello_world", image="test", resources="test")
+    container_prop = ContainerPropertiesInstanceView()
+    container_state = ContainerState()
+    container_state.state = state
+    container_state.exit_code = exit_code
+    container_state.detail_status = detail_status
+    container_prop.current_state = container_state
+    if events:
+        container_prop.events = events
+    container.instance_view = container_prop
+
+    cg = ContainerGroup(containers=[container], os_type="Linux")
+
+    return cg
+
+
 class TestACIOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute(self, aci_mock):
-        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
-        expected_cg = make_mock_cg(expected_c_state)
+        expected_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
 
         aci_mock.return_value.get_state.return_value = expected_cg
+
         aci_mock.return_value.exists.return_value = False
 
         aci = AzureContainerInstancesOperator(
@@ -102,10 +129,10 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_failures(self, aci_mock):
-        expected_c_state = ContainerState(state="Terminated", exit_code=1, detail_status="test")
-        expected_cg = make_mock_cg(expected_c_state)
 
+        expected_cg = make_mock_container(state="Terminated", exit_code=1, detail_status="test")
         aci_mock.return_value.get_state.return_value = expected_cg
+
         aci_mock.return_value.exists.return_value = False
 
         aci = AzureContainerInstancesOperator(
@@ -124,11 +151,11 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_tags(self, aci_mock):
-        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
-        expected_cg = make_mock_cg(expected_c_state)
+
+        expected_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
+        aci_mock.return_value.get_state.return_value = expected_cg
         tags = {"testKey": "testValue"}
 
-        aci_mock.return_value.get_state.return_value = expected_cg
         aci_mock.return_value.exists.return_value = False
 
         aci = AzureContainerInstancesOperator(
@@ -163,13 +190,18 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_messages_logs(self, aci_mock):
-        events = [Event(message="test"), Event(message="messages")]
-        expected_c_state1 = ContainerState(state="Succeeded", exit_code=0, detail_status="test")
-        expected_cg1 = make_mock_cg(expected_c_state1, events)
-        expected_c_state2 = ContainerState(state="Running", exit_code=0, detail_status="test")
-        expected_cg2 = make_mock_cg(expected_c_state2, events)
-        expected_c_state3 = ContainerState(state="Terminated", exit_code=0, detail_status="test")
-        expected_cg3 = make_mock_cg(expected_c_state3, events)
+        event1 = Event()
+        event1.message = "test"
+        event2 = Event()
+        event2.message = "messages"
+        events = [event1, event2]
+        expected_cg1 = make_mock_container(
+            state="Succeeded", exit_code=0, detail_status="test", events=events
+        )
+        expected_cg2 = make_mock_container(state="Running", exit_code=0, detail_status="test", events=events)
+        expected_cg3 = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test", events=events
+        )
 
         aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg2, expected_cg3]
         aci_mock.return_value.get_logs.return_value = ["test", "logs"]
@@ -211,11 +243,11 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_ipaddress(self, aci_mock):
-        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
-        expected_cg = make_mock_cg(expected_c_state)
         ipaddress = MagicMock()
 
-        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.get_state.return_value = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test"
+        )
         aci_mock.return_value.exists.return_value = False
 
         aci = AzureContainerInstancesOperator(
@@ -236,10 +268,10 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_windows_os_and_diff_restart_policy(self, aci_mock):
-        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
-        expected_cg = make_mock_cg(expected_c_state)
 
-        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.get_state.return_value = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test"
+        )
         aci_mock.return_value.exists.return_value = False
 
         aci = AzureContainerInstancesOperator(
@@ -262,10 +294,10 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_fails_with_incorrect_os_type(self, aci_mock):
-        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
-        expected_cg = make_mock_cg(expected_c_state)
 
-        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.get_state.return_value = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test"
+        )
         aci_mock.return_value.exists.return_value = False
 
         with pytest.raises(AirflowException) as ctx:
@@ -288,10 +320,10 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_fails_with_incorrect_restart_policy(self, aci_mock):
-        expected_c_state = ContainerState(state="Terminated", exit_code=0, detail_status="test")
-        expected_cg = make_mock_cg(expected_c_state)
 
-        aci_mock.return_value.get_state.return_value = expected_cg
+        aci_mock.return_value.get_state.return_value = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test"
+        )
         aci_mock.return_value.exists.return_value = False
 
         with pytest.raises(AirflowException) as ctx:
@@ -313,12 +345,10 @@ class TestACIOperator:
         )
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
-    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.sleep")
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.time.sleep")
     def test_execute_correct_sleep_cycle(self, sleep_mock, aci_mock):
-        expected_c_state1 = ContainerState(state="Running", exit_code=0, detail_status="test")
-        expected_cg1 = make_mock_cg(expected_c_state1)
-        expected_c_state2 = ContainerState(state="Terminated", exit_code=0, detail_status="test")
-        expected_cg2 = make_mock_cg(expected_c_state2)
+        expected_cg1 = make_mock_container(state="Running", exit_code=0, detail_status="test")
+        expected_cg2 = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
 
         aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg1, expected_cg2]
         aci_mock.return_value.exists.return_value = False
@@ -340,10 +370,8 @@ class TestACIOperator:
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     @mock.patch("logging.Logger.exception")
     def test_execute_with_missing_events(self, log_mock, aci_mock):
-        expected_c_state1 = ContainerState(state="Running", exit_code=0, detail_status="test")
-        expected_cg1 = make_mock_cg_with_missing_events(expected_c_state1)
-        expected_c_state2 = ContainerState(state="Terminated", exit_code=0, detail_status="test")
-        expected_cg2 = make_mock_cg(expected_c_state2)
+        expected_cg1 = make_mock_container(state="Running", exit_code=0, detail_status="test")
+        expected_cg2 = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
 
         aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg2]
         aci_mock.return_value.exists.return_value = False

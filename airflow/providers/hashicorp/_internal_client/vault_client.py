@@ -147,7 +147,7 @@ class _VaultClient(LoggingMixin):
             if not radius_secret:
                 raise VaultError("The 'radius' authentication type requires 'radius_secret'")
 
-        self.kv_engine_version = kv_engine_version if kv_engine_version else 2
+        self.kv_engine_version = kv_engine_version or 2
         self.url = url
         self.auth_type = auth_type
         self.kwargs = kwargs

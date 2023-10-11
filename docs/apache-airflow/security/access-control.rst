@@ -51,7 +51,7 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited read permissions:
 
-.. exampleinclude:: /../../airflow/www/security.py
+.. exampleinclude:: /../../airflow/www/security_manager.py
     :language: python
     :start-after: [START security_viewer_perms]
     :end-before: [END security_viewer_perms]
@@ -60,7 +60,7 @@ User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../airflow/www/security.py
+.. exampleinclude:: /../../airflow/www/security_manager.py
     :language: python
     :start-after: [START security_user_perms]
     :end-before: [END security_user_perms]
@@ -69,7 +69,7 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../airflow/www/security.py
+.. exampleinclude:: /../../airflow/www/security_manager.py
     :language: python
     :start-after: [START security_op_perms]
     :end-before: [END security_op_perms]
@@ -229,3 +229,47 @@ List Plugins                           Plugins.can_read                         
 List Task Reschedules                  Task Reschedules.can_read                                               Admin
 List Triggers                          Triggers.can_read                                                       Admin
 ====================================== ======================================================================= ============
+
+These DAG-level controls can be set directly through the UI / CLI, or encoded in the dags themselves through the access_control arg.
+
+Order of precedence for DAG-level permissions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since DAG-level access control can be configured in multiple places, conflicts are inevitable and a clear resolution strategy is required. As a result,
+Airflow considers the ``access_control`` argument supplied on a DAG itself to be completely authoritative if present, which has a few effects:
+
+Setting ``access_control`` on a DAG will overwrite any previously existing DAG-level permissions if it is any value other than ``None``:
+
+.. code-block:: python
+
+    DAG(
+        dag_id="example_fine_grained_access",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        access_control={
+            "Viewer": {"can_edit", "can_create", "can_delete"},
+        },
+    )
+
+This also means that setting ``access_control={}`` will wipe any existing DAG-level permissions for a given DAG from the DB:
+
+.. code-block:: python
+
+    DAG(
+        dag_id="example_no_fine_grained_access",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        access_control={},
+    )
+
+Conversely, removing the access_control block from a DAG altogether (or setting it to ``None``) won't make any changes and can leave dangling permissions.
+
+.. code-block:: python
+
+    DAG(
+        dag_id="example_indifferent_to_fine_grained_access",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    )
+
+In the case that there is no ``access_control`` defined on the DAG itself, Airflow will defer to existing permissions defined in the DB, which
+may have been set through the UI, CLI or by previous access_control args on the DAG in question.
+
+In all cases, system-wide roles such as ``Can edit on DAG`` take precedence over dag-level access controls, such that they can be considered ``Can edit on DAG: *``

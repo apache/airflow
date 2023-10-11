@@ -24,9 +24,9 @@ from tempfile import NamedTemporaryFile
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.python import get_current_context
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
@@ -255,7 +255,7 @@ def set_up(env_id, role_arn):
         "ProcessingResources": {
             "ClusterConfig": resource_config,
         },
-        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 600},
         "AppSpecification": {
             "ImageUri": ecr_repository_uri,
         },
@@ -294,7 +294,7 @@ def set_up(env_id, role_arn):
         "ExperimentConfig": {"ExperimentName": experiment_name},
         "ResourceConfig": resource_config,
         "RoleArn": role_arn,
-        "StoppingCondition": {"MaxRuntimeInSeconds": 60},
+        "StoppingCondition": {"MaxRuntimeInSeconds": 600},
         "TrainingJobName": training_job_name,
     }
     model_trained_weights = (
@@ -357,7 +357,7 @@ def set_up(env_id, role_arn):
             "OutputDataConfig": {"S3OutputPath": f"s3://{bucket_name}/{training_output_s3_key}"},
             "ResourceConfig": resource_config,
             "RoleArn": role_arn,
-            "StoppingCondition": {"MaxRuntimeInSeconds": 60},
+            "StoppingCondition": {"MaxRuntimeInSeconds": 600},
         },
     }
     transform_config = {
@@ -416,7 +416,7 @@ def delete_ecr_repository(repository_name):
     image_ids = client.list_images(repositoryName=repository_name)["imageIds"]
     client.batch_delete_image(
         repositoryName=repository_name,
-        imageIds=[{"imageDigest": image["imageDigest"] for image in image_ids}],
+        imageIds=[{"imageDigest": image["imageDigest"]} for image in image_ids],
     )
     client.delete_repository(repositoryName=repository_name)
 

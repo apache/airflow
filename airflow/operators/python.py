@@ -25,13 +25,13 @@ import pickle
 import shutil
 import subprocess
 import sys
+import textwrap
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
 
 import dill
@@ -46,13 +46,16 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
-from airflow.utils.context import Context, context_copy_partial, context_merge
+from airflow.operators.branch import BranchMixIn
+from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
+
+    from airflow.utils.context import Context
 
 
 def is_venv_installed() -> bool:
@@ -209,7 +212,7 @@ class PythonOperator(BaseOperator):
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
-class BranchPythonOperator(PythonOperator, SkipMixin):
+class BranchPythonOperator(PythonOperator, BranchMixIn):
     """
     A workflow can "branch" or follow a path after the execution of this task.
 
@@ -223,10 +226,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     """
 
     def execute(self, context: Context) -> Any:
-        branch = super().execute(context)
-        self.log.info("Branch callable return %s", branch)
-        self.skip_all_except(context["ti"], branch)
-        return branch
+        return self.do_branch(context, super().execute(context))
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
@@ -396,7 +396,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
     def get_python_source(self):
         """Return the source of self.python_callable."""
-        return dedent(inspect.getsource(self.python_callable))
+        return textwrap.dedent(inspect.getsource(self.python_callable))
 
     def _write_args(self, file: Path):
         if self.op_args or self.op_kwargs:
@@ -419,7 +419,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         return super().__deepcopy__(memo)
 
     def _execute_python_callable_in_subprocess(self, python_path: Path, tmp_dir: Path):
-        op_kwargs: dict[str, Any] = {k: v for k, v in self.op_kwargs.items()}
+        op_kwargs: dict[str, Any] = dict(self.op_kwargs)
         if self.templates_dict:
             op_kwargs["templates_dict"] = self.templates_dict
         input_path = tmp_dir / "script.in"
@@ -430,14 +430,14 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
-            jinja_context=dict(
-                op_args=self.op_args,
-                op_kwargs=op_kwargs,
-                expect_airflow=self.expect_airflow,
-                pickling_library=self.pickling_library.__name__,
-                python_callable=self.python_callable.__name__,
-                python_callable_source=self.get_python_source(),
-            ),
+            jinja_context={
+                "op_args": self.op_args,
+                "op_kwargs": op_kwargs,
+                "expect_airflow": self.expect_airflow,
+                "pickling_library": self.pickling_library.__name__,
+                "python_callable": self.python_callable.__name__,
+                "python_callable_source": self.get_python_source(),
+            },
             filename=os.fspath(script_path),
             render_template_as_native_obj=self.dag.render_template_as_native_obj,
         )
@@ -531,7 +531,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         *,
         python_callable: Callable,
         requirements: None | Iterable[str] | str = None,
-        python_version: str | int | float | None = None,
+        python_version: str | None = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
         pip_install_options: list[str] | None = None,
@@ -554,6 +554,13 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 "Passing op_args or op_kwargs is not supported across different Python "
                 "major versions for PythonVirtualenvOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
+            )
+        if python_version is not None and not isinstance(python_version, str):
+            warnings.warn(
+                "Passing non-string types (e.g. int or float) as python_version "
+                "is deprecated. Please use string value instead.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
             )
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
@@ -621,6 +628,23 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
         elif "pendulum" in self.requirements:
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
+
+
+class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
+    """
+    A workflow can "branch" or follow a path after the execution of this task in a virtualenv.
+
+    It derives the PythonVirtualenvOperator and expects a Python function that returns
+    a single task_id or list of task_ids to follow. The task_id(s) returned
+    should point to a task directly downstream from {self}. All other "branches"
+    or directly downstream tasks are marked with a state of ``skipped`` so that
+    these paths can't move forward. The ``skipped`` states are propagated
+    downstream to allow for the DAG state to fill up and the DAG run's state
+    to be inferred.
+    """
+
+    def execute(self, context: Context) -> Any:
+        return self.do_branch(context, super().execute(context))
 
 
 class ExternalPythonOperator(_BasePythonVirtualenvOperator):
@@ -790,7 +814,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
-class BranchExternalPythonOperator(ExternalPythonOperator, SkipMixin):
+class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
     """
     A workflow can "branch" or follow a path after the execution of this task.
 
@@ -800,10 +824,7 @@ class BranchExternalPythonOperator(ExternalPythonOperator, SkipMixin):
     """
 
     def execute(self, context: Context) -> Any:
-        branch = super().execute(context)
-        self.log.info("Branch callable return %s", branch)
-        self.skip_all_except(context["ti"], branch)
-        return branch
+        return self.do_branch(context, super().execute(context))
 
 
 def get_current_context() -> Context:

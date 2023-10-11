@@ -19,13 +19,16 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 def _trigger_dag(
@@ -82,7 +85,7 @@ def _trigger_dag(
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 
     dag_runs = []
-    dags_to_run = [dag] + dag.subdags
+    dags_to_run = [dag, *dag.subdags]
     for _dag in dags_to_run:
         dag_run = _dag.create_dagrun(
             run_id=run_id,

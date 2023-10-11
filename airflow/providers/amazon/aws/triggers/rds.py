@@ -17,15 +17,17 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class RdsDbInstanceTrigger(BaseTrigger):
@@ -98,12 +100,12 @@ class RdsDbInstanceTrigger(BaseTrigger):
 
 
 _waiter_arg = {
-    RdsDbType.INSTANCE: "DBInstanceIdentifier",
-    RdsDbType.CLUSTER: "DBClusterIdentifier",
+    RdsDbType.INSTANCE.value: "DBInstanceIdentifier",
+    RdsDbType.CLUSTER.value: "DBClusterIdentifier",
 }
 _status_paths = {
-    RdsDbType.INSTANCE: ["DBInstances[].DBInstanceStatus", "DBInstances[].StatusInfos"],
-    RdsDbType.CLUSTER: ["DBClusters[].Status"],
+    RdsDbType.INSTANCE.value: ["DBInstances[].DBInstanceStatus", "DBInstances[].StatusInfos"],
+    RdsDbType.CLUSTER.value: ["DBClusters[].Status"],
 }
 
 
@@ -127,20 +129,27 @@ class RdsDbAvailableTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str,
         response: dict[str, Any],
-        db_type: RdsDbType,
+        db_type: RdsDbType | str,
         region_name: str | None = None,
     ) -> None:
+        # allow passing enums for users,
+        # but we can only rely on strings because (de-)serialization doesn't support enums
+        if isinstance(db_type, RdsDbType):
+            db_type_str = db_type.value
+        else:
+            db_type_str = db_type
+
         super().__init__(
             serialized_fields={
                 "db_identifier": db_identifier,
                 "response": response,
-                "db_type": db_type,
+                "db_type": db_type_str,
             },
-            waiter_name=f"db_{db_type.value}_available",
-            waiter_args={_waiter_arg[db_type]: db_identifier},
+            waiter_name=f"db_{db_type_str}_available",
+            waiter_args={_waiter_arg[db_type_str]: db_identifier},
             failure_message="Error while waiting for DB to be available",
             status_message="DB initialization in progress",
-            status_queries=_status_paths[db_type],
+            status_queries=_status_paths[db_type_str],
             return_key="response",
             return_value=response,
             waiter_delay=waiter_delay,
@@ -173,20 +182,27 @@ class RdsDbDeletedTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str,
         response: dict[str, Any],
-        db_type: RdsDbType,
+        db_type: RdsDbType | str,
         region_name: str | None = None,
     ) -> None:
+        # allow passing enums for users,
+        # but we can only rely on strings because (de-)serialization doesn't support enums
+        if isinstance(db_type, RdsDbType):
+            db_type_str = db_type.value
+        else:
+            db_type_str = db_type
+
         super().__init__(
             serialized_fields={
                 "db_identifier": db_identifier,
                 "response": response,
-                "db_type": db_type,
+                "db_type": db_type_str,
             },
-            waiter_name=f"db_{db_type.value}_deleted",
-            waiter_args={_waiter_arg[db_type]: db_identifier},
+            waiter_name=f"db_{db_type_str}_deleted",
+            waiter_args={_waiter_arg[db_type_str]: db_identifier},
             failure_message="Error while deleting DB",
             status_message="DB deletion in progress",
-            status_queries=_status_paths[db_type],
+            status_queries=_status_paths[db_type_str],
             return_key="response",
             return_value=response,
             waiter_delay=waiter_delay,
@@ -219,20 +235,27 @@ class RdsDbStoppedTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str,
         response: dict[str, Any],
-        db_type: RdsDbType,
+        db_type: RdsDbType | str,
         region_name: str | None = None,
     ) -> None:
+        # allow passing enums for users,
+        # but we can only rely on strings because (de-)serialization doesn't support enums
+        if isinstance(db_type, RdsDbType):
+            db_type_str = db_type.value
+        else:
+            db_type_str = db_type
+
         super().__init__(
             serialized_fields={
                 "db_identifier": db_identifier,
                 "response": response,
-                "db_type": db_type,
+                "db_type": db_type_str,
             },
-            waiter_name=f"db_{db_type.value}_stopped",
-            waiter_args={_waiter_arg[db_type]: db_identifier},
+            waiter_name=f"db_{db_type_str}_stopped",
+            waiter_args={_waiter_arg[db_type_str]: db_identifier},
             failure_message="Error while stopping DB",
             status_message="DB is being stopped",
-            status_queries=_status_paths[db_type],
+            status_queries=_status_paths[db_type_str],
             return_key="response",
             return_value=response,
             waiter_delay=waiter_delay,

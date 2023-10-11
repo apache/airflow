@@ -17,11 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GenericTransfer(BaseOperator):

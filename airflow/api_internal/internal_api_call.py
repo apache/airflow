@@ -108,7 +108,7 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         return response.content
 
     @wraps(func)
-    def wrapper(*args, **kwargs) -> RT:
+    def wrapper(*args, **kwargs):
         use_internal_api = InternalApiConfig.get_use_internal_api()
         if not use_internal_api:
             return func(*args, **kwargs)
@@ -122,9 +122,14 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         if "cls" in arguments_dict:  # used by @classmethod
             del arguments_dict["cls"]
 
-        args_json = json.dumps(BaseSerialization.serialize(arguments_dict, use_pydantic_models=True))
+        args_json = json.dumps(
+            BaseSerialization.serialize(arguments_dict, use_pydantic_models=True),
+            default=BaseSerialization.serialize,
+        )
         method_name = f"{func.__module__}.{func.__qualname__}"
         result = make_jsonrpc_request(method_name, args_json)
+        if result is None or result == b"":
+            return None
         return BaseSerialization.deserialize(json.loads(result), use_pydantic_models=True)
 
     return wrapper

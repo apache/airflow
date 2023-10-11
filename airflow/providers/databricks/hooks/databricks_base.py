@@ -28,7 +28,7 @@ import copy
 import platform
 import time
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 import aiohttp
@@ -48,8 +48,10 @@ from tenacity import (
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
 from airflow.providers_manager import ProvidersManager
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 # https://docs.microsoft.com/en-us/azure/databricks/dev-tools/api/latest/aad/service-prin-aad-token#--get-an-azure-active-directory-access-token
 # https://docs.microsoft.com/en-us/graph/deployments#app-registration-and-token-service-root-endpoints
@@ -121,12 +123,12 @@ class BaseDatabricksHook(BaseHook):
             self.retry_args["retry"] = retry_if_exception(self._retryable_error)
             self.retry_args["after"] = my_after_func
         else:
-            self.retry_args = dict(
-                stop=stop_after_attempt(self.retry_limit),
-                wait=wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
-                retry=retry_if_exception(self._retryable_error),
-                after=my_after_func,
-            )
+            self.retry_args = {
+                "stop": stop_after_attempt(self.retry_limit),
+                "wait": wait_exponential(min=self.retry_delay, max=(2**retry_limit)),
+                "retry": retry_if_exception(self._retryable_error),
+                "after": my_after_func,
+            }
 
     @cached_property
     def databricks_conn(self) -> Connection:
@@ -243,7 +245,8 @@ class BaseDatabricksHook(BaseHook):
         except RetryError:
             raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
-            raise AirflowException(f"Response: {e.response.content}, Status Code: {e.response.status_code}")
+            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
 
         return jsn["access_token"]
 
@@ -259,7 +262,7 @@ class BaseDatabricksHook(BaseHook):
                 with attempt:
                     async with self._session.post(
                         resource,
-                        auth=HTTPBasicAuth(self.databricks_conn.login, self.databricks_conn.password),
+                        auth=aiohttp.BasicAuth(self.databricks_conn.login, self.databricks_conn.password),
                         data="grant_type=client_credentials&scope=all-apis",
                         headers={
                             **self.user_agent_header,
@@ -277,7 +280,8 @@ class BaseDatabricksHook(BaseHook):
         except RetryError:
             raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
-            raise AirflowException(f"Response: {e.response.content}, Status Code: {e.response.status_code}")
+            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
 
         return jsn["access_token"]
 
@@ -338,7 +342,8 @@ class BaseDatabricksHook(BaseHook):
         except RetryError:
             raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
-            raise AirflowException(f"Response: {e.response.content}, Status Code: {e.response.status_code}")
+            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
 
         return jsn["access_token"]
 
@@ -604,11 +609,9 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
             if wrap_http_errors:
-                raise AirflowException(
-                    f"Response: {e.response.content}, Status Code: {e.response.status_code}"
-                )
-            else:
-                raise e
+                msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+                raise AirflowException(msg)
+            raise
 
     async def _a_do_api_call(self, endpoint_info: tuple[str, str], json: dict[str, Any] | None = None):
         """

@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+5.3.1
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+5.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for Trino. (#32910)``
+
+Misc
+~~~~
+
+* ``Consolidate import and usage of pandas (#33480)``
+
 5.2.1
 .....
 

@@ -17,15 +17,17 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Union
+from typing import TYPE_CHECKING, Any, Union
 
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.spark import SparkClient
-from azure.synapse.spark.models import SparkBatchJobOptions
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import get_field
+
+if TYPE_CHECKING:
+    from azure.synapse.spark.models import SparkBatchJobOptions
 
 Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
 
@@ -183,7 +185,7 @@ class AzureSynapseHook(BaseHook):
                 )
 
             # Wait to check the status of the job run based on the ``check_interval`` configured.
-            self.log.info("Sleeping for %s seconds", str(check_interval))
+            self.log.info("Sleeping for %s seconds", check_interval)
             time.sleep(check_interval)
 
             job_run_status = self.get_job_run_status()

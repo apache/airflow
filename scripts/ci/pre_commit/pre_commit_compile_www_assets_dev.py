@@ -41,10 +41,7 @@ if __name__ == "__main__":
         WWW_HASH_FILE.unlink()
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    try:
-        WWW_ASSET_OUT_FILE.unlink()
-    except FileNotFoundError:
-        pass
+    WWW_ASSET_OUT_FILE.unlink(missing_ok=True)
     with open(WWW_ASSET_OUT_DEV_MODE_FILE, "w") as f:
         subprocess.run(
             ["yarn", "install", "--frozen-lockfile"],

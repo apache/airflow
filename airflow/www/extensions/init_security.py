@@ -56,14 +56,14 @@ def init_api_experimental_auth(app):
         pass
 
     app.api_auth = []
-    for backend in auth_backends.split(","):
-        try:
+    try:
+        for backend in auth_backends.split(","):
             auth = import_module(backend.strip())
             auth.init_app(app)
             app.api_auth.append(auth)
-        except ImportError as err:
-            log.critical("Cannot import %s for API authentication due to: %s", backend, err)
-            raise AirflowException(err)
+    except ImportError as err:
+        log.critical("Cannot import %s for API authentication due to: %s", backend, err)
+        raise AirflowException(err)
 
 
 def init_check_user_active(app):

@@ -22,7 +22,7 @@ from functools import cached_property
 
 from botocore.exceptions import ClientError
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 
@@ -152,7 +152,7 @@ class QuickSightHook(AwsBaseHook):
         :param target_state: Describes the QuickSight Job's Target State
         :param check_interval: the time interval in seconds which the operator
             will check the status of QuickSight Ingestion
-        :return: response of describe_ingestion call after Ingestion is is done
+        :return: response of describe_ingestion call after Ingestion is done
         """
         while True:
             status = self.get_status(aws_account_id, data_set_id, ingestion_id)

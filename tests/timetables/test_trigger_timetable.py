@@ -48,11 +48,11 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
     [
         pytest.param(
             None,
-            CURRENT_TIME + DELTA_FROM_MIDNIGHT,
+            YESTERDAY + DELTA_FROM_MIDNIGHT,
             id="first-run",
         ),
         pytest.param(
-            PREV_DATA_INTERVAL_EXACT,
+            DataInterval.exact(YESTERDAY + DELTA_FROM_MIDNIGHT),
             CURRENT_TIME + DELTA_FROM_MIDNIGHT,
             id="before-now",
         ),
@@ -89,8 +89,20 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
         pytest.param(
             pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE),
             START_DATE,
-            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 0, 0, 0, tzinfo=TIMEZONE)),
             id="current_time_not_on_boundary",
+        ),
+        pytest.param(
+            pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE),
+            START_DATE,
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
+            id="current_time_miss_one_interval_on_boundary",
+        ),
+        pytest.param(
+            pendulum.DateTime(2022, 7, 27, 1, 30, 0, tzinfo=TIMEZONE),
+            START_DATE,
+            DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=TIMEZONE)),
+            id="current_time_miss_one_interval_not_on_boundary",
         ),
         pytest.param(
             pendulum.DateTime(2022, 7, 27, 0, 30, 0, tzinfo=TIMEZONE),

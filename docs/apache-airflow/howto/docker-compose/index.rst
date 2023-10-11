@@ -35,7 +35,7 @@ This procedure assumes familiarity with Docker and Docker Compose. If you haven'
 Follow these steps to install the necessary tools, if you have not already done so.
 
 1. Install `Docker Community Edition (CE) <https://docs.docker.com/engine/installation/>`__ on your workstation. Depending on your OS, you may need to configure Docker to use at least 4.00 GB of memory for the Airflow containers to run properly. Please refer to the Resources section in the `Docker for Windows <https://docs.docker.com/docker-for-windows/#resources>`__ or `Docker for Mac <https://docs.docker.com/docker-for-mac/#resources>`__ documentation for more information.
-2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v1.29.1 or newer on your workstation.
+2. Install `Docker Compose <https://docs.docker.com/compose/install/>`__ v2.14.0 or newer on your workstation.
 
 Older versions of ``docker-compose`` do not support all the features required by the Airflow ``docker-compose.yaml`` file, so double check that your version meets the minimum version requirements.
 
@@ -79,6 +79,10 @@ Fetching ``docker-compose.yaml``
     .. code-block:: bash
 
         curl -LfO '{{ doc_root_url }}docker-compose.yaml'
+
+.. important::
+   From July 2023 Compose V1 stopped receiving updates.
+   We strongly advise upgrading to a newer version of Docker Compose, supplied ``docker-compose.yaml`` may not function accurately within Compose V1.
 
 This file contains several service definitions:
 
@@ -306,18 +310,18 @@ you should do those steps:
    ``docker-compose.yaml`` file. The relevant part of the docker-compose file of yours should look similar
    to (use correct image tag):
 
-```
-#image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.1}
-build: .
-```
+.. code-block:: docker
+
+    #image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.1}
+    build: .
 
 2) Create ``Dockerfile`` in the same folder your ``docker-compose.yaml`` file is with content similar to:
 
-```
-FROM apache/airflow:2.6.1
-ADD requirements.txt .
-RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
-```
+.. code-block:: docker
+
+    FROM apache/airflow:2.6.1
+    ADD requirements.txt .
+    RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
 
 It is the best practice to install apache-airflow in the same version as the one that comes from the
 original image. This way you can be sure that ``pip`` will not try to downgrade or upgrade apache
@@ -364,7 +368,7 @@ runtime user id which is unknown at the time of building the image.
 | ``AIRFLOW_IMAGE_NAME``         | Airflow Image to use.                               | apache/airflow:|version| |
 +--------------------------------+-----------------------------------------------------+--------------------------+
 | ``AIRFLOW_UID``                | UID of the user to run Airflow containers as.       | ``50000``                |
-|                                | Override if you want to use use non-default Airflow |                          |
+|                                | Override if you want to use non-default Airflow     |                          |
 |                                | UID (for example when you map folders from host,    |                          |
 |                                | it should be set to result of ``id -u`` call.       |                          |
 |                                | When it is changed, a user with the UID is          |                          |

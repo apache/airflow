@@ -27,8 +27,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gdrive_to_local import GoogleDriveToLocalOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
@@ -47,7 +47,7 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 LOCAL_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule="@once",

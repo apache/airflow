@@ -21,6 +21,7 @@ import json
 import logging
 import warnings
 from json import JSONDecodeError
+from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
@@ -92,8 +93,8 @@ class Connection(Base, LoggingMixin):
     description = Column(Text().with_variant(Text(5000), "mysql").with_variant(String(5000), "sqlite"))
     host = Column(String(500))
     schema = Column(String(500))
-    login = Column(String(500))
-    _password = Column("password", String(5000))
+    login = Column(Text())
+    _password = Column("password", Text())
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
@@ -475,6 +476,9 @@ class Connection(Base, LoggingMixin):
                 )
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"conn_id": self.conn_id, "description": self.description, "uri": self.get_uri()}
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:

@@ -20,12 +20,12 @@ import inspect
 import json
 import logging
 import os
-from os.path import basename, splitext
-from time import sleep
+import time
+from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import boto3
-from botocore.client import BaseClient
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.decorators import task
@@ -33,11 +33,14 @@ from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 
+if TYPE_CHECKING:
+    from botocore.client import BaseClient
+
 ENV_ID_ENVIRON_KEY: str = "SYSTEM_TESTS_ENV_ID"
 ENV_ID_KEY: str = "ENV_ID"
 DEFAULT_ENV_ID_PREFIX: str = "env"
 DEFAULT_ENV_ID_LEN: int = 8
-DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{str(uuid4())[:DEFAULT_ENV_ID_LEN]}"
+DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{uuid4()!s:.{DEFAULT_ENV_ID_LEN}}"
 PURGE_LOGS_INTERVAL_PERIOD = 5
 
 # All test file names will contain this string.
@@ -64,10 +67,10 @@ def _get_test_name() -> str:
     """
     # The exact layer of the stack will depend on if this is called directly
     # or from another helper, but the test will always contain the identifier.
-    test_filename: str = [
+    test_filename: str = next(
         frame.filename for frame in inspect.stack() if TEST_FILE_IDENTIFIER in frame.filename
-    ][0]
-    return splitext(basename(test_filename))[0]
+    )
+    return Path(test_filename).stem
 
 
 def _validate_env_id(env_id: str) -> str:
@@ -328,7 +331,7 @@ def _purge_logs(
             if not retry or retry_times == 0 or e.response["Error"]["Code"] != "ResourceNotFoundException":
                 raise e
 
-            sleep(PURGE_LOGS_INTERVAL_PERIOD)
+            time.sleep(PURGE_LOGS_INTERVAL_PERIOD)
             _purge_logs(
                 test_logs=test_logs,
                 force_delete=force_delete,

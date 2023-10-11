@@ -26,7 +26,7 @@ import tempfile
 import warnings
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
-from typing import Any, Callable, Generator, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
 import google.auth
 import google.auth.credentials
@@ -36,7 +36,6 @@ import requests
 import tenacity
 from asgiref.sync import sync_to_async
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
-from google.api_core.gapic_v1.client_info import ClientInfo
 from google.auth import _cloud_sdk, compute_engine
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from google.auth.exceptions import RefreshError
@@ -55,6 +54,9 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.process_utils import patch_environ
+
+if TYPE_CHECKING:
+    from google.api_core.gapic_v1.client_info import ClientInfo
 
 log = logging.getLogger(__name__)
 
@@ -214,6 +216,9 @@ class GoogleBaseHook(BaseHook):
                 widget=BS3TextFieldWidget(),
                 default=5,
             ),
+            "impersonation_chain": StringField(
+                lazy_gettext("Impersonation Chain"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -259,6 +264,9 @@ class GoogleBaseHook(BaseHook):
         key_secret_project_id: str | None = self._get_field("key_secret_project_id", None)
 
         credential_config_file: str | None = self._get_field("credential_config_file", None)
+
+        if not self.impersonation_chain:
+            self.impersonation_chain = self._get_field("impersonation_chain", None)
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
