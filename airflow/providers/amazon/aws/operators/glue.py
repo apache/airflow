@@ -233,7 +233,8 @@ class GlueJobOperator(BaseOperator):
 
 
 class GlueDataBrewStartJobOperator(BaseOperator):
-    """Start an AWS Glue DataBrew job.
+    """
+    Start an AWS Glue DataBrew job.
 
     AWS Glue DataBrew is a visual data preparation tool that makes it easier
     for data analysts and data scientists to clean and normalize data
