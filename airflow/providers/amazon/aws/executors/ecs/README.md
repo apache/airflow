@@ -51,7 +51,7 @@ The container should be specified in the ECS Task Definition. Required.
 
 ### Optional config options:
 
-- ASSIGN_PUBLIC_IP - "Whether to assign a public IP address to the containers launched by the ECS executor. Defaults to "False".
+- ASSIGN_PUBLIC_IP - Whether to assign a public IP address to the containers launched by the ECS executor. Defaults to "False".
 - CONN_ID - The Airflow connection (i.e. credentials) used by the ECS executor to make API calls to AWS ECS. Defaults to "aws_default".
 - LAUNCH_TYPE - Launch type can either be 'FARGATE' OR 'EC2'.  Defaults to "FARGATE".
 - PLATFORM_VERSION - The platform version the ECS task uses if the FARGATE launch type is used. Defaults to "LATEST".
@@ -59,7 +59,7 @@ The container should be specified in the ECS Task Definition. Required.
 - SECURITY_GROUPS - Up to 5 comma-seperated security group IDs associated with the ECS task. Defaults to the VPC default.
 - SUBNETS - Up to 16 comma-separated subnet IDs associated with the ECS task or service. Defaults to the VPC default.
 - TASK_DEFINITION - The family and revision (family:revision) or full ARN of the ECS task definition to run. Defaults to the latest ACTIVE revision.
-- MAX_RUN_TASK_ATTEMPTS - The maximum number of times the Ecs Executor should attempt to run a task.
+- MAX_RUN_TASK_ATTEMPTS - The maximum number of times the ECS Executor should attempt to run a task. This refers to instances where the task fails to start (e.g. ECS API failures, container failures etc.)
 
 For a more detailed description of available options, including type hints and examples, see the `config_templates` folder in the Amazon provider package.
 
@@ -72,13 +72,21 @@ supports AWS CLI/API integration, allowing you to interact with AWS services wit
 
 The Docker image is built upon the `apache/airflow:latest` image. See [here](https://hub.docker.com/r/apache/airflow) for more information about the image.
 
-Important note: The python version in this image must match the python version on the host/container which is running the Airflow scheduler process (which in turn runs the executor). The python version of the image can be verified by running the container, and printing the python version as follows:
+Important note: The Airflow and python versions in this image must align with the Airflow and python versions on the host/container which is running the Airflow scheduler process (which in turn runs the executor).
+The Airflow version of the image can be verified by running the container locally with the following command:
+
+```
+docker run <image_name> version
+```
+
+Similarly, the python version of the image can be verified the following command:
 
 ```
 docker run <image_name> python --version
 ```
 
-Ensure that this version matches the python version of the host/container which is running the Airflow scheduler process (and thus, the ECS executor.) Apache Airflow images with specific python versions can be downloaded from the Dockerhub registry, and filtering tags by the [python version](https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.8). For example, the tag `latest-python3.8` specifies that the image will have python 3.8 installed.
+
+Ensure that these versions match the versions on the host/container which is running the Airflow scheduler process (and thus, the ECS executor.) Apache Airflow images with specific python versions can be downloaded from the Dockerhub registry, and filtering tags by the [python version](https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.8). For example, the tag `latest-python3.8` specifies that the image will have python 3.8 installed.
 
 ### Prerequisites
 
@@ -88,7 +96,24 @@ Docker must be installed on your system. Instructions for installing Docker can 
 
 The [AWS CLI](https://aws.amazon.com/cli/) is installed within the container, and there are multiple ways to pass AWS authentication information to the container. This guide will cover 2 methods.
 
-The first method is to use the build-time arguments (`aws_access_key_id`, `aws_secret_access_key`, `aws_default_region`, and `aws_session_token`).
+The most secure method is to use IAM roles. When creating an ECS Task Definition, you are able to select a Task Role and a Task Execution Role. The Task Execution Role is the role that is used by the container agent to make AWS API requests on your behalf. For the purposes of the ECS Executor, this role needs to have at least the `AmazonECSTaskExecutionRolePolicy` as well as the `CloudWatchLogsFullAccess` policies. The Task Role is the role that is used by the containers to make AWS API requests. This role needs to have permissions based on the tasks that are described in the DAG being run. If you are loading DAGs via an S3 bucket, this role needs to have permission to read the S3 bucket.
+
+To create a new Task Role or Task Execution Role, follow the steps below:
+
+1. Navigate to the IAM page on the AWS console, and from the left hand tab, under Access Management, select Roles.
+2. On the Roles page, click Create role on the top right hand corner.
+3. Under Trusted entity type, select AWS Service.
+4. Select Elastic Container Service from the drop down under Use case, and Elastic Container Service Task as the specific use case. Click Next.
+5. In the Permissions page, select the permissions the role will need, depending on whether the role is a Task Role or a Task Execution Role. Click Next after selecting all the required permissions.
+6. Enter a name for the new role, and an optional description. Review the Trusted Entities, and the permissions for the role. Add any tags as necessary, and click Create role.
+
+When creating the Task Definition for the ECS cluster (see the [setup guide](Setup_guide.md) for more details), select the appropriate newly created Task Role and Task Execution role for the Task Definition.
+
+
+The second method is to use the build-time arguments (`aws_access_key_id`, `aws_secret_access_key`, `aws_default_region`, and `aws_session_token`).
+
+Note: This method is not recommended for use in production environments, because user credentials are stored in the container, which may be a security vulnerability.
+
 To pass AWS authentication information using these arguments, use the `--build-arg` option during the Docker build process. For example:
 
 ```
@@ -135,16 +160,6 @@ docker build -t my-airflow-image --build-arg host_dag_path=./dags_on_host --buil
 ```
 
 If choosing to load DAGs onto a different path than `/opt/airflow/dags`, then the new path will need to be updated in the Airflow config.
-
-#### Mounting a Volume
-
-You can optionally mount a local directory as a volume on the container during run-time. This will allow you to make change to files on the mounted directory, and have those changes be reflected in the container. To do this, run the following command:
-
-```
-docker run --volume /abs/path/to/local/dir:/abs/path/to/remote/dir <image_name>
-```
-
-Note: Doing this will overwrite the contents of the directory on the container with the contents of the local directory.
 
 ### Installing Python Dependencies
 

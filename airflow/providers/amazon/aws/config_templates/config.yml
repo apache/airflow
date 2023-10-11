@@ -117,7 +117,9 @@ aws_ecs_executor:
       default: ~
     max_run_task_attempts:
       description: |
-        The maximum number of times the Ecs Executor should attempt to run a task.
+        The maximum number of times the Ecs Executor should attempt to run a task. This refers
+        to instances where the task fails to start (e.g. ECS API failures, container failures etc.)
+        This is separate from the retries that Airflow attempts on task failures.
       version_added: "8.8"
       type: int
       example: "3"

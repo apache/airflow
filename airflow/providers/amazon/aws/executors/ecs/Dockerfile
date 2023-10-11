@@ -23,20 +23,26 @@ RUN apt-get update \
   # The below helps to keep the image size down
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
-RUN    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-RUN    unzip awscliv2.zip && ./aws/install
+
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf ./aws awscliv2.zip
+
+RUN curl "https://raw.githubusercontent.com/apache/airflow/main/scripts/docker/entrypoint_prod.sh" -o "/home/airflow/entrypoint.sh" \
+    && chmod +x /home/airflow/entrypoint.sh
 
 # Add a script to run the aws s3 sync command when the container is run
-COPY <<"EOF" /entrypoint.sh
+COPY <<"EOF" /install_dags_entrypoint.sh
 #!/bin/bash
 
 echo "Downloading DAGs from S3 bucket"
 aws s3 sync "$S3_URL" "$CONTAINER_DAG_PATH"
 
-exec "$@"
+/home/airflow/entrypoint.sh "$@"
 EOF
 
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /install_dags_entrypoint.sh
 
 USER airflow
 
@@ -72,10 +78,6 @@ ENV AWS_SECRET_ACCESS_KEY=$aws_secret_access_key
 ENV AWS_DEFAULT_REGION=$aws_default_region
 ENV AWS_SESSION_TOKEN=$aws_session_token
 
-# Uncomment the line below to authenticate to AWS using the ~/.aws folder
-# Keep in mind the docker build context when placing .aws folder
-# COPY --chown=airflow:root ./.aws /home/airflow/.aws
-
 
 ## Loading DAGs
 # This Dockerfile supports 2 ways to load DAGs onto the container.
@@ -93,11 +95,11 @@ ENV CONTAINER_DAG_PATH=$container_dag_path
 # COPY --chown=airflow:root $HOST_DAG_PATH $CONTAINER_DAG_PATH
 
 
-# If using S3 bucket as source of DAGs, uncommenting the next ENTRYPOINT command will overwrite this one.
-ENTRYPOINT []
-
 # Use these arguments to load DAGs onto the container from S3
 ARG s3_url
 ENV S3_URL=$s3_url
+# If using S3 bucket as source of DAGs, uncommenting the next ENTRYPOINT command will overwrite this one.
+ENTRYPOINT ["/usr/bin/dumb-init", "--", "/home/airflow/entrypoint.sh"]
+
 # Uncomment the line if using S3 bucket as the source of DAGs
-# ENTRYPOINT ["/entrypoint.sh"]
+# ENTRYPOINT ["/usr/bin/dumb-init", "--", "/install_dags_entrypoint.sh"]
