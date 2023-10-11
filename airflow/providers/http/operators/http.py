@@ -25,13 +25,14 @@ from requests import Response as RequestResponse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpTrigger
 
 if TYPE_CHECKING:
     from requests.auth import AuthBase
 
+    from airflow.providers.http.hooks.http import HttpHook
     from airflow.utils.context import Context
 
 
@@ -76,6 +77,7 @@ class SimpleHttpOperator(BaseOperator, Generic[Response, ResponseText]):
     :param deferrable: Run operator in the deferrable mode
     """
 
+    conn_id_field = "http_conn_id"
     template_fields: Sequence[str] = (
         "endpoint",
         "data",
@@ -124,14 +126,20 @@ class SimpleHttpOperator(BaseOperator, Generic[Response, ResponseText]):
 
     @property
     def hook(self) -> HttpHook:
-        hook = HttpHook(
-            self.method,
-            http_conn_id=self.http_conn_id,
-            auth_type=self.auth_type,
-            tcp_keep_alive=self.tcp_keep_alive,
-            tcp_keep_alive_idle=self.tcp_keep_alive_idle,
-            tcp_keep_alive_count=self.tcp_keep_alive_count,
-            tcp_keep_alive_interval=self.tcp_keep_alive_interval,
+        """Get Http Hook based on connection type."""
+        conn_id = getattr(self, self.conn_id_field)
+        self.log.debug("Get connection for %s", conn_id)
+        conn = BaseHook.get_connection(conn_id)
+
+        hook = conn.get_hook(
+            hook_params=dict(
+                method=self.method,
+                auth_type=self.auth_type,
+                tcp_keep_alive=self.tcp_keep_alive,
+                tcp_keep_alive_idle=self.tcp_keep_alive_idle,
+                tcp_keep_alive_count=self.tcp_keep_alive_count,
+                tcp_keep_alive_interval=self.tcp_keep_alive_interval,
+            )
         )
         return hook
 
