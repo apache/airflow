@@ -110,6 +110,7 @@ Airflow is deployed. This includes but is not limited to:
 * applying authentication and authorization to the web application so that only known and authorized
   users can have access to Airflow
 * any kind of detection of unusual activity and protection against it
+* choosing the right session backend and configuring it properly including timeouts for the session
 
 Airflow does not implement any of those feature natively, and delegates it to the deployment managers
 to deploy all the necessary infrastructure to protect the deployment - as external infrastructure components.
