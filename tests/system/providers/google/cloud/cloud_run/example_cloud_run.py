@@ -28,11 +28,13 @@ from google.cloud.run_v2.types import k8s_min
 
 from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.google.cloud.operators.cloud_run import (CloudRunCreateJobOperator,
-                                                                CloudRunDeleteJobOperator,
-                                                                CloudRunExecuteJobOperator,
-                                                                CloudRunListJobsOperator,
-                                                                CloudRunUpdateJobOperator)
+from airflow.providers.google.cloud.operators.cloud_run import (
+    CloudRunCreateJobOperator,
+    CloudRunDeleteJobOperator,
+    CloudRunExecuteJobOperator,
+    CloudRunListJobsOperator,
+    CloudRunUpdateJobOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
@@ -190,16 +192,14 @@ with DAG(
             {
                 "name": "job",
                 "args": ["python", "main.py"],
-                "env": [
-                    {"name": "ENV_VAR", "value": "value"}
-                ],
-                "clearArgs": False
+                "env": [{"name": "ENV_VAR", "value": "value"}],
+                "clearArgs": False,
             }
         ],
         "taskCount": 1,
         "timeout": "60s",
     }
-    
+
     execute3 = CloudRunExecuteJobOperator(
         task_id=execute3_task_name,
         project_id=PROJECT_ID,
@@ -210,7 +210,6 @@ with DAG(
         deferrable=False,
     )
     # [END howto_operator_cloud_run_execute_job_with_overrides]
-
 
     assert_executed_jobs = PythonOperator(
         task_id="assert-executed-jobs", python_callable=_assert_executed_jobs_xcom, dag=dag

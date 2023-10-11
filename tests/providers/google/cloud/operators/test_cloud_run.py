@@ -26,11 +26,13 @@ import pytest
 from google.cloud.run_v2 import Job
 
 from airflow.exceptions import AirflowException, TaskDeferred
-from airflow.providers.google.cloud.operators.cloud_run import (CloudRunCreateJobOperator,
-                                                                CloudRunDeleteJobOperator,
-                                                                CloudRunExecuteJobOperator,
-                                                                CloudRunListJobsOperator,
-                                                                CloudRunUpdateJobOperator)
+from airflow.providers.google.cloud.operators.cloud_run import (
+    CloudRunCreateJobOperator,
+    CloudRunDeleteJobOperator,
+    CloudRunExecuteJobOperator,
+    CloudRunListJobsOperator,
+    CloudRunUpdateJobOperator,
+)
 from airflow.providers.google.cloud.triggers.cloud_run import RunJobStatus
 
 CLOUD_RUN_HOOK_PATH = "airflow.providers.google.cloud.operators.cloud_run.CloudRunHook"
@@ -94,7 +96,7 @@ class TestCloudRunExecuteJobOperator:
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.execute_job.assert_called_once_with(
-            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID
+            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID, overrides=None
         )
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
@@ -209,16 +211,17 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_overrides(self, hook_mock):
+        hook_mock.return_value.get_job.return_value = JOB
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
 
         overrides = {
             "overrides": {
-                "containerOverrides": [{"name": "job", "args": ["python", "main.py"]}],
+                "containerOverrides": [{"args": ["python", "main.py"]}],
                 "taskCount": 1,
                 "timeout": "60s",
             }
         }
-        
+
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
@@ -238,7 +241,7 @@ class TestCloudRunExecuteJobOperator:
                 "timeout": "60s",
             }
         }
-        
+
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
@@ -255,7 +258,7 @@ class TestCloudRunExecuteJobOperator:
                 "timeout": "60",
             }
         }
-        
+
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
@@ -272,7 +275,7 @@ class TestCloudRunExecuteJobOperator:
                 "timeout": "60s",
             }
         }
-        
+
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, overrides=overrides
         )
