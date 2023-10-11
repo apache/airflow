@@ -252,15 +252,15 @@ class TestDatabricksCreateJobsOperator:
             task_id=TASK_ID,
             name=JOB_NAME,
             tags=TAGS,
-            tasks=[jobs.JobTaskSettings.from_dict(task) for task in TASKS],
+            tasks=[jobs.Task.from_dict(task) for task in TASKS],
             job_clusters=[jobs.JobCluster.from_dict(cluster) for cluster in JOB_CLUSTERS],
             email_notifications=jobs.JobEmailNotifications.from_dict(EMAIL_NOTIFICATIONS),
-            webhook_notifications=jobs.JobWebhookNotifications.from_dict(WEBHOOK_NOTIFICATIONS),
+            webhook_notifications=jobs.WebhookNotifications.from_dict(WEBHOOK_NOTIFICATIONS),
             timeout_seconds=TIMEOUT_SECONDS,
             schedule=jobs.CronSchedule.from_dict(SCHEDULE),
             max_concurrent_runs=MAX_CONCURRENT_RUNS,
             git_source=jobs.GitSource.from_dict(GIT_SOURCE),
-            access_control_list=[jobs.AccessControlRequest.from_dict(acl) for acl in ACCESS_CONTROL_LIST],
+            access_control_list=[jobs.JobAccessControlRequest.from_dict(acl) for acl in ACCESS_CONTROL_LIST],
         )
         expected = utils.normalise_json_content(
             {
@@ -356,7 +356,7 @@ class TestDatabricksCreateJobsOperator:
             tasks=override_tasks,
             job_clusters=override_job_clusters,
             email_notifications=jobs.JobEmailNotifications.from_dict(override_email_notifications),
-            webhook_notifications=jobs.JobWebhookNotifications.from_dict(override_webhook_notifications),
+            webhook_notifications=jobs.WebhookNotifications.from_dict(override_webhook_notifications),
             timeout_seconds=override_timeout_seconds,
             schedule=jobs.CronSchedule.from_dict(override_schedule),
             max_concurrent_runs=override_max_concurrent_runs,
