@@ -4635,7 +4635,15 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ["pool", "slots", "running_slots", "queued_slots", "scheduled_slots", "deferred_slots"]
+    list_columns = [
+        "pool",
+        "description",
+        "slots",
+        "running_slots",
+        "queued_slots",
+        "scheduled_slots",
+        "deferred_slots",
+    ]
     add_columns = ["pool", "slots", "description", "include_deferred"]
     edit_columns = ["pool", "slots", "description", "include_deferred"]
 
@@ -4679,6 +4687,15 @@ class PoolModelView(AirflowModelView):
             return Markup("<a href='{url}'>{pool_id}</a>").format(url=url, pool_id=pool_id)
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
+
+    def fdescription(self):
+        """Description rendering."""
+        pool_id = self.get("pool")
+        description = self.get("description")
+        if pool_id is not None and description is not None:
+            return Markup('<p style="max-width: 8em">{description}</p>').format(description=description)
+        else:
+            return Markup('<span class="label label-danger">-</span>')
 
     def frunning_slots(self):
         """Format running slots rendering."""
@@ -4726,6 +4743,7 @@ class PoolModelView(AirflowModelView):
 
     formatters_columns = {
         "pool": pool_link,
+        "description": fdescription,
         "running_slots": frunning_slots,
         "queued_slots": fqueued_slots,
         "scheduled_slots": fscheduled_slots,
