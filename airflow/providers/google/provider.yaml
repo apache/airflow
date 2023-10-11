@@ -624,6 +624,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.endpoint_service
       - airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.operators.vertex_ai.model_service
+      - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -870,6 +871,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service
       - airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.hooks.vertex_ai.model_service
+      - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
@@ -1132,6 +1134,8 @@ extra-links:
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIBatchPredictionJobListLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink

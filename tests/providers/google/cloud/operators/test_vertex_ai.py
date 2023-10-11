@@ -76,6 +76,12 @@ from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
     SetDefaultVersionOnModelOperator,
     UploadModelOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
+    DeletePipelineJobOperator,
+    GetPipelineJobOperator,
+    ListPipelineJobOperator,
+    RunPipelineJobOperator,
+)
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
 TIMEOUT = 120
@@ -175,6 +181,8 @@ TEST_OUTPUT_CONFIG = {
 TEST_CREATE_REQUEST_TIMEOUT = 100.5
 TEST_BATCH_SIZE = 4000
 TEST_VERSION_ALIASES = ["new-alias"]
+
+TEST_TEMPLATE_PATH = "test_template_path"
 
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
@@ -1710,6 +1718,137 @@ class TestVertexAIDeleteModelVersionOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             model_id=TEST_MODEL_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+
+class TestVertexAIRunPipelineJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJob.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = RunPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            pipeline_root="",
+            parameter_values={},
+            input_artifacts={},
+            enable_caching=False,
+            encryption_spec_key_name="",
+            labels={},
+            failure_policy="",
+            service_account="",
+            network="",
+            create_request_timeout=None,
+            experiment=None,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.run_pipeline_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            display_name=DISPLAY_NAME,
+            template_path=TEST_TEMPLATE_PATH,
+            job_id=TEST_PIPELINE_JOB_ID,
+            pipeline_root="",
+            parameter_values={},
+            input_artifacts={},
+            enable_caching=False,
+            encryption_spec_key_name="",
+            labels={},
+            failure_policy="",
+            service_account="",
+            network="",
+            create_request_timeout=None,
+            experiment=None,
+        )
+
+
+class TestVertexAIGetPipelineJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJob.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute(self, mock_hook, to_dict_mock):
+        op = GetPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            pipeline_job_id=TEST_PIPELINE_JOB_ID,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.get_pipeline_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            pipeline_job_id=TEST_PIPELINE_JOB_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestVertexAIDeletePipelineJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute(self, mock_hook):
+        op = DeletePipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            pipeline_job_id=TEST_PIPELINE_JOB_ID,
+        )
+        op.execute(context={})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.delete_pipeline_job.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_LOCATION,
+            pipeline_job_id=TEST_PIPELINE_JOB_ID,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+
+class TestVertexAIListPipelineJobOperator:
+    @mock.patch(VERTEX_AI_PATH.format("pipeline_job.PipelineJobHook"))
+    def test_execute(self, mock_hook):
+        page_token = "page_token"
+        page_size = 42
+        filter = "filter"
+        order_by = "order_by"
+
+        op = ListPipelineJobOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            order_by=order_by,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.list_pipeline_jobs.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            page_size=page_size,
+            page_token=page_token,
+            filter=filter,
+            order_by=order_by,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
