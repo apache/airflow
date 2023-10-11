@@ -436,7 +436,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     )
 
 
-@security.requires_access_dag("PUT", DagAccessEntity.RUN)
+@security.requires_access_dag("GET", DagAccessEntity.RUN)
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
@@ -497,7 +497,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     )
 
 
-@security.requires_access_dag("PUT", DagAccessEntity.RUN)
+@security.requires_access_dag("GET", DagAccessEntity.RUN)
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
@@ -565,7 +565,7 @@ def set_mapped_task_instance_note(
     return set_task_instance_note(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index)
 
 
-@security.requires_access_dag("PUT", DagAccessEntity.RUN)
+@security.requires_access_dag("GET", DagAccessEntity.RUN)
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def patch_task_instance(
@@ -606,7 +606,7 @@ def patch_task_instance(
     return task_instance_reference_schema.dump(ti)
 
 
-@security.requires_access_dag("PUT", DagAccessEntity.RUN)
+@security.requires_access_dag("GET", DagAccessEntity.RUN)
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def patch_mapped_task_instance(
@@ -618,7 +618,7 @@ def patch_mapped_task_instance(
     )
 
 
-@security.requires_access_dag("PUT", DagAccessEntity.RUN)
+@security.requires_access_dag("GET", DagAccessEntity.RUN)
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def set_task_instance_note(
