@@ -309,7 +309,7 @@ Setting up Breeze
   root@b76fcb399bb6:/opt/airflow# airflow db init
 
 
-6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
+6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db init``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
    tests, however - the test database will be initialized automatically for you.
 
