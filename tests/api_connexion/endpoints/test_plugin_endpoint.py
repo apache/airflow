@@ -17,12 +17,55 @@
 from __future__ import annotations
 
 import pytest
+from flask import Blueprint
+from flask_appbuilder import BaseView
 
+from airflow.hooks.base import BaseHook
+from airflow.models.baseoperator import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
+
+
+class PluginHook(BaseHook):
+    ...
+
+
+def plugin_macro():
+    ...
+
+
+class MockOperatorLink(BaseOperatorLink):
+    name = "mock_operator_link"
+
+    def get_link(self, operator, *, ti_key) -> str:
+        return "mock_operator_link"
+
+
+bp = Blueprint("mock_blueprint", __name__, url_prefix="/mock_blueprint")
+
+
+class MockView(BaseView):
+    ...
+
+
+appbuilder_menu_items = {
+    "name": "mock_plugin",
+    "href": "https://example.com",
+}
+
+
+class MockPlugin(AirflowPlugin):
+    name = "mock_plugin"
+    flask_blueprints = [bp]
+    appbuilder_views = [{"view": MockView()}]
+    appbuilder_menu_items = [appbuilder_menu_items]
+    global_operator_extra_links = [MockOperatorLink()]
+    operator_extra_links = [MockOperatorLink()]
+    hooks = [PluginHook]
+    macros = [plugin_macro]
 
 
 @pytest.fixture(scope="module")
@@ -54,7 +97,7 @@ class TestPluginsEndpoint:
 
 class TestGetPlugins(TestPluginsEndpoint):
     def test_get_plugins_return_200(self):
-        mock_plugin = AirflowPlugin()
+        mock_plugin = MockPlugin()
         mock_plugin.name = "test_plugin"
         with mock_plugin_manager(plugins=[mock_plugin]):
             response = self.client.get("api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
@@ -62,14 +105,14 @@ class TestGetPlugins(TestPluginsEndpoint):
         assert response.json == {
             "plugins": [
                 {
-                    "appbuilder_menu_items": [],
-                    "appbuilder_views": [],
+                    "appbuilder_menu_items": [appbuilder_menu_items],
+                    "appbuilder_views": [{"view": mock_plugin.appbuilder_views[0]["view"]}],
                     "executors": [],
-                    "flask_blueprints": [],
-                    "global_operator_extra_links": [],
-                    "hooks": [],
-                    "macros": [],
-                    "operator_extra_links": [],
+                    "flask_blueprints": [str(bp)],
+                    "global_operator_extra_links": [str(MockOperatorLink())],
+                    "hooks": [str(PluginHook)],
+                    "macros": [str(plugin_macro)],
+                    "operator_extra_links": [str(MockOperatorLink())],
                     "source": None,
                     "name": "test_plugin",
                 }

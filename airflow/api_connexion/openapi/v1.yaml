@@ -3776,7 +3776,7 @@ components:
         macros:
           type: array
           items:
-            type: object
+            type: string
             nullable: true
           description: The plugin macros
         flask_blueprints:

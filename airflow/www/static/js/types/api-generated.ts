@@ -1575,7 +1575,7 @@ export interface components {
       /** @description The plugin executors */
       executors?: (string | null)[];
       /** @description The plugin macros */
-      macros?: ({ [key: string]: unknown } | null)[];
+      macros?: (string | null)[];
       /** @description The flask blueprints */
       flask_blueprints?: (string | null)[];
       /** @description The appuilder views */
