@@ -452,6 +452,7 @@ class TestCustomDataBrewWaiters:
     def describe_jobs(status: str):
         """
         Helper function for generate minimal DescribeJobRun response for a single job.
+        
         https://docs.aws.amazon.com/databrew/latest/dg/API_DescribeJobRun.html
         """
         return {"State": status}
