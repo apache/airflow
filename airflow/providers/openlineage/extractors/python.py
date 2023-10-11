@@ -87,7 +87,7 @@ class PythonExtractor(BaseExtractor):
             # Trying to extract source code of builtin_function_or_method
             return str(callable)
         except OSError:
-            self.log.exception(
+            self.log.warning(
                 "Can't get source code facet of PythonOperator %s",
                 self.operator.task_id,
             )
