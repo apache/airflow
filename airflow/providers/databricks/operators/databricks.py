@@ -24,8 +24,6 @@ from functools import cached_property
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Sequence
 
-from databricks.sdk.service import jobs
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
@@ -35,6 +33,8 @@ from airflow.providers.databricks.utils.databricks import normalise_json_content
 
 if TYPE_CHECKING:
     from logging import Logger
+
+    from databricks.sdk.service import jobs
 
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
@@ -166,16 +166,11 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
 
 class DatabricksCreateJobsOperator(BaseOperator):
-    """
-    Creates (or resets) a Databricks job using the
-    `api/2.1/jobs/create
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsCreate>`_
-    (or `api/2.1/jobs/reset
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsReset>`_)
-    API endpoint.
+    """Creates (or resets) a Databricks job using the API endpoint.
 
     .. seealso::
-        https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsCreate
+        https://docs.databricks.com/api/workspace/jobs/create
+        https://docs.databricks.com/api/workspace/jobs/reset
 
     :param json: A JSON object containing API parameters which will be passed
         directly to the ``api/2.1/jobs/create`` endpoint. The other named parameters
@@ -215,6 +210,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
+
     """
 
     # Used in airflow.models.BaseOperator
@@ -226,7 +222,7 @@ class DatabricksCreateJobsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        json: dict | None = None,
+        json: Any | None = None,
         name: str | None = None,
         tags: dict[str, str] | None = None,
         tasks: list[jobs.JobTaskSettings] | None = None,
