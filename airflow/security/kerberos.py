@@ -99,7 +99,7 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
         subp.wait()
         if subp.returncode != 0:
             log.error(
-                "Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s",
+                "Couldn't reinit from keytab! `kinit` exited with %s.\n%s\n%s",
                 subp.returncode,
                 "\n".join(subp.stdout.readlines() if subp.stdout else []),
                 "\n".join(subp.stderr.readlines() if subp.stderr else []),
@@ -176,7 +176,7 @@ def detect_conf_var() -> bool:
 
 def run(principal: str | None, keytab: str):
     """
-    Run the kerbros renewer.
+    Run the kerberos renewer.
 
     :param principal: principal name
     :param keytab: keytab file

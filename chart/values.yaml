@@ -726,8 +726,6 @@ workers:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   env: []
 
@@ -901,8 +899,6 @@ scheduler:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   env: []
 
@@ -1303,9 +1299,6 @@ webserver:
     securityContexts:
       container: {}
 
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
-
   env: []
 
 # Airflow Triggerer Config
@@ -1470,9 +1463,6 @@ triggerer:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
-
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   env: []
 
@@ -2076,6 +2066,11 @@ redis:
     # Annotations to add to redis volumes
     annotations: {}
 
+  # Configuration for empty dir volume (if redis.persistence.enabled == false)
+  # emptyDirConfig:
+  #   sizeLimit: 1Gi
+  #   medium: Memory
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -2450,6 +2445,11 @@ dags:
     # - name: ""
     #   value: ""
 
+    # Configuration for empty dir volume
+    # emptyDirConfig:
+    #   sizeLimit: 1Gi
+    #   medium: Memory
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -2459,6 +2459,11 @@ dags:
     #   memory: 128Mi
 
 logs:
+  # Configuration for empty dir volume (if logs.persistence.enabled == false)
+  # emptyDirConfig:
+  #   sizeLimit: 1Gi
+  #   medium: Memory
+
   persistence:
     # Enable persistent volume for storing logs
     enabled: false

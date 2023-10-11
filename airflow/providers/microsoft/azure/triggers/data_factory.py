@@ -44,8 +44,8 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
         run_id: str,
         azure_data_factory_conn_id: str,
         poke_interval: float,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
     ):
         super().__init__()
         self.run_id = run_id
@@ -128,8 +128,8 @@ class AzureDataFactoryTrigger(BaseTrigger):
         run_id: str,
         azure_data_factory_conn_id: str,
         end_time: float,
-        resource_group_name: str | None = None,
-        factory_name: str | None = None,
+        resource_group_name: str,
+        factory_name: str,
         wait_for_termination: bool = True,
         check_interval: int = 60,
     ):

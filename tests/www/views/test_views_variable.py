@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import io
+from io import BytesIO
 from unittest import mock
 
 import pytest
@@ -106,7 +106,7 @@ def test_import_variables_failed(session, admin_client):
         set_mock.side_effect = UnicodeEncodeError
         assert session.query(Variable).count() == 0
 
-        bytes_content = io.BytesIO(bytes(content, encoding="utf-8"))
+        bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
         resp = admin_client.post(
             "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
@@ -118,7 +118,7 @@ def test_import_variables_success(session, admin_client):
     assert session.query(Variable).count() == 0
 
     content = '{"str_key": "str_value", "int_key": 60, "list_key": [1, 2], "dict_key": {"k_a": 2, "k_b": 3}}'
-    bytes_content = io.BytesIO(bytes(content, encoding="utf-8"))
+    bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
     resp = admin_client.post(
         "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
@@ -131,7 +131,7 @@ def test_import_variables_override_existing_variables_if_set(session, admin_clie
     assert session.query(Variable).count() == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
-    bytes_content = io.BytesIO(bytes(content, encoding="utf-8"))
+    bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
     resp = admin_client.post(
         "/variable/varimport",
@@ -146,7 +146,7 @@ def test_import_variables_skips_update_if_set(session, admin_client, caplog):
     assert session.query(Variable).count() == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
-    bytes_content = io.BytesIO(bytes(content, encoding="utf-8"))
+    bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
     resp = admin_client.post(
         "/variable/varimport",
@@ -166,7 +166,7 @@ def test_import_variables_fails_if_action_if_exists_is_fail(session, admin_clien
     assert session.query(Variable).count() == 0
     Variable.set("str_key", "str_value")
     content = '{"str_key": "str_value", "int_key": 60}'  # str_key already exists
-    bytes_content = io.BytesIO(bytes(content, encoding="utf-8"))
+    bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
     admin_client.post(
         "/variable/varimport",
@@ -180,7 +180,7 @@ def test_import_variables_anon(session, app):
     assert session.query(Variable).count() == 0
 
     content = '{"str_key": "str_value}'
-    bytes_content = io.BytesIO(bytes(content, encoding="utf-8"))
+    bytes_content = BytesIO(bytes(content, encoding="utf-8"))
 
     resp = app.test_client().post(
         "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True

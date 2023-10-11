@@ -21,7 +21,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlsplit
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from deprecated.classic import deprecated
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -59,7 +61,6 @@ class OSSKeySensor(BaseSensorOperator):
         self.bucket_key = bucket_key
         self.region = region
         self.oss_conn_id = oss_conn_id
-        self.hook: OSSHook | None = None
 
     def poke(self, context: Context):
         """
@@ -92,13 +93,15 @@ class OSSKeySensor(BaseSensorOperator):
                 raise AirflowException(message)
 
         self.log.info("Poking for key : oss://%s/%s", self.bucket_name, self.bucket_key)
-        return self.get_hook.object_exists(key=self.bucket_key, bucket_name=self.bucket_name)
+        return self.hook.object_exists(key=self.bucket_key, bucket_name=self.bucket_name)
 
-    @cached_property
+    @property
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> OSSHook:
         """Create and return an OSSHook."""
-        if self.hook:
-            return self.hook
-
-        self.hook = OSSHook(oss_conn_id=self.oss_conn_id, region=self.region)
         return self.hook
+
+    @cached_property
+    def hook(self) -> OSSHook:
+        """Create and return an OSSHook."""
+        return OSSHook(oss_conn_id=self.oss_conn_id, region=self.region)

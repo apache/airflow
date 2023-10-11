@@ -31,7 +31,7 @@ from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -85,7 +85,7 @@ PYTHON_PACKAGE_GCS_URI = f"gs://{CUSTOM_PYTHON_GCS_BUCKET_NAME}/vertex-ai/custom
 PYTHON_MODULE_NAME = "aiplatform_custom_trainer_script.task"
 
 
-with models.DAG(
+with DAG(
     f"{DAG_ID}_python_package",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
