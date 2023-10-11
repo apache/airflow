@@ -24,6 +24,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
+from airflow.utils.module_loading import qualname
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
@@ -51,6 +52,8 @@ class MockView(BaseView):
     ...
 
 
+mockview = MockView()
+
 appbuilder_menu_items = {
     "name": "mock_plugin",
     "href": "https://example.com",
@@ -60,7 +63,7 @@ appbuilder_menu_items = {
 class MockPlugin(AirflowPlugin):
     name = "mock_plugin"
     flask_blueprints = [bp]
-    appbuilder_views = [{"view": MockView()}]
+    appbuilder_views = [{"view": mockview}]
     appbuilder_menu_items = [appbuilder_menu_items]
     global_operator_extra_links = [MockOperatorLink()]
     operator_extra_links = [MockOperatorLink()]
@@ -106,13 +109,15 @@ class TestGetPlugins(TestPluginsEndpoint):
             "plugins": [
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
-                    "appbuilder_views": [{"view": mock_plugin.appbuilder_views[0]["view"]}],
+                    "appbuilder_views": [{"view": qualname(MockView)}],
                     "executors": [],
-                    "flask_blueprints": [str(bp)],
-                    "global_operator_extra_links": [str(MockOperatorLink())],
-                    "hooks": [str(PluginHook)],
-                    "macros": [str(plugin_macro)],
-                    "operator_extra_links": [str(MockOperatorLink())],
+                    "flask_blueprints": [
+                        f"<{qualname(bp.__class__)}: name={bp.name!r} import_name={bp.import_name!r}>"
+                    ],
+                    "global_operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
+                    "hooks": [qualname(PluginHook)],
+                    "macros": [qualname(plugin_macro)],
+                    "operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
                     "source": None,
                     "name": "test_plugin",
                 }
