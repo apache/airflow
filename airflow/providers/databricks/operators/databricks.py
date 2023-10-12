@@ -34,8 +34,6 @@ from airflow.providers.databricks.utils.databricks import normalise_json_content
 if TYPE_CHECKING:
     from logging import Logger
 
-    from databricks.sdk.service import jobs
-
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -225,15 +223,15 @@ class DatabricksCreateJobsOperator(BaseOperator):
         json: Any | None = None,
         name: str | None = None,
         tags: dict[str, str] | None = None,
-        tasks: list[jobs.Task] | None = None,
-        job_clusters: list[jobs.JobCluster] | None = None,
-        email_notifications: jobs.JobEmailNotifications | None = None,
-        webhook_notifications: jobs.WebhookNotifications | None = None,
+        tasks: list[dict] | None = None,
+        job_clusters: list[dict] | None = None,
+        email_notifications: dict | None = None,
+        webhook_notifications: dict | None = None,
         timeout_seconds: int | None = None,
-        schedule: jobs.CronSchedule | None = None,
+        schedule: dict | None = None,
         max_concurrent_runs: int | None = None,
-        git_source: jobs.GitSource | None = None,
-        access_control_list: list[jobs.JobAccessControlRequest] | None = None,
+        git_source: dict | None = None,
+        access_control_list: list[dict] | None = None,
         databricks_conn_id: str = "databricks_default",
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -254,23 +252,23 @@ class DatabricksCreateJobsOperator(BaseOperator):
         if tags is not None:
             self.json["tags"] = tags
         if tasks is not None:
-            self.json["tasks"] = [task.as_dict() for task in tasks]
+            self.json["tasks"] = tasks
         if job_clusters is not None:
-            self.json["job_clusters"] = [job_cluster.as_dict() for job_cluster in job_clusters]
+            self.json["job_clusters"] = job_clusters
         if email_notifications is not None:
-            self.json["email_notifications"] = email_notifications.as_dict()
+            self.json["email_notifications"] = email_notifications
         if webhook_notifications is not None:
-            self.json["webhook_notifications"] = webhook_notifications.as_dict()
+            self.json["webhook_notifications"] = webhook_notifications
         if timeout_seconds is not None:
             self.json["timeout_seconds"] = timeout_seconds
         if schedule is not None:
-            self.json["schedule"] = schedule.as_dict()
+            self.json["schedule"] = schedule
         if max_concurrent_runs is not None:
             self.json["max_concurrent_runs"] = max_concurrent_runs
         if git_source is not None:
-            self.json["git_source"] = git_source.as_dict()
+            self.json["git_source"] = git_source
         if access_control_list is not None:
-            self.json["access_control_list"] = [acl.as_dict() for acl in access_control_list]
+            self.json["access_control_list"] = access_control_list
 
         self.json = normalise_json_content(self.json)
 

@@ -125,3 +125,10 @@ connection-types:
 
 extra-links:
   - airflow.providers.databricks.operators.databricks.DatabricksJobRunLink
+
+additional-extras:
+  # pip install apache-airflow-providers-databricks[sdk]
+  - name: sdk
+    description: Install Databricks SDK
+    dependencies:
+      - databricks-sdk==0.10.0
