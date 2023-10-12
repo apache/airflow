@@ -280,9 +280,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
         metadata["end_of_log"] = False
-        for logs in logs_by_host.values():
-            if logs[-1].message == self.end_of_log_mark:
-                metadata["end_of_log"] = True
+        if any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values()):
+            metadata["end_of_log"] = True
 
         cur_ts = pendulum.now()
         if "last_log_timestamp" in metadata:

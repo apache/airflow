@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
 from flask import flash, g, redirect, render_template, request
 
@@ -28,6 +29,7 @@ from airflow.auth.managers.models.resource_details import (
     DagDetails,
 )
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.net import get_hostname
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -42,6 +44,28 @@ log = logging.getLogger(__name__)
 
 def get_access_denied_message():
     return conf.get("webserver", "access_denied_message")
+
+
+def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
+    """
+    Factory for decorator that checks current user's permissions against required permissions.
+
+    Deprecated. Do not use this decorator, use one of the decorator `has_access_*` defined in
+    airflow/www/auth.py instead.
+    This decorator will only work with FAB authentication and not with other auth providers.
+
+    This decorator is widely used in user plugins, do not remove it. See
+    https://github.com/apache/airflow/pull/33213#discussion_r1346287224
+    """
+    warnings.warn(
+        "The 'has_access' decorator is deprecated. Please use one of the decorator `has_access_*`"
+        "defined in airflow/www/auth.py instead.",
+        RemovedInAirflow3Warning,
+        stacklevel=2,
+    )
+    from airflow.auth.managers.fab.decorators.auth import _has_access_fab
+
+    return _has_access_fab(permissions)
 
 
 def _has_access_no_details(is_authorized_callback: Callable[[], bool]) -> Callable[[T], T]:
