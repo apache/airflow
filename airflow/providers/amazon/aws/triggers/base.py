@@ -57,8 +57,10 @@ class AwsBaseWaiterTrigger(BaseTrigger):
     :param aws_conn_id: The Airflow connection used for AWS credentials. To be used to build the hook.
     :param region_name: The AWS region where the resources to watch are. To be used to build the hook.
     :param verify: Whether or not to verify SSL certificates. To be used to build the hook.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client.
-        To be used to build the hook.
+        To be used to build the hook. For available key-values see:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     def __init__(
