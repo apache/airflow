@@ -58,6 +58,15 @@ class TestHttpRouteWeb:
         )
         assert "foo" == jmespath.search("spec.parentRefs[0].name", docs[0])
 
+    def test_should_set_healthcheckpolicy_service_name(self):
+        docs = render_chart(
+            values={"httpRoute": {"flower": {"enabled": True,
+                                             "gateway": {"name": "foo", "namespace": "bar"}}}},
+            show_only=["templates/flower/flower-httproute.yaml"],
+        )
+        assert jmespath.search("spec.targetRef.name",
+                               docs[1]).endswith("-webserver")
+
     def test_should_httproute_hostnames_entry_not_exist(self):
         docs = render_chart(
             values={"httpRoute": {"web": {"enabled": True,
