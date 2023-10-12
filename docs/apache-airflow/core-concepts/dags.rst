@@ -514,6 +514,12 @@ For example, here is a DAG that uses a ``for`` loop to define some tasks:
 
 In general, we advise you to try and keep the *topology* (the layout) of your DAG tasks relatively stable; dynamic DAGs are usually better used for dynamically loading configuration options or changing operator options.
 
+.. warning::
+
+  When utilizing Dynamic DAGs, please ensure you monitor key metrics like DagBagSize, to ensure your DAG script is not producing unexpected results. Performing iterations or looping, may cause unexpected results if your DAG 
+  code does not properly handle all cases. Dynamic DAG creation may also adversely  affect your environments overall health and performance.
+
+
 
 DAG Visualization
 -----------------
