@@ -481,7 +481,7 @@
                         "hostnames": {
                             "description": "The hostnames for the web HTTPRoute.",
                             "type": "array",
-                            "default": [],
+                            "default": []
                         },
                         "gateway": {
                             "description": "The Gateway API configuration",
@@ -494,7 +494,7 @@
                                         "string",
                                         "null"
                                     ],
-                                    "default": null,
+                                    "default": null
                                 },
                                 "namespace": {
                                     "description": "The namespace of the Gateway API resource",
@@ -502,11 +502,11 @@
                                         "string",
                                         "null"
                                     ],
-                                    "default": null,
-                                },
-                            },
-                        },
-                    },
+                                    "default": null
+                                }
+                            }
+                        }
+                    }
                 },
                 "flower": {
                     "description": "Configuration for the HTTPRoute of the flower Service.",
@@ -529,7 +529,7 @@
                         "hostnames": {
                             "description": "The hostnames for the flower HTTPRoute.",
                             "type": "array",
-                            "default": [],
+                            "default": []
                         },
                         "gateway": {
                             "description": "The Gateway API configuration",
@@ -542,7 +542,7 @@
                                         "string",
                                         "null"
                                     ],
-                                    "default": null,
+                                    "default": null
                                 },
                                 "namespace": {
                                     "description": "The namespace of the Gateway API resource",
@@ -550,13 +550,13 @@
                                         "string",
                                         "null"
                                     ],
-                                    "default": null,
-                                },
-                            },
-                        },
-                    },
-                },
-            },
+                                    "default": null
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         },
         "networkPolicies": {
             "description": "Network policy configuration.",
