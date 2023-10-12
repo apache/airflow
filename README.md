@@ -303,7 +303,7 @@ Apache Airflow version life cycle:
 Limited support versions will be supported with security and critical bug fix only.
 EOL versions will not get any fixes nor support.
 We always recommend that all users run the latest available minor release for whatever major version is in use.
-We **highly** recommend upgrading to the latest Airflow major release at the earliest convenient time and before the EOL date.
+We **highly** recommend upgrading to the latest Airflow major release as early as possible and before the End of Life (EOL) date..
 
 ## Support for Python and Kubernetes versions
 
@@ -400,12 +400,10 @@ The important dependencies are:
    libraries, and we should update them together
 * `celery`: Celery is crucial component of Airflow as it used for CeleryExecutor (and similar). Celery
    [follows SemVer](https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions), so
-   we should upper-bound it to the next MAJOR version. Also, when we bump the upper version of the library,
-   we should make sure Celery Provider minimum Airflow version is updated.
+   we should upper-bound it to the next MAJOR version. Also, when we bump the the upper version of the library, ensure that the minimum supported Airflow version for the Celery Provider is updated.
 * `kubernetes`: Kubernetes is a crucial component of Airflow as it is used for the KubernetesExecutor
    (and similar). Kubernetes Python library [follows SemVer](https://github.com/kubernetes-client/python#compatibility),
-   so we should upper-bound it to the next MAJOR version. Also, when we bump the upper version of the library,
-   we should make sure Kubernetes Provider minimum Airflow version is updated.
+   so we should upper-bound it to the next MAJOR version. Also, when we bump the the upper version of the library, ensure that the minimum supported Airflow version for the Celery Provider is updated.
 
 ### Approach for dependencies in Airflow Providers and extras
 
