@@ -60,9 +60,9 @@ class TestHttpRouteWeb:
 
     def test_should_set_healthcheckpolicy_service_name(self):
         docs = render_chart(
-            values={"httpRoute": {"flower": {"enabled": True,
-                                             "gateway": {"name": "foo", "namespace": "bar"}}}},
-            show_only=["templates/flower/flower-httproute.yaml"],
+            values={"httpRoute": {"web": {"enabled": True,
+                                          "gateway": {"name": "foo", "namespace": "bar"}}}},
+            show_only=["templates/webserver/webserver-httproute.yaml"],
         )
         assert jmespath.search("spec.targetRef.name",
                                docs[1]).endswith("-webserver")
