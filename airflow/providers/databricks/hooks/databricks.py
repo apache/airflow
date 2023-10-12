@@ -36,6 +36,7 @@ from requests import exceptions as requests_exceptions
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
+GET_CLUSTER_ENDPOINT = ("GET", "api/2.0/clusters/get")
 RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
@@ -57,25 +58,32 @@ LIST_PIPELINES_ENDPOINT = ("GET", "/api/2.0/pipelines")
 
 WORKSPACE_GET_STATUS_ENDPOINT = ("GET", "api/2.0/workspace/get-status")
 
-RUN_LIFE_CYCLE_STATES = [
-    "PENDING",
-    "RUNNING",
-    "TERMINATING",
-    "TERMINATED",
-    "SKIPPED",
-    "INTERNAL_ERROR",
-    "QUEUED",
-]
-
 SPARK_VERSIONS_ENDPOINT = ("GET", "api/2.0/clusters/spark-versions")
 
 
 class RunState:
     """Utility class for the run state concept of Databricks runs."""
 
+    RUN_LIFE_CYCLE_STATES = [
+        "PENDING",
+        "RUNNING",
+        "TERMINATING",
+        "TERMINATED",
+        "SKIPPED",
+        "INTERNAL_ERROR",
+        "QUEUED",
+    ]
+
     def __init__(
         self, life_cycle_state: str, result_state: str = "", state_message: str = "", *args, **kwargs
     ) -> None:
+        if life_cycle_state not in self.RUN_LIFE_CYCLE_STATES:
+            raise AirflowException(
+                f"Unexpected life cycle state: {life_cycle_state}: If the state has "
+                "been introduced recently, please check the Databricks user "
+                "guide for troubleshooting information"
+            )
+
         self.life_cycle_state = life_cycle_state
         self.result_state = result_state
         self.state_message = state_message
@@ -83,12 +91,6 @@ class RunState:
     @property
     def is_terminal(self) -> bool:
         """True if the current state is a terminal state."""
-        if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
-            raise AirflowException(
-                f"Unexpected life cycle state: {self.life_cycle_state}: If the state has "
-                "been introduced recently, please check the Databricks user "
-                "guide for troubleshooting information"
-            )
         return self.life_cycle_state in ("TERMINATED", "SKIPPED", "INTERNAL_ERROR")
 
     @property
@@ -114,6 +116,55 @@ class RunState:
     @classmethod
     def from_json(cls, data: str) -> RunState:
         return RunState(**json.loads(data))
+
+
+class ClusterState:
+    """Utility class for the cluster state concept of Databricks cluster."""
+
+    CLUSTER_LIFE_CYCLE_STATES = [
+        "PENDING",
+        "RUNNING",
+        "RESTARTING",
+        "RESIZING",
+        "TERMINATING",
+        "TERMINATED",
+        "ERROR",
+        "UNKNOWN",
+    ]
+
+    def __init__(self, state: str = "", state_message: str = "", *args, **kwargs) -> None:
+        if state not in self.CLUSTER_LIFE_CYCLE_STATES:
+            raise AirflowException(
+                f"Unexpected cluster life cycle state: {state}: If the state has "
+                "been introduced recently, please check the Databricks user "
+                "guide for troubleshooting information"
+            )
+
+        self.state = state
+        self.state_message = state_message
+
+    @property
+    def is_terminal(self) -> bool:
+        """True if the current state is a terminal state."""
+        return self.state in ("TERMINATING", "TERMINATED", "ERROR", "UNKNOWN")
+
+    @property
+    def is_running(self) -> bool:
+        """True if the current state is running."""
+        return self.state in ("RUNNING", "RESIZING")
+
+    def __eq__(self, other) -> bool:
+        return self.state == other.state and self.state_message == other.state_message
+
+    def __repr__(self) -> str:
+        return str(self.__dict__)
+
+    def to_json(self) -> str:
+        return json.dumps(self.__dict__)
+
+    @classmethod
+    def from_json(cls, data: str) -> ClusterState:
+        return ClusterState(**json.loads(data))
 
 
 class DatabricksHook(BaseDatabricksHook):
@@ -473,6 +524,32 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: repair a job run.
         """
         self._do_api_call(REPAIR_RUN_ENDPOINT, json)
+
+    def get_cluster_state(self, cluster_id: str) -> ClusterState:
+        """
+        Retrieves run state of the cluster.
+
+        :param cluster_id: id of the cluster
+        :return: state of the cluster
+        """
+        json = {"cluster_id": cluster_id}
+        response = self._do_api_call(GET_CLUSTER_ENDPOINT, json)
+        state = response["state"]
+        state_message = response["state_message"]
+        return ClusterState(state, state_message)
+
+    async def a_get_cluster_state(self, cluster_id: str) -> ClusterState:
+        """
+        Async version of `get_cluster_state`.
+
+        :param cluster_id: id of the cluster
+        :return: state of the cluster
+        """
+        json = {"cluster_id": cluster_id}
+        response = await self._a_do_api_call(GET_CLUSTER_ENDPOINT, json)
+        state = response["state"]
+        state_message = response["state_message"]
+        return ClusterState(state, state_message)
 
     def restart_cluster(self, json: dict) -> None:
         """
