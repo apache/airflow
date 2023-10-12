@@ -39,7 +39,7 @@ Operators
 Start an AWS Glue DataBrew job
 ==============================
 
-To submit a new AWS Glue DataBrew job you can use :class:`~airflow.providers.amazon.aws.operators.glue.GlueDataBrewStartJobOperator`.
+To submit a new AWS Glue DataBrew job you can use :class:`~airflow.providers.amazon.aws.operators.databrew.GlueDataBrewStartJobOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_databrew.py
     :language: python

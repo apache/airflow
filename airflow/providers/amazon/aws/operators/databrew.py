@@ -47,7 +47,7 @@ class GlueDataBrewStartJobOperator(BaseOperator):
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
     :param delay: Time in seconds to wait between status checks. Default is 30.
-    :return: dictionary with key run_id and value of the resulting job's runId.
+    :return: dictionary with key run_id and value of the resulting job's run_id.
     """
 
     template_fields: Sequence[str] = (
