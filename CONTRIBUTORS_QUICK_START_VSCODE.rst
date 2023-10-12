@@ -92,11 +92,18 @@ Setting up debugging
 
   - Change ``"program"`` to point to an example dag and add ``"env"`` and ``"python"`` fields to the new Python configuration
 
-    ``"program": "${workspaceFolder}/files/dags/example_bash_operator.py"``
+    .. code-block:: json
 
-    ``"env": {"PYTHONUNBUFFERED": "1", "AIRFLOW__CORE__EXECUTOR": "DebugExecutor"}``
-
-    ``"python": "${env:HOME}/.pyenv/versions/airflow/bin/python"``
+     {
+         "configurations": [
+             "program": "${workspaceFolder}/files/dags/example_bash_operator.py",
+             "env": {
+                 "PYTHONUNBUFFERED": "1",
+                 "AIRFLOW__CORE__EXECUTOR": "DebugExecutor"
+              },
+              "python": "${env:HOME}/.pyenv/versions/airflow/bin/python"
+         ]
+     }
 
     .. raw:: html
 
