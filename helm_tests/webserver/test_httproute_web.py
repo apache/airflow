@@ -25,13 +25,6 @@ from tests.charts.helm_template_generator import render_chart
 class TestHttpRouteWeb:
     """Tests httpRoute web."""
 
-    def test_should_pass_validation_with_httproute_enabled_and_gateway_set(self):
-        render_chart(
-            values={"httpRoute": {"web": {"enabled": True,
-                                          "gateway": {"name": "test-gateway", "namespace": "test"}}}},
-            show_only=["templates/webserver/webserver-httproute.yaml"],
-        )  # checks that no validation exception is raised
-
     def test_should_check_that_both_httproute_and_healthcheckpolicy_are_created(self):
         docs = render_chart(
             values={"httpRoute": {"web": {"enabled": True,
