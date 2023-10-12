@@ -49,6 +49,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "azure_synapse_conn_id",
         "spark_pool",
+        "payload"
     )
     template_fields_renderers = {"parameters": "json"}
 
