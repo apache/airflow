@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import warnings
-from typing import Mapping, Sequence, Callable, Any, Collection
+from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, Sequence
 
-from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PostgresOperator(SQLExecuteQueryOperator):
@@ -88,6 +90,17 @@ class PostgresOperator(SQLExecuteQueryOperator):
 
 
 class PgVectorIngestOperator(BaseOperator):
+    """
+    Operator for ingesting text and embeddings into a PostgreSQL database using the pgvector library.
+
+    :param conn_id: The connection ID for the postgresql database.
+    :param input_text: The input text to be ingested.
+    :param input_embedding: The input embedding associated with the text, provided as a list of floats.
+    :param input_callable: A callable that returns the embedding if 'input_embedding' is not provided.
+    :param input_callable_args: Positional arguments for the 'input_callable'.
+    :param input_callable_kwargs: Keyword arguments for the 'input_callable'.
+    :param kwargs: Additional keyword arguments for the BaseOperator.
+    """
 
     def __init__(
         self,
@@ -108,6 +121,15 @@ class PgVectorIngestOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: Context) -> Any:
+        """
+        Executes the ingestion process.
+
+        This method either uses the provided embedding or computes the embedding using the
+        provided callable. The text and its associated embedding are then stored into the
+        PostgreSQL database's 'documents' table.
+
+        :param context: The execution context for the operator.
+        """
         from pgvector.psycopg import register_vector
 
         if all([self.input_embedding, self.input_callable]):
@@ -121,6 +143,5 @@ class PgVectorIngestOperator(BaseOperator):
         conn = PostgresHook(postgres_conn_id=self.conn_id).conn
         register_vector(conn)
         conn.execute(
-            'INSERT INTO documents (content, embedding) VALUES (%s, %s)',
-            (self.input_text, input_embedding)
+            "INSERT INTO documents (content, embedding) VALUES (%s, %s)", (self.input_text, input_embedding)
         )

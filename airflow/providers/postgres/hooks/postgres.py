@@ -332,16 +332,23 @@ class PostgresHook(DbApiHook):
         :param vector_size: The size of vector. The maximum dimensions can be 2,000
         """
         from pgvector.psycopg import register_vector
+        from psycopg2 import sql
 
         self.conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
         register_vector(self.conn)
-        self.conn.execute(
-            "CREATE TABLE IF NOT EXISTS %s (id bigserial PRIMARY KEY, content text, embedding vector(%s))",
-            (table, vector_size),
-        )
+
+        create_table_query = sql.SQL(
+            "CREATE TABLE IF NOT EXISTS {} (id bigserial PRIMARY KEY, content text, embedding vector({}))"
+        ).format(sql.Identifier(table), sql.Literal(vector_size))
+
+        self.conn.execute(create_table_query)
 
         for content, embedding in zip(input_data, embeddings):
-            self.execute("INSERT INTO %s (content, embedding) VALUES (%s, %s)", (table, content, embedding))
+            insert_query = sql.SQL("INSERT INTO {} (content, embedding) VALUES (%s, %s)").format(
+                sql.Identifier(table)
+            )
+
+            self.conn.execute(insert_query, (content, embedding))
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
         """Returns Postgres/Redshift specific information for OpenLineage."""
