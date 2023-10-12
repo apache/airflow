@@ -74,9 +74,9 @@ To invoke an AWS lambda function you can use
       urllib3.exceptions.ReadTimeoutError: AWSHTTPSConnectionPool(host='lambda.us-east-1.amazonaws.com', port=443): Read timed out. (read timeout=60)
 
     If you encounter this issue, you need to provide `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__
-    for use long connections with timeout or keep-alive settings
+    to use long connections with timeout or keep-alive settings.
 
-    By provide **botocore_config** as operator parameter
+    By providing **botocore_config** as an operator parameter
 
     ..  code-block:: python
 

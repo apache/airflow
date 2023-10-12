@@ -127,8 +127,8 @@ Extra (optional)
 
     * ``verify``: Whether or not to verify SSL certificates.
 
-        * ``False`` - do not validate SSL certificates.
-        * **path/to/cert/bundle.pem** - A filename of the CA cert bundle to uses. You can specify this argument
+        * ``False`` - Do not validate SSL certificates.
+        * **path/to/cert/bundle.pem** - A filename of the CA cert bundle to use. You can specify this argument
           if you want to use a different CA cert bundle than the one used by botocore.
 
     The following extra parameters used for specific AWS services:
