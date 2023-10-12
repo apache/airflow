@@ -18,10 +18,13 @@
 from __future__ import annotations
 
 import warnings
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Callable, Any, Collection
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowException
+from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.utils.context import Context
 
 
 class PostgresOperator(SQLExecuteQueryOperator):
@@ -81,4 +84,43 @@ class PostgresOperator(SQLExecuteQueryOperator):
             Also, you can provide `hook_params={'schema': <database>}`.""",
             AirflowProviderDeprecationWarning,
             stacklevel=2,
+        )
+
+
+class PgVectorIngestOperator(BaseOperator):
+
+    def __init__(
+        self,
+        conn_id: str,
+        input_text: str | None = None,
+        input_embedding: list[float] | None = None,
+        input_callable: Callable[[Any], Any] | None = None,
+        input_callable_args: Collection[Any] | None = None,
+        input_callable_kwargs: Mapping[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.conn_id = conn_id
+        self.input_text = input_text
+        self.input_embedding = input_embedding
+        self.input_callable = input_callable
+        self.input_callable_args = input_callable_args
+        self.input_callable_kwargs = input_callable_kwargs
+        super().__init__(**kwargs)
+
+    def execute(self, context: Context) -> Any:
+        from pgvector.psycopg import register_vector
+
+        if all([self.input_embedding, self.input_callable]):
+            raise AirflowException("Only one of 'input_embedding' and 'input_callable' is allowed")
+        if self.input_callable:
+            if not callable(self.input_callable):
+                raise AirflowException("`input_callable` param must be callable")
+            input_embedding = self.input_callable(*self.input_callable_args, **self.input_callable_kwargs)
+        else:
+            input_embedding = self.input_embedding
+        conn = PostgresHook(postgres_conn_id=self.conn_id).conn
+        register_vector(conn)
+        conn.execute(
+            'INSERT INTO documents (content, embedding) VALUES (%s, %s)',
+            (self.input_text, input_embedding)
         )
