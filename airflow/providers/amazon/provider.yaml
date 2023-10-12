@@ -364,6 +364,9 @@ operators:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.operators.appflow
+  - integration-name: Amazon Glue DataBrew
+    python-modules:
+      - airflow.providers.amazon.aws.operators.databrew
 
 sensors:
   - integration-name: Amazon Athena
@@ -540,6 +543,9 @@ hooks:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.hooks.appflow
+  - integration-name: Amazon Glue DataBrew
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.databrew
 
 triggers:
   - integration-name: Amazon Web Services
@@ -588,6 +594,9 @@ triggers:
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.triggers.sqs
+  - integration-name: Amazon Glue DataBrew
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.databrew
 
 transfers:
   - source-integration-name: Amazon DynamoDB

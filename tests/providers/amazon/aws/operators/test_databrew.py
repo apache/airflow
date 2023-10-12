@@ -22,8 +22,8 @@ from unittest import mock
 import pytest
 from moto import mock_databrew
 
-from airflow.providers.amazon.aws.hooks.glue import GlueDataBrewHook
-from airflow.providers.amazon.aws.operators.glue import GlueDataBrewStartJobOperator
+from airflow.providers.amazon.aws.hooks.databrew import GlueDataBrewHook
+from airflow.providers.amazon.aws.operators.databrew import GlueDataBrewStartJobOperator
 
 JOB_NAME = "test_job"
 
@@ -35,10 +35,24 @@ def hook() -> GlueDataBrewHook:
 
 
 class TestGlueDataBrewOperator:
+    @mock.patch.object(GlueDataBrewHook, "conn")
     @mock.patch.object(GlueDataBrewHook, "get_waiter")
-    def test_start_job_wait_for_completion(self, mock_hook_get_waiter):
+    def test_start_job_wait_for_completion(self, mock_hook_get_waiter, mock_conn):
+        TEST_RUN_ID = "12345"
         operator = GlueDataBrewStartJobOperator(
-            task_id="task_test", job_name=JOB_NAME, wait_for_completion=True
+            task_id="task_test", job_name=JOB_NAME, wait_for_completion=True, aws_conn_id="aws_default"
         )
+        mock_conn.start_job_run(mock.MagicMock(), return_value=TEST_RUN_ID)
         operator.execute(None)
-        mock_hook_get_waiter.assert_called_once_with("databrew_job_complete")
+        mock_hook_get_waiter.assert_called_once_with("job_complete")
+
+    @mock.patch.object(GlueDataBrewHook, "conn")
+    @mock.patch.object(GlueDataBrewHook, "get_waiter")
+    def test_start_job_no_wait(self, mock_hook_get_waiter, mock_conn):
+        TEST_RUN_ID = "12345"
+        operator = GlueDataBrewStartJobOperator(
+            task_id="task_test", job_name=JOB_NAME, wait_for_completion=False, aws_conn_id="aws_default"
+        )
+        mock_conn.start_job_run(mock.MagicMock(), return_value=TEST_RUN_ID)
+        operator.execute(None)
+        mock_hook_get_waiter.assert_not_called()

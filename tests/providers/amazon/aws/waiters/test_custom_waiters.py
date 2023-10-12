@@ -33,7 +33,6 @@ from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, EcsTaskDefinitionStates
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.providers.amazon.aws.hooks.glue import GlueDataBrewHook
 from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 
 
@@ -425,43 +424,3 @@ class TestCustomEmrServiceWaiters:
                 StepIds=[self.STEP_ID1, self.STEP_ID2],
                 WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
             )
-
-
-class TestCustomDataBrewWaiters:
-    """Test waiters from ``amazon/aws/waiters/glue.json``."""
-
-    JOB_NAME = "test_job"
-    RUN_ID = "123"
-
-    @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch):
-        self.client = boto3.client("databrew", region_name="eu-west-3")
-        monkeypatch.setattr(GlueDataBrewHook, "conn", self.client)
-
-    def test_service_waiters(self):
-        hook_waiters = GlueDataBrewHook(aws_conn_id=None).list_waiters()
-        assert "job_complete" in hook_waiters
-
-    @pytest.fixture
-    def mock_describe_job_runs(self):
-        """Mock ``GlueDataBrewHook.Client.describe_job_run`` method."""
-        with mock.patch.object(self.client, "describe_job_run") as m:
-            yield m
-
-    @staticmethod
-    def describe_jobs(status: str):
-        """
-        Helper function for generate minimal DescribeJobRun response for a single job.
-        
-        https://docs.aws.amazon.com/databrew/latest/dg/API_DescribeJobRun.html
-        """
-        return {"State": status}
-
-    def test_job_succeeded(self, mock_describe_job_runs):
-        """Test job succeeded"""
-        mock_describe_job_runs.side_effect = [
-            self.describe_jobs(GlueDataBrewHook.RUNNING_STATES[1]),
-            self.describe_jobs(GlueDataBrewHook.TERMINAL_STATES[1]),
-        ]
-        waiter = GlueDataBrewHook(aws_conn_id=None).get_waiter("job_complete")
-        waiter.wait(name=self.JOB_NAME, runId=self.RUN_ID, WaiterConfig={"Delay": 0.2, "MaxAttempts": 2})

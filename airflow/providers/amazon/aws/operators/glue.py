@@ -25,10 +25,10 @@ from typing import TYPE_CHECKING, Sequence
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.glue import GlueDataBrewHook, GlueJobHook
+from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
-from airflow.providers.amazon.aws.triggers.glue import GlueDataBrewJobCompleteTrigger, GlueJobCompleteTrigger
+from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -230,99 +230,3 @@ class GlueJobOperator(BaseOperator):
             )
             if not response["SuccessfulSubmissions"]:
                 self.log.error("Failed to stop AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
-
-
-class GlueDataBrewStartJobOperator(BaseOperator):
-    """
-    Start an AWS Glue DataBrew job.
-
-    AWS Glue DataBrew is a visual data preparation tool that makes it easier
-    for data analysts and data scientists to clean and normalize data
-    to prepare it for analytics and machine learning (ML).
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GlueDataBrewStartJobOperator`
-
-    :param job_name: unique job name per AWS Account
-    :param wait_for_completion: Whether to wait for job run completion. (default: True)
-    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
-    :param delay: Time in seconds to wait between status checks. Default is 30.
-    """
-
-    template_fields: Sequence[str] = (
-        "job_name",
-        "wait_for_completion",
-        "delay",
-        "deferrable",
-    )
-
-    def __init__(
-        self,
-        job_name: str,
-        wait_for_completion: bool = True,
-        delay: int = 30,
-        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str = "aws_default",
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.job_name = job_name
-        self.wait_for_completion = wait_for_completion
-        self.deferrable = deferrable
-        self.delay = delay
-        self.aws_conn_id = aws_conn_id
-
-    @cached_property
-    def hook(self) -> GlueDataBrewHook:
-        return GlueDataBrewHook(aws_conn_id=self.aws_conn_id)
-
-    def execute(self, context: Context):
-        resp = {}
-        resp["job_name"] = self.job_name
-
-        job = self.hook.conn.start_job_run(Name=self.job_name)
-        run_id = job["RunId"]
-        resp["run_id"] = run_id
-
-        status = self.hook.get_job_state(self.job_name, run_id)
-        resp["status"] = status
-
-        self.log.info(
-            "AWS Glue DataBrew Job: %s. Run Id: %s submitted. Status: %s", self.job_name, run_id, status
-        )
-
-        if self.deferrable:
-            self.log.info("Deferring job %s with run_id %s", self.job_name, run_id)
-            self.defer(
-                trigger=GlueDataBrewJobCompleteTrigger(
-                    aws_conn_id=self.aws_conn_id, job_name=self.job_name, run_id=run_id, delay=self.delay
-                ),
-                method_name="execute_complete",
-            )
-
-        elif self.wait_for_completion:
-            self.log.info(
-                "Waiting for AWS Glue DataBrew Job: %s. Run Id: %s to complete.", self.job_name, run_id
-            )
-            status = self.hook.job_completion(job_name=self.job_name, delay=self.delay, run_id=run_id)
-            self.log.info("Glue DataBrew Job: %s status: %s", self.job_name, status)
-            resp["status"] = status
-
-        return resp
-
-    def execute_complete(self, context: Context, event=None) -> dict[str, str]:
-        result = {
-            "job_name": event.get("jobName", ""),
-            "run_id": event.get("runId", ""),
-            "status": event.get("status", ""),
-        }
-        self.log.info(
-            "AWS Glue DataBrew Job: %s runId: %s status: %s",
-            result["job_name"],
-            result["run_id"],
-            result["status"],
-        )
-        return result

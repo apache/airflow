@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag
 from airflow.models.baseoperator import chain
-from airflow.providers.amazon.aws.operators.glue import (
+from airflow.models.dag import DAG
+from airflow.providers.amazon.aws.operators.databrew import (
     GlueDataBrewStartJobOperator,
 )
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
@@ -30,8 +30,7 @@ DAG_ID = "example_databrew"
 sys_test_context_task = SystemTestContextBuilder().build()
 
 
-@dag(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
-def run_job():
+with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
 
@@ -42,12 +41,13 @@ def run_job():
     # [END howto_operator_glue_databrew_start]
 
     chain(test_context, start_job)
-    
-    from tests.system.utils.watcher import watcher  # noqa: E402
-    
+
+    from tests.system.utils.watcher import watcher
+
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
+
 
 from tests.system.utils import get_test_run  # noqa: E402
 
