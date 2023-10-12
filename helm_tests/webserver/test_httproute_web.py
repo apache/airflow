@@ -42,7 +42,8 @@ class TestHttpRouteWeb:
                                           "gateway": {"name": "test-gateway", "namespace": "test"}}}},
             show_only=["templates/webserver/webserver-httproute.yaml"],
         )
-        assert {"aa": "bb", "cc": "dd"} == jmespath.search("metadata.annotations", docs[0])
+        assert {"aa": "bb", "cc": "dd"} == jmespath.search(
+            "metadata.annotations", docs[0])
 
     def test_should_set_httproute_gateway_name(self):
         docs = render_chart(
@@ -69,10 +70,12 @@ class TestHttpRouteWeb:
         ],
     )
     def test_httproute_created(self, value, expected):
-        values={"httpRoute": {"web": {"gateway": {"name": "test-gateway", "namespace": "test"}}}}
+        values = {"httpRoute": {
+            "web": {"gateway": {"name": "test-gateway", "namespace": "test"}}}}
         if value is not None:
             values["httpRoute"]["web"]["enabled"] = value
-        docs = render_chart(values=values, show_only=["templates/webserver/webserver-httproute.yaml"])
+        docs = render_chart(values=values, show_only=[
+                            "templates/webserver/webserver-httproute.yaml"])
         assert expected == (2 == len(docs))
 
     def test_should_add_component_specific_labels(self):
@@ -87,4 +90,5 @@ class TestHttpRouteWeb:
             show_only=["templates/webserver/webserver-httproute.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert jmespath.search("metadata.labels", docs[0])[
+            "test_label"] == "test_label_value"

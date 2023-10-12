@@ -28,7 +28,7 @@ class TestHttpRouteFlower:
     def test_should_check_that_both_httproute_and_healthcheckpolicy_are_created(self):
         docs = render_chart(
             values={"httpRoute": {"flower": {"enabled": True,
-                                          "gateway": {"name": "test-gateway", "namespace": "test"}}}},
+                                             "gateway": {"name": "test-gateway", "namespace": "test"}}}},
             show_only=["templates/flower/flower-httproute.yaml"],
         )
         assert 2 == len(docs)
@@ -38,16 +38,17 @@ class TestHttpRouteFlower:
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
             values={"httpRoute": {"flower": {"enabled": True,
-                                          "annotations": {"aa": "bb", "cc": "dd"},
-                                          "gateway": {"name": "test-gateway", "namespace": "test"}}}},
+                                             "annotations": {"aa": "bb", "cc": "dd"},
+                                             "gateway": {"name": "test-gateway", "namespace": "test"}}}},
             show_only=["templates/flower/flower-httproute.yaml"],
         )
-        assert {"aa": "bb", "cc": "dd"} == jmespath.search("metadata.annotations", docs[0])
+        assert {"aa": "bb", "cc": "dd"} == jmespath.search(
+            "metadata.annotations", docs[0])
 
     def test_should_set_httproute_gateway_name(self):
         docs = render_chart(
             values={"httpRoute": {"flower": {"enabled": True,
-                                          "gateway": {"name": "foo", "namespace": "bar"}}}},
+                                             "gateway": {"name": "foo", "namespace": "bar"}}}},
             show_only=["templates/flower/flower-httproute.yaml"],
         )
         assert "foo" == jmespath.search("spec.parentRefs[0].name", docs[0])
@@ -55,7 +56,7 @@ class TestHttpRouteFlower:
     def test_should_httproute_hostnames_entry_not_exist(self):
         docs = render_chart(
             values={"httpRoute": {"flower": {"enabled": True,
-                                          "gateway": {"name": "test-gateway", "namespace": "test"}}}},
+                                             "gateway": {"name": "test-gateway", "namespace": "test"}}}},
             show_only=["templates/flower/flower-httproute.yaml"],
         )
         assert not jmespath.search("spec.hostnames", docs[0])
@@ -69,17 +70,19 @@ class TestHttpRouteFlower:
         ],
     )
     def test_httproute_created(self, value, expected):
-        values={"httpRoute": {"flower": {"gateway": {"name": "test-gateway", "namespace": "test"}}}}
+        values = {"httpRoute": {"flower": {"gateway": {
+            "name": "test-gateway", "namespace": "test"}}}}
         if value is not None:
             values["httpRoute"]["flower"]["enabled"] = value
-        docs = render_chart(values=values, show_only=["templates/flower/flower-httproute.yaml"])
+        docs = render_chart(values=values, show_only=[
+                            "templates/flower/flower-httproute.yaml"])
         assert expected == (2 == len(docs))
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
                 "httpRoute": {"flower": {"enabled": True,
-                                      "gateway": {"name": "test-gateway", "namespace": "test"}}},
+                                         "gateway": {"name": "test-gateway", "namespace": "test"}}},
                 "flower": {
                     "labels": {"test_label": "test_label_value"},
                 },
@@ -87,4 +90,5 @@ class TestHttpRouteFlower:
             show_only=["templates/flower/flower-httproute.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+        assert jmespath.search("metadata.labels", docs[0])[
+            "test_label"] == "test_label_value"
