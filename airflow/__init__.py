@@ -24,6 +24,7 @@ in their PYTHONPATH. airflow_login should be based off the `airflow.www.login`
 
 isort:skip_file
 """
+
 from __future__ import annotations
 
 __version__ = "2.8.0.dev0"
