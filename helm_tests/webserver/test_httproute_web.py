@@ -78,9 +78,9 @@ class TestHttpRouteWeb:
     @pytest.mark.parametrize(
         "value, expected",
         [
-            (None, False),
-            (False, False),
-            (True, True),
+            (None, 0),
+            (False, 0),
+            (True, 2),
         ],
     )
     def test_httproute_created(self, value, expected):
@@ -90,7 +90,7 @@ class TestHttpRouteWeb:
             values["httpRoute"]["web"]["enabled"] = value
         docs = render_chart(values=values, show_only=[
                             "templates/webserver/webserver-httproute.yaml"])
-        assert expected == (2 == len(docs))
+        assert expected == len(docs)
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
