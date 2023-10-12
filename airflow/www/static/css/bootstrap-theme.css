@@ -5945,6 +5945,12 @@ button.close {
 .affix {
   position: fixed;
 }
+.truncate-text {
+  max-width: 12rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
 
 @-ms-viewport {
   width: device-width;

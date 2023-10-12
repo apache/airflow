@@ -4693,7 +4693,7 @@ class PoolModelView(AirflowModelView):
         pool_id = self.get("pool")
         description = self.get("description")
         if pool_id is not None and description is not None:
-            return Markup('<p style="max-width: 8em">{description}</p>').format(description=description)
+            return Markup('<p class="truncate-text">{description}</p>').format(description=description)
         else:
             return Markup('<span class="label label-danger">-</span>')
 
