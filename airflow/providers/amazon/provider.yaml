@@ -288,6 +288,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/appflow.rst
     tags: [aws]
+  - integration-name: AWS Glue DataBrew
+    external-doc-url: https://docs.aws.amazon.com/databrew/latest/dg/what-is.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/databrew.rst
+    logo: /integration-logos/aws/AWS-Glue-DataBrew_64.png
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -364,7 +370,7 @@ operators:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.operators.appflow
-  - integration-name: Amazon Glue DataBrew
+  - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.operators.databrew
 
@@ -543,7 +549,7 @@ hooks:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.hooks.appflow
-  - integration-name: Amazon Glue DataBrew
+  - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.hooks.databrew
 
@@ -594,7 +600,7 @@ triggers:
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.triggers.sqs
-  - integration-name: Amazon Glue DataBrew
+  - integration-name: AWS Glue DataBrew
     python-modules:
       - airflow.providers.amazon.aws.triggers.databrew
 
