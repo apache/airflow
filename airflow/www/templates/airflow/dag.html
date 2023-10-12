@@ -110,8 +110,7 @@
         {% if dag.parent_dag is defined and dag.parent_dag %}
           <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
         {% else %}
-          {% set can_edit = auth_manager.is_authorized_dag(method="PUT", details=DagDetails(id=dag.dag_id)) %}
-          {% if can_edit %}
+          {% if can_edit_dag %}
             {% set switch_tooltip = 'Pause/Unpause DAG' %}
           {% else %}
             {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}

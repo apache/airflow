@@ -21,12 +21,10 @@ import logging
 import pendulum
 
 import airflow
-from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import conf
 from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, STATE_COLORS
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import get_airflow_git_version
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 
 def init_jinja_globals(app):
@@ -72,10 +70,6 @@ def init_jinja_globals(app):
             "rest_api_enabled": False,
             "config_test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         }
-
-        # Extra global specific to auth manager
-        extra_globals["auth_manager"] = get_auth_manager()
-        extra_globals["DagDetails"] = DagDetails
 
         backends = conf.get("api", "auth_backends")
         if backends and backends[0] != "airflow.api.auth.backend.deny_all":
