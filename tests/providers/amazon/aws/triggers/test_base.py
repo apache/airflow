@@ -91,6 +91,17 @@ class TestAwsBaseWaiterTrigger:
 
         assert param_name not in args
 
+    def test_region_name_not_serialized_if_empty_string(self):
+        """
+        Compatibility with previous behaviour when empty string region name not serialised.
+
+        It would evaluate as None, however empty string it is not valid region name in boto3.
+        """
+        self.trigger.region_name = ""
+        _, args = self.trigger.serialize()
+
+        assert "region_name" not in args
+
     def test_serialize_extra_fields(self):
         self.trigger.serialized_fields = {"foo": "bar", "foz": "baz"}
 

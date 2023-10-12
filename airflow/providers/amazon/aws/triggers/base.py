@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -111,12 +112,16 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         )
 
         # if we serialize the None value from this, it breaks subclasses that don't have it in their ctor.
-        if self.region_name:
-            params["region_name"] = self.region_name
-        if self.verify is not None:
-            params["verify"] = self.verify
-        if self.botocore_config is not None:
-            params["botocore_config"] = self.botocore_config
+        params.update(
+            prune_dict(
+                {
+                    # Keep previous behaviour when empty string in region_name evaluated as `None`
+                    "region_name": self.region_name or None,
+                    "verify": self.verify,
+                    "botocore_config": self.botocore_config,
+                }
+            )
+        )
 
         return (
             # remember that self is an instance of the subclass here, not of this class.
