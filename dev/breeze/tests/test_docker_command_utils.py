@@ -228,6 +228,16 @@ def _fake_ctx_output(*names: str) -> str:
             "desktop-linux",
             "[info]Using desktop-linux as context",
         ),
+        (
+            _fake_ctx_output("a", "default", "desktop-linux"),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
+        (
+            '[{"Name": "desktop-linux", "DockerEndpoint": "unix://desktop-linux"}]',
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
     ],
 )
 def test_autodetect_docker_context(context_output: str, selected_context: str, console_output: str):

@@ -34,10 +34,10 @@ from airflow.utils.session import provide_session
 
 
 def generate_host_key(pkey: paramiko.PKey):
-    key_fh = StringIO()
-    pkey.write_private_key(key_fh)
-    key_fh.seek(0)
-    key_obj = paramiko.RSAKey(file_obj=key_fh)
+    with StringIO() as key_fh:
+        pkey.write_private_key(key_fh)
+        key_fh.seek(0)
+        key_obj = paramiko.RSAKey(file_obj=key_fh)
     return key_obj.get_base64()
 
 

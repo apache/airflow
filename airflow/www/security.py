@@ -16,14 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from deprecated import deprecated
 
 from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
-
-if TYPE_CHECKING:
-    pass
 
 EXISTING_ROLES = {
     "Admin",
