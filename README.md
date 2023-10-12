@@ -146,7 +146,7 @@ our dependencies as open as possible (in `setup.py`) so users can install differ
 if needed. This means that `pip install apache-airflow` will not work from time to time or will
 produce unusable Airflow installation.
 
-To have repeatable installation, however, we keep a set of "known-to-be-working" constraint
+To have repeatable installation, though, we keep a set of "known-to-be-working" constraint
 files in the orphan `constraints-main` and `constraints-2-0` branches. We keep those "known-to-be-working"
 constraints files separately per major/minor Python version.
 You can use them as constraint files when installing Airflow from PyPI. Note that you have to specify
