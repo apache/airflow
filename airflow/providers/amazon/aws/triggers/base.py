@@ -81,6 +81,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
     ):
+        super().__init__()
         # parameters that should be hardcoded in the child's implem
         self.serialized_fields = serialized_fields
 
