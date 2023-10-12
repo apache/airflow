@@ -6241,6 +6241,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for redis pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
