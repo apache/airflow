@@ -308,7 +308,7 @@ config:
         description: |
           WASB storage container where the remote logs will be stored.
           The container should exist.
-        version_added: 6.3.0
+        version_added: 7.1.0
         type: string
         example: ~
         default: "airflow-logs"
