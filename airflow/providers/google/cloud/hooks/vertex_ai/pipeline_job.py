@@ -53,7 +53,7 @@ class PipelineJobHook(GoogleBaseHook):
         if kwargs.get("delegate_to") is not None:
             raise RuntimeError(
                 "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
+                " of Google Provider. You MUST convert it to `impersonation_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
