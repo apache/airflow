@@ -42,8 +42,13 @@ class TestHttpRouteWeb:
                                           "gateway": {"name": "test-gateway", "namespace": "test"}}}},
             show_only=["templates/webserver/webserver-httproute.yaml"],
         )
+
+        httpRoute = docs[0]
         assert {"aa": "bb", "cc": "dd"} == jmespath.search(
-            "metadata.annotations", docs[0])
+            "metadata.annotations", httpRoute)
+        healthCheckPolicy = docs[1]
+        assert {"aa": "bb", "cc": "dd"} == jmespath.search(
+            "metadata.annotations", healthCheckPolicy)
 
     def test_should_set_httproute_gateway_name(self):
         docs = render_chart(
@@ -89,6 +94,13 @@ class TestHttpRouteWeb:
             },
             show_only=["templates/webserver/webserver-httproute.yaml"],
         )
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])[
+
+        httpRoute = docs[0]
+        assert "test_label" in jmespath.search("metadata.labels", httpRoute)
+        assert jmespath.search("metadata.labels", httpRoute)[
+            "test_label"] == "test_label_value"
+        healthCheckPolicy = docs[1]
+        assert "test_label" in jmespath.search(
+            "metadata.labels", healthCheckPolicy)
+        assert jmespath.search("metadata.labels", healthCheckPolicy)[
             "test_label"] == "test_label_value"
