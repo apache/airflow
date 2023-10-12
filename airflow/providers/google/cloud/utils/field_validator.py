@@ -258,7 +258,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 validation_spec=child_validation_spec, dictionary_to_validate=value, parent=full_field_path
             )
         all_dict_keys = {spec["name"] for spec in children_validation_specs}
-        for field_name in value.keys():
+        for field_name in value:
             if field_name not in all_dict_keys:
                 self.log.warning(
                     "The field '%s' is in the body, but is not specified in the "
@@ -421,6 +421,8 @@ class GcpBodyFieldValidator(LoggingMixin):
         :param body_to_validate: body that must follow the specification
         :return: None
         """
+        if body_to_validate is None:
+            raise RuntimeError("The body to validate is `None`. Please provide a dictionary to validate.")
         try:
             for validation_spec in self._validation_specs:
                 self._validate_field(validation_spec=validation_spec, dictionary_to_validate=body_to_validate)
@@ -441,7 +443,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 if nested_union_spec.get("type") != "union"
                 and nested_union_spec.get("api_version") != self._api_version
             )
-        for field_name in body_to_validate.keys():
+        for field_name in body_to_validate:
             if field_name not in all_field_names:
                 self.log.warning(
                     "The field '%s' is in the body, but is not specified in the "

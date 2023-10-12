@@ -26,7 +26,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ALREADY_EXISTING_IN_SINK,
     BUCKET_NAME,
@@ -101,7 +101,7 @@ update_body = {
 }
 # [END howto_operator_gcp_transfer_update_job_body]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),

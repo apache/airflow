@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import itertools
 import json
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Iterable, Sequence
 
 from google.cloud.batch import ListJobsRequest, ListTasksRequest
@@ -152,7 +152,7 @@ class CloudBatchHook(GoogleBaseHook):
                 ):
                     return job
                 else:
-                    sleep(polling_period_seconds)
+                    time.sleep(polling_period_seconds)
             except Exception as e:
                 self.log.exception("Exception occurred while checking for job completion.")
                 raise e

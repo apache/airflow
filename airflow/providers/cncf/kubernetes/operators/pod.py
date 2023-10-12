@@ -371,7 +371,7 @@ class KubernetesPodOperator(BaseOperator):
         self.get_logs = get_logs
         self.container_logs = container_logs
         if self.container_logs == KubernetesPodOperator.BASE_CONTAINER_NAME:
-            self.container_logs = base_container_name if base_container_name else self.BASE_CONTAINER_NAME
+            self.container_logs = base_container_name or self.BASE_CONTAINER_NAME
         self.image_pull_policy = image_pull_policy
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
@@ -679,7 +679,10 @@ class KubernetesPodOperator(BaseOperator):
                     return xcom_sidecar_output
         finally:
             istio_enabled = self.is_istio_enabled(pod)
-            pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
+            # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
+            # on the ErrImagePull or ContainerCreating step and it will never complete
+            if event["status"] != "timeout":
+                pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
             if pod is not None:
                 self.post_complete_action(
                     pod=pod,
@@ -804,7 +807,6 @@ class KubernetesPodOperator(BaseOperator):
             raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
 
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
-        istio_enabled = self.is_istio_enabled(pod)
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
                 should_delete_pod = (
@@ -818,12 +820,9 @@ class KubernetesPodOperator(BaseOperator):
                         and container_is_succeeded(pod, self.base_container_name)
                     )
                 )
-                if should_delete_pod and not istio_enabled:
+                if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
                     self.pod_manager.delete_pod(pod)
-                elif should_delete_pod and istio_enabled:
-                    self.log.info("Deleting istio-proxy sidecar inside %s: ", pod.metadata.name)
-                    self.kill_istio_sidecar(pod)
                 else:
                     self.log.info("Skipping deleting pod: %s", pod.metadata.name)
 

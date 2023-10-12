@@ -17,14 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-import io
+from io import BytesIO
 from unittest import mock
 
 import boto3
 import pytest
 from moto import mock_s3
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
@@ -49,7 +49,7 @@ class TestS3CopyObjectOperator:
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.source_bucket)
         conn.create_bucket(Bucket=self.dest_bucket)
-        conn.upload_fileobj(Bucket=self.source_bucket, Key=self.source_key, Fileobj=io.BytesIO(b"input"))
+        conn.upload_fileobj(Bucket=self.source_bucket, Key=self.source_key, Fileobj=BytesIO(b"input"))
 
         # there should be nothing found before S3CopyObjectOperator is executed
         assert "Contents" not in conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key)
@@ -74,7 +74,7 @@ class TestS3CopyObjectOperator:
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=self.source_bucket)
         conn.create_bucket(Bucket=self.dest_bucket)
-        conn.upload_fileobj(Bucket=self.source_bucket, Key=self.source_key, Fileobj=io.BytesIO(b"input"))
+        conn.upload_fileobj(Bucket=self.source_bucket, Key=self.source_key, Fileobj=BytesIO(b"input"))
 
         # there should be nothing found before S3CopyObjectOperator is executed
         assert "Contents" not in conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key)
@@ -103,7 +103,7 @@ class TestS3DeleteObjectsOperator:
 
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=bucket)
-        conn.upload_fileobj(Bucket=bucket, Key=key, Fileobj=io.BytesIO(b"input"))
+        conn.upload_fileobj(Bucket=bucket, Key=key, Fileobj=BytesIO(b"input"))
 
         # The object should be detected before the DELETE action is taken
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key)
@@ -125,7 +125,7 @@ class TestS3DeleteObjectsOperator:
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=bucket)
         for k in keys:
-            conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=io.BytesIO(b"input"))
+            conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
 
         # The objects should be detected before the DELETE action is taken
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_pattern)
@@ -147,7 +147,7 @@ class TestS3DeleteObjectsOperator:
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=bucket)
         for k in keys:
-            conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=io.BytesIO(b"input"))
+            conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
 
         # The objects should be detected before the DELETE action is taken
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_pattern)
@@ -167,7 +167,7 @@ class TestS3DeleteObjectsOperator:
 
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=bucket)
-        conn.upload_fileobj(Bucket=bucket, Key=key_of_test, Fileobj=io.BytesIO(b"input"))
+        conn.upload_fileobj(Bucket=bucket, Key=key_of_test, Fileobj=BytesIO(b"input"))
 
         # The object should be detected before the DELETE action is tested
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_of_test)
@@ -189,7 +189,7 @@ class TestS3DeleteObjectsOperator:
 
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=bucket)
-        conn.upload_fileobj(Bucket=bucket, Key=key_of_test, Fileobj=io.BytesIO(b"input"))
+        conn.upload_fileobj(Bucket=bucket, Key=key_of_test, Fileobj=BytesIO(b"input"))
 
         # The object should be detected before the DELETE action is tested
         objects_in_dest_bucket = conn.list_objects(Bucket=bucket, Prefix=key_of_test)
@@ -235,7 +235,7 @@ class TestS3DeleteObjectsOperator:
 
         conn = boto3.client("s3")
         conn.create_bucket(Bucket=bucket)
-        conn.upload_fileobj(Bucket=bucket, Key=key_of_test, Fileobj=io.BytesIO(b"input"))
+        conn.upload_fileobj(Bucket=bucket, Key=key_of_test, Fileobj=BytesIO(b"input"))
 
         # Set valid values for constructor, and change them later for emulate rendering template
         op = S3DeleteObjectsOperator(

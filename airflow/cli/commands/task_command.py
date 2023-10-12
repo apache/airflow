@@ -73,6 +73,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
 
 log = logging.getLogger(__name__)
 
@@ -94,7 +95,7 @@ def _get_dag_run(
     create_if_necessary: CreateIfNecessary,
     exec_date_or_run_id: str | None = None,
     session: Session,
-) -> tuple[DagRun, bool]:
+) -> tuple[DagRun | DagRunPydantic, bool]:
     """Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
     This checks DAG runs like this:

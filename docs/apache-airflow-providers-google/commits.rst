@@ -35,14 +35,38 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.9.0
+......
+
+Latest change: 2023-09-14
+
+=================================================================================================  ===========  ================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================================
+`b042042086 <https://github.com/apache/airflow/commit/b0420420864b6ada45260e0d00b1b6e72595a966>`_  2023-09-14   ``Remove unnecessary call to keys() method on dictionaries (#34260)``
+`05036e619c <https://github.com/apache/airflow/commit/05036e619c0c6dafded1451daac4e07e20aee33f>`_  2023-09-13   ``Refactor: Think positively in providers (#34279)``
+`3fa9d46ec7 <https://github.com/apache/airflow/commit/3fa9d46ec74ef8453fcf17fbd49280cb6fb37cef>`_  2023-09-12   ``Refactor: Simplify code in providers/google (#33229)``
+`4dcdc34996 <https://github.com/apache/airflow/commit/4dcdc349964647ade80702e3d34bbf819ddf7661>`_  2023-09-11   ``Add explicit support of stream (realtime) pipelines for CloudDataFusionStartPipelineOperator (#34271)``
+`94d07908a2 <https://github.com/apache/airflow/commit/94d07908a2188eb650bfab21d89a49b287aee35c>`_  2023-09-11   ``Refactor: Simplify comparisons (#34181)``
+`0110b22a60 <https://github.com/apache/airflow/commit/0110b22a603f86fbc6f1311ef1c9a23505ca6f87>`_  2023-09-11   ``Fix 'ComputeEngineInsertInstanceOperator' doesn't respect jinja-templated instance name when given in body argument (#34171)``
+`050a47add8 <https://github.com/apache/airflow/commit/050a47add822cde6d9abcd609df59c98caae13b0>`_  2023-09-11   ``Add 'expected_terminal_state' parameter to Dataflow operators (#34217)``
+`25d463c3e3 <https://github.com/apache/airflow/commit/25d463c3e33f8628e1bcbe4dc6924693ec141dc0>`_  2023-09-11   ``Deprecate AutoMLTrainModelOperator for NL (#34212)``
+`db38a6fc66 <https://github.com/apache/airflow/commit/db38a6fc667f336d080ad48f66dc814de77c27a6>`_  2023-09-11   ``GKEPodHook ignores gcp_conn_id parameter. (#34194)``
+`38ecd4c4da <https://github.com/apache/airflow/commit/38ecd4c4da65310f9461df769d274cb78b122630>`_  2023-09-10   ``Bump min common-sql provider version for Google provider (#34257)``
+`c5ec7cd294 <https://github.com/apache/airflow/commit/c5ec7cd294ed9363817b358765ed2a250ae76b6d>`_  2023-09-10   ``Simplify  to bool(...) (#34258)``
+`bf9769bebf <https://github.com/apache/airflow/commit/bf9769bebf712bb70033dd927115fff8c75d0f35>`_  2023-09-09   ``Make Google Dataform operators templated_fields more consistent (#34187)``
+`774125ae25 <https://github.com/apache/airflow/commit/774125ae253611627229509e672518ce0a58cf2e>`_  2023-09-09   ``fix: BigQuery job error message (#34208)``
+=================================================================================================  ===========  ================================================================================================================================
+
 10.8.0
 ......
 
-Latest change: 2023-09-07
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  ==========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `ff23a30e5b <https://github.com/apache/airflow/commit/ff23a30e5b51f4ba7316fa803a85b89b7dd5f6fe>`_  2023-09-07   ``fix(providers/google-marketing-platform): respect soft_fail argument when exception is raised (#34165)``
 `9c66132af6 <https://github.com/apache/airflow/commit/9c66132af6e75924c5dbc2c4536ab381582a9292>`_  2023-09-07   ``fix: docstring in endpoint_service.py (#34135)``
 `9079093291 <https://github.com/apache/airflow/commit/907909329195c6655d1e2989b05609466ef50563>`_  2023-09-07   ``Consolidate importing of os.path.* (#34060)``

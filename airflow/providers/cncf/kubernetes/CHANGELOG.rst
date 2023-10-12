@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+7.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'progress_callback' parameter to 'KubernetesPodOperator' (#34153)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Move definition of Pod*Exceptions to pod_generator (#34346)``
+* ``Push to xcom before 'KubernetesPodOperator' deferral (#34209)``
+
+Misc
+~~~~
+
+* ``Refactor: Consolidate import textwrap in providers (#34220)``
+
 7.5.1
 .....
 
@@ -116,7 +135,7 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``aDd documentation generation for CLI commands from executors (#33081)``
+* ``add documentation generation for CLI commands from executors (#33081)``
 
 
 .. Below changes are excluded from the changelog. Move them to

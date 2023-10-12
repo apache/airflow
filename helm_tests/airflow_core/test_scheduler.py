@@ -426,19 +426,26 @@ class TestScheduler:
         )
 
     @pytest.mark.parametrize(
-        "log_persistence_values, expected_volume",
+        "log_values, expected_volume",
         [
-            ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
+            ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
+            ),
+            (
+                {"persistence": {"enabled": True}},
+                {"persistentVolumeClaim": {"claimName": "release-name-logs"}},
+            ),
+            (
+                {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
         ],
     )
-    def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
+    def test_logs_persistence_changes_volume(self, log_values, expected_volume):
         docs = render_chart(
-            values={"logs": {"persistence": log_persistence_values}},
+            values={"logs": log_values},
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 

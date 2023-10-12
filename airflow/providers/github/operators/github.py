@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from github import GithubException
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.github.hooks.github import GithubHook
 

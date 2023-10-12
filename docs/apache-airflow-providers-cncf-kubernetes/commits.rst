@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.6.0
+.....
+
+Latest change: 2023-09-13
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`de92a81f00 <https://github.com/apache/airflow/commit/de92a81f002e6c1b3e74ad9d074438b65acb87b6>`_  2023-09-13   ``Move definition of Pod*Exceptions to pod_generator (#34346)``
+`b435b8edef <https://github.com/apache/airflow/commit/b435b8edefd181fa85e6cc6b2b822d113f562e27>`_  2023-09-09   ``Push to xcom before 'KubernetesPodOperator' deferral (#34209)``
+`b5057e0e1f <https://github.com/apache/airflow/commit/b5057e0e1fc6b7a47e38037a97cac862706747f0>`_  2023-09-09   ``Add 'progress_callback' parameter to 'KubernetesPodOperator' (#34153)``
+`c5016f754d <https://github.com/apache/airflow/commit/c5016f754df1b62046b9c1fce09574a69d8edebc>`_  2023-09-08   ``Refactor: Consolidate import textwrap in providers (#34220)``
+=================================================================================================  ===========  =========================================================================
+
 7.5.1
 .....
 
-Latest change: 2023-09-07
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  =================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `6e1de4f9b9 <https://github.com/apache/airflow/commit/6e1de4f9b97bcfc089cd9db67b6ce8b1be3e8142>`_  2023-09-07   ``fix(providers/spark-kubernetes): respect soft_fail argument when exception is raised (#34167)``
 `1005501365 <https://github.com/apache/airflow/commit/10055013652be3e76c964cbc844b075bb688f088>`_  2023-09-06   ``Used cached property for hook in SparkKubernetesOperator (#34130)``
 `7731255975 <https://github.com/apache/airflow/commit/7731255975b9ac1c8cf7b2e363aaa8b9cbba80b8>`_  2023-09-06   ``Refactor: Consolidate import datetime (#34110)``

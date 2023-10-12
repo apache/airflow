@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.triggers.ec2 import EC2StateSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -94,5 +94,9 @@ class EC2InstanceStateSensor(BaseSensorOperator):
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
-            raise AirflowException(f"Error: {event}")
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"Error: {event}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         return

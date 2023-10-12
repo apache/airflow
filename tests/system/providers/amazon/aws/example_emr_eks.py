@@ -22,9 +22,9 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, NodegroupStates
 from airflow.providers.amazon.aws.operators.eks import EksCreateClusterOperator, EksDeleteClusterOperator
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator

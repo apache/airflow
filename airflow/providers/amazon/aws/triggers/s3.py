@@ -197,7 +197,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                         allow_delete=self.allow_delete,
                         last_activity_time=self.last_activity_time,
                     )
-                    if result.get("status") == "success" or result.get("status") == "error":
+                    if result.get("status") in ("success", "error"):
                         yield TriggerEvent(result)
                     elif result.get("status") == "pending":
                         self.previous_objects = result.get("previous_objects", set())

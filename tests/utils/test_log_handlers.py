@@ -32,7 +32,10 @@ from kubernetes.client import models as k8s
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import DAG, DagRun, TaskInstance, Trigger
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.trigger import Trigger
 from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import (
     FileTaskHandler,

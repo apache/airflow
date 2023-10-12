@@ -25,6 +25,7 @@ import sys
 import textwrap
 import time
 from contextlib import suppress
+from pathlib import Path
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
 
@@ -476,13 +477,15 @@ def webserver(args):
 
             handle = setup_logging(log_file)
 
-            base, ext = os.path.splitext(pid_file)
+            pid_path = Path(pid_file)
+            pidlock_path = pid_path.with_name(f"{pid_path.stem}-monitor{pid_path.suffix}")
+
             with open(stdout, "a") as stdout, open(stderr, "a") as stderr:
                 stdout.truncate(0)
                 stderr.truncate(0)
 
                 ctx = daemon.DaemonContext(
-                    pidfile=TimeoutPIDLockFile(f"{base}-monitor{ext}", -1),
+                    pidfile=TimeoutPIDLockFile(pidlock_path, -1),
                     files_preserve=[handle],
                     stdout=stdout,
                     stderr=stderr,
