@@ -65,20 +65,20 @@ import logging
 import os
 from datetime import datetime
 
-from googleapiclient import discovery
-
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
-from airflow.providers.google.cloud.operators.cloud_sql import (
-    CloudSQLCreateInstanceDatabaseOperator,
-    CloudSQLCreateInstanceOperator,
-    CloudSQLDeleteInstanceOperator,
+from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
+from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
+from airflow.providers.google.cloud.operators.compute import (
+    ComputeEngineDeleteInstanceOperator,
+    ComputeEngineInsertInstanceOperator,
 )
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
+from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -86,38 +86,83 @@ DAG_ID = "example_sql_to_sheets"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
+REGION = "europe-west2"
+ZONE = REGION + "-a"
+NETWORK = "default"
+
 SHEETS_CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 SPREADSHEET = {
     "properties": {"title": "Test1"},
     "sheets": [{"properties": {"title": "Sheet1"}}],
 }
 
-CLOUD_SQL_INSTANCE = f"cloud-sql-{DAG_ID}-{ENV_ID}".replace("_", "-")
-CLOUD_SQL_INSTANCE_CREATION_BODY = {
-    "name": CLOUD_SQL_INSTANCE,
-    "settings": {
-        "tier": "db-custom-1-3840",
-        "dataDiskSizeGb": 30,
-        "ipConfiguration": {
-            "ipv4Enabled": True,
-            "requireSsl": False,
-            # Consider specifying your network mask
-            # for allowing requests only from the trusted sources, not from anywhere
-            "authorizedNetworks": [
-                {"value": "0.0.0.0/0"},
-            ],
-        },
-        "pricingPlan": "PER_USE",
-    },
-    "databaseVersion": "POSTGRES_15",
-    "region": "us-central1",
-}
 DB_NAME = f"{DAG_ID}-{ENV_ID}-db".replace("-", "_")
 DB_PORT = 5432
-DB_CREATE_BODY = {"instance": CLOUD_SQL_INSTANCE, "name": DB_NAME, "project": PROJECT_ID}
 DB_USER_NAME = "demo_user"
 DB_USER_PASSWORD = "demo_password"
 DB_CONNECTION_ID = f"postgres_{DAG_ID}_{ENV_ID}".replace("-", "_")
+
+SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
+DB_INSTANCE_NAME = f"instance-{DAG_ID}-{ENV_ID}".replace("_", "-")
+GCE_INSTANCE_BODY = {
+    "name": DB_INSTANCE_NAME,
+    "machine_type": f"zones/{ZONE}/machineTypes/{SHORT_MACHINE_TYPE_NAME}",
+    "disks": [
+        {
+            "boot": True,
+            "device_name": DB_INSTANCE_NAME,
+            "initialize_params": {
+                "disk_size_gb": "10",
+                "disk_type": f"zones/{ZONE}/diskTypes/pd-balanced",
+                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+            },
+        }
+    ],
+    "network_interfaces": [
+        {
+            "access_configs": [{"name": "External NAT", "network_tier": "PREMIUM"}],
+            "stack_type": "IPV4_ONLY",
+            "subnetwork": f"regions/{REGION}/subnetworks/default",
+        }
+    ],
+}
+DELETE_PERSISTENT_DISK = f"""
+if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
+ gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
+fi;
+gcloud compute disks delete {DB_INSTANCE_NAME} --project={PROJECT_ID} --zone={ZONE} --quiet
+"""
+
+SETUP_POSTGRES = f"""
+sudo apt update &&
+sudo apt install -y docker.io &&
+sudo docker run -d -p {DB_PORT}:{DB_PORT} --name {DB_NAME} \
+    -e POSTGRES_USER={DB_USER_NAME} \
+    -e POSTGRES_PASSWORD={DB_USER_PASSWORD} \
+    -e POSTGRES_DB={DB_NAME} \
+    postgres
+"""
+
+FIREWALL_RULE_NAME = f"allow-http-{DB_PORT}"
+CREATE_FIREWALL_RULE = f"""
+if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
+ gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
+fi;
+gcloud compute firewall-rules create {FIREWALL_RULE_NAME} \
+  --project={PROJECT_ID} \
+  --direction=INGRESS \
+  --priority=100 \
+  --network={NETWORK} \
+  --action=ALLOW \
+  --rules=tcp:{DB_PORT} \
+  --source-ranges=0.0.0.0/0
+"""
+DELETE_FIREWALL_RULE = f"""
+if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
+ gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
+fi;
+gcloud compute firewall-rules delete {FIREWALL_RULE_NAME} --project={PROJECT_ID} --quiet
+"""
 
 SQL_TABLE = "test_table"
 SQL_CREATE = f"CREATE TABLE IF NOT EXISTS {SQL_TABLE} (col_1 INT, col_2 VARCHAR(8))"
@@ -134,42 +179,39 @@ with DAG(
     catchup=False,
     tags=["example", "sql"],
 ) as dag:
-    create_cloud_sql_instance = CloudSQLCreateInstanceOperator(
-        task_id="create_cloud_sql_instance",
+    create_instance = ComputeEngineInsertInstanceOperator(
+        task_id="create_instance",
         project_id=PROJECT_ID,
-        instance=CLOUD_SQL_INSTANCE,
-        body=CLOUD_SQL_INSTANCE_CREATION_BODY,
+        zone=ZONE,
+        body=GCE_INSTANCE_BODY,
     )
 
-    create_database = CloudSQLCreateInstanceDatabaseOperator(
-        task_id="create_database", body=DB_CREATE_BODY, instance=CLOUD_SQL_INSTANCE
+    create_firewall_rule = BashOperator(
+        task_id="create_firewall_rule",
+        bash_command=CREATE_FIREWALL_RULE,
+    )
+
+    setup_postgres = SSHOperator(
+        task_id="setup_postgres",
+        ssh_hook=ComputeEngineSSHHook(
+            user="username",
+            instance_name=DB_INSTANCE_NAME,
+            zone=ZONE,
+            project_id=PROJECT_ID,
+            use_oslogin=False,
+            use_iap_tunnel=False,
+            cmd_timeout=180,
+        ),
+        command=SETUP_POSTGRES,
+        retries=2,
+        retry_delay=30,
     )
 
     @task
-    def create_user() -> None:
-        with discovery.build("sqladmin", "v1beta4") as service:
-            request = service.users().insert(
-                project=PROJECT_ID,
-                instance=CLOUD_SQL_INSTANCE,
-                body={
-                    "name": DB_USER_NAME,
-                    "password": DB_USER_PASSWORD,
-                },
-            )
-            request.execute()
-
-    create_user_task = create_user()
-
-    @task
-    def get_public_ip() -> str | None:
-        with discovery.build("sqladmin", "v1beta4") as service:
-            request = service.connect().get(
-                project=PROJECT_ID, instance=CLOUD_SQL_INSTANCE, fields="ipAddresses"
-            )
-            response = request.execute()
-            for ip_item in response.get("ipAddresses", []):
-                if ip_item["type"] == "PRIMARY":
-                    return ip_item["ipAddress"]
+    def get_public_ip() -> str:
+        hook = ComputeEngineHook()
+        address = hook.get_instance_address(resource_id=DB_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID)
+        return address
 
     get_public_ip_task = get_public_ip()
 
@@ -244,13 +286,6 @@ with DAG(
     )
     # [END upload_sql_to_sheets]
 
-    delete_cloud_sql_instance = CloudSQLDeleteInstanceOperator(
-        task_id="delete_cloud_sql_instance",
-        project_id=PROJECT_ID,
-        instance=CLOUD_SQL_INSTANCE,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
     delete_postgres_connection = BashOperator(
         task_id="delete_postgres_connection",
         bash_command=f"airflow connections delete {DB_CONNECTION_ID}",
@@ -263,17 +298,42 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    delete_instance = ComputeEngineDeleteInstanceOperator(
+        task_id="delete_instance",
+        resource_id=DB_INSTANCE_NAME,
+        zone=ZONE,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_firewall_rule = BashOperator(
+        task_id="delete_firewall_rule",
+        bash_command=DELETE_FIREWALL_RULE,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_persistent_disk = BashOperator(
+        task_id="delete_persistent_disk",
+        bash_command=DELETE_PERSISTENT_DISK,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
     # TEST SETUP
-    create_cloud_sql_instance >> [create_database, create_user_task, get_public_ip_task]
-    [create_user_task, get_public_ip_task] >> setup_postgres_connection_task
-    create_database >> setup_postgres_connection_task >> create_sql_table >> insert_data
+    create_instance >> setup_postgres
+    (create_instance >> get_public_ip_task >> setup_postgres_connection_task)
+    (
+        [setup_postgres, setup_postgres_connection_task, create_firewall_rule]
+        >> create_sql_table
+        >> insert_data
+    )
     (
         [insert_data, setup_sheets_connection_task >> create_spreadsheet]
         # TEST BODY
         >> upload_sql_to_sheet
         # TEST TEARDOWN
-        >> [delete_cloud_sql_instance, delete_postgres_connection, delete_sheets_connection]
+        >> [delete_instance, delete_postgres_connection, delete_sheets_connection, delete_firewall_rule]
     )
+    delete_instance >> delete_persistent_disk
 
     from tests.system.utils.watcher import watcher
 

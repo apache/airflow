@@ -113,6 +113,7 @@ with DAG(
     delete_temp_sheets_connection_task = BashOperator(
         task_id="delete_temp_sheets_connection",
         bash_command=f"airflow connections delete {CONNECTION_ID}",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket = GCSDeleteBucketOperator(
@@ -121,16 +122,14 @@ with DAG(
 
     (
         # TEST SETUP
-        create_bucket
-        >> create_temp_sheets_connection_task
+        [create_bucket, create_temp_sheets_connection_task]
         # TEST BODY
         >> create_spreadsheet
         >> print_spreadsheet_url
         >> upload_sheet_to_gcs
         >> upload_gcs_to_sheet
         # TEST TEARDOWN
-        >> delete_temp_sheets_connection_task
-        >> delete_bucket
+        >> [delete_bucket, delete_temp_sheets_connection_task]
     )
 
     from tests.system.utils.watcher import watcher
