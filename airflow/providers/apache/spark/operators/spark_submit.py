@@ -164,6 +164,11 @@ class SparkSubmitOperator(BaseOperator):
             self._hook = self._get_hook()
         self._hook.on_kill()
 
+    def property_files(self) -> None:
+        if self.hook is None:
+            self._hook = self._get_hook()
+        self.hook.property_files()
+
     def _get_hook(self) -> SparkSubmitHook:
         return SparkSubmitHook(
             conf=self._conf,
