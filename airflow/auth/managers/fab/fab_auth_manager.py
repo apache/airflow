@@ -86,16 +86,17 @@ MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
     "DELETE": ACTION_CAN_DELETE,
 }
 
-_MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE = {
-    DagAccessEntity.AUDIT_LOG: RESOURCE_AUDIT_LOG,
-    DagAccessEntity.CODE: RESOURCE_DAG_CODE,
-    DagAccessEntity.DEPENDENCIES: RESOURCE_DAG_DEPENDENCIES,
-    DagAccessEntity.IMPORT_ERRORS: RESOURCE_IMPORT_ERROR,
-    DagAccessEntity.RUN: RESOURCE_DAG_RUN,
-    DagAccessEntity.TASK_INSTANCE: RESOURCE_TASK_INSTANCE,
-    DagAccessEntity.TASK_LOGS: RESOURCE_TASK_LOG,
-    DagAccessEntity.WARNING: RESOURCE_DAG_WARNING,
-    DagAccessEntity.XCOM: RESOURCE_XCOM,
+_MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
+    DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
+    DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
+    DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
+    DagAccessEntity.IMPORT_ERRORS: (RESOURCE_IMPORT_ERROR,),
+    DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
+    DagAccessEntity.TASK: (RESOURCE_TASK_INSTANCE,),
+    DagAccessEntity.TASK_INSTANCE: (RESOURCE_DAG_RUN, RESOURCE_TASK_INSTANCE),
+    DagAccessEntity.TASK_LOGS: (RESOURCE_TASK_LOG,),
+    DagAccessEntity.WARNING: (RESOURCE_DAG_WARNING,),
+    DagAccessEntity.XCOM: (RESOURCE_XCOM,),
 }
 
 
@@ -207,7 +208,7 @@ class FabAuthManager(BaseAuthManager):
             return self._is_authorized_dag(method=method, details=details, user=user)
         else:
             # Scenario 2
-            resource_type = self._get_fab_resource_type(access_entity)
+            resource_types = self._get_fab_resource_types(access_entity)
             dag_method: ResourceMethod = "GET" if method == "GET" else "PUT"
 
             if (details and details.id) and not self._is_authorized_dag(
@@ -215,7 +216,10 @@ class FabAuthManager(BaseAuthManager):
             ):
                 return False
 
-            return self._is_authorized(method=method, resource_type=resource_type, user=user)
+            return all(
+                self._is_authorized(method=method, resource_type=resource_type, user=user)
+                for resource_type in resource_types
+            )
 
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
@@ -347,9 +351,9 @@ class FabAuthManager(BaseAuthManager):
         return MAP_METHOD_NAME_TO_FAB_ACTION_NAME[method]
 
     @staticmethod
-    def _get_fab_resource_type(dag_access_entity: DagAccessEntity):
+    def _get_fab_resource_types(dag_access_entity: DagAccessEntity) -> tuple[str, ...]:
         """
-        Convert a DAG access entity to a FAB resource type.
+        Convert a DAG access entity to a tuple of FAB resource type.
 
         :param dag_access_entity: the DAG access entity
 

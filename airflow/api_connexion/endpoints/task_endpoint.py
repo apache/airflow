@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
-@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+@security.requires_access_dag("GET", DagAccessEntity.TASK)
 def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     """Get simplified representation of a task."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
@@ -45,7 +45,7 @@ def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     return task_schema.dump(task)
 
 
-@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+@security.requires_access_dag("GET", DagAccessEntity.TASK)
 def get_tasks(*, dag_id: str, order_by: str = "task_id") -> APIResponse:
     """Get tasks for DAG."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
