@@ -55,6 +55,9 @@ class AwsBaseWaiterTrigger(BaseTrigger):
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials. To be used to build the hook.
     :param region_name: The AWS region where the resources to watch are. To be used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. To be used to build the hook.
+    :param botocore_config: Configuration dictionary (key-values) for botocore client.
+        To be used to build the hook.
     """
 
     def __init__(
@@ -72,6 +75,8 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         # parameters that should be hardcoded in the child's implem
         self.serialized_fields = serialized_fields
@@ -90,6 +95,8 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         self.attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         # here we put together the "common" params,
@@ -102,9 +109,15 @@ class AwsBaseWaiterTrigger(BaseTrigger):
             },
             **self.serialized_fields,
         )
+
+        # if we serialize the None value from this, it breaks subclasses that don't have it in their ctor.
         if self.region_name:
-            # if we serialize the None value from this, it breaks subclasses that don't have it in their ctor.
             params["region_name"] = self.region_name
+        if self.verify is not None:
+            params["verify"] = self.verify
+        if self.botocore_config is not None:
+            params["botocore_config"] = self.botocore_config
+
         return (
             # remember that self is an instance of the subclass here, not of this class.
             self.__class__.__module__ + "." + self.__class__.__qualname__,

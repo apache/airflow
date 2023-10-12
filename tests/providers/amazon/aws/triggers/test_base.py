@@ -63,10 +63,33 @@ class TestAwsBaseWaiterTrigger:
         assert "region_name" in args
         assert args["region_name"] == "my_region"
 
-    def test_region_not_serialized_if_omitted(self):
+    @pytest.mark.parametrize("verify", [True, False, pytest.param("/foo/bar.pem", id="path")])
+    def test_verify_serialized(self, verify):
+        self.trigger.verify = verify
         _, args = self.trigger.serialize()
 
-        assert "region_name" not in args
+        assert "verify" in args
+        assert args["verify"] == verify
+
+    @pytest.mark.parametrize(
+        "botocore_config",
+        [
+            pytest.param({"read_timeout": 10, "connect_timeout": 42, "keepalive": True}, id="non-empty-dict"),
+            pytest.param({}, id="empty-dict"),
+        ],
+    )
+    def test_botocore_config_serialized(self, botocore_config):
+        self.trigger.botocore_config = botocore_config
+        _, args = self.trigger.serialize()
+
+        assert "botocore_config" in args
+        assert args["botocore_config"] == botocore_config
+
+    @pytest.mark.parametrize("param_name", ["region_name", "verify", "botocore_config"])
+    def test_hooks_args_not_serialized_if_omitted(self, param_name):
+        _, args = self.trigger.serialize()
+
+        assert param_name not in args
 
     def test_serialize_extra_fields(self):
         self.trigger.serialized_fields = {"foo": "bar", "foz": "baz"}
