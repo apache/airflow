@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Button,
   IconButton,
@@ -43,8 +43,12 @@ export const ClipboardButton = forwardRef(
     },
     ref
   ) => {
-    const { hasCopied, onCopy } = useClipboard(value);
+    const { setValue, hasCopied, onCopy } = useClipboard(value);
     const containerRef = useContainerRef();
+
+    useEffect(() => {
+      setValue(value);
+    }, [value, setValue]);
 
     const commonProps = {
       onClick: onCopy,
