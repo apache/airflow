@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -27,8 +27,15 @@ if TYPE_CHECKING:
     from flask import Flask
 
     from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.auth.managers.models.resource_details import (
+        ConnectionDetails,
+        DagAccessEntity,
+        DagDetails,
+    )
     from airflow.cli.cli_config import CLICommand
     from airflow.www.security_manager import AirflowSecurityManagerV2
+
+ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
 
 
 class BaseAuthManager(LoggingMixin):
@@ -55,6 +62,10 @@ class BaseAuthManager(LoggingMixin):
         """Return the username associated to the user in session."""
 
     @abstractmethod
+    def get_user_display_name(self) -> str:
+        """Return the user's display name associated to the user in session."""
+
+    @abstractmethod
     def get_user(self) -> BaseUser:
         """Return the user associated to the user in session."""
 
@@ -65,6 +76,111 @@ class BaseAuthManager(LoggingMixin):
     @abstractmethod
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
+
+    @abstractmethod
+    def is_authorized_configuration(
+        self,
+        *,
+        method: ResourceMethod,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on configuration.
+
+        :param method: the method to perform
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_cluster_activity(
+        self,
+        *,
+        method: ResourceMethod,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on the cluster activity.
+
+        :param method: the method to perform
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_connection(
+        self,
+        *,
+        method: ResourceMethod,
+        connection_details: ConnectionDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a connection.
+
+        :param method: the method to perform
+        :param connection_details: optional details about the connection
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_dag(
+        self,
+        *,
+        method: ResourceMethod,
+        dag_access_entity: DagAccessEntity | None = None,
+        dag_details: DagDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a DAG.
+
+        :param method: the method to perform
+        :param dag_access_entity: the kind of DAG information the authorization request is about.
+            If not provided, the authorization request is about the DAG itself
+        :param dag_details: optional details about the DAG
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_dataset(
+        self,
+        *,
+        method: ResourceMethod,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a dataset.
+
+        :param method: the method to perform
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_variable(
+        self,
+        *,
+        method: ResourceMethod,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a variable.
+
+        :param method: the method to perform
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_website(
+        self,
+        *,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to access the read-only state of the installation.
+
+        This includes the homepage, the list of installed plugins, the list of providers and list of triggers.
+
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:

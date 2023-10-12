@@ -28,7 +28,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_run_facet,
     get_custom_facets,
     get_job_name,
-    print_exception,
+    print_warning,
 )
 from airflow.utils.timeout import timeout
 
@@ -65,7 +65,7 @@ class OpenLineageListener:
         task = task_instance.task
         dag = task.dag
 
-        @print_exception
+        @print_warning(self.log)
         def on_running():
             # that's a workaround to detect task running from deferred state
             # we return here because Airflow 2.3 needs task from deferred state
@@ -117,7 +117,7 @@ class OpenLineageListener:
             task.task_id, task_instance.execution_date, task_instance.try_number - 1
         )
 
-        @print_exception
+        @print_warning(self.log)
         def on_success():
             task_metadata = self.extractor_manager.extract_metadata(
                 dagrun, task, complete=True, task_instance=task_instance
@@ -145,7 +145,7 @@ class OpenLineageListener:
             task.task_id, task_instance.execution_date, task_instance.try_number - 1
         )
 
-        @print_exception
+        @print_warning(self.log)
         def on_failure():
             task_metadata = self.extractor_manager.extract_metadata(
                 dagrun, task, complete=True, task_instance=task_instance
@@ -194,14 +194,14 @@ class OpenLineageListener:
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str):
         if not self.executor:
-            self.log.error("Executor have not started before `on_dag_run_success`")
+            self.log.debug("Executor have not started before `on_dag_run_success`")
             return
         self.executor.submit(self.adapter.dag_success, dag_run=dag_run, msg=msg)
 
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str):
         if not self.executor:
-            self.log.error("Executor have not started before `on_dag_run_failed`")
+            self.log.debug("Executor have not started before `on_dag_run_failed`")
             return
         self.executor.submit(self.adapter.dag_failed, dag_run=dag_run, msg=msg)
 

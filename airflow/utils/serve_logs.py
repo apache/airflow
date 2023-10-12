@@ -17,10 +17,10 @@
 """Serve logs process."""
 from __future__ import annotations
 
-import collections
 import logging
 import os
 import socket
+from collections import namedtuple
 
 import gunicorn.app.base
 from flask import Flask, abort, request, send_from_directory
@@ -134,7 +134,7 @@ def create_app():
     return flask_app
 
 
-GunicornOption = collections.namedtuple("GunicornOption", ["key", "value"])
+GunicornOption = namedtuple("GunicornOption", ["key", "value"])
 
 
 class StandaloneGunicornApplication(gunicorn.app.base.BaseApplication):

@@ -24,8 +24,8 @@ import os
 from datetime import datetime
 from typing import Any, cast
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildCreateBuildTriggerOperator,
@@ -83,7 +83,7 @@ create_build_from_repo_body: dict[str, Any] = {
 # [END howto_operator_create_build_from_repo_body]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from typing import Any
 
 
 class BaseUser:
@@ -35,6 +36,11 @@ class BaseUser:
     @property
     @abstractmethod
     def is_anonymous(self) -> bool:
+        ...
+
+    @property
+    @abstractmethod
+    def perms(self) -> Any:
         ...
 
     @abstractmethod

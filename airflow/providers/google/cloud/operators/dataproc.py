@@ -615,7 +615,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             if time_left < 0:
                 raise AirflowException(f"Cluster {self.cluster_name} is still DELETING state, aborting")
             time.sleep(time_to_sleep)
-            time_left = time_left - time_to_sleep
+            time_left -= time_to_sleep
             try:
                 self._get_cluster(hook)
             except NotFound:
@@ -630,7 +630,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             if time_left < 0:
                 raise AirflowException(f"Cluster {self.cluster_name} is still CREATING state, aborting")
             time.sleep(time_to_sleep)
-            time_left = time_left - time_to_sleep
+            time_left -= time_to_sleep
             cluster = self._get_cluster(hook)
         return cluster
 
@@ -1599,7 +1599,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
     @staticmethod
     def _generate_temp_filename(filename):
-        return f"{time:%Y%m%d%H%M%S}_{str(uuid.uuid4())[:8]}_{ntpath.basename(filename)}"
+        return f"{time:%Y%m%d%H%M%S}_{uuid.uuid4()!s:.8}_{ntpath.basename(filename)}"
 
     def _upload_file_temp(self, bucket, local_file):
         """Upload a local file to a Google Cloud Storage bucket."""
@@ -1878,7 +1878,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 
@@ -2009,7 +2009,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 

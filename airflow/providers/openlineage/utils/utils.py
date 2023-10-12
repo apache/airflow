@@ -397,15 +397,18 @@ def _is_name_redactable(name, redacted):
     return name not in redacted.skip_redact
 
 
-def print_exception(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except Exception as e:
-            log.exception(e)
+def print_warning(log):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except Exception as e:
+                log.warning(e)
 
-    return wrapper
+        return wrapper
+
+    return decorator
 
 
 @cache

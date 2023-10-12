@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator
@@ -53,7 +53,7 @@ SOURCE_LANGUAGE = None
 # [END howto_operator_translate_speech_arguments]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
