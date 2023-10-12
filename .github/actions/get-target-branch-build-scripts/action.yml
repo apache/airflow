@@ -39,5 +39,5 @@ runs:
         mv -v "target-airflow/scripts/ci" "scripts"
         rm -rfv "dev"
         mv -v "target-airflow/dev" "."
-        rm -rfv "./github/actions"
-        mv -v "target-airflow/.github/actions" "actions"
+        rm -rfv ".github/actions"
+        mv -v "target-airflow/.github/actions" ".github"

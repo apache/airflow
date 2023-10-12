@@ -957,7 +957,12 @@ class TestAwsBaseHook:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     @pytest.mark.parametrize("hook_region_name", [None, "eu-west-1"])
     @pytest.mark.parametrize(
-        "hook_botocore_config", [None, Config(s3={"us_east_1_regional_endpoint": "regional"})]
+        "hook_botocore_config",
+        [
+            pytest.param(None, id="empty-botocore-config"),
+            pytest.param(Config(s3={"us_east_1_regional_endpoint": "regional"}), id="botocore-config"),
+            pytest.param({"s3": {"us_east_1_regional_endpoint": "regional"}}, id="botocore-config-as-dict"),
+        ],
     )
     @pytest.mark.parametrize("method_region_name", [None, "cn-north-1"])
     def test_get_session(

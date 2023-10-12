@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
@@ -32,9 +31,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import ClauseElement
 
     from airflow.hooks.base import BaseHook
-
-
-logger = logging.getLogger(__name__)
 
 
 class ColumnIndex(IntEnum):

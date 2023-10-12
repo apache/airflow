@@ -463,7 +463,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         region_name: str | None = None,
         client_type: str | None = None,
         resource_type: str | None = None,
-        config: Config | None = None,
+        config: Config | dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.aws_conn_id = aws_conn_id
@@ -471,6 +471,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self.resource_type = resource_type
 
         self._region_name = region_name
+        if isinstance(config, dict):
+            config = Config(**config)
         self._config = config
         self._verify = verify
 
