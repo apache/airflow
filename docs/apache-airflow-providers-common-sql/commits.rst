@@ -28,7 +28,7 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-1.7.3
+1.8.0
 .....
 
 Latest change: 2023-10-13

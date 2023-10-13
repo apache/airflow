@@ -68,7 +68,7 @@ Package apache-airflow-providers-grpc
 `gRPC <https://grpc.io/>`__
 
 
-Release: 3.2.3
+Release: 3.3.0
 
 Provider package
 ----------------

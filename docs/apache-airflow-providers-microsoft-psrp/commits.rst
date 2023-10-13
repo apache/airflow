@@ -30,7 +30,7 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-2.3.3
+2.4.0
 .....
 
 Latest change: 2023-10-05

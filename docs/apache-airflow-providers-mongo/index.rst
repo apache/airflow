@@ -62,7 +62,7 @@ Package apache-airflow-providers-mongo
 `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
 
-Release: 3.2.3
+Release: 3.3.0
 
 Provider package
 ----------------

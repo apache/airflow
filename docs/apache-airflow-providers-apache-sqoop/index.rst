@@ -62,7 +62,7 @@ Package apache-airflow-providers-apache-sqoop
 `Apache Sqoop <https://sqoop.apache.org/>`__
 
 
-Release: 4.0.1
+Release: 4.1.0
 
 Provider package
 ----------------

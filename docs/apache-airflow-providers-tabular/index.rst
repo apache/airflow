@@ -71,7 +71,7 @@ Package apache-airflow-providers-tabular
 `Tabular <https://tabular.io/>`__
 
 
-Release: 1.2.2
+Release: 1.3.0
 
 Provider package
 ----------------

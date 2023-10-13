@@ -27,7 +27,7 @@
 Changelog
 ---------
 
-3.4.1
+3.5.0
 .....
 
 .. note::
@@ -75,8 +75,9 @@ Features
 3.2.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
 
 Features
 ~~~~~~~~

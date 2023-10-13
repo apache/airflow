@@ -76,7 +76,7 @@ Package apache-airflow-providers-papermill
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 3.2.2
+Release: 3.4.0
 
 Provider package
 ----------------

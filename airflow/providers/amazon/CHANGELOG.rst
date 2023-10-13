@@ -39,6 +39,7 @@ Features
 * ``Implements 'AwsBaseOperator' and 'AwsBaseSensor' (#34784)``
 * ``Extend hooks arguments into 'AwsBaseWaiterTrigger' (#34884)``
 * ``Allow setup 'endpoint_url' per-service in AWS Connection (#34593)``
+* ``Include AWS Lambda execution logs to task logs (#34692)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -64,7 +65,6 @@ Misc
 * ``Upgrade watchtower to 3.0.1 (#25019) (#34747)``
 * ``Bump min airflow version of providers (#34728)``
 * ``Refactor: consolidate import time in providers (#34402)``
-* ``Include AWS Lambda execution logs to task logs (#34692)``
 * ``Refactor usage of str() in providers (#34320)``
 * ``Refactor import from collections (#34406)``
 * ``Clarify Amazon Lambda invocation and sensing (#34653)``

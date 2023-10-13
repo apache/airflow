@@ -76,7 +76,7 @@ Package apache-airflow-providers-microsoft-winrm
 `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-us/windows/win32/winrm/portal>`__
 
 
-Release: 3.2.3
+Release: 3.3.0
 
 Provider package
 ----------------

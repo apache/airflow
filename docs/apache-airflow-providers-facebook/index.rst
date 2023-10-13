@@ -61,7 +61,7 @@ Package apache-airflow-providers-facebook
 `Facebook Ads <http://business.facebook.com/>`__
 
 
-Release: 3.2.3
+Release: 3.3.0
 
 Provider package
 ----------------
