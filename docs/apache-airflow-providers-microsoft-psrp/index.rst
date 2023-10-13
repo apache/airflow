@@ -48,6 +48,7 @@
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-psrp/|version|/tests/system/providers/microsoft/psrp>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-psrp/>
     Installing from sources <installing-providers-from-sources>
 
