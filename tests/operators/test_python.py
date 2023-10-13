@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import logging
 import os
+import pickle
 import re
 import sys
 import tempfile
@@ -308,6 +309,37 @@ class TestPythonOperator(BasePythonTest):
         )
 
         assert python_operator.template_ext == ["test_ext"]
+
+    def test_python_operator_has_default_logger_name(self):
+        python_operator = PythonOperator(task_id="python_operator", python_callable=lambda: None)
+
+        assert python_operator.log.name == "airflow.task.operators"
+
+    def test_logger_name_is_correctly_generated_when_none(self):
+        """
+        When logger_name is set to None, the LoggingMixin will generate a logger name
+        based on class module and class name.
+        """
+        python_operator = PythonOperator(
+            task_id="python_operator", python_callable=lambda: None, logger_name=None
+        )
+
+        logger_name: str = f"{PythonOperator.__module__}.{PythonOperator.__name__}"
+        assert python_operator.log.name == logger_name
+
+    def test_custom_logger_name_is_correctly_set(self):
+        """
+        Ensure the custom logger name is correclty set when the Operator is created,
+        and when its state is resumed via __setstate__.
+        """
+        logger_name: str = "airflow.custom.logger"
+        python_operator = PythonOperator(
+            task_id="python_operator", python_callable=lambda: None, logger_name=logger_name
+        )
+
+        setstate_operator = pickle.loads(pickle.dumps(python_operator))
+        assert python_operator.log.name == logger_name
+        assert setstate_operator.log.name == logger_name
 
 
 class TestBranchOperator(BasePythonTest):
