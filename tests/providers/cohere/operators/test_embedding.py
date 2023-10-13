@@ -24,7 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 
 
-@patch("astronomer_providers_llm.providers.cohere.hooks.cohere.CohereHook._get_api_key")
+@patch("airflow.providers.cohere.hooks.cohere.CohereHook._get_api_key")
 @patch("cohere.Client")
 def test_cohere_embedding_operator(cohere_client, _get_api_key):
     """

@@ -20,7 +20,11 @@
 CohereEmbeddingOperator
 ========================
 
+<<<<<<< HEAD
 Use the :class:`~astronomer_providers_llm.providers.cohere.operators.embedding.CohereEmbeddingOperator` to
+=======
+Use the :class:`~airflow.providers.cohere.operators.embedding.CohereEmbeddingOperator` to
+>>>>>>> d50e02cd6b (Add Cohere Provider)
 interact with Cohere APIs to create embeddings for a given text.
 
 
@@ -42,6 +46,7 @@ Example Code:
     from airflow import DAG
 
     from astronomer_providers_llm.providers.cohere.operators.embedding import CohereEmbeddingOperator
+    from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 
     with DAG("example_cohere_embedding", schedule=None, start_date=datetime(2023, 1, 1), catchup=False) as dag:
         texts = [
