@@ -2567,8 +2567,9 @@ export interface operations {
   };
   /**
    * Test a connection.
-   * Testing Connections is disabled by default set test_connection flag to enabled in Airflow configuration (airflow.cfg).
-   * It can also be controlled by the environment variable AIRFLOW__CORE__TEST_CONNECTION.
+   *  Testing Connections is disabled by default set test_connection flag to enabled in Airflow configuration (airflow.cfg).
+   *  It can also be controlled by the environment variable AIRFLOW__CORE__TEST_CONNECTION.
+   *
    * *New in version 2.2.0*
    */
   test_connection: {
