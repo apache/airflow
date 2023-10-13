@@ -48,9 +48,16 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-psrp/|version|/tests/system/providers/microsoft/winrm>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-psrp/|version|/tests/system/providers/microsoft/psrp>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-psrp/>
     Installing from sources <installing-providers-from-sources>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/microsoft/psrp/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
