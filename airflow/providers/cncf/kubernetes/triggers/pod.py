@@ -116,7 +116,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self._since_time = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes KubernetesCreatePodTrigger arguments and classpath."""
+        """Serialize KubernetesCreatePodTrigger arguments and classpath."""
         return (
             "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger",
             {
@@ -137,7 +137,7 @@ class KubernetesPodTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current pod status and yields a TriggerEvent."""
+        """Get current pod status and yield a TriggerEvent."""
         hook = self._get_async_hook()
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
         try:
