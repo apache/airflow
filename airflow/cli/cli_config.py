@@ -544,10 +544,7 @@ ARG_DEFAULT = Arg(
     ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
 )
 ARG_VAR_DESCRIPTION = Arg(
-    (
-        "-desc",
-        "--description",
-    ),
+    ("--description",),
     default=None,
     required=False,
     help="Variable description, optional when setting a variable",
