@@ -22,8 +22,8 @@ from unittest import mock
 import pytest
 from moto import mock_databrew
 
-from airflow.providers.amazon.aws.hooks.databrew import GlueDataBrewHook
-from airflow.providers.amazon.aws.operators.databrew import GlueDataBrewStartJobOperator
+from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
+from airflow.providers.amazon.aws.operators.glue_databrew import GlueDataBrewStartJobOperator
 
 JOB_NAME = "test_job"
 

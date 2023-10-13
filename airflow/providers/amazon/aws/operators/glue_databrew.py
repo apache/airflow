@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.databrew import GlueDataBrewHook
-from airflow.providers.amazon.aws.triggers.databrew import GlueDataBrewJobCompleteTrigger
+from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
+from airflow.providers.amazon.aws.triggers.glue_databrew import GlueDataBrewJobCompleteTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

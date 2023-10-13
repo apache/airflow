@@ -22,7 +22,7 @@ from unittest import mock
 import boto3
 import pytest
 
-from airflow.providers.amazon.aws.hooks.databrew import GlueDataBrewHook
+from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 
 RUNNING_STATES = ["STARTING", "RUNNING", "STOPPING"]
 TERMINAL_STATES = ["STOPPED", "SUCCEEDED", "FAILED"]

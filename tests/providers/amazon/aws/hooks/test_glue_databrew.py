@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest import mock
 
-from airflow.providers.amazon.aws.hooks.databrew import GlueDataBrewHook
+from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock

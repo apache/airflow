@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.hooks.databrew import GlueDataBrewHook
+from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 

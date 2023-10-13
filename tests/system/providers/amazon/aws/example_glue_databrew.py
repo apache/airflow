@@ -20,7 +20,7 @@ import pendulum
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.operators.databrew import (
+from airflow.providers.amazon.aws.operators.glue_databrew import (
     GlueDataBrewStartJobOperator,
 )
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
