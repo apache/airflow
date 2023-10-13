@@ -365,11 +365,9 @@ class AbstractOperator(Templater, DAGNode):
 
         :meta private:
         """
-        parent = self.task_group
-        while parent is not None:
-            if isinstance(parent, MappedTaskGroup):
-                yield parent
-            parent = parent.task_group
+        if (group := self.task_group) is None:
+            return
+        yield from group.iter_mapped_task_groups()
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """Get the mapped task group "closest" to this task in the DAG.

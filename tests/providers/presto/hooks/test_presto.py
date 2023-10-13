@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 from prestodb.transaction import IsolationLevel
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.presto.hooks.presto import PrestoHook, generate_presto_client_info
 

@@ -199,7 +199,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             else:
                 message = (
                     "FlushAction not found in the data. Please check the FlushAction in "
-                    "the operator. Converted Rows with Action: " + str(converted_rows_with_action)
+                    f"the operator. Converted Rows with Action: {converted_rows_with_action}"
                 )
                 raise AirflowException(message)
         return total_data_count

@@ -27,9 +27,8 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -716,7 +715,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """Method which executes after trigger finishes its work."""
-        if event["status"] == "error" or event["status"] == "stopped":
+        if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
 
@@ -900,13 +899,13 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         job_body = self.body.get("launch_parameter") or self.body.get("launchParameter")
         job_name = job_body.get("jobName")
         if job_name:
-            job_name += f"-{str(uuid.uuid4())[:8]}"
+            job_name += f"-{uuid.uuid4()!s:.8}"
             job_body["jobName"] = job_name
             self.log.info("Job name was changed to %s", job_name)
 
     def execute_complete(self, context: Context, event: dict):
         """Method which executes after trigger finishes its work."""
-        if event["status"] == "error" or event["status"] == "stopped":
+        if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
 

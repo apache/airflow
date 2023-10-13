@@ -21,7 +21,7 @@ from __future__ import annotations
 # [START subdag]
 import pendulum
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 
 

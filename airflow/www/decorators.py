@@ -22,7 +22,7 @@ import gzip
 import itertools
 import json
 import logging
-from io import BytesIO as IO
+from io import BytesIO
 from typing import Callable, TypeVar, cast
 
 import pendulum
@@ -156,12 +156,10 @@ def gzipped(f: T) -> T:
                 or "Content-Encoding" in response.headers
             ):
                 return response
-            gzip_buffer = IO()
-            gzip_file = gzip.GzipFile(mode="wb", fileobj=gzip_buffer)
-            gzip_file.write(response.data)
-            gzip_file.close()
-
-            response.data = gzip_buffer.getvalue()
+            with BytesIO() as gzip_buffer:
+                with gzip.GzipFile(mode="wb", fileobj=gzip_buffer) as gzip_file:
+                    gzip_file.write(response.data)
+                response.data = gzip_buffer.getvalue()
             response.headers["Content-Encoding"] = "gzip"
             response.headers["Vary"] = "Accept-Encoding"
             response.headers["Content-Length"] = len(response.data)

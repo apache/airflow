@@ -22,7 +22,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataplex_v1.types import DataScanJob
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanResultTimeoutException
 from airflow.providers.google.cloud.sensors.dataplex import (
     DataplexDataQualityJobStatusSensor,
@@ -81,8 +81,11 @@ class TestDataplexTaskStateSensor:
 
         assert result
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
     @mock.patch(DATAPLEX_HOOK)
-    def test_deleting(self, mock_hook):
+    def test_deleting(self, mock_hook, soft_fail, expected_exception):
         task = self.create_task(TaskState.DELETING)
         mock_hook.return_value.get_task.return_value = task
 
@@ -95,9 +98,10 @@ class TestDataplexTaskStateSensor:
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+            soft_fail=soft_fail,
         )
 
-        with pytest.raises(AirflowException, match="Task is going to be deleted"):
+        with pytest.raises(expected_exception, match="Task is going to be deleted"):
             sensor.poke(context={})
 
         mock_hook.return_value.get_task.assert_called_once_with(

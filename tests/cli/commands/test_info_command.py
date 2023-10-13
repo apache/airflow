@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import contextlib
 import importlib
-import io
 import logging
 import os
+from io import StringIO
 
 import pytest
 from rich.console import Console
@@ -147,7 +147,7 @@ class TestAirflowInfo:
         }
     )
     def test_show_info(self):
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             info_command.show_info(self.parser.parse_args(["info"]))
 
         output = stdout.getvalue()
@@ -160,7 +160,7 @@ class TestAirflowInfo:
         }
     )
     def test_show_info_anonymize(self):
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             info_command.show_info(self.parser.parse_args(["info", "--anonymize"]))
 
         output = stdout.getvalue()
@@ -191,6 +191,6 @@ class TestInfoCommandMockHttpx:
             },
             status_code=200,
         )
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             info_command.show_info(setup_parser.parse_args(["info", "--file-io"]))
         assert "https://file.io/TEST" in stdout.getvalue()

@@ -28,7 +28,7 @@ from aiohttp.helpers import TimerNoop
 from googleapiclient.errors import HttpError
 from yarl import URL
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import mlengine as hook
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineAsyncHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
@@ -1060,7 +1060,7 @@ async def test_async_get_job_status_should_execute_successfully(mocked_get):
         timer=TimerNoop(),
         traces=[],
         loop=mock.Mock(),
-        session=session,
+        session=None,
     )
     mocked_get.return_value._headers = {"Content-Type": "application/json;charset=cp1251"}
     mocked_get.return_value._body = b'{"state": "SUCCEEDED"}'
@@ -1083,7 +1083,7 @@ async def test_async_get_job_status_still_running_should_execute_successfully(mo
         timer=TimerNoop(),
         traces=[],
         loop=mock.Mock(),
-        session=session,
+        session=None,
     )
     mocked_get.return_value._headers = {"Content-Type": "application/json;charset=cp1251"}
     mocked_get.return_value._body = b'{"state": "RUNNING"}'

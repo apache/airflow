@@ -156,9 +156,7 @@ ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
     nargs="?",
     help="The execution_date of the DAG or run_id of the DAGRun (optional)",
 )
-ARG_TASK_REGEX = Arg(
-    ("-t", "--task-regex"), help="The regex to filter specific task_ids to backfill (optional)"
-)
+ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
 ARG_SUBDIR = Arg(
     ("-S", "--subdir"),
     help=(

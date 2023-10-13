@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Sequence
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+from airflow.exceptions import AirflowSkipException
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -57,7 +58,12 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
             return True
         if stack_status in ("CREATE_IN_PROGRESS", None):
             return False
-        raise ValueError(f"Stack {self.stack_name} in bad state: {stack_status}")
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = f"Stack {self.stack_name} in bad state: {stack_status}"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise ValueError(message)
 
     @cached_property
     def hook(self) -> CloudFormationHook:
@@ -101,7 +107,12 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
             return True
         if stack_status == "DELETE_IN_PROGRESS":
             return False
-        raise ValueError(f"Stack {self.stack_name} in bad state: {stack_status}")
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = f"Stack {self.stack_name} in bad state: {stack_status}"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise ValueError(message)
 
     @cached_property
     def hook(self) -> CloudFormationHook:

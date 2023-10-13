@@ -26,7 +26,7 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_glue, mock_iam
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 

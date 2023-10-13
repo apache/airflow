@@ -28,6 +28,7 @@ from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
 
+from deprecated.classic import deprecated
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 from docker.types import LogConfig, Mount, Ulimit
@@ -328,6 +329,7 @@ class DockerOperator(BaseOperator):
             timeout=self.timeout,
         )
 
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> DockerHook:
         """Create and return an DockerHook (cached)."""
         return self.hook
@@ -451,11 +453,11 @@ class DockerOperator(BaseOperator):
                 # 0 byte file, it can't be anything else than None
                 return None
             # no need to port to a file since we intend to deserialize
-            file_standin = BytesIO(b"".join(archived_result))
-            tar = tarfile.open(fileobj=file_standin)
-            file = tar.extractfile(stat["name"])
-            lib = getattr(self, "pickling_library", pickle)
-            return lib.loads(file.read())
+            with BytesIO(b"".join(archived_result)) as f:
+                tar = tarfile.open(fileobj=f)
+                file = tar.extractfile(stat["name"])
+                lib = getattr(self, "pickling_library", pickle)
+                return lib.load(file)
 
         try:
             return copy_from_docker(self.container["Id"], self.retrieve_output_path)

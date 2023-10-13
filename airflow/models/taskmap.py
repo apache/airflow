@@ -29,6 +29,7 @@ from airflow.utils.sqlalchemy import ExtendedJSON
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class TaskMapVariant(enum.Enum):
@@ -93,7 +94,7 @@ class TaskMap(Base):
         self.keys = keys
 
     @classmethod
-    def from_task_instance_xcom(cls, ti: TaskInstance, value: Collection) -> TaskMap:
+    def from_task_instance_xcom(cls, ti: TaskInstance | TaskInstancePydantic, value: Collection) -> TaskMap:
         if ti.run_id is None:
             raise ValueError("cannot record task map for unrun task instance")
         return cls(

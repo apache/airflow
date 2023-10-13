@@ -21,10 +21,10 @@ import contextlib
 import inspect
 import logging
 import sys
+import time
 import warnings
 from collections import defaultdict
 from operator import attrgetter
-from time import time
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
 from urllib.parse import quote, urlparse
 
@@ -280,9 +280,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
         metadata["end_of_log"] = False
-        for logs in logs_by_host.values():
-            if logs[-1].message == self.end_of_log_mark:
-                metadata["end_of_log"] = True
+        if any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values()):
+            metadata["end_of_log"] = True
 
         cur_ts = pendulum.now()
         if "last_log_timestamp" in metadata:
@@ -372,7 +371,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def emit(self, record):
         if self.handler:
-            setattr(record, self.offset_field, int(time() * (10**9)))
+            setattr(record, self.offset_field, int(time.time() * (10**9)))
             self.handler.emit(record)
 
     def set_context(self, ti: TaskInstance) -> None:

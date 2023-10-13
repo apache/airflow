@@ -20,7 +20,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -78,6 +78,9 @@ class GlueJobSensor(BaseSensorOperator):
             elif job_state in self.errored_states:
                 job_error_message = "Exiting Job %s Run State: %s", self.run_id, job_state
                 self.log.info(job_error_message)
+                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+                if self.soft_fail:
+                    raise AirflowSkipException(job_error_message)
                 raise AirflowException(job_error_message)
             else:
                 return False
