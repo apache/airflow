@@ -4616,6 +4616,8 @@ class PoolModelView(AirflowModelView):
 
     route_base = "/pool"
 
+    list_template = "airflow/pool_list.html"
+
     datamodel = AirflowModelView.CustomSQLAInterface(models.Pool)  # type: ignore
 
     class_permission_name = permissions.RESOURCE_POOL
@@ -4688,15 +4690,6 @@ class PoolModelView(AirflowModelView):
         else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
-    def fdescription(self):
-        """Description rendering."""
-        pool_id = self.get("pool")
-        description = self.get("description")
-        if pool_id is not None and description is not None:
-            return Markup('<p class="truncate-text">{description}</p>').format(description=description)
-        else:
-            return Markup('<span class="label label-danger">-</span>')
-
     def frunning_slots(self):
         """Format running slots rendering."""
         pool_id = self.get("pool")
@@ -4743,7 +4736,6 @@ class PoolModelView(AirflowModelView):
 
     formatters_columns = {
         "pool": pool_link,
-        "description": fdescription,
         "running_slots": frunning_slots,
         "queued_slots": fqueued_slots,
         "scheduled_slots": fscheduled_slots,
