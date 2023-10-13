@@ -15,31 +15,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated.
-
-Please use :mod:`airflow.auth.managers.fab.api.auth.backend.deny_all` instead.
-"""
+"""Default authentication backend - everything is allowed."""
 from __future__ import annotations
 
-import warnings
-from typing import Any, Callable
-
-import airflow.auth.managers.fab.api.auth.backend.deny_all as fab_deny_all_auth
-from airflow.exceptions import RemovedInAirflow3Warning
+from functools import wraps
+from typing import Any, Callable, TypeVar, cast
 
 CLIENT_AUTH: tuple[str, str] | Any | None = None
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.auth.managers.fab.api.auth.backend.deny_all` instead.",
-    RemovedInAirflow3Warning,
-    stacklevel=2,
-)
-
 
 def init_app(_):
-    fab_deny_all_auth.init_app(_)
+    """Initialize authentication backend."""
 
 
-def requires_authentication(function: Callable):
-    return fab_deny_all_auth.requires_authentication(function)
+T = TypeVar("T", bound=Callable)
+
+
+def requires_authentication(function: T):
+    """Decorate functions that require authentication."""
+
+    @wraps(function)
+    def decorated(*args, **kwargs):
+        return function(*args, **kwargs)
+
+    return cast(T, decorated)
