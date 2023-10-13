@@ -651,6 +651,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that is visible in Task Instance details View in the Webserver
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
+    :param logger_name: Name of the logging.getLogger used by the Operator to emit logs.
+        Default is "airflow.task.operators". If set to `None`, the logger name will fall back
+        to `{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
+        *airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
     """
 
     # Implementing Operator.
@@ -781,6 +785,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_json: str | None = None,
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
+        logger_name: str | None = "airflow.task.operators",
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -931,7 +936,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if dag:
             self.dag = dag
 
-        self._log = logging.getLogger("airflow.task.operators")
+        self._log = logging.getLogger(logger_name) if logger_name else None
 
         # Lineage
         self.inlets: list = []
@@ -1226,7 +1231,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __setstate__(self, state):
         self.__dict__ = state
-        self._log = logging.getLogger("airflow.task.operators")
+        logger_name: str | None = state.get('logger_name')
+        self._log = logging.getLogger(logger_name) if logger_name else None
 
     def render_template_fields(
         self,
