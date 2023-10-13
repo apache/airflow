@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.5.3
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`c55fd77f76 <https://github.com/apache/airflow/commit/c55fd77f76aafc76463e3dd2a6ecaa29e56bd967>`_  2023-09-18   ``fix(providers/http): respect soft_fail argument when exception is raised (#34391)``
+=================================================================================================  ===========  =====================================================================================
+
 4.5.2
 .....
 
-Latest change: 2023-08-27
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
 `b1f2a1693c <https://github.com/apache/airflow/commit/b1f2a1693ce17a68681322edfe75306b71fcf9a5>`_  2023-08-26   ``Convert hard-coded allowlist error code to be argument of HttpSensor (#33717)``
 =================================================================================================  ===========  ===================================================================================================

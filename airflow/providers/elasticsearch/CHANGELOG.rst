@@ -27,17 +27,31 @@
 Changelog
 ---------
 
+5.0.3
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 .. note::
   In PR #34790 we removed the unused argument ``metadata`` from method ``es_read``.  We determined that ``es_read``
   is an internal method and therefore not subject to backcompat, so we did not bump major version for this provider.
   In order to make clearer that this is an internal method we renamed it with an underscore prefix ``_es_read``.
 
-.. note::
-  Upgrade to Elasticsearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use Elasticsearch 8 package.
-  As explained https://elasticsearch-py.readthedocs.io/en/stable , Elasticsearch language clients are only backwards
-  compatible with default distributions and without guarantees made, we recommend upgrading the version of
-  Elasticsearch database to 8 to ensure compatibility with the language client.
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Remove unused argument metadata from es_read and make clearly private (#34790)``
+* ``Improve intelligibility of end_of_log determination (#34788)``
+* ``Replace try/except/pass by contextlib.suppress in ElasticSearch provider (#34251)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor: consolidate import time in providers (#34402)``
+   * ``Refactor shorter defaults in providers (#34347)``
+
 
 5.0.2
 .....
@@ -80,6 +94,12 @@ Misc
 
 5.0.0
 .....
+
+.. note::
+  Upgrade to Elasticsearch 8. The ElasticsearchTaskHandler & ElasticsearchSQLHook will now use Elasticsearch 8 package.
+  As explained https://elasticsearch-py.readthedocs.io/en/stable , Elasticsearch language clients are only backwards
+  compatible with default distributions and without guarantees made, we recommend upgrading the version of
+  Elasticsearch database to 8 to ensure compatibility with the language client.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
