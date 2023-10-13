@@ -217,7 +217,6 @@ class DatabricksHook(BaseDatabricksHook):
     def list_jobs(
         self,
         limit: int = 25,
-        offset: int | None = None,
         expand_tasks: bool = False,
         job_name: str | None = None,
         page_token: str | None = None,
@@ -226,7 +225,6 @@ class DatabricksHook(BaseDatabricksHook):
         List the jobs in the Databricks Job Service.
 
         :param limit: The limit/batch size used to retrieve jobs.
-        :param offset: The offset of the first job to return, relative to the most recently created job.
         :param expand_tasks: Whether to include task and cluster details in the response.
         :param job_name: Optional name of a job to search.
         :param page_token: The optional page token pointing at the first first job to return.
@@ -234,29 +232,15 @@ class DatabricksHook(BaseDatabricksHook):
         """
         has_more = True
         all_jobs = []
-        use_token_pagination = (page_token is not None) or (offset is None)
-        if offset is not None:
-            warnings.warn(
-                """You are using the deprecated offset parameter in list_jobs.
-                It will be hard-limited at the maximum value of 1000 by Databricks API after Oct 9, 2023.
-                Please paginate using page_token instead.""",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         if page_token is None:
             page_token = ""
-        if offset is None:
-            offset = 0
 
         while has_more:
             payload: dict[str, Any] = {
                 "limit": limit,
                 "expand_tasks": expand_tasks,
             }
-            if use_token_pagination:
-                payload["page_token"] = page_token
-            else:  # offset pagination
-                payload["offset"] = offset
+            payload["page_token"] = page_token
             if job_name:
                 payload["name"] = job_name
             response = self._do_api_call(LIST_JOBS_ENDPOINT, payload)
@@ -268,7 +252,6 @@ class DatabricksHook(BaseDatabricksHook):
             has_more = response.get("has_more", False)
             if has_more:
                 page_token = response.get("next_page_token", "")
-                offset += len(jobs)
 
         return all_jobs
 
