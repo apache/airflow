@@ -48,6 +48,7 @@ body:
         - celery
         - cloudant
         - cncf-kubernetes
+        - cohere
         - common-io
         - common-sql
         - daskexecutor
