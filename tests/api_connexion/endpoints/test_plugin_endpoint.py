@@ -24,6 +24,8 @@ from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.timetables.base import Timetable
 from airflow.utils.module_loading import qualname
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
@@ -60,6 +62,26 @@ appbuilder_menu_items = {
 }
 
 
+class CustomTIDep(BaseTIDep):
+    pass
+
+
+ti_dep = CustomTIDep()
+
+
+class CustomTimetable(Timetable):
+    def infer_manual_data_interval(self, *, run_after):
+        pass
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval,
+        restriction,
+    ):
+        pass
+
+
 class MockPlugin(AirflowPlugin):
     name = "mock_plugin"
     flask_blueprints = [bp]
@@ -69,6 +91,9 @@ class MockPlugin(AirflowPlugin):
     operator_extra_links = [MockOperatorLink()]
     hooks = [PluginHook]
     macros = [plugin_macro]
+    ti_deps = [ti_dep]
+    timetables = [CustomTimetable]
+    listeners = [pytest]  # using pytest here because we need a module(just for test)
 
 
 @pytest.fixture(scope="module")
@@ -120,6 +145,9 @@ class TestGetPlugins(TestPluginsEndpoint):
                     "operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
                     "source": None,
                     "name": "test_plugin",
+                    "timetables": [qualname(CustomTimetable)],
+                    "ti_deps": [str(ti_dep)],
+                    "listeners": [pytest.__name__],
                 }
             ],
             "total_entries": 1,
