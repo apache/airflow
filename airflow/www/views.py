@@ -700,7 +700,6 @@ class AirflowBaseView(BaseView):
         if TriggererJobRunner.is_needed():
             kwargs["triggerer_job"] = lazy_object_proxy.Proxy(TriggererJobRunner.most_recent_job)
 
-        kwargs["auth_manager"] = get_auth_manager()
         if "dag" in kwargs:
             kwargs["can_edit_dag"] = get_auth_manager().is_authorized_dag(
                 method="PUT", details=DagDetails(id=kwargs["dag"].dag_id)
