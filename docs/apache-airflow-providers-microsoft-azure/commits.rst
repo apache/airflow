@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.0.0
 .....
 
-Latest change: 2023-10-10
+Latest change: 2023-10-13
 
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`546c850a43 <https://github.com/apache/airflow/commit/546c850a43d8b00fafc11e02e63fa5caa56b4c07>`_  2023-10-13   ``Error handling for when Azure container log cannot be read in properly. (#34627)``
 `434f571915 <https://github.com/apache/airflow/commit/434f5719153a9202c3de7555c96e185a17415d80>`_  2023-10-10   ``Add subnet_ids param in AzureContainerInstancesOperator (#34850)``
 `9ee14a01ac <https://github.com/apache/airflow/commit/9ee14a01ac15a1d7fd0edc0a9f64ccadd1d3db36>`_  2023-10-10   ``Bump azure-mgmt-containerinstance (#34738)``
 `1fc286791f <https://github.com/apache/airflow/commit/1fc286791f54e4b8ac8349c5b93456dd65e62d98>`_  2023-10-06   ``Upgrade azure-mgmt-datafactory in microsift azure provider (#34040)``

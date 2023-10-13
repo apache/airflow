@@ -68,6 +68,7 @@ Bug Fixes
 
 * ``Name params while invoking ClientSecretCredential (#34732)``
 * ``fix(providers/microsoft-azure): respect soft_fail argument when exception is raised (#34494)``
+* ``Error handling for when Azure container log cannot be read in properly. (#34627)``
 
 Misc
 ~~~~
