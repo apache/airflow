@@ -62,7 +62,7 @@ def variables_get(args):
 @providers_configuration_loaded
 def variables_set(args):
     """Create new variable with a given name, value and description."""
-    Variable.set(args.key, args.value, args.description or None, serialize_json=args.json)
+    Variable.set(args.key, args.value, args.description, serialize_json=args.json)
     print(f"Variable {args.key} created")
 
 

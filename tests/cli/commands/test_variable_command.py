@@ -52,15 +52,9 @@ class TestCliVariables:
     def test_variables_set_with_description(self):
         """Test variable_set command with optional description argument"""
         variable_command.variables_set(
-            self.parser.parse_args(["variables", "set", "foo", "bar", "--desc", "foo_bar_description"])
+            self.parser.parse_args(["variables", "set", "foo", "bar", "--description", "foo_bar_description"])
         )
         assert Variable.get("foo") is not None
-
-        variable_command.variables_set(
-            self.parser.parse_args(["variables", "set", "bar", "foo", "--description", "bar_foo_description"])
-        )
-        assert Variable.get("bar") is not None
-
         with pytest.raises(KeyError):
             Variable.get("foo1")
 
