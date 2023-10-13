@@ -40,7 +40,7 @@ warnings.warn(
 
 
 def init_app(_):
-    fab_basic_auth.init_app()
+    fab_basic_auth.init_app(_)
 
 
 def auth_current_user() -> User | None:
