@@ -1683,8 +1683,8 @@ jobs:
               --airflow-constraints-mode constraints-source-providers
           breeze release-management generate-constraints \
               --run-in-parallel --airflow-constraints-mode constraints-no-providers
-          breeze release-management generate-constraints \
-              --run-in-parallel --airflow-constraints-mode constraints
+#          breeze release-management generate-constraints \
+#              --run-in-parallel --airflow-constraints-mode constraints
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       - name: "Set constraints branch name"
