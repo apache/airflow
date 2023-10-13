@@ -633,9 +633,8 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
     def check_authorization(
         self,
         perms: Sequence[tuple[str, str]] | None = None,
+        dag_id: str | None = None,
     ) -> bool:
-        """Checks that the logged in user has the specified permissions."""
-        if not perms:
-            return True
-
-        return all(self.has_access(*perm) for perm in perms)
+        raise NotImplementedError(
+            "The method 'check_authorization' is only available with the auth manager FabAuthManager"
+        )

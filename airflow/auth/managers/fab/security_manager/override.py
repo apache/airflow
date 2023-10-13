@@ -25,7 +25,7 @@ import random
 import uuid
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Iterable
+from typing import TYPE_CHECKING, Container, Iterable, Sequence
 
 import re2
 from flask import flash, g, session
@@ -1148,6 +1148,31 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         token = session.get("oauth")
         log.debug("Token Get: %s", token)
         return token
+
+    def check_authorization(
+        self,
+        perms: Sequence[tuple[str, str]] | None = None,
+        dag_id: str | None = None,
+    ) -> bool:
+        """Checks that the logged in user has the specified permissions."""
+        if not perms:
+            return True
+
+        for perm in perms:
+            if perm in (
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+            ):
+                can_access_all_dags = self.has_access(*perm)
+                if not can_access_all_dags:
+                    action = perm[0]
+                    if not self.can_access_some_dags(action, dag_id):
+                        return False
+            elif not self.has_access(*perm):
+                return False
+
+        return True
 
     @staticmethod
     def _azure_parse_jwt(token):
