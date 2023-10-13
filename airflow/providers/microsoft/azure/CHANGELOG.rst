@@ -69,6 +69,7 @@ Bug Fixes
 * ``Name params while invoking ClientSecretCredential (#34732)``
 * ``fix(providers/microsoft-azure): respect soft_fail argument when exception is raised (#34494)``
 * ``Error handling for when Azure container log cannot be read in properly. (#34627)``
+* ``Fix hardcoded container name in remote logging option for Azure Blob Storage (#32779)``
 
 Misc
 ~~~~

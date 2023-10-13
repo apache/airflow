@@ -36,6 +36,7 @@ Latest change: 2023-10-13
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`8e383e87e1 <https://github.com/apache/airflow/commit/8e383e87e1e4d6076f92fd3bce298e32607d43c5>`_  2023-10-13   ``Fix hardcoded container name in remote logging option for Azure Blob Storage (#32779)``
 `546c850a43 <https://github.com/apache/airflow/commit/546c850a43d8b00fafc11e02e63fa5caa56b4c07>`_  2023-10-13   ``Error handling for when Azure container log cannot be read in properly. (#34627)``
 `434f571915 <https://github.com/apache/airflow/commit/434f5719153a9202c3de7555c96e185a17415d80>`_  2023-10-10   ``Add subnet_ids param in AzureContainerInstancesOperator (#34850)``
 `9ee14a01ac <https://github.com/apache/airflow/commit/9ee14a01ac15a1d7fd0edc0a9f64ccadd1d3db36>`_  2023-10-10   ``Bump azure-mgmt-containerinstance (#34738)``
