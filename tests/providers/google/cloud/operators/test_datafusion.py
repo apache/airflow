@@ -39,6 +39,7 @@ from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPi
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 
 HOOK_STR = "airflow.providers.google.cloud.operators.datafusion.DataFusionHook"
+RESOURCE_PATH_TO_DICT_STR = "airflow.providers.google.cloud.operators.datafusion.resource_path_to_dict"
 
 TASK_ID = "test_task"
 LOCATION = "test-location"
@@ -54,9 +55,11 @@ RUNTIME_ARGS = {"arg1": "a", "arg2": "b"}
 
 
 class TestCloudDataFusionUpdateInstanceOperator:
+    @mock.patch(RESOURCE_PATH_TO_DICT_STR)
     @mock.patch(HOOK_STR)
-    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook):
+    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook, mock_resource_to_dict):
         update_maks = "instance.name"
+        mock_resource_to_dict.return_value = {"projects": PROJECT_ID}
         op = CloudDataFusionUpdateInstanceOperator(
             task_id="test_tasks",
             instance_name=INSTANCE_NAME,
@@ -78,8 +81,10 @@ class TestCloudDataFusionUpdateInstanceOperator:
 
 
 class TestCloudDataFusionRestartInstanceOperator:
+    @mock.patch(RESOURCE_PATH_TO_DICT_STR)
     @mock.patch(HOOK_STR)
-    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook):
+    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook, mock_resource_path_to_dict):
+        mock_resource_path_to_dict.return_value = {"projects": PROJECT_ID}
         op = CloudDataFusionRestartInstanceOperator(
             task_id="test_tasks",
             instance_name=INSTANCE_NAME,
@@ -95,8 +100,10 @@ class TestCloudDataFusionRestartInstanceOperator:
 
 
 class TestCloudDataFusionCreateInstanceOperator:
+    @mock.patch(RESOURCE_PATH_TO_DICT_STR)
     @mock.patch(HOOK_STR)
-    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook):
+    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook, mock_resource_path_to_dict):
+        mock_resource_path_to_dict.return_value = {"projects": PROJECT_ID}
         op = CloudDataFusionCreateInstanceOperator(
             task_id="test_tasks",
             instance_name=INSTANCE_NAME,
@@ -133,8 +140,10 @@ class TestCloudDataFusionDeleteInstanceOperator:
 
 
 class TestCloudDataFusionGetInstanceOperator:
+    @mock.patch(RESOURCE_PATH_TO_DICT_STR)
     @mock.patch(HOOK_STR)
-    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook):
+    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook, mock_resource_path_to_dict):
+        mock_resource_path_to_dict.return_value = {"projects": PROJECT_ID}
         op = CloudDataFusionGetInstanceOperator(
             task_id="test_tasks",
             instance_name=INSTANCE_NAME,
