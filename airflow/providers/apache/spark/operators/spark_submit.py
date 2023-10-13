@@ -76,6 +76,7 @@ class SparkSubmitOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "_application",
         "_conf",
+        "_properties-file"
         "_files",
         "_py_files",
         "_jars",
@@ -96,6 +97,7 @@ class SparkSubmitOperator(BaseOperator):
         *,
         application: str = "",
         conf: dict[str, Any] | None = None,
+        properties_file: str | None = None,
         conn_id: str = "spark_default",
         files: str | None = None,
         py_files: str | None = None,
@@ -126,6 +128,7 @@ class SparkSubmitOperator(BaseOperator):
         super().__init__(**kwargs)
         self._application = application
         self._conf = conf
+        self._properties_file = properties_file
         self._files = files
         self._py_files = py_files
         self._archives = archives
@@ -164,14 +167,10 @@ class SparkSubmitOperator(BaseOperator):
             self._hook = self._get_hook()
         self._hook.on_kill()
 
-    def property_files(self) -> None:
-        if self.hook is None:
-            self._hook = self._get_hook()
-        self._hook.property_files()
-
     def _get_hook(self) -> SparkSubmitHook:
         return SparkSubmitHook(
             conf=self._conf,
+            properties_file=self._properties_file,
             conn_id=self._conn_id,
             files=self._files,
             py_files=self._py_files,

@@ -98,6 +98,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def __init__(
         self,
         conf: dict[str, Any] | None = None,
+        properties_file: str | None = None,
         conn_id: str = "spark_default",
         files: str | None = None,
         py_files: str | None = None,
@@ -127,6 +128,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     ) -> None:
         super().__init__()
         self._conf = conf or {}
+        self._properties_file = properties_file
         self._conn_id = conn_id
         self._files = files
         self._py_files = py_files
@@ -292,6 +294,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 "--conf",
                 f"spark.kubernetes.namespace={self._connection['namespace']}",
             ]
+        if self._properties_file:
+            connection_cmd += ["--properties-file", self._properties_file]
         if self._files:
             connection_cmd += ["--files", self._files]
         if self._py_files:
