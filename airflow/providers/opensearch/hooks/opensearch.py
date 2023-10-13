@@ -54,7 +54,7 @@ class OpenSearchHook(BaseHook):
         return self.get_connection(self.conn_id)
 
     @cached_property
-    def get_client(self) -> OpenSearch:
+    def client(self) -> OpenSearch:
         """This function is intended for Operators that forward high level client objects."""
         auth = (self.conn.login, self.conn.password)
         client = OpenSearch(
@@ -75,7 +75,7 @@ class OpenSearchHook(BaseHook):
         """
         if self.log_query:
             self.log.info("Searching %s with Query: %s", index_name, query)
-        return self.get_client.search(body=query, index=index_name, **kwargs)
+        return self.client.search(body=query, index=index_name, **kwargs)
 
     def index(self, document: dict, index_name: str, doc_id: int, **kwargs: Any) -> Any:
         """
@@ -85,7 +85,7 @@ class OpenSearchHook(BaseHook):
         :param: index_name: the name of the index that this document will be associated with
         :param: doc_id: the numerical identifier that will be used to identify the document on the index.
         """
-        return self.get_client.index(index=index_name, id=doc_id, body=document, **kwargs)
+        return self.client.index(index=index_name, id=doc_id, body=document, **kwargs)
 
     def delete(self, index_name: str, query: dict | None = None, doc_id: int | None = None) -> Any:
         """
@@ -99,9 +99,9 @@ class OpenSearchHook(BaseHook):
         if query is not None:
             if self.log_query:
                 self.log.info("Deleting from %s using Query: %s", index_name, query)
-            return self.get_client.delete_by_query(index=index_name, body=query)
+            return self.client.delete_by_query(index=index_name, body=query)
         elif doc_id is not None:
-            return self.get_client.delete(index=index_name, id=doc_id)
+            return self.client.delete(index=index_name, id=doc_id)
         else:
             AirflowException("To delete a document you must include one of either a query or a document id. ")
 

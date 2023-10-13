@@ -29,7 +29,7 @@ MOCK_RETURN = {"status": "test"}
 
 class MockSearch(OpenSearchHook):
     # Mock class to override the Hook for monkeypatching
-    def get_client(self) -> None:
+    def client(self) -> None:
         return None
 
     def search(self, query: dict, index_name: str, **kwargs: Any) -> Any:

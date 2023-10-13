@@ -84,7 +84,7 @@ class OpenSearchQueryOperator(BaseOperator):
                 raise AirflowException(e)
         elif self.search_object is not None:
             try:
-                result = self.search_object.using(self.hook.get_client).execute()
+                result = self.search_object.using(self.hook.client).execute()
             except OpenSearchException as e:
                 raise AirflowException(e)
         else:
@@ -129,7 +129,7 @@ class OpenSearchCreateIndexOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         """Creates an index on an Open Search cluster."""
         try:
-            self.hook.get_client.indices.create(index=self.index_name, body=self.index_body)
+            self.hook.client.indices.create(index=self.index_name, body=self.index_body)
         except OpenSearchException as e:
             raise AirflowException(e)
 
@@ -175,8 +175,8 @@ class OpenSearchAddDocumentOperator(BaseOperator):
         """Saves a document to a given index on an OpenSearch cluster."""
         if self.doc_class is not None:
             try:
-                doc = self.doc_class.init(using=self.hook.get_client)
-                result = doc.save(using=self.hook.get_client)
+                doc = self.doc_class.init(using=self.hook.client)
+                result = doc.save(using=self.hook.client)
             except OpenSearchException as e:
                 raise AirflowException(e)
         elif self.index_name is not None and self.document is not None and self.doc_id is not None:
