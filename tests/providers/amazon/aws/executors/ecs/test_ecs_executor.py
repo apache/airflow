@@ -27,6 +27,7 @@ from unittest import mock
 
 import pytest
 import yaml
+from inflection import camelize
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs import (
@@ -43,7 +44,6 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     EcsExecutorTask,
     _recursive_flatten_dict,
     parse_assign_public_ip,
-    snake_to_camel,
 )
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
@@ -919,13 +919,15 @@ class TestEcsExecutorConfig:
         run_task_kwargs_network_config = run_task_kwargs["networkConfiguration"]["awsvpcConfiguration"]
         for key, value in kwargs_to_test.items():
             # Assert that the values are not at the root of the kwargs
+            camelized_key = camelize(key, uppercase_first_letter=False)
+
             assert key not in run_task_kwargs
-            assert snake_to_camel(key) not in run_task_kwargs
+            assert camelized_key not in run_task_kwargs
             if key == AllEcsConfigKeys.CONTAINER_NAME:
                 # The actual ECS run_task_kwarg is "name" not "containerName"
                 assert run_task_kwargs["overrides"]["containerOverrides"][0]["name"] == value
             elif key == AllEcsConfigKeys.ASSIGN_PUBLIC_IP:
-                # The value for this kwarg is casted from bool to enabled/disabled
-                assert run_task_kwargs_network_config[snake_to_camel(key)] == "ENABLED"
+                # The value for this kwarg is cast from bool to enabled/disabled
+                assert run_task_kwargs_network_config[camelized_key] == "ENABLED"
             else:
-                assert run_task_kwargs_network_config[snake_to_camel(key)] == value.split(",")
+                assert run_task_kwargs_network_config[camelized_key] == value.split(",")

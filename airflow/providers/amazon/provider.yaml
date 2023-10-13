@@ -81,6 +81,7 @@ dependencies:
   # NOTE!!! BOTOCORE version is always shifted by 3 MINOR VERSIONS from boto3
   # See https://github.com/boto/boto3/issues/2702
   - botocore>=1.31.0
+  - inflection>=0.5.1
   - watchtower~=3.0.1
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.888

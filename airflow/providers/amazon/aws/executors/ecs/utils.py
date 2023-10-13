@@ -27,6 +27,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Dict, List
 
+from inflection import camelize
+
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
@@ -253,20 +255,14 @@ def parse_assign_public_ip(assign_public_ip):
     return "ENABLED" if assign_public_ip == "True" else "DISABLED"
 
 
-def snake_to_camel(_key):
-    split_key = _key.split("_")
-    first_word = split_key[0]
-    return first_word[0].lower() + first_word[1:] + "".join(word.title() for word in split_key[1:])
-
-
-def convert_dict_keys_camel_case(nested_dict) -> dict:
-    """Accept a potentially nested dictionary and recursively convert all keys into `rcamelCase``."""
+def camelize_dict_keys(nested_dict) -> dict:
+    """Accept a potentially nested dictionary and recursively convert all keys into camelCase."""
     result = {}
     for (key, value) in nested_dict.items():
-        new_key = snake_to_camel(key)
+        new_key = camelize(key, uppercase_first_letter=False)
         if isinstance(value, dict) and (key.lower() != "tags"):
             # The key name on tags can be whatever the user wants, and we should not mess with them.
-            result[new_key] = convert_dict_keys_camel_case(value)
+            result[new_key] = camelize_dict_keys(value)
         else:
             result[new_key] = nested_dict[key]
     return result

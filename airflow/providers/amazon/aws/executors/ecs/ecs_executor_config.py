@@ -39,7 +39,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     RUN_TASK_KWARG_DEFAULTS,
     AllEcsConfigKeys,
     RunTaskKwargsConfigKeys,
-    convert_dict_keys_camel_case,
+    camelize_dict_keys,
     parse_assign_public_ip,
 )
 from airflow.utils.helpers import prune_dict
@@ -101,7 +101,7 @@ def build_task_kwargs() -> dict:
 
         task_kwargs["networkConfiguration"] = network_config
 
-    task_kwargs = convert_dict_keys_camel_case(task_kwargs)
+    task_kwargs = camelize_dict_keys(task_kwargs)
 
     try:
         json.loads(json.dumps(task_kwargs))
