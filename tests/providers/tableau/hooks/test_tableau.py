@@ -306,3 +306,14 @@ class TestTableauHook:
             assert tableau_hook.wait_for_state(
                 job_id="j1", target_state=TableauJobFinishCode.PENDING, check_interval=1
             )
+
+    @patch("airflow.providers.tableau.hooks.tableau.PersonalAccessTokenAuth")
+    @patch("airflow.providers.tableau.hooks.tableau.Server")
+    def test_1_task_use_auth(self, mock_server, mock_tableau_auth):
+        """
+        Test get conn auth via token
+        """
+        with TableauHook(site_id="test", tableau_conn_id="tableau_test_token") as tableau_hook:
+            tableau_hook.get_job_status(job_id="j1")
+            tableau_hook.get_job_status(job_id="j2")
+            assert mock_tableau_auth.call_count == 3

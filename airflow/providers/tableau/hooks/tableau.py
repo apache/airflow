@@ -160,6 +160,7 @@ class TableauHook(BaseHook):
         :param job_id: The id of the job to check.
         :return: An Enum that describe the Tableau job's return code
         """
+        self.get_conn()
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
 
     def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
