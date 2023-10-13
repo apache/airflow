@@ -46,7 +46,7 @@ default_args = {"psrp_conn_id": "the_conn_id"}
 with DAG(
     dag_id=DAG_ID,
     schedule="0 0 * * *",
-    start_date=datetime(2203, 10, 1),
+    start_date=datetime(2023, 10, 1),
     default_args=default_args,
     dagrun_timeout=timedelta(minutes=60),
     tags=["example-psrp"],
