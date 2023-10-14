@@ -73,9 +73,9 @@ dependencies:
   - apache-airflow-providers-http
   # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
   # of candidates to consider. We should also make sure that all the below related packages have also the
-  # same minimum version specified. Boto3 1.28.0 has been released on July 6, 2023. We should also make
-  # sure we set it to the version that `aiobotocore` supports (see `aiobotocore` optional dependency at
-  # the end of this file). Currently, we set aiobotocore as minimum 2.5.3 - as this it was the first version
+  # same minimum version specified. Boto3 1.28.0 has been released on July 6 2023. We should also make sure we
+  # set it to the version that `aiobotocore` supports (see `aiobotocore` optional dependency at the end
+  # of this file). Currently we set aiobotocore as minimum 2.5.3 - as this is was the first version
   # that supported boto3 1.28. NOTE!!! BOTOCORE VERSIONS ARE SHIFTED BY 3 MINOR VERSIONS
   # NOTE!!! Make sure to update _MIN_BOTO3_VERSION in setup.py when you update it here
   - boto3>=1.28.0
@@ -87,7 +87,6 @@ dependencies:
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
   - asgiref
-
 
 integrations:
   - integration-name: Amazon Athena
@@ -290,7 +289,6 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/appflow.rst
     tags: [aws]
-
 
 operators:
   - integration-name: Amazon Athena
@@ -544,7 +542,6 @@ hooks:
     python-modules:
       - airflow.providers.amazon.aws.hooks.appflow
 
-
 triggers:
   - integration-name: Amazon Web Services
     python-modules:
@@ -691,7 +688,6 @@ connection-types:
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
-
 
 notifications:
   - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
