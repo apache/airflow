@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import errno
-import io
 import os
 import shutil
 import sys
+from io import BytesIO
 from tempfile import mkdtemp
 from unittest import mock
 
@@ -39,7 +39,7 @@ class TestS3FileTransformOperator:
         self.bucket = "bucket"
         self.input_key = "foo"
         self.output_key = "bar"
-        self.bio = io.BytesIO(self.content)
+        self.bio = BytesIO(self.content)
         self.tmp_dir = mkdtemp(prefix="test_tmpS3FileTransform_")
         self.transform_script = os.path.join(self.tmp_dir, "transform.py")
         os.mknod(self.transform_script)

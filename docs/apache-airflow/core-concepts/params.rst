@@ -120,12 +120,13 @@ Another way to access your param is via a task's ``context`` kwarg.
 .. code-block::
    :emphasize-lines: 1,2
 
-    def print_x(**context):
+    def print_my_int_param(**context):
         print(context["params"]["my_int_param"])
 
     PythonOperator(
         task_id="print_my_int_param",
         python_callable=print_my_int_param,
+        params={"my_int_param": 12345},
     )
 
 JSON Schema Validation

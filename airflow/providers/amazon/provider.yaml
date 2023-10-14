@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.8.0
   - 8.7.1
   - 8.7.0
   - 8.6.0
@@ -293,6 +294,9 @@ operators:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.operators.athena
+  - integration-name: Amazon Web Services
+    python-modules:
+      - airflow.providers.amazon.aws.operators.base_aws
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.operators.batch
@@ -366,6 +370,9 @@ sensors:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.sensors.athena
+  - integration-name: Amazon Web Services
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.base_aws
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.sensors.batch

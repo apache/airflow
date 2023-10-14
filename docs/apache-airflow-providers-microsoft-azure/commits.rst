@@ -28,14 +28,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.0.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================
+`8e383e87e1 <https://github.com/apache/airflow/commit/8e383e87e1e4d6076f92fd3bce298e32607d43c5>`_  2023-10-13   ``Fix hardcoded container name in remote logging option for Azure Blob Storage (#32779)``
+`546c850a43 <https://github.com/apache/airflow/commit/546c850a43d8b00fafc11e02e63fa5caa56b4c07>`_  2023-10-13   ``Error handling for when Azure container log cannot be read in properly. (#34627)``
+`434f571915 <https://github.com/apache/airflow/commit/434f5719153a9202c3de7555c96e185a17415d80>`_  2023-10-10   ``Add subnet_ids param in AzureContainerInstancesOperator (#34850)``
+`9ee14a01ac <https://github.com/apache/airflow/commit/9ee14a01ac15a1d7fd0edc0a9f64ccadd1d3db36>`_  2023-10-10   ``Bump azure-mgmt-containerinstance (#34738)``
+`1fc286791f <https://github.com/apache/airflow/commit/1fc286791f54e4b8ac8349c5b93456dd65e62d98>`_  2023-10-06   ``Upgrade azure-mgmt-datafactory in microsift azure provider (#34040)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`99f320354b <https://github.com/apache/airflow/commit/99f320354b075fb780e54057d223d2d16ddf08b8>`_  2023-10-04   ``Refactor: consolidate import time in providers (#34402)``
+`8a387a9217 <https://github.com/apache/airflow/commit/8a387a92172f289cf291b497cea800d2c7b25488>`_  2023-10-04   ``Name params while invoking ClientSecretCredential (#34732)``
+`2e39fbd7d2 <https://github.com/apache/airflow/commit/2e39fbd7d229a76ec0b93e3755bee103804de20e>`_  2023-10-03   ``allow providing credentials through keyword argument in AzureKeyVaultBackend (#34706)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`6aa30f2ad6 <https://github.com/apache/airflow/commit/6aa30f2ad647ef5167205fabe3bebbee4594b6e3>`_  2023-09-20   ``fix(providers/microsoft-azure): respect soft_fail argument when exception is raised (#34494)``
+`d20c32f6b7 <https://github.com/apache/airflow/commit/d20c32f6b75b4d09c537d6902fae4c1be2e714be>`_  2023-09-20   ``Refactor: reduce some conditions in providers (#34440)``
+`5b85442fdc <https://github.com/apache/airflow/commit/5b85442fdc19947e125dcb0591bd59a53626a27b>`_  2023-09-19   ``Consolidate hook management in AzureBatchOperator (#34437)``
+`aee3cfc91e <https://github.com/apache/airflow/commit/aee3cfc91e0ade7b13ec5375a56dd2fe03d3517f>`_  2023-09-18   ``Consolidate hook management in AzureDataExplorerQueryOperator (#34436)``
+=================================================================================================  ===========  ================================================================================================
+
 7.0.0
 .....
 
-Latest change: 2023-09-05
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
 `18ef30221e <https://github.com/apache/airflow/commit/18ef30221ec4b09c295d9e3ab7a21562197548f2>`_  2023-09-05   ``Improve docs on AzureBatchHook DefaultAzureCredential support (#34098)``
 `e294608c6a <https://github.com/apache/airflow/commit/e294608c6a8de6e5ee2b655fa1d461c0150c91b2>`_  2023-09-04   ``feat(providers/microsoft): add AzureContainerInstancesOperator.volume as template field (#34070)``
