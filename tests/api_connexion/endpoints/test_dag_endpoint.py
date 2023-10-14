@@ -251,6 +251,7 @@ class TestGetDag(TestDagEndpoint):
 
 
 class TestGetDagDetails(TestDagEndpoint):
+    @provide_session
     def test_should_respond_200(self, current_file_token):
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -311,6 +312,7 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
+    @provide_session
     def test_should_response_200_with_doc_md_none(self, current_file_token):
         response = self.client.get(
             f"/api/v1/dags/{self.dag2_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -352,6 +354,7 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
+    @provide_session
     def test_should_response_200_for_null_start_date(self, current_file_token):
         response = self.client.get(
             f"/api/v1/dags/{self.dag3_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -393,6 +396,7 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
+    @provide_session
     def test_should_respond_200_serialized(self, current_file_token):
         # Get the dag out of the dagbag before we patch it to an empty one
         SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
