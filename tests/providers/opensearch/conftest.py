@@ -42,7 +42,7 @@ class MockSearch(OpenSearchHook):
 @pytest.fixture
 def mock_hook(monkeypatch):
     monkeypatch.setattr(OpenSearchHook, "search", MockSearch.search)
-    monkeypatch.setattr(OpenSearchHook, "get_client", MockSearch.client)
+    monkeypatch.setattr(OpenSearchHook, "client", MockSearch.client)
     monkeypatch.setattr(OpenSearchHook, "index", MockSearch.index)
 
 
