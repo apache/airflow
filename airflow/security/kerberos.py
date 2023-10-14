@@ -47,6 +47,10 @@ NEED_KRB181_WORKAROUND: bool | None = None
 log = logging.getLogger(__name__)
 
 
+def get_kerberos_principle(principal: str | None) -> str:
+    return principal or conf.get_mandatory_value("kerberos", "principal").replace("_HOST", get_hostname())
+
+
 def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True):
     """
     Renew kerberos token from keytab.
@@ -59,10 +63,7 @@ def renew_from_kt(principal: str | None, keytab: str, exit_on_fail: bool = True)
     # minutes to give ourselves a large renewal buffer.
     renewal_lifetime = f"{conf.getint('kerberos', 'reinit_frequency')}m"
 
-    cmd_principal = principal or conf.get_mandatory_value("kerberos", "principal").replace(
-        "_HOST", get_hostname()
-    )
-
+    cmd_principal = get_kerberos_principle(principal)
     if conf.getboolean("kerberos", "forwardable"):
         forwardable = "-f"
     else:
