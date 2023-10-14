@@ -26,7 +26,7 @@ import textwrap
 import time
 from contextlib import suppress
 from time import sleep
-from typing import TYPE_CHECKING, NoReturn
+from typing import NoReturn
 
 import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile
@@ -40,9 +40,6 @@ from airflow.utils.cli import setup_locations
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-
-if TYPE_CHECKING:
-    pass
 
 log = logging.getLogger(__name__)
 
