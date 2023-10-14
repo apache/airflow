@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-10T08:24:08Z
+# This constraints file was automatically generated on 2023-10-14T21:14:22Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -69,13 +69,13 @@ colorama==0.4.6
 colorlog==4.8.0
 connexion==2.14.2
 cron-descriptor==1.4.0
-croniter==2.0.0
+croniter==2.0.1
 cryptography==41.0.4
-dask==2023.9.3
+dask==2023.10.0
 decorator==5.1.1
 dill==0.3.7
 distlib==0.3.7
-distributed==2023.9.3
+distributed==2023.10.0
 dnspython==2.4.2
 docutils==0.20.1
 email-validator==1.3.1
@@ -88,7 +88,7 @@ fsspec==2023.9.2
 gevent==23.9.1
 google-auth==2.23.3
 google-re2==1.1
-googleapis-common-protos==1.60.0
+googleapis-common-protos==1.61.0
 graphviz==0.20.1
 greenlet==3.0.0
 grpcio==1.59.0
@@ -124,7 +124,7 @@ mdit-py-plugins==0.4.0
 mdurl==0.1.2
 msgpack==1.0.7
 multidict==6.0.4
-numpy==1.26.0
+numpy==1.26.1
 oauthlib==3.2.2
 opentelemetry-api==1.20.0
 opentelemetry-exporter-otlp-proto-common==1.20.0
@@ -172,9 +172,9 @@ requests==2.31.0
 rfc3339-validator==0.1.4
 rich-argparse==1.3.0
 rich==13.6.0
-rpds-py==0.10.4
+rpds-py==0.10.6
 rsa==4.9
-sentry-sdk==1.31.0
+sentry-sdk==1.32.0
 setproctitle==1.3.3
 six==1.16.0
 sniffio==1.3.0
