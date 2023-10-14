@@ -144,16 +144,22 @@ def get_requirements_for_provider(
             *provider_path_array
         ) / "provider.yaml"
         provider_version = yaml.safe_load(provider_file.read_text())["versions"][0]
-    airflow_file_name = f"airflow-{airflow_version}-requirements.txt"
-    provider_with_airflow_file_name = (
-        f"provider-{provider_id}-{provider_version}-with-airflow-requirements.txt"
-    )
-    provider_file_name = f"provider-{provider_id}-{provider_version}-without-airflow-requirements.txt"
-    target_dir = FILES_DIR / TARGET_DIR_NAME
-    airflow_file = target_dir / airflow_file_name
-    provider_with_airflow_file = target_dir / provider_with_airflow_file_name
 
-    if os.path.exists(airflow_file) and os.path.exists(provider_with_airflow_file) and force is False:
+    target_dir = FILES_DIR / TARGET_DIR_NAME
+    airflow_core_file_name = f"airflow-{airflow_version}-python{python_version}-requirements.txt"
+    airflow_core_path = target_dir / airflow_core_file_name
+
+    provider_with_core_file_name = f"python{python_version}-with-core-requirements.txt"
+    provider_without_core_file_name = f"python{python_version}-without-core-requirements.txt"
+
+    provider_folder_name = f"provider-{provider_id}-{provider_version}"
+    provider_folder_path = target_dir / provider_folder_name
+    provider_with_core_path = provider_folder_path / provider_with_core_file_name
+    provider_without_core_file = provider_folder_path / provider_without_core_file_name
+
+    docker_file_provider_folder_prefix = f"{DOCKER_FILE_PREFIX}/{provider_folder_name}/"
+
+    if os.path.exists(provider_folder_path) and force is False:
         get_console().print(
             f"[warning] Requirements for provider {provider_id} version {provider_version} already exist, "
             f"skipping. Set force=True to force generation."
@@ -163,15 +169,17 @@ def get_requirements_for_provider(
             f"Provider requirements already existed, skipped generation for {provider_id} version "
             f"{provider_version}",
         )
+    else:
+        provider_folder_path.mkdir()
 
     command = f"""
 mkdir -pv {DOCKER_FILE_PREFIX}
-/opt/airflow/airflow-{airflow_version}/bin/pip freeze | sort > {DOCKER_FILE_PREFIX}{airflow_file_name}
+/opt/airflow/airflow-{airflow_version}/bin/pip freeze | sort > {DOCKER_FILE_PREFIX}{airflow_core_file_name}
 /opt/airflow/airflow-{airflow_version}/bin/pip install apache-airflow=={airflow_version} \
     apache-airflow-providers-{provider_id}=={provider_version}
 /opt/airflow/airflow-{airflow_version}/bin/pip freeze | sort > \
-    {DOCKER_FILE_PREFIX}{provider_with_airflow_file_name}
-chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
+    {docker_file_provider_folder_prefix}{provider_with_core_file_name}
+chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_with_core_file_name}
 """
     provider_command_result = run_command(
         [
@@ -189,14 +197,14 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
             ";".join(command.splitlines()[1:-1]),
         ]
     )
-    get_console().print(f"[info]Airflow requirements in {airflow_file}")
-    get_console().print(f"[info]Provider requirements in {provider_with_airflow_file}")
-    base_packages = {package.split("==")[0] for package in airflow_file.read_text().splitlines()}
+    get_console().print(f"[info]Airflow requirements in {airflow_core_path}")
+    get_console().print(f"[info]Provider requirements in {provider_with_core_path}")
+    base_packages = {package.split("==")[0] for package in airflow_core_path.read_text().splitlines()}
     base_packages.add("apache-airflow-providers-" + provider_id.replace(".", "-"))
     provider_packages = sorted(
         [
             line
-            for line in provider_with_airflow_file.read_text().splitlines()
+            for line in provider_with_core_path.read_text().splitlines()
             if line.split("==")[0] not in base_packages
         ]
     )
@@ -205,10 +213,9 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
         f"dependent packages (excluding airflow and its dependencies)"
     )
     get_console().print(provider_packages)
-    provider_file = target_dir / provider_file_name
-    provider_file.write_text("".join(f"{p}\n" for p in provider_packages))
+    provider_without_core_file.write_text("".join(f"{p}\n" for p in provider_packages))
     get_console().print(
-        f"[success]Generated {provider_id}:{provider_version} requirements in {provider_file}"
+        f"[success]Generated {provider_id}:{provider_version} requirements in {provider_without_core_file}"
     )
 
     return (
