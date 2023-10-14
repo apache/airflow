@@ -4016,6 +4016,11 @@ class SlaMissModelView(AirflowModelView):
     class_permission_name = permissions.RESOURCE_SLA_MISS
     method_permission_name = {
         "list": "read",
+        "action_muldelete": "delete",
+        "action_mulnotificationsent": "edit",
+        "action_mulnotificationsentfalse": "edit",
+        "action_mulemailsent": "edit",
+        "action_mulemailsentfalse": "edit",
     }
 
     base_permissions = [
