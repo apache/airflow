@@ -363,7 +363,7 @@ rabbitmq = [
 ]
 sentry = [
     "blinker>=1.1",
-    "sentry-sdk>=0.8.0",
+    "sentry-sdk>=1.32.0",
 ]
 statsd = [
     "statsd>=3.3.0",
@@ -438,7 +438,7 @@ _devel_only_devscripts = [
     "gitpython",
     "pipdeptree",
     "pygithub",
-    "rich-click>=1.5",
+    "rich-click>=1.7.0",
     "semver",
     "towncrier",
     "twine",
