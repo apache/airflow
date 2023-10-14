@@ -39,12 +39,12 @@ runs:
       run: >
         breeze release-management generate-constraints --run-in-parallel
         --airflow-constraints-mode constraints-source-providers
-    - name: "Generate PyPI constraints"
-      shell: bash
-      run: >
-        breeze release-management generate-constraints --run-in-parallel
-        --airflow-constraints-mode constraints
-      if: ${{ inputs.build-provider-packages != 'true' }}
+#    - name: "Generate PyPI constraints"
+#      shell: bash
+#      run: >
+#        breeze release-management generate-constraints --run-in-parallel
+#        --airflow-constraints-mode constraints
+#      if: ${{ inputs.build-provider-packages != 'true' }}
     - name: "Print dependency upgrade summary"
       shell: bash
       run: |

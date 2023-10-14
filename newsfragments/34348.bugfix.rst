@@ -1,1 +1,0 @@
-Fixed ``AttributeError: 'Select' object has no attribute 'count'`` during the ``airflow db migrate`` command
