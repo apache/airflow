@@ -66,6 +66,11 @@ def get_dag_details(*, dag_id: str) -> APIResponse:
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
+    dag_model: DagModel = DagModel.get_dagmodel(dag_id=dag_id)
+    for key, value in dag_model.__dict__.items():
+        if not key.startswith("_") and not hasattr(dag, key):
+            setattr(dag, key, value)
+
     return dag_detail_schema.dump(dag)
 
 
