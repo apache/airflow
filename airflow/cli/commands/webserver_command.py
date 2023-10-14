@@ -42,7 +42,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
-    import types
+    pass
 
 log = logging.getLogger(__name__)
 
