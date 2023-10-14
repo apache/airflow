@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import signal
 from argparse import Namespace
-from typing import Callable
+from typing import Callable, Union
 
 from daemon import daemon
 from daemon.pidfile import TimeoutPIDLockFile
@@ -34,7 +34,7 @@ def run_command_with_daemon_mode(
     callback: Callable,
     should_setup_logging: bool = False,
     umask: str = settings.DAEMON_UMASK,
-    pid_file: str = None,
+    pid_file: Union[str, None] = None,
 ):
     """
     Parameters
