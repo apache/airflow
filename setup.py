@@ -438,7 +438,7 @@ _devel_only_devscripts = [
     "gitpython",
     "pipdeptree",
     "pygithub",
-    "rich-click>=1.5",
+    "rich-click>=1.7.0",
     "semver",
     "towncrier",
     "twine",
