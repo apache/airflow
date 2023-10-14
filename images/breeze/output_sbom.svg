@@ -32,11 +32,9 @@
         font-family: arial;
     }
 
-
-.breeze-sbom-r1 { fill: #c5c8c6 }
+    .breeze-sbom-r1 { fill: #c5c8c6 }
 .breeze-sbom-r2 { fill: #d0b344 }
 .breeze-sbom-r3 { fill: #c5c8c6;font-weight: bold }
-
 .breeze-sbom-r4 { fill: #68a0b3;font-weight: bold }
 .breeze-sbom-r5 { fill: #868887 }
 .breeze-sbom-r6 { fill: #98a84b;font-weight: bold }
@@ -91,7 +89,6 @@
     <g transform="translate(9, 41)" clip-path="url(#breeze-sbom-clip-terminal)">
     
     <g class="breeze-sbom-matrix">
-
     <text class="breeze-sbom-r1" x="1464" y="20" textLength="12.2" clip-path="url(#breeze-sbom-line-0)">
 </text><text class="breeze-sbom-r2" x="12.2" y="44.4" textLength="73.2" clip-path="url(#breeze-sbom-line-1)">Usage:</text><text class="breeze-sbom-r3" x="97.6" y="44.4" textLength="134.2" clip-path="url(#breeze-sbom-line-1)">breeze&#160;sbom</text><text class="breeze-sbom-r1" x="244" y="44.4" textLength="12.2" clip-path="url(#breeze-sbom-line-1)">[</text><text class="breeze-sbom-r4" x="256.2" y="44.4" textLength="85.4" clip-path="url(#breeze-sbom-line-1)">OPTIONS</text><text class="breeze-sbom-r1" x="341.6" y="44.4" textLength="24.4" clip-path="url(#breeze-sbom-line-1)">]&#160;</text><text class="breeze-sbom-r4" x="366" y="44.4" textLength="85.4" clip-path="url(#breeze-sbom-line-1)">COMMAND</text><text class="breeze-sbom-r1" x="451.4" y="44.4" textLength="24.4" clip-path="url(#breeze-sbom-line-1)">&#160;[</text><text class="breeze-sbom-r4" x="475.8" y="44.4" textLength="48.8" clip-path="url(#breeze-sbom-line-1)">ARGS</text><text class="breeze-sbom-r1" x="524.6" y="44.4" textLength="48.8" clip-path="url(#breeze-sbom-line-1)">]...</text><text class="breeze-sbom-r1" x="1464" y="44.4" textLength="12.2" clip-path="url(#breeze-sbom-line-1)">
 </text><text class="breeze-sbom-r1" x="1464" y="68.8" textLength="12.2" clip-path="url(#breeze-sbom-line-2)">
@@ -104,7 +101,6 @@
 </text><text class="breeze-sbom-r5" x="0" y="239.6" textLength="12.2" clip-path="url(#breeze-sbom-line-9)">│</text><text class="breeze-sbom-r4" x="24.4" y="239.6" textLength="549" clip-path="url(#breeze-sbom-line-9)">update-sbom-information&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-sbom-r1" x="597.8" y="239.6" textLength="841.8" clip-path="url(#breeze-sbom-line-9)">Update&#160;SBOM&#160;information&#160;in&#160;airflow-site&#160;project.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-sbom-r5" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#breeze-sbom-line-9)">│</text><text class="breeze-sbom-r1" x="1464" y="239.6" textLength="12.2" clip-path="url(#breeze-sbom-line-9)">
 </text><text class="breeze-sbom-r5" x="0" y="264" textLength="12.2" clip-path="url(#breeze-sbom-line-10)">│</text><text class="breeze-sbom-r4" x="24.4" y="264" textLength="549" clip-path="url(#breeze-sbom-line-10)">generate-providers-requirements&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-sbom-r1" x="597.8" y="264" textLength="841.8" clip-path="url(#breeze-sbom-line-10)">Generate&#160;requirements&#160;for&#160;selected&#160;provider.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="breeze-sbom-r5" x="1451.8" y="264" textLength="12.2" clip-path="url(#breeze-sbom-line-10)">│</text><text class="breeze-sbom-r1" x="1464" y="264" textLength="12.2" clip-path="url(#breeze-sbom-line-10)">
 </text><text class="breeze-sbom-r5" x="0" y="288.4" textLength="1464" clip-path="url(#breeze-sbom-line-11)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-sbom-r1" x="1464" y="288.4" textLength="12.2" clip-path="url(#breeze-sbom-line-11)">
-
 </text>
     </g>
     </g>
