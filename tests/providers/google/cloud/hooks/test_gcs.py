@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import copy
-import io
 import logging
 import os
 import re
 from datetime import datetime, timedelta
+from io import BytesIO
 from unittest import mock
 
 import dateutil
@@ -699,7 +699,7 @@ class TestGCSHook:
     def test_download_as_bytes(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        test_object_bytes = io.BytesIO(b"input")
+        test_object_bytes = BytesIO(b"input")
 
         download_method = mock_service.return_value.bucket.return_value.blob.return_value.download_as_bytes
         download_method.return_value = test_object_bytes
@@ -713,7 +713,7 @@ class TestGCSHook:
     def test_download_to_file(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        test_object_bytes = io.BytesIO(b"input")
+        test_object_bytes = BytesIO(b"input")
         test_file = "test_file"
 
         download_filename_method = (
@@ -737,7 +737,7 @@ class TestGCSHook:
     def test_provide_file(self, mock_service, mock_temp_file):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        test_object_bytes = io.BytesIO(b"input")
+        test_object_bytes = BytesIO(b"input")
         test_file = "test_file"
 
         download_filename_method = (

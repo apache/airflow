@@ -56,7 +56,7 @@ TASK_DATA = {
     "duration": None,
 }
 
-CRUMB_DATE = datetime.datetime(2019, 5, 15)
+CRUMB_DATE = datetime.datetime(2019, 5, 15, tzinfo=datetime.timezone.utc)
 CRUMB = {
     "timestamp": CRUMB_DATE,
     "type": "default",

@@ -11,6 +11,7 @@ actionCard
 Acyclic
 acyclic
 AddressesType
+adf
 adhoc
 adls
 adobjects
@@ -1053,6 +1054,8 @@ Oozie
 openapi
 openfaas
 openlineage
+OpenSearch
+opensearch
 oper
 OperatorLineage
 Opsgenie

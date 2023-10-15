@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.7.1"
+defaultAirflowTag: "2.7.2"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.7.1"
+airflowVersion: "2.7.2"
 
 # Images
 images:
@@ -2066,6 +2066,11 @@ redis:
     # Annotations to add to redis volumes
     annotations: {}
 
+  # Configuration for empty dir volume (if redis.persistence.enabled == false)
+  # emptyDirConfig:
+  #   sizeLimit: 1Gi
+  #   medium: Memory
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -2440,6 +2445,11 @@ dags:
     # - name: ""
     #   value: ""
 
+    # Configuration for empty dir volume
+    # emptyDirConfig:
+    #   sizeLimit: 1Gi
+    #   medium: Memory
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -2449,6 +2459,11 @@ dags:
     #   memory: 128Mi
 
 logs:
+  # Configuration for empty dir volume (if logs.persistence.enabled == false)
+  # emptyDirConfig:
+  #   sizeLimit: 1Gi
+  #   medium: Memory
+
   persistence:
     # Enable persistent volume for storing logs
     enabled: false

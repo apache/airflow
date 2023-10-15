@@ -30,7 +30,7 @@ from copy import copy
 from queue import SimpleQueue
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -300,7 +300,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
         This is used for the warning boxes in the UI.
         """
-        return session.query(func.count(Trigger.id)).scalar() > 0
+        return session.execute(select(func.count(Trigger.id))).scalar_one() > 0
 
     def on_kill(self):
         """
