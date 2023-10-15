@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+10.10.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``improvement: introduce project_id in BigQueryIntervalCheckOperator (#34573)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``respect soft_fail argument when exception is raised for google sensors (#34501)``
+* ``Fix GCSToGoogleDriveOperator and gdrive system tests (#34545)``
+* ``Fix LookerHook serialize missing 1 argument error (#34678)``
+* ``Fix Dataform system tests (#34329)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Refactor DataFusionInstanceLink usage (#34514)``
+* ``Use 'airflow.models.dag.DAG' in Google Provider examples (#34614)``
+* ``Deprecate Life Sciences Operator and Hook (#34549)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor: consolidate import time in providers (#34402)``
+   * ``Refactor usage of str() in providers (#34320)``
+   * ``Refactor dedent nested loops (#34409)``
+   * ``Refactor multiple equals to contains in providers (#34441)``
+   * ``Refactor: reduce some conditions in providers (#34440)``
+   * ``Refactor shorter defaults in providers (#34347)``
+   * ``Update Vertex AI system tests (#34364)``
+   * ``Fix typo in DataplexGetDataQualityScanResultOperator (#34681)``
+
 10.9.0
 ......
 
