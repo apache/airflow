@@ -66,7 +66,7 @@ class TestGcsToGDriveOperator:
                 mock.call().upload_file(
                     local_location="TMP1",
                     remote_location="copied_sales/2017/january-backup.avro",
-                    folder_id=None,
+                    folder_id="root",
                 ),
             ]
         )
@@ -156,13 +156,13 @@ class TestGcsToGDriveOperator:
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().upload_file(
-                    local_location="TMP1", remote_location="sales/A.avro", folder_id=None
+                    local_location="TMP1", remote_location="sales/A.avro", folder_id="root"
                 ),
                 mock.call().upload_file(
-                    local_location="TMP2", remote_location="sales/B.avro", folder_id=None
+                    local_location="TMP2", remote_location="sales/B.avro", folder_id="root"
                 ),
                 mock.call().upload_file(
-                    local_location="TMP3", remote_location="sales/C.avro", folder_id=None
+                    local_location="TMP3", remote_location="sales/C.avro", folder_id="root"
                 ),
             ]
         )
@@ -210,13 +210,13 @@ class TestGcsToGDriveOperator:
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().upload_file(
-                    local_location="TMP1", remote_location="sales/A.avro", folder_id=None
+                    local_location="TMP1", remote_location="sales/A.avro", folder_id="root"
                 ),
                 mock.call().upload_file(
-                    local_location="TMP2", remote_location="sales/B.avro", folder_id=None
+                    local_location="TMP2", remote_location="sales/B.avro", folder_id="root"
                 ),
                 mock.call().upload_file(
-                    local_location="TMP3", remote_location="sales/C.avro", folder_id=None
+                    local_location="TMP3", remote_location="sales/C.avro", folder_id="root"
                 ),
             ]
         )
