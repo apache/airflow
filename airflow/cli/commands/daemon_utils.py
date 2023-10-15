@@ -36,8 +36,8 @@ def run_command_with_daemon_mode(
     umask: str = settings.DAEMON_UMASK,
     pid_file: str | None = None,
 ):
+    """Run the command in daemon process if enabled or in this process if not.
 
-    """
     Parameters
     ----------
     args : Namespace
