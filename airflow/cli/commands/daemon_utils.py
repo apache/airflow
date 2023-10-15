@@ -36,6 +36,7 @@ def run_command_with_daemon_mode(
     umask: str = settings.DAEMON_UMASK,
     pid_file: str | None = None,
 ):
+
     """
     Parameters
     ----------
