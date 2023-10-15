@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
-    from airflow import Dataset
+    from airflow.datasets import Dataset
 
 hookspec = HookspecMarker("airflow")
 
