@@ -299,6 +299,8 @@ These are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | openlineage         | ``pip install 'apache-airflow[openlineage]'``       | Sending OpenLineage events           |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| opensearch         | ``pip install 'apache-airflow[opensearch]'``         | Opensearch hooks and operators       |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | papermill           | ``pip install 'apache-airflow[papermill]'``         | Papermill hooks and operators        |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | sftp                | ``pip install 'apache-airflow[sftp]'``              | SFTP hooks, operators and sensors    |              |

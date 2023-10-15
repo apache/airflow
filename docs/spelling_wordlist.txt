@@ -1046,6 +1046,8 @@ Oozie
 openapi
 openfaas
 openlineage
+OpenSearch
+opensearch
 oper
 Opsgenie
 opsgenie

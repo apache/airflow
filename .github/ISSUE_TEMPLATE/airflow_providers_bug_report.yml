@@ -80,6 +80,7 @@ body:
         - odbc
         - openfaas
         - openlineage
+        - opensearch
         - opsgenie
         - oracle
         - pagerduty
