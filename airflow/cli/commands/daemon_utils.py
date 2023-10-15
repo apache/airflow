@@ -64,10 +64,10 @@ def run_command_with_daemon_mode(
         # Check if the process is already running; if not but a pidfile exists, clean it up
         check_if_pidfile_process_is_running(pid_file=pid, process_name=process_name)
 
-        files_preserve = []
         if should_setup_logging:
-            handle = setup_logging(log_file)
-            files_preserve.append(handle)
+            files_preserve = [setup_logging(log_file)]
+        else:
+            files_preserve = None
         with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
