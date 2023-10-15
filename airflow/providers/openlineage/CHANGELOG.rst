@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+1.1.1
+.....
+
+Misc
+~~~~
+
+* ``Adjust log levels in OpenLineage provider (#34801)``
+
 1.1.0
 .....
 

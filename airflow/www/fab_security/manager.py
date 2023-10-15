@@ -78,7 +78,7 @@ log = logging.getLogger(__name__)
 
 
 def _oauth_tokengetter(token=None):
-    """Default function to return the current user oauth token from session cookie."""
+    """Return the current user oauth token from session cookie."""
     token = session.get("oauth")
     log.debug("Token Get: %s", token)
     return token
@@ -378,7 +378,7 @@ class BaseSecurityManager:
 
     def oauth_user_info_getter(self, f):
         """
-        Decorator function to be the OAuth user info getter for all the providers.
+        Get OAuth user info; used by all providers.
 
         Receives provider and response return a dict with the information returned from the provider.
         The returned user info dict should have its keys with the same name as the User Model.
@@ -407,7 +407,7 @@ class BaseSecurityManager:
 
     def get_oauth_token_key_name(self, provider):
         """
-        Returns the token_key name for the oauth provider.
+        Return the token_key name for the oauth provider.
 
         If none is configured defaults to oauth_token
         this is configured using OAUTH_PROVIDERS and token_key key.
@@ -474,7 +474,7 @@ class BaseSecurityManager:
 
     def auth_user_db(self, username, password):
         """
-        Method for authenticating user, auth db style.
+        Authenticate user, auth db style.
 
         :param username:
             The username or registered email address
@@ -506,7 +506,7 @@ class BaseSecurityManager:
 
     def _search_ldap(self, ldap, con, username):
         """
-        Searches LDAP for user.
+        Search LDAP for user.
 
         :param ldap: The ldap module reference
         :param con: The ldap connection
@@ -628,7 +628,7 @@ class BaseSecurityManager:
 
     def auth_user_ldap(self, username, password):
         """
-        Method for authenticating user with LDAP.
+        Authenticate user with LDAP.
 
         NOTE: this depends on python-ldap module.
 
@@ -885,7 +885,7 @@ class BaseSecurityManager:
 
     def auth_user_oauth(self, userinfo):
         """
-        Method for authenticating user with OAuth.
+        Authenticate user with OAuth.
 
         :userinfo: dict with user information
                    (keys are the same as User model columns)
@@ -944,7 +944,7 @@ class BaseSecurityManager:
             return None
 
     def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
-        """Checks permission on builtin role."""
+        """Check permission on builtin role."""
         perms = self.builtin_roles.get(role.name, [])
         for _resource_name, _action_name in perms:
             if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
@@ -954,7 +954,8 @@ class BaseSecurityManager:
     def _get_user_permission_resources(
         self, user: User | None, action_name: str, resource_names: list[str] | None = None
     ) -> set[str]:
-        """Get resource names with a certain action name that a user has access to.
+        """
+        Get resource names with a certain action name that a user has access to.
 
         Mainly used to fetch all menu permissions on a single db call, will also
         check public permissions and builtin roles
@@ -1018,7 +1019,7 @@ class BaseSecurityManager:
 
     def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
         """
-        Adds an action on a resource to the backend.
+        Add an action on a resource to the backend.
 
         :param base_action_names:
             list of permissions from view (all exposed methods):
@@ -1064,7 +1065,7 @@ class BaseSecurityManager:
 
     def add_permissions_menu(self, resource_name):
         """
-        Adds menu_access to resource on permission_resource.
+        Add menu_access to resource on permission_resource.
 
         :param resource_name:
             The resource name
@@ -1085,7 +1086,7 @@ class BaseSecurityManager:
 
     def security_cleanup(self, baseviews, menus):
         """
-        Will cleanup all unused permissions from the database.
+        Cleanup all unused permissions from the database.
 
         :param baseviews: A list of BaseViews class
         :param menus: Menu class
@@ -1109,7 +1110,7 @@ class BaseSecurityManager:
                 self.delete_resource(resource.name)
 
     def find_user(self, username=None, email=None):
-        """Generic function find a user by its username or email."""
+        """Find a user by its username or email."""
         raise NotImplementedError
 
     def get_role_permissions_from_db(self, role_id: int) -> list[Permission]:
@@ -1117,12 +1118,12 @@ class BaseSecurityManager:
         raise NotImplementedError
 
     def add_user(self, username, first_name, last_name, email, role, password=""):
-        """Generic function to create user."""
+        """Create user."""
         raise NotImplementedError
 
     def update_user(self, user):
         """
-        Generic function to update user.
+        Update user.
 
         :param user: User model to update to database
         """
@@ -1135,7 +1136,7 @@ class BaseSecurityManager:
         raise NotImplementedError
 
     def get_public_role(self):
-        """Returns all permissions from public role."""
+        """Return all permissions from public role."""
         raise NotImplementedError
 
     def filter_roles_by_perm_with_action(self, permission_name: str, role_ids: list[int]):
@@ -1144,7 +1145,7 @@ class BaseSecurityManager:
     def permission_exists_in_one_or_more_roles(
         self, resource_name: str, action_name: str, role_ids: list[int]
     ) -> bool:
-        """Finds and returns permission views for a group of roles."""
+        """Find and returns permission views for a group of roles."""
         raise NotImplementedError
 
     """
@@ -1155,7 +1156,7 @@ class BaseSecurityManager:
 
     def get_all_resources(self) -> list[Resource]:
         """
-        Gets all existing resource records.
+        Get all existing resource records.
 
         :return: List of all resources
         """
@@ -1171,7 +1172,7 @@ class BaseSecurityManager:
 
     def delete_resource(self, name):
         """
-        Deletes a Resource from the backend.
+        Delete a Resource from the backend.
 
         :param name:
             name of the Resource
@@ -1186,7 +1187,7 @@ class BaseSecurityManager:
 
     def get_permission(self, action_name: str, resource_name: str) -> Permission | None:
         """
-        Gets a permission made with the given action->resource pair, if the permission already exists.
+        Get a permission made with the given action->resource pair, if the permission already exists.
 
         :param action_name: Name of action
         :param resource_name: Name of resource
@@ -1205,7 +1206,7 @@ class BaseSecurityManager:
 
     def create_permission(self, action_name: str, resource_name: str) -> Permission | None:
         """
-        Creates a permission linking an action and resource.
+        Create a permission linking an action and resource.
 
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource
@@ -1215,7 +1216,7 @@ class BaseSecurityManager:
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
         """
-        Deletes the permission linking an action->resource pair.
+        Delete the permission linking an action->resource pair.
 
         Doesn't delete the underlying action or resource.
 
@@ -1249,5 +1250,5 @@ class BaseSecurityManager:
 
     @staticmethod
     def before_request():
-        """Hook runs before request."""
+        """Run hook before request."""
         g.user = get_auth_manager().get_user()

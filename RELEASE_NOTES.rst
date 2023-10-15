@@ -21,6 +21,121 @@
 
 .. towncrier release notes start
 
+Airflow 2.7.2 (2023-10-12)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes
+
+
+Bug Fixes
+"""""""""
+- Check if the lower of provided values are sensitives in config endpoint (#34712)
+- Add support for ZoneInfo and generic UTC to fix datetime serialization (#34683, #34804)
+- Fix AttributeError: 'Select' object has no attribute 'count' during the airflow db migrate command (#34348)
+- Make dry run optional for patch task instance  (#34568)
+- Fix non deterministic datetime deserialization (#34492)
+- Use iterative loop to look for mapped parent (#34622)
+- Fix is_parent_mapped value by checking if any of the parent ``taskgroup`` is mapped (#34587)
+- Avoid top-level airflow import to avoid circular dependency (#34586)
+- Add more exemptions to lengthy metric list (#34531)
+- Fix dag warning endpoint permissions (#34355)
+- Fix task instance access issue in the batch endpoint (#34315)
+- Correcting wrong time showing in grid view (#34179)
+- Fix www ``cluster_activity`` view not loading due to ``standaloneDagProcessor`` templating (#34274)
+- Set ``loglevel=DEBUG`` in 'Not syncing ``DAG-level`` permissions' (#34268)
+- Make param validation consistent for DAG validation and triggering (#34248)
+- Ensure details panel is shown when any tab is selected (#34136)
+- Fix issues related to ``access_control={}`` (#34114)
+- Fix not found ``ab_user`` table in the CLI session (#34120)
+- Fix FAB-related logging format interpolation (#34139)
+- Fix query bug in ``next_run_datasets_summary`` endpoint (#34143)
+- Fix for TaskGroup toggles for duplicated labels (#34072)
+- Fix the required permissions to clear a TI from the UI (#34123)
+- Reuse ``_run_task_session`` in mapped ``render_template_fields`` (#33309)
+- Fix scheduler logic to plan new dag runs by ignoring manual runs (#34027)
+- Add missing audit logs for Flask actions add, edit and delete (#34090)
+- Hide Irrelevant Dag Processor from Cluster Activity Page (#33611)
+- Remove infinite animation for pinwheel, spin for 1.5s (#34020)
+- Restore rendering of provider configuration with ``version_added`` (#34011)
+
+Doc Only Changes
+""""""""""""""""
+- Clarify audit log permissions (#34815)
+- Add explanation for Audit log users (#34814)
+- Import ``AUTH_REMOTE_USER`` from FAB in WSGI middleware example (#34721)
+- Add information about drop support MsSQL as DB Backend in the future (#34375)
+- Document how to use the system's timezone database (#34667)
+- Clarify what landing time means in doc (#34608)
+- Fix screenshot in dynamic task mapping docs (#34566)
+- Fix class reference in Public Interface documentation (#34454)
+- Clarify var.value.get  and var.json.get usage (#34411)
+- Schedule default value description (#34291)
+- Docs for triggered_dataset_event (#34410)
+- Add DagRun events (#34328)
+- Provide tabular overview about trigger form param types (#34285)
+- Add link to Amazon Provider Configuration in Core documentation (#34305)
+- Add "security infrastructure" paragraph to security model (#34301)
+- Change links to SQLAlchemy 1.4 (#34288)
+- Add SBOM entry in security documentation (#34261)
+- Added more example code for XCom push and pull (#34016)
+- Add state utils to Public Airflow Interface (#34059)
+- Replace markdown style link with rst style link (#33990)
+- Fix broken link to the "UPDATING.md" file (#33583)
+
+Misc/Internal
+"""""""""""""
+- Update min-sqlalchemy version to account for latest features used (#34293)
+- Fix SesssionExemptMixin spelling (#34696)
+- Restrict ``astroid`` version < 3 (#34658)
+- Fail dag test if defer without triggerer (#34619)
+- Fix connections exported output (#34640)
+- Don't run isort when creating new alembic migrations (#34636)
+- Deprecate numeric type python version in PythonVirtualEnvOperator (#34359)
+- Refactor ``os.path.splitext`` to ``Path.*`` (#34352, #33669)
+- Replace = by is for type comparison (#33983)
+- Refactor integer division (#34180)
+- Refactor: Simplify comparisons (#34181)
+- Refactor: Simplify string generation (#34118)
+- Replace unnecessary dict comprehension with dict() in core (#33858)
+- Change "not all" to "any" for ease of readability (#34259)
+- Replace assert by if...raise in code (#34250, #34249)
+- Move default timezone to except block (#34245)
+- Combine similar if logic in core (#33988)
+- Refactor: Consolidate import and usage of random (#34108)
+- Consolidate importing of os.path.* (#34060)
+- Replace sequence concatenation by unpacking in Airflow core (#33934)
+- Refactor unneeded 'continue' jumps around the repo (#33849, #33845, #33846, #33848, #33839, #33844, #33836, #33842)
+- Remove [project] section from ``pyproject.toml`` (#34014)
+- Move the try outside the loop when this is possible in Airflow core (#33975)
+- Replace loop by any when looking for a positive value in core (#33985)
+- Do not create lists we don't need (#33519)
+- Remove useless string join from core (#33969)
+- Add TCH001 and TCH002 rules to pre-commit to detect and move type checking modules (#33865)
+- Add cancel_trigger_ids to to_cancel dequeue in batch (#33944)
+- Avoid creating unnecessary list when parsing stats datadog tags (#33943)
+- Replace dict.items by dict.values when key is not used in core (#33940)
+- Replace lambdas with comprehensions (#33745)
+- Improve modules import in Airflow core by some of them into a type-checking block (#33755)
+- Refactor: remove unused state - SHUTDOWN (#33746, #34063, #33893)
+- Refactor: Use in-place .sort() (#33743)
+- Use literal dict instead of calling dict() in Airflow core (#33762)
+- remove unnecessary map and rewrite it using list in Airflow core (#33764)
+- Replace lambda by a def method in Airflow core (#33758)
+- Replace type func by ``isinstance`` in fab_security manager (#33760)
+- Replace single quotes by double quotes in all Airflow modules (#33766)
+- Merge multiple ``isinstance`` calls for the same object in a single call (#33767)
+- Use a single  statement with multiple contexts instead of nested  statements in core (#33769)
+- Refactor: Use f-strings (#33734, #33455)
+- Refactor: Use random.choices (#33631)
+- Use ``str.splitlines()`` to split lines (#33592)
+- Refactor: Remove useless str() calls (#33629)
+- Refactor: Improve detection of duplicates and list sorting (#33675)
+- Simplify conditions on ``len()`` (#33454)
+
+
 Airflow 2.7.1 (2023-09-07)
 --------------------------
 
