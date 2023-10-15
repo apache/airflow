@@ -92,7 +92,7 @@ def internal_api(args):
             )
         )
 
-        gunicorn_master_pid_file, _, _, _ = setup_locations("internal-api-gunicorn-master")
+        gunicorn_master_pid_file, _, _, _ = setup_locations("internal-api-gunicorn-master", pid=args.pid)
 
         run_args = [
             sys.executable,

@@ -375,8 +375,7 @@ def webserver(args):
             )
         )
 
-        gunicorn_master_pid_file, _, _, _ = setup_locations("webserver-gunicorn-master")
-
+        gunicorn_master_pid_file, _, _, _ = setup_locations("webserver-gunicorn-master", pid=args.pid)
         run_args = [
             sys.executable,
             "-m",
