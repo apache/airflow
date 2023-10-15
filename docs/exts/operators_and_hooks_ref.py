@@ -246,7 +246,7 @@ class BaseJinjaReferenceDirective(Directive):
 
     def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         """Return content in RST format"""
-        raise NotImplementedError("Tou need to override render_content method.")
+        raise NotImplementedError("You need to override render_content method.")
 
 
 def _common_render_list_content(*, header_separator: str, resource_type: str, template: str):
