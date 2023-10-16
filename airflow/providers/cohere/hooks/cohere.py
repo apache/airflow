@@ -60,7 +60,9 @@ class CohereHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         return {
             "hidden_fields": ["host", "schema", "login", "port", "extra"],
-            "relabeling": {},
+            "relabeling": {
+                "password": "API Key",
+            },
         }
 
     def test_connection(self) -> tuple[bool, str]:
