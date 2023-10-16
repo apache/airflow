@@ -264,6 +264,9 @@ class FabAuthManager(BaseAuthManager):
         if not methods:
             methods = ["PUT", "GET"]
 
+        if not user:
+            user = self.get_user()
+
         if not self.is_logged_in():
             roles = user.roles
         else:
