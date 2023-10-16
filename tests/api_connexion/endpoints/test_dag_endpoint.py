@@ -132,6 +132,17 @@ class TestDagEndpoint:
             session.add(dag_model)
 
     @provide_session
+    def _create_dag_model_for_details_endpoint(self, dag_id, session=None):
+        dag_model = DagModel(
+            dag_id=dag_id,
+            fileloc=f"/tmp/dag_1.py",
+            schedule_interval="2 2 * * *",
+            is_active=True,
+            is_paused=False,
+        )
+        session.add(dag_model)
+
+    @provide_session
     def _create_deactivated_dag(self, session=None):
         dag_model = DagModel(
             dag_id="TEST_DAG_DELETED_1",
@@ -251,8 +262,8 @@ class TestGetDag(TestDagEndpoint):
 
 
 class TestGetDagDetails(TestDagEndpoint):
-    @provide_session
     def test_should_respond_200(self, current_file_token):
+        self._create_dag_model_for_details_endpoint(self.dag_id)
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -270,9 +281,9 @@ class TestGetDagDetails(TestDagEndpoint):
             "fileloc": __file__,
             "file_token": current_file_token,
             "has_import_errors": False,
-            "has_task_concurrency_limits": False,
-            "is_paused": None,
-            "is_active": None,
+            "has_task_concurrency_limits": True,
+            "is_paused": False,
+            "is_active": True,
             "is_subdag": False,
             "last_expired": None,
             "last_parsed_time": None,
@@ -301,7 +312,8 @@ class TestGetDagDetails(TestDagEndpoint):
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [{"name": "example"}],
-            "timetable_descriptio": "At 00:00",
+            "template_searchpath": None,
+            "timetable_description": None,
             "timezone": "Timezone('UTC')",
             "max_active_runs": 16,
             "pickle_id": None,
@@ -312,8 +324,8 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
-    @provide_session
     def test_should_response_200_with_doc_md_none(self, current_file_token):
+        self._create_dag_model_for_details_endpoint(self.dag2_id)
         response = self.client.get(
             f"/api/v1/dags/{self.dag2_id}/details", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -322,40 +334,48 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "concurrency": 16,
-            "max_active_tasks": 16,
             "dag_id": "test_dag2",
             "dag_run_timeout": None,
             "default_view": "grid",
             "description": None,
             "doc_md": None,
-            "fileloc": __file__,
+            "end_date": None,
+            "fileloc": "/opt/airflow/tests/api_connexion/endpoints/test_dag_endpoint.py",
             "file_token": current_file_token,
-            "is_paused": None,
-            "is_active": None,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
             "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
             "orientation": "LR",
             "owners": ["airflow"],
             "params": {},
-            "schedule_interval": {
-                "__type": "TimeDelta",
-                "days": 1,
-                "microseconds": 0,
-                "seconds": 0,
-            },
+            "pickle_id": None,
+            "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "TimeDelta", "days": 1, "microseconds": 0, "seconds": 0},
+            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
+            "template_searchpath": None,
+            "timetable_description": None,
             "timezone": "Timezone('UTC')",
-            "max_active_runs": 16,
-            "pickle_id": None,
-            "end_date": None,
-            "is_paused_upon_creation": None,
-            "last_parsed": last_parsed,
-            "render_template_as_native_obj": False,
         }
         assert response.json == expected
 
-    @provide_session
     def test_should_response_200_for_null_start_date(self, current_file_token):
+        self._create_dag_model_for_details_endpoint(self.dag3_id)
         response = self.client.get(
             f"/api/v1/dags/{self.dag3_id}/details", environ_overrides={"REMOTE_USER": "test"}
         )
@@ -364,40 +384,48 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "concurrency": 16,
-            "max_active_tasks": 16,
             "dag_id": "test_dag3",
             "dag_run_timeout": None,
             "default_view": "grid",
             "description": None,
             "doc_md": None,
-            "fileloc": __file__,
+            "end_date": None,
+            "fileloc": "/opt/airflow/tests/api_connexion/endpoints/test_dag_endpoint.py",
             "file_token": current_file_token,
-            "is_paused": None,
-            "is_active": None,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
             "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": last_parsed,
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
             "orientation": "LR",
             "owners": ["airflow"],
             "params": {},
-            "schedule_interval": {
-                "__type": "TimeDelta",
-                "days": 1,
-                "microseconds": 0,
-                "seconds": 0,
-            },
+            "pickle_id": None,
+            "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "TimeDelta", "days": 1, "microseconds": 0, "seconds": 0},
+            "scheduler_lock": None,
             "start_date": None,
             "tags": [],
+            "template_searchpath": None,
+            "timetable_description": None,
             "timezone": "Timezone('UTC')",
-            "max_active_runs": 16,
-            "pickle_id": None,
-            "end_date": None,
-            "is_paused_upon_creation": None,
-            "last_parsed": last_parsed,
-            "render_template_as_native_obj": False,
         }
         assert response.json == expected
 
-    @provide_session
     def test_should_respond_200_serialized(self, current_file_token):
+        self._create_dag_model_for_details_endpoint(self.dag_id)
         # Get the dag out of the dagbag before we patch it to an empty one
         SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
 
@@ -409,41 +437,50 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "concurrency": 16,
-            "max_active_tasks": 16,
             "dag_id": "test_dag",
             "dag_run_timeout": None,
             "default_view": "grid",
             "description": None,
             "doc_md": "details",
-            "fileloc": __file__,
+            "end_date": None,
+            "fileloc": "/opt/airflow/tests/api_connexion/endpoints/test_dag_endpoint.py",
             "file_token": current_file_token,
-            "is_paused": None,
-            "is_active": None,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
             "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": "2023-10-16T22:09:59.245343+00:00",
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
             "orientation": "LR",
             "owners": ["airflow"],
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
-                    "value": 1,
                     "description": None,
                     "schema": {},
+                    "value": 1,
                 }
             },
-            "schedule_interval": {
-                "__type": "TimeDelta",
-                "days": 1,
-                "microseconds": 0,
-                "seconds": 0,
-            },
+            "pickle_id": None,
+            "render_template_as_native_obj": False,
+            "root_dag_id": None,
+            "schedule_interval": {"__type": "TimeDelta", "days": 1, "microseconds": 0, "seconds": 0},
+            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [{"name": "example"}],
+            "template_searchpath": None,
+            "timetable_description": None,
             "timezone": "Timezone('UTC')",
-            "max_active_runs": 16,
-            "pickle_id": None,
-            "end_date": None,
-            "is_paused_upon_creation": None,
-            "render_template_as_native_obj": False,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test"}
@@ -451,7 +488,6 @@ class TestGetDagDetails(TestDagEndpoint):
 
         assert response.status_code == 200
         expected.update({"last_parsed": response.json["last_parsed"]})
-
         assert response.json == expected
 
         patcher.stop()
@@ -463,36 +499,50 @@ class TestGetDagDetails(TestDagEndpoint):
         expected = {
             "catchup": True,
             "concurrency": 16,
-            "max_active_tasks": 16,
             "dag_id": "test_dag",
             "dag_run_timeout": None,
             "default_view": "grid",
             "description": None,
             "doc_md": "details",
-            "fileloc": __file__,
+            "end_date": None,
+            "fileloc": "/opt/airflow/tests/api_connexion/endpoints/test_dag_endpoint.py",
             "file_token": current_file_token,
-            "is_paused": None,
-            "is_active": None,
+            "has_import_errors": False,
+            "has_task_concurrency_limits": True,
+            "is_active": True,
+            "is_paused": False,
+            "is_paused_upon_creation": None,
             "is_subdag": False,
+            "last_expired": None,
+            "last_parsed": "2023-10-16T22:09:59.245343+00:00",
+            "last_parsed_time": None,
+            "last_pickled": None,
+            "max_active_runs": 16,
+            "max_active_tasks": 16,
+            "next_dagrun": None,
+            "next_dagrun_create_after": None,
+            "next_dagrun_data_interval_end": None,
+            "next_dagrun_data_interval_start": None,
             "orientation": "LR",
             "owners": ["airflow"],
             "params": {
                 "foo": {
                     "__class": "airflow.models.param.Param",
-                    "value": 1,
                     "description": None,
                     "schema": {},
+                    "value": 1,
                 }
             },
+            "pickle_id": None,
+            "render_template_as_native_obj": False,
+            "root_dag_id": None,
             "schedule_interval": {"__type": "TimeDelta", "days": 1, "microseconds": 0, "seconds": 0},
+            "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [{"name": "example"}],
+            "template_searchpath": None,
+            "timetable_description": None,
             "timezone": "Timezone('UTC')",
-            "max_active_runs": 16,
-            "pickle_id": None,
-            "end_date": None,
-            "is_paused_upon_creation": None,
-            "render_template_as_native_obj": False,
         }
         expected.update({"last_parsed": response.json["last_parsed"]})
         assert response.json == expected
