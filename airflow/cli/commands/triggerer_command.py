@@ -80,7 +80,6 @@ def triggerer(args):
                 # in daemon context stats client needs to be reinitialized.
                 from airflow.stats import Stats
                 Stats.instance = None
-                print('Stats reset done', file=stderr_handle)
 
 
                 triggerer_job_runner = TriggererJobRunner(

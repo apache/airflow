@@ -81,7 +81,6 @@ def scheduler(args):
                 # in daemon context stats client needs to be reinitialized.
                 from airflow.stats import Stats
                 Stats.instance = None
-                print('Stats reset done', file=stderr_handle)
 
                 _run_scheduler_job(job_runner, skip_serve_logs=args.skip_serve_logs)
     else:
