@@ -368,7 +368,7 @@ paths:
       summary: Test a connection
       description: |
         Test a connection.
-        Testing Connections is disabled by default set test_connection flag to enabled in Airflow configuration (airflow.cfg).
+        Testing Connections is disabled by default. Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
         It can also be controlled by the environment variable AIRFLOW__CORE__TEST_CONNECTION.
 
         *New in version 2.2.0*
