@@ -53,6 +53,12 @@
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-cohere/>
     Installing from sources <installing-providers-from-sources>
 
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/cohere/index>
 
 Package apache-airflow-providers-cohere
 -----------------------------------------

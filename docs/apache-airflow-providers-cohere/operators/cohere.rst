@@ -39,24 +39,8 @@ An example using the operator is in way:
 Example Code:
 -------------
 
-.. code-block:: python
-
-    from datetime import datetime
-
-    from airflow import DAG
-
-    from astronomer_providers_llm.providers.cohere.operators.embedding import CohereEmbeddingOperator
-    from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
-
-    with DAG("example_cohere_embedding", schedule=None, start_date=datetime(2023, 1, 1), catchup=False) as dag:
-        texts = [
-            "On Kernel-Target Alignment. We describe a family of global optimization procedures",
-            " that automatically decompose optimization problems into smaller loosely coupled",
-            " problems, then combine the solutions of these with message passing algorithms.",
-        ]
-
-        def get_text():
-            return texts
-
-        CohereEmbeddingOperator(input_text=texts, task_id="embedding_via_text")
-        CohereEmbeddingOperator(input_callable=get_text, task_id="embedding_via_callable")
+.. exampleinclude:: /../../tests/system/providers/cohere/example_cohere_embedding_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_cohere_operator]
+    :end-before: [END howto_cohere_operator]
