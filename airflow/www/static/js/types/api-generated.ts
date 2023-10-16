@@ -1575,17 +1575,17 @@ export interface components {
       /** @description The plugin executors */
       executors?: (string | null)[];
       /** @description The plugin macros */
-      macros?: ({ [key: string]: unknown } | null)[];
+      macros?: (string | null)[];
       /** @description The flask blueprints */
-      flask_blueprints?: ({ [key: string]: unknown } | null)[];
+      flask_blueprints?: (string | null)[];
       /** @description The appuilder views */
       appbuilder_views?: ({ [key: string]: unknown } | null)[];
       /** @description The Flask Appbuilder menu items */
       appbuilder_menu_items?: ({ [key: string]: unknown } | null)[];
       /** @description The global operator extra links */
-      global_operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      global_operator_extra_links?: (string | null)[];
       /** @description Operator extra links */
-      operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      operator_extra_links?: (string | null)[];
       /** @description The plugin source */
       source?: string | null;
     };

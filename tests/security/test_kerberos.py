@@ -176,7 +176,7 @@ class TestKerberos:
         assert [lr[2] for lr in log_records] == [
             "Re-initialising kerberos from keytab: "
             "kinit -f -a -r 3600m -k -t keytab -c /tmp/airflow_krb5_ccache test-principal",
-            "Couldn't reinit from keytab! `kinit' exited with 1.\nSTDOUT\nSTDERR",
+            "Couldn't reinit from keytab! `kinit` exited with 1.\nSTDOUT\nSTDERR",
         ]
 
         assert mock_subprocess.mock_calls == [
