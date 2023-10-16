@@ -1083,7 +1083,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def auth_user_ldap(self, username, password):
         """
-        Method for authenticating user with LDAP.
+        Authenticate user with LDAP.
 
         NOTE: this depends on python-ldap module.
 
@@ -1267,7 +1267,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def auth_user_db(self, username, password):
         """
-        Method for authenticating user, auth db style.
+        Authenticate user, auth db style.
 
         :param username:
             The username or registered email address
@@ -1484,7 +1484,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def _search_ldap(self, ldap, con, username):
         """
-        Searches LDAP for user.
+        Search LDAP for user.
 
         :param ldap: The ldap module reference
         :param con: The ldap connection

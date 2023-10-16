@@ -30,7 +30,8 @@ auth_manager: BaseAuthManager | None = None
 
 
 def get_auth_manager_cls() -> type[BaseAuthManager]:
-    """Returns just the auth manager class without initializing it.
+    """
+    Return just the auth manager class without initializing it.
 
     Useful to save execution time if only static methods need to be called.
     """
@@ -46,7 +47,8 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
 
 def init_auth_manager(app: Flask) -> BaseAuthManager:
-    """Initialize the auth manager with the given flask app object.
+    """
+    Initialize the auth manager with the given flask app object.
 
     Import the user manager class and instantiate it.
     """
@@ -57,7 +59,7 @@ def init_auth_manager(app: Flask) -> BaseAuthManager:
 
 
 def get_auth_manager() -> BaseAuthManager:
-    """Returns the auth manager, provided it's been initialized before."""
+    """Return the auth manager, provided it's been initialized before."""
     if auth_manager is None:
         raise Exception(
             "Auth Manager has not been initialized yet. "
