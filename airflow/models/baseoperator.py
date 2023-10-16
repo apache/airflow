@@ -651,7 +651,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that is visible in Task Instance details View in the Webserver
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
-    :param logger_name: Name of the logging.getLogger used by the Operator to emit logs.
+    :param logger_name: Name of the logger used by the Operator to emit logs.
         Default is "airflow.task.operators". If set to `None`, the logger name will fall back
         to `{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
         *airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
@@ -674,7 +674,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "user_defined_macros",
         "user_defined_filters",
         "params",
-        "_log",
     )
 
     # each operator should override this class attr for shallow copy attrs.
@@ -1224,10 +1223,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return result
 
     def __getstate__(self):
-        state = dict(self.__dict__)
-        del state["_log"]
-
-        return state
+        return dict(self.__dict__)
 
     def __setstate__(self, state):
         self.__dict__ = state

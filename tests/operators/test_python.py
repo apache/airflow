@@ -332,6 +332,7 @@ class TestPythonOperator(BasePythonTest):
         Ensure the custom logger name is correclty set when the Operator is created,
         and when its state is resumed via __setstate__.
         """
+
         def dummy_function():
             """Need a named function for pickle."""
             return None

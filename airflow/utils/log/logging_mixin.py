@@ -77,8 +77,7 @@ class LoggingMixin:
     def _get_log(obj: Any, clazz: type[_T]) -> Logger:
         if obj._log is None:
             obj._log = logging.getLogger(
-                obj._logger_name if obj._logger_name is not None
-                else f"{clazz.__module__}.{clazz.__name__}"
+                obj._logger_name if obj._logger_name is not None else f"{clazz.__module__}.{clazz.__name__}"
             )
         return obj._log
 
