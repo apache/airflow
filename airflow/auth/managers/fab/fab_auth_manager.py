@@ -95,6 +95,11 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
     DagAccessEntity.IMPORT_ERRORS: (RESOURCE_IMPORT_ERROR,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
+    # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
+    # AND task instances without making the difference
+    # To be backward compatible, we translate DagAccessEntity.TASK_INSTANCE to RESOURCE_TASK_INSTANCE AND
+    # RESOURCE_DAG_RUN
+    # See https://github.com/apache/airflow/pull/34317#discussion_r1355917769
     DagAccessEntity.TASK: (RESOURCE_TASK_INSTANCE,),
     DagAccessEntity.TASK_INSTANCE: (RESOURCE_DAG_RUN, RESOURCE_TASK_INSTANCE),
     DagAccessEntity.TASK_LOGS: (RESOURCE_TASK_LOG,),
