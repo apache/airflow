@@ -64,7 +64,6 @@ from airflow.utils.yaml import safe_load
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
-    from flask import Blueprint
 
     from airflow.auth.managers.fab.models import User
     from airflow.auth.managers.models.base_user import BaseUser
@@ -115,12 +114,11 @@ class FabAuthManager(BaseAuthManager):
             SYNC_PERM_COMMAND,  # not in a command group
         ]
 
-    def get_api_blueprint(self) -> None | Blueprint:
-        """Return a blueprint of the API endpoints proposed by this auth manager."""
+    def get_api_endpoints(self) -> None | FlaskApi:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
         with folder.joinpath("openapi", "v1.yaml").open() as f:
             specification = safe_load(f)
-        api = FlaskApi(
+        return FlaskApi(
             specification=specification,
             resolver=_LazyResolver(),
             base_path="/auth/fab/v1",
@@ -131,7 +129,6 @@ class FabAuthManager(BaseAuthManager):
             validate_responses=True,
             validator_map={"body": _CustomErrorRequestBodyValidator},
         )
-        return api.blueprint
 
     def get_user_display_name(self) -> str:
         """Return the user's display name associated to the user in session."""

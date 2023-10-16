@@ -24,7 +24,8 @@ from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
-    from flask import Blueprint, Flask
+    from connexion import FlaskApi
+    from flask import Flask
 
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
@@ -57,8 +58,8 @@ class BaseAuthManager(LoggingMixin):
         """
         return []
 
-    def get_api_blueprint(self) -> None | Blueprint:
-        """Return a blueprint of the API endpoints proposed by this auth manager."""
+    def get_api_endpoints(self) -> None | FlaskApi:
+        """Return API endpoint(s) definition for the auth manager."""
         return None
 
     @abstractmethod
