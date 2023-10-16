@@ -26,7 +26,9 @@ from airflow.hooks.base import BaseHook
 
 class CohereHook(BaseHook):
     """
-    Use Cohere(https://docs.cohere.com/docs) to interact with Cohere platform.
+    Use Cohere Python SDK to interact with Cohere platform.
+
+    .. seealso:: https://docs.cohere.com/docs
 
     :param conn_id: :ref:`Cohere connection id <howto/connection:cohere>`
     """
