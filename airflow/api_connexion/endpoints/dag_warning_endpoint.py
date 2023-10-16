@@ -22,18 +22,16 @@ from flask import g
 from sqlalchemy import select
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_warning_schema import (
     DagWarningCollection,
     dag_warning_collection_schema,
 )
-from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models.dagwarning import DagWarning as DagWarningModel
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -61,8 +59,6 @@ def get_dag_warnings(
     allowed_filter_attrs = ["dag_id", "warning_type", "message", "timestamp"]
     query = select(DagWarningModel)
     if dag_id:
-        if not get_auth_manager().is_authorized_dag(method="GET", details=DagDetails(id=dag_id), user=g.user):
-            raise PermissionDenied(detail=f"User not allowed to access this DAG: {dag_id}")
         query = query.where(DagWarningModel.dag_id == dag_id)
     else:
         readable_dags = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)

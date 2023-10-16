@@ -273,11 +273,11 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         return user.roles
 
     def get_readable_dag_ids(self, user=None) -> set[str]:
-        """Gets the DAG IDs readable by authenticated user."""
+        """Get the DAG IDs readable by authenticated user."""
         return self.get_permitted_dag_ids(methods=["GET"], user=user)
 
     def get_editable_dag_ids(self, user=None) -> set[str]:
-        """Gets the DAG IDs editable by authenticated user."""
+        """Get the DAG IDs editable by authenticated user."""
         return self.get_permitted_dag_ids(methods=["PUT"], user=user)
 
     @provide_session
@@ -288,7 +288,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         user=None,
         session: Session = NEW_SESSION,
     ) -> set[str]:
-        """Generic function to get readable or writable DAGs for user."""
+        """Get readable or writable DAGs for user."""
         if not methods:
             methods = ["PUT", "GET"]
 
@@ -315,7 +315,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         return any(self.get_readable_dag_ids(user))
 
     def prefixed_dag_id(self, dag_id: str) -> str:
-        """Returns the permission name for a DAG id."""
+        """Return the permission name for a DAG id."""
         warnings.warn(
             "`prefixed_dag_id` has been deprecated. "
             "Please use `airflow.security.permissions.resource_name_for_dag` instead.",
@@ -326,7 +326,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         return permissions.resource_name_for_dag(root_dag_id)
 
     def is_dag_resource(self, resource_name: str) -> bool:
-        """Determines if a resource belongs to a DAG or all DAGs."""
+        """Determine if a resource belongs to a DAG or all DAGs."""
         if resource_name == permissions.RESOURCE_DAG:
             return True
         return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
@@ -411,7 +411,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         self.appbuilder.get_session.commit()
 
     def get_all_permissions(self) -> set[tuple[str, str]]:
-        """Returns all permissions as a set of tuples with the action and resource names."""
+        """Return all permissions as a set of tuples with the action and resource names."""
         return set(
             self.appbuilder.get_session.execute(
                 select(self.action_model.name, self.resource_model.name)
@@ -440,7 +440,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         }
 
     def _get_all_roles_with_permissions(self) -> dict[str, Role]:
-        """Returns a dict with a key of role name and value of role with early loaded permissions."""
+        """Return a dict with a key of role name and value of role with early loaded permissions."""
         return {
             r.name: r
             for r in self.appbuilder.get_session.scalars(
@@ -528,7 +528,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         self.clean_perms()
 
     def sync_resource_permissions(self, perms: Iterable[tuple[str, str]] | None = None) -> None:
-        """Populates resource-based permissions."""
+        """Populate resource-based permissions."""
         if not perms:
             return
 

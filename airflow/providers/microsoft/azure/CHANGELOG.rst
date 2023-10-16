@@ -30,6 +30,10 @@ Changelog
 8.0.0
 .....
 
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
@@ -49,6 +53,35 @@ Breaking changes
 * Remove deprecated ``extra__azure__tenantId`` from azure_container_instance connection extras
 * Remove deprecated ``extra__azure__subscriptionId`` from azure_container_instance connection extras
 
+
+* ``Bump azure-mgmt-containerinstance (#34738)``
+* ``Upgrade azure-mgmt-datafactory in microsift azure provider (#34040)``
+
+Features
+~~~~~~~~
+
+* ``Add subnet_ids param in AzureContainerInstancesOperator (#34850)``
+* ``allow providing credentials through keyword argument in AzureKeyVaultBackend (#34706)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Name params while invoking ClientSecretCredential (#34732)``
+* ``fix(providers/microsoft-azure): respect soft_fail argument when exception is raised (#34494)``
+* ``Error handling for when Azure container log cannot be read in properly. (#34627)``
+* ``Fix hardcoded container name in remote logging option for Azure Blob Storage (#32779)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Consolidate hook management in AzureBatchOperator (#34437)``
+* ``Consolidate hook management in AzureDataExplorerQueryOperator (#34436)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Refactor: consolidate import time in providers (#34402)``
+   * ``Refactor usage of str() in providers (#34320)``
+   * ``Refactor: reduce some conditions in providers (#34440)``
 
 7.0.0
 .....

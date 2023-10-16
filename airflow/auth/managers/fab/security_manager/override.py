@@ -510,7 +510,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             exit(1)
 
     def get_readable_dags(self, user) -> Iterable[DagModel]:
-        """Gets the DAGs readable by authenticated user."""
+        """Get the DAGs readable by authenticated user."""
         warnings.warn(
             "`get_readable_dags` has been deprecated. Please use `get_readable_dag_ids` instead.",
             RemovedInAirflow3Warning,
@@ -521,7 +521,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
 
     def get_editable_dags(self, user) -> Iterable[DagModel]:
-        """Gets the DAGs editable by authenticated user."""
+        """Get the DAGs editable by authenticated user."""
         warnings.warn(
             "`get_editable_dags` has been deprecated. Please use `get_editable_dag_ids` instead.",
             RemovedInAirflow3Warning,
@@ -570,7 +570,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.get_permitted_dag_ids(user=user, methods=user_methods, session=session)
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
-        """Checks if user has read or write access to some dags."""
+        """Check if user has read or write access to some dags."""
         if dag_id and dag_id != "~":
             root_dag_id = self._get_root_dag_id(dag_id)
             return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))

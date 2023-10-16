@@ -20,7 +20,7 @@ import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
-from flask import Response
+from flask import Response, g
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 from airflow.auth.managers.models.resource_details import (
@@ -256,3 +256,11 @@ def requires_access_website() -> Callable[[T], T]:
         return cast(T, decorated)
 
     return requires_access_decorator
+
+
+def get_readable_dags() -> list[str]:
+    return get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
+
+
+def can_read_dag(dag_id: str) -> bool:
+    return get_airflow_app().appbuilder.sm.can_read_dag(dag_id, g.user)
