@@ -676,7 +676,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "user_defined_macros",
         "user_defined_filters",
         "params",
-        "_log",
     )
 
     # each operator should override this class attr for shallow copy attrs.
