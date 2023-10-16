@@ -53,7 +53,7 @@ from typing import Any, Callable
 
 from requests_kerberos import HTTPKerberosAuth
 
-import airflow.auth.managers.fab.api.auth.backend.deny_all as fab_kerberos_auth
+import airflow.auth.managers.fab.api.auth.backend.kerberos_auth as fab_kerberos_auth
 
 CLIENT_AUTH: tuple[str, str] | Any | None = HTTPKerberosAuth(service="airflow")
 
