@@ -269,6 +269,14 @@
     "cross-providers-deps": [],
     "excluded-python-versions": []
   },
+  "cohere": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "cohere"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "common.io": {
     "deps": [
       "apache-airflow>=2.8.0"
