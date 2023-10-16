@@ -30,6 +30,7 @@ from airflow.auth.managers.fab.cli_commands.definition import (
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
 )
+from airflow.auth.managers.fab.models import Permission, Role, User
 from airflow.auth.managers.models.resource_details import (
     ConfigurationDetails,
     ConnectionDetails,
@@ -76,7 +77,7 @@ from airflow.security.permissions import (
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.fab.models import Permission, Role, User
+
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import (
         CLICommand,
