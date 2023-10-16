@@ -376,7 +376,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
     ],
 )
@@ -408,7 +408,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
     ],
 )
@@ -459,7 +459,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
 
 @security.requires_access(
     [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
     ],
 )
