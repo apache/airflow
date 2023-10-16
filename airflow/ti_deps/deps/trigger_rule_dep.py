@@ -27,6 +27,7 @@ from sqlalchemy import and_, func, or_, select
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
@@ -156,8 +157,9 @@ class TriggerRuleDep(BaseTIDep):
             """
             if TYPE_CHECKING:
                 assert isinstance(ti.task.dag, DAG)
-            if upstream_id not in set(_iter_expansion_dependencies()):
-                return None
+            if isinstance(ti.task.task_group, MappedTaskGroup):
+                if upstream_id not in set(_iter_expansion_dependencies()):
+                    return None
             try:
                 expanded_ti_count = _get_expanded_ti_count()
             except (NotFullyPopulated, NotMapped):

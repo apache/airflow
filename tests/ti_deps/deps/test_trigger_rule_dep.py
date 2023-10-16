@@ -1165,19 +1165,23 @@ def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("tg.t1", 0), ("tg.t1", 1), ("tg.t1", 2)]
 
-    # After running the first t1, the first t2 becomes immediately available.
+    # After running the first t1, the remaining t1 must be run before t2 is available.
     tis["tg.t1", 0].run()
     tis = _one_scheduling_decision_iteration()
-    assert sorted(tis) == [("tg.t1", 1), ("tg.t1", 2), ("tg.t2", 0)]
+    assert sorted(tis) == [("tg.t1", 1), ("tg.t1", 2)]
 
-    # Similarly for the subsequent t2 instances.
+    # After running all t1, t2 is available.
+    tis["tg.t1", 1].run()
     tis["tg.t1", 2].run()
     tis = _one_scheduling_decision_iteration()
-    assert sorted(tis) == [("tg.t1", 1), ("tg.t2", 0), ("tg.t2", 2)]
+    assert sorted(tis) == [("tg.t2", 0), ("tg.t2", 1), ("tg.t2", 2)]
+
+    # Similarly for t2 instances. They both have to complete before t3 is available
+    tis["tg.t2", 0].run()
+    tis = _one_scheduling_decision_iteration()
+    assert sorted(tis) == [("tg.t2", 1), ("tg.t2", 2)]
 
     # But running t2 partially does not make t3 available.
-    tis["tg.t1", 1].run()
-    tis["tg.t2", 0].run()
     tis["tg.t2", 2].run()
     tis = _one_scheduling_decision_iteration()
     assert sorted(tis) == [("tg.t2", 1)]
