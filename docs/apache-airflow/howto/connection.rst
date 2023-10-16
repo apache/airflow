@@ -190,8 +190,14 @@ Passwords cannot be manipulated or read without the key. For information on conf
 
 Testing Connections
 ^^^^^^^^^^^^^^^^^^^
-Testing Connections is disabled
-by default across Airflow UI, API and CLI. The availability of the
+For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+
+For more information on capabilities of users, see the documentation:
+https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+It is strongly advised to not enable the feature until you make sure that only
+highly trusted UI/API users have "edit connection" permissions.
+
+The availability of the
 functionality can be controlled by the test_connection flag in
 the core section of the Airflow configuration (airflow.cfg).
 It can also be controlled by the environment variable
