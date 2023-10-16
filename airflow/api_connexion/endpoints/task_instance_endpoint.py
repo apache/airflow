@@ -41,6 +41,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_reference_schema,
     task_instance_schema,
 )
+from airflow.api_connexion.security import get_readable_dags
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.operator import needs_expansion
@@ -342,6 +343,8 @@ def get_task_instances(
 
     if dag_id != "~":
         base_query = base_query.where(TI.dag_id == dag_id)
+    else:
+        base_query = base_query.where(TI.dag_id.in_(get_readable_dags()))
     if dag_run_id != "~":
         base_query = base_query.where(TI.run_id == dag_run_id)
     base_query = _apply_range_filter(
@@ -464,7 +467,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
 @security.requires_access(
     [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
     ],
 )
@@ -667,7 +670,6 @@ def patch_mapped_task_instance(
     [
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
     ],
 )

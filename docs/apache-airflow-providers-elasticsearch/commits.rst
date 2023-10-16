@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`0e5890bdcb <https://github.com/apache/airflow/commit/0e5890bdcb6ea92f8333c46493ea7c065e4d6bf7>`_  2023-10-13   ``Remove unused argument metadata from es_read and make clearly private (#34790)``
+`a1a23528da <https://github.com/apache/airflow/commit/a1a23528da0edbd9587c8ab922ba325cfde79976>`_  2023-10-05   ``Improve intelligibility of end_of_log determination (#34788)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`99f320354b <https://github.com/apache/airflow/commit/99f320354b075fb780e54057d223d2d16ddf08b8>`_  2023-10-04   ``Refactor: consolidate import time in providers (#34402)``
+`8ecd576de1 <https://github.com/apache/airflow/commit/8ecd576de1043dbea40e5e16b5dc34859cc41725>`_  2023-09-14   ``Refactor shorter defaults in providers (#34347)``
+`13d2f4a7f1 <https://github.com/apache/airflow/commit/13d2f4a7f1e347607122b65d5b45ef0504a8640b>`_  2023-09-09   ``Replace try/except/pass by contextlib.suppress in ElasticSearch provider (#34251)``
+=================================================================================================  ===========  =====================================================================================
+
 5.0.2
 .....
 
-Latest change: 2023-09-07
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `f7f3b675ec <https://github.com/apache/airflow/commit/f7f3b675ecd40e32e458b71b5066864f866a60c8>`_  2023-09-07   ``Make sure that only valid elasticsearch keys are passed to handler (#34119)``
 `55976af32e <https://github.com/apache/airflow/commit/55976af32ea7d09831e2bcd21c0f3814d9b0eb3f>`_  2023-08-31   ``Replace sequence concatination by unpacking in Airflow providers (#33933)``
 `9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``

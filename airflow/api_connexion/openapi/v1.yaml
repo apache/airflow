@@ -3787,13 +3787,13 @@ components:
         macros:
           type: array
           items:
-            type: object
+            type: string
             nullable: true
           description: The plugin macros
         flask_blueprints:
           type: array
           items:
-            type: object
+            type: string
             nullable: true
           description: The flask blueprints
         appbuilder_views:
@@ -3811,13 +3811,13 @@ components:
         global_operator_extra_links:
           type: array
           items:
-            type: object
+            type: string
             nullable: true
           description: The global operator extra links
         operator_extra_links:
           type: array
           items:
-            type: object
+            type: string
             nullable: true
           description: Operator extra links
         source:
