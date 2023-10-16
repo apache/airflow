@@ -44,9 +44,6 @@ class CohereHook(BaseHook):
         self.conn_id = conn_id
         self.client = None
 
-    def get_conn(self) -> None:
-        raise NotImplementedError()
-
     def _get_api_key(self) -> str:
         return str(self.get_connection(self.conn_id).password)
 
