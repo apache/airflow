@@ -475,8 +475,6 @@ class DAG(LoggingMixin):
         self.user_defined_filters = user_defined_filters
         if default_args and not isinstance(default_args, dict):
             raise TypeError("default_args must be a dict")
-        if "retries" in default_args.keys() and type(default_args.get("retries"))!= int:
-            raise TypeError("retries must be a int")
         self.default_args = copy.deepcopy(default_args or {})
         params = params or {}
 
