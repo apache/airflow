@@ -66,7 +66,7 @@ class CohereEmbeddingOperator(BaseOperator):
 
     def _get_text_to_embed(self) -> list[str]:
         """Get the text to embed by evaluating ``input_text`` and ``input_callable``."""
-        if all([self.input_text, self.input_callable]):
+        if self.input_text and self.input_callable:
             raise RuntimeError("Only one of 'input_text' and 'input_callable' is allowed")
         if self.input_callable:
             if not callable(self.input_callable):
