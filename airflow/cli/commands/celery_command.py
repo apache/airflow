@@ -87,11 +87,6 @@ def flower(args):
                 umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
-
-                # in daemon context stats client needs to be reinitialized.
-                from airflow.stats import Stats
-                Stats.instance = None
-
                 celery_app.start(options)
     else:
         celery_app.start(options)
@@ -232,7 +227,7 @@ def worker(args):
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 
-            daemon_context = daemon.DaemonContext(
+            daemon_context = DaemonContextWrapper(
                 files_preserve=[handle],
                 umask=int(umask, 8),
                 stdout=stdout_handle,
