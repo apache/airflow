@@ -30,3 +30,9 @@ class TestBaseHook:
         hook = BaseHook(logger_name=logger_name)
 
         assert hook.log.name == logger_name
+
+    def test_empty_string_as_logger_name(self):
+        logger_name: str = ""
+        hook = BaseHook(logger_name=logger_name)
+
+        assert hook.log.name == logger_name

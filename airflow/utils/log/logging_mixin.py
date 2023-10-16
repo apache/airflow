@@ -68,6 +68,7 @@ class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name."""
 
     _log: logging.Logger | None = None
+    _logger_name: str | None = None
 
     def __init__(self, context=None):
         self._set_context(context)
@@ -75,7 +76,10 @@ class LoggingMixin:
     @staticmethod
     def _get_log(obj: Any, clazz: type[_T]) -> Logger:
         if obj._log is None:
-            obj._log = logging.getLogger(f"{clazz.__module__}.{clazz.__name__}")
+            obj._log = logging.getLogger(
+                obj._logger_name if obj._logger_name is not None
+                else f"{clazz.__module__}.{clazz.__name__}"
+            )
         return obj._log
 
     @classmethod

@@ -43,14 +43,13 @@ class BaseHook(LoggingMixin):
     with them.
 
     :param logger_name: Name of the logging.getLogger used by the Hook to emit logs.
-    If set to `None` (default), the logger name will fall back to `{class.__module__}.{class.__name__}`
-    (e.g. DbApiHook will have *airflow.providers.common.sql.hooks.sql.DbApiHook* as logger).
+        If set to `None` (default), the logger name will fall back to `{class.__module__}.{class.__name__}`
+        (e.g. DbApiHook will have *airflow.providers.common.sql.hooks.sql.DbApiHook* as logger).
     """
 
     def __init__(self, logger_name: str | None = None):
         super().__init__()
-
-        self._log = logging.getLogger(logger_name) if logger_name else None
+        self._logger_name = logger_name
 
     @classmethod
     def get_connections(cls, conn_id: str) -> list[Connection]:

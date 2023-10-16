@@ -332,9 +332,13 @@ class TestPythonOperator(BasePythonTest):
         Ensure the custom logger name is correclty set when the Operator is created,
         and when its state is resumed via __setstate__.
         """
+        def dummy_function():
+            """Need a named function for pickle."""
+            return None
+
         logger_name: str = "airflow.custom.logger"
         python_operator = PythonOperator(
-            task_id="python_operator", python_callable=lambda: None, logger_name=logger_name
+            task_id="python_operator", python_callable=dummy_function, logger_name=logger_name
         )
 
         setstate_operator = pickle.loads(pickle.dumps(python_operator))

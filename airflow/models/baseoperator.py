@@ -936,7 +936,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if dag:
             self.dag = dag
 
-        self._log = logging.getLogger(logger_name) if logger_name else None
+        self._logger_name = logger_name
 
         # Lineage
         self.inlets: list = []
@@ -1231,8 +1231,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __setstate__(self, state):
         self.__dict__ = state
-        logger_name: str | None = state.get('logger_name')
-        self._log = logging.getLogger(logger_name) if logger_name else None
 
     def render_template_fields(
         self,
