@@ -29,7 +29,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.sensors.tasks import TaskQueueEmptySensor
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -37,7 +37,7 @@ GCP_ZONE = os.environ.get("GCE_ZONE", "europe-west1-b")
 QUEUE_NAME = os.environ.get("GCP_QUEUE_NAME", "testqueue")
 
 
-with models.DAG(
+with DAG(
     "example_gcp_cloud_tasks_sensor",
     start_date=datetime(2022, 8, 8),
     catchup=False,

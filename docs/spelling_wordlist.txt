@@ -11,6 +11,7 @@ actionCard
 Acyclic
 acyclic
 AddressesType
+adf
 adhoc
 adls
 adobjects
@@ -343,6 +344,7 @@ Dagre
 dagre
 DagRun
 dagrun
+DagRunPydantic
 dagruns
 DagRunState
 DAGs
@@ -379,6 +381,8 @@ DataScan
 dataScans
 Dataset
 dataset
+DatasetEvent
+DatasetEvents
 datasetId
 Datasets
 datasets
@@ -1050,6 +1054,8 @@ Oozie
 openapi
 openfaas
 openlineage
+OpenSearch
+opensearch
 oper
 OperatorLineage
 Opsgenie
@@ -1191,6 +1197,7 @@ Py
 py
 Pyarrow
 pyarrow
+pydantic
 pydruid
 pyexasol
 pyhive

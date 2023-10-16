@@ -222,8 +222,8 @@ class BaseSQLToGCSOperator(BaseOperator):
     def _write_rows_to_parquet(parquet_writer: pq.ParquetWriter, rows):
         rows_pydic: dict[str, list[Any]] = {col: [] for col in parquet_writer.schema.names}
         for row in rows:
-            for ind, col in enumerate(parquet_writer.schema.names):
-                rows_pydic[col].append(row[ind])
+            for cell, col in zip(row, parquet_writer.schema.names):
+                rows_pydic[col].append(cell)
         tbl = pa.Table.from_pydict(rows_pydic, parquet_writer.schema)
         parquet_writer.write_table(tbl)
 

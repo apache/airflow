@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import os
 import re
 import tarfile
 import tempfile
 import time
 import warnings
-from collections import Counter
+from collections import Counter, namedtuple
 from datetime import datetime
 from functools import partial
 from typing import Any, Callable, Generator, cast
@@ -54,7 +53,7 @@ class LogState:
 
 # Position is a tuple that includes the last read timestamp and the number of items that were read
 # at that time. This is used to figure out which event to start with on the next read.
-Position = collections.namedtuple("Position", ["timestamp", "skip"])
+Position = namedtuple("Position", ["timestamp", "skip"])
 
 
 def argmin(arr, f: Callable) -> int | None:

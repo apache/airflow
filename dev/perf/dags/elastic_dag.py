@@ -22,8 +22,8 @@ import re
 from datetime import datetime, timedelta
 from enum import Enum
 
-from airflow import DAG
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.

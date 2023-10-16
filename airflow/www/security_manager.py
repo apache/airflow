@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import warnings
 from typing import TYPE_CHECKING, Any, Collection, Container, Iterable, Sequence
 
@@ -133,6 +134,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
@@ -268,7 +270,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         return user.roles
 
     def get_readable_dags(self, user) -> Iterable[DagModel]:
-        """Gets the DAGs readable by authenticated user."""
+        """Get the DAGs readable by authenticated user."""
         warnings.warn(
             "`get_readable_dags` has been deprecated. Please use `get_readable_dag_ids` instead.",
             RemovedInAirflow3Warning,
@@ -279,7 +281,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
 
     def get_editable_dags(self, user) -> Iterable[DagModel]:
-        """Gets the DAGs editable by authenticated user."""
+        """Get the DAGs editable by authenticated user."""
         warnings.warn(
             "`get_editable_dags` has been deprecated. Please use `get_editable_dag_ids` instead.",
             RemovedInAirflow3Warning,
@@ -305,11 +307,11 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         return session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids)))
 
     def get_readable_dag_ids(self, user) -> set[str]:
-        """Gets the DAG IDs readable by authenticated user."""
+        """Get the DAG IDs readable by authenticated user."""
         return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_READ])
 
     def get_editable_dag_ids(self, user) -> set[str]:
-        """Gets the DAG IDs editable by authenticated user."""
+        """Get the DAG IDs editable by authenticated user."""
         return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_EDIT])
 
     @provide_session
@@ -319,7 +321,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         user_actions: Container[str] | None = None,
         session: Session = NEW_SESSION,
     ) -> set[str]:
-        """Generic function to get readable or writable DAGs for user."""
+        """Get readable or writable DAGs for user."""
         if not user_actions:
             user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
 
@@ -359,7 +361,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         }
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
-        """Checks if user has read or write access to some dags."""
+        """Check if user has read or write access to some dags."""
         if dag_id and dag_id != "~":
             root_dag_id = self._get_root_dag_id(dag_id)
             return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))
@@ -370,25 +372,25 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         return any(self.get_editable_dag_ids(user))
 
     def can_read_dag(self, dag_id: str, user=None) -> bool:
-        """Determines whether a user has DAG read access."""
+        """Determine whether a user has DAG read access."""
         root_dag_id = self._get_root_dag_id(dag_id)
         dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self.has_access(permissions.ACTION_CAN_READ, dag_resource_name, user=user)
 
     def can_edit_dag(self, dag_id: str, user=None) -> bool:
-        """Determines whether a user has DAG edit access."""
+        """Determine whether a user has DAG edit access."""
         root_dag_id = self._get_root_dag_id(dag_id)
         dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self.has_access(permissions.ACTION_CAN_EDIT, dag_resource_name, user=user)
 
     def can_delete_dag(self, dag_id: str, user=None) -> bool:
-        """Determines whether a user has DAG delete access."""
+        """Determine whether a user has DAG delete access."""
         root_dag_id = self._get_root_dag_id(dag_id)
         dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
         return self.has_access(permissions.ACTION_CAN_DELETE, dag_resource_name, user=user)
 
     def prefixed_dag_id(self, dag_id: str) -> str:
-        """Returns the permission name for a DAG id."""
+        """Return the permission name for a DAG id."""
         warnings.warn(
             "`prefixed_dag_id` has been deprecated. "
             "Please use `airflow.security.permissions.resource_name_for_dag` instead.",
@@ -399,7 +401,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         return permissions.resource_name_for_dag(root_dag_id)
 
     def is_dag_resource(self, resource_name: str) -> bool:
-        """Determines if a resource belongs to a DAG or all DAGs."""
+        """Determine if a resource belongs to a DAG or all DAGs."""
         if resource_name == permissions.RESOURCE_DAG:
             return True
         return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
@@ -514,7 +516,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         self.appbuilder.get_session.commit()
 
     def get_all_permissions(self) -> set[tuple[str, str]]:
-        """Returns all permissions as a set of tuples with the action and resource names."""
+        """Return all permissions as a set of tuples with the action and resource names."""
         return set(
             self.appbuilder.get_session.execute(
                 select(self.action_model.name, self.resource_model.name)
@@ -543,7 +545,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         }
 
     def _get_all_roles_with_permissions(self) -> dict[str, Role]:
-        """Returns a dict with a key of role name and value of role with early loaded permissions."""
+        """Return a dict with a key of role name and value of role with early loaded permissions."""
         return {
             r.name: r
             for r in self.appbuilder.get_session.scalars(
@@ -602,6 +604,13 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
 
         session.commit()
 
+    def create_admin_standalone(self) -> tuple[str | None, str | None]:
+        """Perform the required steps when initializing airflow for standalone mode.
+
+        If necessary, returns the username and password to be printed in the console for users to log in.
+        """
+        return None, None
+
     def sync_roles(self) -> None:
         """
         Initialize default and custom roles with related permissions.
@@ -624,7 +633,7 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         self.clean_perms()
 
     def sync_resource_permissions(self, perms: Iterable[tuple[str, str]] | None = None) -> None:
-        """Populates resource-based permissions."""
+        """Populate resource-based permissions."""
         if not perms:
             return
 
@@ -723,16 +732,15 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
     def create_perm_vm_for_all_dag(self) -> None:
         """Create perm-vm if not exist and insert into FAB security model for all-dags."""
         # create perm for global logical dag
-        for resource_name in self.DAG_RESOURCES:
-            for action_name in self.DAG_ACTIONS:
-                self._merge_perm(action_name, resource_name)
+        for resource_name, action_name in itertools.product(self.DAG_RESOURCES, self.DAG_ACTIONS):
+            self._merge_perm(action_name, resource_name)
 
     def check_authorization(
         self,
         perms: Sequence[tuple[str, str]] | None = None,
         dag_id: str | None = None,
     ) -> bool:
-        """Checks that the logged in user has the specified permissions."""
+        """Check that the logged in user has the specified permissions."""
         if not perms:
             return True
 

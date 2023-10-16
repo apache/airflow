@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 from botocore.exceptions import WaiterError
 from deprecated import deprecated
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -32,7 +33,7 @@ if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
-@deprecated(reason="use BatchJobTrigger instead")
+@deprecated(reason="use BatchJobTrigger instead", category=AirflowProviderDeprecationWarning)
 class BatchOperatorTrigger(BaseTrigger):
     """
     Asynchronously poll the boto3 API and wait for the Batch job to be in the `SUCCEEDED` state.
@@ -109,7 +110,7 @@ class BatchOperatorTrigger(BaseTrigger):
                 yield TriggerEvent({"status": "failure", "message": "Job Failed - max attempts reached."})
 
 
-@deprecated(reason="use BatchJobTrigger instead")
+@deprecated(reason="use BatchJobTrigger instead", category=AirflowProviderDeprecationWarning)
 class BatchSensorTrigger(BaseTrigger):
     """
     Checks for the status of a submitted job_id to AWS Batch until it reaches a failure or a success state.

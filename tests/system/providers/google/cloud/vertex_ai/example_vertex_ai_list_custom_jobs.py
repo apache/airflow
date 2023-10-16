@@ -27,7 +27,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.custom_job import ListCustomTrainingJobOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -35,7 +35,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "vertex_ai_custom_job_operations"
 REGION = "us-central1"
 
-with models.DAG(
+with DAG(
     f"{DAG_ID}_list_custom_job",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
