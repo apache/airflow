@@ -40,6 +40,8 @@ class CohereEmbeddingOperator(BaseOperator):
         Only one of input_text or input_callable should be provided.
     :param input_callable_args: The list of arguments to be passed to ``input_callable``
     :param input_callable_kwargs: The kwargs to be passed to ``input_callable``
+    :param timeout: Timeout in seconds for Cohere API
+    :param max_retries : No. of times to retry before failing.
     """
 
     def __init__(
@@ -49,6 +51,8 @@ class CohereEmbeddingOperator(BaseOperator):
         input_callable_args: Collection[Any] | None = None,
         input_callable_kwargs: Mapping[str, Any] | None = None,
         conn_id: str = CohereHook.default_conn_name,
+        timeout: int | None = None,
+        max_retries: int | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -57,12 +61,14 @@ class CohereEmbeddingOperator(BaseOperator):
         self.input_callable = input_callable
         self.input_callable_args = input_callable_args or ()
         self.input_callable_kwargs = input_callable_kwargs or {}
+        self.timeout = timeout
+        self.max_retries = max_retries
         self.text_to_embed = self._get_text_to_embed()
 
     @cached_property
     def hook(self) -> CohereHook:
         """Return an instance of the CohereHook."""
-        return CohereHook(conn_id=self.conn_id)
+        return CohereHook(conn_id=self.conn_id, timeout=self.timeout, max_retries=self.max_retries)
 
     def _get_text_to_embed(self) -> list[str]:
         """Get the text to embed by evaluating ``input_text`` and ``input_callable``."""

@@ -21,12 +21,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.models import Connection
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 
 
-@patch("airflow.providers.cohere.hooks.cohere.CohereHook._get_api_key")
+@patch("airflow.providers.cohere.hooks.cohere.CohereHook.get_connection")
 @patch("cohere.Client")
-def test_cohere_embedding_operator(cohere_client, _get_api_key):
+def test_cohere_embedding_operator(cohere_client, get_connection):
     """
     Test Cohere client is getting called with the correct key and that
      the execute methods returns expected response.
@@ -37,17 +38,24 @@ def test_cohere_embedding_operator(cohere_client, _get_api_key):
         embeddings = embedded_obj
 
     api_key = "test"
+    api_url = "http://some_host.com"
+    timeout = 150
+    max_retries = 5
     texts = ["On Kernel-Target Alignment. We describe a family of global optimization procedures"]
 
-    _get_api_key.return_value = api_key
+    get_connection.return_value = Connection(conn_type="cohere", password=api_key, host=api_url)
     client_obj = MagicMock()
     cohere_client.return_value = client_obj
     client_obj.embed.return_value = resp
 
-    op = CohereEmbeddingOperator(task_id="embed", conn_id="some_conn", input_text=texts)
+    op = CohereEmbeddingOperator(
+        task_id="embed", conn_id="some_conn", input_text=texts, timeout=timeout, max_retries=max_retries
+    )
 
     val = op.execute(context={})
-    cohere_client.assert_called_once_with(api_key)
+    cohere_client.assert_called_once_with(
+        api_key=api_key, api_url=api_url, timeout=timeout, max_retries=max_retries
+    )
     assert val == embedded_obj
 
 

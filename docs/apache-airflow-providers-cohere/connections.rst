@@ -32,3 +32,6 @@ Configuring the Connection
 
 Password (required)
     Specify the password to connect.
+
+Host (optional)
+    Specify the API host

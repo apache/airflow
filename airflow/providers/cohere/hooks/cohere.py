@@ -39,17 +39,24 @@ class CohereHook(BaseHook):
     conn_type = "cohere"
     hook_name = "Cohere"
 
-    def __init__(self, conn_id: str = default_conn_name) -> None:
+    def __init__(
+        self,
+        conn_id: str = default_conn_name,
+        timeout: int | None = None,
+        max_retries: int | None = None,
+    ) -> None:
         super().__init__()
         self.conn_id = conn_id
         self.client = None
-
-    def _get_api_key(self) -> str:
-        return str(self.get_connection(self.conn_id).password)
+        self.timeout = timeout
+        self.max_retries = max_retries
 
     @cached_property
     def cohere_client(self) -> cohere.Client:
-        return cohere.Client(self._get_api_key())
+        conn = self.get_connection(self.conn_id)
+        return cohere.Client(
+            api_key=conn.password, timeout=self.timeout, max_retries=self.max_retries, api_url=conn.host
+        )
 
     def embed_text(self, texts: list[str], model: str = "embed-multilingual-v2.0") -> list[list[float]]:
         response = self.cohere_client.embed(texts=texts, model=model)
@@ -59,7 +66,7 @@ class CohereHook(BaseHook):
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         return {
-            "hidden_fields": ["host", "schema", "login", "port", "extra"],
+            "hidden_fields": ["schema", "login", "port", "extra"],
             "relabeling": {
                 "password": "API Key",
             },
