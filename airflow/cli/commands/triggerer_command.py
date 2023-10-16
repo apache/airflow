@@ -31,7 +31,7 @@ from airflow.configuration import conf
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler, DaemonContextWrapper
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.serve_logs import serve_logs
 
@@ -68,7 +68,7 @@ def triggerer(args):
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 
-            daemon_context = daemon.DaemonContext(
+            daemon_context = DaemonContextWrapper(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=[handle],
                 stdout=stdout_handle,
@@ -76,12 +76,6 @@ def triggerer(args):
                 umask=int(settings.DAEMON_UMASK, 8),
             )
             with daemon_context, _serve_logs(args.skip_serve_logs):
-
-                # in daemon context stats client needs to be reinitialized.
-                from airflow.stats import Stats
-                Stats.instance = None
-
-
                 triggerer_job_runner = TriggererJobRunner(
                     job=Job(heartrate=triggerer_heartrate), capacity=args.capacity
                 )

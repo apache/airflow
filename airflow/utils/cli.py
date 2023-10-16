@@ -31,6 +31,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
+import daemon
 import re2
 from sqlalchemy import select
 
@@ -381,3 +382,13 @@ def suppress_logs_and_warning(f: T) -> T:
                     logging.disable(logging.NOTSET)
 
     return cast(T, _wrapper)
+
+
+class DaemonContextWrapper(daemon.DaemonContext):
+
+    def __enter__(self):
+        # in daemon context stats client needs to be reinitialized.
+        from airflow.stats import Stats
+        Stats.instance = None
+
+        super().__enter__()

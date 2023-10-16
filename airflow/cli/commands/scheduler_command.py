@@ -32,7 +32,8 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, \
+    sigquit_handler, DaemonContextWrapper
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.scheduler_health import serve_health_check
 
@@ -69,7 +70,7 @@ def scheduler(args):
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 
-            ctx = daemon.DaemonContext(
+            ctx = DaemonContextWrapper(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=[handle],
                 stdout=stdout_handle,
@@ -77,11 +78,6 @@ def scheduler(args):
                 umask=int(settings.DAEMON_UMASK, 8),
             )
             with ctx:
-
-                # in daemon context stats client needs to be reinitialized.
-                from airflow.stats import Stats
-                Stats.instance = None
-
                 _run_scheduler_job(job_runner, skip_serve_logs=args.skip_serve_logs)
     else:
         signal.signal(signal.SIGINT, sigint_handler)

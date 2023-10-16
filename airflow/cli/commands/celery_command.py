@@ -35,7 +35,7 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 from airflow import settings
 from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging
+from airflow.utils.cli import setup_locations, setup_logging, DaemonContextWrapper
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.serve_logs import serve_logs
 
@@ -80,7 +80,7 @@ def flower(args):
             stdout.truncate(0)
             stderr.truncate(0)
 
-            ctx = daemon.DaemonContext(
+            ctx = DaemonContextWrapper(
                 pidfile=TimeoutPIDLockFile(pidfile, -1),
                 stdout=stdout,
                 stderr=stderr,
