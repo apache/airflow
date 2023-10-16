@@ -205,7 +205,7 @@ AIRFLOW__CORE__TEST_CONNECTION.
 
 The following values are accepted for this config param:
 
-* Disabled: Disables the test connection functionality and disables(greys out) the Test Connection button in the UI.This is also the default value set in the Airflow configuration.
+* Disabled: Disables the test connection functionality and disables the Test Connection button in the UI.This is also the default value set in the Airflow configuration.
 * Enabled: Enables the test connection functionality and activates the Test Connection button in the UI.
 * Hidden: Disables the test connection functionality and hides the Test Connection button in UI.
 
