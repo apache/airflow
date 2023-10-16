@@ -397,10 +397,10 @@ class EksCreateClusterOperator(BaseOperator):
                 )
 
     def execute_failed(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        if event is None:
-            self.log.info("Trigger error: event is None")
-            raise AirflowException("Trigger error: event is None")
-        elif event["status"] == "delteted":
+        if event is None or event["status"] != "deleted":
+            self.log.info("Trigger error: event is %s", event)
+            raise AirflowException(f"Trigger error: event is {event}")
+        else:
             self.log.info("Cluster deleted")
             raise event["exception"]
 
