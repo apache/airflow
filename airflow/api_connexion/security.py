@@ -144,8 +144,6 @@ def requires_access_connection(method: ResourceMethod) -> Callable[[T], T]:
 def requires_access_dag(
     method: ResourceMethod, access_entity: DagAccessEntity | None = None
 ) -> Callable[[T], T]:
-    appbuilder = get_airflow_app().appbuilder
-
     def _is_authorized_callback(dag_id: str):
         def callback():
             access = get_auth_manager().is_authorized_dag(
@@ -163,8 +161,8 @@ def requires_access_dag(
             # No DAG id is provided and the user is not authorized to access all DAGs
             # If method is "GET", return whether the user has read access to any DAGs
             # If method is "PUT", return whether the user has edit access to any DAGs
-            return (method == "GET" and any(appbuilder.sm.get_readable_dag_ids())) or (
-                method == "PUT" and any(appbuilder.sm.get_editable_dag_ids())
+            return (method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))) or (
+                method == "PUT" and any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"]))
             )
 
         return callback

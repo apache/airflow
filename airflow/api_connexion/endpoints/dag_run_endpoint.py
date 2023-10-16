@@ -217,8 +217,9 @@ def get_dag_runs(
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == "~":
-        appbuilder = get_airflow_app().appbuilder
-        query = query.where(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
+        query = query.where(
+            DagRun.dag_id.in_(get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user))
+        )
     else:
         query = query.where(DagRun.dag_id == dag_id)
 
@@ -253,8 +254,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    appbuilder = get_airflow_app().appbuilder
-    readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
+    readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
     query = select(DagRun)
     if data.get("dag_ids"):
         dag_ids = set(data["dag_ids"]) & set(readable_dag_ids)

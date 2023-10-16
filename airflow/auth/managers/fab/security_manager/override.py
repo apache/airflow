@@ -49,6 +49,7 @@ from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagModel
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
 
@@ -512,7 +513,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def get_readable_dags(self, user) -> Iterable[DagModel]:
         """Get the DAGs readable by authenticated user."""
         warnings.warn(
-            "`get_readable_dags` has been deprecated. Please use `get_readable_dag_ids` instead.",
+            "`get_readable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
+            "instead.",
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
@@ -523,7 +525,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def get_editable_dags(self, user) -> Iterable[DagModel]:
         """Get the DAGs editable by authenticated user."""
         warnings.warn(
-            "`get_editable_dags` has been deprecated. Please use `get_editable_dag_ids` instead.",
+            "`get_editable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
+            "instead.",
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
@@ -539,7 +542,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         session: Session = NEW_SESSION,
     ) -> Iterable[DagModel]:
         warnings.warn(
-            "`get_accessible_dags` has been deprecated. Please use `get_accessible_dag_ids` instead.",
+            "`get_accessible_dags` has been deprecated. Please use "
+            "`get_auth_manager().get_permitted_dag_ids` instead.",
             RemovedInAirflow3Warning,
             stacklevel=3,
         )
@@ -555,7 +559,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         session: Session = NEW_SESSION,
     ) -> set[str]:
         warnings.warn(
-            "`get_accessible_dag_ids` has been deprecated. Please use `get_permitted_dag_ids` instead.",
+            "`get_accessible_dag_ids` has been deprecated. Please use "
+            "`get_auth_manager().get_permitted_dag_ids` instead.",
             RemovedInAirflow3Warning,
             stacklevel=3,
         )
@@ -567,7 +572,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             for action in fab_action_name_to_method_name
             if action in user_actions
         ]
-        return self.get_permitted_dag_ids(user=user, methods=user_methods, session=session)
+        return get_auth_manager().get_permitted_dag_ids(user=user, methods=user_methods, session=session)
+
+    @staticmethod
+    def get_readable_dag_ids(user=None) -> set[str]:
+        """Get the DAG IDs readable by authenticated user."""
+        return get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user)
+
+    @staticmethod
+    def get_editable_dag_ids(user=None) -> set[str]:
+        """Get the DAG IDs editable by authenticated user."""
+        return get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=user)
 
     def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
         """Check if user has read or write access to some dags."""

@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Container
 
 from flask import url_for
 from sqlalchemy import select
+from sqlalchemy.orm import Session, joinedload
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.fab.cli_commands.definition import (
@@ -43,6 +44,7 @@ from airflow.cli.cli_config import (
 )
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
+from airflow.security import permissions
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -71,9 +73,10 @@ from airflow.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.fab.models import User
+    from airflow.auth.managers.fab.models import Permission, Role, User
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import (
         CLICommand,
@@ -243,6 +246,54 @@ class FabAuthManager(BaseAuthManager):
             or self._is_authorized(method="GET", resource_type=RESOURCE_TRIGGER, user=user)
             or self._is_authorized(method="GET", resource_type=RESOURCE_WEBSITE, user=user)
         )
+
+    @provide_session
+    def get_permitted_dag_ids(
+        self,
+        *,
+        methods: Container[ResourceMethod] | None = None,
+        user=None,
+        session: Session = NEW_SESSION,
+    ) -> set[str]:
+        if not methods:
+            methods = ["PUT", "GET"]
+
+        if not self.is_logged_in():
+            roles = user.roles
+        else:
+            if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
+                "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)
+            ):
+                # If user is authorized to read/edit all DAGs, return all DAGs
+                return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+            user_query = session.scalar(
+                select(User)
+                .options(
+                    joinedload(User.roles)
+                    .subqueryload(Role.permissions)
+                    .options(joinedload(Permission.action), joinedload(Permission.resource))
+                )
+                .where(User.id == user.id)
+            )
+            roles = user_query.roles
+
+        map_fab_action_name_to_method_name = {v: k for k, v in MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()}
+        resources = set()
+        for role in roles:
+            for permission in role.permissions:
+                action = permission.action.name
+                if map_fab_action_name_to_method_name[action] in methods:
+                    resource = permission.resource.name
+                    if resource == permissions.RESOURCE_DAG:
+                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+                    if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
+                        resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+                    else:
+                        resources.add(resource)
+        return {
+            dag.dag_id
+            for dag in session.execute(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))
+        }
 
     def get_security_manager_override_class(self) -> type:
         """Return the security manager override."""

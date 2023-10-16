@@ -39,6 +39,7 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -95,7 +96,7 @@ def get_dags(
     if dag_id_pattern:
         dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
-    readable_dags = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
+    readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
     dags_query = dags_query.where(DagModel.dag_id.in_(readable_dags))
     if tags:
@@ -155,7 +156,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     if dag_id_pattern == "~":
         dag_id_pattern = "%"
     dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
-    editable_dags = get_airflow_app().appbuilder.sm.get_editable_dag_ids(g.user)
+    editable_dags = get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=g.user)
 
     dags_query = dags_query.where(DagModel.dag_id.in_(editable_dags))
     if tags:

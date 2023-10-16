@@ -18,13 +18,18 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Container, Literal
+
+from sqlalchemy import select
 
 from airflow.exceptions import AirflowException
+from airflow.models import DagModel
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from flask import Flask
+    from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
@@ -207,6 +212,43 @@ class BaseAuthManager(LoggingMixin):
 
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
+
+    @provide_session
+    def get_permitted_dag_ids(
+        self,
+        *,
+        methods: Container[ResourceMethod] | None = None,
+        user=None,
+        session: Session = NEW_SESSION,
+    ) -> set[str]:
+        """
+        Get readable or writable DAGs for user.
+
+        By default, reads all the DAGs and check individually if the user has permissions to access the DAG.
+        Can lead to some poor performance. It is recommended to override this method in the auth manager
+        implementation to provide a more efficient implementation.
+        """
+        if not methods:
+            methods = ["PUT", "GET"]
+
+        dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+
+        if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
+            "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)
+        ):
+            # If user is authorized to read/edit all DAGs, return all DAGs
+            return dag_ids
+
+        def _is_permitted_dag_id(method: ResourceMethod, methods: Container[ResourceMethod], dag_id: str):
+            return method in methods and self.is_authorized_dag(
+                method=method, details=DagDetails(id=dag_id), user=user
+            )
+
+        return {
+            dag_id
+            for dag_id in dag_ids
+            if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
+        }
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:

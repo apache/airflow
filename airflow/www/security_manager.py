@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import itertools
 import warnings
-from typing import TYPE_CHECKING, Any, Collection, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Sequence
 
 from flask import g
 from sqlalchemy import or_, select
@@ -44,13 +44,10 @@ from airflow.auth.managers.fab.views.user_edit import (
     CustomUserInfoEditView,
 )
 from airflow.auth.managers.fab.views.user_stats import CustomUserStatsChartView
-from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.utils import CustomSQLAInterface
 
@@ -63,9 +60,8 @@ EXISTING_ROLES = {
 }
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
 
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
+    pass
 
 
 class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
@@ -271,48 +267,6 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
         if user is None:
             user = g.user
         return user.roles
-
-    def get_readable_dag_ids(self, user=None) -> set[str]:
-        """Get the DAG IDs readable by authenticated user."""
-        return self.get_permitted_dag_ids(methods=["GET"], user=user)
-
-    def get_editable_dag_ids(self, user=None) -> set[str]:
-        """Get the DAG IDs editable by authenticated user."""
-        return self.get_permitted_dag_ids(methods=["PUT"], user=user)
-
-    @provide_session
-    def get_permitted_dag_ids(
-        self,
-        *,
-        methods: Container[ResourceMethod] | None = None,
-        user=None,
-        session: Session = NEW_SESSION,
-    ) -> set[str]:
-        """Get readable or writable DAGs for user."""
-        if not methods:
-            methods = ["PUT", "GET"]
-
-        dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-
-        if ("GET" in methods and get_auth_manager().is_authorized_dag(method="GET", user=user)) or (
-            "PUT" in methods and get_auth_manager().is_authorized_dag(method="PUT", user=user)
-        ):
-            return dag_ids
-
-        def _is_permitted_dag_id(method: ResourceMethod, methods: Container[ResourceMethod], dag_id: str):
-            return method in methods and get_auth_manager().is_authorized_dag(
-                method=method, details=DagDetails(id=dag_id), user=user
-            )
-
-        return {
-            dag_id
-            for dag_id in dag_ids
-            if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
-        }
-
-    def can_access_dags(self, user) -> bool:
-        """Checks if user has read access to some dags."""
-        return any(self.get_readable_dag_ids(user))
 
     def prefixed_dag_id(self, dag_id: str) -> str:
         """Return the permission name for a DAG id."""

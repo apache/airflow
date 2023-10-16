@@ -29,9 +29,9 @@ from airflow.api_connexion.schemas.xcom_schema import XComCollection, xcom_colle
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import DagRun as DR, XCom
 from airflow.settings import conf
-from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -56,8 +56,7 @@ def get_xcom_entries(
     """Get all XCom values."""
     query = select(XCom)
     if dag_id == "~":
-        appbuilder = get_airflow_app().appbuilder
-        readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
+        readable_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
         query = query.where(XCom.dag_id.in_(readable_dag_ids))
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     else:

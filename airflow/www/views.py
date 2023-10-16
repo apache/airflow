@@ -774,7 +774,7 @@ class Airflow(AirflowBaseView):
         end = start + dags_per_page
 
         # Get all the dag id the user could access
-        filter_dag_ids = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
+        filter_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         with create_session() as session:
             # read orm_dags from the db
@@ -1067,7 +1067,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def next_run_datasets_summary(self, session: Session = NEW_SESSION):
         """Next run info for dataset triggered DAGs."""
-        allowed_dag_ids = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         if not allowed_dag_ids:
             return flask.json.jsonify({})
@@ -1102,7 +1102,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def dag_stats(self, session: Session = NEW_SESSION):
         """Dag statistics."""
-        allowed_dag_ids = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
@@ -1134,7 +1134,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def task_stats(self, session: Session = NEW_SESSION):
         """Task Statistics."""
-        allowed_dag_ids = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         if not allowed_dag_ids:
             return flask.json.jsonify({})
@@ -1233,7 +1233,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def last_dagruns(self, session: Session = NEW_SESSION):
         """Last DAG runs."""
-        allowed_dag_ids = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
@@ -2340,7 +2340,7 @@ class Airflow(AirflowBaseView):
     @provide_session
     def blocked(self, session: Session = NEW_SESSION):
         """Mark Dag Blocked."""
-        allowed_dag_ids = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
+        allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         # Filter by post parameters
         selected_dag_ids = {unquote(dag_id) for dag_id in request.form.getlist("dag_ids") if dag_id}
@@ -3912,7 +3912,7 @@ class DagFilter(BaseFilter):
             return query
         if get_auth_manager().is_authorized_dag(method="PUT", user=g.user):
             return query
-        filter_dag_ids = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
+        filter_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
         return query.where(self.model.dag_id.in_(filter_dag_ids))
 
 
@@ -5736,7 +5736,7 @@ class AutocompleteView(AirflowBaseView):
             dag_ids_query = dag_ids_query.where(DagModel.is_paused)
             owners_query = owners_query.where(DagModel.is_paused)
 
-        filter_dag_ids = get_airflow_app().appbuilder.sm.get_permitted_dag_ids(user=g.user)
+        filter_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         dag_ids_query = dag_ids_query.where(DagModel.dag_id.in_(filter_dag_ids))
         owners_query = owners_query.where(DagModel.dag_id.in_(filter_dag_ids))
