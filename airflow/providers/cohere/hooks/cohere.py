@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any
 
 import cohere
@@ -49,13 +50,12 @@ class CohereHook(BaseHook):
     def _get_api_key(self) -> str:
         return str(self.get_connection(self.conn_id).password)
 
-    def get_client(self) -> cohere.Client:
-        if self.client is None:
-            self.client = cohere.Client(self._get_api_key())
-        return self.client
+    @cached_property
+    def cohere_client(self) -> cohere.Client:
+        return cohere.Client(self._get_api_key())
 
     def embed_text(self, texts: list[str], model: str = "embed-multilingual-v2.0") -> list[list[float]]:
-        response = self.get_client().embed(texts=texts, model=model)
+        response = self.cohere_client.embed(texts=texts, model=model)
         embeddings = response.embeddings
         return embeddings  # type:ignore[no-any-return]
 
@@ -68,7 +68,7 @@ class CohereHook(BaseHook):
 
     def test_connection(self) -> tuple[bool, str]:
         try:
-            self.get_client().list_custom_models()
+            self.cohere_client.generate("Test", max_tokens=10)
             return True, "Connection established"
         except Exception as e:
             return False, str(e)
