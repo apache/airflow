@@ -26,7 +26,7 @@ def test_tabular_hook():
     access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSU"
     with requests_mock.Mocker() as m:
         m.post(
-            "https://api.tabulardata.io/ws/v1/oauth/tokens",
+            "https://api.tabular.io/ws/v1/oauth/tokens",
             json={
                 "access_token": access_token,
                 "token_type": "Bearer",
