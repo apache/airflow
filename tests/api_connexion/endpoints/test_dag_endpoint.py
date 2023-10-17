@@ -135,7 +135,7 @@ class TestDagEndpoint:
     def _create_dag_model_for_details_endpoint(self, dag_id, session=None):
         dag_model = DagModel(
             dag_id=dag_id,
-            fileloc=f"/tmp/dag_1.py",
+            fileloc="/tmp/dag_1.py",
             schedule_interval="2 2 * * *",
             is_active=True,
             is_paused=False,
