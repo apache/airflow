@@ -287,6 +287,7 @@ class FabAuthManager(BaseAuthManager):
             roles = user_query.roles
 
         map_fab_action_name_to_method_name = {v: k for k, v in MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()}
+        map_fab_action_name_to_method_name[ACTION_CAN_ACCESS_MENU] = "GET"
         resources = set()
         for role in roles:
             for permission in role.permissions:
