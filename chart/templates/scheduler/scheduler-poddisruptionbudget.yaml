@@ -26,6 +26,7 @@ kind: PodDisruptionBudget
 metadata:
   name: {{ include "airflow.fullname" . }}-scheduler-pdb
   labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/name: {{ include "airflow.fullname" . }}-scheduler
     app.kubernetes.io/component: scheduler
     tier: airflow
     component: scheduler

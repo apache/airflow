@@ -26,6 +26,7 @@ kind: ConfigMap
 metadata:
   name: {{ template "airflow_webserver_config_configmap_name" . }}
   labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/name: {{ include "airflow.fullname" . }}-webserver
     app.kubernetes.io/component: config
     tier: airflow
     component: config

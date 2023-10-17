@@ -33,6 +33,7 @@ kind: StatefulSet
 metadata:
   name: {{ include "airflow.fullname" . }}-redis
   labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/name: {{ include "airflow.fullname" . }}-redis
     app.kubernetes.io/component: redis
     tier: airflow
     component: redis

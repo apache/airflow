@@ -27,6 +27,7 @@ kind: Ingress
 metadata:
   name: {{ include "airflow.fullname" . }}-flower-ingress
   labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/name: {{ include "airflow.fullname" . }}-flower
     app.kubernetes.io/component: flower-ingress
     tier: airflow
     component: flower-ingress

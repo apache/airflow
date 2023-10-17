@@ -26,6 +26,7 @@ kind: NetworkPolicy
 metadata:
   name: {{ include "airflow.fullname" . }}-scheduler-policy
   labels: {{- include "kubernetes_recommended_labels" . | indent 2 }}
+    app.kubernetes.io/name: {{ include "airflow.fullname" . }}-scheduler
     app.kubernetes.io/component: airflow-scheduler-policy
     tier: airflow
     component: airflow-scheduler-policy
