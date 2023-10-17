@@ -188,6 +188,6 @@ def cached_app(config=None, testing=False):
 
 
 def purge_cached_app():
-    """Removes the cached version of the app in global state."""
+    """Remove the cached version of the app in global state."""
     global app
     app = None

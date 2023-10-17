@@ -573,6 +573,32 @@ class TestBaseChartTest:
             == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
         )
 
+    def test_postgres_connection_url_pgbouncer(self):
+        # no nameoverride, pgbouncer
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/metadata-connection-secret.yaml"],
+            values={"pgbouncer": {"enabled": True}},
+        )[0]
+        assert (
+            "postgresql://postgres:postgres@my-release-pgbouncer.default:6543/"
+            "my-release-metadata?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
+        )
+
+    def test_postgres_connection_url_pgbouncer_use_standard_naming(self):
+        # no nameoverride, pgbouncer and useStandardNaming
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/metadata-connection-secret.yaml"],
+            values={"useStandardNaming": True, "pgbouncer": {"enabled": True}},
+        )[0]
+        assert (
+            "postgresql://postgres:postgres@my-release-airflow-pgbouncer.default:6543/"
+            "my-release-metadata?sslmode=disable"
+            == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
+        )
+
     def test_postgres_connection_url_name_override(self):
         # nameoverride provided
         doc = render_chart(
@@ -618,6 +644,28 @@ class TestBaseChartTest:
         )[0]
 
         assert obj["preemptionPolicy"] == "PreemptLowerPriority"
+
+    def test_redis_broker_connection_url(self):
+        # no nameoverride, redis
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/redis-secrets.yaml"],
+            values={"redis": {"enabled": True, "password": "test1234"}},
+        )[1]
+        assert "redis://:test1234@my-release-redis:6379/0" == base64.b64decode(
+            doc["data"]["connection"]
+        ).decode("utf-8")
+
+    def test_redis_broker_connection_url_use_standard_naming(self):
+        # no nameoverride, redis and useStandardNaming
+        doc = render_chart(
+            "my-release",
+            show_only=["templates/secrets/redis-secrets.yaml"],
+            values={"useStandardNaming": True, "redis": {"enabled": True, "password": "test1234"}},
+        )[1]
+        assert "redis://:test1234@my-release-airflow-redis:6379/0" == base64.b64decode(
+            doc["data"]["connection"]
+        ).decode("utf-8")
 
     @staticmethod
     def default_trigger_obj(version):

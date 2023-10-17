@@ -390,3 +390,12 @@ class PostgresHook(DbApiHook):
     def get_openlineage_default_schema(self) -> str | None:
         """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
         return self.get_first("SELECT CURRENT_SCHEMA;")[0]
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        return {
+            "hidden_fields": [],
+            "relabeling": {
+                "schema": "Database",
+            },
+        }

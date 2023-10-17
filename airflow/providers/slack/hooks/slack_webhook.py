@@ -50,32 +50,6 @@ def check_webhook_response(func: Callable) -> Callable:
     return wrapper
 
 
-def _ensure_prefixes(conn_type):
-    # TODO: Remove when provider min airflow version >= 2.5.0 since
-    #       this is handled by provider manager from that version.
-
-    def dec(func):
-        @wraps(func)
-        def inner(cls):
-            field_behaviors = func(cls)
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
-
-
 class SlackWebhookHook(BaseHook):
     """
     This class provide a thin wrapper around the ``slack_sdk.WebhookClient``.
@@ -316,7 +290,6 @@ class SlackWebhookHook(BaseHook):
         }
 
     @classmethod
-    @_ensure_prefixes(conn_type="slackwebhook")
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {

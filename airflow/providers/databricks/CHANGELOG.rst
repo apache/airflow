@@ -27,6 +27,37 @@
 Changelog
 ---------
 
+4.6.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add 'DatabricksHook' ClusterState (#34643)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Respect 'soft_fail' parameter in 'DatabricksSqlSensor' (#34544)``
+* ``Respect 'soft_fail' argument when running DatabricksPartitionSensor (#34517)``
+* ``Decode response in f-string (#34518)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Use aiohttp.BasicAuth instead of HTTPBasicAuth for aiohttp session in databricks hook (#34590)``
+* ``Update 'list_jobs' function in 'DatabricksHook' to token-based pagination  (#33472)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+
+
 4.5.0
 .....
 

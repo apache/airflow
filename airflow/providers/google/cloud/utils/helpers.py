@@ -21,3 +21,24 @@ from __future__ import annotations
 def normalize_directory_path(source_object: str | None) -> str | None:
     """Makes sure dir path ends with a slash."""
     return source_object + "/" if source_object and not source_object.endswith("/") else source_object
+
+
+def resource_path_to_dict(resource_name: str) -> dict[str, str]:
+    """Converts a path-like GCP resource name into a dictionary.
+
+    For example, the path `projects/my-project/locations/my-location/instances/my-instance` will be converted
+    to a dict:
+    `{"projects": "my-project",
+    "locations": "my-location",
+    "instances": "my-instance",}`
+    """
+    if not resource_name:
+        return {}
+    path_items = resource_name.split("/")
+    if len(path_items) % 2:
+        raise ValueError(
+            "Invalid resource_name. Expected the path-like name consisting of key/value pairs "
+            "'key1/value1/key2/value2/...', for example 'projects/<project>/locations/<location>'."
+        )
+    iterator = iter(path_items)
+    return dict(zip(iterator, iterator))
