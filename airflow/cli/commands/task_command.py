@@ -46,7 +46,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
-from airflow.settings import IS_K8S_EXECUTOR_POD
+from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.typing_compat import Literal
@@ -326,7 +326,7 @@ def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]
     console_handler = next((h for h in root_logger.handlers if h.name == "console"), None)
     with LoggerMutationHelper(root_logger), LoggerMutationHelper(ti.log) as task_helper:
         task_helper.move(root_logger)
-        if IS_K8S_EXECUTOR_POD:
+        if IS_K8S_EXECUTOR_POD or IS_EXECUTOR_CONTAINER:
             if console_handler and console_handler not in root_logger.handlers:
                 root_logger.addHandler(console_handler)
         yield

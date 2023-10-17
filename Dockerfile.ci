@@ -1435,8 +1435,11 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
 # dependency resolution and we do not need to limit the versions of the dependencies
-# aiobotocore is limited temporarily until it stops backtracking pip
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
+#
+# Without grpcio-status limit, pip gets into very long backtracking
+# We should attempt to remove it in the future
+#
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="grpcio-status>=1.55.0"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG VERSION_SUFFIX_FOR_PYPI=""
 

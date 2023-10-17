@@ -326,6 +326,61 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
           BUILD_TIMEOUT_MINUTES: 70
 
+  preview-constraints:
+    permissions:
+      contents: read
+    timeout-minutes: 20
+    continue-on-error: true
+    name: >
+      Preview constraints
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    needs: [build-info, build-ci-images]
+    if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
+    env:
+      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
+      PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        run: breeze ci-image pull --run-in-parallel --tag-as-latest
+      - name: "Source constraints"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers || true
+      - name: "PyPI constraints"
+        shell: bash
+        timeout-minutes: 25
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints || true
+      - name: "Dependency upgrade summary"
+        shell: bash
+        run: |
+          for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
+            echo "Summarizing Python $PYTHON_VERSION"
+            cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
+          done
+      - name: "Upload constraint artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: constraints
+          path: ./files/constraints-*/constraints-*.txt
+          retention-days: 7
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
   build-prod-images:
     timeout-minutes: 80
     name: >
@@ -1662,6 +1717,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
     if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
     steps:
       - name: Cleanup repo
@@ -1677,16 +1733,18 @@ jobs:
         run: breeze ci-image pull --run-in-parallel --tag-as-latest
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      - name: "Generate constraints"
+      - name: "Generate source constraints"
         run: |
-          breeze release-management generate-constraints --run-in-parallel \
-              --airflow-constraints-mode constraints-source-providers
+          breeze release-management generate-constraints \
+              --run-in-parallel --airflow-constraints-mode constraints-source-providers
+      - name: "Generate no-providers constraints"
+        run: |
           breeze release-management generate-constraints \
               --run-in-parallel --airflow-constraints-mode constraints-no-providers
+      - name: "Generate PyPi constraints"
+        run: |
           breeze release-management generate-constraints \
               --run-in-parallel --airflow-constraints-mode constraints
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}

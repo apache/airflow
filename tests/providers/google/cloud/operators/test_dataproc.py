@@ -1399,7 +1399,7 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     assert ti.task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
 
 
-class TestDataprocWorkflowTemplateInstantiateOperator:
+class TestDataprocInstantiateWorkflowTemplateOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         version = 6
@@ -1462,6 +1462,37 @@ class TestDataprocWorkflowTemplateInstantiateOperator:
         mock_hook.return_value.wait_for_operation.assert_not_called()
         assert isinstance(exc.value.trigger, DataprocWorkflowTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_on_kill(self, mock_hook):
+        operation_name = "operation_name"
+        mock_hook.return_value.instantiate_workflow_template.return_value.operation.name = operation_name
+        op = DataprocInstantiateWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            template_id=TEMPLATE_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            version=2,
+            parameters={},
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            cancel_on_kill=False,
+        )
+
+        op.execute(context=mock.MagicMock())
+
+        op.on_kill()
+        mock_hook.return_value.get_operations_client.return_value.cancel_operation.assert_not_called()
+
+        op.cancel_on_kill = True
+        op.on_kill()
+        mock_hook.return_value.get_operations_client.return_value.cancel_operation.assert_called_once_with(
+            name=operation_name
+        )
 
 
 @pytest.mark.need_serialized_dag
@@ -1560,6 +1591,37 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
 
         assert isinstance(exc.value.trigger, DataprocWorkflowTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_on_kill(self, mock_hook):
+        operation_name = "operation_name"
+        mock_hook.return_value.instantiate_inline_workflow_template.return_value.operation.name = (
+            operation_name
+        )
+        op = DataprocInstantiateInlineWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            template={},
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            cancel_on_kill=False,
+        )
+
+        op.execute(context=mock.MagicMock())
+
+        op.on_kill()
+        mock_hook.return_value.get_operations_client.return_value.cancel_operation.assert_not_called()
+
+        op.cancel_on_kill = True
+        op.on_kill()
+        mock_hook.return_value.get_operations_client.return_value.cancel_operation.assert_called_once_with(
+            name=operation_name
+        )
 
 
 @pytest.mark.need_serialized_dag
