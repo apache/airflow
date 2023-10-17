@@ -200,7 +200,7 @@ the ``delimiter`` argument apply to moves as well as copies.
 GCSSynchronizeBucketsOperator
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The :class:`~airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSSynchronizeBucketsOperator`
+The :class:`~airflow.providers.google.cloud.operators.gcs.GCSSynchronizeBucketsOperator`
 operator checks the initial state of the destination bucket, and then compares it with the source bucket.
 Based on this, it creates an operation plan that describes which objects should be deleted from
 the destination bucket, which should be overwritten, and which should be copied.
