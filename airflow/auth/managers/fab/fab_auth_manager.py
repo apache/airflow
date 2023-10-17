@@ -292,7 +292,10 @@ class FabAuthManager(BaseAuthManager):
         for role in roles:
             for permission in role.permissions:
                 action = permission.action.name
-                if map_fab_action_name_to_method_name[action] in methods:
+                if (
+                    action in map_fab_action_name_to_method_name
+                    and map_fab_action_name_to_method_name[action] in methods
+                ):
                     resource = permission.resource.name
                     if resource == permissions.RESOURCE_DAG:
                         return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
