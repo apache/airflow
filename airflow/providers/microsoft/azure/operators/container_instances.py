@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
+    ContainerGroupSubnetId,
     ContainerPort,
     EnvironmentVariable,
     IpAddress,
@@ -88,6 +89,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param restart_policy: Restart policy for all containers within the container group.
         Possible values include: 'Always', 'OnFailure', 'Never'
     :param ip_address: The IP address type of the container group.
+    :param subnet_ids: The subnet resource IDs for a container group
 
     **Example**::
 
@@ -142,6 +144,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         restart_policy: str = "Never",
         ip_address: IpAddress | None = None,
         ports: list[ContainerPort] | None = None,
+        subnet_ids: list[ContainerGroupSubnetId] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -179,6 +182,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             )
         self.ip_address = ip_address
         self.ports = ports
+        self.subnet_ids = subnet_ids
 
     def execute(self, context: Context) -> int:
         # Check name again in case it was templated.
@@ -251,6 +255,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 os_type=self.os_type,
                 tags=self.tags,
                 ip_address=self.ip_address,
+                subnet_ids=self.subnet_ids,
             )
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)
@@ -313,6 +318,9 @@ class AzureContainerInstancesOperator(BaseOperator):
                 if state in ["Running", "Terminated", "Succeeded"]:
                     try:
                         logs = self._ci_hook.get_logs(resource_group, name)
+                        if logs and logs[0] is None:
+                            self.log.error("Container log is broken, marking as failed.")
+                            return 1
                         last_line_logged = self._log_last(logs, last_line_logged)
                     except CloudError:
                         self.log.exception(

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Mapping, Sequence
+from typing import Mapping
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
@@ -46,9 +46,7 @@ class PostgresOperator(SQLExecuteQueryOperator):
         Deprecated - use `hook_params={'options': '-c <connection_options>'}` instead.
     """
 
-    template_fields: Sequence[str] = ("sql",)
-    template_fields_renderers = {"sql": "postgresql"}
-    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {**SQLExecuteQueryOperator.template_fields_renderers, "sql": "postgresql"}
     ui_color = "#ededed"
 
     def __init__(

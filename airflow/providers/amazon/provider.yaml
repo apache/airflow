@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.8.0
   - 8.7.1
   - 8.7.0
   - 8.6.0
@@ -288,11 +289,20 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/appflow.rst
     tags: [aws]
+  - integration-name: AWS Glue DataBrew
+    external-doc-url: https://docs.aws.amazon.com/databrew/latest/dg/what-is.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/glue_databrew.rst
+    logo: /integration-logos/aws/AWS-Glue-DataBrew_64.png
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.operators.athena
+  - integration-name: Amazon Web Services
+    python-modules:
+      - airflow.providers.amazon.aws.operators.base_aws
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.operators.batch
@@ -361,11 +371,17 @@ operators:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.operators.appflow
+  - integration-name: AWS Glue DataBrew
+    python-modules:
+      - airflow.providers.amazon.aws.operators.glue_databrew
 
 sensors:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.sensors.athena
+  - integration-name: Amazon Web Services
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.base_aws
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.sensors.batch
@@ -534,6 +550,9 @@ hooks:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.hooks.appflow
+  - integration-name: AWS Glue DataBrew
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.glue_databrew
 
 triggers:
   - integration-name: Amazon Web Services
@@ -582,6 +601,9 @@ triggers:
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.triggers.sqs
+  - integration-name: AWS Glue DataBrew
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.glue_databrew
 
 transfers:
   - source-integration-name: Amazon DynamoDB
