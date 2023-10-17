@@ -84,6 +84,11 @@ To invoke an AWS lambda function you can use
     In addition, you might need to configure your firewall, proxy,
     or operating system to allow for long connections with timeout or keep-alive settings.
 
+    .. seealso::
+        - `NAT Gateway Troubleshooting: Internet connection drops after 350 seconds \
+          <https://docs.aws.amazon.com/vpc/latest/userguide/nat-gateway-troubleshooting.html#nat-gateway-troubleshooting-timeout>`__
+        - `Using TCP keepalive under Linux <https://tldp.org/HOWTO/TCP-Keepalive-HOWTO/usingkeepalive.html>`__
+
 .. note::
     You cannot describe the asynchronous invocation (``invocation_type="Event"``) of an AWS Lambda function.
     The only way is `configuring destinations for asynchronous invocation <https://docs.aws.amazon.com/lambda/latest/dg/invocation-async.html#invocation-async-destinations>`_

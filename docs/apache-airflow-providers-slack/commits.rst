@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.2.0
+.....
+
+Latest change: 2023-10-12
+
+=================================================================================================  ===========  ========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================
+`6ba2c4485c <https://github.com/apache/airflow/commit/6ba2c4485cb8ff2cf3c2e4d8043e4c7fe5008b15>`_  2023-10-12   ``Docstring correction for 'SlackAPIOperator' (#34871)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`faa32f23e8 <https://github.com/apache/airflow/commit/faa32f23e824ec8dd00b296ce9d8bd239ac0437f>`_  2023-09-23   ``Slack: use default_conn_name by default (#34548)``
+=================================================================================================  ===========  ========================================================
+
 8.1.0
 .....
 
-Latest change: 2023-09-01
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `e357f7b531 <https://github.com/apache/airflow/commit/e357f7b531e50981faa1199595c0e92a23a714b5>`_  2023-09-01   ``Add Slack Incoming Webhook Notifier (#33966)``
 `b4d4f55b47 <https://github.com/apache/airflow/commit/b4d4f55b479d07c13ab25bb2e80cb053378b56d7>`_  2023-08-31   ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
 `9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``

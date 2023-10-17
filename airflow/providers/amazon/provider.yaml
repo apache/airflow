@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.8.0
   - 8.7.1
   - 8.7.0
   - 8.6.0
@@ -81,11 +82,7 @@ dependencies:
   # NOTE!!! BOTOCORE version is always shifted by 3 MINOR VERSIONS from boto3
   # See https://github.com/boto/boto3/issues/2702
   - botocore>=1.31.0
-  # watchtower 3 has been released end Jan and introduced breaking change across the board that might
-  # change logging behaviour:
-  # https://github.com/kislyuk/watchtower/blob/develop/Changes.rst#changes-for-v300-2022-01-26
-  # TODO: update to watchtower >3
-  - watchtower~=2.0.1
+  - watchtower~=3.0.1
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
@@ -292,11 +289,20 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/appflow.rst
     tags: [aws]
+  - integration-name: AWS Glue DataBrew
+    external-doc-url: https://docs.aws.amazon.com/databrew/latest/dg/what-is.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/glue_databrew.rst
+    logo: /integration-logos/aws/AWS-Glue-DataBrew_64.png
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.operators.athena
+  - integration-name: Amazon Web Services
+    python-modules:
+      - airflow.providers.amazon.aws.operators.base_aws
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.operators.batch
@@ -365,11 +371,17 @@ operators:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.operators.appflow
+  - integration-name: AWS Glue DataBrew
+    python-modules:
+      - airflow.providers.amazon.aws.operators.glue_databrew
 
 sensors:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.sensors.athena
+  - integration-name: Amazon Web Services
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.base_aws
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.sensors.batch
@@ -538,6 +550,9 @@ hooks:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.hooks.appflow
+  - integration-name: AWS Glue DataBrew
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.glue_databrew
 
 triggers:
   - integration-name: Amazon Web Services
@@ -586,6 +601,9 @@ triggers:
   - integration-name: Amazon Simple Queue Service (SQS)
     python-modules:
       - airflow.providers.amazon.aws.triggers.sqs
+  - integration-name: AWS Glue DataBrew
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.glue_databrew
 
 transfers:
   - source-integration-name: Amazon DynamoDB
@@ -726,3 +744,21 @@ config:
         example: my_company.aws.MyCustomSessionFactory
         type: string
         version_added: 3.1.1
+      cloudwatch_task_handler_json_serializer:
+        description: |
+          By default, when logging non-string messages, all non-json objects are logged as `null`.
+          Except `datetime` objects which are ISO formatted. Users can optionally use a `repr` serializer or
+          provide their own JSON serializer for any non-JSON-serializable objects in the logged message.
+
+          * `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize` uses `repr` (be aware
+            there is the potential of logging sensitive data depending on the `repr` method of logged objects)
+          * `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy` uses `null`.
+
+          If a custom serializer is provided, it must adhere to `Callable[[Any], str | None]`, where `None`
+          serializes to `null` (e.g. `def my_serializer(o: Any) -> str | None`). Since this is on the logging
+          path and it's possible there's an exception being handled, special care should be taken to fail
+          gracefully without raising a new exception inside of your serializer.
+        type: string
+        version_added: 8.7.2
+        example: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize
+        default: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy
