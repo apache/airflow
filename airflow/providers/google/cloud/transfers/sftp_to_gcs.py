@@ -70,6 +70,7 @@ class SFTPToGCSOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param sftp_prefetch: Whether to enable SFTP prefetch, the default is True.
+    :param use_stream: Whether to stream the file from SFTP to GCS, the default is False.
     """
 
     template_fields: Sequence[str] = (
@@ -92,6 +93,7 @@ class SFTPToGCSOperator(BaseOperator):
         move_object: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         sftp_prefetch: bool = True,
+        use_stream: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -106,6 +108,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.move_object = move_object
         self.impersonation_chain = impersonation_chain
         self.sftp_prefetch = sftp_prefetch
+        self.use_stream = use_stream
 
     def execute(self, context: Context):
         gcs_hook = GCSHook(
@@ -130,7 +133,10 @@ class SFTPToGCSOperator(BaseOperator):
 
             for file in files:
                 destination_path = file.replace(base_path, self.destination_path, 1)
-                self._copy_single_object(gcs_hook, sftp_hook, file, destination_path)
+                if self.use_stream:
+                    self._stream_single_object(gcs_hook, sftp_hook, file, destination_path)
+                else:
+                    self._copy_single_object(gcs_hook, sftp_hook, file, destination_path)
 
         else:
             destination_object = (
@@ -178,3 +184,34 @@ class SFTPToGCSOperator(BaseOperator):
     def _set_bucket_name(name: str) -> str:
         bucket = name if not name.startswith("gs://") else name[5:]
         return bucket.strip("/")
+
+    def _stream_single_object(self, gcs_hook: GCSHook, sftp_hook: SFTPHook, source_path: str, destination_object: str):
+        """Helper function to stream single object."""
+        self.log.info(
+            "Executing stream of %s to gs://%s/%s",
+            source_path,
+            self.destination_bucket,
+            destination_object,
+        )
+        
+        client = gcs_hook.get_conn()
+        dest_blob = client.bucket(self.destination_bucket).blob(destination_object)
+        
+        with sftp_hook.get_conn().file(source_path, 'rb') as source_stream:
+            self._stream_to_gcs_with_retry(source_stream, dest_blob)
+
+        if self.move_object:
+            self.log.info("Executing delete of %s", source_path)
+            sftp_hook.delete_file(source_path)
+
+    def _stream_to_gcs_with_retry(self, source_stream, dest_blob):
+        chunk_size = 65536  # 64KB
+
+        def _stream_generator():
+            while True:
+                chunk = source_stream.read(chunk_size)
+                if not chunk:
+                    break
+                yield chunk
+
+        dest_blob.upload_from_file(file_obj=_stream_generator(), rewind=True, size=chunk_size)
