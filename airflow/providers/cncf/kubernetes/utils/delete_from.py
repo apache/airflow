@@ -138,7 +138,7 @@ def _delete_from_yaml_single_item(
     else:
         resp = getattr(k8s_api, f"delete_{kind}")(name=name, body=body, **kwargs)
     if verbose:
-        print(f"{kind} deleted. status='{str(resp.status)}'")
+        print(f"{kind} deleted. status='{resp.status}'")
     return resp
 
 

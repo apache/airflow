@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import time
 import warnings
 from datetime import datetime, timedelta
 from functools import cached_property
-from time import sleep
 from typing import TYPE_CHECKING, cast
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -107,7 +107,7 @@ class AppflowBaseOperator(BaseOperator):
             self._update_flow()
             # while schedule flows will pick up the update right away, on-demand flows might use out of date
             # info if triggered right after an update, so we need to wait a bit for the DB to be consistent.
-            sleep(AppflowBaseOperator.UPDATE_PROPAGATION_TIME)
+            time.sleep(AppflowBaseOperator.UPDATE_PROPAGATION_TIME)
 
         self._run_flow(context)
 

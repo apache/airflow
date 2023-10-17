@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 from typing import cast
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
@@ -87,7 +87,7 @@ DOWNLOAD_LINE_ITEMS_REQUEST: dict = {"filterType": ADVERTISER_ID, "format": "CSV
 
 START_DATE = datetime(2021, 1, 1)
 
-with models.DAG(
+with DAG(
     "example_display_video_misc",
     start_date=START_DATE,
     catchup=False,
@@ -120,7 +120,7 @@ with models.DAG(
     )
     # [END howto_google_display_video_upload_line_items_operator]
 
-with models.DAG(
+with DAG(
     "example_display_video_sdf",
     start_date=START_DATE,
     catchup=False,
@@ -168,7 +168,7 @@ with models.DAG(
     # Task dependency created via `XComArgs`:
     #   save_sdf_in_gcs >> upload_sdf_to_big_query
 
-with models.DAG(
+with DAG(
     "example_display_video_v2",
     start_date=START_DATE,
     catchup=False,

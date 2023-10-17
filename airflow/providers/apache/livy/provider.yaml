@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 3.6.0
   - 3.5.4
   - 3.5.3
   - 3.5.2
@@ -44,7 +45,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - apache-airflow-providers-http
   - aiohttp
   - asgiref

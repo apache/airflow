@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -91,7 +92,8 @@ class TestRpcApiEndpoint:
             (
                 "",
                 TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING),
-                lambda a, b: a == TaskInstancePydantic.from_orm(b),
+                lambda a, b: a.model_dump() == TaskInstancePydantic.model_validate(b).model_dump()
+                and isinstance(a.task, BaseOperator),
                 {},
             ),
             (

@@ -83,7 +83,7 @@ class GrpcHook(BaseHook):
         base_url = self.conn.host
 
         if self.conn.port:
-            base_url = base_url + ":" + str(self.conn.port)
+            base_url += f":{self.conn.port}"
 
         auth_type = self._get_field("auth_type")
 

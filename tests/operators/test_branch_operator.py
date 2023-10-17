@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import datetime
 
-from airflow.models import DAG, DagRun, TaskInstance as TI
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.branch import BaseBranchOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone

@@ -30,11 +30,8 @@ from airflow.providers.slack.hooks.slack import SlackHook
 class SlackAPIOperator(BaseOperator):
     """Base Slack Operator class.
 
-    Only one of ``slack_conn_id`` or ``token`` is required.
-
     :param slack_conn_id: :ref:`Slack API Connection <howto/connection:slack>`
-        which its password is Slack API token. Optional
-    :param token: Slack API token (https://api.slack.com/web). Optional
+        which its password is Slack API token.
     :param method: The Slack API Method to Call (https://api.slack.com/methods). Optional
     :param api_params: API Method call parameters (https://api.slack.com/methods). Optional
     :param client_args: Slack Hook parameters. Optional. Check airflow.providers.slack.hooks.SlackHook
@@ -43,7 +40,7 @@ class SlackAPIOperator(BaseOperator):
     def __init__(
         self,
         *,
-        slack_conn_id: str,
+        slack_conn_id: str = SlackHook.default_conn_name,
         method: str | None = None,
         api_params: dict | None = None,
         **kwargs,
