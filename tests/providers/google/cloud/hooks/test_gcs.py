@@ -1249,6 +1249,45 @@ class TestSyncGcsHook:
             any_order=True,
         )
         mock_copy.assert_not_called()
+    
+    @mock.patch(GCS_STRING.format("GCSHook.copy"))
+    @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
+    @mock.patch(GCS_STRING.format("GCSHook.delete"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_should_overwrite_cmek_files(self, mock_get_conn, mock_delete, mock_rewrite, mock_copy):
+        source_bucket = self._create_bucket(name="SOURCE_BUCKET")
+        source_bucket.list_blobs.return_value = [
+            self._create_blob("FILE_A", "C1", kms_key_name="KMS_KEY_1"),
+            self._create_blob("FILE_B", "C1"),
+        ]
+        destination_bucket = self._create_bucket(name="DEST_BUCKET")
+        destination_bucket.list_blobs.return_value = [
+            self._create_blob("FILE_A", "C2", kms_key_name="KMS_KEY_2"),
+            self._create_blob("FILE_B", "C2"),
+        ]
+        mock_get_conn.return_value.bucket.side_effect = [source_bucket, destination_bucket]
+        self.gcs_hook.sync(
+            source_bucket="SOURCE_BUCKET", destination_bucket="DEST_BUCKET", allow_overwrite=True
+        )
+        mock_delete.assert_not_called()
+        mock_rewrite.assert_has_calls(
+            [
+                mock.call(
+                    destination_bucket="DEST_BUCKET",
+                    destination_object="FILE_A",
+                    source_bucket="SOURCE_BUCKET",
+                    source_object="FILE_A",
+                ),
+                mock.call(
+                    destination_bucket="DEST_BUCKET",
+                    destination_object="FILE_B",
+                    source_bucket="SOURCE_BUCKET",
+                    source_object="FILE_B",
+                ),
+            ],
+            any_order=True,
+        )
+        mock_copy.assert_not_called()
 
     @mock.patch(GCS_STRING.format("GCSHook.copy"))
     @mock.patch(GCS_STRING.format("GCSHook.rewrite"))
@@ -1416,11 +1455,12 @@ class TestSyncGcsHook:
         mock_rewrite.assert_not_called()
         mock_copy.assert_not_called()
 
-    def _create_blob(self, name: str, crc32: str, bucket=None):
+    def _create_blob(self, name: str, crc32: str, bucket=None, kms_key_name=None):
         blob = mock.MagicMock(name=f"BLOB:{name}")
         blob.name = name
         blob.crc32 = crc32
         blob.bucket = bucket
+        blob.kms_key_name = kms_key_name
         return blob
 
     def _create_bucket(self, name: str):
