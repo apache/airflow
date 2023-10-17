@@ -1326,11 +1326,12 @@ class GCSHook(GoogleBaseHook):
         for current_name in names_to_check:
             source_blob = source_names_index[current_name]
             destination_blob = destination_names_index[current_name]
-            # If either object is CMEK-protected, use the Cloud Storage Objects Get API to retrieve them so that the crc32c is included
-            if source_blob.kms_key_name != None:
-                source_blob = source_bucket.get_blob(source_blob.name)
-            if destination_blob.kms_key_name != None:
-                destination_blob = destination_bucket.get_blob(destination_blob.name)
+            # If either object is CMEK-protected, use the Cloud Storage Objects Get API to retrieve them
+            # so that the crc32c is included
+            if source_blob.kms_key_name:
+                source_blob = source_bucket.get_blob(source_blob.name, generation=source_blob.generation)
+            if destination_blob.kms_key_name:
+                destination_blob = destination_bucket.get_blob(destination_blob.name, generation=destination_blob.generation)
             # if the objects are different, save it
             if source_blob.crc32c != destination_blob.crc32c:
                 to_rewrite_blobs.add(source_blob)
