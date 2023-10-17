@@ -111,6 +111,11 @@ class SparkKubernetesOperator(BaseOperator):
                 raise
 
     def execute(self, context: Context):
+        if isinstance(self.application_file, str):
+            body = _load_body_to_dict(self.application_file)
+        else:
+            body = self.application_file
+
         body = _load_body_to_dict(self.application_file)
         name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
