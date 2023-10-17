@@ -52,7 +52,7 @@ If you need information on how to use it, look at the guide: :doc:`/operators/cl
 Specialized transfer operators for Google Cloud Storage
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-See :doc:`/operators/transfer` for a list of specialized transfer operators to and from Google Cloud Storage.
+See :doc:`/operators/transfer/index` for a list of specialized transfer operators to and from Google Cloud Storage.
 
 
 Local transfer
