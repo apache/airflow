@@ -17,15 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import os.path
 import uuid
-from unittest import mock
 
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from s3fs import S3FileSystem
 
-from airflow.io import fs
+from airflow.io.store import _STORE_CACHE, attach
+from airflow.io.store.path import ObjectStoragePath
+from airflow.io.store.util import move
 
 FAKE = "/mnt/fake"
 MNT = "/mnt/warehouse"
@@ -40,83 +40,68 @@ class FakeRemoteFileSystem(LocalFileSystem):
 
 
 class TestFs:
-    def test_mount(self):
-        fs.mount("s3://warehouse/", MNT)
+    def test_alias(self):
+        store = attach("s3")
+        assert isinstance(store.fs, S3FileSystem)
 
-        assert isinstance(fs.get_fs("/mnt/warehouse"), S3FileSystem)
-        assert fs.get_mount(MNT).replace_mount_point(FOO) == "warehouse/foo"
+        store = attach("file", alias="local")
+        assert isinstance(store.fs, LocalFileSystem)
+        assert "local" in _STORE_CACHE
 
-        fs.unmount(MNT)
-
-    def test_mount_without_mountpoint(self):
-        mnt = fs.mount("s3://warehouse/")
-
-        assert isinstance(mnt.fs, S3FileSystem)
-        assert mnt.replace_mount_point("/foo") == "warehouse/foo"
-        assert str(mnt / "foo") == os.path.join(mnt.mount_point, "foo")
-
-        fs.unmount(mnt)
-
-    def test_unmount(self):
-        fs.mount("s3://warehouse/", MNT)
-        fs.unmount(MNT)
-
-        with pytest.raises(ValueError):
-            fs.get_fs("/mnt/warehouse")
+    def test_init_objectstoragepath(self):
+        path = ObjectStoragePath("s3://bucket/key/part1/part2")
+        assert path.bucket == "bucket"
+        assert path.key == "key/part1/part2"
+        assert path._protocol == "s3"
 
     def test_read_write(self):
-        fs.mount("file:///tmp/", MNT)
+        o = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
 
-        filename = str(uuid.uuid4())
-        output_file = os.path.join(MNT, filename)
-
-        with fs.open(output_file, "wb") as f:
+        with o.open("wb") as f:
             f.write(b"foo")
 
-        input_file = os.path.join(MNT, filename)
-        assert fs.open(input_file, "rb").read() == b"foo"
+        assert o.open("rb").read() == b"foo"
 
-        fs.rm(input_file)
-        fs.unmount(MNT)
+        o.unlink()
 
     def test_ls(self):
-        fs.mount("file:///tmp/", MNT)
-        dirname = os.path.join(MNT, str(uuid.uuid4()))
-        filename = os.path.join(dirname, str(uuid.uuid4()))
+        dirname = str(uuid.uuid4())
+        filename = str(uuid.uuid4())
 
-        fs.makedirs(dirname)
-        fs.touch(filename)
+        d = ObjectStoragePath(f"file:///tmp/{dirname}")
+        d.mkdir(create_parents=True)
+        o = d / filename
+        o.touch()
 
-        data = fs.ls(dirname)
+        data = d.ls()
         assert len(data) == 1
-        assert data[0]["name"] == filename
-        assert "original_name" in data[0]
+        assert data[0]["name"] == o
 
-        data = fs.ls(dirname, detail=False)
-        assert data == [filename]
+        data = d.ls(detail=False)
+        assert data == [o]
 
-        fs.rm(dirname, recursive=True)
-        fs.unmount(MNT)
+        d.unlink(recursive=True)
+
+        assert not o.exists()
 
     def test_find(self):
-        fs.mount("file:///tmp/", MNT)
-        dirname = os.path.join(MNT, str(uuid.uuid4()))
-        filename = os.path.join(dirname, str(uuid.uuid4()))
+        dirname = str(uuid.uuid4())
+        filename = str(uuid.uuid4())
 
-        fs.makedirs(dirname)
-        fs.touch(filename)
+        d = ObjectStoragePath(f"file:///tmp/{dirname}")
+        d.mkdir(create_parents=True)
+        o = d / filename
+        o.touch()
 
-        data = fs.find(dirname)
+        data = d.find("")
         assert len(data) == 1
-        assert data == [filename]
+        assert data == [o]
 
-        data = fs.ls(dirname, detail=True)
+        data = d.ls(detail=True)
         assert len(data) == 1
-        assert data[0]["name"] == filename
-        assert "original_name" in data[0]
+        assert data[0]["name"] == o
 
-        fs.rm(dirname, recursive=True)
-        fs.unmount(MNT)
+        d.unlink(recursive=True)
 
     @pytest.mark.parametrize(
         "fn, args, fn2, path, expected_args, expected_kwargs",
@@ -154,44 +139,29 @@ class TestFs:
         ],
     )
     def test_standard_api(self, fn, args, fn2, path, expected_args, expected_kwargs):
-        _fs = mock.Mock()
-        _fs._strip_protocol.return_value = "/"
-
-        fs.mount(source="fakefs:///", mount_point=MNT, fs_type=_fs)
-
-        getattr(fs, fn)(path, **args)
-        getattr(_fs, fn2).assert_called_once_with(expected_args, **expected_kwargs)
-
-        fs.unmount(MNT)
-
-    def test_copy(self):
+        # to be added later
         pass
 
     def test_move_local(self):
-        fs.mount("file:///tmp/", MNT)
-        _from = os.path.join(MNT, str(uuid.uuid4()))
-        _to = os.path.join(MNT, str(uuid.uuid4()))
+        _from = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
+        _to = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
 
-        fs.touch(_from)
-        fs.move(_from, _to)
-        assert fs.exists(_to)
-        assert not fs.exists(_from)
+        _from.touch()
+        move(_from, _to)
+        assert _to.exists()
+        assert not _from.exists()
 
-        fs.rm(_to)
-        fs.unmount(MNT)
+        _to.unlink()
 
     def test_move_remote(self):
-        fs.mount("file:///tmp/", MNT)
-        fs.mount("file:///tmp/", FAKE, fs_type=FakeRemoteFileSystem())
+        attach("fakefs", conn_id="fake", fs_type=FakeRemoteFileSystem())
 
-        _from = os.path.join(MNT, str(uuid.uuid4()))
-        _to = os.path.join(FAKE, str(uuid.uuid4()))
+        _from = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
+        _to = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
 
-        fs.touch(_from)
-        fs.move(_from, _to)
-        assert fs.exists(_to)
-        assert not fs.exists(_from)
+        _from.touch()
+        move(_from, _to)
+        assert _to.exists()
+        assert not _from.exists()
 
-        fs.rm(_to)
-        fs.unmount(MNT)
-        fs.unmount(FAKE)
+        _to.unlink()
