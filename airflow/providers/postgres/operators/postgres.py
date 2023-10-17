@@ -24,6 +24,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -94,9 +95,10 @@ class PgVectorIngestOperator(BaseOperator):
     Operator for ingesting text and embeddings into a PostgreSQL database using the pgvector library.
 
     :param conn_id: The connection ID for the postgresql database.
-    :param input_text: The input text to be ingested.
-    :param input_embedding: The input embedding associated with the text, provided as a list of floats.
-    :param input_callable: A callable that returns the embedding if 'input_embedding' is not provided.
+    :param input_data: Tuple containing the string input content and corresponding list of float vector
+        embeddings.
+    :param input_callable: A callable that returns a tuple containing the string input content and
+        corresponding  list of float vector embeddings, if ``input_data`` is not provided.
     :param input_callable_args: Positional arguments for the 'input_callable'.
     :param input_callable_kwargs: Keyword arguments for the 'input_callable'.
     :param kwargs: Additional keyword arguments for the BaseOperator.
@@ -105,16 +107,14 @@ class PgVectorIngestOperator(BaseOperator):
     def __init__(
         self,
         conn_id: str,
-        input_text: str | None = None,
-        input_embedding: list[float] | None = None,
+        input_data: tuple[str, list[float]] | None = None,
         input_callable: Callable[[Any], Any] | None = None,
         input_callable_args: Collection[Any] | None = None,
         input_callable_kwargs: Mapping[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         self.conn_id = conn_id
-        self.input_text = input_text
-        self.input_embedding = input_embedding
+        self.input_data = input_data
         self.input_callable = input_callable
         self.input_callable_args = input_callable_args
         self.input_callable_kwargs = input_callable_kwargs
@@ -132,16 +132,16 @@ class PgVectorIngestOperator(BaseOperator):
         """
         from pgvector.psycopg import register_vector
 
-        if all([self.input_embedding, self.input_callable]):
-            raise AirflowException("Only one of 'input_embedding' and 'input_callable' is allowed")
+        if not exactly_one(self.input_data, self.input_callable):
+            raise ValueError("Either `input_data` or `input_callable` must be provided, not both.")
         if self.input_callable:
             if not callable(self.input_callable):
                 raise AirflowException("`input_callable` param must be callable")
-            input_embedding = self.input_callable(*self.input_callable_args, **self.input_callable_kwargs)
+            input_data = self.input_callable(*self.input_callable_args, **self.input_callable_kwargs)
         else:
-            input_embedding = self.input_embedding
+            input_data = self.input_data
         conn = PostgresHook(postgres_conn_id=self.conn_id).conn
         register_vector(conn)
-        conn.execute(
-            "INSERT INTO documents (content, embedding) VALUES (%s, %s)", (self.input_text, input_embedding)
-        )
+        content = input_data[0]
+        embeddings = input_data[1]
+        conn.execute("INSERT INTO documents (content, embedding) VALUES (%s, %s)", (content, embeddings))

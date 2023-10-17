@@ -320,15 +320,12 @@ class PostgresHook(DbApiHook):
 
         return sql
 
-    def ingest_embedding(
-        self, table: str, input_data: list[str], embeddings: list[float], vector_size: int
-    ) -> None:
+    def ingest_embedding(self, table: str, input_data: Iterable[tuple[str, float]], vector_size: int) -> None:
         """
         Store embedding vector in Postgres table.
 
         :param table: The Name of the table
-        :param input_data: The source data from which the embedding has been created
-        :param embeddings: The embedding vector response from LLM service
+        :param input_data: Iterable containing tuples of input data and corresponding embedding vectors.
         :param vector_size: The size of vector. The maximum dimensions can be 2,000
         """
         from pgvector.psycopg import register_vector
@@ -343,11 +340,12 @@ class PostgresHook(DbApiHook):
 
         self.conn.execute(create_table_query)
 
-        for content, embedding in zip(input_data, embeddings):
+        for data_item in input_data:
             insert_query = sql.SQL("INSERT INTO {} (content, embedding) VALUES (%s, %s)").format(
                 sql.Identifier(table)
             )
-
+            content = data_item[0]
+            embedding = data_item[1]
             self.conn.execute(insert_query, (content, embedding))
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
