@@ -47,7 +47,7 @@ class GithubHook(BaseHook):
         self.get_conn()
 
     def get_conn(self) -> GithubClient:
-        """Function that initiates a new GitHub connection with token and hostname (for GitHub Enterprise)."""
+        """Initiate a new GitHub connection with token and hostname (for GitHub Enterprise)."""
         if self.client is not None:
             return self.client
 
@@ -70,7 +70,7 @@ class GithubHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "login", "extra"],
             "relabeling": {"host": "GitHub Enterprise URL (Optional)", "password": "GitHub Access Token"},
