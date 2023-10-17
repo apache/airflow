@@ -16,26 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
-
 import pytest
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
 
 @pytest.fixture(scope="session")
-def minimal_app_for_api():
+def minimal_app_for_auth_api():
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_appbuilder",
             "init_api_experimental_auth",
-            "init_api_connexion",
+            "init_api_auth_provider",
             "init_api_error_handlers",
-            "init_airflow_session_interface",
-            "init_appbuilder_views",
         ]
     )
     def factory():
@@ -43,27 +38,3 @@ def minimal_app_for_api():
             return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
 
     return factory()
-
-
-@pytest.fixture
-def session():
-    from airflow.utils.session import create_session
-
-    with create_session() as session:
-        yield session
-
-
-@pytest.fixture(scope="module")
-def dagbag():
-    from airflow.models import DagBag
-
-    with warnings.catch_warnings():
-        # This explicitly shows off SubDagOperator, no point to warn about that.
-        warnings.filterwarnings(
-            "ignore",
-            category=RemovedInAirflow3Warning,
-            message=r".+Please use.+TaskGroup.+",
-            module=r".+example_subdag_operator$",
-        )
-        DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
-    return DagBag(include_examples=True, read_dags_from_db=True)
