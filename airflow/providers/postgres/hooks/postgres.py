@@ -320,7 +320,7 @@ class PostgresHook(DbApiHook):
 
         return sql
 
-    def ingest_embedding(self, table: str, input_data: Iterable[tuple[str, float]], vector_size: int) -> None:
+    def ingest_embedding(self, table: str, input_data: Iterable[tuple[str, list[float]]], vector_size: int) -> None:
         """
         Store embedding vector in Postgres table.
 
