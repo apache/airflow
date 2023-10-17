@@ -253,12 +253,40 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_DAG), (ACTION_CAN_READ, RESOURCE_DAG_RUN)],
                 True,
             ),
-            # With read permissions on a specific DAG
+            # Without read permissions on a specific DAG
+            (
+                "GET",
+                DagAccessEntity.TASK_INSTANCE,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
+                False,
+            ),
+            # With read permissions on a specific DAG but not on the DAG run
             (
                 "GET",
                 DagAccessEntity.TASK_INSTANCE,
                 DagDetails(id="test_dag_id"),
                 [(ACTION_CAN_READ, "DAG:test_dag_id"), (ACTION_CAN_READ, RESOURCE_TASK_INSTANCE)],
+                False,
+            ),
+            # With read permissions on a specific DAG but not on the DAG run
+            (
+                "GET",
+                DagAccessEntity.TASK_INSTANCE,
+                DagDetails(id="test_dag_id"),
+                [
+                    (ACTION_CAN_READ, "DAG:test_dag_id"),
+                    (ACTION_CAN_READ, RESOURCE_TASK_INSTANCE),
+                    (ACTION_CAN_READ, RESOURCE_DAG_RUN),
+                ],
+                True,
+            ),
+            # With edit permissions on a specific DAG and read on the DAG access entity
+            (
+                "DELETE",
+                DagAccessEntity.TASK,
+                DagDetails(id="test_dag_id"),
+                [(ACTION_CAN_EDIT, "DAG:test_dag_id"), (ACTION_CAN_DELETE, RESOURCE_TASK_INSTANCE)],
                 True,
             ),
             # With edit permissions on a specific DAG and read on the DAG access entity
@@ -293,7 +321,7 @@ class TestFabAuthManager:
         user = Mock()
         user.perms = user_permissions
         result = auth_manager.is_authorized_dag(
-            method=method, dag_access_entity=dag_access_entity, dag_details=dag_details, user=user
+            method=method, access_entity=dag_access_entity, details=dag_details, user=user
         )
         assert result == expected_result
 

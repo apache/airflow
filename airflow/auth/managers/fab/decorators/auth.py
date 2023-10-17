@@ -23,7 +23,10 @@ from typing import Callable, Sequence, TypeVar, cast
 
 from flask import current_app, render_template, request
 
+from airflow.api_connexion.exceptions import PermissionDenied
+from airflow.api_connexion.security import check_authentication
 from airflow.configuration import conf
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.net import get_hostname
 from airflow.www.auth import _has_access
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -31,6 +34,33 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 T = TypeVar("T", bound=Callable)
 
 log = logging.getLogger(__name__)
+
+
+def _requires_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
+    """
+    Check current user's permissions against required permissions.
+
+    This decorator is only kept for backward compatible reasons. The decorator
+    ``airflow.api_connexion.security.requires_access``, which redirects to this decorator, might be used in
+    user plugins. Thus, we need to keep it.
+
+    :meta private:
+    """
+    appbuilder = get_airflow_app().appbuilder
+    if appbuilder.update_perms:
+        appbuilder.sm.sync_resource_permissions(permissions)
+
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            check_authentication()
+            if appbuilder.sm.check_authorization(permissions, kwargs.get("dag_id")):
+                return func(*args, **kwargs)
+            raise PermissionDenied()
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
 
 
 def _has_access_fab(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
