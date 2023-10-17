@@ -20,7 +20,7 @@ from __future__ import annotations
 import jinja2
 
 from airflow.models.dag import DAG
-from airflow.template.templater import Templater
+from airflow.template.templater import LiteralValue, Templater
 from airflow.utils.context import Context
 
 
@@ -60,3 +60,23 @@ class TestTemplater:
         templater.template_ext = [".txt"]
         rendered_content = templater.render_template(templater.message, context)
         assert rendered_content == "Hello world"
+
+    def test_not_render_literal_value(self):
+        templater = Templater()
+        templater.template_ext = []
+        context = Context({"name": "world"})  # type: ignore
+        content = LiteralValue("Hello {{ name }}")
+
+        rendered_content = templater.render_template(content, context)
+
+        assert rendered_content == "Hello {{ name }}"
+
+    def test_not_render_file_literal_value(self):
+        templater = Templater()
+        templater.template_ext = [".txt"]
+        context = Context({})  # type: ignore
+        content = LiteralValue("template_file.txt")
+
+        rendered_content = templater.render_template(content, context)
+
+        assert rendered_content == "template_file.txt"

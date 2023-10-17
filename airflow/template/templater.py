@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Sequence
 
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
@@ -30,6 +31,17 @@ if TYPE_CHECKING:
 
     from airflow import DAG
     from airflow.utils.context import Context
+
+
+@dataclass(frozen=True)
+class LiteralValue:
+    """
+    A wrapper for a value that should be rendered as-is, without applying any templating to its contents.
+
+    :param value: The value to be rendered without templating
+    """
+
+    value: Any
 
 
 class Templater(LoggingMixin):
@@ -167,6 +179,8 @@ class Templater(LoggingMixin):
             return {k: self.render_template(v, context, jinja_env, oids) for k, v in value.items()}
         elif isinstance(value, set):
             return {self.render_template(element, context, jinja_env, oids) for element in value}
+        elif isinstance(value, LiteralValue):
+            return value.value
 
         # More complex collections.
         self._render_nested_template_fields(value, context, jinja_env, oids)
