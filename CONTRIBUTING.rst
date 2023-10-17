@@ -677,7 +677,7 @@ druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterp
 google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
 ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
 mysql, neo4j, odbc, openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty, pandas,
-papermill, password, pinot, plexus, postgres, presto, rabbitmq, redis, s3, salesforce, samba,
+papermill, password, pinot, plexus, postgres, presto, rabbitmq, redis, s3, s3fs, salesforce, samba,
 segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd,
 tableau, tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE

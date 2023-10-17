@@ -497,6 +497,12 @@ aiobotocore = [
     "aiobotocore>=2.1.1",
 ]
 
+s3fs = [
+    # This is required for support of S3 file system which uses aiobotocore
+    # which can have a conflict with boto3 as mentioned above
+    "s3fs>=2023.9.2",
+]
+
 
 def get_provider_dependencies(provider_name: str) -> list[str]:
     if provider_name not in PROVIDER_DEPENDENCIES:
@@ -523,6 +529,7 @@ devel = get_unique_dependency_list(
         get_provider_dependencies("mysql"),
         pandas,
         password,
+        s3fs,
     ]
 )
 
@@ -568,6 +575,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "pandas": pandas,
     "password": password,
     "rabbitmq": rabbitmq,
+    "s3fs": s3fs,
     "sentry": sentry,
     "statsd": statsd,
     "virtualenv": virtualenv,
