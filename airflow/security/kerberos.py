@@ -48,6 +48,7 @@ log = logging.getLogger(__name__)
 
 
 def get_kerberos_principle(principal: str | None) -> str:
+    """Retrieve Kerberos principal. Fallback to principal from Airflow configuration if not provided."""
     return principal or conf.get_mandatory_value("kerberos", "principal").replace("_HOST", get_hostname())
 
 
