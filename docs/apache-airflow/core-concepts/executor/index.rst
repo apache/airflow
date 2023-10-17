@@ -60,9 +60,9 @@ The DebugExecutor also exists but has been deprecated in favor of using the ``da
 
 **Remote Executors**
 
-* :doc:`CeleryExecutor apache-airflow-providers-celery:celery_executor`
-* :doc:`CeleryKubernetesExecutor apache-airflow-providers-celery:celery_kubernetes_executor`
-* :doc:`DaskExecutor apache-airflow-providers-daskexecutor:dask_executor`
+* :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`
+* :doc:`CeleryKubernetesExecutor <apache-airflow-providers-celery:celery_kubernetes_executor>`
+* :doc:`DaskExecutor <apache-airflow-providers-daskexecutor:dask_executor>`
 * :doc:`KubernetesExecutor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`
 * :doc:`KubernetesLocalExecutor <apache-airflow-providers-cncf-kubernetes:local_kubernetes_executor>`
 
