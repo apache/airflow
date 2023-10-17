@@ -1324,7 +1324,9 @@ class GCSHook(GoogleBaseHook):
             if source_blob.kms_key_name:
                 source_blob = source_bucket.get_blob(source_blob.name, generation=source_blob.generation)
             if destination_blob.kms_key_name:
-                destination_blob = destination_bucket.get_blob(destination_blob.name, generation=destination_blob.generation)
+                destination_blob = destination_bucket.get_blob(
+                    destination_blob.name, generation=destination_blob.generation
+                )
             # if the objects are different, save it
             if source_blob.crc32c != destination_blob.crc32c:
                 to_rewrite_blobs.add(source_blob)
