@@ -16,21 +16,31 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import pytest
 
-from airflow.api_connexion import security
-from airflow.api_connexion.parameters import check_limit, format_parameters
-from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema
-from airflow.plugins_manager import get_plugin_info
+from airflow.providers.amazon.aws.triggers.glue_databrew import GlueDataBrewJobCompleteTrigger
 
-if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse
+TEST_JOB_NAME = "test_job_name"
+TEST_JOB_RUN_ID = "a1234"
+TEST_JOB_RUN_STATUS = "SUCCEEDED"
 
 
-@security.requires_access_website()
-@format_parameters({"limit": check_limit})
-def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
-    """Get plugins endpoint."""
-    plugins_info = get_plugin_info()
-    collection = PluginCollection(plugins=plugins_info[offset:][:limit], total_entries=len(plugins_info))
-    return plugin_collection_schema.dump(collection)
+@pytest.fixture
+def trigger():
+    yield GlueDataBrewJobCompleteTrigger(
+        aws_conn_id="aws_default", job_name=TEST_JOB_NAME, run_id=TEST_JOB_RUN_ID
+    )
+
+
+class TestGlueDataBrewJobCompleteTrigger:
+    def test_serialize(self, trigger):
+        class_path, args = trigger.serialize()
+
+        class_name = class_path.split(".")[-1]
+        clazz = globals()[class_name]
+        instance = clazz(**args)
+
+        class_path2, args2 = instance.serialize()
+
+        assert class_path == class_path2
+        assert args == args2

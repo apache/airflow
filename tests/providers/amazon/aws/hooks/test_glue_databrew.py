@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,20 +18,21 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest import mock
 
-from airflow.api_connexion import security
-from airflow.api_connexion.parameters import check_limit, format_parameters
-from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema
-from airflow.plugins_manager import get_plugin_info
+from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 
 if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse
+    from unittest.mock import MagicMock
 
 
-@security.requires_access_website()
-@format_parameters({"limit": check_limit})
-def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
-    """Get plugins endpoint."""
-    plugins_info = get_plugin_info()
-    collection = PluginCollection(plugins=plugins_info[offset:][:limit], total_entries=len(plugins_info))
-    return plugin_collection_schema.dump(collection)
+class TestGlueDataBrewHook:
+    job_name = "test-databrew-job"
+    runId = "test12345"
+
+    @mock.patch.object(GlueDataBrewHook, "get_job_state")
+    def test_get_job_state(self, get_job_state_mock: MagicMock):
+        get_job_state_mock.return_value = "SUCCEEDED"
+        hook = GlueDataBrewHook()
+        result = hook.get_job_state(self.job_name, self.runId)
+        assert result == "SUCCEEDED"
