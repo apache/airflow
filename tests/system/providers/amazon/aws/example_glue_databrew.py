@@ -96,7 +96,7 @@ with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="
     role_arn = test_context[ROLE_ARN_KEY]
 
     bucket_name = f"{env_id}-bucket-databrew"
-    bucket_output_name = f"{env_id}-bucket-output-databrew"
+    output_bucket_name = f"{env_id}-output-bucket-databrew"
     file_name = "data.json"
     dataset_name = f"{env_id}-dataset"
     job_name = f"{env_id}-databrew-job"
@@ -106,9 +106,9 @@ with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="
         bucket_name=bucket_name,
     )
 
-    create_bucket_output = S3CreateBucketOperator(
-        task_id="create_bucket_output",
-        bucket_name=bucket_output_name,
+    create_output_bucket = S3CreateBucketOperator(
+        task_id="create_output_bucket",
+        bucket_name=output_bucket_name,
     )
 
     upload_file = S3CreateObjectOperator(
@@ -130,10 +130,10 @@ with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="
         force_delete=True,
     )
 
-    delete_bucket_output = S3DeleteBucketOperator(
-        task_id="delete_bucket_output",
+    delete_output_bucket = S3DeleteBucketOperator(
+        task_id="delete_output_bucket",
         trigger_rule=TriggerRule.ALL_DONE,
-        bucket_name=bucket_output_name,
+        bucket_name=output_bucket_name,
         force_delete=True,
     )
 
@@ -141,17 +141,17 @@ with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="
         # TEST SETUP
         test_context,
         create_bucket,
-        create_bucket_output,
+        create_output_bucket,
         upload_file,
         create_dataset(dataset_name, bucket_name, file_name),
-        create_job(dataset_name, job_name, bucket_output_name, "output.json", role_arn),
+        create_job(dataset_name, job_name, output_bucket_name, "output.json", role_arn),
         # TEST BODY
         start_job,
         # TEST TEARDOWN
         delete_job(job_name),
         delete_dataset(dataset_name),
         delete_bucket,
-        delete_bucket_output,
+        delete_output_bucket,
     )
 
     from tests.system.utils.watcher import watcher
