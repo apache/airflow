@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import importlib
 import logging
-import warnings
 from abc import ABC, abstractmethod
 from io import SEEK_SET
 from types import TracebackType
@@ -38,7 +37,6 @@ from typing import (
     Protocol,
     runtime_checkable,
 )
-from urllib.parse import urlparse
 
 log = logging.getLogger(__name__)
 
@@ -257,19 +255,6 @@ class FileIO(ABC):
 
 FSSPEC_FILE_IO = "airflow.io.fsspec.FsspecFileIO"
 
-# Mappings from the Java FileIO impl to a Python one. The list is ordered by preference.
-# If an implementation isn't installed, it will fall back to the next one.
-SCHEMA_TO_FILE_IO: dict[str, list[str]] = {
-    "s3": [FSSPEC_FILE_IO],
-    "s3a": [FSSPEC_FILE_IO],
-    "s3n": [FSSPEC_FILE_IO],
-    "gs": [FSSPEC_FILE_IO],
-    "file": [FSSPEC_FILE_IO],
-    # "hdfs": [ARROW_FILE_IO],
-    "abfs": [FSSPEC_FILE_IO],
-    "abfss": [FSSPEC_FILE_IO],
-}
-
 
 def _import_file_io(io_impl: str) -> FileIO | None:
     try:
@@ -283,15 +268,3 @@ def _import_file_io(io_impl: str) -> FileIO | None:
     except ModuleNotFoundError:
         log.warning("Could not initialize FileIO: %s", io_impl)
         return None
-
-
-def _infer_file_io_from_scheme(path: str) -> FileIO | None:
-    parsed_url = urlparse(path)
-    if parsed_url.scheme:
-        if file_ios := SCHEMA_TO_FILE_IO.get(parsed_url.scheme):
-            for file_io_path in file_ios:
-                if file_io := _import_file_io(file_io_path):
-                    return file_io
-        else:
-            warnings.warn(f"No preferred file implementation for scheme: {parsed_url.scheme}")
-    return None

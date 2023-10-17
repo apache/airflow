@@ -25,24 +25,24 @@ if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
 
-class Store:
+class ObjectStore:
     """Manages a filesystem or object storage."""
 
     __version__: ClassVar[int] = 1
 
     method: str
-    conn_id: str
+    conn_id: str | None
     protocol: str
 
     _fs: AbstractFileSystem = None
 
-    def __init__(self, conn_id: str, protocol: str, method: str):
+    def __init__(self, conn_id: str | None, protocol: str, method: str):
         self.conn_id = conn_id
         self.method = method
         self.protocol = protocol
 
     def __str__(self):
-        return f"{self.fs.protocol}-{self.conn_id}"
+        return f"{self.fs.protocol}-{self.conn_id}" if self.conn_id else self.fs.protocol
 
     @property
     def fs(self) -> AbstractFileSystem:
@@ -74,7 +74,7 @@ class Store:
 
     @classmethod
     def deserialize(cls, data: dict[str, str], version: int):
-        return Store(**data)
+        return ObjectStore(**data)
 
     def _connect(self):
         if self._fs is None:
@@ -85,7 +85,7 @@ class Store:
         return isinstance(other, type(self)) and other.conn_id == self.conn_id and other._fs == self._fs
 
 
-_STORE_CACHE: dict[str, Store] = {}
+_STORE_CACHE: dict[str, ObjectStore] = {}
 
 
 def attach(
@@ -94,7 +94,7 @@ def attach(
     alias: str | None = None,
     encryption_type: str | None = "",
     fs_type: AbstractFileSystem | None = None,
-) -> Store:
+) -> ObjectStore:
     """
     Attach a filesystem or object storage.
 
@@ -110,16 +110,18 @@ def attach(
         elif not protocol:
             raise ValueError(f"No registered store with alias: {alias}")
 
+    if not protocol:
+        raise ValueError("No protocol specified and no alias provided")
+
+    alias = f"{protocol}-{conn_id}" if conn_id else protocol
+    if store := _STORE_CACHE.get(alias, None):
+        return store
+
     if not fs_type and protocol not in SCHEME_TO_FS:
         raise ValueError(f"No registered filesystem for protocol: {protocol}")
 
-    if alias is None:
-        alias = f"{protocol}-{conn_id}" if conn_id else protocol
-        if store := _STORE_CACHE.get(alias, None):
-            return store
-
     fs = fs_type or SCHEME_TO_FS[protocol]
-    store = Store(conn_id=conn_id, protocol=protocol, method=qualname(fs))
+    store = ObjectStore(conn_id=conn_id, protocol=protocol, method=qualname(fs))
     _STORE_CACHE[alias] = store
 
     return store

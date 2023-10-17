@@ -21,11 +21,11 @@ import uuid
 
 import pytest
 from fsspec.implementations.local import LocalFileSystem
+from fsspec.utils import stringify_path
 from s3fs import S3FileSystem
 
 from airflow.io.store import _STORE_CACHE, attach
 from airflow.io.store.path import ObjectStoragePath
-from airflow.io.store.util import move
 
 FAKE = "/mnt/fake"
 MNT = "/mnt/warehouse"
@@ -37,6 +37,12 @@ class FakeRemoteFileSystem(LocalFileSystem):
     @property
     def fsid(self):
         return "fakefs"
+
+    @classmethod
+    def _strip_protocol(cls, path) -> str:
+        path = stringify_path(path)
+        i = path.find("://")
+        return path[i + 3 :] if i > 0 else path
 
 
 class TestFs:
@@ -147,21 +153,23 @@ class TestFs:
         _to = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
 
         _from.touch()
-        move(_from, _to)
+        _from.move(_to)
         assert _to.exists()
         assert not _from.exists()
 
         _to.unlink()
 
     def test_move_remote(self):
-        attach("fakefs", conn_id="fake", fs_type=FakeRemoteFileSystem())
+        attach("fakefs", fs_type=FakeRemoteFileSystem())
 
         _from = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
-        _to = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
+        print(_from)
+        _to = ObjectStoragePath(f"fakefs:///tmp/{str(uuid.uuid4())}")
+        print(_to)
 
         _from.touch()
-        move(_from, _to)
-        assert _to.exists()
+        _from.move(_to)
         assert not _from.exists()
+        assert _to.exists()
 
         _to.unlink()
