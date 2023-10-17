@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,20 +19,34 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.api_connexion import security
-from airflow.api_connexion.parameters import check_limit, format_parameters
-from airflow.api_connexion.schemas.plugin_schema import PluginCollection, plugin_collection_schema
-from airflow.auth.managers.models.resource_details import AccessView
-from airflow.plugins_manager import get_plugin_info
+from airflow.security.permissions import (
+    ACTION_CAN_ACCESS_MENU,
+    ACTION_CAN_CREATE,
+    ACTION_CAN_DELETE,
+    ACTION_CAN_EDIT,
+    ACTION_CAN_READ,
+)
 
 if TYPE_CHECKING:
-    from airflow.api_connexion.types import APIResponse
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
+
+# Convert methods to FAB action name
+_MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
+    "POST": ACTION_CAN_CREATE,
+    "GET": ACTION_CAN_READ,
+    "PUT": ACTION_CAN_EDIT,
+    "DELETE": ACTION_CAN_DELETE,
+}
 
 
-@security.requires_access_view(AccessView.PLUGINS)
-@format_parameters({"limit": check_limit})
-def get_plugins(*, limit: int, offset: int = 0) -> APIResponse:
-    """Get plugins endpoint."""
-    plugins_info = get_plugin_info()
-    collection = PluginCollection(plugins=plugins_info[offset:][:limit], total_entries=len(plugins_info))
-    return plugin_collection_schema.dump(collection)
+def get_fab_action_from_method_map():
+    """Returns the map associating a method to a FAB action."""
+    return _MAP_METHOD_NAME_TO_FAB_ACTION_NAME
+
+
+def get_method_from_fab_action_map():
+    """Returns the map associating a FAB action to a method."""
+    return {
+        **{v: k for k, v in _MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()},
+        **{ACTION_CAN_ACCESS_MENU: "GET"},
+    }

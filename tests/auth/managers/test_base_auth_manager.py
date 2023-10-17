@@ -22,12 +22,14 @@ import pytest
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.exceptions import AirflowException
+from airflow.security import permissions
 from airflow.www.security_appless import ApplessAirflowSecurityManager
 from airflow.www.security_manager import AirflowSecurityManagerV2
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
+        AccessView,
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
@@ -39,6 +41,9 @@ if TYPE_CHECKING:
 
 
 class EmptyAuthManager(BaseAuthManager):
+    def get_user_display_name(self) -> str:
+        raise NotImplementedError()
+
     def get_user_name(self) -> str:
         raise NotImplementedError()
 
@@ -94,7 +99,7 @@ class EmptyAuthManager(BaseAuthManager):
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_website(self, *, user: BaseUser | None = None) -> bool:
+    def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
         raise NotImplementedError()
 
     def is_logged_in(self) -> bool:
@@ -127,3 +132,10 @@ class TestBaseAuthManager:
         auth_manager.security_manager = ApplessAirflowSecurityManager()
         _security_manager = auth_manager.security_manager
         assert type(_security_manager) is ApplessAirflowSecurityManager
+
+    def test_is_authorized_custom_view_throws_exception(self, auth_manager):
+        with pytest.raises(AirflowException, match="The resource `.*` does not exist in the environment."):
+            auth_manager.is_authorized_custom_view(
+                fab_action_name=permissions.ACTION_CAN_READ,
+                fab_resource_name=permissions.RESOURCE_MY_PASSWORD,
+            )
