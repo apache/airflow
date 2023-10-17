@@ -109,7 +109,7 @@ def on_celery_import_modules(*args, **kwargs):
 
 @app.task
 def execute_command(command_to_exec: CommandType) -> None:
-    """Executes command."""
+    """Execute command."""
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)
     celery_task_id = app.current_task.request.id
     log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
@@ -192,7 +192,7 @@ class ExceptionWithTraceback:
 def send_task_to_executor(
     task_tuple: TaskInstanceInCelery,
 ) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
-    """Sends task to executor."""
+    """Send task to executor."""
     key, command, queue, task_to_run = task_tuple
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
@@ -243,7 +243,7 @@ class BulkStateFetcher(LoggingMixin):
         return {a.task_id for a in async_tasks}
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
-        """Gets status for many Celery tasks using the best method available."""
+        """Get status for many Celery tasks using the best method available."""
         if isinstance(app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
         elif isinstance(app.backend, DatabaseBackend):

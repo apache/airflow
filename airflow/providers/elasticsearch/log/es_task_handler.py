@@ -164,9 +164,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     @staticmethod
     def format_url(host: str) -> str:
         """
-        Formats the given host string to ensure it starts with 'http'.
-
-        Checks if the host string represents a valid URL.
+        Format the given host string to ensure it starts with 'http' and check if it represents a valid URL.
 
         :params host: The host string to format and check.
         """
@@ -454,7 +452,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
         """
-        Creates an address for an external log collecting service.
+        Create an address for an external log collecting service.
 
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from.
@@ -471,7 +469,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
         """
-        Resolves nested hits from Elasticsearch by iteratively navigating the `_nested` field.
+        Resolve nested hits from Elasticsearch by iteratively navigating the `_nested` field.
 
         The result is used to fetch the appropriate document class to handle the hit.
 

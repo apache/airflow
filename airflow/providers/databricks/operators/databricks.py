@@ -44,7 +44,7 @@ XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for a Databricks operator.
+    Handle the Airflow + Databricks lifecycle logic for a Databricks operator.
 
     :param operator: Databricks operator being handled
     :param context: Airflow context
@@ -102,7 +102,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 
 def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators.
+    Handle the Airflow + Databricks lifecycle logic for deferrable Databricks operators.
 
     :param operator: Databricks async operator being handled
     :param context: Airflow context
@@ -320,7 +320,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksSubmitRunOperator``."""
+        """Create a new ``DatabricksSubmitRunOperator``."""
         super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id
@@ -621,7 +621,7 @@ class DatabricksRunNowOperator(BaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksRunNowOperator``."""
+        """Create a new ``DatabricksRunNowOperator``."""
         super().__init__(**kwargs)
         self.json = json or {}
         self.databricks_conn_id = databricks_conn_id

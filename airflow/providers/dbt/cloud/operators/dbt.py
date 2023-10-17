@@ -190,7 +190,7 @@ class DbtCloudRunJobOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
 
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
@@ -220,7 +220,7 @@ class DbtCloudRunJobOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """
-        Implementing _on_complete because job_run needs to be triggered first in execute method.
+        Implement _on_complete because job_run needs to be triggered first in execute method.
 
         This should send additional events only if operator `wait_for_termination` is set to True.
         """
