@@ -23,6 +23,7 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -47,10 +48,9 @@ class LambdaFunctionStateSensor(AwsBaseSensor[LambdaHook]):
     FAILURE_STATES = ("Failed",)
 
     aws_hook_class = LambdaHook
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "function_name",
         "qualifier",
-        *AwsBaseSensor.template_fields,
     )
 
     def __init__(

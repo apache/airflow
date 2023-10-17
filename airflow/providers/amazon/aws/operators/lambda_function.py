@@ -26,6 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -62,14 +63,13 @@ class LambdaCreateFunctionOperator(AwsBaseOperator[LambdaHook]):
     """
 
     aws_hook_class = LambdaHook
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "function_name",
         "runtime",
         "role",
         "handler",
         "code",
         "config",
-        *AwsBaseOperator.template_fields,
     )
     ui_color = "#ff7300"
 
@@ -175,12 +175,11 @@ class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
     """
 
     aws_hook_class = LambdaHook
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = aws_template_fields(
         "function_name",
         "payload",
         "qualifier",
         "invocation_type",
-        *AwsBaseOperator.template_fields,
     )
     ui_color = "#ff7300"
 
