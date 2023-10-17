@@ -398,5 +398,16 @@ spec:
         resources:
           requests:
             storage: {{ .Values.workers.persistence.size }}
+    {{- range .Values.workers.volumeClaimTemplates }}
+    - metadata:
+        name: {{ .metadata.name }}
+      spec:
+        storageClassName: {{ .spec.storageClassName }}
+        accessModes:
+          - {{ .spec.accessModes | quote }}
+        resources:
+          requests:
+            storage: {{ .spec.resources.requests.storage }}
+    {{- end }}
   {{- end }}
 {{- end }}

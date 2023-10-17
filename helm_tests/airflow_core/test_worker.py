@@ -667,6 +667,59 @@ class TestWorker:
             == evictionStr
         )
 
+    def test_should_add_extra_volume_claim_templates(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "test-volume-airflow-1"},
+                            "spec": {
+                                "storageClassName": "storage-class-1",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "10Gi"}},
+                            },
+                        },
+                        {
+                            "metadata": {"name": "test-volume-airflow-2"},
+                            "spec": {
+                                "storageClassName": "storage-class-2",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "20Gi"}},
+                            },
+                        },
+                    ]
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "test-volume-airflow-1" == jmespath.search(
+            "spec.volumeClaimTemplates[1].metadata.name", docs[0]
+        )
+        assert "test-volume-airflow-2" == jmespath.search(
+            "spec.volumeClaimTemplates[2].metadata.name", docs[0]
+        )
+        assert "storage-class-1" == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.storageClassName", docs[0]
+        )
+        assert "storage-class-2" == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.storageClassName", docs[0]
+        )
+        assert ["ReadWriteOnce"] == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.accessModes[0]", docs[0]
+        )
+        assert ["ReadWriteOnce"] == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.accessModes[0]", docs[0]
+        )
+        assert "10Gi" == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.resources.requests.storage", docs[0]
+        )
+        assert "20Gi" == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]
+        )
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
