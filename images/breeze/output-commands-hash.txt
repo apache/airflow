@@ -68,5 +68,5 @@ static-checks:19926b8fcea5784b28d4a0d99865363c
 testing:docker-compose-tests:fd154a058082fcfda12eb877a9a89338
 testing:helm-tests:0669be17b744ba057adbf38681bd8e68
 testing:integration-tests:f57fb275b9733a6226601f8095ad4de0
-testing:tests:1cf0f4580ecd2a2321b341b1dd411bee
-testing:31d3b4f2385aed509adee68201906ed4
+testing:tests:ce35463d1c67f3416eba77d3201c90ac
+testing:9c9f35945852ff48da2f5aba6447463e

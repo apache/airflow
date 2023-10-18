@@ -15,16 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Vertex AI operators.
 
-.. spelling:word-list::
+"""This module contains Google Vertex AI operators."""
 
-    irreproducible
-    codepoints
-    Tensorboard
-    aiplatform
-    myVPC
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -67,7 +60,7 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     :param max_trial_count: Required. The desired total number of Trials.
     :param parallel_trial_count: Required. The desired number of Trials to run in parallel.
     :param worker_pool_specs: Required. The spec of the worker pools including machine type and Docker
-        image. Can provided as a list of dictionaries or list of WorkerPoolSpec proto messages.
+        image. Can be provided as a list of dictionaries or list of WorkerPoolSpec proto messages.
     :param base_output_dir: Optional. GCS output directory of job. If not provided a timestamped
         directory in the staging directory will be used.
     :param custom_job_labels: Optional. The labels with user-defined metadata to organize CustomJobs.
