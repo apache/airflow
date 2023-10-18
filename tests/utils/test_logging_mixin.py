@@ -88,13 +88,18 @@ class TestLoggingMixin:
         Ensure that an object with `_parent_logger = None` (like LoggingMixin) has a logger name equals to
         its module and class path.
         """
-        assert LoggingMixin().log.name == "airflow.utils.log.logging_mixin.LoggingMixin"
+
+        class DummyClass(LoggingMixin):
+            pass
+
+        assert DummyClass().log.name == "tests.utils.test_logging_mixin.DummyClass"
 
     def test_logger_name_is_root_when_no_parent_logger_and_no_logger_name(self):
         """
         When the `_parent_logger` and `_logger_name` are totally empty, the resulting logger name is an
         empty string. Passing an empty string to `logging.getLogger` will create a logger with name 'root'.
         """
+
         class EmptyStringLogger(LoggingMixin):
             _parent_logger: str | None = None
             _logger_name: str | None = ""

@@ -260,6 +260,7 @@ def partial(
     doc_json: str | None | ArgNotSet = NOTSET,
     doc_yaml: str | None | ArgNotSet = NOTSET,
     doc_rst: str | None | ArgNotSet = NOTSET,
+    logger_name: str | None | ArgNotSet = NOTSET,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -323,6 +324,7 @@ def partial(
         "doc_md": doc_md,
         "doc_rst": doc_rst,
         "doc_yaml": doc_yaml,
+        "logger_name": logger_name,
     }
 
     # Inject DAG-level default args into args provided to this function.
