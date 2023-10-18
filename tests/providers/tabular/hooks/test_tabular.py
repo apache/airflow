@@ -34,6 +34,7 @@ def test_tabular_hook():
                 "warehouse_id": "fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
                 "region": "us-west-2",
                 "catalog_url": "warehouses/fadc4c31-e81f-48cd-9ce8-64cd5ce3fa5d",
+                "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
             },
         )
         assert TabularHook().get_conn() == access_token
