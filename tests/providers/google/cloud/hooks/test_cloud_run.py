@@ -255,19 +255,21 @@ class TestCloudRunAsyncHook:
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsAsyncClient")
     async def test_get_operation(self, mock_client):
         expected_operation = {"name": "somename"}
-
-        async def _get_operation(name):
-            return expected_operation
-
         operation_name = "operationname"
         mock_client.return_value = mock.MagicMock()
-        mock_client.return_value.get_operation = _get_operation
+        mock_client.return_value.get_operation = self.mock_get_operation(expected_operation)
         hook = CloudRunAsyncHook()
         hook.get_credentials = self._dummy_get_credentials
 
         returned_operation = await hook.get_operation(operation_name=operation_name)
 
+        mock_client.return_value.get_operation.assert_called_once_with(mock.ANY, timeout=120)
         assert returned_operation == expected_operation
+
+    def mock_get_operation(self, expected_operation):
+        get_operation_mock = mock.AsyncMock()
+        get_operation_mock.return_value = expected_operation
+        return get_operation_mock
 
     def _dummy_get_credentials(self):
         pass

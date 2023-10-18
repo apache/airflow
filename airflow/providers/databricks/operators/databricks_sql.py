@@ -244,7 +244,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         validate: bool | int | None = None,
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksSqlOperator``."""
+        """Create a new ``DatabricksSqlOperator``."""
         super().__init__(**kwargs)
         if files is not None and pattern is not None:
             raise AirflowException("Only one of 'pattern' or 'files' should be specified")
