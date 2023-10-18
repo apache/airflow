@@ -918,7 +918,7 @@ class S3Hook(AwsBaseHook):
             return {
                 arg_name: arg_value
                 for (arg_name, arg_value) in self.extra_args.items()
-                if arg_name in S3Transfer(self.conn).ALLOWED_DOWNLOAD_ARGS
+                if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
             }
 
         s3_resource = self.get_session().resource(
