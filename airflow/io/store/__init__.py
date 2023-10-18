@@ -113,9 +113,10 @@ def attach(
     if not protocol:
         raise ValueError("No protocol specified and no alias provided")
 
-    alias = f"{protocol}-{conn_id}" if conn_id else protocol
-    if store := _STORE_CACHE.get(alias, None):
-        return store
+    if not alias:
+        alias = f"{protocol}-{conn_id}" if conn_id else protocol
+        if store := _STORE_CACHE.get(alias, None):
+            return store
 
     if not fs_type and protocol not in SCHEME_TO_FS:
         raise ValueError(f"No registered filesystem for protocol: {protocol}")
