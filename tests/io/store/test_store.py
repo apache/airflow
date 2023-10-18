@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import uuid
+from unittest import mock
 
 import pytest
 from fsspec.implementations.local import LocalFileSystem
@@ -27,10 +28,10 @@ from s3fs import S3FileSystem
 from airflow.io.store import _STORE_CACHE, attach
 from airflow.io.store.path import ObjectStoragePath
 
-FAKE = "/mnt/fake"
-MNT = "/mnt/warehouse"
-FOO = "/mnt/warehouse/foo"
-BAR = "/foo"
+FAKE = "file:///fake"
+MNT = "file:///mnt/warehouse"
+FOO = "file:///mnt/warehouse/foo"
+BAR = FOO
 
 
 class FakeRemoteFileSystem(LocalFileSystem):
@@ -113,40 +114,40 @@ class TestFs:
         "fn, args, fn2, path, expected_args, expected_kwargs",
         [
             ("du", {}, "du", FOO, BAR, {"total": True, "maxdepth": None, "withdirs": False}),
-            ("created", {}, "created", FOO, BAR, {}),
-            ("exists", {}, "exists", FOO, BAR, {}),
-            ("lexists", {}, "lexists", FOO, BAR, {}),
-            ("checksum", {}, "checksum", FOO, BAR, {}),
-            ("size", {}, "size", FOO, BAR, {}),
-            ("isdir", {}, "isdir", FOO, BAR, {}),
-            ("isfile", {}, "isfile", FOO, BAR, {}),
-            ("islink", {}, "islink", FOO, BAR, {}),
-            ("makedirs", {}, "makedirs", FOO, BAR, {"exist_ok": False}),
+            ("exists", {}, "exists", FOO, ObjectStoragePath(BAR), {}),
+            ("checksum", {}, "checksum", FOO, ObjectStoragePath(BAR), {}),
+            ("size", {}, "size", FOO, ObjectStoragePath(BAR), {}),
+            ("is_dir", {}, "isdir", FOO, ObjectStoragePath(BAR), {}),
+            ("is_file", {}, "isfile", FOO, ObjectStoragePath(BAR), {}),
+            # ("is_symlink", {}, "islink", FOO, ObjectStoragePath(BAR), {}),
             ("touch", {}, "touch", FOO, BAR, {"truncate": True}),
             ("mkdir", {}, "mkdir", FOO, BAR, {"create_parents": True}),
-            ("modified", {}, "modified", FOO, BAR, {}),
             ("read_text", {}, "read_text", FOO, BAR, {"encoding": None, "errors": None, "newline": None}),
-            ("read_bytes", {}, "cat_file", FOO, BAR, {"start": None, "end": None}),
-            ("rm", {}, "rm", FOO, BAR, {}),
+            ("read_bytes", {}, "read_bytes", FOO, BAR, {"start": None, "end": None}),
+            ("rm", {}, "rm", FOO, BAR, {"maxdepth": None, "recursive": False}),
             ("rmdir", {}, "rmdir", FOO, BAR, {}),
-            ("cat_file", {}, "cat_file", FOO, BAR, {"end": None, "start": None}),
-            ("pipe", {}, "pipe", FOO, BAR, {"value": None}),
-            ("pipe_file", {"value": b"foo"}, "pipe_file", FOO, BAR, {"value": b"foo"}),
-            ("write_bytes", {"value": b"foo"}, "pipe_file", FOO, BAR, {"value": b"foo"}),
+            ("write_bytes", {"data": b"foo"}, "pipe_file", FOO, ObjectStoragePath(BAR), {"value": b"foo"}),
             (
                 "write_text",
                 {"data": "foo"},
                 "write_text",
                 FOO,
                 BAR,
-                {"data": "foo", "encoding": None, "errors": None, "newline": None},
+                {"value": "foo", "encoding": None, "errors": None, "newline": None},
             ),
             ("ukey", {}, "ukey", FOO, BAR, {}),
         ],
     )
     def test_standard_api(self, fn, args, fn2, path, expected_args, expected_kwargs):
-        # to be added later
-        pass
+        _fs = mock.Mock()
+        _fs._strip_protocol.return_value = "/"
+        _fs.conn_id = "fake"
+
+        store = attach(protocol="fakefs", fs_type=_fs)
+        o = ObjectStoragePath(path, store=store)
+
+        getattr(o, fn)(**args)
+        getattr(store.fs, fn2).assert_called_once_with(expected_args, **expected_kwargs)
 
     def test_move_local(self):
         _from = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
