@@ -109,6 +109,7 @@ class TestBaseSqlToSlackOperator:
 class TestSqlToSlackOperator:
     def setup_method(self):
         self.example_dag = DAG(TEST_DAG_ID, start_date=DEFAULT_DATE)
+        self.default_hook_parameters = {"timeout": None, "proxy": None, "retry_handlers": None}
 
     @staticmethod
     def _construct_operator(**kwargs):
@@ -116,7 +117,20 @@ class TestSqlToSlackOperator:
         return operator
 
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackWebhookHook")
-    def test_rendering_and_message_execution(self, mock_slack_hook_class):
+    @pytest.mark.parametrize(
+        "slack_op_kwargs, hook_extra_kwargs",
+        [
+            pytest.param(
+                {}, {"timeout": None, "proxy": None, "retry_handlers": None}, id="default-hook-parameters"
+            ),
+            pytest.param(
+                {"slack_timeout": 42, "slack_proxy": "http://spam.egg", "slack_retry_handlers": []},
+                {"timeout": 42, "proxy": "http://spam.egg", "retry_handlers": []},
+                id="with-extra-hook-parameters",
+            ),
+        ],
+    )
+    def test_rendering_and_message_execution(self, mock_slack_hook_class, slack_op_kwargs, hook_extra_kwargs):
         mock_dbapi_hook = mock.Mock()
 
         test_df = pd.DataFrame({"a": "1", "b": "2"}, index=[0, 1])
@@ -130,6 +144,7 @@ class TestSqlToSlackOperator:
             "slack_channel": "#test",
             "sql": "sql {{ ds }}",
             "dag": self.example_dag,
+            **slack_op_kwargs,
         }
         sql_to_slack_operator = self._construct_operator(**operator_args)
 
@@ -138,7 +153,9 @@ class TestSqlToSlackOperator:
         sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # Test that the Slack hook is instantiated with the right parameters
-        mock_slack_hook_class.assert_called_once_with(slack_webhook_conn_id="slack_connection")
+        mock_slack_hook_class.assert_called_once_with(
+            slack_webhook_conn_id="slack_connection", **hook_extra_kwargs
+        )
 
         # Test that the `SlackWebhookHook.send` method gets run once
         slack_webhook_hook.send.assert_called_once_with(
@@ -169,7 +186,9 @@ class TestSqlToSlackOperator:
         sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # Test that the Slack hook is instantiated with the right parameters
-        mock_slack_hook_class.assert_called_once_with(slack_webhook_conn_id="slack_connection")
+        mock_slack_hook_class.assert_called_once_with(
+            slack_webhook_conn_id="slack_connection", **self.default_hook_parameters
+        )
 
         # Test that the `SlackWebhookHook.send` method gets run once
         slack_webhook_hook.send.assert_called_once_with(
@@ -210,7 +229,9 @@ class TestSqlToSlackOperator:
         sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # Test that the Slack hook is instantiated with the right parameters
-        mock_slack_hook_class.assert_called_once_with(slack_webhook_conn_id="slack_connection")
+        mock_slack_hook_class.assert_called_once_with(
+            slack_webhook_conn_id="slack_connection", **self.default_hook_parameters
+        )
 
         # Test that the `SlackWebhookHook.send` method gets run once
         slack_webhook_hook.send.assert_called_once_with(
@@ -308,6 +329,31 @@ class TestSqlToSlackApiFileOperator:
     @pytest.mark.parametrize("channels", ["#random", "#random,#general", None])
     @pytest.mark.parametrize("initial_comment", [None, "Test Comment"])
     @pytest.mark.parametrize("title", [None, "Test File Title"])
+    @pytest.mark.parametrize(
+        "slack_op_kwargs, hook_extra_kwargs",
+        [
+            pytest.param(
+                {},
+                {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None},
+                id="default-hook-parameters",
+            ),
+            pytest.param(
+                {
+                    "slack_base_url": "https://foo.bar",
+                    "slack_timeout": 42,
+                    "slack_proxy": "http://spam.egg",
+                    "slack_retry_handlers": [],
+                },
+                {
+                    "base_url": "https://foo.bar",
+                    "timeout": 42,
+                    "proxy": "http://spam.egg",
+                    "retry_handlers": [],
+                },
+                id="with-extra-hook-parameters",
+            ),
+        ],
+    )
     def test_send_file(
         self,
         mock_slack_hook_cls,
@@ -318,6 +364,8 @@ class TestSqlToSlackApiFileOperator:
         channels,
         initial_comment,
         title,
+        slack_op_kwargs: dict,
+        hook_extra_kwargs: dict,
     ):
         # Mock Hook
         mock_send_file = mock.MagicMock()
@@ -337,11 +385,14 @@ class TestSqlToSlackApiFileOperator:
             "slack_initial_comment": initial_comment,
             "slack_title": title,
             "df_kwargs": df_kwargs,
+            **slack_op_kwargs,
         }
         op = SqlToSlackApiFileOperator(task_id="test_send_file", **op_kwargs)
         op.execute(mock.MagicMock())
 
-        mock_slack_hook_cls.assert_called_once_with(slack_conn_id="expected-test-slack-conn-id")
+        mock_slack_hook_cls.assert_called_once_with(
+            slack_conn_id="expected-test-slack-conn-id", **hook_extra_kwargs
+        )
         mock_get_query_results.assert_called_once_with()
         mock_df_output_method.assert_called_once_with(mock.ANY, **(df_kwargs or {}))
         mock_send_file.assert_called_once_with(
