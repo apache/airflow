@@ -84,7 +84,7 @@ __lazy_imports = {
     "ID_LEN": "airflow.models.base",
     "Base": "airflow.models.base",
     "BaseOperator": "airflow.models.baseoperator",
-    "BaseOperatorLink": "airflow.models.baseoperator",
+    "BaseOperatorLink": "airflow.models.baseoperatorlink",
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
@@ -115,7 +115,8 @@ if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
     from airflow.models.base import ID_LEN, Base
-    from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.connection import Connection
     from airflow.models.dag import DAG, DagModel, DagTag
     from airflow.models.dagbag import DagBag
