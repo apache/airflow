@@ -143,7 +143,7 @@ class TestFs:
         _fs._strip_protocol.return_value = "/"
         _fs.conn_id = "fake"
 
-        store = attach(protocol="fakefs", fs_type=_fs)
+        store = attach(protocol="mock", fs_type=_fs)
         o = ObjectStoragePath(path, store=store)
 
         getattr(o, fn)(**args)
