@@ -1598,11 +1598,11 @@ export interface components {
       /** @description The plugin source */
       source?: string | null;
       /** @description The plugin task instance dependencies */
-      ti_deps?: (string | null)[];
+      ti_deps?: string[];
       /** @description The plugin listeners */
-      listeners?: (string | null)[];
+      listeners?: string[];
       /** @description The plugin timetables */
-      timetables?: (string | null)[];
+      timetables?: string[];
     };
     /**
      * @description A collection of plugin.
