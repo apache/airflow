@@ -30,7 +30,7 @@ class OpenAIHook(BaseHook):
 
     .. seealso:: https://platform.openai.com/docs/introduction/overview
 
-    :param conn_id: :ref:`Cohere connection id <howto/connection:openai>`
+    :param conn_id: :ref:`OpenAI connection id <howto/connection:openai>`
     """
 
     conn_name_attr = "conn_id"
@@ -80,7 +80,7 @@ class OpenAIHook(BaseHook):
 
     def create_completions(self, prompt: str, model: str = "davinci-002", **kwargs: Any) -> str:
         """
-        Create a completions for the given text using the given model.
+        Create completions for the given text using the given model.
 
         :param prompt: The text for which to generate completions
         :param model: The model to use for generating completions
