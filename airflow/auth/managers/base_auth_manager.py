@@ -18,19 +18,29 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Container, Literal
+
+from sqlalchemy import select
 
 from airflow.exceptions import AirflowException
+from airflow.models import DagModel
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from connexion import FlaskApi
     from flask import Flask
+    from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
+        ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
         DagDetails,
+        DatasetDetails,
+        PoolDetails,
+        VariableDetails,
     )
     from airflow.cli.cli_config import CLICommand
     from airflow.www.security_manager import AirflowSecurityManagerV2
@@ -57,6 +67,10 @@ class BaseAuthManager(LoggingMixin):
         """
         return []
 
+    def get_api_endpoints(self) -> None | FlaskApi:
+        """Return API endpoint(s) definition for the auth manager."""
+        return None
+
     @abstractmethod
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
@@ -82,12 +96,14 @@ class BaseAuthManager(LoggingMixin):
         self,
         *,
         method: ResourceMethod,
+        details: ConfigurationDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on configuration.
 
         :param method: the method to perform
+        :param details: optional details about the configuration
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
@@ -110,14 +126,14 @@ class BaseAuthManager(LoggingMixin):
         self,
         *,
         method: ResourceMethod,
-        connection_details: ConnectionDetails | None = None,
+        details: ConnectionDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a connection.
 
         :param method: the method to perform
-        :param connection_details: optional details about the connection
+        :param details: optional details about the connection
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
@@ -126,17 +142,17 @@ class BaseAuthManager(LoggingMixin):
         self,
         *,
         method: ResourceMethod,
-        dag_access_entity: DagAccessEntity | None = None,
-        dag_details: DagDetails | None = None,
+        access_entity: DagAccessEntity | None = None,
+        details: DagDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a DAG.
 
         :param method: the method to perform
-        :param dag_access_entity: the kind of DAG information the authorization request is about.
+        :param access_entity: the kind of DAG information the authorization request is about.
             If not provided, the authorization request is about the DAG itself
-        :param dag_details: optional details about the DAG
+        :param details: optional details about the DAG
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
@@ -145,12 +161,30 @@ class BaseAuthManager(LoggingMixin):
         self,
         *,
         method: ResourceMethod,
+        details: DatasetDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a dataset.
 
         :param method: the method to perform
+        :param details: optional details about the dataset
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+
+    @abstractmethod
+    def is_authorized_pool(
+        self,
+        *,
+        method: ResourceMethod,
+        details: PoolDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a pool.
+
+        :param method: the method to perform
+        :param details: optional details about the pool
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
@@ -159,12 +193,14 @@ class BaseAuthManager(LoggingMixin):
         self,
         *,
         method: ResourceMethod,
+        details: VariableDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a variable.
 
         :param method: the method to perform
+        :param details: optional details about the variable
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
@@ -181,6 +217,43 @@ class BaseAuthManager(LoggingMixin):
 
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
+
+    @provide_session
+    def get_permitted_dag_ids(
+        self,
+        *,
+        methods: Container[ResourceMethod] | None = None,
+        user=None,
+        session: Session = NEW_SESSION,
+    ) -> set[str]:
+        """
+        Get readable or writable DAGs for user.
+
+        By default, reads all the DAGs and check individually if the user has permissions to access the DAG.
+        Can lead to some poor performance. It is recommended to override this method in the auth manager
+        implementation to provide a more efficient implementation.
+        """
+        if not methods:
+            methods = ["PUT", "GET"]
+
+        dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+
+        if ("GET" in methods and self.is_authorized_dag(method="GET", user=user)) or (
+            "PUT" in methods and self.is_authorized_dag(method="PUT", user=user)
+        ):
+            # If user is authorized to read/edit all DAGs, return all DAGs
+            return dag_ids
+
+        def _is_permitted_dag_id(method: ResourceMethod, methods: Container[ResourceMethod], dag_id: str):
+            return method in methods and self.is_authorized_dag(
+                method=method, details=DagDetails(id=dag_id), user=user
+            )
+
+        return {
+            dag_id
+            for dag_id in dag_ids
+            if _is_permitted_dag_id("GET", methods, dag_id) or _is_permitted_dag_id("PUT", methods, dag_id)
+        }
 
     @abstractmethod
     def get_url_login(self, **kwargs) -> str:

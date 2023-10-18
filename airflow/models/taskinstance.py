@@ -2080,9 +2080,13 @@ class TaskInstance(Base, LoggingMixin):
             # If the task continues after being deferred (next_method is set), use the original start_date
             self.start_date = self.start_date if self.next_method else timezone.utcnow()
             if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-                task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
-                if task_reschedule:
-                    self.start_date = task_reschedule.start_date
+                tr_start_date = session.scalar(
+                    TR.stmt_for_task_instance(self, descending=False)
+                    .with_only_columns(TR.start_date)
+                    .limit(1)
+                )
+                if tr_start_date:
+                    self.start_date = tr_start_date
 
             # Secondly we find non-runnable but requeueable tis. We reset its state.
             # This is because we might have hit concurrency limits,

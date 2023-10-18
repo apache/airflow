@@ -154,7 +154,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     @provide_session
     def get_dagrun(self, session: Session = NEW_SESSION) -> DagRunPydantic:
         """
-        Returns the DagRun for this TaskInstance.
+        Return the DagRun for this TaskInstance.
 
         :param session: SQLAlchemy ORM Session
 
@@ -166,7 +166,7 @@ class TaskInstancePydantic(BaseModelPydantic):
 
     def _execute_task(self, context, task_orig):
         """
-        Executes Task (optionally with a Timeout) and pushes Xcom results.
+        Execute Task (optionally with a Timeout) and push Xcom results.
 
         :param context: Jinja2 context
         :param task_orig: origin task
@@ -178,7 +178,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
         """
-        Refreshes the task instance from the database based on the primary key.
+        Refresh the task instance from the database based on the primary key.
 
         :param session: SQLAlchemy ORM Session
         :param lock_for_update: if True, indicates that the database should
@@ -197,7 +197,7 @@ class TaskInstancePydantic(BaseModelPydantic):
 
     @property
     def stats_tags(self) -> dict[str, str]:
-        """Returns task instance tags."""
+        """Return task instance tags."""
         from airflow.models.taskinstance import _stats_tags
 
         return _stats_tags(task_instance=self)
@@ -280,7 +280,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         session: Session | None = None,
     ) -> DagRun | None:
         """
-        The DagRun that ran before this task instance's DagRun.
+        Return the DagRun that ran before this task instance's DagRun.
 
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session.
@@ -296,7 +296,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         session: Session = NEW_SESSION,
     ) -> pendulum.DateTime | None:
         """
-        The execution date from property previous_ti_success.
+        Return the execution date from property previous_ti_success.
 
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session
@@ -336,7 +336,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         session: Session = NEW_SESSION,
     ) -> TaskInstance | None:
         """
-        The task instance for the task that ran before this task instance.
+        Return the task instance for the task that ran before this task instance.
 
         :param session: SQLAlchemy ORM Session
         :param state: If passed, it only take into account instances of a specific state.

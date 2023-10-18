@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+5.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'PostgresOperator' should not overwrite 'SQLExecuteQueryOperator.template_fields' (#34969)``
+
 5.7.0
 .....
 
