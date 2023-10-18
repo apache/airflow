@@ -126,7 +126,6 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(
             sql=sql, sql_conn_id=sql_conn_id, sql_hook_params=sql_hook_params, parameters=parameters, **kwargs
         )

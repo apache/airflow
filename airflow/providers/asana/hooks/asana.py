@@ -96,7 +96,7 @@ class AsanaHook(BaseHook):
 
     def create_task(self, task_name: str, params: dict | None) -> dict:
         """
-        Creates an Asana task.
+        Create an Asana task.
 
         :param task_name: Name of the new task
         :param params: Other task attributes, such as due_on, parent, and notes. For a complete list

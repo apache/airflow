@@ -96,7 +96,7 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
                     await asyncio.sleep(self.poke_interval)
                 except ServiceRequestError:
                     # conn might expire during long running pipeline.
-                    # If expcetion is caught, it tries to refresh connection once.
+                    # If exception is caught, it tries to refresh connection once.
                     # If it still doesn't fix the issue,
                     # than the execute_after_token_refresh would still be False
                     # and an exception will be raised
@@ -200,7 +200,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
                         await asyncio.sleep(self.check_interval)
                     except ServiceRequestError:
                         # conn might expire during long running pipeline.
-                        # If expcetion is caught, it tries to refresh connection once.
+                        # If exception is caught, it tries to refresh connection once.
                         # If it still doesn't fix the issue,
                         # than the execute_after_token_refresh would still be False
                         # and an exception will be raised

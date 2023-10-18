@@ -237,7 +237,6 @@ class GCSToGCSOperator(BaseOperator):
         self.resolved_target_objects: set[str] = set()
 
     def execute(self, context: Context):
-
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -277,7 +276,6 @@ class GCSToGCSOperator(BaseOperator):
         for prefix in self.source_objects:
             # Check if prefix contains wildcard
             if WILDCARD in prefix:
-
                 self._copy_source_with_wildcard(hook=hook, prefix=prefix)
             # Now search with prefix using provided delimiter if any
             else:

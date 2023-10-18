@@ -53,7 +53,6 @@ def configured_app(minimal_app_for_api):
 
 
 class TestDatasetEndpoint:
-
     default_time = "2020-06-11T18:00:00+00:00"
 
     @pytest.fixture(autouse=True)

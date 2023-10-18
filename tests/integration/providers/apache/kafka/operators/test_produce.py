@@ -56,7 +56,6 @@ class TestProduceToTopic:
         )
 
     def test_producer_operator_test_1(self):
-
         GROUP = "operator.producer.test.integration.test_1"
         TOPIC = "operator.producer.test.integration.test_1"
 
@@ -84,7 +83,6 @@ class TestProduceToTopic:
         assert msg[0].value() == b"1"
 
     def test_producer_operator_test_2(self):
-
         GROUP = "operator.producer.test.integration.test_2"
         TOPIC = "operator.producer.test.integration.test_2"
 

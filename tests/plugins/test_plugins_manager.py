@@ -137,7 +137,6 @@ class TestPluginsRBAC:
         assert self.app.blueprints["test_plugin"].name == bp.name
 
     def test_app_static_folder(self):
-
         # Blueprint static folder should be properly set
         assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
 
@@ -167,7 +166,6 @@ class TestPluginsManager:
         plugins_manager.plugins = []
 
     def test_no_log_when_no_plugins(self, caplog):
-
         with mock_plugin_manager(plugins=[]):
             from airflow import plugins_manager
 
