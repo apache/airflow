@@ -85,7 +85,10 @@ class TestPluginsCommand:
                     "<tests.test_utils.mock_operators.CustomBaseIndexOpLink object>",
                 ],
                 "hooks": ["tests.plugins.test_plugin.PluginHook"],
-                "listeners": ["tests.listeners.empty_listener"],
+                "listeners": [
+                    "tests.listeners.empty_listener",
+                    "tests.listeners.class_listener.ClassBasedListener",
+                ],
                 "source": None,
                 "appbuilder_menu_items": [
                     {"name": "Google", "href": "https://www.google.com", "category": "Search"},
