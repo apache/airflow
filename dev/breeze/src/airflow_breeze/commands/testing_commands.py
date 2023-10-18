@@ -128,7 +128,7 @@ def docker_compose_tests(
 
 
 TEST_PROGRESS_REGEXP = r"tests/.*|.*=====.*"
-PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*"
+PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
 def _run_test(

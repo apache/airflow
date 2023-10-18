@@ -54,7 +54,7 @@ from yaml import safe_load
 
 ALL_PYTHON_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 
-MIN_AIRFLOW_VERSION = "2.4.0"
+MIN_AIRFLOW_VERSION = "2.5.0"
 # In case you have some providers that you want to have different min-airflow version for,
 # Add them as exceptions here. Make sure to remove it once the min-airflow version is bumped
 # to the same version that is required by the exceptional provider

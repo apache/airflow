@@ -26,6 +26,77 @@
 Changelog
 ---------
 
+8.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Glue 'DataBrew' operator (#34807)``
+* ``Add 'check_interval' and 'max_attempts' as parameter of 'DynamoDBToS3Operator' (#34972)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set 'EcsRunTaskOperator' default waiter duration to 70 days (#34928)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
+8.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Implements 'AwsBaseOperator' and 'AwsBaseSensor' (#34784)``
+* ``Extend hooks arguments into 'AwsBaseWaiterTrigger' (#34884)``
+* ``Allow setup 'endpoint_url' per-service in AWS Connection (#34593)``
+* ``Include AWS Lambda execution logs to task logs (#34692)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/amazon): respect soft_fail argument when exception is raised (#34134)``
+* ``do not fail operator if we cannot find logs (#34570)``
+* ``Respect 'soft_fail' argument when running 'BatchSensors' (#34592)``
+* ``Respect 'soft_fail' argument when running 'SqsSensor' (#34569)``
+* ``Respect 'soft_fail' argument when running 'EcsBaseSensor' (#34596)``
+* ``Respect 'soft_fail' argument when running 'SageMakerBaseSensor' (#34565)``
+* ``Respect 'soft_fail' parameter in 'S3KeysUnchangedSensor' and 'S3KeySensor' (#34550)``
+* ``Respect 'soft_fail' parameter in 'LambdaFunctionStateSensor' (#34551)``
+* ``Respect 'soft_fail' parameter in 'AthenaSensor' (#34553)``
+* ``Respect 'soft_fail' parameter in 'QuickSightSensor' (#34555)``
+* ``Respect 'soft_fail' parameter in 'GlacierJobOperationSensor' (#34557)``
+* ``Respect 'soft_fail' parameter in 'GlueJobSensor', 'GlueCatalogPartitionSensor' and 'GlueCrawlerSensor' (#34559)``
+* ``Respect 'soft_fail' parameter in 'StepFunctionExecutionSensor' (#34560)``
+
+Misc
+~~~~
+
+* ``Refactor consolidate import from io in providers (#34378)``
+* ``Upgrade watchtower to 3.0.1 (#25019) (#34747)``
+* ``Bump min airflow version of providers (#34728)``
+* ``Refactor: consolidate import time in providers (#34402)``
+* ``Refactor usage of str() in providers (#34320)``
+* ``Refactor import from collections (#34406)``
+* ``Clarify Amazon Lambda invocation and sensing (#34653)``
+* ``Refactor multiple equals to contains in providers (#34441)``
+* ``Rename 'bucket' to 'gcs_bucket' in 'GCSToS3Operator' (#33031)``
+* ``Remove duplicate 'asgiref' dependency in Amazon Provider (#34580)``
+* ``Update 'BatchOperator' operator_extra_links property (#34506)``
+* ``sagemaker.py spell error fix (#34445)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+* ``Use 'AirflowProviderDeprecationWarning' in the deprecated decorator in Amazon provider (#34488)``
+* ``Use 'AirflowProviderDeprecationWarning' in EMR Operators (#34453)``
+* ``Deprecate get_hook in DataSyncOperator and use hook instead (#34427)``
+* ``Refactor shorter defaults in providers (#34347)``
+
 8.7.1
 .....
 

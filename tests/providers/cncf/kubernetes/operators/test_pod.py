@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from contextlib import contextmanager, nullcontext
+from io import BytesIO
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -25,7 +26,6 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1PodSecurityContext, V1PodStatus, models as k8s
 from urllib3 import HTTPResponse
-from urllib3.packages.six import BytesIO
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models import DAG, DagModel, DagRun, TaskInstance

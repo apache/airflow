@@ -44,6 +44,15 @@ export interface paths {
     /**
      * Test a connection.
      *
+     * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+     * For more information on capabilities of users, see the documentation:
+     * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+     * It is strongly advised to not enable the feature until you make sure that only
+     * highly trusted UI/API users have "edit connection" permissions.
+     *
+     * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+     * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
+     *
      * *New in version 2.2.0*
      */
     post: operations["test_connection"];
@@ -1575,17 +1584,17 @@ export interface components {
       /** @description The plugin executors */
       executors?: (string | null)[];
       /** @description The plugin macros */
-      macros?: ({ [key: string]: unknown } | null)[];
+      macros?: (string | null)[];
       /** @description The flask blueprints */
-      flask_blueprints?: ({ [key: string]: unknown } | null)[];
+      flask_blueprints?: (string | null)[];
       /** @description The appuilder views */
       appbuilder_views?: ({ [key: string]: unknown } | null)[];
       /** @description The Flask Appbuilder menu items */
       appbuilder_menu_items?: ({ [key: string]: unknown } | null)[];
       /** @description The global operator extra links */
-      global_operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      global_operator_extra_links?: (string | null)[];
       /** @description Operator extra links */
-      operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      operator_extra_links?: (string | null)[];
       /** @description The plugin source */
       source?: string | null;
     };
@@ -1904,7 +1913,7 @@ export interface components {
        * @description If set, don't actually run this operation. The response will contain the task instance
        * planned to be affected, but won't be modified in any way.
        *
-       * @default false
+       * @default true
        */
       dry_run?: boolean;
       new_state?: components["schemas"]["UpdateTaskState"];
@@ -2567,6 +2576,15 @@ export interface operations {
   };
   /**
    * Test a connection.
+   *
+   * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+   * For more information on capabilities of users, see the documentation:
+   * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+   * It is strongly advised to not enable the feature until you make sure that only
+   * highly trusted UI/API users have "edit connection" permissions.
+   *
+   * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+   * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
    *
    * *New in version 2.2.0*
    */

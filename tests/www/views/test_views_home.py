@@ -69,6 +69,25 @@ def test_home(capture_templates, admin_client):
     assert templates[0].local_context["state_color"] == state_color_mapping
 
 
+@mock.patch("airflow.www.views.AirflowBaseView.render_template")
+def test_home_dags_count(render_template_mock, admin_client, working_dags, session):
+    from sqlalchemy import update
+
+    from airflow.models.dag import DagModel
+
+    def call_kwargs():
+        return render_template_mock.call_args.kwargs
+
+    admin_client.get("home", follow_redirects=True)
+    assert call_kwargs()["status_count_all"] == 4
+
+    update_stmt = update(DagModel).where(DagModel.dag_id == "filter_test_1").values(is_active=False)
+    session.execute(update_stmt)
+
+    admin_client.get("home", follow_redirects=True)
+    assert call_kwargs()["status_count_all"] == 3
+
+
 def test_home_status_filter_cookie(admin_client):
     with admin_client:
         admin_client.get("home", follow_redirects=True)
