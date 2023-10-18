@@ -344,9 +344,7 @@ class PostgresHook(DbApiHook):
             insert_query = sql.SQL("INSERT INTO {} (content, embedding) VALUES (%s, %s)").format(
                 sql.Identifier(table)
             )
-            content = data_item[0]
-            embedding = data_item[1]
-            self.conn.execute(insert_query, (content, embedding))
+            self.conn.execute(insert_query, data_item)
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
         """Returns Postgres/Redshift specific information for OpenLineage."""
