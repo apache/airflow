@@ -276,22 +276,23 @@ class ObjectStoragePath(os.PathLike):
         """
         Return a file-like object from the filesystem.
 
-        The resultant instance must function correctly in a context ``with``
-        block.
+        The resultant instance must function correctly in a context 'with' block.
 
-        Parameters
-        ----------
-        mode: str like 'rb', 'w'
-            See builtin ``open()``
-        block_size: int
-            Some indication of buffering - this is a value in bytes
-        cache_options : dict, optional
-            Extra arguments to pass through to the cache.
-        compression: string or None
-            If given, open file using compression codec. Can either be a compression
-            name (a key in ``fsspec.compression.compr``) or "infer" to guess the
-            compression from the filename suffix.
-        encoding, errors, newline: passed on to TextIOWrapper for text mode
+        :param mode: str like 'rb', 'w'
+                  See builtin 'open()'.
+        :param block_size: int
+                        Some indication of buffering - this is a value in bytes.
+        :param cache_options: dict, optional
+                           Extra arguments to pass through to the cache.
+        :param compression: string or None
+                        If given, open file using a compression codec. Can either be a compression
+                        name (a key in 'fsspec.compression.compr') or 'infer' to guess the
+                        compression from the filename suffix.
+        :param encoding: passed on to TextIOWrapper for text mode
+        :param errors: passed on to TextIOWrapper for text mode
+        :param newline: passed on to TextIOWrapper for text mode
+
+        kwargs: Additional keyword arguments to be passed on.
         """
         return self.store.fs.open(
             str(self),
@@ -347,7 +348,12 @@ class ObjectStoragePath(os.PathLike):
         implementation of glob may not produce expected results;
         e.g., 'foo/bar/*starredfilename*'.
 
-        kwargs are passed to ``ls``.
+        :param pattern: str
+                       The glob pattern to match against.
+        :param maxdepth: int or None
+                         The maximum depth to search. If None, there is no depth limit.
+
+        kwargs: Additional keyword arguments to be passed on.
         """
         path = os.path.join(self._bucket, pattern)
 
@@ -381,21 +387,18 @@ class ObjectStoragePath(os.PathLike):
 
         Note that the "files" outputted will include anything that is not
         a directory, such as links.
-                Parameters
-        ----------
-        path: str
-            Root to recurse into
-        maxdepth: int
-            Maximum recursion depth. None means limitless, but not recommended
-            on link-based file-systems.
-        topdown: bool (True)
-            Whether to walk the directory tree from the top downwards or from
-            the bottom upwards.
-        on_error: "omit", "raise", a collable
-            if omit (default), path with exception will simply be empty;
-            If raise, an underlying exception will be raised;
-            if callable, it will be called with a single OSError instance as argument
-        kwargs: passed to ``ls``
+
+        :param maxdepth: int or None
+                        Maximum recursion depth. None means limitless, but not recommended
+                        on link-based file-systems.
+        :param topdown: bool (True)
+                        Whether to walk the directory tree from the top downwards or from
+                        the bottom upwards.
+        :param on_error: "omit", "raise", a collable
+                        if omit (default), path with exception will simply be empty;
+                        If raise, an underlying exception will be raised;
+                        if callable, it will be called with a single OSError instance as argument
+        kwargs: Additional keyword arguments to be passed on.
         """
         detail = kwargs.get("detail", False)
         items = self.store.fs.walk(str(self), maxdepth=maxdepth, topdown=topdown, on_error=on_error, **kwargs)
@@ -414,15 +417,11 @@ class ObjectStoragePath(os.PathLike):
         """
         List files at path.
 
-        Parameters
-        ----------
-        path: str
-            Path to list
-        detail: bool
-            If True, return a dict containing details about each entry, otherwise
-            return a list of paths.
-        kwargs:
-            May be used to pass options to the underlying filesystem implementation.
+        :param detail: bool
+                       If True, return a dict containing details about each entry, otherwise
+                       return a list of paths.
+
+        kwargs: Additional keyword arguments to be passed on.
         """
         items = self.store.fs.ls(str(self), detail=detail, **kwargs)
 
@@ -437,29 +436,25 @@ class ObjectStoragePath(os.PathLike):
         return path
 
     def touch(self, truncate=True):
-        """Create empty file, or update timestamp.
+        """Create an empty file, or update the timestamp.
 
-        Parameters
-        ----------
-        truncate: bool
-            If True, always set file size to 0; if False, update timestamp and
-            leave file unchanged, if backend allows this
+        :param truncate: bool (True)
+                         If True, always set the file size to 0; if False, update the timestamp and
+                         leave the file unchanged, if the backend allows this.
         """
         return self.store.fs.touch(str(self), truncate=truncate)
 
     def mkdir(self, create_parents=True, **kwargs):
         """
-        Create directory entry at path or a bucket / container.
+        Create a directory entry at the specified path or within a bucket/container.
 
-        For systems that don't have true directories, may create an for
-        this instance only and not touch the real filesystem
+        For systems that don't have true directories, it may create a directory entry
+        for this instance only and not affect the real filesystem.
 
-        Parameters
-        ----------
-        create_parents: bool
-            if True, this is equivalent to ``makedirs``
-        kwargs:
-            may be permissions, etc.
+        :param create_parents: bool
+                              if True, this is equivalent to 'makedirs'.
+
+        kwargs: Additional keyword arguments, which may include permissions, etc.
         """
         return self.store.fs.mkdir(str(self), create_parents=create_parents, **kwargs)
 
@@ -512,22 +507,20 @@ class ObjectStoragePath(os.PathLike):
     def read_block(self, offset: int, length: int, delimiter=None):
         r"""Read a block of bytes from.
 
-        Starting at ``offset`` of the file, read ``length`` bytes.  If
+        Starting at ``offset`` of the file, read ``length`` bytes. If
         ``delimiter`` is set then we ensure that the read starts and stops at
         delimiter boundaries that follow the locations ``offset`` and ``offset
-        + length``.  If ``offset`` is zero then we start at zero.  The
+        + length``. If ``offset`` is zero then we start at zero. The
         bytestring returned WILL include the end delimiter string.
 
         If offset+length is beyond the eof, reads to eof.
 
-        Parameters
-        ----------
-        offset: int
-            Byte offset to start read
-        length: int
-            Number of bytes to read. If None, read to end.
-        delimiter: bytes (optional)
-            Ensure reading starts and stops at delimiter bytestring
+        :param offset: int
+                      Byte offset to start read
+        :param length: int
+                      Number of bytes to read. If None, read to the end.
+        :param delimiter: bytes (optional)
+                        Ensure reading starts and stops at delimiter bytestring
 
         Examples
         --------
@@ -552,21 +545,15 @@ class ObjectStoragePath(os.PathLike):
         Some implementations allow temporary URLs to be generated, as a
         way of delegating credentials.
 
-        Parameters
-        ----------
-        path : str
-             The path on the filesystem
-        expiration : int
-            Number of seconds to enable the URL for (if supported)
+        :param path: str
+                     The path on the filesystem
+        :param expiration: int
+                          Number of seconds to enable the URL for (if supported)
 
-        Returns
-        -------
-        URL : str
-            The signed URL
+        :returns URL: str
+                     The signed URL
 
-        Raises
-        ------
-        NotImplementedError : if method is not implemented for a store
+        :raises NotImplementedError: if the method is not implemented for a store
         """
         return self.store.fs.sign(str(self), expiration=expiration, **kwargs)
 
@@ -575,42 +562,38 @@ class ObjectStoragePath(os.PathLike):
 
         Directory size does not include the size of its contents.
 
-        Parameters
-        ----------
-        total: bool
-            Whether to sum all the file sizes
-        maxdepth: int or None
-            Maximum number of directory levels to descend, None for unlimited.
-        withdirs: bool
-            Whether to include directory paths in the output.
-        kwargs: passed to ``find``
+        :param total: bool
+                     Whether to sum all the file sizes
+        :param maxdepth: int or None
+                         Maximum number of directory levels to descend, None for unlimited.
+        :param withdirs: bool
+                         Whether to include directory paths in the output.
 
-        Returns
-        -------
-        Dict of {path: size} if total=False, or int otherwise, where numbers
-        refer to bytes used.
+        kwargs: Additional keyword arguments to be passed on.
+
+        :returns: Dict of {path: size} if total=False, or int otherwise, where numbers
+                  refer to bytes used.
         """
         return self.store.fs.du(str(self), total=total, maxdepth=maxdepth, withdirs=withdirs, **kwargs)
 
     def find(
         self, path: str, maxdepth: int | None = None, withdirs: bool = False, detail: bool = False, **kwargs
     ):
-        """List all files below path.
+        """List all files below the specified path.
 
-        Like posix ``find`` command without conditions
+        Like posix ``find`` command without conditions.
 
-        Parameters
-        ----------
-        path: str
-            Path pattern to search
-        maxdepth: int or None
-            If not None, the maximum number of levels to descend
-        withdirs: bool
-            Whether to include directory paths in the output. This is True
-            when used by glob, but users usually only want files.
-        detail: bool
-            Whether to include file info
-        kwargs are passed to ``ls``.
+        :param path: str
+                     Path pattern to search.
+        :param maxdepth: int or None
+                         If not None, the maximum number of levels to descend.
+        :param withdirs: bool
+                         Whether to include directory paths in the output. This is True
+                         when used by glob, but users usually only want files.
+        :param detail: bool
+                       Whether to include file info.
+
+        kwargs: Additional keyword arguments to be passed to ``ls``.
         """
         path = self.sep.join([str(self), path.lstrip("/")])
         items = self.store.fs.find(path, maxdepth=maxdepth, withdirs=withdirs, detail=detail, **kwargs)
@@ -625,11 +608,10 @@ class ObjectStoragePath(os.PathLike):
     def copy(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
         """Copy file(s) from this path to another location.
 
-        Parameters
-        ----------
-        path: Destination path
-        recursive: If True, copy directories recursively.
-        kwargs: passed to underlying implementation
+        :param path: Destination path
+        :param recursive: If True, copy directories recursively.
+
+        kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
         if isinstance(path, str):
             path = ObjectStoragePath(path)
@@ -644,13 +626,11 @@ class ObjectStoragePath(os.PathLike):
     def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
         """Move file(s) from this path to another location.
 
-        Parameters
-        ----------
-        path: str
-            Destination path
-        recursive: bool
-            If True, move directories recursively.
-        kwargs: passed to underlying implementation
+        :param path: Destination path
+        :param recursive: bool
+                         If True, move directories recursively.
+
+        kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
         if isinstance(path, str):
             path = ObjectStoragePath(path)

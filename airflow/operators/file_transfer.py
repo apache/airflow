@@ -34,8 +34,8 @@ class FileTransfer(BaseOperator):
     This streams the file from the source to the destination, so it does not
     need to fit into memory.
 
-    :param src: The source file path or InputFile object.
-    :param dst: The destination file path or OutputFile object.
+    :param src: The source file path or ObjectStoragePath object.
+    :param dst: The destination file path or ObjectStoragePath object.
     :param source_conn_id: The optional source connection id.
     :param dest_conn_id: The optional destination connection id.
     """
