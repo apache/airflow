@@ -24,20 +24,27 @@ import unittest.mock
 import urllib.parse
 from getpass import getuser
 
+import pendulum
 import pytest
 import time_machine
 
 from airflow import settings
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule, XCom
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
+from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskreschedule import TaskReschedule
+from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from airflow.www.views import TaskInstanceModelView
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
@@ -680,6 +687,7 @@ def one_dag_perm_user_client(app):
         username=username,
         role_name="User with permission to access only one dag",
         permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -855,6 +863,63 @@ def test_task_instance_clear(session, request, client_fixture, should_succeed):
     # Now the state should be None.
     state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()
     assert state == (State.NONE if should_succeed else initial_state)
+
+
+def test_task_instance_clear_downstream(session, admin_client, dag_maker):
+    """Ensures clearing a task instance clears its downstream dependencies exclusively"""
+    with dag_maker(
+        dag_id="test_dag_id",
+        serialized=True,
+        session=session,
+        start_date=pendulum.DateTime(2023, 1, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+    ):
+        EmptyOperator(task_id="task_1") >> EmptyOperator(task_id="task_2")
+        EmptyOperator(task_id="task_3")
+
+    run1 = dag_maker.create_dagrun(
+        run_id="run_1",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        execution_date=dag_maker.dag.start_date,
+        start_date=dag_maker.dag.start_date,
+        session=session,
+    )
+
+    run2 = dag_maker.create_dagrun(
+        run_id="run_2",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        execution_date=dag_maker.dag.start_date.add(days=1),
+        start_date=dag_maker.dag.start_date.add(days=1),
+        session=session,
+    )
+
+    for run in (run1, run2):
+        for ti in run.task_instances:
+            ti.state = State.SUCCESS
+
+    # Clear task_1 from dag run 1
+    run1_ti1 = run1.get_task_instance(task_id="task_1")
+    rowid = _get_appbuilder_pk_string(TaskInstanceModelView, run1_ti1)
+    resp = admin_client.post(
+        "/taskinstance/action_post",
+        data={"action": "clear_downstream", "rowid": rowid},
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    # Assert that task_1 and task_2 of dag run 1 are cleared, but task_3 is left untouched
+    run1_ti1.refresh_from_db(session=session)
+    run1_ti2 = run1.get_task_instance(task_id="task_2")
+    run1_ti3 = run1.get_task_instance(task_id="task_3")
+
+    assert run1_ti1.state == State.NONE
+    assert run1_ti2.state == State.NONE
+    assert run1_ti3.state == State.SUCCESS
+
+    # Assert that task_1 of dag run 2 is left untouched
+    run2_ti1 = run2.get_task_instance(task_id="task_1")
+    assert run2_ti1.state == State.SUCCESS
 
 
 def test_task_instance_clear_failure(admin_client):

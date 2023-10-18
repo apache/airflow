@@ -43,8 +43,10 @@ from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.hooks.base import BaseHook
-from airflow.models import DAG, Connection, DagBag, Operator
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.connection import Connection
+from airflow.models.dag import DAG
+from airflow.models.dagbag import DagBag
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
@@ -73,6 +75,7 @@ from tests.test_utils.mock_operators import AirflowLink2, CustomOperator, Google
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
 if TYPE_CHECKING:
+    from airflow.models.operator import Operator
     from airflow.utils.context import Context
 
 repo_root = Path(airflow.__file__).parent.parent

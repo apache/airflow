@@ -247,17 +247,26 @@ class TestGetValue:
         return_value=MOCK_CONF_WITH_SENSITIVE_VALUE,
     )
     @conf_vars({("webserver", "expose_config"): "non-sensitive-only"})
-    def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict):
+    @pytest.mark.parametrize(
+        "section, option",
+        [
+            ("core", "sql_alchemy_conn"),
+            ("core", "SQL_ALCHEMY_CONN"),
+            ("corE", "sql_alchemy_conn"),
+            ("CORE", "sql_alchemy_conn"),
+        ],
+    )
+    def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict, section, option):
         response = self.client.get(
-            "/api/v1/config/section/core/option/sql_alchemy_conn",
+            f"/api/v1/config/section/{section}/option/{option}",
             headers={"Accept": "text/plain"},
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         expected = textwrap.dedent(
-            """\
-        [core]
-        sql_alchemy_conn = < hidden >
+            f"""\
+        [{section}]
+        {option} = < hidden >
         """
         )
         assert expected == response.data.decode()

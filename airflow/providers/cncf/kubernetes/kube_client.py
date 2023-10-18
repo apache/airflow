@@ -52,7 +52,7 @@ except ImportError as e:
 
 def _enable_tcp_keepalive() -> None:
     """
-    This function enables TCP keepalive mechanism.
+    Enable TCP keepalive mechanism.
 
     This prevents urllib3 connection to hang indefinitely when idle connection
     is time-outed on services like cloud load balancers or firewalls.
@@ -96,7 +96,7 @@ def get_kube_client(
     config_file: str | None = None,
 ) -> client.CoreV1Api:
     """
-    Retrieves Kubernetes client.
+    Retrieve Kubernetes client.
 
     :param in_cluster: whether we are in cluster
     :param cluster_context: context of the cluster

@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 5.2.0
   - 5.1.1
   - 5.1.0
   - 5.0.0
@@ -39,7 +40,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - opsgenie-sdk>=2.1.5
 
 integrations:

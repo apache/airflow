@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import io
+from io import StringIO
 from unittest import mock
 
 import pytest
@@ -139,7 +139,7 @@ class TestAzureFileshareHook:
         hook = AzureFileShareHook(
             azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", file_path="file"
         )
-        data = io.StringIO("stream")
+        data = StringIO("stream")
         hook.get_file_to_stream(stream=data)
         mock_instance.download_file.assert_called_once_with()
 

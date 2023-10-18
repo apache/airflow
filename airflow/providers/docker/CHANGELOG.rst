@@ -27,6 +27,30 @@
 Changelog
 ---------
 
+3.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add ulimits parameter to DockerOperator (#34284)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Deprecate get_hook method in DockerOperator (#34432)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor consolidate import from io in providers (#34378)``
+   * ``Refactor usage of str() in providers (#34320)``
+   * ``Refactor: Consolidate import textwrap in providers (#34220)``
+
 3.7.5
 .....
 

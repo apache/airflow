@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.8.0
+.....
+
+Latest change: 2023-10-06
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`8e26865763 <https://github.com/apache/airflow/commit/8e2686576399417faf9478d7119110287d4c8630>`_  2023-10-06   ``Refactor consolidate import from io in providers (#34378)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`d75e5ef00a <https://github.com/apache/airflow/commit/d75e5ef00aefece4197e0fe86cc8822cdb06dcac>`_  2023-09-18   ``Deprecate get_hook method in DockerOperator (#34432)``
+`c668245b57 <https://github.com/apache/airflow/commit/c668245b5740279c08cbd2bda1588acd44388eb3>`_  2023-09-12   ``Add ulimits parameter to DockerOperator (#34284)``
+`c5016f754d <https://github.com/apache/airflow/commit/c5016f754df1b62046b9c1fce09574a69d8edebc>`_  2023-09-08   ``Refactor: Consolidate import textwrap in providers (#34220)``
+=================================================================================================  ===========  ===============================================================
+
 3.7.5
 .....
 
-Latest change: 2023-09-04
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `3d27504a62 <https://github.com/apache/airflow/commit/3d27504a6232cacb12a9e3dc5837513e558bd52b>`_  2023-09-04   ``Cleanup Docker operator logging (#33914)``
 `55976af32e <https://github.com/apache/airflow/commit/55976af32ea7d09831e2bcd21c0f3814d9b0eb3f>`_  2023-08-31   ``Replace sequence concatination by unpacking in Airflow providers (#33933)``
 `b11525702c <https://github.com/apache/airflow/commit/b11525702c72cb53034aa29ccd6d0e1161ac475c>`_  2023-08-26   ``Use literal dict instead of calling dict() in providers (#33761)``

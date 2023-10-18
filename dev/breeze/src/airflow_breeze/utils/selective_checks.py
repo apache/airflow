@@ -187,6 +187,10 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/cli",
             r"^tests/cli",
         ],
+        SelectiveUnitTestTypes.OPERATORS: [
+            r"^airflow/operators",
+            r"^tests/operators",
+        ],
         SelectiveUnitTestTypes.PROVIDERS: [
             r"^airflow/providers/",
             r"^tests/system/providers/",
@@ -470,10 +474,8 @@ class SelectiveChecks:
 
     def _match_files_with_regexps(self, matched_files, regexps):
         for file in self._files:
-            for regexp in regexps:
-                if re.match(regexp, file):
-                    matched_files.append(file)
-                    break
+            if any(re.match(regexp, file) for regexp in regexps):
+                matched_files.append(file)
 
     @lru_cache(maxsize=None)
     def _matching_files(self, match_group: T, match_dict: dict[T, list[str]]) -> list[str]:
@@ -587,6 +589,9 @@ class SelectiveChecks:
             self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.CLI)
         )
         matched_files.update(
+            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.OPERATORS)
+        )
+        matched_files.update(
             self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.API)
         )
 
@@ -672,7 +677,7 @@ class SelectiveChecks:
         self._extract_long_provider_tests(current_test_types)
 
         # this should be hard-coded as we want to have very specific sequence of tests
-        sorting_order = ["Core", "Providers[-amazon,google]", "Other", "Providers[amazon]", "WWW"]
+        sorting_order = ["Operators", "Core", "Providers[-amazon,google]", "Providers[amazon]", "WWW"]
         sort_key = {item: i for i, item in enumerate(sorting_order)}
         # Put the test types in the order we want them to run
         return " ".join(sorted(current_test_types, key=lambda x: (sort_key.get(x, len(sorting_order)), x)))

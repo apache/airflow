@@ -27,7 +27,7 @@ from unittest.mock import patch
 import pytest
 from trino.transaction import IsolationLevel
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.trino.hooks.trino import TrinoHook
 

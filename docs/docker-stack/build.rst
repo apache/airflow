@@ -533,7 +533,7 @@ Before attempting to customize the image, you need to download flexible and cust
 You can extract the officially released version of the Dockerfile from the
 `released sources <https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html>`_.
 You can also conveniently download the latest released version
-`from GitHub <https://raw.githubusercontent.com/apache/airflow/|version|/Dockerfile>`_. You can save it
+`from GitHub <https://raw.githubusercontent.com/apache/airflow/|airflow-version|/Dockerfile>`_. You can save it
 in any directory - there is no need for any other files to be present there. If you wish to use your own
 files (for example custom configuration of ``pip`` or your own ``requirements`` or custom dependencies,
 you need to use ``DOCKER_CONTEXT_FILES`` build arg and place the files in the directory pointed at by

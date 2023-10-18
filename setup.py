@@ -299,7 +299,9 @@ deprecated_api = [
     "requests>=2.26.0",
 ]
 doc = [
-    "astroid>=2.12.3",
+    # sphinx-autoapi fails with astroid 3.0, see: https://github.com/readthedocs/sphinx-autoapi/issues/407
+    # This was fixed in sphinx-autoapi 3.0, however it has requirement sphinx>=6.1, but we stuck on 5.x
+    "astroid>=2.12.3, <3.0",
     "checksumdir",
     # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
     # https://github.com/pallets/click/issues/2558
@@ -361,7 +363,7 @@ rabbitmq = [
 ]
 sentry = [
     "blinker>=1.1",
-    "sentry-sdk>=0.8.0",
+    "sentry-sdk>=1.32.0",
 ]
 statsd = [
     "statsd>=3.3.0",
@@ -408,11 +410,7 @@ _MIN_BOTO3_VERSION = "1.28.0"
 
 _devel_only_amazon = [
     "aws_xray_sdk",
-    "moto[glue]>=4.0",
-    # TODO: Remove the two below after https://github.com/aws/serverless-application-model/pull/3282
-    # gets released and add back "cloudformation" extra to moto above
-    "openapi-spec-validator >=0.2.8",
-    "jsonschema>=3.0",
+    "moto[cloudformation,glue]>=4.2.5",
     f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
@@ -436,7 +434,7 @@ _devel_only_devscripts = [
     "gitpython",
     "pipdeptree",
     "pygithub",
-    "rich-click>=1.5",
+    "rich-click>=1.7.0",
     "semver",
     "towncrier",
     "twine",
@@ -460,6 +458,7 @@ _devel_only_static_checks = [
 
 _devel_only_tests = [
     "aioresponses",
+    "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
     "coverage>=7.2",
     "pytest",
@@ -1043,4 +1042,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()  # comment
+    do_setup()  # comment to trigger upgrade to newer dependencies

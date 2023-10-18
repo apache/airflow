@@ -31,7 +31,7 @@ from google.cloud.aiplatform import (
 )
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
@@ -303,6 +303,10 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
     ) -> tuple[models.Model | None, str, str]:
         """Run Job for training pipeline."""
         model = job.run(
@@ -332,6 +336,10 @@ class CustomJobHook(GoogleBaseHook):
             timestamp_split_column_name=timestamp_split_column_name,
             tensorboard=tensorboard,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
         training_id = self.extract_training_id(job.resource_name)
         custom_job_id = self.extract_custom_job_id(
@@ -361,7 +369,7 @@ class CustomJobHook(GoogleBaseHook):
         """
         Cancels a PipelineJob.
 
-        Starts asynchronous cancellation on the PipelineJob. The server makes a best
+        Starts asynchronous cancellation on the PipelineJob. The server makes the best
         effort to cancel the pipeline, but success is not guaranteed. Clients can use
         [PipelineService.GetPipelineJob][google.cloud.aiplatform.v1.PipelineService.GetPipelineJob] or other
         methods to check whether the cancellation succeeded or whether the pipeline completed despite
@@ -403,7 +411,7 @@ class CustomJobHook(GoogleBaseHook):
         Cancels a TrainingPipeline.
 
         Starts asynchronous cancellation on the TrainingPipeline. The server makes
-        a best effort to cancel the pipeline, but success is not guaranteed. Clients can use
+        the best effort to cancel the pipeline, but success is not guaranteed. Clients can use
         [PipelineService.GetTrainingPipeline][google.cloud.aiplatform.v1.PipelineService.GetTrainingPipeline]
         or other methods to check whether the cancellation succeeded or whether the pipeline completed despite
         cancellation. On successful cancellation, the TrainingPipeline is not deleted; instead it becomes a
@@ -443,7 +451,7 @@ class CustomJobHook(GoogleBaseHook):
         """
         Cancels a CustomJob.
 
-        Starts asynchronous cancellation on the CustomJob. The server makes a best effort
+        Starts asynchronous cancellation on the CustomJob. The server makes the best effort
         to cancel the job, but success is not guaranteed. Clients can use
         [JobService.GetCustomJob][google.cloud.aiplatform.v1.JobService.GetCustomJob] or other methods to
         check whether the cancellation succeeded or whether the job completed despite cancellation. On
@@ -599,6 +607,10 @@ class CustomJobHook(GoogleBaseHook):
         model_instance_schema_uri: str | None = None,
         model_parameters_schema_uri: str | None = None,
         model_prediction_schema_uri: str | None = None,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
         labels: dict[str, str] | None = None,
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
@@ -716,6 +728,24 @@ class CustomJobHook(GoogleBaseHook):
                 and probably different, including the URI scheme, than the
                 one given on input. The output URI will point to a location
                 where the user only has a read access.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+                The new model uploaded by this job will be a version of `parent_model`.
+                Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+                automatically have alias "default" included. Subsequent uses of
+                the model produced by this job without a version specified will
+                use this "default" version.
+                When set to False, the "default" alias will not be moved.
+                Actions targeting the model version produced by this job will need
+                to specifically reference this version by ID or alias.
+                New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+                uploaded by this job can be referenced via alias instead of
+                auto-generated version ID. A default version alias will be created
+                for the first version of the model.
+                The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+                being uploaded by this job.
         :param project_id: Project to run training in.
         :param region: Location to run training in.
         :param labels: Optional. The labels with user-defined metadata to
@@ -933,6 +963,10 @@ class CustomJobHook(GoogleBaseHook):
             timestamp_split_column_name=timestamp_split_column_name,
             tensorboard=tensorboard,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
 
         return model, training_id, custom_job_id
@@ -990,6 +1024,10 @@ class CustomJobHook(GoogleBaseHook):
         predefined_split_column_name: str | None = None,
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
         sync=True,
     ) -> tuple[models.Model | None, str, str]:
         """
@@ -1074,6 +1112,24 @@ class CustomJobHook(GoogleBaseHook):
                 and probably different, including the URI scheme, than the
                 one given on input. The output URI will point to a location
                 where the user only has a read access.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+                The new model uploaded by this job will be a version of `parent_model`.
+                Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+                automatically have alias "default" included. Subsequent uses of
+                the model produced by this job without a version specified will
+                use this "default" version.
+                When set to False, the "default" alias will not be moved.
+                Actions targeting the model version produced by this job will need
+                to specifically reference this version by ID or alias.
+                New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+                uploaded by this job can be referenced via alias instead of
+                auto-generated version ID. A default version alias will be created
+                for the first version of the model.
+                The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+                being uploaded by this job.
         :param project_id: Project to run training in.
         :param region: Location to run training in.
         :param labels: Optional. The labels with user-defined metadata to
@@ -1291,6 +1347,10 @@ class CustomJobHook(GoogleBaseHook):
             timestamp_split_column_name=timestamp_split_column_name,
             tensorboard=tensorboard,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
 
         return model, training_id, custom_job_id
@@ -1315,6 +1375,10 @@ class CustomJobHook(GoogleBaseHook):
         model_instance_schema_uri: str | None = None,
         model_parameters_schema_uri: str | None = None,
         model_prediction_schema_uri: str | None = None,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
         labels: dict[str, str] | None = None,
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
@@ -1432,6 +1496,24 @@ class CustomJobHook(GoogleBaseHook):
                 and probably different, including the URI scheme, than the
                 one given on input. The output URI will point to a location
                 where the user only has a read access.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+                The new model uploaded by this job will be a version of `parent_model`.
+                Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+                automatically have alias "default" included. Subsequent uses of
+                the model produced by this job without a version specified will
+                use this "default" version.
+                When set to False, the "default" alias will not be moved.
+                Actions targeting the model version produced by this job will need
+                to specifically reference this version by ID or alias.
+                New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+                uploaded by this job can be referenced via alias instead of
+                auto-generated version ID. A default version alias will be created
+                for the first version of the model.
+                The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+                being uploaded by this job.
         :param project_id: Project to run training in.
         :param region: Location to run training in.
         :param labels: Optional. The labels with user-defined metadata to
@@ -1649,6 +1731,10 @@ class CustomJobHook(GoogleBaseHook):
             timestamp_split_column_name=timestamp_split_column_name,
             tensorboard=tensorboard,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
 
         return model, training_id, custom_job_id

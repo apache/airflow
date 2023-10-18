@@ -26,15 +26,18 @@ from unittest import mock
 from unittest.mock import ANY, MagicMock
 from uuid import uuid4
 
-import pendulum
 import pytest
 from kubernetes import client
 from kubernetes.client import V1EnvVar, V1PodSecurityContext, V1SecurityContext, models as k8s
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
+from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.models import DAG, Connection, DagRun, TaskInstance
+from airflow.models.connection import Connection
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
@@ -50,8 +53,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 def create_context(task) -> Context:
     dag = DAG(dag_id="dag")
-    tzinfo = pendulum.tz.timezone("Europe/Amsterdam")
-    execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
+    execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=Timezone("Europe/Amsterdam"))
     dag_run = DagRun(
         dag_id=dag.dag_id,
         execution_date=execution_date,
@@ -515,7 +517,7 @@ class TestKubernetesPodOperatorSystem:
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call("[%s] %s", "base", "retrieved from mount")
+            mock_logger.info.assert_any_call("[%s] %s", "base", "retrieved from mount\n")
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             self.expected_pod["spec"]["containers"][0]["args"] = args
             self.expected_pod["spec"]["containers"][0]["volumeMounts"] = [
