@@ -23,16 +23,12 @@ from airflow.hooks.base import BaseHook
 class TestBaseHook:
     def test_hook_has_default_logger_name(self):
         hook = BaseHook()
-        assert hook.log.name == "airflow.hooks.base.BaseHook"
+        assert hook.log.name == "airflow.task.hooks.airflow.hooks.base.BaseHook"
 
     def test_custom_logger_name_is_correctly_set(self):
-        logger_name: str = "airflow.custom.logger"
-        hook = BaseHook(logger_name=logger_name)
-
-        assert hook.log.name == logger_name
+        hook = BaseHook(logger_name="airflow.custom.logger")
+        assert hook.log.name == "airflow.task.hooks.airflow.custom.logger"
 
     def test_empty_string_as_logger_name(self):
-        logger_name: str = ""
-        hook = BaseHook(logger_name=logger_name)
-
-        assert hook.log.name == logger_name
+        hook = BaseHook(logger_name="")
+        assert hook.log.name == "airflow.task.hooks"
