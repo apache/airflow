@@ -31,6 +31,7 @@ DEFAULT_SYNAPSE = "defaultSynapse"
 SYNAPSE = "testSynapse"
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "azure_synapse_test_client_secret"
+DEFAULT_CONNECTION_CLIENT_SECRET_WITH_CONFIG = "azure_synapse_test_client_secret_with_config"
 DEFAULT_CONNECTION_DEFAULT_CREDENTIAL = "azure_synapse_test_default_credential"
 
 MODEL = object()
@@ -50,6 +51,22 @@ def setup_connections(create_mock_connections):
             login="clientId",
             password="clientSecret",
             extra={"tenantId": "tenantId", "subscriptionId": "subscriptionId"},
+        ),
+        # connection_client_secret with extra auth config
+        Connection(
+            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET_WITH_CONFIG,
+            conn_type="azure_synapse",
+            host="https://testsynapse.dev.azuresynapse.net",
+            login="clientId",
+            password="clientSecret",
+            extra={
+                "tenantId": "tenantId",
+                "subscriptionId": "subscriptionId",
+                "client_secret_auth_config": {
+                    "proxies": {"https": "http://localhost:3128"},
+                    "authority": "https://some_authority.com",
+                },
+            },
         ),
         # connection_default_credential
         Connection(
@@ -91,11 +108,12 @@ def hook():
     ("connection_id", "credential_type"),
     [
         (DEFAULT_CONNECTION_CLIENT_SECRET, ClientSecretCredential),
+        (DEFAULT_CONNECTION_CLIENT_SECRET_WITH_CONFIG, ClientSecretCredential),
         (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential),
     ],
 )
 def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: type):
-    hook = AzureSynapseHook(connection_id)
+    hook = AzureSynapseHook(connection_id, spark_client_kwargs={"key": "value"})
 
     with patch.object(hook, "_create_client") as mock_create_client:
         mock_create_client.return_value = MagicMock()
@@ -104,6 +122,10 @@ def test_get_connection_by_credential_client_secret(connection_id: str, credenti
         mock_create_client.assert_called_once()
         assert isinstance(mock_create_client.call_args.args[0], credential_type)
         assert mock_create_client.call_args.args[-1] == "subscriptionId"
+        assert mock_create_client.call_args.kwargs["key"] == "value"
+        if connection_id == DEFAULT_CONNECTION_CLIENT_SECRET_WITH_CONFIG:
+            client_credentail = mock_create_client.call_args.args[0]
+            assert client_credentail._authority == "https://some_authority.com"
 
 
 def test_run_spark_job(hook: AzureSynapseHook):

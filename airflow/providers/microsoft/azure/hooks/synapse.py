@@ -55,6 +55,7 @@ class AzureSynapseHook(BaseHook):
 
     :param azure_synapse_conn_id: The :ref:`Azure Synapse connection id<howto/connection:synapse>`.
     :param spark_pool: The Apache Spark pool used to submit the job
+    :param spark_client_kwargs: kwargs to be passed to `azure.synapse.spark.SparkClient`
     """
 
     conn_type: str = "azure_synapse"
@@ -82,11 +83,17 @@ class AzureSynapseHook(BaseHook):
             "relabeling": {"login": "Client ID", "password": "Secret", "host": "Synapse Workspace URL"},
         }
 
-    def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ""):
+    def __init__(
+        self,
+        azure_synapse_conn_id: str = default_conn_name,
+        spark_pool: str = "",
+        spark_client_kwargs: dict = {},
+    ):
         self.job_id: int | None = None
         self._conn: SparkClient | None = None
         self.conn_id = azure_synapse_conn_id
         self.spark_pool = spark_pool
+        self.spark_client_kwargs = spark_client_kwargs
         super().__init__()
 
     def _get_field(self, extras, name):
@@ -103,6 +110,7 @@ class AzureSynapseHook(BaseHook):
 
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
+        client_secret_auth_config = extras.pop("client_secret_auth_config", {})
         tenant = self._get_field(extras, "tenantId")
         spark_pool = self.spark_pool
         livy_api_version = "2022-02-22-preview"
@@ -117,23 +125,30 @@ class AzureSynapseHook(BaseHook):
                 raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
 
             credential = ClientSecretCredential(
-                client_id=conn.login, client_secret=conn.password, tenant_id=tenant
+                client_id=conn.login,
+                client_secret=conn.password,
+                tenant_id=tenant,
+                **client_secret_auth_config,
             )
         else:
             credential = DefaultAzureCredential()
-
-        self._conn = self._create_client(credential, conn.host, spark_pool, livy_api_version, subscription_id)
+        self._conn = self._create_client(
+            credential, conn.host, spark_pool, livy_api_version, subscription_id, **self.spark_client_kwargs
+        )
 
         return self._conn
 
     @staticmethod
-    def _create_client(credential: Credentials, host, spark_pool, livy_api_version, subscription_id: str):
+    def _create_client(
+        credential: Credentials, host, spark_pool, livy_api_version, subscription_id: str, **kwargs
+    ):
         return SparkClient(
             credential=credential,
             endpoint=host,
             spark_pool_name=spark_pool,
             livy_api_version=livy_api_version,
             subscription_id=subscription_id,
+            **kwargs,
         )
 
     def run_spark_job(

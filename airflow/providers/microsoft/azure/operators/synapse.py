@@ -44,6 +44,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         waits. Used only if ``wait_for_termination`` is True.
     :param check_interval: Time in seconds to check on a job run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True.
+    :param spark_client_kwargs: kwargs to be passed to `azure.synapse.spark.SparkClient`
     """
 
     template_fields: Sequence[str] = (
@@ -63,6 +64,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         payload: SparkBatchJobOptions,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
+        spark_client_kwargs: dict = {},
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -73,11 +75,16 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         self.payload = payload
         self.timeout = timeout
         self.check_interval = check_interval
+        self.spark_client_kwargs = spark_client_kwargs
 
     @cached_property
     def hook(self):
         """Create and return an AzureSynapseHook (cached)."""
-        return AzureSynapseHook(azure_synapse_conn_id=self.azure_synapse_conn_id, spark_pool=self.spark_pool)
+        return AzureSynapseHook(
+            azure_synapse_conn_id=self.azure_synapse_conn_id,
+            spark_pool=self.spark_pool,
+            spark_client_kwargs=self.spark_client_kwargs,
+        )
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing the Synapse spark job.")
