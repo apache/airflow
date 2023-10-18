@@ -397,7 +397,7 @@ jobs:
       ${{needs.build-info.outputs.build-job-description}} PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, build-ci-images]
+    needs: [build-info, build-ci-images, generate-constraints]
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
