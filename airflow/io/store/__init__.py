@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.io.fsspec import SCHEME_TO_FS
+from airflow.io import SCHEME_TO_FS
 from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:

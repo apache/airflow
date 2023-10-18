@@ -14,257 +14,47 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Base FileIO classes for implementing reading and writing table files.
-
-The FileIO abstraction includes a subset of full filesystem implementations. Specifically,
-Iceberg needs to read or write a file at a given location (as a seekable stream), as well
-as check if a file exists. An implementation of the FileIO abstract base class is responsible
-for returning an InputFile instance, an OutputFile instance, and deleting a file given
-its location.
-
-Ported from Apache Iceberg.
-"""
 from __future__ import annotations
 
-import importlib
 import logging
-from abc import ABC, abstractmethod
-from io import SEEK_SET
-from types import TracebackType
 from typing import (
-    Dict,
-    Optional,
-    Protocol,
-    runtime_checkable,
+    Callable,
 )
+
+from fsspec.implementations.local import LocalFileSystem
+
+from airflow.providers_manager import ProvidersManager
+from airflow.stats import Stats
+from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
-HDFS_HOST = "hdfs.host"
-HDFS_PORT = "hdfs.port"
-HDFS_USER = "hdfs.user"
-HDFS_KERB_TICKET = "hdfs.kerberos_ticket"
 
-TOKEN = "token"
-
-Properties = Dict[str, Optional[str]]
+def _file(_: str | None) -> LocalFileSystem:
+    return LocalFileSystem()
 
 
-@runtime_checkable
-class InputStream(Protocol):
-    """A protocol for the file-like object returned by InputFile.open(...).
-
-    This outlines the minimally required methods for a seekable input stream returned from an InputFile
-    implementation's `open(...)` method. These methods are a subset of IOBase/RawIOBase.
-    """
-
-    @abstractmethod
-    def read(self, size: int = 0) -> bytes:
-        ...
-
-    @abstractmethod
-    def seek(self, offset: int, whence: int = SEEK_SET) -> int:
-        ...
-
-    @abstractmethod
-    def tell(self) -> int:
-        ...
-
-    @abstractmethod
-    def close(self) -> None:
-        ...
-
-    def __enter__(self) -> InputStream:
-        """Provide setup when opening an InputStream using a 'with' statement."""
-
-    @abstractmethod
-    def __exit__(
-        self,
-        exctype: type[BaseException] | None,
-        excinst: BaseException | None,
-        exctb: TracebackType | None,
-    ) -> None:
-        """Perform cleanup when exiting the scope of a 'with' statement."""
+# always support local file systems
+SCHEME_TO_FS: dict[str, Callable] = {
+    "file": _file,
+}
 
 
-@runtime_checkable
-class OutputStream(Protocol):  # pragma: no cover
-    """A protocol for the file-like object returned by OutputFile.create(...).
+def _register_schemes() -> None:
+    with Stats.timer("airflow.io.load_filesystems") as timer:
+        manager = ProvidersManager()
+        for fs_module_name in manager.filesystem_module_names:
+            fs_module = import_string(fs_module_name)
+            for scheme in getattr(fs_module, "schemes", []):
+                if scheme in SCHEME_TO_FS:
+                    log.warning("Overriding scheme %s for %s", scheme, fs_module_name)
 
-    This outlines the minimally required methods for a writable output stream returned from an OutputFile
-    implementation's `create(...)` method. These methods are a subset of IOBase/RawIOBase.
-    """
+                method = getattr(fs_module, "get_fs", None)
+                if method is None:
+                    raise ImportError(f"Filesystem {fs_module_name} does not have a get_fs method")
+                SCHEME_TO_FS[scheme] = method
 
-    @abstractmethod
-    def write(self, b: bytes) -> int:
-        ...
-
-    @abstractmethod
-    def close(self) -> None:
-        ...
-
-    @abstractmethod
-    def __enter__(self) -> OutputStream:
-        """Provide setup when opening an OutputStream using a 'with' statement."""
-
-    @abstractmethod
-    def __exit__(
-        self,
-        exctype: type[BaseException] | None,
-        excinst: BaseException | None,
-        exctb: TracebackType | None,
-    ) -> None:
-        """Perform cleanup when exiting the scope of a 'with' statement."""
+    log.debug("loading filesystems from providers took %.3f seconds", timer.duration)
 
 
-class InputFile(ABC):
-    """A base class for InputFile implementations.
-
-    Args:
-        location (str): A URI or a path to a local file.
-
-    Attributes:
-        location (str): The URI or path to a local file for an InputFile instance.
-        exists (bool): Whether the file exists or not.
-    """
-
-    def __init__(self, location: str):
-        self._location = location
-
-    @abstractmethod
-    def __len__(self) -> int:
-        """Return the total length of the file, in bytes."""
-
-    @property
-    def location(self) -> str:
-        """The fully-qualified location of the input file."""
-        return self._location
-
-    @abstractmethod
-    def exists(self) -> bool:
-        """Check whether the location exists.
-
-        Raises:
-            PermissionError: If the file at self.location cannot be accessed due to a permission error.
-        """
-
-    @abstractmethod
-    def open(self, seekable: bool = True) -> InputStream:
-        """Return an object that matches the InputStream protocol.
-
-        Args:
-            seekable: If the stream should support seek, or if it is consumed sequential.
-
-        Returns:
-            InputStream: An object that matches the InputStream protocol.
-
-        Raises:
-            PermissionError: If the file at self.location cannot be accessed due to a permission error.
-            FileNotFoundError: If the file at self.location does not exist.
-        """
-
-
-class OutputFile(ABC):
-    """A base class for OutputFile implementations.
-
-    Args:
-        location (str): A URI or a path to a local file.
-
-    Attributes:
-        location (str): The URI or path to a local file for an OutputFile instance.
-        exists (bool): Whether the file exists or not.
-    """
-
-    def __init__(self, location: str):
-        self._location = location
-
-    @abstractmethod
-    def __len__(self) -> int:
-        """Return the total length of the file, in bytes."""
-
-    @property
-    def location(self) -> str:
-        """The fully-qualified location of the output file."""
-        return self._location
-
-    @abstractmethod
-    def exists(self) -> bool:
-        """Check whether the location exists.
-
-        Raises:
-            PermissionError: If the file at self.location cannot be accessed due to a permission error.
-        """
-
-    @abstractmethod
-    def to_input_file(self) -> InputFile:
-        """Return an InputFile for the location of this output file."""
-
-    @abstractmethod
-    def create(self, overwrite: bool = False) -> OutputStream:
-        """Return an object that matches the OutputStream protocol.
-
-        Args:
-            overwrite (bool): If the file already exists at `self.location`
-                and `overwrite` is False a FileExistsError should be raised.
-
-        Returns:
-            OutputStream: An object that matches the OutputStream protocol.
-
-        Raises:
-            PermissionError: If the file at self.location cannot be accessed due to a permission error.
-            FileExistsError: If the file at self.location already exists and `overwrite=False`.
-        """
-
-
-class FileIO(ABC):
-    """A base class for FileIO implementations."""
-
-    @abstractmethod
-    def new_input(self, location: str, conn_id: str | None) -> InputFile:
-        """Get an InputFile instance to read bytes from the file at the given location.
-
-        Args:
-            location (str): A URI or a path to a local file.
-            conn_id (str): The connection ID to use when getting the file.
-        """
-
-    @abstractmethod
-    def new_output(self, location: str, conn_id: str | None) -> OutputFile:
-        """Get an OutputFile instance to write bytes to the file at the given location.
-
-        Args:
-            location (str): A URI or a path to a local file.
-            conn_id (str): The connection ID to use when getting the file.
-        """
-
-    @abstractmethod
-    def delete(self, location: str | InputFile | OutputFile, conn_id: str | None) -> None:
-        """Delete the file at the given path.
-
-        Args:
-            location (Union[str, InputFile, OutputFile]): A URI or a path to a local file--if an InputFile
-                instance or an OutputFile instance is provided, the location attribute for that instance is
-                used as the URI to delete.
-            conn_id (str): The connection ID to use when deleting the file.
-
-        Raises:
-            PermissionError: If the file at location cannot be accessed due to a permission error.
-            FileNotFoundError: When the file at the provided location does not exist.
-        """
-
-
-FSSPEC_FILE_IO = "airflow.io.fsspec.FsspecFileIO"
-
-
-def _import_file_io(io_impl: str) -> FileIO | None:
-    try:
-        path_parts = io_impl.split(".")
-        if len(path_parts) < 2:
-            raise ValueError(f"py-io-impl should be full path (module.CustomFileIO), got: {io_impl}")
-        module_name, class_name = ".".join(path_parts[:-1]), path_parts[-1]
-        module = importlib.import_module(module_name)
-        class_ = getattr(module, class_name)
-        return class_()
-    except ModuleNotFoundError:
-        log.warning("Could not initialize FileIO: %s", io_impl)
-        return None
+_register_schemes()

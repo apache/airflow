@@ -59,9 +59,6 @@ class ObjectStoragePath(os.PathLike):
             self._conn_id = store.conn_id
             self._protocol = self._protocol if self._protocol else store.protocol
         elif self._protocol:
-            # if not self._bucket and self._protocol != "file":
-            #   raise ValueError("Cannot create path with protocol but no bucket")
-
             self._store = attach(self._protocol, conn_id)
 
     @classmethod
