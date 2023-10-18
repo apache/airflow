@@ -224,13 +224,13 @@ class KubernetesExecutor(BaseExecutor):
             if time.time() - timestamp > allowed_age:
                 del self.last_handled[key]
 
-        if len(queued_tis) == 0:
+        if not queued_tis:
             return
 
         # airflow worker label selector batch call
-        kwargs = dict(label_selector=f"airflow-worker={self._make_safe_label_value(str(self.job_id))}")
+        kwargs = {"label_selector": f"airflow-worker={self._make_safe_label_value(str(self.job_id))}"}
         if self.kube_config.kube_client_request_args:
-            kwargs.update(**self.kube_config.kube_client_request_args)
+            kwargs.update(self.kube_config.kube_client_request_args)
         pod_list = self._list_pods(kwargs)
 
         # create a set against pod query label fields
