@@ -255,32 +255,6 @@ class TestSFTPToGCSOperator:
 
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
     @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
-    def test_execute_with_streaming(self, sftp_hook, gcs_hook):
-        chunks = [b"chunk1", b"chunk2", b"chunk3", b""]
-        sftp_file_mock = mock.MagicMock()
-        sftp_file_mock.read.side_effect = chunks
-        gcs_blob_mock = mock.MagicMock()
-
-        sftp_hook.return_value.retrieve_file.return_value.__enter__.return_value = sftp_file_mock
-        gcs_hook.return_value.get_bucket.return_value.blob.return_value = gcs_blob_mock
-
-        task = SFTPToGCSOperator(
-            task_id=TASK_ID,
-            source_path=SOURCE_OBJECT_NO_WILDCARD,
-            destination_bucket=TEST_BUCKET,
-            destination_path=DESTINATION_PATH_FILE,
-            move_object=False,
-            gcp_conn_id=GCP_CONN_ID,
-            sftp_conn_id=SFTP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-            use_stream=True
-        )
-        task.execute(None)
-        assert sftp_file_mock.read.call_count == len(chunks)
-        gcs_blob_mock.upload_from_file.assert_called_with(sftp_file_mock, size=len(b''.join(chunks)))
-
-    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
-    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
     def test_execute_stream_single_file(self, sftp_hook, gcs_hook):
         sftp_file = sftp_hook.return_value.get_conn.return_value.file
 
