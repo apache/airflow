@@ -20,11 +20,10 @@ from __future__ import annotations
 import shutil
 from typing import TYPE_CHECKING
 
-from airflow.io.fsspec import FsspecFileIO
+from airflow.io.store.path import ObjectStoragePath
 from airflow.models import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.io import InputFile, OutputFile
     from airflow.utils.context import Context
 
 
@@ -44,8 +43,8 @@ class FileTransfer(BaseOperator):
     def __init__(
         self,
         *,
-        src: str | InputFile,
-        dst: str | OutputFile,
+        src: str | ObjectStoragePath,
+        dst: str | ObjectStoragePath,
         source_conn_id: str | None,
         dest_conn_id: str | None,
         **kwargs,
@@ -58,19 +57,18 @@ class FileTransfer(BaseOperator):
         self.dst_conn_id = dest_conn_id
 
     def execute(self, context: Context) -> None:
-        src: InputFile
-        dst: OutputFile
+        src: ObjectStoragePath
+        dst: ObjectStoragePath
 
-        fileio = FsspecFileIO()
         if isinstance(self.src, str):
-            src = fileio.new_input(self.src, self.source_conn_id)
+            src = ObjectStoragePath(self.src, self.source_conn_id)
         else:
             src = self.src
 
         if isinstance(self.dst, str):
-            dst = fileio.new_output(self.dst, self.dst_conn_id)
+            dst = ObjectStoragePath(self.dst, self.dst_conn_id)
         else:
             dst = self.dst
 
-        with src.open() as s, dst.create() as d:
+        with src.open("rb") as s, dst.open("rw") as d:
             shutil.copyfileobj(s, d)
