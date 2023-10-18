@@ -167,6 +167,8 @@ class Templater(LoggingMixin):
             return self._render(template, context)
         if isinstance(value, ResolveMixin):
             return value.resolve(context)
+        if isinstance(value, LiteralValue):
+            return value.value
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
@@ -179,8 +181,6 @@ class Templater(LoggingMixin):
             return {k: self.render_template(v, context, jinja_env, oids) for k, v in value.items()}
         elif isinstance(value, set):
             return {self.render_template(element, context, jinja_env, oids) for element in value}
-        elif isinstance(value, LiteralValue):
-            return value.value
 
         # More complex collections.
         self._render_nested_template_fields(value, context, jinja_env, oids)
