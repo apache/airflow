@@ -31,14 +31,14 @@ Example directory structure:
 
 ```
 tests/system/providers/amazon/aws
-â”œâ”€â”€ resources
-â”‚   â”œâ”€â”€ example_athena_data.csv
-â”‚   â””â”€â”€ example_sagemaker_constants.py
-â”œâ”€â”€ example_athena.py
-â”œâ”€â”€ example_batch.py
+â"œâ"€â"€ resources
+â"‚   â"œâ"€â"€ example_athena_data.csv
+â"‚   â""â"€â"€ example_sagemaker_constants.py
+â"œâ"€â"€ example_athena.py
+â"œâ"€â"€ example_batch.py
 .
-â”œâ”€â”€ example_step_functions.py
-â””â”€â”€ *
+â"œâ"€â"€ example_step_functions.py
+â""â"€â"€ *
 ```
 
 ## Initial configuration

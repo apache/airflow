@@ -299,3 +299,4 @@ logging:
 
 extra-links:
   - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink
+  - airflow.providers.microsoft.azure.operators.synapse.AzureSynapsePipelineRunLink

@@ -458,14 +458,14 @@ This is especially useful for conditional logic in task mapping. For example, if
 
     download_filea_from_a_rename.expand(filenames_a_b=filenames_a_b)
 
-The ``zip`` function takes arbitrary positional arguments, and return an iterable of tuples of the positional arguments' count. By default, the zipped iterable's length is the same as the shortest of the zipped iterables, with superfluous items dropped. An optional keyword argument ``default`` can be passed to switch the behavior to match Python's ``itertools.zip_longest``â€”the zipped iterable will have the same length as the *longest* of the zipped iterables, with missing items filled with the value provided by ``default``.
+The ``zip`` function takes arbitrary positional arguments, and return an iterable of tuples of the positional arguments' count. By default, the zipped iterable's length is the same as the shortest of the zipped iterables, with superfluous items dropped. An optional keyword argument ``default`` can be passed to switch the behavior to match Python's ``itertools.zip_longest``â€"the zipped iterable will have the same length as the *longest* of the zipped iterables, with missing items filled with the value provided by ``default``.
 
 What data types can be expanded?
 ================================
 
 Currently it is only possible to map against a dict, a list, or one of those types stored in XCom as the result of a task.
 
-If an upstream task returns an unmappable type, the mapped task will fail at run-time with an ``UnmappableXComTypePushed`` exception. For instance, you can't have the upstream task return a plain string â€“ it must be a list or a dict.
+If an upstream task returns an unmappable type, the mapped task will fail at run-time with an ``UnmappableXComTypePushed`` exception. For instance, you can't have the upstream task return a plain string â€" it must be a list or a dict.
 
 How do templated fields and mapped arguments interact?
 ======================================================
@@ -513,7 +513,7 @@ There are two limits that you can place on a task:
 
 - **Limiting number of mapped task**
 
-  The [core] ``max_map_length`` config option is the maximum number of tasks that ``expand`` can create â€“ the default value is 1024.
+  The [core] ``max_map_length`` config option is the maximum number of tasks that ``expand`` can create â€" the default value is 1024.
 
   If a source task (``make_list`` in our earlier example) returns a list longer than this it will result in *that* task failing.
 

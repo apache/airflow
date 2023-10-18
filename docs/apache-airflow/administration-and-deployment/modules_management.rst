@@ -381,18 +381,18 @@ look like following:
 .. code-block:: bash
 
     .
-    â”œâ”€â”€ airflow_operators
-    â”‚   â”œâ”€â”€ __init__.py
-    â”œâ”€â”€ airflow_operators.egg-info
-    â”‚   â”œâ”€â”€ PKG-INFO
-    â”‚   â”œâ”€â”€ SOURCES.txt
-    â”‚   â”œâ”€â”€ dependency_links.txt
-    â”‚   â””â”€â”€ top_level.txt
-    â”œâ”€â”€ build
-    â”‚   â””â”€â”€ bdist.macosx-10.15-x86_64
-    â”œâ”€â”€ dist
-    â”‚   â””â”€â”€ airflow_operators-0.0.0-py3-none-any.whl
-    â””â”€â”€ setup.py
+    â"œâ"€â"€ airflow_operators
+    â"‚   â"œâ"€â"€ __init__.py
+    â"œâ"€â"€ airflow_operators.egg-info
+    â"‚   â"œâ"€â"€ PKG-INFO
+    â"‚   â"œâ"€â"€ SOURCES.txt
+    â"‚   â"œâ"€â"€ dependency_links.txt
+    â"‚   â""â"€â"€ top_level.txt
+    â"œâ"€â"€ build
+    â"‚   â""â"€â"€ bdist.macosx-10.15-x86_64
+    â"œâ"€â"€ dist
+    â"‚   â""â"€â"€ airflow_operators-0.0.0-py3-none-any.whl
+    â""â"€â"€ setup.py
 
 
 6. Install the .whl file using pip:

@@ -371,7 +371,7 @@ Commit                                                                          
 `38f2b4a4df <https://github.com/apache/airflow/commit/38f2b4a4dfb1485d664a468680978e73317f9a76>`_  2023-04-14   ``Organize Amazon providers docs index (#30541)``
 `7c2d3617bf <https://github.com/apache/airflow/commit/7c2d3617bf1be0781e828d3758ee6d9c6490d0f0>`_  2023-04-14   ``DynamoDBHook - waiter_path() to consider 'resource_type' or 'client_type' (#30595)``
 `51f9910ecb <https://github.com/apache/airflow/commit/51f9910ecbf1186aff164e09d118bdf04d21dfcb>`_  2023-04-14   ``Remove duplicate param docstring in EksPodOperator (#30634)``
-`96661789cc <https://github.com/apache/airflow/commit/96661789ccfd6798677cd7f15e987e24c1e9db1b>`_  2023-04-14   ``New AWS sensor â€” DynamoDBValueSensor (#28338)``
+`96661789cc <https://github.com/apache/airflow/commit/96661789ccfd6798677cd7f15e987e24c1e9db1b>`_  2023-04-14   ``New AWS sensor â€" DynamoDBValueSensor (#28338)``
 `92cab74b28 <https://github.com/apache/airflow/commit/92cab74b280e9e7162120506c46fe275fbe0b577>`_  2023-04-12   ``Add ability to override waiter delay in EcsRunTaskOperator (#30586)``
 `2ce1130006 <https://github.com/apache/airflow/commit/2ce11300064ec821ffe745980012100fc32cb4b4>`_  2023-04-11   ``Add support in AWS Batch Operator for multinode jobs (#29522)``
 `58294c5440 <https://github.com/apache/airflow/commit/58294c5440608b1a58828cbae36f91b7148c04b4>`_  2023-04-10   ``Decouple "job runner" from BaseJob ORM model (#30255)``

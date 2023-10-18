@@ -594,7 +594,7 @@ To create an IAM role for web identity federation:
 6. Review your web identity information and then choose **Next: Permissions**.
 7. Select the policy to use for the permissions policy or choose **Create policy** to open a new browser tab and create a new policy from scratch. For more information, see `Creating IAM Policy <https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_create-console.html#access_policies_create-start>`__.
 8. Choose **Next: Tags**.
-9. (Optional) Add metadata to the role by attaching tags as keyâ€“value pairs. For more information about using tags in IAM, see `Tagging IAM users and roles <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_tags.html>`__.
+9. (Optional) Add metadata to the role by attaching tags as keyâ€"value pairs. For more information about using tags in IAM, see `Tagging IAM users and roles <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_tags.html>`__.
 10. Choose **Next: Review**.
 11. For **Role name**, type a role name. Role names must be unique within your AWS account.
 12. (Optional) For **Role description**, type a description for the new role.

@@ -112,7 +112,7 @@ You can use datasets to specify data dependencies in your DAGs. Take the followi
     with DAG(dag_id="consumer", schedule=[example_dataset], ...):
         ...
 
-Once the ``producer`` task in the ``producer`` DAG has completed successfully, Airflow schedules the ``consumer`` DAG. A dataset will be marked as updated only if the task completes successfully â€” if the task fails or if it is skipped, no update occurs, and the ``consumer`` DAG will not be scheduled.
+Once the ``producer`` task in the ``producer`` DAG has completed successfully, Airflow schedules the ``consumer`` DAG. A dataset will be marked as updated only if the task completes successfully â€" if the task fails or if it is skipped, no update occurs, and the ``consumer`` DAG will not be scheduled.
 
 A listing of the relationships between datasets and DAGs can be found in the
 :ref:`Datasets View<ui:datasets-view>`

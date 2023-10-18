@@ -235,11 +235,11 @@ class TestAttrRenderer:
             "1": "string",
             "2": b"bytes",
             "3": 123,
-            "4": "Ã ".encode("latin"),
+            "4": "Ã ".encode("latin"),
             "5": datetime(2023, 1, 1),
         }
         expected_encoded_dag_run_conf = (
-            '{"1": "string", "2": "bytes", "3": 123, "4": "Ã ", "5": "2023-01-01T00:00:00+00:00"}'
+            '{"1": "string", "2": "bytes", "3": 123, "4": "Ã ", "5": "2023-01-01T00:00:00+00:00"}'
         )
         encoded_dag_run_conf, conf_is_json = utils.get_dag_run_conf(
             dag_run_conf, json_encoder=utils_json.WebEncoder
@@ -251,7 +251,7 @@ class TestAttrRenderer:
             "1": "string",
             "2": b"bytes",
             "3": 123,
-            "4": "Ã ".encode("latin"),
+            "4": "Ã ".encode("latin"),
             "5": datetime(2023, 1, 1),
         }
         expected_encoded_dag_run_conf = (

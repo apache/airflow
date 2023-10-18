@@ -16,12 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.exceptions import AirflowException
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.models import BaseOperator
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from urllib.parse import urlencode
+from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
+from airflow.providers.microsoft.azure.hooks.synapse_pipeline import (
+    AzureSynapsePipelineHook,
+    AzureSynapsePipelineRunException,
+    AzureSynapsePipelineRunStatus,
+)
 
 if TYPE_CHECKING:
     from azure.synapse.spark.models import SparkBatchJobOptions
@@ -110,6 +118,62 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
             )
             self.log.info("Job run %s has been cancelled successfully.", self.job_id)
 
+
+class AzureSynapsePipelineRunLink(BaseOperatorLink):
+    """
+    Constructs a link to monitor a pipeline run in Azure Synapse.
+    """
+    name = "Monitor Pipeline Run"
+
+    def get_fields_from_url(self, workspace_url):
+        """
+        Extracts the workspace_name, subscription_id and resource_group from the Synapse workspace url.
+
+        :param workspace_url: The workspace url.
+        """
+        
+        from urllib.parse import urlparse, unquote
+        import re
+
+        try:
+            pattern = r'https://web\.azuresynapse\.net\?workspace=(.*)'
+            match = re.search(pattern, workspace_url)
+
+            if not match:
+                raise ValueError("Invalid workspace URL format")
+
+            extracted_text = match.group(1)
+            parsed_url = urlparse(extracted_text)
+            path = unquote(parsed_url.path)
+            path_segments = path.split('/')
+            if len(path_segments) == 0:
+                raise
+
+            return {
+                "workspace_name": path_segments[-1],
+                "subscription_id": path_segments[2],
+                "resource_group": path_segments[4]
+            }
+        except:
+            self.log.error("No segment found in the workspace URL.")
+
+    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
+        run_id = XCom.get_value(key="run_id", ti_key=ti_key) or ""
+        conn_id = operator.azure_synapse_conn_id
+        conn = BaseHook.get_connection(conn_id)
+        self.synapse_workspace_url = conn.host
+        
+        fields = self.get_fields_from_url(self.synapse_workspace_url)
+
+        params = {
+            "workspace": f"/subscriptions/{fields['subscription_id']}/resourceGroups/{fields['resource_group']}/providers/Microsoft.Synapse/workspaces/{fields['workspace_name']}",
+        }
+        encoded_params = urlencode(params)
+        base_url = f"https://ms.web.azuresynapse.net/en/monitoring/pipelineruns/{run_id}?"
+
+        return base_url + encoded_params
+
+
 class AzureSynapseRunPipelineOperator(BaseOperator):
     """
     Executes a Synapse Pipeline.
@@ -131,11 +195,10 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
         waits. Used only if ``wait_for_termination`` is True.
     :param check_interval: Time in seconds to check on a pipeline run's status for non-asynchronous waits.
         Used only if ``wait_for_termination`` is True.
-    :param deferrable: Run operator in deferrable mode.
 
     """
 
-    # operator_extra_links = (AzureSynapsePipelineRunLink(),)
+    operator_extra_links = [AzureSynapsePipelineRunLink(), ]
 
     def __init__(
         self,
@@ -143,15 +206,14 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
         azure_synapse_conn_id: str,
         azure_synapse_workspace_dev_endpoint: str,
         wait_for_termination: bool = True,
-        reference_pipeline_run_id: Optional[str] = None,
-        is_recovery: Optional[bool] = None,
-        start_activity_name: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
+        reference_pipeline_run_id: str | None = None,
+        is_recovery: bool | None = None,
+        start_activity_name: str | None = None,
+        parameters: dict[str, Any] | None = None,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
-        deferrable: bool = conf.getboolean(
-            "operators", "default_deferrable", fallback=False),
-        *args, **kwargs
+        *args,
+        **kwargs,
     ) -> None:
         self.azure_synapse_conn_id = azure_synapse_conn_id
         self.pipeline_name = pipeline_name
@@ -163,15 +225,14 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
         self.parameters = parameters
         self.timeout = timeout
         self.check_interval = check_interval
-        self.deferrable = deferrable
         super().__init__(*args, **kwargs)
 
     @cached_property
     def hook(self):
-        """Create and return an AzureSynapseHook (cached)."""
-        return AzureSynapseHook(
+        """Create and return an AzureSynapsePipelineHook (cached)."""
+        return AzureSynapsePipelineHook(
             azure_synapse_conn_id=self.azure_synapse_conn_id,
-            azure_synapse_workspace_dev_endpoint=self.azure_synapse_workspace_dev_endpoint
+            azure_synapse_workspace_dev_endpoint=self.azure_synapse_workspace_dev_endpoint,
         )
 
     def execute(self, context) -> None:
@@ -188,15 +249,9 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
         # retrieval the executed pipeline's ``run_id`` for downstream tasks especially if performing an
         # asynchronous wait.
         context["ti"].xcom_push(key="run_id", value=self.run_id)
-        # self.log.info("Operator Extra link: %s", self.operator_extra_links)
-
-        self.pipeline_run_link = self.hook.get_pipeline_run_link(self.run_id)
-        context["ti"].xcom_push(key="pipeline_run_link",
-                                value=self.pipeline_run_link)
 
         if self.wait_for_termination:
-            self.log.info(
-                "Waiting for pipeline run %s to terminate.", self.run_id)
+            self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
 
             if self.hook.wait_for_pipeline_run_status(
                 run_id=self.run_id,
@@ -204,14 +259,13 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
                 check_interval=self.check_interval,
                 timeout=self.timeout,
             ):
-                self.log.info(
-                    "Pipeline run %s has completed successfully.", self.run_id)
+                self.log.info("Pipeline run %s has completed successfully.", self.run_id)
             else:
                 raise AzureSynapsePipelineRunException(
                     f"Pipeline run {self.run_id} has failed or has been cancelled."
                 )
 
-    def execute_complete(self, event: Dict[str, str]) -> None:
+    def execute_complete(self, event: dict[str, str]) -> None:
         """
         Callback for when the trigger fires - returns immediately.
 
@@ -224,9 +278,7 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
 
     def on_kill(self) -> None:
         if self.run_id:
-            self.hook.cancel_pipeline_run(
-                run_id=self.run_id
-            )
+            self.hook.cancel_run_pipeline(run_id=self.run_id)
 
             # Check to ensure the pipeline run was cancelled as expected.
             if self.hook.wait_for_pipeline_run_status(
@@ -235,8 +287,6 @@ class AzureSynapseRunPipelineOperator(BaseOperator):
                 check_interval=self.check_interval,
                 timeout=self.timeout,
             ):
-                self.log.info(
-                    "Pipeline run %s has been cancelled successfully.", self.run_id)
+                self.log.info("Pipeline run %s has been cancelled successfully.", self.run_id)
             else:
-                raise AzureSynapsePipelineRunException(
-                    f"Pipeline run {self.run_id} was not cancelled.")
+                raise AzureSynapsePipelineRunException(f"Pipeline run {self.run_id} was not cancelled.")

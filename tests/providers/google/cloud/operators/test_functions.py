@@ -189,7 +189,7 @@ class TestGcfFunctionDeploy:
             "network-01",
             "n-0-2-3-4",
             "projects/PROJECT/global/networks/network-01",
-            "projects/PRÓJECT/global/networks/netwórk-01",
+            "projects/PR�"JECT/global/networks/netwórk-01",
         ],
     )
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")

@@ -61,46 +61,46 @@ triggers, waiters (and the list changes continuously).
   .. code-block:: bash
 
       airflow/
-      â”œâ”€â”€ providers/<NEW_PROVIDER>/
-      â”‚   â”œâ”€â”€ __init__.py
-      â”‚   â”œâ”€â”€ example_dags/
-      â”‚   â”‚   â”œâ”€â”€ __init__.py
-      â”‚   â”‚   â””â”€â”€ example_<NEW_PROVIDER>.py
-      â”‚   â”œâ”€â”€ executors/
-      â”‚   â”‚   â”œâ”€â”€ __init__.py
-      â”‚   â”‚   â””â”€â”€ <NEW_PROVIDER>.py
-      â”‚   â”œâ”€â”€ hooks/
-      â”‚   â”‚   â”œâ”€â”€ __init__.py
-      â”‚   â”‚   â””â”€â”€ <NEW_PROVIDER>.py
-      â”‚   â”œâ”€â”€ operators/
-      â”‚   â”‚   â”œâ”€â”€ __init__.py
-      â”‚   â”‚   â””â”€â”€ <NEW_PROVIDER>.py
+      â"œâ"€â"€ providers/<NEW_PROVIDER>/
+      â"‚   â"œâ"€â"€ __init__.py
+      â"‚   â"œâ"€â"€ example_dags/
+      â"‚   â"‚   â"œâ"€â"€ __init__.py
+      â"‚   â"‚   â""â"€â"€ example_<NEW_PROVIDER>.py
+      â"‚   â"œâ"€â"€ executors/
+      â"‚   â"‚   â"œâ"€â"€ __init__.py
+      â"‚   â"‚   â""â"€â"€ <NEW_PROVIDER>.py
+      â"‚   â"œâ"€â"€ hooks/
+      â"‚   â"‚   â"œâ"€â"€ __init__.py
+      â"‚   â"‚   â""â"€â"€ <NEW_PROVIDER>.py
+      â"‚   â"œâ"€â"€ operators/
+      â"‚   â"‚   â"œâ"€â"€ __init__.py
+      â"‚   â"‚   â""â"€â"€ <NEW_PROVIDER>.py
       ....
-      â”‚   â”œâ”€â”€ transfers/
-      â”‚   â”‚   â”œâ”€â”€ __init__.py
-      â”‚   â”‚   â””â”€â”€ <NEW_PROVIDER>.py
-      â”‚   â””â”€â”€ triggers/
-      â”‚       â”œâ”€â”€ __init__.py
-      â”‚       â””â”€â”€ <NEW_PROVIDER>.py
-      â””â”€â”€ tests/providers/<NEW_PROVIDER>/
-          â”œâ”€â”€ __init__.py
-          â”œâ”€â”€ executors/
-          â”‚   â”œâ”€â”€ __init__.py
-          â”‚   â””â”€â”€ test_<NEW_PROVIDER>.py
-          â”œâ”€â”€ hooks/
-          â”‚   â”œâ”€â”€ __init__.py
-          â”‚   â””â”€â”€ test_<NEW_PROVIDER>.py
-          â”œâ”€â”€ operators/
-          â”‚   â”œâ”€â”€ __init__.py
-          â”‚   â”œâ”€â”€ test_<NEW_PROVIDER>.py
-          â”‚   â””â”€â”€ test_<NEW_PROVIDER>_system.py
+      â"‚   â"œâ"€â"€ transfers/
+      â"‚   â"‚   â"œâ"€â"€ __init__.py
+      â"‚   â"‚   â""â"€â"€ <NEW_PROVIDER>.py
+      â"‚   â""â"€â"€ triggers/
+      â"‚       â"œâ"€â"€ __init__.py
+      â"‚       â""â"€â"€ <NEW_PROVIDER>.py
+      â""â"€â"€ tests/providers/<NEW_PROVIDER>/
+          â"œâ"€â"€ __init__.py
+          â"œâ"€â"€ executors/
+          â"‚   â"œâ"€â"€ __init__.py
+          â"‚   â""â"€â"€ test_<NEW_PROVIDER>.py
+          â"œâ"€â"€ hooks/
+          â"‚   â"œâ"€â"€ __init__.py
+          â"‚   â""â"€â"€ test_<NEW_PROVIDER>.py
+          â"œâ"€â"€ operators/
+          â"‚   â"œâ"€â"€ __init__.py
+          â"‚   â"œâ"€â"€ test_<NEW_PROVIDER>.py
+          â"‚   â""â"€â"€ test_<NEW_PROVIDER>_system.py
           ...
-          â”œâ”€â”€ transfers/
-          â”‚   â”œâ”€â”€ __init__.py
-          â”‚   â””â”€â”€ test_<NEW_PROVIDER>.py
-          â””â”€â”€ triggers/
-              â”œâ”€â”€ __init__.py
-              â””â”€â”€ test_<NEW_PROVIDER>.py
+          â"œâ"€â"€ transfers/
+          â"‚   â"œâ"€â"€ __init__.py
+          â"‚   â""â"€â"€ test_<NEW_PROVIDER>.py
+          â""â"€â"€ triggers/
+              â"œâ"€â"€ __init__.py
+              â""â"€â"€ test_<NEW_PROVIDER>.py
 
 Considering that you have already transferred your provider's code to the above structure, it will now be necessary
 to create unit tests for each component you created. The example below I have already set up an environment using
@@ -124,27 +124,27 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
 
   .. code-block:: bash
 
-     â”œâ”€â”€ INSTALL
-     â”œâ”€â”€ CONTRIBUTING.rst
-     â”œâ”€â”€ setup.py
-     â”œâ”€â”€ airflow/
-     â”‚   â””â”€â”€ providers/
-     â”‚       â””â”€â”€ <NEW_PROVIDER>/
-     â”‚           â”œâ”€â”€ provider.yaml
-     â”‚           â””â”€â”€ CHANGELOG.rst
-     â”‚
-     â””â”€â”€ docs/
-         â”œâ”€â”€ spelling_wordlist.txt
-         â”œâ”€â”€ apache-airflow/
-         â”‚   â””â”€â”€ extra-packages-ref.rst
-         â”œâ”€â”€ integration-logos/<NEW_PROVIDER>/
-         â”‚   â””â”€â”€ <NEW_PROVIDER>.png
-         â””â”€â”€ apache-airflow-providers-<NEW_PROVIDER>/
-             â”œâ”€â”€ index.rst
-             â”œâ”€â”€ commits.rst
-             â”œâ”€â”€ connections.rst
-             â””â”€â”€ operators/
-                 â””â”€â”€ <NEW_PROVIDER>.rst
+     â"œâ"€â"€ INSTALL
+     â"œâ"€â"€ CONTRIBUTING.rst
+     â"œâ"€â"€ setup.py
+     â"œâ"€â"€ airflow/
+     â"‚   â""â"€â"€ providers/
+     â"‚       â""â"€â"€ <NEW_PROVIDER>/
+     â"‚           â"œâ"€â"€ provider.yaml
+     â"‚           â""â"€â"€ CHANGELOG.rst
+     â"‚
+     â""â"€â"€ docs/
+         â"œâ"€â"€ spelling_wordlist.txt
+         â"œâ"€â"€ apache-airflow/
+         â"‚   â""â"€â"€ extra-packages-ref.rst
+         â"œâ"€â"€ integration-logos/<NEW_PROVIDER>/
+         â"‚   â""â"€â"€ <NEW_PROVIDER>.png
+         â""â"€â"€ apache-airflow-providers-<NEW_PROVIDER>/
+             â"œâ"€â"€ index.rst
+             â"œâ"€â"€ commits.rst
+             â"œâ"€â"€ connections.rst
+             â""â"€â"€ operators/
+                 â""â"€â"€ <NEW_PROVIDER>.rst
 
 
 Files automatically updated by pre-commit:

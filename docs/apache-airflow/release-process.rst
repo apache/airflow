@@ -39,7 +39,7 @@ Tags for the main Airflow release have the form ``X.Y.Z`` (no leading ``v``) and
 
 Although Airflow follows SemVer this is not a promise of 100% compatibility between minor or patch releases, simply because this is not possible: what is a bug to one person might be a feature another person is depending on.
 
-  Knowing the *intentions* of a maintainer can be valuable â€“ especially *when* things break. Because that's all SemVer is: **a TL;DR of the changelog**.
+  Knowing the *intentions* of a maintainer can be valuable â€" especially *when* things break. Because that's all SemVer is: **a TL;DR of the changelog**.
 
   -- Hynek Schlawack https://hynek.me/articles/semver-will-not-save-you/
 
@@ -55,7 +55,7 @@ That is all SemVer is -- it's a statement of our intent as package authors, and 
       Each time a new major version is released previously deprecated features will be removed.
 
     Feature releases
-      Feature releases (X.Y.0, X.Y+1.0, etc.) will happen roughly every two or three months â€“ see release process for details.
+      Feature releases (X.Y.0, X.Y+1.0, etc.) will happen roughly every two or three months â€" see release process for details.
       These releases will contain new features, improvements to existing features, and such.
 
     Patch releases

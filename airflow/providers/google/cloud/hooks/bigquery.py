@@ -259,7 +259,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param sql: The BigQuery SQL to execute.
         :param parameters: The parameters to render the SQL query with (not
             used, leave to override superclass method)
-        :param dialect: Dialect of BigQuery SQL â€“ legacy SQL or standard SQL
+        :param dialect: Dialect of BigQuery SQL â€" legacy SQL or standard SQL
             defaults to use `self.use_legacy_sql` if not specified
         :param kwargs: (optional) passed into pandas_gbq.read_gbq method
         """
