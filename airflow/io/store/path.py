@@ -97,37 +97,37 @@ class ObjectStoragePath(os.PathLike):
         return path
 
     def __lt__(self, other):
-        if not isinstance(other, type(self)):
+        if not isinstance(other, ObjectStoragePath):
             return NotImplemented
 
         return self._bucket < other._bucket
 
     def __le__(self, other):
-        if not isinstance(other, type(self)):
+        if not isinstance(other, ObjectStoragePath):
             return NotImplemented
 
         return self._bucket <= other._bucket
 
     def __eq__(self, other):
-        if not isinstance(other, type(self)):
+        if not isinstance(other, ObjectStoragePath):
             return NotImplemented
 
         return self._bucket == other._bucket
 
     def __ne__(self, other):
-        if not isinstance(other, type(self)):
+        if not isinstance(other, ObjectStoragePath):
             return NotImplemented
 
         return self._bucket != other._bucket
 
     def __gt__(self, other):
-        if not isinstance(other, type(self)):
+        if not isinstance(other, ObjectStoragePath):
             return NotImplemented
 
         return self._bucket > other._bucket
 
     def __ge__(self, other):
-        if not isinstance(other, type(self)):
+        if not isinstance(other, ObjectStoragePath):
             return NotImplemented
 
         return self._bucket >= other._bucket
@@ -154,7 +154,7 @@ class ObjectStoragePath(os.PathLike):
         raise UnsupportedOperation(msg)
 
     def samestore(self, other):
-        return isinstance(other, type(self)) and self._store == other._store
+        return isinstance(other, ObjectStoragePath) and self._store == other._store
 
     @property
     def container(self) -> str:
