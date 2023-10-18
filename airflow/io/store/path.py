@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import shutil
 import typing
 from io import UnsupportedOperation
 from stat import S_ISLNK
@@ -435,7 +436,7 @@ class ObjectStoragePath(os.PathLike):
         path = f"{self.store.protocol}://{self._key}"
         return path
 
-    def touch(self, truncate=True):
+    def touch(self, truncate: bool = True):
         """Create an empty file, or update the timestamp.
 
         :param truncate: bool (True)
@@ -444,7 +445,7 @@ class ObjectStoragePath(os.PathLike):
         """
         return self.store.fs.touch(str(self), truncate=truncate)
 
-    def mkdir(self, create_parents=True, **kwargs):
+    def mkdir(self, create_parents: bool = True, **kwargs):
         """
         Create a directory entry at the specified path or within a bucket/container.
 
@@ -458,13 +459,21 @@ class ObjectStoragePath(os.PathLike):
         """
         return self.store.fs.mkdir(str(self), create_parents=create_parents, **kwargs)
 
-    def unlink(self, recursive=False, maxdepth=None):
+    def unlink(self, recursive: bool = False, maxdepth: int | None = None):
         """
         Remove this file or link.
 
         If the path is a directory, use rmdir() instead.
         """
         self.store.fs.rm(str(self), recursive=recursive, maxdepth=maxdepth)
+
+    def rm(self, recursive: bool = False, maxdepth: int | None = None):
+        """
+        Remove this file or link.
+
+        Alias of unlink
+        """
+        self.unlink(recursive=recursive, maxdepth=maxdepth)
 
     def rmdir(self):
         """Remove this directory.  The directory must be empty."""
@@ -621,7 +630,8 @@ class ObjectStoragePath(os.PathLike):
 
         # non-local copy
         with self.open("rb") as f1, path.open("wb") as f2:
-            f2.write(f1.read())
+            # make use of system dependent buffer size
+            shutil.copyfileobj(f1, f2, **kwargs)
 
     def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
         """Move file(s) from this path to another location.
