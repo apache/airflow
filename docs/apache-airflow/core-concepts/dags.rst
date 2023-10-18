@@ -371,6 +371,8 @@ As with the callable for ``@task.branch``, this method can return the ID of a do
             else:
                 return None
 
+Similar like ``@task.branch`` decorator for regular Python code there are also branch decorators which use a virtual environment called ``@task.branch_virtualenv`` or external python called ``@task.branch_external_python``.
+
 
 .. _concepts:latest-only:
 
