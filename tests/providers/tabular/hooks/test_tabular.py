@@ -37,4 +37,8 @@ def test_tabular_hook():
                 "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
             },
         )
+        m.get(
+            "https://api.tabular.io/ws/v1/oauth/tokens",
+            json={"defaults": {}, "overrides": {}},
+        )
         assert TabularHook().get_conn() == access_token
