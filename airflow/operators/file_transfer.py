@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class FileTransfer(BaseOperator):
+class FileTransferOperator(BaseOperator):
     """
     Copies a file from a source to a destination.
 
@@ -70,5 +70,8 @@ class FileTransfer(BaseOperator):
         else:
             dst = self.dst
 
-        with src.open("rb") as s, dst.open("rw") as d:
-            shutil.copyfileobj(s, d)
+        if src.samestore(dst):
+            src.copy(dst)
+        else:
+            with src.open("rb") as s, dst.open("rw") as d:
+                shutil.copyfileobj(s, d)
