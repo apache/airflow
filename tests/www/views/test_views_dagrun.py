@@ -58,6 +58,31 @@ def client_dr_without_dag_edit(app):
     delete_roles(app)
 
 
+@pytest.fixture(scope="module")
+def client_dr_without_dag_run_create(app):
+    create_user(
+        app,
+        username="all_dr_permissions_except_dag_run_create",
+        role_name="all_dr_permissions_except_dag_run_create",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+        ],
+    )
+
+    yield client_with_login(
+        app,
+        username="all_dr_permissions_except_dag_run_create",
+        password="all_dr_permissions_except_dag_run_create",
+    )
+
+    delete_user(app, username="all_dr_permissions_except_dag_run_create")  # type: ignore
+    delete_roles(app)
+
+
 @pytest.fixture(scope="module", autouse=True)
 def init_blank_dagrun():
     """Make sure there are no runs before we test anything.
@@ -92,7 +117,7 @@ def test_get_dagrun_can_view_dags_without_edit_perms(session, running_dag_run, c
     check_content_in_response(dag_url_link, resp)
 
 
-def test_create_dagrun_permission_denied(session, client_dr_without_dag_edit):
+def test_create_dagrun_permission_denied(session, client_dr_without_dag_create):
     data = {
         "state": "running",
         "dag_id": "example_bash_operator",
@@ -102,7 +127,7 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_edit):
     }
 
     with pytest.raises(werkzeug.test.ClientRedirectError):
-        client_dr_without_dag_edit.post("/dagrun/add", data=data, follow_redirects=True)
+        client_dr_without_dag_create.post("/dagrun/add", data=data, follow_redirects=True)
 
 
 @pytest.fixture()

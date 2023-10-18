@@ -128,12 +128,14 @@ def client_ti_without_dag_edit(app):
         username="all_ti_permissions_except_dag_edit",
         role_name="all_ti_permissions_except_dag_edit",
         permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
         ],
     )
 
