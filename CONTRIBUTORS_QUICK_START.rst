@@ -305,7 +305,7 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# airflow db init
+  root@b76fcb399bb6:/opt/airflow# airflow db reset
 
 
 6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
