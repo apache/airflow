@@ -1893,7 +1893,11 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
 
 def __getattr__(name):
-    # PEP-562: Lazy loaded attributes on python modules
+    """
+    PEP-562: Lazy loaded attributes on python modules.
+
+    :meta private:
+    """
     path = __deprecated_imports.get(name)
     if not path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
