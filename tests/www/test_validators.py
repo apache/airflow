@@ -94,7 +94,6 @@ class TestValidJson:
         self.form_mock = mock.MagicMock(spec_set=dict)
 
     def _validate(self, message=None):
-
         validator = validators.ValidJson(message=message)
 
         return validator(self.form_mock, self.form_field_mock)

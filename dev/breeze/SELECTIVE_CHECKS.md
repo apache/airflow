@@ -52,11 +52,13 @@ We have the following unit test types that can be selectively disabled/enabled b
 content of the incoming PR:
 
 * Always - those are tests that should be always executed (always folder)
+* Operators - tests for the operators (operators folder)
 * Core - for the core Airflow functionality (core folder)
 * API - Tests for the Airflow API (api and api_connexion folders)
 * CLI - Tests for the Airflow CLI (cli folder)
 * WWW - Tests for the Airflow webserver (www folder)
 * Providers - Tests for all Providers of Airflow (providers folder)
+* Other - all other tests remaining after the above tests are selected
 
 We also have several special kinds of tests that are not separated by packages, but they are marked with
 pytest markers. They can be found in any of those packages and they can be selected by the appropriate
@@ -95,8 +97,8 @@ The logic implements the following rules:
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
-  (`API`, `CLI`, `WWW`, `Providers`). The `Always` test type is added always if any unit tests are run.
-  `Providers` tests are removed if current branch is different than `main`
+  (`API`, `CLI`, `WWW`, `Providers`, `Operators`). The `Always` test type is added always if any unit
+  tests are run. `Providers` tests are removed if current branch is different than `main`
 * If there are no files left in sources after matching the test types and Kubernetes files,
   then apparently some Core/Other files have been changed. This automatically adds all test
   types to execute. This is done because changes in core might impact all the other test types.

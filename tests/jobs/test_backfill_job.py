@@ -785,7 +785,6 @@ class TestBackfillJob:
         assert ti.state == State.SUCCESS
 
     def test_backfill_rerun_upstream_failed_tasks(self, dag_maker):
-
         with dag_maker(dag_id="test_backfill_rerun_upstream_failed", schedule="@daily") as dag:
             op1 = EmptyOperator(task_id="test_backfill_rerun_upstream_failed_task-1")
             op2 = EmptyOperator(task_id="test_backfill_rerun_upstream_failed_task-2")
@@ -909,7 +908,6 @@ class TestBackfillJob:
             run_job(job=job, execute_callable=job_runner._execute)
 
     def test_backfill_ordered_concurrent_execute(self, dag_maker):
-
         with dag_maker(
             dag_id="test_backfill_ordered_concurrent_execute",
             schedule="@daily",
@@ -1258,7 +1256,6 @@ class TestBackfillJob:
         assert 0 == running_dagruns  # no dag_runs in running state are left
 
     def test_sub_set_subdag(self, dag_maker):
-
         with dag_maker(
             "test_sub_set_subdag",
         ) as dag:
@@ -1992,7 +1989,6 @@ class TestBackfillJob:
         tis[("consumer", -1)].state == TaskInstanceState.UPSTREAM_FAILED
 
     def test_start_date_set_for_resetted_dagruns(self, dag_maker, session, caplog):
-
         with dag_maker() as dag:
             EmptyOperator(task_id="task1")
 

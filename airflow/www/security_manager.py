@@ -93,10 +93,7 @@ EXISTING_ROLES = {
 }
 
 if TYPE_CHECKING:
-
     from airflow.auth.managers.models.base_user import BaseUser
-
-    pass
 
 
 class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):

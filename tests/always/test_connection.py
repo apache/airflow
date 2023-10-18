@@ -349,7 +349,6 @@ class TestConnection:
 
     @pytest.mark.parametrize("test_config", test_from_uri_params)
     def test_connection_from_uri(self, test_config: UriTestCaseConfig):
-
         connection = Connection(uri=test_config.test_uri)
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(connection, conn_attr)

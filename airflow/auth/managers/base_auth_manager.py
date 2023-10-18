@@ -28,6 +28,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from connexion import FlaskApi
     from flask import Flask
     from sqlalchemy.orm import Session
 
@@ -66,6 +67,10 @@ class BaseAuthManager(LoggingMixin):
         Override this method to expose commands via Airflow CLI to manage this auth manager.
         """
         return []
+
+    def get_api_endpoints(self) -> None | FlaskApi:
+        """Return API endpoint(s) definition for the auth manager."""
+        return None
 
     @abstractmethod
     def get_user_name(self) -> str:

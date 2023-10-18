@@ -58,7 +58,6 @@ class TestConsumeFromTopic:
     """
 
     def setup_method(self):
-
         for num in (1, 2, 3):
             db.merge_conn(
                 Connection(
