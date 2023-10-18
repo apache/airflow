@@ -919,7 +919,7 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GCSSynchronizeBuckets`
+        :ref:`howto/operator:GCSSynchronizeBucketsOperator`
 
     :param source_bucket: The name of the bucket containing the source objects.
     :param destination_bucket: The name of the bucket containing the destination objects.
