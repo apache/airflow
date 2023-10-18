@@ -38,7 +38,7 @@ def test_tabular_hook():
             },
         )
         m.get(
-            "https://api.tabular.io/ws/v1/oauth/tokens",
+            "https://api.tabular.io/ws/v1/config",
             json={"defaults": {}, "overrides": {}},
         )
         assert TabularHook().get_conn() == access_token
