@@ -1052,26 +1052,27 @@ class TestAwsS3Hook:
         bucket = "test_bucket"
         s3_key = "test_key"
         encryption_key = "abcd123"
+        encryption_algorithm = "AES256"  # This is the only algorithm currently supported.
 
         s3_hook = S3Hook(
             extra_args={
                 "SSECustomerKey": encryption_key,
-                "SSECustomerAlgorithm": "AES256",
+                "SSECustomerAlgorithm": encryption_algorithm,
                 "invalid_arg": "should be dropped",
             }
         )
 
-        mock_obj = Mock()
-        mock_resource = Mock()
-        mock_resource.resource.return_value = mock_obj
-        mock_session.return_value = mock_resource
+        mock_obj = Mock(name="MockedS3Object")
+        mock_resource = Mock(name="MockedBoto3Resource")
+        mock_resource.return_value.Object = mock_obj
+        mock_session.return_value.resource = mock_resource
 
         s3_hook.download_file(key=s3_key, bucket_name=bucket)
 
-        mock_obj.load.assert_called_once_with(
-            key=s3_key,
-            bucket_name=bucket,
-            extra_args={"SSECustomerKey": encryption_key, "SSECustomerAlgorithm": "AES256"},
+        mock_obj.assert_called_once_with(bucket, s3_key)
+        mock_obj.return_value.load.assert_called_once_with(
+            SSECustomerKey=encryption_key,
+            SSECustomerAlgorithm=encryption_algorithm,
         )
 
     def test_generate_presigned_url(self, s3_bucket):

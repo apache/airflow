@@ -929,10 +929,7 @@ class S3Hook(AwsBaseHook):
         )
         obj = s3_resource.Object(bucket_name, key)
 
-        # TODO inline this after debugging
-        new_args = __sanitize_extra_args()
-
-        obj.load(**new_args)
+        obj.load(**__sanitize_extra_args())
         return obj
 
     @unify_bucket_name_and_key
