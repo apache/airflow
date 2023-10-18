@@ -70,6 +70,6 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``client_secret_auth_config``: Extra config to pass while authenticating as a service principal using `ClientSecretCredential`_. 
+    * ``client_secret_auth_config``: Extra config to pass while authenticating as a service principal using `ClientSecretCredential`_.
 
 .. _ClientSecretCredential: https://learn.microsoft.com/en-in/python/api/azure-identity/azure.identity.clientsecretcredential?view=azure-python
