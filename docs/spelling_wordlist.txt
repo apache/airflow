@@ -88,6 +88,7 @@ asia
 assertEqualIgnoreMultipleSpaces
 assigment
 ast
+astroid
 Async
 async
 AsyncResult
@@ -1152,7 +1153,6 @@ POSIX
 postfix
 Postgres
 postgres
-Postgresql
 postgresql
 postMessage
 Potiuk

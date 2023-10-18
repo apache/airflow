@@ -28,7 +28,6 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class TestSparkSubmitOperator:
-
     _config = {
         "conf": {"parquet.compression": "SNAPPY"},
         "files": "hive-site.xml",
@@ -71,7 +70,6 @@ class TestSparkSubmitOperator:
         self.dag = DAG("test_dag_id", default_args=args)
 
     def test_execute(self):
-
         # Given / When
         conn_id = "spark_default"
         operator = SparkSubmitOperator(

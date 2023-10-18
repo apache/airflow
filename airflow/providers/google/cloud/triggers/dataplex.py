@@ -58,7 +58,6 @@ class DataplexDataQualityJobTrigger(BaseTrigger):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
-
         super().__init__(**kwargs)
         self.job_id = job_id
         self.data_scan_id = data_scan_id

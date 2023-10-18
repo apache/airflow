@@ -132,7 +132,6 @@ class CloudRunHook(GoogleBaseHook):
         show_deleted: bool = False,
         limit: int | None = None,
     ) -> Iterable[Job]:
-
         if limit is not None and limit < 0:
             raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
 

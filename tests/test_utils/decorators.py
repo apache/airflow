@@ -52,7 +52,6 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
 
         @functools.wraps(f)
         def func(*args, **kwargs):
-
             for method in methods:
                 if method not in skip_all_except:
                     patcher = patch(f"airflow.www.app.{method}", no_op)

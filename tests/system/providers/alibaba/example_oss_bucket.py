@@ -35,7 +35,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     create_bucket = OSSCreateBucketOperator(task_id="task1")
 
     delete_bucket = OSSDeleteBucketOperator(task_id="task2")

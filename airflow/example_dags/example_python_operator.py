@@ -51,7 +51,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START howto_operator_python]
     @task(task_id="print_the_context")
     def print_context(ds=None, **kwargs):

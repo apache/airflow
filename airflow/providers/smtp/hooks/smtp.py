@@ -99,7 +99,6 @@ class SmtpHook(BaseHook):
         return self
 
     def _build_client(self) -> smtplib.SMTP_SSL | smtplib.SMTP:
-
         SMTP: type[smtplib.SMTP_SSL] | type[smtplib.SMTP]
         if self.use_ssl:
             SMTP = smtplib.SMTP_SSL

@@ -595,7 +595,6 @@ def test_parse_timestamps():
 
 
 def test_interleave_interleaves():
-
     log_sample1 = "\n".join(
         [
             "[2022-11-16T00:05:54.278-0800] {taskinstance.py:1258} INFO - Starting attempt 1 of 1",

@@ -45,7 +45,6 @@ class LambdaCreateFunctionCompleteTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int = 30,
         aws_conn_id: str | None = None,
     ) -> None:
-
         super().__init__(
             serialized_fields={"function_name": function_name, "function_arn": function_arn},
             waiter_name="function_active_v2",
