@@ -101,6 +101,7 @@ class SelectiveUnitTestTypes(Enum):
     CLI = "CLI"
     CORE = "Core"
     OTHER = "Other"
+    OPERATORS = "Operators"
     PROVIDERS = "Providers"
     WWW = "WWW"
 

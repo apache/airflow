@@ -436,8 +436,8 @@ if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
     python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
 fi
 
-declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
-    ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
+declare -a SELECTED_TESTS CLI_TESTS API_TESTS OPERATORS_TESTS ALWAYS_TESTS PROVIDERS_TESTS \
+    CORE_TESTS WWW_TESTS ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
 
 # Finds all directories that are not on the list of tests
 # - so that we do not skip any in the future if new directories are added
@@ -468,6 +468,7 @@ else
     API_TESTS=("tests/api_experimental" "tests/api_connexion" "tests/api_internal")
     PROVIDERS_TESTS=("tests/providers")
     ALWAYS_TESTS=("tests/always")
+    OPERATORS_TESTS=("tests/operators")
     CORE_TESTS=(
         "tests/core"
         "tests/executors"
@@ -490,6 +491,7 @@ else
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"
+        "${OPERATORS_TESTS[@]}"
         "${WWW_TESTS[@]}"
         "${SYSTEM_TESTS[@]}"
     )
@@ -511,6 +513,8 @@ else
         SELECTED_TESTS=("${CORE_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Always" ]]; then
         SELECTED_TESTS=("${ALWAYS_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Operators" ]]; then
+        SELECTED_TESTS=("${OPERATORS_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
@@ -574,8 +578,8 @@ else
         exit 1
     fi
 fi
-readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
-    ALL_TESTS ALL_PRESELECTED_TESTS
+readonly SELECTED_TESTS CLI_TESTS API_TESTS OPERATORS_TESTS ALWAYS_TESTS PROVIDERS_TESTS \
+    CORE_TESTS WWW_TESTS ALL_TESTS ALL_PRESELECTED_TESTS
 
 if [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
@@ -604,7 +608,6 @@ echo "Running tests ${SELECTED_TESTS[*]}"
 echo
 
 ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${SELECTED_TESTS[@]}")
-
 if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
     "${IN_CONTAINER_DIR}/run_system_tests.sh" "${ARGS[@]}"
 else

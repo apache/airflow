@@ -93,6 +93,26 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("airflow/operators/file.py",),
+                {
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "image-build": "true",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "true",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "Operators Always",
+                },
+                id="Only Operator tests and DOCS should run",
+            )
+        ),
+        (
+            pytest.param(
                 (
                     "airflow/api/file.py",
                     "tests/providers/postgres/file.py",
@@ -277,9 +297,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run - including all providers and upgrading to "
                 "newer requirements as setup.py changed and all Python versions",
@@ -300,9 +320,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run and upgrading to newer requirements as dependencies change",
             )
@@ -408,9 +428,9 @@ def test_expected_output_pull_request_main(
                     "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run including all providers when full tests are needed",
             )
@@ -435,9 +455,9 @@ def test_expected_output_pull_request_main(
                     "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run including full providers when full "
                 "tests are needed even with different label set as well",
@@ -460,9 +480,9 @@ def test_expected_output_pull_request_main(
                     "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run including full providers when"
                 "full tests are needed even if no files are changed",
@@ -487,7 +507,7 @@ def test_expected_output_pull_request_main(
                     "full-tests-needed": "true",
                     "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
+                    "parallel-test-types-list-as-string": "Operators Core WWW API Always CLI Other",
                 },
                 id="Everything should run except Providers when full tests are needed for non-main branch",
             )
@@ -599,7 +619,7 @@ def test_expected_output_full_tests_needed(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
+                "parallel-test-types-list-as-string": "Operators Core WWW API Always CLI Other",
             },
             id="All tests except Providers should run if core file changed in non-main branch",
         ),
@@ -706,6 +726,7 @@ def test_expected_output_pull_request_v2_3(
         pytest.param(
             (
                 "airflow/cli/file.py",
+                "airflow/operators/file.py",
                 "airflow/www/file.py",
                 "airflow/api/file.py",
             ),
@@ -721,9 +742,9 @@ def test_expected_output_pull_request_v2_3(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": "WWW API Always CLI",
+                "parallel-test-types-list-as-string": "Operators WWW API Always CLI",
             },
-            id="No providers tests should run if only CLI/API/WWW file changed",
+            id="No providers tests should run if only CLI/API/Operators/WWW file changed",
         ),
         pytest.param(
             ("airflow/models/test.py",),
@@ -739,9 +760,9 @@ def test_expected_output_pull_request_v2_3(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
-                "API Always CLI Providers[google]",
+                "API Always CLI Other Providers[google]",
             },
             id="Tests for all providers should run if model file changed",
         ),
@@ -759,11 +780,11 @@ def test_expected_output_pull_request_v2_3(
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
-                "API Always CLI Providers[google]",
+                "API Always CLI Other Providers[google]",
             },
-            id="Tests for all providers should run if any other than API/WWW/CLI file changed.",
+            id="Tests for all providers should run if any other than API/WWW/CLI/Operators file changed.",
         ),
     ],
 )
@@ -798,9 +819,9 @@ def test_expected_output_pull_request_target(
                 "docs-build": "true",
                 "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
-                "API Always CLI Providers[google]",
+                "API Always CLI Other Providers[google]",
             },
             id="All tests run on push even if unimportant file changed",
         ),
@@ -818,7 +839,7 @@ def test_expected_output_pull_request_target(
                 "docs-build": "true",
                 "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
                 "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
+                "parallel-test-types-list-as-string": "Operators Core WWW API Always CLI Other",
             },
             id="All tests except Providers and Helm run on push"
             " even if unimportant file changed in non-main branch",
@@ -837,9 +858,9 @@ def test_expected_output_pull_request_target(
                 "docs-build": "true",
                 "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
-                "API Always CLI Providers[google]",
+                "API Always CLI Other Providers[google]",
             },
             id="All tests run on push if core file changed",
         ),
@@ -890,9 +911,9 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "upgrade-to-newer-dependencies": "true"
             if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
             else "false",
-            "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-            "Other Providers[amazon] WWW "
-            "API Always CLI Providers[google]",
+            "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+            "Providers[amazon] WWW "
+            "API Always CLI Other Providers[google]",
         },
         str(stderr),
     )
