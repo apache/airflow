@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.utils.log.logging_mixin import SetContextPropagate, StreamLogWriter, set_context
+from airflow.utils.log.logging_mixin import LoggingMixin, SetContextPropagate, StreamLogWriter, set_context
 
 
 @pytest.fixture
@@ -82,6 +82,24 @@ class TestLoggingMixin:
 
         handler1.set_context.assert_called_once_with(value)
         handler2.set_context.assert_called_once_with(value)
+
+    def test_default_logger_name_when_no_parent_logger(self):
+        """
+        Ensure that an object with `_parent_logger = None` (like LoggingMixin) has a logger name equals to
+        its module and class path.
+        """
+        assert LoggingMixin().log.name == "airflow.utils.log.logging_mixin.LoggingMixin"
+
+    def test_logger_name_is_root_when_no_parent_logger_and_no_logger_name(self):
+        """
+        When the `_parent_logger` and `_logger_name` are totally empty, the resulting logger name is an
+        empty string. Passing an empty string to `logging.getLogger` will create a logger with name 'root'.
+        """
+        class EmptyStringLogger(LoggingMixin):
+            _parent_logger: str | None = None
+            _logger_name: str | None = ""
+
+        assert EmptyStringLogger().log.name == "root"
 
     def teardown_method(self):
         warnings.resetwarnings()

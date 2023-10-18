@@ -784,7 +784,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_json: str | None = None,
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
-        logger_name: str | None = "airflow.task.operators",
+        logger_name: str | None = None,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -935,6 +935,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if dag:
             self.dag = dag
 
+        self._parent_logger = "airflow.task.operators"
         self._logger_name = logger_name
 
         # Lineage

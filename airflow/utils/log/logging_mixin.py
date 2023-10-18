@@ -68,17 +68,43 @@ class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name."""
 
     _log: logging.Logger | None = None
+    _parent_logger: str | None = None
     _logger_name: str | None = None
 
     def __init__(self, context=None):
         self._set_context(context)
 
     @staticmethod
-    def _get_log(obj: Any, clazz: type[_T]) -> Logger:
-        if obj._log is None:
-            obj._log = logging.getLogger(
-                obj._logger_name if obj._logger_name is not None else f"{clazz.__module__}.{clazz.__name__}"
+    def _generate_logger_name(obj: Any, clazz: type[_T]) -> str:
+        """Generate a logger name.
+
+        Generate logger name based on:
+            - The class `_parent_logger` attribute.
+            If set to None, only the `_logger_name` attribute will be used to create a logger name.
+            - The class `_logger_name` attribute.
+            If set to None, fallback to class.__module__ and class.__name__. When the attribute is an empty
+            string, the returned logger name is equal to the parent logger name.
+
+        When there is no `_parent_logger` and an empty string as `_logger_name`, the returned logger name is
+        an empty string.
+        """
+        return ".".join(
+            filter(
+                None,
+                [
+                    obj._parent_logger,
+                    obj._logger_name
+                    if obj._logger_name is not None
+                    else f"{clazz.__module__}.{clazz.__name__}",
+                ],
             )
+        )
+
+    @classmethod
+    def _get_log(cls, obj: Any, clazz: type[_T]) -> Logger:
+        if obj._log is None:
+            logger_name = cls._generate_logger_name(obj, clazz)
+            obj._log = logging.getLogger(logger_name)
         return obj._log
 
     @classmethod

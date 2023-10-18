@@ -47,8 +47,9 @@ class BaseHook(LoggingMixin):
         (e.g. DbApiHook will have *airflow.providers.common.sql.hooks.sql.DbApiHook* as logger).
     """
 
-    def __init__(self, logger_name: str | None = None):
+    def __init__(self, logger_name: str = None):
         super().__init__()
+        self._parent_logger = "airflow.task.hooks"
         self._logger_name = logger_name
 
     @classmethod
