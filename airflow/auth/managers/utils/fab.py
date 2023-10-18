@@ -48,5 +48,5 @@ def get_method_from_fab_action_map():
     """Returns the map associating a FAB action to a method."""
     return {
         **{v: k for k, v in _MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()},
-        **{ACTION_CAN_ACCESS_MENU: "GET"},
+        ACTION_CAN_ACCESS_MENU: "GET",
     }
