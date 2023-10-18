@@ -1042,4 +1042,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()  # comment to trigger upgrade to newer dependencies
+    do_setup()  # comment to trigger upgrade to newer dependencies when setup.py is changed
