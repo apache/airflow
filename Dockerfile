@@ -553,9 +553,9 @@ function common::install_pip_version() {
     echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
     echo
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
-        pip install --disable-pip-version-check --no-cache-dir "pip @ ${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check --cache-dir $AIRFLOW_USER_HOME_DIR/.cache/pip "pip @ ${AIRFLOW_PIP_VERSION}"
     else
-        pip install --disable-pip-version-check --no-cache-dir "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check --cache-dir $AIRFLOW_USER_HOME_DIR/.cache/pip "pip==${AIRFLOW_PIP_VERSION}"
     fi
     mkdir -p "${HOME}/.local/bin"
 }
@@ -1123,7 +1123,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         the container starts, so it is only useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
-    pip install --root-user-action ignore --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
+    pip install --root-user-action ignore --cache-dir $AIRFLOW_USER_HOME_DIR/.cache/pip ${_PIP_ADDITIONAL_REQUIREMENTS}
 fi
 
 
@@ -1361,7 +1361,8 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES="false"
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place) and in case
 # INSTALL_PACKAGES_FROM_CONTEXT is not set (because then caching it from main makes no sense).
-RUN bash /scripts/docker/install_pip_version.sh; \
+RUN --mount=type=cache,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
+    bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
         ${INSTALL_PACKAGES_FROM_CONTEXT} == "false" && \
         ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
@@ -1387,7 +1388,8 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
      install_additional_dependencies.sh /scripts/docker/
 
 # hadolint ignore=SC2086, SC2010
-RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
+RUN --mount=type=cache,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
+  if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
     if ! airflow version 2>/dev/null >/dev/null; then \
@@ -1405,8 +1407,9 @@ RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
 # In case there is a requirements.txt file in "docker-context-files" it will be installed
 # during the build additionally to whatever has been installed so far. It is recommended that
 # the requirements.txt contains only dependencies with == version specification
-RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
-        pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
+RUN --mount=type=cache,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
+    if [[ -f /docker-context-files/requirements.txt ]]; then \
+        pip install --cache-dir $AIRFLOW_USER_HOME_DIR/.cache/pip --user -r /docker-context-files/requirements.txt; \
     fi
 
 ##############################################################################################
