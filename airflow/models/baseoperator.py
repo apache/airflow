@@ -438,7 +438,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             result = func(self, **kwargs, default_args=default_args)
 
-            # Store the args passed to init -- we need them to support task.map serialzation!
+            # Store the args passed to init -- we need them to support task.map serialization!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
             # Set upstream task defined by XComArgs passed to template fields of the operator.

@@ -162,7 +162,6 @@ class TestDeleteDAGSuccessfulDelete:
         self.check_dag_models_removed(expect_logs=0)
 
     def test_delete_dag_preserves_other_dags(self):
-
         self.setup_dag_models()
 
         with create_session() as session:

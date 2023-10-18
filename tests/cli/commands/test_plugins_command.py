@@ -102,7 +102,6 @@ class TestPluginsCommand:
 
     @mock_plugin_manager(plugins=[TestPlugin])
     def test_should_display_one_plugins_as_table(self):
-
         with redirect_stdout(StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=table"]))
             stdout = temp_stdout.getvalue()

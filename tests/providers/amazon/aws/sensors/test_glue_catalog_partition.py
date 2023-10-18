@@ -28,7 +28,6 @@ from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCata
 
 
 class TestGlueCatalogPartitionSensor:
-
     task_id = "test_glue_catalog_partition_sensor"
 
     @mock_glue

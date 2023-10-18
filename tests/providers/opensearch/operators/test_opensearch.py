@@ -80,7 +80,6 @@ class TestOpenSearchCreateIndexOperator:
     # This test does not test execute logic because there is only a redirect to the OpenSearch
     # client.
     def setup_method(self, dag_setup):
-
         self.dag = dag_setup
 
         self.open_search = OpenSearchCreateIndexOperator(

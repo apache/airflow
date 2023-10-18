@@ -648,7 +648,6 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         ],
     )
     def test_should_respond_200(self, task_instances, update_extras, url, expected_ti, session):
-
         self.create_task_instances(
             session,
             update_extras=update_extras,

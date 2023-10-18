@@ -144,6 +144,7 @@ class FTPHook(BaseHook):
             remote_path = "/path/to/remote/file"
             local_path = "/path/to/local/file"
 
+
             # with a custom callback (in this case displaying progress on each read)
             def print_progress(percent_progress):
                 self.log.info("Percent Downloaded: %s%%" % percent_progress)

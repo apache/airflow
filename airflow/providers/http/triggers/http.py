@@ -120,7 +120,7 @@ class HttpTrigger(BaseTrigger):
         response.encoding = client_response.get_encoding()
         response.reason = str(client_response.reason)
         cookies = RequestsCookieJar()
-        for (k, v) in client_response.cookies.items():
+        for k, v in client_response.cookies.items():
             cookies.set(k, v)
         response.cookies = cookies
         return response
