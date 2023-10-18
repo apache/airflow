@@ -49,18 +49,27 @@ def generate_redirects(app):
             if line.startswith("#"):
                 continue
 
+            # Split line into the original path `from_path` and where the URL should redirect to `to_path`
             from_path, _, to_path = line.rstrip().partition(" ")
 
             log.debug("Redirecting '%s' to '%s'", from_path, to_path)
 
+            # in_suffix is often ".rst"
             from_path = from_path.replace(in_suffix, ".html")
             to_path = to_path.replace(in_suffix, ".html")
 
-            to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)) - 1)
+            # The redirect path needs to move back to the root of the apache-airflow docs directory
+            # or the root of the docs directory altogether for provider packages.
+            if "../" and "providers" in to_path:
+                to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)))
+            else:
+                to_path_prefix = f"..{os.path.sep}" * (len(from_path.split(os.path.sep)) - 1)
+
             to_path = to_path_prefix + to_path
 
             log.debug("Resolved redirect '%s' to '%s'", from_path, to_path)
 
+            # This will be used to save an HTML file with `TEMPLATE` formatted
             redirected_filename = os.path.join(app.builder.outdir, from_path)
             redirected_directory = os.path.dirname(redirected_filename)
 
