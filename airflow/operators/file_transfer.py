@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import shutil
 from typing import TYPE_CHECKING
 
 from airflow.io.store.path import ObjectStoragePath
@@ -31,8 +30,8 @@ class FileTransferOperator(BaseOperator):
     """
     Copies a file from a source to a destination.
 
-    This streams the file from the source to the destination, so it does not
-    need to fit into memory.
+    This streams the file from the source to the destination if required
+    , so it does not need to fit into memory.
 
     :param src: The source file path or ObjectStoragePath object.
     :param dst: The destination file path or ObjectStoragePath object.
@@ -70,8 +69,4 @@ class FileTransferOperator(BaseOperator):
         else:
             dst = self.dst
 
-        if src.samestore(dst):
-            src.copy(dst)
-        else:
-            with src.open("rb") as s, dst.open("rw") as d:
-                shutil.copyfileobj(s, d)
+        src.copy(dst)
