@@ -55,6 +55,8 @@ def _parse_boolean(val: str) -> str | bool:
 
 def _get_failed_checks(checks, col=None):
     """
+    Get failed checks.
+
     IMPORTANT!!! Keep it for compatibility with released 8.4.0 version of google provider.
 
     Unfortunately the provider used _get_failed_checks and parse_boolean as imports and we should
@@ -248,7 +250,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         """
-        Processes output before it is returned by the operator.
+        Process output before it is returned by the operator.
 
         It can be overridden by the subclass in case some extra processing is needed. Note that unlike
         DBApiHook return values returned - the results passed and returned by ``_process_output`` should
@@ -1100,7 +1102,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
     def push(self, meta_data):
         """
-        Optional: Send data check info and metadata to an external database.
+        Send data check info and metadata to an external database.
 
         Default functionality will log metadata.
         """

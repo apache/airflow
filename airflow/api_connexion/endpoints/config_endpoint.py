@@ -24,7 +24,6 @@ from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, PermissionDenied
 from airflow.api_connexion.schemas.config_schema import Config, ConfigOption, ConfigSection, config_schema
 from airflow.configuration import conf
-from airflow.security import permissions
 from airflow.settings import json
 
 LINE_SEP = "\n"  # `\n` cannot appear in f-strings
@@ -66,7 +65,7 @@ def _config_to_json(config: Config) -> str:
     return json.dumps(config_schema.dump(config), indent=4)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)])
+@security.requires_access_configuration("GET")
 def get_config(*, section: str | None = None) -> Response:
     """Get current configuration."""
     serializer = {
@@ -103,8 +102,8 @@ def get_config(*, section: str | None = None) -> Response:
         )
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)])
-def get_value(section: str, option: str) -> Response:
+@security.requires_access_configuration("GET")
+def get_value(*, section: str, option: str) -> Response:
     serializer = {
         "text/plain": _config_to_text,
         "application/json": _config_to_json,
@@ -123,7 +122,7 @@ def get_value(section: str, option: str) -> Response:
                 "Config not found.", detail=f"The option [{section}/{option}] is not found in config."
             )
 
-        if (section, option) in conf.sensitive_config_values:
+        if (section.lower(), option.lower()) in conf.sensitive_config_values:
             value = "< hidden >"
         else:
             value = conf.get(section, option)

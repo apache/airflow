@@ -35,6 +35,48 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.10.1
+.......
+
+Latest change: 2023-10-18
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`e444bca140 <https://github.com/apache/airflow/commit/e444bca140cc38619316ca5f6325ba53d4e8e426>`_  2023-10-18   ``Add links between documentation related to Google Cloud Storage (#34994)``
+`92204b36b0 <https://github.com/apache/airflow/commit/92204b36b08044db4ed958dfaed7672071cd37d4>`_  2023-10-18   ``Migrate legacy version of AI Platform Prediction to VertexAI (#34922)``
+`0b49f338b9 <https://github.com/apache/airflow/commit/0b49f338b9e6fd3264bc0099e8879855bf6c60c9>`_  2023-10-16   ``Cancel workflow in on_kill in DataprocInstantiate{Inline}WorkflowTemplateOperator (#34957)``
+=================================================================================================  ===========  ==============================================================================================
+
+10.10.0
+.......
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`d27d0bb60b <https://github.com/apache/airflow/commit/d27d0bb60b08ed8550491d4801ba5bf3c0e3da9b>`_  2023-10-13   ``Refactor DataFusionInstanceLink usage (#34514)``
+`4dc2c40dfe <https://github.com/apache/airflow/commit/4dc2c40dfefb3495e435aabb99c07fa6e4f32c5d>`_  2023-10-12   ``Fix GCSToGoogleDriveOperator and gdrive system tests (#34545)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`99f320354b <https://github.com/apache/airflow/commit/99f320354b075fb780e54057d223d2d16ddf08b8>`_  2023-10-04   ``Refactor: consolidate import time in providers (#34402)``
+`7c440ca184 <https://github.com/apache/airflow/commit/7c440ca18497c4134a9dd9237c2029afa58f85dd>`_  2023-10-03   ``Fix typo in DataplexGetDataQualityScanResultOperator (#34681)``
+`562b98a622 <https://github.com/apache/airflow/commit/562b98a6222912d3a3d859ca3881af3f768ba7b5>`_  2023-10-02   ``Fix LookerHook serialize missing 1 argument error (#34678)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`07fe1d2a69 <https://github.com/apache/airflow/commit/07fe1d2a69cbe4f684a1989c047737c0686c4417>`_  2023-09-27   ``Refactor dedent nested loops (#34409)``
+`2b082f1e5a <https://github.com/apache/airflow/commit/2b082f1e5a0e7e361df38710689dc1ac22062736>`_  2023-09-27   ``Use 'airflow.models.dag.DAG' in Google Provider examples (#34614)``
+`8bea45f37f <https://github.com/apache/airflow/commit/8bea45f37fe400c1d34a46e53f5bdc12d8f961ab>`_  2023-09-26   ``Refactor multiple equals to contains in providers (#34441)``
+`20b7cfc395 <https://github.com/apache/airflow/commit/20b7cfc3956e404fe1a6d4ed9e363fca7161ede2>`_  2023-09-26   ``respect soft_fail argument when exception is raised for google sensors (#34501)``
+`6a03870d1c <https://github.com/apache/airflow/commit/6a03870d1c1c5871dc9bcb8ea48039ec47676484>`_  2023-09-24   ``improvement: introduce proejct_id in BigQueryIntervalCheckOperator (#34573)``
+`f56acdad16 <https://github.com/apache/airflow/commit/f56acdad164586f8be8c21137d927fdfd01e8bb4>`_  2023-09-22   ``Deprecate Life Sciences Operator and Hook (#34549)``
+`659d94f0ae <https://github.com/apache/airflow/commit/659d94f0ae89f47a7d4b95d6c19ab7f87bd3a60f>`_  2023-09-21   ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+`d20c32f6b7 <https://github.com/apache/airflow/commit/d20c32f6b75b4d09c537d6902fae4c1be2e714be>`_  2023-09-20   ``Refactor: reduce some conditions in providers (#34440)``
+`a6fcd69fe5 <https://github.com/apache/airflow/commit/a6fcd69fe55f2f54c9bf7c147c70bc36429a2e66>`_  2023-09-15   ``Fix Dataform system tests (#34329)``
+`8ecd576de1 <https://github.com/apache/airflow/commit/8ecd576de1043dbea40e5e16b5dc34859cc41725>`_  2023-09-14   ``Refactor shorter defaults in providers (#34347)``
+`013c95bfe6 <https://github.com/apache/airflow/commit/013c95bfe6d2b4de44633ab1a0c326cd0969fcf3>`_  2023-09-14   ``Update Vertex AI system tests (#34364)``
+=================================================================================================  ===========  ===================================================================================
+
 10.9.0
 ......
 
@@ -43,6 +85,7 @@ Latest change: 2023-09-14
 =================================================================================================  ===========  ================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================================================
+`7574e16e75 <https://github.com/apache/airflow/commit/7574e16e751e37cc012139da1a0e39874bab2918>`_  2023-09-14   ``Prepare docs for Sep 2023 2nd wave of Providers (#34360)``
 `b042042086 <https://github.com/apache/airflow/commit/b0420420864b6ada45260e0d00b1b6e72595a966>`_  2023-09-14   ``Remove unnecessary call to keys() method on dictionaries (#34260)``
 `05036e619c <https://github.com/apache/airflow/commit/05036e619c0c6dafded1451daac4e07e20aee33f>`_  2023-09-13   ``Refactor: Think positively in providers (#34279)``
 `3fa9d46ec7 <https://github.com/apache/airflow/commit/3fa9d46ec74ef8453fcf17fbd49280cb6fb37cef>`_  2023-09-12   ``Refactor: Simplify code in providers/google (#33229)``
