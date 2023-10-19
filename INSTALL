@@ -1,6 +1,11 @@
 # INSTALL / BUILD instructions for Apache Airflow
 
-This is a generic installation method that requires a number of dependencies to be installed.
+This document describes generic installation instructions for installing airflow from source package.
+For user documentation on how to install airflow in various scenarios follow:
+
+https://airflow.apache.org/docs/apache-airflow/stable/installation/index.html
+
+The method is for generic installation that requires a number of dependencies to be installed.
 
 Depending on your system you might need different prerequisites, but the following
 systems/prerequisites are known to work:
