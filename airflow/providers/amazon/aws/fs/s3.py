@@ -54,18 +54,9 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
             "pip install apache-airflow[s3]"
         )
 
-    if conn_id is None:
-        return S3FileSystem()
+    aws: AwsGenericHook = AwsGenericHook(aws_conn_id=conn_id, client_type="s3")
+    session = aws.get_session(deferrable=True)
 
-    aws: AwsGenericHook = AwsGenericHook(aws_conn_id=conn_id)
-
-    client_kwargs = {
-        "endpoint_url": aws.conn_config.endpoint_url,
-        "aws_access_key_id": aws.conn_config.aws_access_key_id,
-        "aws_secret_access_key": aws.conn_config.aws_secret_access_key,
-        "aws_session_token": aws.conn_config.aws_session_token,
-        "region_name": aws.conn_config.region_name,
-    }
     config_kwargs = {}
     register_events: dict[str, Callable[[Properties], None]] = {}
 
@@ -92,7 +83,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     if proxy_uri := aws.conn_config.extra_config.get(S3_PROXY_URI):
         config_kwargs["proxies"] = {"http": proxy_uri, "https": proxy_uri}
 
-    fs = S3FileSystem(client_kwargs=client_kwargs, config_kwargs=config_kwargs)
+    fs = S3FileSystem(session=session, config_kwargs=config_kwargs)
 
     for event_name, event_function in register_events.items():
         fs.s3.meta.events.register_last(event_name, event_function, unique_id=1925)
