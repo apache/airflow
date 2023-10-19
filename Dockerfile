@@ -1361,8 +1361,7 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES="false"
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place) and in case
 # INSTALL_PACKAGES_FROM_CONTEXT is not set (because then caching it from main makes no sense).
-RUN --mount=type=cache,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
-    bash /scripts/docker/install_pip_version.sh; \
+RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
         ${INSTALL_PACKAGES_FROM_CONTEXT} == "false" && \
         ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
