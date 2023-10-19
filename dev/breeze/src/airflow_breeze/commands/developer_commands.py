@@ -371,7 +371,9 @@ def start_airflow(
     "--package-filter",
     help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
     "the short hand names or the glob pattern matching the full package name. "
-    "The list of short hand names can be found in --help output",
+    "The list of short hand names can be found in --help output "
+    "Multiple package filters can be applied by passing the flag multiple times. "
+    "For example --package-filter apache-airflow --package-filter apache-airflow-providers-<provider>",
     type=str,
     multiple=True,
 )
