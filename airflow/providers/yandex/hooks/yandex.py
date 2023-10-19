@@ -115,6 +115,7 @@ class YandexCloudBaseHook(BaseHook):
         yandex_conn_id: str | None = None,
         default_folder_id: str | None = None,
         default_public_ssh_key: str | None = None,
+        default_service_account_id: str | None = None,
     ) -> None:
         super().__init__()
         if connection_id:
@@ -131,25 +132,36 @@ class YandexCloudBaseHook(BaseHook):
         self.sdk = yandexcloud.SDK(user_agent=self.provider_user_agent(), **sdk_config, **credentials)
         self.default_folder_id = default_folder_id or self._get_field("folder_id", False)
         self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key", False)
+        self.default_service_account_id = default_service_account_id or self._get_service_account_id()
         self.client = self.sdk.client
 
-    def _get_credentials(self) -> dict[str, Any]:
-        service_account_json_path = self._get_field("service_account_json_path", False)
+    def _get_service_account_key(self) -> dict[str, Any] | None:
         service_account_json = self._get_field("service_account_json", False)
-        oauth_token = self._get_field("oauth", False)
-        if not (service_account_json or oauth_token or service_account_json_path):
-            raise AirflowException(
-                "No credentials are found in connection. Specify either service account "
-                "authentication JSON or user OAuth token in Yandex.Cloud connection"
-            )
+        service_account_json_path = self._get_field("service_account_json_path", False)
         if service_account_json_path:
             with open(service_account_json_path) as infile:
                 service_account_json = infile.read()
         if service_account_json:
-            service_account_key = json.loads(service_account_json)
-            return {"service_account_key": service_account_key}
-        else:
+            return json.loads(service_account_json)
+
+    def _get_service_account_id(self) -> str | None:
+        sa_key = self._get_service_account_key()
+        if sa_key:
+            return sa_key.get("service_account_id")
+
+    def _get_credentials(self) -> dict[str, Any]:
+        oauth_token = self._get_field("oauth", False)
+        if oauth_token:
             return {"token": oauth_token}
+
+        service_account_key = self._get_service_account_key()
+        if service_account_key:
+            return {"service_account_key": service_account_key}
+
+        raise AirflowException(
+            "No credentials are found in connection. Specify either service account "
+            "authentication JSON or user OAuth token in Yandex.Cloud connection"
+        )
 
     def _get_endpoint(self) -> dict[str, str]:
         sdk_config = {}
