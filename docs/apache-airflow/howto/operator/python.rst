@@ -240,7 +240,7 @@ Classic example of using the operator:
 
 Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
 
-.. _howto/operator:PythonBranchOperator:
+.. _howto/operator:BranchPythonVirtualenvOperator:
 
 BranchPythonVirtualenvOperator
 ==============================
@@ -269,6 +269,8 @@ Classic example of using the operator:
     :end-before: [END howto_operator_branch_virtualenv]
 
 Argument passing and templating options are the same like with :ref:`howto/operator:PythonVirtualenvOperator`.
+
+.. _howto/operator:BranchExternalPythonOperator:
 
 BranchExternalPythonOperator
 ============================
