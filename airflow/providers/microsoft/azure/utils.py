@@ -60,15 +60,35 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
     Check https://stackoverflow.com/questions/63384092/exception-attributeerror-defaultazurecredential-object-has-no-attribute-sig
     """
 
-    def __init__(self, credential=None, resource_id="https://management.azure.com/.default", **kwargs):
+    def __init__(
+        self,
+        credential=None,
+        resource_id="https://management.azure.com/.default",
+        *,
+        managed_identity_client_id=None,
+        workload_identity_tenant_id=None,
+        **kwargs,
+    ):
         """Adapt azure-identity credentials for backward compatibility.
 
         :param credential: Any azure-identity credential (DefaultAzureCredential by default)
-        :param str resource_id: The scope to use to get the token (default ARM)
+        :param resource_id: The scope to use to get the token (default ARM)
+        :param managed_identity_client_id: The client ID of a user-assigned managed identity.
+            If provided with `workload_identity_tenant_id`, they'll pass to ``DefaultAzureCredential``.
+        :param workload_identity_tenant_id: ID of the application's Microsoft Entra tenant.
+            Also called its "directory" ID.
+            If provided with `managed_identity_client_id`, they'll pass to ``DefaultAzureCredential``.
         """
-        super().__init__(None)
+        super().__init__(None)  # type: ignore[arg-type]
         if credential is None:
-            credential = DefaultAzureCredential()
+            if managed_identity_client_id and workload_identity_tenant_id:
+                credential = DefaultAzureCredential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                    additionally_allowed_tenants=[workload_identity_tenant_id],
+                )
+            else:
+                credential = DefaultAzureCredential()
         self._policy = BearerTokenCredentialPolicy(credential, resource_id, **kwargs)
 
     def _make_request(self):
