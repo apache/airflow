@@ -83,7 +83,7 @@ dependencies:
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
-  - gcsfs
+  - gcsfs>=2023.9.2
   - google-ads>=21.2.0
   - google-api-core>=2.11.0
   - google-api-python-client>=1.6.0
