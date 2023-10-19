@@ -35,7 +35,7 @@ The documentation build consists of verifying consistency of documentation and t
 * spell checking
 * building documentation
 
-You can only run one of the steps via ``--spellcheck-only`` or ``--docs-only``.
+You can run either of the steps alone via ``--spellcheck-only`` or ``--docs-only``.
 
 .. code-block:: bash
 
@@ -53,11 +53,11 @@ or just to run documentation building
 
      breeze build-docs --docs-only
 
-Also, you can only build one documentation via ``--package-filter``.
+Also, you can only build documentation for a subset of packages via ``--package-filter``. For example, to build documentation only for the main Airflow package and the Kubernetes provider package, you can run the following command:
 
 .. code-block:: bash
 
-    breeze build-docs --package-filter <PACKAGE-NAME>
+    breeze build-docs --package-filter apache-airflow --package-filter apache-airflow-providers-cncf-kubernetes
 
 You can also use shorthand names as arguments instead of using the full names
 for airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
