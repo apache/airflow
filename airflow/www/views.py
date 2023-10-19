@@ -5842,6 +5842,7 @@ class DevView(BaseView):
     even in production.
 
     TODO: Restrict this to only be accessible in development mode.
+    :meta private:
     """
 
     route_base = "/dev"
