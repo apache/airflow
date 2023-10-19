@@ -157,7 +157,7 @@ class Variable:
 
     def _format_value(self, value):
         if self.to_split:
-            if type(value) is not str:
+            if not isinstance(value, str):
                 raise TypeError(f"{self.name} is type {type(value)} and can not be split as requested.")
             return value.split(self.delimiter)
         return value

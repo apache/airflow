@@ -126,8 +126,8 @@ To prevent adding secrets to the private repository in your DAG code you can use
 In the special case you want to prevent remote calls for setup of a virtual environment, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
 forced pip installer to use the ``--no-index`` option.
 
-Caching and re-use
-^^^^^^^^^^^^^^^^^^
+Caching and reuse
+^^^^^^^^^^^^^^^^^
 
 Setup of virtual environments is made per task execution in a temporary directory. After execution the virtual environment is deleted again. Ensure that the ``$tmp`` folder
 on your workers have sufficient disk space. Usually (if not configured differently) the local pip cache will be used preventing a re-download of packages
