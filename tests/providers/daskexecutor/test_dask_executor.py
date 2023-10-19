@@ -40,6 +40,7 @@ try:
     skip_tls_tests = False
 except ImportError:
     skip_tls_tests = True
+
     # In case the tests are skipped because of lacking test harness, get_cert should be
     # overridden to avoid get_cert failing during test discovery as get_cert is used
     # in conf_vars decorator
@@ -59,7 +60,6 @@ skip_dask_tests = False
 @pytest.mark.skipif(skip_dask_tests, reason="The tests are skipped because it needs testing from Dask team")
 class TestBaseDask:
     def assert_tasks_on_executor(self, executor, timeout_executor=120):
-
         # start the executor
         executor.start()
 
@@ -150,7 +150,6 @@ class TestDaskExecutorTLS(TestBaseDask):
             worker_kwargs={"security": tls_security(), "protocol": "tls"},
             scheduler_kwargs={"security": tls_security(), "protocol": "tls"},
         ) as (cluster, _):
-
             executor = DaskExecutor(cluster_address=cluster["address"])
 
             self.assert_tasks_on_executor(executor, timeout_executor=120)

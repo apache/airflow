@@ -72,13 +72,11 @@ def resoure_check():
 
 
 def resoure_validate():
-
     resources = resoure_check()
     warning_resources = False
     check = "OK"
 
     for resource, capacity in resources.items():
-
         check = "" if resource == "Cpus" else "GB"
 
         if capacity.current < capacity.minimumAllowed:

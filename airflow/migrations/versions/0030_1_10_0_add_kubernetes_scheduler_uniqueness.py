@@ -37,7 +37,6 @@ RESOURCE_TABLE = "kube_worker_uuid"
 
 
 def upgrade():
-
     columns_and_constraints = [
         sa.Column("one_row_id", sa.Boolean, server_default=sa.true(), primary_key=True),
         sa.Column("worker_uuid", sa.String(255)),

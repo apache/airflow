@@ -753,7 +753,6 @@ class TestGCSHook:
         mock_temp_file.return_value.__enter__.return_value.name = test_file
 
         with self.gcs_hook.provide_file(bucket_name=test_bucket, object_name=test_object) as response:
-
             assert test_file == response.name
         download_filename_method.assert_called_once_with(test_file, timeout=60)
         mock_temp_file.assert_has_calls(

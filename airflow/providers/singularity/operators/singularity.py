@@ -80,7 +80,6 @@ class SingularityOperator(BaseOperator):
         auto_remove: bool | None = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.auto_remove = auto_remove
         self.command = command
@@ -97,7 +96,6 @@ class SingularityOperator(BaseOperator):
         self.container = None
 
     def execute(self, context: Context) -> None:
-
         self.log.info("Preparing Singularity container %s", self.image)
         self.cli = Client
 

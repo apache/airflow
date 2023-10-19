@@ -369,7 +369,6 @@ class TestLineageApiExperimental(TestBase):
 
 
 class TestPoolApiExperimental(TestBase):
-
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 

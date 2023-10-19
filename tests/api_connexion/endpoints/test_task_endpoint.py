@@ -177,7 +177,6 @@ class TestGetTask(TestTaskEndpoint):
         assert response.json == expected
 
     def test_should_respond_200_serialized(self):
-
         # Get the dag out of the dagbag before we patch it to an empty one
         SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
 
