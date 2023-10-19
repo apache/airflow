@@ -40,6 +40,7 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.process_utils import check_if_pidfile_process_is_running
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ class GunicornMonitor(LoggingMixin):
             return {}
 
         all_filenames: list[str] = []
-        for (root, _, filenames) in os.walk(settings.PLUGINS_FOLDER):
+        for root, _, filenames in os.walk(settings.PLUGINS_FOLDER):
             all_filenames.extend(os.path.join(root, f) for f in filenames)
         plugin_state = {f: self._get_file_hash(f) for f in sorted(all_filenames)}
         return plugin_state
@@ -362,7 +363,6 @@ def webserver(args):
             ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None,
         )
     else:
-
         print(
             textwrap.dedent(
                 f"""\

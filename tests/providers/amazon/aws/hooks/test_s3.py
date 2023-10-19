@@ -1317,7 +1317,6 @@ def test_unify_and_provide_bucket_name_combination(
                 return bucket_name, key
 
     else:
-
         with caplog.at_level("WARNING"):
 
             class MyHook(S3Hook):
