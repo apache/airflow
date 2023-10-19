@@ -271,7 +271,7 @@
   },
   "common.io": {
     "deps": [
-      "apache-airflow>=2.8.0.dev0"
+      "apache-airflow>=2.8.0"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
