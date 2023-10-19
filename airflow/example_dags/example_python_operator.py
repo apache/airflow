@@ -21,7 +21,6 @@ virtual environment.
 """
 from __future__ import annotations
 
-import datetime
 import logging
 import sys
 import time
@@ -48,7 +47,6 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
-    schedule_interval=datetime.timedelta(days=10)
 ) as dag:
     # [START howto_operator_python]
     @task(task_id="print_the_context")
