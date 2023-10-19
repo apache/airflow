@@ -29,6 +29,6 @@ dependencies:
   - apache-airflow>=2.8.0
 
 operators:
-  - integration-name: Common SQL
+  - integration-name: Common IO
     python-modules:
       - airflow.providers.common.io.operators.file_transfer
