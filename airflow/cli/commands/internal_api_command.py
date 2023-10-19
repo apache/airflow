@@ -24,6 +24,7 @@ import subprocess
 import sys
 import textwrap
 from contextlib import suppress
+from pathlib import Path
 from tempfile import gettempdir
 from time import sleep
 
@@ -92,7 +93,7 @@ def internal_api(args):
             )
         )
 
-        gunicorn_master_pid_file, _, _, _ = setup_locations("internal-api-gunicorn-master", pid=args.pid)
+        pid_file, _, _, _ = setup_locations("internal-api", pid=args.pid)
 
         run_args = [
             sys.executable,
@@ -109,7 +110,7 @@ def internal_api(args):
             "--name",
             "airflow-internal-api",
             "--pid",
-            gunicorn_master_pid_file,
+            pid_file,
             "--access-logfile",
             str(access_logfile),
             "--error-logfile",
@@ -163,7 +164,7 @@ def internal_api(args):
                 gunicorn_master_proc_pid = None
                 while not gunicorn_master_proc_pid:
                     sleep(0.1)
-                    gunicorn_master_proc_pid = read_pid_from_pidfile(gunicorn_master_pid_file)
+                    gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
 
                 # Run Gunicorn monitor
                 gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
@@ -178,8 +179,14 @@ def internal_api(args):
             create_app(None)
             os.environ.pop("SKIP_DAGS_PARSING")
 
+        pid_file_path = Path(pid_file)
+        monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
         run_command_with_daemon_mode(
-            args, "internal-api", lambda: start_and_monitor_gunicorn(args), should_setup_logging=True
+            args,
+            "internal-api",
+            lambda: start_and_monitor_gunicorn(args),
+            should_setup_logging=True,
+            pid_file=monitor_pid_file,
         )
 
 

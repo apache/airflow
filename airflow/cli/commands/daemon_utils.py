@@ -56,7 +56,7 @@ def run_command_with_daemon_mode(
     """
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations(
-            process=process_name, pid=args.pid, stdout=args.stdout, stderr=args.stderr, log=args.log_file
+            process=process_name, stdout=args.stdout, stderr=args.stderr, log=args.log_file
         )
         if pid_file:
             pid = pid_file

@@ -238,8 +238,8 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
             AIRFLOW__CORE__LOAD_EXAMPLES="False",
             AIRFLOW__WEBSERVER__WORKERS="1",
         ):
-            pidfile_webserver_gunicorn_master = tmp_path / "pidflow-webserver-gunicorn-master.pid"
-            pidfile_webserver_main = tmp_path / "pidflow-webserver.pid"
+            pidfile_webserver = tmp_path / "pidflow-webserver.pid"
+            pidfile_monitor = tmp_path / "pidflow-webserver-monitor.pid"
             stdout = tmp_path / "airflow-webserver.out"
             stderr = tmp_path / "airflow-webserver.err"
             logfile = tmp_path / "airflow-webserver.log"
@@ -252,7 +252,7 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
                         "webserver",
                         "--daemon",
                         "--pid",
-                        os.fspath(pidfile_webserver_gunicorn_master),
+                        os.fspath(pidfile_webserver),
                         "--stdout",
                         os.fspath(stdout),
                         "--stderr",
@@ -263,9 +263,9 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
                 )
                 assert proc.poll() is None
 
-                pid_monitor = self._wait_pidfile(pidfile_webserver_main)
+                pid_monitor = self._wait_pidfile(pidfile_monitor)
                 console.print(f"[blue]Monitor started at {pid_monitor}")
-                pid_webserver = self._wait_pidfile(pidfile_webserver_gunicorn_master)
+                pid_webserver = self._wait_pidfile(pidfile_webserver)
                 console.print(f"[blue]Webserver started at {pid_webserver}")
                 console.print("[blue]Running airflow webserver process:")
                 # Assert that the webserver and gunicorn processes are running (by name rather than pid).

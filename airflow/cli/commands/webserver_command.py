@@ -25,6 +25,7 @@ import sys
 import textwrap
 import time
 from contextlib import suppress
+from pathlib import Path
 from time import sleep
 from typing import NoReturn
 
@@ -375,7 +376,7 @@ def webserver(args):
             )
         )
 
-        gunicorn_master_pid_file, _, _, _ = setup_locations("webserver-gunicorn-master", pid=args.pid)
+        pid_file, _, _, _ = setup_locations("webserver", pid=args.pid)
         run_args = [
             sys.executable,
             "-m",
@@ -391,7 +392,7 @@ def webserver(args):
             "--name",
             "airflow-webserver",
             "--pid",
-            gunicorn_master_pid_file,
+            pid_file,
             "--config",
             "python:airflow.www.gunicorn_config",
         ]
@@ -464,7 +465,7 @@ def webserver(args):
                 gunicorn_master_proc_pid = None
                 while not gunicorn_master_proc_pid:
                     sleep(0.1)
-                    gunicorn_master_proc_pid = read_pid_from_pidfile(gunicorn_master_pid_file)
+                    gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
 
                 # Run Gunicorn monitor
                 gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
@@ -479,6 +480,12 @@ def webserver(args):
             create_app(None)
             os.environ.pop("SKIP_DAGS_PARSING")
 
+        pid_file_path = Path(pid_file)
+        monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
         run_command_with_daemon_mode(
-            args, "webserver", lambda: start_and_monitor_gunicorn(args), should_setup_logging=True
+            args,
+            "webserver",
+            lambda: start_and_monitor_gunicorn(args),
+            should_setup_logging=True,
+            pid_file=monitor_pid_file,
         )
