@@ -84,7 +84,6 @@ class TestKerberosCommand:
 
         assert mock_setup_locations.mock_calls[0] == mock.call(
             process="kerberos",
-            pid="/tmp/kerberos.pid",
             stdout="/tmp/kerberos-stdout.log",
             stderr="/tmp/kerberos-stderr.log",
             log="/tmp/kerberos.log",
