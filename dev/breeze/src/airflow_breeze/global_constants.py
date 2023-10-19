@@ -44,7 +44,7 @@ ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
-OTHER_INTEGRATIONS = ["statsd"]
+OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -55,8 +55,6 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
     [
         "all-testable",
         "all",
-        "otel",
-        "statsd",
         *ALL_INTEGRATIONS,
     ]
 )
@@ -88,6 +86,16 @@ ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
 PIP_VERSION = "23.3"
+
+# key used for generating providers index
+PROVIDERS_INDEX_KEY = "providers-index"
+# keys for generated non providers docs
+NON_PROVIDERS_DOC_KEYS = ["apache-airflow", "docker-stack", "helm-chart"]
+# Mapping which store short-key:full-key
+ALL_SPECIAL_DOC_KEYS = {
+    PROVIDERS_INDEX_KEY: "apache-airflow-providers",
+    **dict(zip(NON_PROVIDERS_DOC_KEYS, NON_PROVIDERS_DOC_KEYS)),
+}
 
 
 @lru_cache(maxsize=None)
@@ -152,7 +160,7 @@ def get_available_documentation_packages(short_version=False, only_providers: bo
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
     available_packages = []
     if not only_providers:
-        available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
+        available_packages.extend(NON_PROVIDERS_DOC_KEYS)
     all_providers = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
     all_providers.sort()
     available_packages.extend(all_providers)

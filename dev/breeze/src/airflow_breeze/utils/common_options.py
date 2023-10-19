@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
     DEFAULT_CELERY_BROKER,
+    PROVIDERS_INDEX_KEY,
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
@@ -228,7 +229,6 @@ option_image_tag_for_pulling = click.option(
     envvar="IMAGE_TAG",
 )
 option_image_tag_for_building = click.option(
-    "-t",
     "--image-tag",
     help="Tag the image after building it.",
     show_default=True,
@@ -236,7 +236,6 @@ option_image_tag_for_building = click.option(
     envvar="IMAGE_TAG",
 )
 option_image_tag_for_running = click.option(
-    "-t",
     "--image-tag",
     help="Tag of the image which is used to run the image (implies --mount-sources=skip).",
     show_default=True,
@@ -427,7 +426,7 @@ option_python_versions = click.option(
 )
 option_run_in_parallel = click.option(
     "--run-in-parallel",
-    help="Run the operation in parallel on all or selected subset of Python versions.",
+    help="Run the operation in parallel on all or selected subset of parameters.",
     is_flag=True,
     envvar="RUN_IN_PARALLEL",
 )
@@ -449,8 +448,18 @@ argument_packages_plus_all_providers = click.argument(
     "packages_plus_all_providers",
     nargs=-1,
     required=False,
-    type=BetterChoice(["all-providers"] + get_available_documentation_packages(short_version=True)),
+    type=BetterChoice(["all-providers", *get_available_documentation_packages(short_version=True)]),
 )
+
+argument_packages_plus_all_providers_for_shorthand = click.argument(
+    "packages_plus_all_providers",
+    nargs=-1,
+    required=False,
+    type=BetterChoice(
+        ["all-providers", *get_available_documentation_packages(short_version=True), PROVIDERS_INDEX_KEY]
+    ),
+)
+
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
@@ -472,7 +481,12 @@ option_airflow_constraints_reference_build = click.option(
     help="Constraint reference to use when building the image.",
     envvar="AIRFLOW_CONSTRAINTS_REFERENCE",
 )
-
+option_airflow_constraints_mode_update = click.option(
+    "--airflow-constraints-mode",
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
+    required=False,
+    help="Limit constraint update to only selected constraint mode - if selected.",
+)
 option_airflow_constraints_mode_ci = click.option(
     "--airflow-constraints-mode",
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
@@ -600,6 +614,14 @@ option_eager_upgrade_additional_requirements = click.option(
     envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
     help="Optional additional requirements to upgrade eagerly to avoid backtracking "
     "(see `breeze ci find-backtracking-candidates`).",
+)
+option_airflow_site_directory = click.option(
+    "-a",
+    "--airflow-site-directory",
+    envvar="AIRFLOW_SITE_DIRECTORY",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
+    help="Local directory path of cloned airflow-site repo.",
+    required=True,
 )
 option_upgrade_boto = click.option(
     "--upgrade-boto",
