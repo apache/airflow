@@ -184,7 +184,7 @@ class TestConnection:
         ),
         UriTestCaseConfig(
             test_conn_uri="scheme://user:password@host%2Flocation:1234/schema?"
-            "__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D",  # noqa: E501
+            "__extra__=%7B%22my_val%22%3A+%5B%22list%22%2C+%22of%22%2C+%22values%22%5D%2C+%22extra%22%3A+%7B%22nested%22%3A+%7B%22json%22%3A+%22val%22%7D%7D%7D",
             test_conn_attributes=dict(
                 conn_type="scheme",
                 host="host/location",
