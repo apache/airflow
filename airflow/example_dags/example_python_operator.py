@@ -21,9 +21,9 @@ virtual environment.
 """
 from __future__ import annotations
 
+import datetime
 import logging
 import sys
-import tempfile
 import time
 from pprint import pprint
 
@@ -37,8 +37,6 @@ log = logging.getLogger(__name__)
 
 PATH_TO_PYTHON_BINARY = sys.executable
 
-BASE_DIR = tempfile.gettempdir()
-
 
 def x():
     pass
@@ -50,6 +48,7 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
+    schedule_interval=datetime.timedelta(days=10)
 ) as dag:
     # [START howto_operator_python]
     @task(task_id="print_the_context")
@@ -155,3 +154,7 @@ with DAG(
         # [END howto_operator_python_venv_classic]
 
         run_this >> external_classic >> external_python_task >> virtual_classic
+
+if __name__ == '__main__':
+    dag.clear()
+    dag.run()
