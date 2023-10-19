@@ -88,14 +88,21 @@ class YandexCloudBaseHook(BaseHook):
     @classmethod
     def provider_user_agent(cls) -> str | None:
         """Construct User-Agent from Airflow core & provider package versions."""
-        import airflow
+        from airflow import __version__ as airflow_version
+        from airflow.configuration import conf
         from airflow.providers_manager import ProvidersManager
 
         try:
             manager = ProvidersManager()
             provider_name = manager.hooks[cls.conn_type].package_name  # type: ignore[union-attr]
             provider = manager.providers[provider_name]
-            return f"apache-airflow/{airflow.__version__} {provider_name}/{provider.version}"
+            return " ".join(
+                (
+                    conf.get("yandex", "sdk_user_agent_prefix", fallback=""),
+                    f"apache-airflow/{airflow_version}",
+                    f"{provider_name}/{provider.version}",
+                )
+            ).strip()
         except KeyError:
             warnings.warn(f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager")
             return None
@@ -130,27 +137,29 @@ class YandexCloudBaseHook(BaseHook):
         credentials = self._get_credentials()
         sdk_config = self._get_endpoint()
         self.sdk = yandexcloud.SDK(user_agent=self.provider_user_agent(), **sdk_config, **credentials)
-        self.default_folder_id = default_folder_id or self._get_field("folder_id", False)
-        self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key", False)
+        self.default_folder_id = default_folder_id or self._get_field("folder_id")
+        self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key")
         self.default_service_account_id = default_service_account_id or self._get_service_account_id()
         self.client = self.sdk.client
 
-    def _get_service_account_key(self) -> dict[str, Any] | None:
-        service_account_json = self._get_field("service_account_json", False)
-        service_account_json_path = self._get_field("service_account_json_path", False)
+    def _get_service_account_key(self) -> dict[str, str] | None:
+        service_account_json = self._get_field("service_account_json")
+        service_account_json_path = self._get_field("service_account_json_path")
         if service_account_json_path:
             with open(service_account_json_path) as infile:
                 service_account_json = infile.read()
         if service_account_json:
             return json.loads(service_account_json)
+        return None
 
     def _get_service_account_id(self) -> str | None:
         sa_key = self._get_service_account_key()
         if sa_key:
             return sa_key.get("service_account_id")
+        return None
 
     def _get_credentials(self) -> dict[str, Any]:
-        oauth_token = self._get_field("oauth", False)
+        oauth_token = self._get_field("oauth")
         if oauth_token:
             return {"token": oauth_token}
 
@@ -165,7 +174,7 @@ class YandexCloudBaseHook(BaseHook):
 
     def _get_endpoint(self) -> dict[str, str]:
         sdk_config = {}
-        endpoint = self._get_field("endpoint", None)
+        endpoint = self._get_field("endpoint")
         if endpoint:
             sdk_config["endpoint"] = endpoint
         return sdk_config
