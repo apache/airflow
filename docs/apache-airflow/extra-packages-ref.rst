@@ -216,6 +216,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend          |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| weaviate            | ``pip install 'apache-airflow[weaviate]'``          | Weaviate hook and operators                         |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | yandex              | ``pip install 'apache-airflow[yandex]'``            | Yandex.cloud hooks and operators                    |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | zendesk             | ``pip install 'apache-airflow[zendesk]'``           | Zendesk hooks                                       |

@@ -925,6 +925,14 @@
     ],
     "excluded-python-versions": []
   },
+  "weaviate": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "weaviate-client"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "yandex": {
     "deps": [
       "apache-airflow>=2.5.0",
