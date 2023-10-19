@@ -100,7 +100,7 @@ Custom logger for Operators, Hooks and Tasks
 --------------------------------------------
 
 You can create custom logging handlers and apply them to specific Operators, Hooks and tasks. By default, the Operators
-and Hooks loggers are child of the `airflow.task` logger: They follow respectively the naming convention
+and Hooks loggers are child of the ``airflow.task`` logger: They follow respectively the naming convention
 ``airflow.task.operators.<package>.<module_name>`` and ``airflow.task.hooks.<package>.<module_name>``. After
 :doc:`creating a custom logging class </administration-and-deployment/logging-monitoring/advanced-logging-configuration>`,
 you can assign specific loggers to them.
@@ -114,20 +114,22 @@ Example of custom logging for the ``SQLExecuteQueryOperator`` and the ``HttpHook
       from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 
       LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
-      LOGGING_CONFIG.deep_update({
-          "loggers": {
-              "airflow.task.operators.airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator": {
-                  "handlers": ["task"],
-                  "level": "DEBUG",
-                  "propagate": True
-              },
-              "airflow.task.hooks.airflow.providers.http.hooks.http.HttpHook": {
-                  "handlers": ["task"],
-                  "level": "WARNING",
-                  "propagate": False
-              },
+      LOGGING_CONFIG.deep_update(
+          {
+              "loggers": {
+                  "airflow.task.operators.airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator": {
+                      "handlers": ["task"],
+                      "level": "DEBUG",
+                      "propagate": True,
+                  },
+                  "airflow.task.hooks.airflow.providers.http.hooks.http.HttpHook": {
+                      "handlers": ["task"],
+                      "level": "WARNING",
+                      "propagate": False,
+                  },
+              }
           }
-      })
+      )
 
 
 You can also set a custom name to a Dag's task with the ``logger_name`` attribute. This can be useful if multiple tasks
@@ -138,18 +140,17 @@ Example of custom logger name:
     .. code-block:: python
 
       # In your Dag file
-      SQLExecuteQueryOperator(
-          ...,
-          logger_name="sql.big_query"
-      )
+      SQLExecuteQueryOperator(..., logger_name="sql.big_query")
 
       # In your custom `log_config.py`
-      LOGGING_CONFIG.deep_update({
-          "loggers": {
-              "airflow.task.operators.sql.big_query": {
-                  "handlers": ["task"],
-                  "level": "WARNING",
-                  "propagate": True
-              },
+      LOGGING_CONFIG.deep_update(
+          {
+              "loggers": {
+                  "airflow.task.operators.sql.big_query": {
+                      "handlers": ["task"],
+                      "level": "WARNING",
+                      "propagate": True,
+                  },
+              }
           }
-      })
+      )
