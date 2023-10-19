@@ -37,7 +37,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
     # [START create_livy]
     livy_java_task = LivyOperator(
         task_id="pi_java_task",

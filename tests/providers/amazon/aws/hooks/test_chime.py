@@ -28,7 +28,6 @@ from airflow.utils import db
 
 
 class TestChimeWebhookHook:
-
     _config = {
         "chime_conn_id": "default-chime-webhook",
         "webhook_endpoint": "incomingwebhooks/abcd-1134-ZeDA?token=somechimetoken-111",

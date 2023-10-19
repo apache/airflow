@@ -70,7 +70,6 @@ class TestS3ToSqlTransfer:
 
     @pytest.fixture()
     def mock_bad_hook(self):
-
         bad_hook = MagicMock()
         del bad_hook.insert_rows
         return bad_hook
@@ -79,7 +78,6 @@ class TestS3ToSqlTransfer:
     @patch("airflow.models.connection.Connection.get_hook")
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.get_key")
     def test_execute(self, mock_get_key, mock_hook, mock_tempfile, mock_parser):
-
         S3ToSqlOperator(parser=mock_parser, **self.s3_to_sql_transfer_kwargs).execute({})
 
         mock_get_key.assert_called_once_with(
@@ -105,7 +103,6 @@ class TestS3ToSqlTransfer:
     @patch("airflow.models.connection.Connection.get_hook", return_value=mock_bad_hook)
     @patch("airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.get_key")
     def test_execute_with_bad_hook(self, mock_get_key, mock_bad_hook, mock_tempfile, mock_parser):
-
         with pytest.raises(AirflowException):
             S3ToSqlOperator(parser=mock_parser, **self.s3_to_sql_transfer_kwargs).execute({})
 

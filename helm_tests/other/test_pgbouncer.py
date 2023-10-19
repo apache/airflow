@@ -817,7 +817,6 @@ class TestPgbouncerNetworkPolicy:
         ],
     )
     def test_pgbouncer_network_policy_with_keda(self, conf, expected_selector):
-
         docs = render_chart(
             values={
                 "pgbouncer": {"enabled": True},

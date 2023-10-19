@@ -89,7 +89,7 @@ class ImportFinder(NodeVisitor):
 
 
 def find_all_providers_and_provider_files():
-    for (root, _, filenames) in os.walk(AIRFLOW_PROVIDERS_DIR):
+    for root, _, filenames in os.walk(AIRFLOW_PROVIDERS_DIR):
         for filename in filenames:
             if filename == "provider.yaml":
                 provider_file = Path(root, filename)

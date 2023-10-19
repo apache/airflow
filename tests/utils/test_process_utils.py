@@ -152,7 +152,6 @@ class TestKillChildProcessesByPids:
         assert before_num_process == num_process
 
     def test_should_force_kill_process(self, caplog):
-
         process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=())
         process.start()
         sleep(0)

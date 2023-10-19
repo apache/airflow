@@ -83,7 +83,6 @@ with DAG(
     catchup=False,
     tags=["example", "gcp-functions"],
 ) as dag:
-
     # [START howto_operator_gcf_deploy]
     deploy_function = CloudFunctionDeployFunctionOperator(
         task_id="deploy_function",

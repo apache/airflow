@@ -30,7 +30,6 @@ from airflow.utils import db
 
 
 class TestSparkSubmitHook:
-
     _spark_job_file = "test_application.py"
     _config = {
         "conf": {"parquet.compression": "SNAPPY"},

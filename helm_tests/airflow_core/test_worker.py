@@ -723,7 +723,6 @@ class TestWorkerKedaAutoScaler:
         ],
     )
     def test_should_use_keda_query(self, query, executor, expected_query):
-
         docs = render_chart(
             values={
                 "executor": executor,
