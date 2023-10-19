@@ -28,6 +28,13 @@ versions:
 dependencies:
   - apache-airflow>=2.8.0
 
+integrations:
+  - integration-name: Common IO
+    external-doc-url: https://filesystem-spec.readthedocs.io/en/latest/index.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-common-io/operators.rst
+    tags: [software]
+
 operators:
   - integration-name: Common IO
     python-modules:
