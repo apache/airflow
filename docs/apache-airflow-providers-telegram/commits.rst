@@ -86,7 +86,7 @@ Latest change: 2023-03-03
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
 `fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
-`644cea14ff <https://github.com/apache/airflow/commit/644cea14fff74d34f823b5c52c9dbf5bad33bd52>`_  2023-02-23   ``Updated Telegram Provider to ensure compatbility with >=20.0.0 (#28953)``
+`644cea14ff <https://github.com/apache/airflow/commit/644cea14fff74d34f823b5c52c9dbf5bad33bd52>`_  2023-02-23   ``Updated Telegram Provider to ensure compatibility with >=20.0.0 (#28953)``
 =================================================================================================  ===========  ===========================================================================
 
 3.1.1
@@ -248,6 +248,6 @@ Latest change: 2020-12-09
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================
 `32971a1a2d <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
-`b40dffa085 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
+`b40dffa085 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaining modules to match AIP-21 (#12917)``
 `cd66450b4e <https://github.com/apache/airflow/commit/cd66450b4ee2a219ddc847970255e420ed679700>`_  2020-12-05   ``Add Telegram hook and operator (#11850)``
 =================================================================================================  ===========  ===================================================
