@@ -33,6 +33,7 @@ from bisect import insort_left
 from collections import defaultdict
 from functools import cached_property, wraps
 from json import JSONDecodeError
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterator, Mapping, MutableMapping, Sequence
 from urllib.parse import unquote, urljoin, urlsplit
 
@@ -5824,6 +5825,32 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
     dag.can_trigger = dag.can_edit and can_create_dag_run
     dag.can_delete = get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag.dag_id))
     context["dag"] = dag
+
+
+##############################################################################
+#                                                                            #
+#                          Development Views                                 #
+#                                                                            #
+##############################################################################
+
+
+class DevView(BaseView):
+    """View to show Airflow Dev Endpoints.
+
+    This view should only be accessible in development mode. For
+    now, once there's a htmlcov, the coverage report will be shown
+    even in production.
+
+    TODO: Restrict this to only be accessible in development mode.
+    """
+
+    route_base = "/dev"
+
+    @expose("/coverage/<path:path>")
+    def coverage(self, path):
+        self.template_folder = Path.cwd() / "htmlcov"
+        self.static_folder = Path.cwd() / "htmlcov"
+        return send_from_directory(self.template_folder, path)
 
 
 # NOTE: Put this at the end of the file. Pylance is too clever and detects that
