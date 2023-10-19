@@ -58,7 +58,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     session = aws.get_session(deferrable=True)
     endpoint_url = aws.conn_config.extra_config.get("endpoint_url", None)
 
-    config_kwargs: dict[str, Any] = {}
+    config_kwargs: dict[str, Any] = aws.conn_config.extra_config.get("config_kwargs", {})
     register_events: dict[str, Callable[[Properties], None]] = {}
 
     if signer := aws.conn_config.extra_config.get("s3.signer"):

@@ -493,14 +493,8 @@ aiobotocore = [
     # This required for AWS deferrable operators.
     # There is conflict between boto3 and aiobotocore dependency botocore.
     # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-    # boto3 have native aync support and we move away from aio aiobotocore
+    # boto3 have native async support and we move away from aio aiobotocore
     "aiobotocore>=2.1.1",
-]
-
-s3fs = [
-    # This is required for support of S3 file system which uses aiobotocore
-    # which can have a conflict with boto3 as mentioned above
-    "s3fs>=2023.9.2",
 ]
 
 
@@ -529,7 +523,6 @@ devel = get_unique_dependency_list(
         get_provider_dependencies("mysql"),
         pandas,
         password,
-        s3fs,
     ]
 )
 
@@ -575,7 +568,6 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "pandas": pandas,
     "password": password,
     "rabbitmq": rabbitmq,
-    "s3fs": s3fs,
     "sentry": sentry,
     "statsd": statsd,
     "virtualenv": virtualenv,

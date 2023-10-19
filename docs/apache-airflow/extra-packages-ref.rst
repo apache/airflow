@@ -68,8 +68,6 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | sentry              | ``pip install 'apache-airflow[sentry]'``            | Sentry service for application logging and monitoring                      |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| s3fs                | ``pip install 'apache-airflow[s3fs]'``              | Support for S3 as Airflow FS                                               |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                   |

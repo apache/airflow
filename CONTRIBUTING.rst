@@ -678,9 +678,9 @@ github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap,
 jenkins, kerberos, kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp,
 microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas, openlineage, opensearch, opsgenie,
 oracle, otel, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, rabbitmq,
-redis, s3, s3fs, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack, smtp,
-snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv,
-webhdfs, winrm, yandex, zendesk
+redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
+spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm,
+yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages
