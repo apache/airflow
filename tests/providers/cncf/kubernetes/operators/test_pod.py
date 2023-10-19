@@ -225,7 +225,7 @@ class TestKubernetesPodOperator:
         )
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.security_context == security_context
-    
+
     def test_host_aliases(self):
         host_aliases = [k8s.V1HostAlias(ip="192.0.2.1", hostnames=["my.service.com"])]
         k = KubernetesPodOperator(
