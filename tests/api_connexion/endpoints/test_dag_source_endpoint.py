@@ -76,7 +76,6 @@ class TestGetSource:
         return docstring
 
     def test_should_respond_200_text(self, url_safe_serializer):
-
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         first_dag: DAG = next(iter(dagbag.dags.values()))

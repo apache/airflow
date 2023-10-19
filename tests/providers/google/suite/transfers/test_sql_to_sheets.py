@@ -39,7 +39,6 @@ class TestSQLToGoogleSheets:
 
     @patch("airflow.providers.google.suite.transfers.sql_to_sheets.GSheetsHook")
     def test_execute(self, mock_sheet_hook):
-
         op = SQLToGoogleSheetsOperator(
             task_id="test_task",
             spreadsheet_id=self.spreadsheet_id,

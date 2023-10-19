@@ -40,7 +40,6 @@ The following code shows how to add extra links to an operator via Plugins:
 
 
     class MyFirstOperator(BaseOperator):
-
         operator_extra_links = (GoogleLink(),)
 
         def __init__(self, **kwargs):

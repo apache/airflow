@@ -63,7 +63,6 @@ class TestSqliteHookConn:
 
 class TestSqliteHook:
     def setup_method(self):
-
         self.cur = mock.MagicMock(rowcount=0)
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur

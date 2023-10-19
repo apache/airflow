@@ -62,7 +62,6 @@ class TestSqsSensor:
 
     @mock_sqs
     def test_poke_no_message_failed(self):
-
         self.sqs_hook.create_queue(QUEUE_NAME)
         result = self.sensor.poke(self.mock_context)
         assert not result
@@ -291,7 +290,6 @@ class TestSqsSensor:
 
     @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_do_not_delete_message_on_received(self, mock_conn):
-
         self.sqs_hook.create_queue(QUEUE_NAME)
         self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body="hello")
 

@@ -126,7 +126,6 @@ class TestEventBridgeEnableRuleOperator:
 
     @mock.patch.object(EventBridgeHook, "conn")
     def test_enable_rule(self, mock_conn: MagicMock):
-
         enable_rule = EventBridgeEnableRuleOperator(
             task_id="events_enable_rule_job",
             name=RULE_NAME,
@@ -147,7 +146,6 @@ class TestEventBridgeDisableRuleOperator:
 
     @mock.patch.object(EventBridgeHook, "conn")
     def test_disable_rule(self, mock_conn: MagicMock):
-
         disable_rule = EventBridgeDisableRuleOperator(
             task_id="events_disable_rule_job",
             name=RULE_NAME,

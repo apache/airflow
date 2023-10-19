@@ -426,7 +426,6 @@ def find_all_entities(
             and not inherits_from(the_class=the_class, expected_ancestor=exclude_class_type)
             and package_name_matches(the_class=the_class, expected_pattern=sub_package_pattern_match)
         ):
-
             if not false_positive_class_names or class_name not in false_positive_class_names:
                 if not re.match(expected_class_name_pattern, class_name):
                     wrong_entities.append(

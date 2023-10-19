@@ -26,6 +26,7 @@ import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Generator
 from unittest import mock
 from unittest.mock import MagicMock
@@ -988,6 +989,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return a
 
         self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
+
+    def test_caching(self):
+        def f(a):
+            import sys
+
+            assert "pytest_venv_1234" in sys.executable
+            return a
+
+        with TemporaryDirectory(prefix="pytest_venv_1234") as tmp_dir:
+            self.run_as_task(f, venv_cache_path=tmp_dir, op_args=[4])
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
