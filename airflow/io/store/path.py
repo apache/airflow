@@ -36,6 +36,8 @@ def _rewrite_info(info: dict, store: ObjectStore) -> dict:
 class ObjectStoragePath(os.PathLike):
     """A path-like object for object storage."""
 
+    __version__: typing.ClassVar[int] = 1
+
     sep: typing.ClassVar[str] = "/"
     root_marker: typing.ClassVar[str] = "/"
 
@@ -225,6 +227,7 @@ class ObjectStoragePath(os.PathLike):
     def is_symlink(self):
         """Whether this path is a symbolic link."""
         try:
+            self.lstat().st_mode
             return S_ISLNK(self.lstat().st_mode)
         except OSError:
             # Path doesn't exist
@@ -307,9 +310,9 @@ class ObjectStoragePath(os.PathLike):
             **kwargs,
         )
 
-    def read_bytes(self):
+    def read_bytes(self, start: int | None = None, end: int | None = None):
         """Open the file in bytes mode, read it, and close the file."""
-        self.store.fs.read_bytes(str(self))
+        self.store.fs.read_bytes(str(self), start=start, end=end)
 
     def read_text(self, encoding=None, errors=None, newline=None, **kwargs):
         """Open the file in text mode, read it, and close the file."""
@@ -317,12 +320,12 @@ class ObjectStoragePath(os.PathLike):
 
     def write_bytes(self, data, **kwargs):
         """Open the file in bytes mode, write to it, and close the file."""
-        self.store.fs.pipe_file(data, **kwargs)
+        self.store.fs.pipe_file(self, value=data, **kwargs)
 
     def write_text(self, data, encoding=None, errors=None, newline=None, **kwargs):
         """Open the file in text mode, write to it, and close the file."""
         return self.store.fs.write_text(
-            str(self), data, encoding=encoding, errors=errors, newline=newline, **kwargs
+            str(self), value=data, encoding=encoding, errors=errors, newline=newline, **kwargs
         )
 
     def iterdir(self):
@@ -566,6 +569,10 @@ class ObjectStoragePath(os.PathLike):
         """
         return self.store.fs.sign(str(self), expiration=expiration, **kwargs)
 
+    def size(self):
+        """Size in bytes of the file at this path."""
+        return self.store.fs.size(self)
+
     def du(self, total: bool = True, maxdepth: int | None = None, withdirs: bool = False, **kwargs):
         """Space used by files and optionally directories within a path.
 
@@ -651,3 +658,16 @@ class ObjectStoragePath(os.PathLike):
         # non-local copy
         self.copy(path, recursive=recursive, **kwargs)
         self.unlink(recursive=recursive)
+
+    def serialize(self) -> dict[str, str | ObjectStore]:
+        return {
+            "path": str(self),
+            "store": self.store,
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict, version: int) -> ObjectStoragePath:
+        if version > cls.__version__:
+            raise ValueError(f"Cannot deserialize version {version} with version {cls.__version__}.")
+
+        return ObjectStoragePath(**data)

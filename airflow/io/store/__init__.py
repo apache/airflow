@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
 
-from airflow.io import SCHEME_TO_FS
-from airflow.utils.module_loading import import_string, qualname
+from airflow.io import get_fs, has_fs
+from airflow.utils.module_loading import qualname
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
@@ -36,13 +36,13 @@ class ObjectStore:
 
     _fs: AbstractFileSystem = None
 
-    def __init__(self, conn_id: str | None, protocol: str, method: str):
+    def __init__(self, protocol: str, conn_id: str | None, fs: AbstractFileSystem | None = None):
         self.conn_id = conn_id
-        self.method = method
         self.protocol = protocol
+        self._fs = fs
 
     def __str__(self):
-        return f"{self.fs.protocol}-{self.conn_id}" if self.conn_id else self.fs.protocol
+        return f"{self.protocol}-{self.conn_id}" if self.conn_id else self.protocol
 
     @property
     def fs(self) -> AbstractFileSystem:
@@ -52,7 +52,7 @@ class ObjectStore:
     @property
     def fsid(self) -> str:
         """
-        Get the filesystem ID for this mount in order to be able to compare across instances.
+        Get the filesystem id for this store in order to be able to compare across instances.
 
         The underlying `fsid` is returned from the filesystem if available, otherwise it is generated
         from the protocol and connection ID.
@@ -67,19 +67,36 @@ class ObjectStore:
 
     def serialize(self):
         return {
-            "conn_id": self.conn_id,
-            "method": self.method,
             "protocol": self.protocol,
+            "conn_id": self.conn_id,
+            "filesystem": qualname(self._fs) if self._fs else None,
         }
 
     @classmethod
     def deserialize(cls, data: dict[str, str], version: int):
-        return ObjectStore(**data)
+        if version > cls.__version__:
+            raise ValueError(f"Cannot deserialize version {version} for {cls.__name__}")
+
+        protocol = data["protocol"]
+        conn_id = data["conn_id"]
+
+        alias = f"{protocol}-{conn_id}" if conn_id else protocol
+
+        if store := _STORE_CACHE.get(alias, None):
+            return store
+
+        if not has_fs(protocol):
+            if "filesystem" in data and data["filesystem"]:
+                raise ValueError(
+                    f"No attached filesystem found for {data['filesystem']} with "
+                    f"protocol {data['protocol']}. Please use attach() for this protocol and filesystem."
+                )
+
+        return attach(protocol=protocol, conn_id=conn_id)
 
     def _connect(self):
         if self._fs is None:
-            func = import_string(self.method)
-            self._fs = func(self.conn_id)
+            self._fs = get_fs(self.protocol, self.conn_id)
 
     def __eq__(self, other):
         return isinstance(other, type(self)) and other.conn_id == self.conn_id and other._fs == self._fs
@@ -93,7 +110,7 @@ def attach(
     conn_id: str | None = None,
     alias: str | None = None,
     encryption_type: str | None = "",
-    fs_type: AbstractFileSystem | None = None,
+    fs: AbstractFileSystem | None = None,
 ) -> ObjectStore:
     """
     Attach a filesystem or object storage.
@@ -102,7 +119,7 @@ def attach(
     :param protocol: the scheme that is used without ://
     :param conn_id: the connection to use to connect to the filesystem
     :param encryption_type: the encryption type to use to connect to the filesystem
-    :param fs_type: the filesystem type to use to connect to the filesystem
+    :param fs: the filesystem type to use to connect to the filesystem
     """
     if alias:
         if store := _STORE_CACHE.get(alias, None):
@@ -118,11 +135,7 @@ def attach(
         if store := _STORE_CACHE.get(alias, None):
             return store
 
-    if not fs_type and protocol not in SCHEME_TO_FS:
-        raise ValueError(f"No registered filesystem for protocol: {protocol}")
-
-    fs = fs_type or SCHEME_TO_FS[protocol]
-    store = ObjectStore(conn_id=conn_id, protocol=protocol, method=qualname(fs))
+    store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs)
     _STORE_CACHE[alias] = store
 
     return store

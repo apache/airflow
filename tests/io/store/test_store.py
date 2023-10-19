@@ -25,8 +25,9 @@ from fsspec.implementations.local import LocalFileSystem
 from fsspec.utils import stringify_path
 from s3fs import S3FileSystem
 
-from airflow.io.store import _STORE_CACHE, attach
+from airflow.io.store import _STORE_CACHE, ObjectStore, attach
 from airflow.io.store.path import ObjectStoragePath
+from airflow.utils.module_loading import qualname
 
 FAKE = "file:///fake"
 MNT = "file:///mnt/warehouse"
@@ -143,7 +144,7 @@ class TestFs:
         _fs._strip_protocol.return_value = "/"
         _fs.conn_id = "fake"
 
-        store = attach(protocol="mock", fs_type=_fs)
+        store = attach(protocol="mock", fs=_fs)
         o = ObjectStoragePath(path, store=store)
 
         getattr(o, fn)(**args)
@@ -161,7 +162,7 @@ class TestFs:
         _to.unlink()
 
     def test_move_remote(self):
-        attach("fakefs", fs_type=FakeRemoteFileSystem())
+        attach("fakefs", fs=FakeRemoteFileSystem())
 
         _from = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
         print(_from)
@@ -174,3 +175,31 @@ class TestFs:
         assert _to.exists()
 
         _to.unlink()
+
+    def test_serde_objectstoragepath(self):
+        path = "s3://bucket/key/part1/part2"
+        o = ObjectStoragePath(path)
+        s = o.serialize()
+        d = ObjectStoragePath.deserialize(s, 1)
+
+        assert s["path"] == path
+        assert o == d
+
+    def test_serde_store(self):
+        store = attach("s3", conn_id="aws")
+        s = store.serialize()
+        d = ObjectStore.deserialize(s, 1)
+
+        assert s["protocol"] == "s3"
+        assert s["conn_id"] == "aws"
+        assert s["filesystem"] is None
+        assert store == d
+
+        store = attach("localfs", fs=LocalFileSystem())
+        s = store.serialize()
+        d = ObjectStore.deserialize(s, 1)
+
+        assert s["protocol"] == "localfs"
+        assert s["conn_id"] is None
+        assert s["filesystem"] == qualname(LocalFileSystem)
+        assert store == d

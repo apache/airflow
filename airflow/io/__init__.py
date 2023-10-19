@@ -18,14 +18,19 @@ from __future__ import annotations
 
 import logging
 from typing import (
+    TYPE_CHECKING,
     Callable,
 )
 
 from fsspec.implementations.local import LocalFileSystem
 
+from airflow.compat.functools import cache
 from airflow.providers_manager import ProvidersManager
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string
+
+if TYPE_CHECKING:
+    from fsspec import AbstractFileSystem
 
 log = logging.getLogger(__name__)
 
@@ -34,27 +39,52 @@ def _file(_: str | None) -> LocalFileSystem:
     return LocalFileSystem()
 
 
-# always support local file systems
-SCHEME_TO_FS: dict[str, Callable] = {
+# builtin supported filesystems
+_BUILTIN_SCHEME_TO_FS: dict[str, Callable[[str | None], AbstractFileSystem]] = {
     "file": _file,
 }
 
 
-def _register_schemes() -> None:
+@cache
+def _register_filesystems() -> dict[str, Callable[[str | None], AbstractFileSystem]]:
+    scheme_to_fs = _BUILTIN_SCHEME_TO_FS.copy()
     with Stats.timer("airflow.io.load_filesystems") as timer:
         manager = ProvidersManager()
         for fs_module_name in manager.filesystem_module_names:
             fs_module = import_string(fs_module_name)
             for scheme in getattr(fs_module, "schemes", []):
-                if scheme in SCHEME_TO_FS:
+                if scheme in scheme_to_fs:
                     log.warning("Overriding scheme %s for %s", scheme, fs_module_name)
 
                 method = getattr(fs_module, "get_fs", None)
                 if method is None:
                     raise ImportError(f"Filesystem {fs_module_name} does not have a get_fs method")
-                SCHEME_TO_FS[scheme] = method
+                scheme_to_fs[scheme] = method
 
     log.debug("loading filesystems from providers took %.3f seconds", timer.duration)
+    return scheme_to_fs
 
 
-_register_schemes()
+def get_fs(scheme: str, conn_id: str | None = None) -> AbstractFileSystem:
+    """
+    Get a filesystem by scheme.
+
+    :param scheme: the scheme to get the filesystem for
+    :return: the filesystem method
+    :param conn_id: the airflow connection id to use
+    """
+    filesystems = _register_filesystems()
+    try:
+        return filesystems[scheme](conn_id)
+    except KeyError:
+        raise ValueError(f"No filesystem registered for scheme {scheme}")
+
+
+def has_fs(scheme: str) -> bool:
+    """
+    Check if a filesystem is available for a scheme.
+
+    :param scheme: the scheme to check
+    :return: True if a filesystem is available for the scheme
+    """
+    return scheme in _register_filesystems()
