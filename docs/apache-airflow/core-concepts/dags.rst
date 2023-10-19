@@ -503,7 +503,6 @@ For example, here is a DAG that uses a ``for`` loop to define some tasks:
    :emphasize-lines: 7
 
     with DAG("loop_example", ...):
-
         first = EmptyOperator(task_id="first")
         last = EmptyOperator(task_id="last")
 
@@ -677,6 +676,11 @@ This is especially useful if your tasks are built dynamically from configuration
 SubDAGs
 -------
 
+.. note::
+
+    SubDAG is deprecated hence TaskGroup is always the preferred choice.
+
+
 Sometimes, you will find that you are regularly adding exactly the same set of tasks to every DAG, or you want to group a lot of tasks into a single, logical unit. This is what SubDAGs are for.
 
 For example, here's a DAG that has a lot of parallel tasks in two sections:
@@ -753,10 +757,6 @@ You can see the core differences between these two constructs.
 +--------------------------------------------------------+--------------------------------------------------------+
 | Simple construct declaration with context manager      |  Complex DAG factory with naming restrictions          |
 +--------------------------------------------------------+--------------------------------------------------------+
-
-.. note::
-
-    SubDAG is deprecated hence TaskGroup is always the preferred choice.
 
 
 

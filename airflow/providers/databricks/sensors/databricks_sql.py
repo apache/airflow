@@ -83,7 +83,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         client_parameters: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        """Creates DatabricksSqlSensor object using the specified input arguments."""
+        """Create DatabricksSqlSensor object using the specified input arguments."""
         self.databricks_conn_id = databricks_conn_id
         self._http_path = http_path
         self._sql_warehouse_name = sql_warehouse_name
@@ -115,7 +115,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         )
 
     def _get_results(self) -> bool:
-        """Uses the Databricks SQL hook and runs the specified SQL query."""
+        """Use the Databricks SQL hook and run the specified SQL query."""
         if not (self._http_path or self._sql_warehouse_name):
             # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = (

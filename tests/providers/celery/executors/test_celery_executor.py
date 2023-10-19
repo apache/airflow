@@ -330,3 +330,19 @@ def test_send_tasks_to_celery_hang(register_signals):
         # multiprocessing.
         results = executor._send_tasks_to_celery(task_tuples_to_send)
         assert results == [(None, None, 1) for _ in task_tuples_to_send]
+
+
+@conf_vars({("celery", "result_backend"): "rediss://test_user:test_password@localhost:6379/0"})
+def test_celery_executor_with_no_recommended_result_backend(caplog):
+    import importlib
+
+    from airflow.providers.celery.executors.default_celery import log
+
+    with caplog.at_level(logging.WARNING, logger=log.name):
+        # reload celery conf to apply the new config
+        importlib.reload(default_celery)
+        assert "test_password" not in caplog.text
+        assert (
+            "You have configured a result_backend using the protocol `rediss`,"
+            " it is highly recommended to use an alternative result_backend (i.e. a database)."
+        ) in caplog.text

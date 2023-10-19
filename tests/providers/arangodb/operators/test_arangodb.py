@@ -24,7 +24,6 @@ from airflow.providers.arangodb.operators.arangodb import AQLOperator
 class TestAQLOperator:
     @mock.patch("airflow.providers.arangodb.operators.arangodb.ArangoDBHook")
     def test_arangodb_operator_test(self, mock_hook):
-
         arangodb_query = "FOR doc IN students RETURN doc"
         op = AQLOperator(task_id="basic_aql_task", query=arangodb_query)
         op.execute(mock.MagicMock())

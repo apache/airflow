@@ -823,7 +823,6 @@ class TestS3ToGoogleCloudStorageTransferOperator:
         )
 
         with pytest.raises(AirflowException) as ctx:
-
             operator = CloudDataTransferServiceS3ToGCSOperator(
                 task_id=TASK_ID,
                 s3_bucket=AWS_BUCKET_NAME,
@@ -930,7 +929,6 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_execute_delete_job_after_completion(self, mock_transfer_hook):
-
         operator = CloudDataTransferServiceGCSToGCSOperator(
             task_id=TASK_ID,
             source_bucket=GCS_BUCKET_NAME,
@@ -953,9 +951,7 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
     def test_execute_should_throw_ex_when_delete_job_without_wait(self, mock_transfer_hook):
-
         with pytest.raises(AirflowException) as ctx:
-
             operator = CloudDataTransferServiceS3ToGCSOperator(
                 task_id=TASK_ID,
                 s3_bucket=AWS_BUCKET_NAME,
