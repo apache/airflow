@@ -35,6 +35,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.10.1
+.......
+
+Latest change: 2023-10-18
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`e444bca140 <https://github.com/apache/airflow/commit/e444bca140cc38619316ca5f6325ba53d4e8e426>`_  2023-10-18   ``Add links between documentation related to Google Cloud Storage (#34994)``
+`92204b36b0 <https://github.com/apache/airflow/commit/92204b36b08044db4ed958dfaed7672071cd37d4>`_  2023-10-18   ``Migrate legacy version of AI Platform Prediction to VertexAI (#34922)``
+`0b49f338b9 <https://github.com/apache/airflow/commit/0b49f338b9e6fd3264bc0099e8879855bf6c60c9>`_  2023-10-16   ``Cancel workflow in on_kill in DataprocInstantiate{Inline}WorkflowTemplateOperator (#34957)``
+=================================================================================================  ===========  ==============================================================================================
+
 10.10.0
 .......
 
@@ -43,6 +56,7 @@ Latest change: 2023-10-13
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
 `d27d0bb60b <https://github.com/apache/airflow/commit/d27d0bb60b08ed8550491d4801ba5bf3c0e3da9b>`_  2023-10-13   ``Refactor DataFusionInstanceLink usage (#34514)``
 `4dc2c40dfe <https://github.com/apache/airflow/commit/4dc2c40dfefb3495e435aabb99c07fa6e4f32c5d>`_  2023-10-12   ``Fix GCSToGoogleDriveOperator and gdrive system tests (#34545)``
 `0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``

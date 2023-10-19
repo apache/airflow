@@ -503,7 +503,6 @@ For example, here is a DAG that uses a ``for`` loop to define some tasks:
    :emphasize-lines: 7
 
     with DAG("loop_example", ...):
-
         first = EmptyOperator(task_id="first")
         last = EmptyOperator(task_id="last")
 

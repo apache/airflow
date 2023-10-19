@@ -34,7 +34,6 @@ with DAG(
     max_active_runs=1,
     catchup=False,
 ) as dag:
-
     spark_pi = AnalyticDBSparkBatchOperator(
         task_id="task1",
         file="local:///tmp/spark-examples.jar",

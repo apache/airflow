@@ -25,7 +25,7 @@ import random
 import uuid
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Container, Iterable, Sequence
 
 import re2
 from flask import flash, g, session
@@ -42,13 +42,21 @@ from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
+from airflow.auth.managers.fab.fab_auth_manager import MAP_METHOD_NAME_TO_FAB_ACTION_NAME
 from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.models import DagModel
+from airflow.security import permissions
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.fab.models import User
 
 log = logging.getLogger(__name__)
@@ -501,6 +509,91 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_CREATE_DB, e)
             exit(1)
+
+    def get_readable_dags(self, user) -> Iterable[DagModel]:
+        """Get the DAGs readable by authenticated user."""
+        warnings.warn(
+            "`get_readable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
+            "instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
+            return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
+
+    def get_editable_dags(self, user) -> Iterable[DagModel]:
+        """Get the DAGs editable by authenticated user."""
+        warnings.warn(
+            "`get_editable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
+            "instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
+            return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
+
+    @provide_session
+    def get_accessible_dags(
+        self,
+        user_actions: Container[str] | None,
+        user,
+        session: Session = NEW_SESSION,
+    ) -> Iterable[DagModel]:
+        warnings.warn(
+            "`get_accessible_dags` has been deprecated. Please use "
+            "`get_auth_manager().get_permitted_dag_ids` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=3,
+        )
+
+        dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
+        return session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids)))
+
+    @provide_session
+    def get_accessible_dag_ids(
+        self,
+        user,
+        user_actions: Container[str] | None = None,
+        session: Session = NEW_SESSION,
+    ) -> set[str]:
+        warnings.warn(
+            "`get_accessible_dag_ids` has been deprecated. Please use "
+            "`get_auth_manager().get_permitted_dag_ids` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=3,
+        )
+        if not user_actions:
+            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+        fab_action_name_to_method_name = {v: k for k, v in MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()}
+        user_methods: Container[ResourceMethod] = [
+            fab_action_name_to_method_name[action]
+            for action in fab_action_name_to_method_name
+            if action in user_actions
+        ]
+        return get_auth_manager().get_permitted_dag_ids(user=user, methods=user_methods, session=session)
+
+    @staticmethod
+    def get_readable_dag_ids(user=None) -> set[str]:
+        """Get the DAG IDs readable by authenticated user."""
+        return get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user)
+
+    @staticmethod
+    def get_editable_dag_ids(user=None) -> set[str]:
+        """Get the DAG IDs editable by authenticated user."""
+        return get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=user)
+
+    def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
+        """Check if user has read or write access to some dags."""
+        if dag_id and dag_id != "~":
+            root_dag_id = self._get_root_dag_id(dag_id)
+            return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))
+
+        user = g.user
+        if action == permissions.ACTION_CAN_READ:
+            return any(self.get_readable_dag_ids(user))
+        return any(self.get_editable_dag_ids(user))
 
     """
     -----------
@@ -1070,6 +1163,31 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         token = session.get("oauth")
         log.debug("Token Get: %s", token)
         return token
+
+    def check_authorization(
+        self,
+        perms: Sequence[tuple[str, str]] | None = None,
+        dag_id: str | None = None,
+    ) -> bool:
+        """Checks that the logged in user has the specified permissions."""
+        if not perms:
+            return True
+
+        for perm in perms:
+            if perm in (
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+            ):
+                can_access_all_dags = self.has_access(*perm)
+                if not can_access_all_dags:
+                    action = perm[0]
+                    if not self.can_access_some_dags(action, dag_id):
+                        return False
+            elif not self.has_access(*perm):
+                return False
+
+        return True
 
     @staticmethod
     def _azure_parse_jwt(token):

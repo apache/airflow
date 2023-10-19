@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+8.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Glue 'DataBrew' operator (#34807)``
+* ``Add 'check_interval' and 'max_attempts' as parameter of 'DynamoDBToS3Operator' (#34972)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set 'EcsRunTaskOperator' default waiter duration to 70 days (#34928)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
 8.8.0
 .....
 
