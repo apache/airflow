@@ -56,8 +56,9 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
 
     aws: AwsGenericHook = AwsGenericHook(aws_conn_id=conn_id, client_type="s3")
     session = aws.get_session(deferrable=True)
+    endpoint_url = aws.conn_config.extra_config.get("endpoint_url", None)
 
-    config_kwargs = {}
+    config_kwargs: dict[str, Any] = {}
     register_events: dict[str, Callable[[Properties], None]] = {}
 
     if signer := aws.conn_config.extra_config.get("s3.signer"):
@@ -83,7 +84,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     if proxy_uri := aws.conn_config.extra_config.get(S3_PROXY_URI):
         config_kwargs["proxies"] = {"http": proxy_uri, "https": proxy_uri}
 
-    fs = S3FileSystem(session=session, config_kwargs=config_kwargs)
+    fs = S3FileSystem(session=session, config_kwargs=config_kwargs, endpoint_url=endpoint_url)
 
     for event_name, event_function in register_events.items():
         fs.s3.meta.events.register_last(event_name, event_function, unique_id=1925)
