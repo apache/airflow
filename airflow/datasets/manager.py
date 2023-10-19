@@ -49,8 +49,10 @@ class DatasetManager(LoggingMixin):
         """Create new datasets."""
         for dataset_model in dataset_models:
             session.add(dataset_model)
+        session.flush()
+
+        for dataset_model in dataset_models:
             self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
-        session.flush()  # this is required to ensure each dataset has its PK loaded
 
     def register_dataset_change(
         self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
