@@ -449,7 +449,7 @@ argument_packages_plus_all_providers = click.argument(
     "packages_plus_all_providers",
     nargs=-1,
     required=False,
-    type=BetterChoice(["all-providers"] + get_available_documentation_packages(short_version=True)),
+    type=BetterChoice(["all-providers", *get_available_documentation_packages(short_version=True)]),
 )
 
 argument_packages_plus_all_providers_for_shorthand = click.argument(
@@ -457,7 +457,7 @@ argument_packages_plus_all_providers_for_shorthand = click.argument(
     nargs=-1,
     required=False,
     type=BetterChoice(
-        ["all-providers"] + get_available_documentation_packages(short_version=True) + [PROVIDERS_INDEX_KEY]
+        ["all-providers", *get_available_documentation_packages(short_version=True), PROVIDERS_INDEX_KEY]
     ),
 )
 
