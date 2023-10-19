@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
+
 import pytest
 from flask import Blueprint
 from flask_appbuilder import BaseView
@@ -82,6 +84,10 @@ class CustomTimetable(Timetable):
         pass
 
 
+class MyCustomListener:
+    pass
+
+
 class MockPlugin(AirflowPlugin):
     name = "mock_plugin"
     flask_blueprints = [bp]
@@ -93,7 +99,7 @@ class MockPlugin(AirflowPlugin):
     macros = [plugin_macro]
     ti_deps = [ti_dep]
     timetables = [CustomTimetable]
-    listeners = [pytest]  # using pytest here because we need a module(just for test)
+    listeners = [pytest, MyCustomListener()]  # using pytest here because we need a module(just for test)
 
 
 @pytest.fixture(scope="module")
@@ -147,7 +153,10 @@ class TestGetPlugins(TestPluginsEndpoint):
                     "name": "test_plugin",
                     "timetables": [qualname(CustomTimetable)],
                     "ti_deps": [str(ti_dep)],
-                    "listeners": [pytest.__name__],
+                    "listeners": [
+                        d.__name__ if inspect.ismodule(d) else qualname(d)
+                        for d in [pytest, MyCustomListener()]
+                    ],
                 }
             ],
             "total_entries": 1,
