@@ -154,7 +154,3 @@ with DAG(
         # [END howto_operator_python_venv_classic]
 
         run_this >> external_classic >> external_python_task >> virtual_classic
-
-if __name__ == '__main__':
-    dag.clear()
-    dag.run()
