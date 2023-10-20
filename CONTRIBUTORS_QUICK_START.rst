@@ -263,10 +263,25 @@ Setting up Breeze
 
 1. Install ``pipx`` - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
 
-
 2. Run ``pipx install -e ./dev/breeze`` in your checked-out repository. Make sure to follow any instructions
    printed by ``pipx`` during the installation - this is needed to make sure that ``breeze`` command is
    available in your PATH.
+
+.. warning::
+
+  If you see below warning - it means that you hit `known issue <https://github.com/pypa/pipx/issues/1092>`_
+  with ``packaging`` version 23.2:
+  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+  to avoid having to create a new src/ directory.
+
+  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
+  by running ``pip install "packaging<23.2"``.
+
+  .. code-block::bash
+
+     pip install "packaging==23.1"
+     pipx install -e ./dev/breeze --force
+
 
 3. Initialize breeze autocomplete
 
