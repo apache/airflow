@@ -20,7 +20,6 @@ from __future__ import annotations
 import flask
 import markupsafe
 import pytest
-import werkzeug
 
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.security import permissions
@@ -65,6 +64,7 @@ def client_dr_without_dag_run_create(app):
         username="all_dr_permissions_except_dag_run_create",
         role_name="all_dr_permissions_except_dag_run_create",
         permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
@@ -117,7 +117,7 @@ def test_get_dagrun_can_view_dags_without_edit_perms(session, running_dag_run, c
     check_content_in_response(dag_url_link, resp)
 
 
-def test_create_dagrun_permission_denied(session, client_dr_without_dag_create):
+def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_create):
     data = {
         "state": "running",
         "dag_id": "example_bash_operator",
@@ -126,8 +126,8 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_create):
         "conf": '{"include": "me"}',
     }
 
-    with pytest.raises(werkzeug.test.ClientRedirectError):
-        client_dr_without_dag_create.post("/dagrun/add", data=data, follow_redirects=True)
+    resp = client_dr_without_dag_run_create.post("/dagrun/add", data=data, follow_redirects=True)
+    check_content_in_response("Access is Denied", resp)
 
 
 @pytest.fixture()
