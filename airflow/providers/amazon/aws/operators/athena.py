@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
+from urllib.parse import urlparse
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -27,6 +28,9 @@ from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
+    from openlineage.client.facet import BaseFacet
+    from openlineage.client.run import Dataset
+
     from airflow.utils.context import Context
 
 
@@ -187,3 +191,132 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                         "Polling Athena for query with id %s to reach final state", self.query_execution_id
                     )
                     self.hook.poll_query_status(self.query_execution_id, sleep_time=self.sleep_time)
+
+    def get_openlineage_facets_on_start(self):
+        from openlineage.client.facet import ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
+        from openlineage.client.run import Dataset
+
+        from airflow.providers.openlineage.extractors.base import OperatorLineage
+        from airflow.providers.openlineage.sqlparser import SQLParser
+
+        sql_parser = SQLParser(dialect="generic")
+
+        job_facets: dict[str, BaseFacet] = {"sql": SqlJobFacet(query=sql_parser.normalize_sql(self.query))}
+        parse_result = sql_parser.parse(sql=self.query)
+
+        if not parse_result:
+            return OperatorLineage(job_facets=job_facets)
+
+        run_facets: dict[str, BaseFacet] = {}
+        if parse_result.errors:
+            run_facets["extractionError"] = ExtractionErrorRunFacet(
+                totalTasks=len(self.query) if isinstance(self.query, list) else 1,
+                failedTasks=len(parse_result.errors),
+                errors=[
+                    ExtractionError(
+                        errorMessage=error.message,
+                        stackTrace=None,
+                        task=error.origin_statement,
+                        taskNumber=error.index,
+                    )
+                    for error in parse_result.errors
+                ],
+            )
+
+        inputs: list[Dataset] = list(
+            filter(
+                None,
+                [
+                    self.get_openlineage_dataset(table.schema or self.database, table.name)
+                    for table in parse_result.in_tables
+                ],
+            )
+        )
+
+        # Athena can output query result to a new table with CTAS query.
+        # cf. https://docs.aws.amazon.com/athena/latest/ug/ctas.html
+        outputs: list[Dataset] = list(
+            filter(
+                None,
+                [
+                    self.get_openlineage_dataset(table.schema or self.database, table.name)
+                    for table in parse_result.out_tables
+                ],
+            )
+        )
+
+        # In addition to CTAS query, it's also possible to specify output location on S3
+        # with a mandatory parameter, OutputLocation in ResultConfiguration.
+        # cf. https://docs.aws.amazon.com/athena/latest/APIReference/API_ResultConfiguration.html#athena-Type-ResultConfiguration-OutputLocation  # noqa: E501
+        #
+        # Depending on the query type and the external_location property in the CTAS query,
+        # its behavior changes as follows:
+        #
+        # * Normal SELECT statement
+        #   -> The result is put into output_location as files rather than a table.
+        #
+        # * CTAS statement without external_location (`CREATE TABLE ... AS SELECT ...`)
+        #   -> The result is put into output_location as a table,
+        #      that is, both metadata files and data files are in there.
+        #
+        # * CTAS statement with external_location
+        #   (`CREATE TABLE ... WITH (external_location='s3://bucket/key') AS SELECT ...`)
+        #   -> The result is output as a table, but metadata and data files are
+        #      separated into output_location and external_location respectively.
+        #
+        # For the last case, output_location may be unnecessary as OL's output information,
+        # but we keep it as of now since it may be useful for some purpose.
+        output_location = self.output_location
+        parsed = urlparse(output_location)
+        outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path))
+
+        return OperatorLineage(job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs)
+
+    def get_openlineage_dataset(self, database, table) -> Dataset | None:
+        from openlineage.client.facet import (
+            SchemaDatasetFacet,
+            SchemaField,
+            SymlinksDatasetFacet,
+            SymlinksDatasetFacetIdentifiers,
+        )
+        from openlineage.client.run import Dataset
+
+        # Currently, AthenaOperator and AthenaHook don't have a functionality to specify catalog,
+        # and it seems to implicitly assume that the default catalog (AwsDataCatalog) is target.
+        CATALOG_NAME = "AwsDataCatalog"
+
+        client = self.hook.get_conn()
+        try:
+            table_metadata = client.get_table_metadata(
+                CatalogName=CATALOG_NAME, DatabaseName=database, TableName=table
+            )
+
+            # Dataset has also its' physical location which we can add in symlink facet.
+            s3_location = table_metadata["TableMetadata"]["Parameters"]["location"]
+            parsed_path = urlparse(s3_location)
+            facets: dict[str, BaseFacet] = {
+                "symlinks": SymlinksDatasetFacet(
+                    identifiers=[
+                        SymlinksDatasetFacetIdentifiers(
+                            namespace=f"{parsed_path.scheme}://{parsed_path.netloc}",  # type: ignore
+                            name=str(parsed_path.path),
+                            type="TABLE",
+                        )
+                    ]
+                )
+            }
+            fields = [
+                SchemaField(name=column["Name"], type=column["Type"], description=column["Comment"])
+                for column in table_metadata["TableMetadata"]["Columns"]
+            ]
+            if fields:
+                facets["schema"] = SchemaDatasetFacet(fields=fields)
+            return Dataset(
+                namespace=f"awsathena://athena.{self.hook.region_name}.amazonaws.com",
+                name=".".join(filter(None, (CATALOG_NAME, database, table))),
+                facets=facets,
+            )
+
+        except Exception as e:
+            self.log.error("Cannot retrieve table metadata from Athena.Client. %s", e)
+            return None
