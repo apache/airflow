@@ -234,7 +234,7 @@ class DagRun(Base, LoggingMixin):
         execution_date: datetime | None = None,
         start_date: datetime | None = None,
         external_trigger: bool | None = None,
-        _conf: dict | None = None,
+        _conf: Any | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
         dag_hash: str | None = None,
