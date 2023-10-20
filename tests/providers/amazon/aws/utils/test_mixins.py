@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,28 +16,25 @@
 # under the License.
 from __future__ import annotations
 
-from pathlib import Path
+import pytest
 
-if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-        f"To run this script, run the ./{__file__} command"
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+
+
+def test_aws_template_fields():
+    result = aws_template_fields()
+    assert result == ("aws_conn_id", "region_name", "verify")
+    assert aws_template_fields() is result, "aws_template_fields expect to return cached result"
+
+    assert aws_template_fields("foo", "aws_conn_id", "bar") == (
+        "aws_conn_id",
+        "bar",
+        "foo",
+        "region_name",
+        "verify",
     )
 
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
-
-
-def stable_sort(x):
-    return x.casefold(), x
-
-
-def sort_uniq(sequence):
-    return sorted(set(sequence), key=stable_sort)
-
-
-if __name__ == "__main__":
-    installed_providers_path = Path(AIRFLOW_SOURCES) / "airflow" / "providers" / "installed_providers.txt"
-    content = installed_providers_path.read_text().splitlines(keepends=True)
-    sorted_content = sort_uniq(content)
-    installed_providers_path.write_text("".join(sorted_content))
+def test_aws_template_fields_incorrect_types():
+    with pytest.raises(TypeError, match="Expected that all provided arguments are strings"):
+        aws_template_fields(1, None, "test")
