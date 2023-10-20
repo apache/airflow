@@ -55,8 +55,8 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-common-sql/|version|/tests/system/providers/common/sql>
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-sql/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-common-io/|version|/tests/system/providers/common/io>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-io/>
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
