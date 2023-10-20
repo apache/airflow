@@ -489,6 +489,46 @@ To delete specific version of model you can use
     :start-after: [START how_to_cloud_vertex_ai_delete_version_operator]
     :end-before: [END how_to_cloud_vertex_ai_delete_version_operator]
 
+Running a Pipeline Jobs
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To run a Google VertexAI Pipeline Job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.RunPipelineJobOperator`.
+The operator returns pipeline job id in :ref:`XCom <concepts:xcom>` under ``pipeline_job_id`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_run_pipeline_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_run_pipeline_job_operator]
+
+To delete pipeline job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.DeletePipelineJobOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_delete_pipeline_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_delete_pipeline_job_operator]
+
+To get pipeline job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.GetPipelineJobOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_get_pipeline_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_get_pipeline_job_operator]
+
+To get a pipeline job list you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.pipeline_job.ListPipelineJobOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_pipeline_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_list_pipeline_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_list_pipeline_job_operator]
+
 Reference
 ^^^^^^^^^
 

@@ -1597,6 +1597,12 @@ export interface components {
       operator_extra_links?: (string | null)[];
       /** @description The plugin source */
       source?: string | null;
+      /** @description The plugin task instance dependencies */
+      ti_deps?: string[];
+      /** @description The plugin listeners */
+      listeners?: string[];
+      /** @description The plugin timetables */
+      timetables?: string[];
     };
     /**
      * @description A collection of plugin.

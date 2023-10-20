@@ -110,7 +110,7 @@ jobs:
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      docs-filter-list-as-string: ${{ steps.selective-checks.outputs.docs-filter-list-as-string }}
+      docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
@@ -326,11 +326,10 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
           BUILD_TIMEOUT_MINUTES: 70
 
-  preview-constraints:
+  generate-constraints:
     permissions:
       contents: read
-    timeout-minutes: 20
-    continue-on-error: true
+    timeout-minutes: 70
     name: >
       Preview constraints
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
@@ -352,18 +351,24 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
-        run: breeze ci-image pull --run-in-parallel --tag-as-latest
+        run: breeze ci-image pull --run-in-parallel --tag-as-latest --wait-for-image
       - name: "Source constraints"
         shell: bash
         run: >
           breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints-source-providers || true
+          --airflow-constraints-mode constraints-source-providers
+      - name: "No providers constraints"
+        shell: bash
+        timeout-minutes: 25
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-no-providers
       - name: "PyPI constraints"
         shell: bash
         timeout-minutes: 25
         run: >
           breeze release-management generate-constraints --run-in-parallel
-          --airflow-constraints-mode constraints || true
+          --airflow-constraints-mode constraints
       - name: "Dependency upgrade summary"
         shell: bash
         run: |
@@ -387,7 +392,7 @@ jobs:
       ${{needs.build-info.outputs.build-job-description}} PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, build-ci-images]
+    needs: [build-info, build-ci-images, generate-constraints]
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -689,8 +694,7 @@ jobs:
             docs-inventory-
       - name: "Build docs"
         run: >
-          breeze build-docs
-          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }}
       - name: "Clone airflow-site"
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
@@ -699,7 +703,7 @@ jobs:
         run: >
           breeze release-management publish-docs
           --override-versioned --run-in-parallel
-          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          ${{ needs.build-info.outputs.docs-list-as-string }}
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
       - name: "Generate back references for apache-airflow"
@@ -1695,12 +1699,12 @@ jobs:
         run: breeze ci fix-ownership
         if: always()
 
-  constraints:
+  update-constraints:
     permissions:
       contents: write
       packages: write
     timeout-minutes: 80
-    name: "Constraints"
+    name: "Update constraints"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs:
       - build-info
@@ -1714,6 +1718,8 @@ jobs:
       - tests-integration-postgres
       - tests-integration-mysql
       - push-early-buildx-cache-to-github-registry
+      # Skip when generate constraints fails
+      - generate-constraints
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
@@ -1727,24 +1733,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
-        run: breeze ci-image pull --run-in-parallel --tag-as-latest
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      - name: "Generate source constraints"
-        run: |
-          breeze release-management generate-constraints \
-              --run-in-parallel --airflow-constraints-mode constraints-source-providers
-      - name: "Generate no-providers constraints"
-        run: |
-          breeze release-management generate-constraints \
-              --run-in-parallel --airflow-constraints-mode constraints-no-providers
-      - name: "Generate PyPi constraints"
-        run: |
-          breeze release-management generate-constraints \
-              --run-in-parallel --airflow-constraints-mode constraints
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
@@ -1756,6 +1744,14 @@ jobs:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
           persist-credentials: false
+      - name: "Download constraints from the constraints preview"
+        uses: actions/download-artifact@v3
+        with:
+          name: constraints
+          path: ./files
+      - name: "Diff in constraints for ${{needs.build-info.outputs.python-versions}}"
+        run: ./scripts/ci/constraints/ci_diff_constraints.sh
+      # only commit and push constraints in canary runs (main)
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.python-versions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
         if: needs.build-info.outputs.canary-run == 'true'
@@ -1766,9 +1762,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
           directory: "repo"
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   # Push BuildX cache to GitHub Registry in Apache repository, if all tests are successful and build
   # is executed as result of direct push to "main" or one of the "vX-Y-test" branches
@@ -1780,7 +1773,7 @@ jobs:
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs:
       - build-info
-      - constraints
+      - generate-constraints
       - docs
     if: needs.build-info.outputs.canary-run == 'true'
     strategy:

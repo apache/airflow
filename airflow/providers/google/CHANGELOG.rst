@@ -27,6 +27,16 @@
 Changelog
 ---------
 
+10.10.1
+.......
+
+Misc
+~~~~
+
+* ``Add links between documentation related to Google Cloud Storage (#34994)``
+* ``Migrate legacy version of AI Platform Prediction to VertexAI (#34922)``
+* ``Cancel workflow in on_kill in DataprocInstantiate{Inline}WorkflowTemplateOperator (#34957)``
+
 10.10.0
 .......
 

@@ -302,7 +302,6 @@ class HiveCliHook(BaseHook):
         other_ = ";".join(other)
         for query_set in [create, insert]:
             for query in query_set:
-
                 query_preview = " ".join(query.split())[:50]
                 self.log.info("Testing HQL [%s (...)]", query_preview)
                 if query_set == insert:
@@ -887,7 +886,6 @@ class HiveServer2Hook(DbApiHook):
             sql = [sql]
         previous_description = None
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
-
             cur.arraysize = fetch_size or 1000
 
             # not all query services (e.g. impala AIRFLOW-4434) support the set command
