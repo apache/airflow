@@ -29,12 +29,14 @@ from pathlib import Path
 
 import yaml
 
-from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+from airflow_breeze.global_constants import (
+    AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+)
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.github import (
     download_constraints_file,
     download_file_from_github,
-    get_active_airflow_versions,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_DIR
 from airflow_breeze.utils.run_utils import run_command
@@ -159,18 +161,22 @@ def get_requirements_for_provider(
 
     docker_file_provider_folder_prefix = f"{DOCKER_FILE_PREFIX}/{provider_folder_name}/"
 
-    if os.path.exists(provider_folder_path) and force is False:
+    if (
+        os.path.exists(provider_with_core_path)
+        and os.path.exists(provider_without_core_file)
+        and force is False
+    ):
         get_console().print(
-            f"[warning] Requirements for provider {provider_id} version {provider_version} already exist, "
-            f"skipping. Set force=True to force generation."
+            f"[warning] Requirements for provider {provider_id} version {provider_version} python "
+            f"{python_version} already exist, skipping. Set force=True to force generation."
         )
         return (
             0,
             f"Provider requirements already existed, skipped generation for {provider_id} version "
-            f"{provider_version}",
+            f"{provider_version} python {python_version}",
         )
     else:
-        provider_folder_path.mkdir()
+        provider_folder_path.mkdir(exist_ok=True)
 
     command = f"""
 mkdir -pv {DOCKER_FILE_PREFIX}
@@ -215,7 +221,8 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_with
     get_console().print(provider_packages)
     provider_without_core_file.write_text("".join(f"{p}\n" for p in provider_packages))
     get_console().print(
-        f"[success]Generated {provider_id}:{provider_version} requirements in {provider_without_core_file}"
+        f"[success]Generated {provider_id}:{provider_version}:{python_version} requirements in "
+        f"{provider_without_core_file}"
     )
 
     return (
@@ -224,7 +231,10 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_with
     )
 
 
-def build_all_airflow_versions_base_image(python_version: str):
+def build_all_airflow_versions_base_image(
+    python_version: str,
+    confirm: bool = True,
+):
     """
     Build an image with all airflow versions pre-installed in separate virtualenvs.
     """
@@ -232,20 +242,30 @@ def build_all_airflow_versions_base_image(python_version: str):
     image_name = get_all_airflow_versions_image_name(python_version=python_version)
     dockerfile = f"""
 FROM ghcr.io/apache/airflow/main/ci/python{python_version}
-RUN pip install --upgrade pip
+RUN pip install --upgrade pip --no-cache-dir
 # Prevent setting sources in PYTHONPATH to not interfere with virtualenvs
 ENV USE_AIRFLOW_VERSION=none
+ENV START_AIRFLOW=none
     """
-    for airflow_version in get_active_airflow_versions():
+    compatible_airflow_versions = [
+        airflow_version
+        for airflow_version, python_versions in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX.items()
+        if python_version in python_versions
+    ]
+
+    for airflow_version in compatible_airflow_versions:
         dockerfile += f"""
 # Create the virtualenv and install the proper airflow version in it
 RUN python -m venv /opt/airflow/airflow-{airflow_version} && \
-/opt/airflow/airflow-{airflow_version}/bin/pip install --upgrade pip && \
+/opt/airflow/airflow-{airflow_version}/bin/pip install --no-cache-dir --upgrade pip && \
 /opt/airflow/airflow-{airflow_version}/bin/pip install apache-airflow=={airflow_version} \
     --constraint https://raw.githubusercontent.com/apache/airflow/\
 constraints-{airflow_version}/constraints-{python_version}.txt
 """
-    run_command(["docker", "build", "--tag", image_name, "-"], input=dockerfile, text=True, check=True)
+    build_command = run_command(
+        ["docker", "build", "--tag", image_name, "-"], input=dockerfile, text=True, check=True
+    )
+    return build_command.returncode, f"All airflow image built for python {python_version}"
 
 
 @dataclass

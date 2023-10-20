@@ -23,8 +23,8 @@ from pathlib import Path
 import click
 
 from airflow_breeze.global_constants import (
+    AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
     ALL_HISTORICAL_PYTHON_VERSIONS,
-    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     PROVIDER_DEPENDENCIES,
 )
 from airflow_breeze.utils.cdxgen import (
@@ -240,13 +240,7 @@ def update_sbom_information(
 @click.option(
     "--airflow-version", type=str, required=False, help="Airflow version to use to generate the requirements"
 )
-@click.option(
-    "--python",
-    type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
-    default=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    required=False,
-    help="Python version to generate the requirements for",
-)
+@option_historical_python_version
 @click.option(
     "--provider-id",
     type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
@@ -280,7 +274,13 @@ def generate_providers_requirements(
 ):
     perform_environment_checks()
 
+    if python is None:
+        python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
+    else:
+        python_versions = [python]
+
     provider_ids = provider_id
+
     if len(provider_ids) == 0:
         user_confirm(
             "You are about to generate all providers requirements based on the "
@@ -291,25 +291,74 @@ def generate_providers_requirements(
         with open(PROVIDER_METADATA_JSON_FILE_PATH) as f:
             provider_metadata = json.load(f)
             providers_info = [
-                (p_id, p_version, info["associated_airflow_version"])
-                for (p_id, p_versions) in provider_metadata.items()
-                for (p_version, info) in p_versions.items()
+                (
+                    provider_id,
+                    provider_version,
+                    python_version,
+                    info["associated_airflow_version"],
+                )
+                for (provider_id, provider_versions) in provider_metadata.items()
+                for (provider_version, info) in provider_versions.items()
+                for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[info["associated_airflow_version"]]
+                if python_version in python_versions
             ]
     else:
         if airflow_version is None:
             airflow_version = get_active_airflow_versions(confirm=False)[-1]
             get_console().print(f"[info]Using {airflow_version} as airflow version")
-        providers_info = [(provider_id, None, airflow_version) for provider_id in provider_ids]
+        providers_info = [
+            (provider_id, None, python_version, airflow_version)
+            for provider_id in provider_ids
+            for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[airflow_version]
+            if python_version in python_versions
+        ]
 
-    build_all_airflow_versions_base_image(python_version=python)
+    if run_in_parallel:
+        parallelism = min(parallelism, len(python_versions))
+        get_console().print(f"[info]Running {len(python_versions)} jobs in parallel")
+        with ci_group(f"Building all airflow base images for python: {python_versions}"):
+            all_params = [
+                f"Building all airflow base image for python: {python_version}"
+                for python_version in python_versions
+            ]
+            with run_with_pool(
+                parallelism=parallelism,
+                all_params=all_params,
+                debug_resources=debug_resources,
+                progress_matcher=ShowLastLineProgressMatcher(),
+            ) as (pool, outputs):
+                results = [
+                    pool.apply_async(
+                        build_all_airflow_versions_base_image,
+                        kwds={
+                            "python_version": python_version,
+                            "confirm": False,
+                        },
+                    )
+                    for python_version in python_versions
+                ]
+        check_async_run_results(
+            results=results,
+            success="All airflow base images were built successfully",
+            outputs=outputs,
+            include_success_outputs=include_success_outputs,
+            skip_cleanup=skip_cleanup,
+        )
+    else:
+        for python_version in python_versions:
+            build_all_airflow_versions_base_image(
+                python_version=python_version,
+                confirm=False,
+            )
 
     if run_in_parallel:
         parallelism = min(parallelism, len(providers_info))
         get_console().print(f"[info]Running {len(providers_info)} jobs in parallel")
         with ci_group(f"Generating provider requirements for {providers_info}"):
             all_params = [
-                f"Generate provider requirements for {p_id} version {p_version}"
-                for (p_id, p_version, _) in providers_info
+                f"Generate provider requirements for {provider_id} version {provider_version} python "
+                f"{python_version}"
+                for (provider_id, provider_version, python_version, _) in providers_info
             ]
             with run_with_pool(
                 parallelism=parallelism,
@@ -321,14 +370,14 @@ def generate_providers_requirements(
                     pool.apply_async(
                         get_requirements_for_provider,
                         kwds={
-                            "provider_id": p_id,
-                            "provider_version": p_version,
-                            "airflow_version": a_version,
-                            "python_version": python,
+                            "provider_id": provider_id,
+                            "provider_version": provider_version,
+                            "airflow_version": airflow_version,
+                            "python_version": python_version,
                             "force": force,
                         },
                     )
-                    for (p_id, p_version, a_version) in providers_info
+                    for (provider_id, provider_version, python_version, airflow_version) in providers_info
                 ]
         check_async_run_results(
             results=results,
@@ -338,11 +387,11 @@ def generate_providers_requirements(
             skip_cleanup=skip_cleanup,
         )
     else:
-        for p_id, p_version, a_version in providers_info:
+        for provider_id, provider_version, python_version, airflow_version in providers_info:
             get_requirements_for_provider(
-                provider_id=p_id,
-                provider_version=p_version,
-                airflow_version=a_version,
-                python_version=python,
+                provider_id=provider_id,
+                provider_version=provider_version,
+                airflow_version=airflow_version,
+                python_version=python_version,
                 force=force,
             )
