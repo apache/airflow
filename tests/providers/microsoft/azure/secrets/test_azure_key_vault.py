@@ -159,10 +159,35 @@ class TestAzureKeyVaultBackend:
     def test_client_authenticate_with_default_azure_credential(
         self, mock_client, mock_client_secret_credential, mock_defaul_azure_credential
     ):
+        """
+        Test that if AzureKeyValueBackend is authenticated with DefaultAzureCredential
+        tenant_id, client_id and client_secret are not provided
+
+        """
         backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
         backend.client
         assert not mock_client_secret_credential.called
         mock_defaul_azure_credential.assert_called_once()
+
+    @mock.patch(f"{KEY_VAULT_MODULE}.DefaultAzureCredential")
+    @mock.patch(f"{KEY_VAULT_MODULE}.ClientSecretCredential")
+    @mock.patch(f"{KEY_VAULT_MODULE}.SecretClient")
+    def test_client_authenticate_with_default_azure_credential_and_customized_configuration(
+        self, mock_client, mock_client_secret_credential, mock_defaul_azure_credential
+    ):
+        backend = AzureKeyVaultBackend(
+            vault_url="https://example-akv-resource-name.vault.azure.net/",
+            managed_identity_client_id="managed_identity_client_id",
+            workload_identity_tenant_id="workload_identity_tenant_id",
+            additionally_allowed_tenants=["workload_identity_tenant_id"],
+        )
+        backend.client
+        assert not mock_client_secret_credential.called
+        mock_defaul_azure_credential.assert_called_once_with(
+            managed_identity_client_id="managed_identity_client_id",
+            workload_identity_tenant_id="workload_identity_tenant_id",
+            additionally_allowed_tenants=["workload_identity_tenant_id"],
+        )
 
     @mock.patch(f"{KEY_VAULT_MODULE}.DefaultAzureCredential")
     @mock.patch(f"{KEY_VAULT_MODULE}.ClientSecretCredential")
