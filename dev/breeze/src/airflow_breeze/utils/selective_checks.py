@@ -731,7 +731,7 @@ class SelectiveChecks:
             packages.append("docker-stack")
         if providers_affected:
             for provider in providers_affected:
-                packages.append(f"{provider.replace('.', '-')}")
+                packages.append(provider.replace("-", "."))
         return " ".join(packages)
 
     @cached_property

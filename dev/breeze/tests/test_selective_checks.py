@@ -344,8 +344,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always "
-                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,imap,microsoft.azure,"
-                "mongo,mysql,postgres,salesforce,ssh] Providers[google]",
+                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,imap,"
+                "microsoft.azure,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -384,9 +384,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Providers[amazon] "
-                "Always Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,imap,"
-                "microsoft.azure,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
+                "parallel-test-types-list-as-string": "Providers[amazon] Always "
+                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,"
+                "http,imap,microsoft.azure,mongo,mysql,postgres,salesforce,ssh] "
+                "Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -555,8 +556,8 @@ def test_expected_output_full_tests_needed(
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
-                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql mysql openlineage "
-                "oracle postgres presto salesforce sftp ssh trino",
+                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql mysql "
+                "openlineage oracle postgres presto salesforce sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "needs-helm-tests": "false",
@@ -580,8 +581,8 @@ def test_expected_output_full_tests_needed(
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
-                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql mysql "
-                "openlineage oracle postgres presto salesforce sftp ssh trino",
+                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
+                "mysql openlineage oracle postgres presto salesforce sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
@@ -680,24 +681,24 @@ def test_expected_output_pull_request_v2_3(
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
-                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
-                "mysql openlineage oracle postgres presto salesforce sftp ssh trino",
+                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql mysql "
+                "openlineage oracle postgres presto salesforce sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow helm-chart amazon apache-beam apache-cassandra "
-                "cncf-kubernetes common-sql facebook google hashicorp microsoft-azure microsoft-mssql mysql "
+                "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
+                "cncf.kubernetes common.sql facebook google hashicorp microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce sftp ssh trino",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always CLI "
                 "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,hashicorp,"
-                "microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
-                "salesforce,sftp,ssh,trino] Providers[google]",
+                "microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,"
+                "presto,salesforce,sftp,ssh,trino] Providers[google]",
             },
             id="CLI tests and Google-related provider tests should run if cli/chart files changed",
         ),
@@ -759,7 +760,8 @@ def test_expected_output_pull_request_v2_3(
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
                 "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
-                "Providers[amazon] WWW API Always CLI Other Providers[google]",
+                "Providers[amazon] WWW "
+                "API Always CLI Other Providers[google]",
             },
             id="Tests for all providers should run if any other than API/WWW/CLI/Operators file changed.",
         ),
@@ -968,8 +970,8 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("docs/apache-airflow-providers-google/docs.rst",),
             {
-                "docs-list-as-string": "amazon apache-beam apache-cassandra cncf-kubernetes common-sql "
-                "facebook google hashicorp microsoft-azure microsoft-mssql mysql "
+                "docs-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes common.sql "
+                "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
                 "openlineage oracle postgres presto salesforce sftp ssh trino",
             },
             id="Google provider docs changed",
@@ -977,9 +979,9 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-list-as-string": "apache-airflow amazon apache-drill apache-druid apache-hive "
-                "apache-impala apache-pinot common-sql databricks elasticsearch "
-                "exasol google jdbc microsoft-mssql mysql odbc openlineage "
+                "docs-list-as-string": "apache-airflow amazon apache.drill apache.druid apache.hive "
+                "apache.impala apache.pinot common.sql databricks elasticsearch "
+                "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle postgres presto slack snowflake sqlite trino vertica",
             },
             id="Common SQL provider package python files changed",
@@ -1018,7 +1020,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             ("airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "apache-airflow celery cncf-kubernetes"},
+            {"docs-list-as-string": "apache-airflow celery cncf.kubernetes"},
             id="Celery python files changed",
         ),
         pytest.param(
