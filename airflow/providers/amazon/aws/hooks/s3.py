@@ -218,12 +218,12 @@ class S3Hook(AwsBaseHook):
         elif format[0] == "https:":
             temp_split = format[1].split(".")
             if temp_split[0] == "s3":
-                split_url = format[1].split("/")
-                bucket_name = split_url[1]
-                key = "/".join(split_url[2:])
+                # "https://s3.region-code.amazonaws.com/bucket-name/key-name"
+                _, bucket_name, key = format[1].split("/", 2)
             elif temp_split[1] == "s3":
+                # "https://bucket-name.s3.region-code.amazonaws.com/key-name"
                 bucket_name = temp_split[0]
-                key = "/".join(format[1].split("/")[1:])
+                key = format[1].partition("/")[-1]
             else:
                 raise S3HookUriParseFailure(
                     "Please provide a bucket name using a valid virtually hosted format which should "

@@ -20,7 +20,15 @@ import os
 from dataclasses import dataclass
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-from airflow_breeze.utils.general_utils import get_provider_name_from_short_hand
+
+providers_prefix = "apache-airflow-providers-"
+
+
+def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
+    return tuple(
+        providers_prefix + short_form_provider.replace(".", "-")
+        for short_form_provider in short_form_providers
+    )
 
 
 @dataclass
