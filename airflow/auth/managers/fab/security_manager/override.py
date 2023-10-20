@@ -1282,7 +1282,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def auth_user_ldap(self, username, password):
         """
-        Method for authenticating user with LDAP.
+        Authenticate user with LDAP.
 
         NOTE: this depends on python-ldap module.
 
@@ -1466,7 +1466,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def auth_user_db(self, username, password):
         """
-        Method for authenticating user, auth db style.
+        Authenticate user, auth db style.
 
         :param username:
             The username or registered email address
@@ -1495,18 +1495,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.update_user_auth_stat(user, False)
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
-
-    @staticmethod
-    def ldap_extract_list(ldap_dict: dict[str, list[bytes]], field_name: str) -> list[str]:
-        raw_list = ldap_dict.get(field_name, [])
-        # decode - removing empty strings
-        return [x.decode("utf-8") for x in raw_list if x.decode("utf-8")]
-
-    @staticmethod
-    def ldap_extract(ldap_dict: dict[str, list[bytes]], field_name: str, fallback: str) -> str:
-        raw_value = ldap_dict.get(field_name, [b""])
-        # decode - if empty string, default to fallback, otherwise take first element
-        return raw_value[0].decode("utf-8") or fallback
 
     def oauth_user_info_getter(self, f):
         """
@@ -1831,6 +1819,24 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
 
     @staticmethod
+    def ldap_extract_list(ldap_dict: dict[str, list[bytes]], field_name: str) -> list[str]:
+        raw_list = ldap_dict.get(field_name, [])
+        # decode - removing empty strings
+        return [x.decode("utf-8") for x in raw_list if x.decode("utf-8")]
+
+    @staticmethod
+    def ldap_extract(ldap_dict: dict[str, list[bytes]], field_name: str, fallback: str) -> str:
+        raw_value = ldap_dict.get(field_name, [b""])
+        # decode - if empty string, default to fallback, otherwise take first element
+        return raw_value[0].decode("utf-8") or fallback
+
+    """
+    ---------------
+    Private methods
+    ---------------
+    """
+
+    @staticmethod
     def _azure_parse_jwt(token):
         """
         Parse Azure JWT token content.
@@ -1897,7 +1903,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def _search_ldap(self, ldap, con, username):
         """
-        Searches LDAP for user.
+        Search LDAP for user.
 
         :param ldap: The ldap module reference
         :param con: The ldap connection
