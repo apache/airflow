@@ -382,7 +382,7 @@ breeze build-docs providers-index cncf.kubernetes sftp --clean-build
 If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
-./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
+./dev/provider_packages/build_provider_documentation.py --providers amazon apache.beam google ....
 ```
 
 - Now you can preview the documentation.
