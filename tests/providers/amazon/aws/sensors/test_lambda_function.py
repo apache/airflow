@@ -28,6 +28,23 @@ FUNCTION_NAME = "function_name"
 
 
 class TestLambdaFunctionStateSensor:
+    def test_init(self):
+        op = LambdaFunctionStateSensor(
+            task_id="task_test",
+            function_name=FUNCTION_NAME,
+            aws_conn_id="aws_conn_test",
+            region_name="foo-bar-1",
+            verify="/spam/egg.pem",
+            botocore_config={"baz": "qux"},
+        )
+
+        assert op.function_name == FUNCTION_NAME
+
+        assert op.aws_conn_id == "aws_conn_test"
+        assert op.region_name == "foo-bar-1"
+        assert op.verify == "/spam/egg.pem"
+        assert op.botocore_config == {"baz": "qux"}
+
     @pytest.mark.parametrize(
         "get_function_output, expect_failure, expected",
         [

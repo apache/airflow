@@ -30,6 +30,11 @@ Prerequisite Tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Generic Parameters
+------------------
+
+.. include:: ../_partials/generic_parameters.rst
+
 Operators
 ---------
 
@@ -68,10 +73,22 @@ To invoke an AWS lambda function you can use
 
       urllib3.exceptions.ReadTimeoutError: AWSHTTPSConnectionPool(host='lambda.us-east-1.amazonaws.com', port=443): Read timed out. (read timeout=60)
 
-    If you encounter this issue, configure :ref:`howto/connection:aws` to allow ``botocore`` / ``boto3`` to use long connections with
-    timeout or keep-alive settings in the Connection Extras field
+    If you encounter this issue, you need to provide `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__
+    to use long connections with timeout or keep-alive settings.
 
-    .. code-block:: json
+    By providing **botocore_config** as an operator parameter
+
+    ..  code-block:: python
+
+        {
+          "connect_timeout": 900,
+          "read_timeout": 900,
+          "tcp_keepalive": True,
+        }
+
+    Or specify **config_kwargs** in associated :ref:`AWS Connection Extra Parameter <howto/connection:aws:configuring-the-connection>`
+
+    ..  code-block:: json
 
         {
           "config_kwargs": {
