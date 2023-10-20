@@ -975,9 +975,9 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("docs/apache-airflow-providers-google/docs.rst",),
             {
-                "docs-list-as-string": "amazon apache-beam apache-cassandra "
-                "cncf-kubernetes common-sql facebook google hashicorp "
-                "microsoft-azure microsoft-mssql mysql openlineage oracle "
+                "docs-list-as-string": "amazon apache.beam apache.cassandra "
+                "cncf.kubernetes common.sql facebook google hashicorp "
+                "microsoft.azure microsoft.mssql mysql openlineage oracle "
                 "postgres presto salesforce samba sftp ssh trino",
             },
             id="Google provider docs changed",
@@ -985,9 +985,9 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-list-as-string": "apache-airflow amazon apache-drill apache-druid apache-hive "
-                "apache-impala apache-pinot common-sql databricks elasticsearch "
-                "exasol google jdbc microsoft-mssql mysql odbc openlineage "
+                "docs-list-as-string": "apache-airflow amazon apache.drill apache.druid apache.hive "
+                "apache.impala apache.pinot common.sql databricks elasticsearch "
+                "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle postgres presto slack snowflake sqlite trino vertica",
             },
             id="Common SQL provider package python files changed",
@@ -1026,7 +1026,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             ("airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "apache-airflow celery cncf-kubernetes"},
+            {"docs-list-as-string": "apache-airflow celery cncf.kubernetes"},
             id="Celery python files changed",
         ),
         pytest.param(
