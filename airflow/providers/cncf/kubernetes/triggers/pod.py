@@ -102,7 +102,7 @@ class KubernetesPodTrigger(BaseTrigger):
         if should_delete_pod is not None:
             warnings.warn(
                 "`should_delete_pod` parameter is deprecated, please use `on_finish_action`",
-                AirflowProviderDeprecationWarning,
+                category=AirflowProviderDeprecationWarning,
                 stacklevel=2
             )
             self.on_finish_action = (
