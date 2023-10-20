@@ -106,6 +106,7 @@ from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQue
 from airflow.models.operator import needs_expansion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
+from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
@@ -4521,19 +4522,7 @@ class PluginView(AirflowBaseView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    plugins_attributes_to_dump = [
-        "hooks",
-        "executors",
-        "macros",
-        "admin_views",
-        "flask_blueprints",
-        "menu_links",
-        "appbuilder_views",
-        "appbuilder_menu_items",
-        "global_operator_extra_links",
-        "operator_extra_links",
-        "source",
-    ]
+    plugins_attributes_to_dump = PLUGINS_ATTRIBUTES_TO_DUMP
 
     @expose("/plugin")
     @auth.has_access_view(AccessView.PLUGINS)
@@ -4625,6 +4614,8 @@ class PoolModelView(AirflowModelView):
 
     route_base = "/pool"
 
+    list_template = "airflow/pool_list.html"
+
     datamodel = AirflowModelView.CustomSQLAInterface(models.Pool)  # type: ignore
 
     class_permission_name = permissions.RESOURCE_POOL
@@ -4644,7 +4635,15 @@ class PoolModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
-    list_columns = ["pool", "slots", "running_slots", "queued_slots", "scheduled_slots", "deferred_slots"]
+    list_columns = [
+        "pool",
+        "description",
+        "slots",
+        "running_slots",
+        "queued_slots",
+        "scheduled_slots",
+        "deferred_slots",
+    ]
     add_columns = ["pool", "slots", "description", "include_deferred"]
     edit_columns = ["pool", "slots", "description", "include_deferred"]
 
