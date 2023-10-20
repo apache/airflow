@@ -188,7 +188,7 @@ with DAG(
 
     # [START howto_operator_cloud_run_execute_job_with_overrides]
     overrides = {
-        "containerOverrides": [
+        "container_overrides": [
             {
                 "name": "job",
                 "args": ["python", "main.py"],
@@ -196,7 +196,7 @@ with DAG(
                 "clearArgs": False,
             }
         ],
-        "taskCount": 1,
+        "task_count": 1,
         "timeout": "60s",
     }
 

@@ -215,11 +215,9 @@ class TestCloudRunExecuteJobOperator:
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 3, 0)
 
         overrides = {
-            "overrides": {
-                "containerOverrides": [{"args": ["python", "main.py"]}],
-                "taskCount": 1,
-                "timeout": "60s",
-            }
+            "container_overrides": [{"args": ["python", "main.py"]}],
+            "task_count": 1,
+            "timeout": "60s"
         }
 
         operator = CloudRunExecuteJobOperator(
@@ -235,11 +233,9 @@ class TestCloudRunExecuteJobOperator:
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_overrides_with_invalid_task_count(self, hook_mock):
         overrides = {
-            "overrides": {
-                "containerOverrides": [{"name": "job", "args": ["python", "main.py"]}],
-                "taskCount": -1,
-                "timeout": "60s",
-            }
+            "container_overrides": [{"args": ["python", "main.py"]}],
+            "task_count": -1,
+            "timeout": "60s"
         }
 
         operator = CloudRunExecuteJobOperator(
@@ -252,11 +248,9 @@ class TestCloudRunExecuteJobOperator:
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_overrides_with_invalid_timeout(self, hook_mock):
         overrides = {
-            "overrides": {
-                "containerOverrides": [{"name": "job", "args": ["python", "main.py"]}],
-                "taskCount": 1,
-                "timeout": "60",
-            }
+            "container_overrides": [{"args": ["python", "main.py"]}],
+            "task_count": 1,
+            "timeout": "60"
         }
 
         operator = CloudRunExecuteJobOperator(
@@ -269,11 +263,9 @@ class TestCloudRunExecuteJobOperator:
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_overrides_with_invalid_container_args(self, hook_mock):
         overrides = {
-            "overrides": {
-                "containerOverrides": [{"name": "job", "args": "python main.py"}],
-                "taskCount": 1,
-                "timeout": "60s",
-            }
+            "container_overrides": [{"name": "job", "args": "python main.py"}],
+            "task_count": 1,
+            "timeout": "60s"
         }
 
         operator = CloudRunExecuteJobOperator(

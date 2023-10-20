@@ -112,14 +112,11 @@ class TestCloudRunHook:
         region = "region1"
         project_id = "projectid"
         overrides = {
-            "overrides": {
-                "containerOverrides": [{"args": ["python", "main.py"]}],
-                "taskCount": 1,
-                "timeout": "60s",
-            }
+            "container_overrides": [{"args": ["python", "main.py"]}],
+            "task_count": 1,
+            "timeout": "60s"
         }
-        run_job_request = RunJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
-        run_job_request.overrides = overrides
+        run_job_request = RunJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides)
 
         cloud_run_hook.execute_job(job_name=job_name, region=region, project_id=project_id, overrides=overrides)
         cloud_run_hook._client.run_job.assert_called_once_with(request=run_job_request)
