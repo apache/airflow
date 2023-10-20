@@ -649,7 +649,7 @@ class ObjectStoragePath(os.PathLike):
             return
 
         # remote -> remote
-        if self.key.endswith(self.sep):
+        if not self.is_file():
             raise NotImplementedError("Cannot copy directories between remote stores yet.")
 
         if dst.key.endswith(self.sep):
