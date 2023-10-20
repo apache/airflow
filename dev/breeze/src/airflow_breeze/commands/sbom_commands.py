@@ -257,7 +257,7 @@ def generate_provider_requirements(
     airflow_version: str | None,
     python: str,
     provider_id: str,
-    provider_version: str | None,
+    provider_version: str,
 ):
     perform_environment_checks()
     if airflow_version is None:
