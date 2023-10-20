@@ -426,7 +426,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
@@ -453,7 +453,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
@@ -478,7 +478,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
@@ -503,8 +503,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": "--package-filter apache-airflow "
-                    "--package-filter docker-stack",
+                    "docs-list-as-string": "apache-airflow docker-stack",
                     "full-tests-needed": "true",
                     "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -544,7 +543,7 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
-                "docs-filter-list-as-string": None,
+                "docs-list-as-string": None,
                 "full-tests-needed": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -567,7 +566,7 @@ def test_expected_output_full_tests_needed(
                 "image-build": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -593,7 +592,7 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -615,7 +614,7 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -653,7 +652,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
-                "docs-filter-list-as-string": None,
+                "docs-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": None,
@@ -670,7 +669,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": "Always",
@@ -694,27 +693,10 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter helm-chart "
-                "--package-filter apache-airflow-providers-amazon "
-                "--package-filter apache-airflow-providers-apache-beam "
-                "--package-filter apache-airflow-providers-apache-cassandra "
-                "--package-filter apache-airflow-providers-cncf-kubernetes "
-                "--package-filter apache-airflow-providers-common-sql "
-                "--package-filter apache-airflow-providers-facebook "
-                "--package-filter apache-airflow-providers-google "
-                "--package-filter apache-airflow-providers-hashicorp "
-                "--package-filter apache-airflow-providers-microsoft-azure "
-                "--package-filter apache-airflow-providers-microsoft-mssql "
-                "--package-filter apache-airflow-providers-mysql "
-                "--package-filter apache-airflow-providers-openlineage "
-                "--package-filter apache-airflow-providers-oracle "
-                "--package-filter apache-airflow-providers-postgres "
-                "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-salesforce "
-                "--package-filter apache-airflow-providers-samba "
-                "--package-filter apache-airflow-providers-sftp "
-                "--package-filter apache-airflow-providers-ssh "
-                "--package-filter apache-airflow-providers-trino",
+                "docs-list-as-string": "apache-airflow helm-chart amazon apache-beam apache-cassandra "
+                "cncf-kubernetes common-sql facebook google hashicorp microsoft-azure "
+                "microsoft-mssql mysql openlineage oracle postgres "
+                "presto salesforce samba sftp ssh trino",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
@@ -740,7 +722,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow",
+                "docs-list-as-string": "apache-airflow",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -758,7 +740,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
@@ -778,7 +760,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
@@ -819,7 +801,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
@@ -839,7 +821,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": "Operators Core WWW API Always CLI Other",
             },
@@ -858,7 +840,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
@@ -993,74 +975,34 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("docs/apache-airflow-providers-google/docs.rst",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow-providers-amazon "
-                "--package-filter apache-airflow-providers-apache-beam "
-                "--package-filter apache-airflow-providers-apache-cassandra "
-                "--package-filter apache-airflow-providers-cncf-kubernetes "
-                "--package-filter apache-airflow-providers-common-sql "
-                "--package-filter apache-airflow-providers-facebook "
-                "--package-filter apache-airflow-providers-google "
-                "--package-filter apache-airflow-providers-hashicorp "
-                "--package-filter apache-airflow-providers-microsoft-azure "
-                "--package-filter apache-airflow-providers-microsoft-mssql "
-                "--package-filter apache-airflow-providers-mysql "
-                "--package-filter apache-airflow-providers-openlineage "
-                "--package-filter apache-airflow-providers-oracle "
-                "--package-filter apache-airflow-providers-postgres "
-                "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-salesforce "
-                "--package-filter apache-airflow-providers-samba "
-                "--package-filter apache-airflow-providers-sftp "
-                "--package-filter apache-airflow-providers-ssh "
-                "--package-filter apache-airflow-providers-trino",
+                "docs-list-as-string": "amazon apache-beam apache-cassandra "
+                "cncf-kubernetes common-sql facebook google hashicorp "
+                "microsoft-azure microsoft-mssql mysql openlineage oracle "
+                "postgres presto salesforce samba sftp ssh trino",
             },
             id="Google provider docs changed",
         ),
         pytest.param(
             ("airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-amazon "
-                "--package-filter apache-airflow-providers-apache-drill "
-                "--package-filter apache-airflow-providers-apache-druid "
-                "--package-filter apache-airflow-providers-apache-hive "
-                "--package-filter apache-airflow-providers-apache-impala "
-                "--package-filter apache-airflow-providers-apache-pinot "
-                "--package-filter apache-airflow-providers-common-sql "
-                "--package-filter apache-airflow-providers-databricks "
-                "--package-filter apache-airflow-providers-elasticsearch "
-                "--package-filter apache-airflow-providers-exasol "
-                "--package-filter apache-airflow-providers-google "
-                "--package-filter apache-airflow-providers-jdbc "
-                "--package-filter apache-airflow-providers-microsoft-mssql "
-                "--package-filter apache-airflow-providers-mysql "
-                "--package-filter apache-airflow-providers-odbc "
-                "--package-filter apache-airflow-providers-openlineage "
-                "--package-filter apache-airflow-providers-oracle "
-                "--package-filter apache-airflow-providers-postgres "
-                "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-slack "
-                "--package-filter apache-airflow-providers-snowflake "
-                "--package-filter apache-airflow-providers-sqlite "
-                "--package-filter apache-airflow-providers-trino "
-                "--package-filter apache-airflow-providers-vertica",
+                "docs-list-as-string": "apache-airflow amazon apache-drill apache-druid apache-hive "
+                "apache-impala apache-pinot common-sql databricks elasticsearch "
+                "exasol google jdbc microsoft-mssql mysql odbc openlineage "
+                "oracle postgres presto slack snowflake sqlite trino vertica",
             },
             id="Common SQL provider package python files changed",
         ),
         pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow-providers-airbyte "
-                "--package-filter apache-airflow-providers-http",
+                "docs-list-as-string": "airbyte http",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-airbyte "
-                "--package-filter apache-airflow-providers-http",
+                "docs-list-as-string": "apache-airflow airbyte http",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -1071,66 +1013,59 @@ def test_upgrade_to_newer_dependencies(
                 "docs/apache-airflow-providers/docs.rst",
             ),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers "
-                "--package-filter apache-airflow-providers-airbyte "
-                "--package-filter apache-airflow-providers-http",
+                "docs-list-as-string": "apache-airflow providers-index airbyte http",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),
         pytest.param(
             ("docs/apache-airflow/docs.rst",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow",
+                "docs-list-as-string": "apache-airflow",
             },
             id="Only Airflow docs changed",
         ),
         pytest.param(
             ("airflow/providers/celery/file.py",),
-            {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-celery "
-                "--package-filter apache-airflow-providers-cncf-kubernetes"
-            },
+            {"docs-list-as-string": "apache-airflow celery cncf-kubernetes"},
             id="Celery python files changed",
         ),
         pytest.param(
             ("docs/conf.py",),
             {
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Docs conf.py changed",
         ),
         pytest.param(
             ("airflow/test.py",),
             {
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Core files changed. All provider docs should also be built",
         ),
         pytest.param(
             ("docs/docker-stack/test.rst",),
-            {"docs-filter-list-as-string": "--package-filter docker-stack"},
+            {"docs-list-as-string": "docker-stack"},
             id="Docker stack files changed. No provider docs to build",
         ),
         pytest.param(
             ("airflow/test.py", "chart/airflow/values.yaml"),
             {
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Core files and helm chart files changed. All provider docs should be built",
         ),
         pytest.param(
             ("chart/airflow/values.yaml",),
             {
-                "docs-filter-list-as-string": "--package-filter helm-chart",
+                "docs-list-as-string": "helm-chart",
             },
             id="Helm chart files changed. No provider, airflow docs to build",
         ),
         pytest.param(
             ("docs/helm-chart/airflow/values.yaml",),
             {
-                "docs-filter-list-as-string": "--package-filter helm-chart",
+                "docs-list-as-string": "helm-chart",
             },
             id="Docs helm chart files changed. No provider, airflow docs to build",
         ),
