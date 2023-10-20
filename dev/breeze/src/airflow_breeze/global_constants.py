@@ -81,7 +81,7 @@ MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
 
 ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
-ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
+ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
 #  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
@@ -97,7 +97,17 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.2.1"
+PIP_VERSION = "23.3"
+
+# key used for generating providers index
+PROVIDERS_INDEX_KEY = "providers-index"
+# keys for generated non providers docs
+NON_PROVIDERS_DOC_KEYS = ["apache-airflow", "docker-stack", "helm-chart"]
+# Mapping which store short-key:full-key
+ALL_SPECIAL_DOC_KEYS = {
+    PROVIDERS_INDEX_KEY: "apache-airflow-providers",
+    **dict(zip(NON_PROVIDERS_DOC_KEYS, NON_PROVIDERS_DOC_KEYS)),
+}
 
 
 @lru_cache(maxsize=None)
@@ -111,6 +121,7 @@ class SelectiveUnitTestTypes(Enum):
     CLI = "CLI"
     CORE = "Core"
     OTHER = "Other"
+    OPERATORS = "Operators"
     PROVIDERS = "Providers"
     WWW = "WWW"
 
@@ -161,7 +172,7 @@ def get_available_documentation_packages(short_version=False, only_providers: bo
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
     available_packages = []
     if not only_providers:
-        available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
+        available_packages.extend(NON_PROVIDERS_DOC_KEYS)
     all_providers = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
     all_providers.sort()
     available_packages.extend(all_providers)
@@ -199,7 +210,7 @@ PYTHONDONTWRITEBYTECODE = True
 PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
+CURRENT_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 USE_MYSQL_INNOVATION_RELEASE = True
 if USE_MYSQL_INNOVATION_RELEASE:

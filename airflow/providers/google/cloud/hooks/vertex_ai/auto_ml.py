@@ -15,33 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a Google Cloud Vertex AI hook.
-
-.. spelling:word-list::
-
-    aiplatform
-    au
-    codepoints
-    milli
-    mae
-    quantile
-    quantiles
-    Quantiles
-    rmse
-    rmsle
-    rmspe
-    wape
-    prc
-    roc
-    Jetson
-    forecasted
-    Struct
-    sentimentMax
-    TrainingPipeline
-    targetColumn
-    optimizationObjective
-"""
+"""This module contains a Google Cloud Vertex AI hook."""
 from __future__ import annotations
 
 import warnings
@@ -314,6 +288,10 @@ class AutoMLHook(GoogleBaseHook):
         export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
         sync: bool = True,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
     ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Tabular Training Job.
@@ -327,6 +305,24 @@ class AutoMLHook(GoogleBaseHook):
             [google.cloud.aiplatform.v1beta1.TrainingPipeline.training_task_definition]. For tabular
             Datasets, all their data is exported to training, to pick and choose from.
         :param target_column: Required. The name of the column values of which the Model is to predict.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+            The new model uploaded by this job will be a version of `parent_model`.
+            Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+            automatically have alias "default" included. Subsequent uses of
+            the model produced by this job without a version specified will
+            use this "default" version.
+            When set to False, the "default" alias will not be moved.
+            Actions targeting the model version produced by this job will need
+            to specifically reference this version by ID or alias.
+            New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+            uploaded by this job can be referenced via alias instead of
+            auto-generated version ID. A default version alias will be created
+            for the first version of the model.
+            The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+            being uploaded by this job.
         :param optimization_prediction_type: The type of prediction the Model is to produce.
             "classification" - Predict one out of multiple target values is picked for each row.
             "regression" - Predict a value based on its relation to other values. This type is available only
@@ -498,6 +494,10 @@ class AutoMLHook(GoogleBaseHook):
             ),
             export_evaluated_data_items_override_destination=export_evaluated_data_items_override_destination,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
         training_id = self.extract_training_id(self._job.resource_name)
         if model:
@@ -546,6 +546,10 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
     ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Forecasting Training Job.
@@ -560,6 +564,24 @@ class AutoMLHook(GoogleBaseHook):
             Datasets, all their data is exported to training, to pick and choose from.
         :param target_column: Required. Name of the column that the Model is to predict values for.
         :param time_column: Required. Name of the column that identifies time order in the time series.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+            The new model uploaded by this job will be a version of `parent_model`.
+            Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+            automatically have alias "default" included. Subsequent uses of
+            the model produced by this job without a version specified will
+            use this "default" version.
+            When set to False, the "default" alias will not be moved.
+            Actions targeting the model version produced by this job will need
+            to specifically reference this version by ID or alias.
+            New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+            uploaded by this job can be referenced via alias instead of
+            auto-generated version ID. A default version alias will be created
+            for the first version of the model.
+            The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+            being uploaded by this job.
         :param time_series_identifier_column: Required. Name of the column that identifies the time series.
         :param unavailable_at_forecast_columns: Required. Column names of columns that are unavailable at
             forecast. Each column contains information for the given entity (identified by the
@@ -731,6 +753,10 @@ class AutoMLHook(GoogleBaseHook):
             model_display_name=model_display_name,
             model_labels=model_labels,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
         training_id = self.extract_training_id(self._job.resource_name)
         if model:
@@ -767,6 +793,10 @@ class AutoMLHook(GoogleBaseHook):
         model_labels: dict[str, str] | None = None,
         disable_early_stopping: bool = False,
         sync: bool = True,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
     ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Image Training Job.
@@ -784,6 +814,24 @@ class AutoMLHook(GoogleBaseHook):
             "object_detection" - Predict a value based on its relation to other values. This type is
             available only to columns that contain semantically numeric values, i.e. integers or floating
             point number, even if stored as e.g. strings.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+            The new model uploaded by this job will be a version of `parent_model`.
+            Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+            automatically have alias "default" included. Subsequent uses of
+            the model produced by this job without a version specified will
+            use this "default" version.
+            When set to False, the "default" alias will not be moved.
+            Actions targeting the model version produced by this job will need
+            to specifically reference this version by ID or alias.
+            New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+            uploaded by this job can be referenced via alias instead of
+            auto-generated version ID. A default version alias will be created
+            for the first version of the model.
+            The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+            being uploaded by this job.
         :param multi_label: Required. Default is False. If false, a single-label (multi-class) Model will be
             trained (i.e. assuming that for each image just up to one annotation may be applicable). If true,
             a multi-label Model will be trained (i.e. assuming that for each image multiple annotations may
@@ -907,6 +955,10 @@ class AutoMLHook(GoogleBaseHook):
             model_labels=model_labels,
             disable_early_stopping=disable_early_stopping,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
         training_id = self.extract_training_id(self._job.resource_name)
         if model:
@@ -940,6 +992,10 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
     ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Text Training Job.
@@ -960,6 +1016,24 @@ class AutoMLHook(GoogleBaseHook):
             "sentiment" - A sentiment analysis model inspects text data and identifies the prevailing
             emotional opinion within it, especially to determine a writer's attitude as positive, negative,
             or neutral.
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+            The new model uploaded by this job will be a version of `parent_model`.
+            Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+            automatically have alias "default" included. Subsequent uses of
+            the model produced by this job without a version specified will
+            use this "default" version.
+            When set to False, the "default" alias will not be moved.
+            Actions targeting the model version produced by this job will need
+            to specifically reference this version by ID or alias.
+            New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+            uploaded by this job can be referenced via alias instead of
+            auto-generated version ID. A default version alias will be created
+            for the first version of the model.
+            The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+            being uploaded by this job.
         :param multi_label: Required and only applicable for text classification task. If false, a
             single-label (multi-class) Model will be trained (i.e. assuming that for each text snippet just
             up to one annotation may be applicable). If true, a multi-label Model will be trained (i.e.
@@ -1044,6 +1118,10 @@ class AutoMLHook(GoogleBaseHook):
             model_display_name=model_display_name,
             model_labels=model_labels,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
         training_id = self.extract_training_id(self._job.resource_name)
         if model:
@@ -1074,6 +1152,10 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
+        parent_model: str | None = None,
+        is_default_version: bool | None = None,
+        model_version_aliases: list[str] | None = None,
+        model_version_description: str | None = None,
     ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Video Training Job.
@@ -1094,6 +1176,24 @@ class AutoMLHook(GoogleBaseHook):
             pre-defined, custom labels.
             "action_recognition" - A video action recognition model pinpoints the location of actions with
             short temporal durations (~1 second).
+        :param parent_model: Optional. The resource name or model ID of an existing model.
+            The new model uploaded by this job will be a version of `parent_model`.
+            Only set this field when training a new version of an existing model.
+        :param is_default_version: Optional. When set to True, the newly uploaded model version will
+            automatically have alias "default" included. Subsequent uses of
+            the model produced by this job without a version specified will
+            use this "default" version.
+            When set to False, the "default" alias will not be moved.
+            Actions targeting the model version produced by this job will need
+            to specifically reference this version by ID or alias.
+            New model uploads, i.e. version 1, will always be "default" aliased.
+        :param model_version_aliases: Optional. User provided version aliases so that the model version
+            uploaded by this job can be referenced via alias instead of
+            auto-generated version ID. A default version alias will be created
+            for the first version of the model.
+            The format is [a-z][a-zA-Z0-9-]{0,126}[a-z0-9]
+        :param model_version_description: Optional. The description of the model version
+            being uploaded by this job.
         :param model_type: Required. One of the following:
             "CLOUD" - available for "classification", "object_tracking" and "action_recognition" A Model best
             tailored to be used within Google Cloud, and which cannot be exported.
@@ -1175,6 +1275,10 @@ class AutoMLHook(GoogleBaseHook):
             model_display_name=model_display_name,
             model_labels=model_labels,
             sync=sync,
+            parent_model=parent_model,
+            is_default_version=is_default_version,
+            model_version_aliases=model_version_aliases,
+            model_version_description=model_version_description,
         )
         training_id = self.extract_training_id(self._job.resource_name)
         if model:

@@ -27,6 +27,7 @@ import pytest
 from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import TriggerEvent
 
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
@@ -106,7 +107,7 @@ class TestKubernetesPodTrigger:
                 "message": "All containers inside pod have started successfully.",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -131,7 +132,7 @@ class TestKubernetesPodTrigger:
                 "message": FAILED_RESULT_MSG,
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -334,3 +335,37 @@ class TestKubernetesPodTrigger:
         )
 
         assert expected_state == trigger.define_container_state(pod)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("container_state", [ContainerState.WAITING, ContainerState.UNDEFINED])
+    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
+    @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
+    async def test_run_loop_return_timeout_event(
+        self, mock_hook, mock_method, trigger, caplog, container_state
+    ):
+        trigger.trigger_start_time = TRIGGER_START_TIME - datetime.timedelta(minutes=2)
+        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(
+            mock.MagicMock(
+                status=mock.MagicMock(
+                    phase=PodPhase.PENDING,
+                )
+            )
+        )
+        mock_method.return_value = container_state
+
+        caplog.set_level(logging.INFO)
+
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert (
+            TriggerEvent(
+                {
+                    "name": POD_NAME,
+                    "namespace": NAMESPACE,
+                    "status": "timeout",
+                    "message": f"Pod took longer than {STARTUP_TIMEOUT_SECS} seconds to start."
+                    " Check the pod events in kubernetes to determine why.",
+                }
+            )
+            == actual
+        )

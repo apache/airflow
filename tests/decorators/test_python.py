@@ -26,8 +26,8 @@ from airflow import PY38, PY311
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
-from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.expandinput import DictOfListsExpandInput
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
@@ -893,7 +893,7 @@ def test_no_warnings(reset_logging_config, caplog):
 
 
 def test_task_decorator_dataset(dag_maker, session):
-    from airflow import Dataset
+    from airflow.datasets import Dataset
 
     result = None
     uri = "s3://test"

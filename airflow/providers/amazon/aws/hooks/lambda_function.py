@@ -18,10 +18,12 @@
 """This module contains AWS Lambda hook."""
 from __future__ import annotations
 
+import base64
 from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils.suppress import return_on_error
 
 
 class LambdaHook(AwsBaseHook):
@@ -59,7 +61,8 @@ class LambdaHook(AwsBaseHook):
 
         :param function_name: AWS Lambda Function Name
         :param invocation_type: AWS Lambda Invocation Type (RequestResponse, Event etc)
-        :param log_type: Tail Invocation Request
+        :param log_type: Set to Tail to include the execution log in the response.
+            Applies to synchronously invoked functions only.
         :param client_context: Up to 3,583 bytes of base64-encoded data about the invoking client
             to pass to the function in the context object.
         :param payload: The JSON that you want to provide to your Lambda function as input.
@@ -179,3 +182,17 @@ class LambdaHook(AwsBaseHook):
             "Architectures": architectures,
         }
         return self.conn.create_function(**trim_none_values(create_function_args))
+
+    @staticmethod
+    @return_on_error(None)
+    def encode_log_result(log_result: str, *, keep_empty_lines: bool = True) -> list[str] | None:
+        """
+        Encode execution log from the response and return list of log records.
+
+        Returns ``None`` on error, e.g. invalid base64-encoded string
+
+        :param log_result: base64-encoded string which contain Lambda execution Log.
+        :param keep_empty_lines: Whether or not keep empty lines.
+        """
+        encoded_log_result = base64.b64decode(log_result.encode("ascii")).decode()
+        return [log_row for log_row in encoded_log_result.splitlines() if keep_empty_lines or log_row]

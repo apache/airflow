@@ -25,7 +25,8 @@ import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.datasets import Dataset
-from airflow.models import DAG, DagModel, DagRun
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions

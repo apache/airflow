@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -36,6 +36,12 @@ SUBMIT_JOB_SUCCESS_RETURN = {
 CREATE_EMR_ON_EKS_CLUSTER_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "id": "vc1234"}
 
 GENERATED_UUID = "800647a9-adda-4237-94e6-f542c85fa55b"
+
+
+@pytest.fixture
+def mocked_hook_client():
+    with patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook.conn") as m:
+        yield m
 
 
 class TestEmrContainerOperator:
@@ -78,20 +84,11 @@ class TestEmrContainerOperator:
         "check_query_status",
         side_effect=["PENDING", "PENDING", "SUBMITTED", "RUNNING", "COMPLETED"],
     )
-    def test_execute_with_polling(self, mock_check_query_status):
+    def test_execute_with_polling(self, mock_check_query_status, mocked_hook_client):
         # Mock out the emr_client creator
-        emr_client_mock = MagicMock()
-        emr_client_mock.start_job_run.return_value = SUBMIT_JOB_SUCCESS_RETURN
-        emr_session_mock = MagicMock()
-        emr_session_mock.client.return_value = emr_client_mock
-        boto3_session_mock = MagicMock(return_value=emr_session_mock)
-
-        with patch("boto3.session.Session", boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            assert self.emr_container.execute(None) == "job123456"
-            assert mock_check_query_status.call_count == 5
+        mocked_hook_client.start_job_run.return_value = SUBMIT_JOB_SUCCESS_RETURN
+        assert self.emr_container.execute(None) == "job123456"
+        assert mock_check_query_status.call_count == 5
 
     @mock.patch.object(EmrContainerHook, "submit_job")
     @mock.patch.object(EmrContainerHook, "check_query_status")
@@ -114,13 +111,9 @@ class TestEmrContainerOperator:
         "check_query_status",
         side_effect=["PENDING", "PENDING", "SUBMITTED", "RUNNING", "COMPLETED"],
     )
-    def test_execute_with_polling_timeout(self, mock_check_query_status):
+    def test_execute_with_polling_timeout(self, mock_check_query_status, mocked_hook_client):
         # Mock out the emr_client creator
-        emr_client_mock = MagicMock()
-        emr_client_mock.start_job_run.return_value = SUBMIT_JOB_SUCCESS_RETURN
-        emr_session_mock = MagicMock()
-        emr_session_mock.client.return_value = emr_client_mock
-        boto3_session_mock = MagicMock(return_value=emr_session_mock)
+        mocked_hook_client.start_job_run.return_value = SUBMIT_JOB_SUCCESS_RETURN
 
         timeout_container = EmrContainerOperator(
             task_id="start_job",
@@ -134,16 +127,11 @@ class TestEmrContainerOperator:
             max_polling_attempts=3,
         )
 
-        with patch("boto3.session.Session", boto3_session_mock), patch(
-            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
-        ) as mock_isinstance:
-            mock_isinstance.return_value = True
-            with pytest.raises(AirflowException) as ctx:
-                timeout_container.execute(None)
+        error_match = "Final state of EMR Containers job is SUBMITTED.*Max tries of poll status exceeded"
+        with pytest.raises(AirflowException, match=error_match):
+            timeout_container.execute(None)
 
-            assert mock_check_query_status.call_count == 3
-            assert "Final state of EMR Containers job is SUBMITTED" in str(ctx.value)
-            assert "Max tries of poll status exceeded" in str(ctx.value)
+        assert mock_check_query_status.call_count == 3
 
     @mock.patch.object(EmrContainerHook, "submit_job")
     @mock.patch.object(

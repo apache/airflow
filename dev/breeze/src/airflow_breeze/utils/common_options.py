@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
     DEFAULT_CELERY_BROKER,
+    PROVIDERS_INDEX_KEY,
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
@@ -444,19 +445,19 @@ argument_packages = click.argument(
     required=False,
     type=BetterChoice(get_available_documentation_packages(short_version=True)),
 )
-argument_packages_plus_all_providers = click.argument(
-    "packages_plus_all_providers",
+argument_short_doc_packages = click.argument(
+    "short_doc_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(["all-providers"] + get_available_documentation_packages(short_version=True)),
+    type=BetterChoice(["all-providers", *get_available_documentation_packages(short_version=True)]),
 )
 
-argument_packages_plus_all_providers_for_shorthand = click.argument(
-    "packages_plus_all_providers",
+argument_short_doc_packages_with_providers_index = click.argument(
+    "short_doc_packages",
     nargs=-1,
     required=False,
     type=BetterChoice(
-        ["all-providers"] + get_available_documentation_packages(short_version=True) + ["providers-index"]
+        ["all-providers", PROVIDERS_INDEX_KEY, *get_available_documentation_packages(short_version=True)]
     ),
 )
 

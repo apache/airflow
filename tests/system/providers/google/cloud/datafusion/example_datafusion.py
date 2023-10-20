@@ -22,8 +22,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionCreateInstanceOperator,
@@ -162,7 +162,7 @@ PIPELINE = {
 CloudDataFusionCreatePipelineOperator.template_fields += ("pipeline",)
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,

@@ -268,7 +268,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         connection_cmd += ["--master", self._connection["master"]]
 
         for key in self._conf:
-            connection_cmd += ["--conf", f"{key}={str(self._conf[key])}"]
+            connection_cmd += ["--conf", f"{key}={self._conf[key]}"]
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
@@ -366,7 +366,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
 
         else:
-
             connection_cmd = self._get_spark_binary_path()
 
             # The url to the spark master
@@ -554,7 +553,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # Keep polling as long as the driver is processing
         while self._driver_status not in ["FINISHED", "UNKNOWN", "KILLED", "FAILED", "ERROR"]:
-
             # Sleep for n seconds as we do not want to spam the cluster
             time.sleep(self._status_poll_interval)
 

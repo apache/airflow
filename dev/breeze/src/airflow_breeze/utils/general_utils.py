@@ -16,17 +16,27 @@
 # under the License.
 from __future__ import annotations
 
+from airflow_breeze.global_constants import ALL_SPECIAL_DOC_KEYS, get_available_documentation_packages
+
 providers_prefix = "apache-airflow-providers-"
 
 
 def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
     providers = []
     for short_form_provider in short_form_providers:
-        if short_form_provider == "providers-index":
-            providers.append("apache-airflow-providers")
+        if specific_doc := ALL_SPECIAL_DOC_KEYS.get(short_form_provider):
+            providers.append(specific_doc)
             continue
 
         short_form_provider.split(".")
         parts = "-".join(short_form_provider.split("."))
         providers.append(providers_prefix + parts)
     return tuple(providers)
+
+
+def expand_all_providers(short_doc_packages: tuple[str, ...]) -> tuple[str, ...]:
+    if "all-providers" in short_doc_packages:
+        packages = [package for package in short_doc_packages if package != "all-providers"]
+        packages.extend(get_available_documentation_packages(only_providers=True, short_version=True))
+        short_doc_packages = tuple(set(packages))
+    return short_doc_packages

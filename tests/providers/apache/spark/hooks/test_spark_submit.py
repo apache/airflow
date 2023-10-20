@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import os
+from io import StringIO
 from unittest.mock import call, patch
 
 import pytest
@@ -30,7 +30,6 @@ from airflow.utils import db
 
 
 class TestSparkSubmitHook:
-
     _spark_job_file = "test_application.py"
     _config = {
         "conf": {"parquet.compression": "SNAPPY"},
@@ -241,8 +240,8 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_spark_process_runcmd(self, mock_popen):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.wait.return_value = 0
 
         # When
@@ -694,8 +693,8 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_yarn_process_on_kill(self, mock_popen, mock_renew_from_kt):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.poll.return_value = None
         mock_popen.return_value.wait.return_value = 0
         log_lines = [
@@ -776,8 +775,8 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_k8s_process_on_kill(self, mock_popen, mock_client_method):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.poll.return_value = None
         mock_popen.return_value.wait.return_value = 0
         client = mock_client_method.return_value

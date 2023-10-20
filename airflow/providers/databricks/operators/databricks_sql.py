@@ -244,7 +244,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
         validate: bool | int | None = None,
         **kwargs,
     ) -> None:
-        """Creates a new ``DatabricksSqlOperator``."""
+        """Create a new ``DatabricksSqlOperator``."""
         super().__init__(**kwargs)
         if files is not None and pattern is not None:
             raise AirflowException("Only one of 'pattern' or 'files' should be specified")
@@ -339,13 +339,11 @@ class DatabricksCopyIntoOperator(BaseOperator):
             elif isinstance(self._validate, int):
                 if self._validate < 0:
                     raise AirflowException(
-                        "Number of rows for validation should be positive, got: " + str(self._validate)
+                        f"Number of rows for validation should be positive, got: {self._validate}"
                     )
                 validation = f"VALIDATE {self._validate} ROWS\n"
             else:
-                raise AirflowException(
-                    "Incorrect data type for validate parameter: " + str(type(self._validate))
-                )
+                raise AirflowException(f"Incorrect data type for validate parameter: {type(self._validate)}")
         # TODO: think on how to make sure that table_name and expression_list aren't used for SQL injection
         sql = f"""COPY INTO {self._table_name}{storage_cred}
 FROM {location}

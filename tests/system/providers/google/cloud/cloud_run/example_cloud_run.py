@@ -26,7 +26,7 @@ from datetime import datetime
 from google.cloud.run_v2 import Job
 from google.cloud.run_v2.types import k8s_min
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
@@ -128,14 +128,13 @@ def _create_job_with_label():
     return job
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START howto_operator_cloud_run_create_job]
     create1 = CloudRunCreateJobOperator(
         task_id=create1_task_name,

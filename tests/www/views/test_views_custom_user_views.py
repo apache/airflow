@@ -98,7 +98,6 @@ class TestSecurity:
 
     @pytest.mark.parametrize("url, permission, expected_text", PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_without_access(self, url, permission, expected_text):
-
         user_with_access = create_user(
             self.app,
             username="has_access",
@@ -115,7 +114,6 @@ class TestSecurity:
         check_content_in_response(expected_text, response)
 
     def test_user_model_view_without_delete_access(self):
-
         user_to_delete = create_user(
             self.app,
             username="user_to_delete",
@@ -143,7 +141,6 @@ class TestSecurity:
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is True
 
     def test_user_model_view_with_delete_access(self):
-
         user_to_delete = create_user(
             self.app,
             username="user_to_delete",
@@ -227,7 +224,6 @@ class TestResetUserSessions:
         ],
     )
     def test_reset_user_sessions_delete(self, time_delta: timedelta, user_sessions_deleted: bool):
-
         self.create_user_db_session("session_id_1", time_delta, self.user_1.id)
         self.create_user_db_session("session_id_2", time_delta, self.user_2.id)
         self.db.session.commit()

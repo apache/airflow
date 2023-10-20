@@ -25,8 +25,8 @@ from datetime import datetime
 
 from facebook_business.adobjects.adsinsights import AdsInsights
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -57,12 +57,11 @@ FIELDS = [
 PARAMETERS = {"level": "ad", "date_preset": "yesterday"}
 # [END howto_FB_ADS_variables]
 
-with models.DAG(
+with DAG(
     "example_facebook_ads_to_gcs",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=GCS_BUCKET,

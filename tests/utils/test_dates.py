@@ -53,7 +53,6 @@ class TestDates:
             dates.parse_execution_date(bad_execution_date_str)
 
     def test_round_time(self):
-
         rt1 = dates.round_time(timezone.datetime(2015, 1, 1, 6), timedelta(days=1))
         assert timezone.datetime(2015, 1, 1, 0, 0) == rt1
 

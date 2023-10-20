@@ -124,7 +124,7 @@ def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False
     if mount_sources == MOUNT_ALL:
         extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT},dst=/opt/airflow/"])
     elif mount_sources == MOUNT_SELECTED:
-        for (src, dst) in VOLUMES_FOR_SELECTED_MOUNTS:
+        for src, dst in VOLUMES_FOR_SELECTED_MOUNTS:
             if (AIRFLOW_SOURCES_ROOT / src).exists():
                 extra_docker_flags.extend(
                     ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}"]
@@ -828,11 +828,13 @@ def autodetect_docker_context():
     if result.returncode != 0:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    context_json = json.loads(result.stdout)
-    if isinstance(context_json, dict):
-        # In case there is one context it is returned as dict not array of dicts ¯\_(ツ)_/¯
-        context_json = [context_json]
-    known_contexts = {info["Name"]: info for info in context_json}
+    try:
+        context_dicts = json.loads(result.stdout)
+        if isinstance(context_dicts, dict):
+            context_dicts = [context_dicts]
+    except json.decoder.JSONDecodeError:
+        context_dicts = (json.loads(line) for line in result.stdout.splitlines() if line.strip())
+    known_contexts = {info["Name"]: info for info in context_dicts}
     if not known_contexts:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"

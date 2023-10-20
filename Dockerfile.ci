@@ -469,7 +469,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.2.1"
+            export AIRFLOW_PIP_VERSION="23.3"
         fi
     fi
 }
@@ -1090,8 +1090,8 @@ if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
     python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
 fi
 
-declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
-    ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
+declare -a SELECTED_TESTS CLI_TESTS API_TESTS OPERATORS_TESTS ALWAYS_TESTS PROVIDERS_TESTS \
+    CORE_TESTS WWW_TESTS ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
 
 function find_all_other_tests() {
     local all_tests_dirs
@@ -1120,6 +1120,7 @@ else
     API_TESTS=("tests/api_experimental" "tests/api_connexion" "tests/api_internal")
     PROVIDERS_TESTS=("tests/providers")
     ALWAYS_TESTS=("tests/always")
+    OPERATORS_TESTS=("tests/operators")
     CORE_TESTS=(
         "tests/core"
         "tests/executors"
@@ -1142,6 +1143,7 @@ else
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"
+        "${OPERATORS_TESTS[@]}"
         "${WWW_TESTS[@]}"
         "${SYSTEM_TESTS[@]}"
     )
@@ -1163,6 +1165,8 @@ else
         SELECTED_TESTS=("${CORE_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Always" ]]; then
         SELECTED_TESTS=("${ALWAYS_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Operators" ]]; then
+        SELECTED_TESTS=("${OPERATORS_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
@@ -1226,8 +1230,8 @@ else
         exit 1
     fi
 fi
-readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
-    ALL_TESTS ALL_PRESELECTED_TESTS
+readonly SELECTED_TESTS CLI_TESTS API_TESTS OPERATORS_TESTS ALWAYS_TESTS PROVIDERS_TESTS \
+    CORE_TESTS WWW_TESTS ALL_TESTS ALL_PRESELECTED_TESTS
 
 if [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
@@ -1256,7 +1260,6 @@ echo "Running tests ${SELECTED_TESTS[*]}"
 echo
 
 ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${SELECTED_TESTS[@]}")
-
 if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
     "${IN_CONTAINER_DIR}/run_system_tests.sh" "${ARGS[@]}"
 else
@@ -1286,7 +1289,7 @@ ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="9"
+ARG DEPENDENCIES_EPOCH_NUMBER="10"
 
 # Make sure noninteractive debian install is used and language variables set
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
@@ -1317,7 +1320,7 @@ RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 # THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
 # AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=23.2.1
+ARG AIRFLOW_PIP_VERSION=23.3
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 COPY --from=scripts common.sh /scripts/docker/
 
@@ -1380,7 +1383,7 @@ ARG AIRFLOW_CI_BUILD_EPOCH="5"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
-ARG AIRFLOW_PIP_VERSION=23.2.1
+ARG AIRFLOW_PIP_VERSION=23.3
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -1435,8 +1438,11 @@ RUN echo "Airflow version: ${AIRFLOW_VERSION}"
 # Those are additional constraints that are needed for some extras but we do not want to
 # force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
 # dependency resolution and we do not need to limit the versions of the dependencies
-# aiobotocore is limited temporarily until it stops backtracking pip
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
+#
+# Without grpcio-status limit, pip gets into very long backtracking
+# We should attempt to remove it in the future
+#
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="grpcio-status>=1.55.0"
 ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG VERSION_SUFFIX_FOR_PYPI=""
 

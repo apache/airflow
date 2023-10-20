@@ -233,7 +233,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.processor_agent: DagFileProcessorAgent | None = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
-        self._paused_dag_without_running_dagruns: set = set()
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -1419,12 +1418,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
         # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
         query = (
-            session.query(DagModel)
-            .filter(DagModel.dag_id == dag_run.dag_id)
-            .options(joinedload(DagModel.parent_dag))
+            select(DagModel).where(DagModel.dag_id == dag_run.dag_id).options(joinedload(DagModel.parent_dag))
         )
-        dag_model = with_row_locks(
-            query, of=DagModel, session=session, **skip_locked(session=session)
+        dag_model = session.scalars(
+            with_row_locks(query, of=DagModel, session=session, **skip_locked(session=session))
         ).one_or_none()
 
         if not dag:
