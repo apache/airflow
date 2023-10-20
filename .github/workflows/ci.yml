@@ -61,15 +61,9 @@ jobs:
   build-info:
     name: "Build info"
     # The runs-on cannot refer to env. or secrets. context, so we have no
-    # option but to specify a hard-coded list here. This is "safe", as the list
-    # is checked again by the runner using it's own list, so a PR author cannot
-    # change this and get access to our self-hosted runners
-    #
-    # This list is kept up-to-date from the list of authors found in the
-    # 'airflow-ci-infra' by the 'sync_authors' Github workflow. It uses a regexp
-    # to find the list of authors and replace them, so any changes to the
-    # formatting of the contains(fromJSON()) structure below will need to be
-    # reflected in that workflow too.
+    # option but to specify a hard-coded list here. This is "safe", the
+    # runner checks if the user is an owner or collaborator of the repo
+    # before running the workflow.
     runs-on: "ubuntu-22.04"
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
@@ -116,11 +110,12 @@ jobs:
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      docs-filter-list-as-string: ${{ steps.selective-checks.outputs.docs-filter-list-as-string }}
+      docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
       runs-on: ${{ steps.selective-checks.outputs.runs-on }}
+      has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
@@ -571,7 +566,7 @@ jobs:
         if: always()
 
   static-checks:
-    timeout-minutes: 30
+    timeout-minutes: 45
     name: "Static checks"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
@@ -699,8 +694,7 @@ jobs:
             docs-inventory-
       - name: "Build docs"
         run: >
-          breeze build-docs
-          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }}
       - name: "Clone airflow-site"
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
@@ -709,7 +703,7 @@ jobs:
         run: >
           breeze release-management publish-docs
           --override-versioned
-          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          ${{ needs.build-info.outputs.docs-list-as-string }}
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >
@@ -951,7 +945,7 @@ jobs:
       DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "helm-tests"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      COVERAGE: "false"  # We do not need to run coverage on Helm tests
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule') &&
@@ -1203,6 +1197,7 @@ jobs:
       MYSQL_VERSION: "${{matrix.mysql-version}}"
       BACKEND_VERSION: "${{matrix.mysql-version}}"
       JOB_ID: "mysql-${{matrix.mysql-version}}-${{matrix.python-version}}"
+      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -1263,7 +1258,8 @@ jobs:
     if: >
       needs.build-info.outputs.run-tests == 'true' &&
       (needs.build-info.outputs.runs-on == 'self-hosted' ||
-      needs.build-info.outputs.full-tests-needed == 'true')
+      needs.build-info.outputs.full-tests-needed == 'true' ||
+      needs.build-info.outputs.has-migrations == 'true')
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1626,12 +1622,15 @@ jobs:
 
   tests-kubernetes:
     timeout-minutes: 240
-    name: "Helm: ${{matrix.executor}} - ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}"
+    name: "\
+      Helm: ${{matrix.executor}} - ${{matrix.use-standard-naming}} - \
+      ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-prod-images]
     strategy:
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
+        use-standard-naming: [true, false]
       fail-fast: false
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1668,12 +1667,13 @@ jobs:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
           EXECUTOR: ${{matrix.executor}}
+          USE_STANDARD_NAMING: ${{matrix.use-standard-naming}}
           VERBOSE: false
       - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()
         with:
-          name: kind-logs-${{matrix.executor}}
+          name: kind-logs-${{matrix.executor}}-${{matrix.use-standard-naming}}
           path: /tmp/kind_logs_*
           retention-days: 7
       - name: >
@@ -1681,7 +1681,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()
         with:
-          name: k8s-test-resources-${{matrix.executor}}
+          name: k8s-test-resources-${{matrix.executor}}-${{matrix.use-standard-naming}}
           path: /tmp/k8s_test_resources_*
           retention-days: 7
       - name: "Delete clusters just in case they are left"

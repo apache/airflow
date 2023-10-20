@@ -330,9 +330,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("airflow/providers/amazon/__init__.py",),
             {
-                "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql postgres salesforce ssh",
+                "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.sql exasol "
+                "ftp google http imap microsoft.azure mongo mysql postgres salesforce ssh",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "python-versions": "['3.8']",
@@ -372,9 +371,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("airflow/providers/amazon/file.py",),
             {
-                "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.sql exasol ftp google http imap microsoft.azure "
-                "mongo mysql postgres salesforce ssh",
+                "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes common.sql exasol "
+                "ftp google http imap microsoft.azure mongo mysql postgres salesforce ssh",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "python-versions": "['3.8']",
@@ -386,9 +384,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Providers[amazon] Always "
-                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,"
-                "http,imap,microsoft.azure,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
+                "parallel-test-types-list-as-string": "Providers[amazon] "
+                "Always Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,imap,"
+                "microsoft.azure,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -425,7 +423,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
@@ -452,7 +450,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
@@ -477,7 +475,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
@@ -502,8 +500,7 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": "--package-filter apache-airflow "
-                    "--package-filter docker-stack",
+                    "docs-list-as-string": "apache-airflow docker-stack",
                     "full-tests-needed": "true",
                     "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
@@ -543,7 +540,7 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
-                "docs-filter-list-as-string": None,
+                "docs-list-as-string": None,
                 "full-tests-needed": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -558,15 +555,15 @@ def test_expected_output_full_tests_needed(
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
-                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
-                "mysql openlineage oracle postgres presto salesforce sftp ssh trino",
+                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql mysql openlineage "
+                "oracle postgres presto salesforce sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "needs-helm-tests": "false",
                 "image-build": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -582,17 +579,16 @@ def test_expected_output_full_tests_needed(
                 "tests/providers/google/file.py",
             ),
             {
-                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.sql facebook google "
-                "hashicorp microsoft.azure microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce sftp ssh trino",
+                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
+                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql mysql "
+                "openlineage oracle postgres presto salesforce sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -614,7 +610,7 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
@@ -652,7 +648,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
-                "docs-filter-list-as-string": None,
+                "docs-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": None,
@@ -669,7 +665,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": "Always",
@@ -683,42 +679,24 @@ def test_expected_output_pull_request_v2_3(
                 "tests/providers/google/file.py",
             ),
             {
-                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
-                "cncf.kubernetes common.sql "
-                "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
-                "openlineage oracle postgres presto salesforce sftp ssh trino",
+                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
+                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
+                "mysql openlineage oracle postgres presto salesforce sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter helm-chart "
-                "--package-filter apache-airflow-providers-amazon "
-                "--package-filter apache-airflow-providers-apache-beam "
-                "--package-filter apache-airflow-providers-apache-cassandra "
-                "--package-filter apache-airflow-providers-cncf-kubernetes "
-                "--package-filter apache-airflow-providers-common-sql "
-                "--package-filter apache-airflow-providers-facebook "
-                "--package-filter apache-airflow-providers-google "
-                "--package-filter apache-airflow-providers-hashicorp "
-                "--package-filter apache-airflow-providers-microsoft-azure "
-                "--package-filter apache-airflow-providers-microsoft-mssql "
-                "--package-filter apache-airflow-providers-mysql "
-                "--package-filter apache-airflow-providers-openlineage "
-                "--package-filter apache-airflow-providers-oracle "
-                "--package-filter apache-airflow-providers-postgres "
-                "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-salesforce "
-                "--package-filter apache-airflow-providers-sftp "
-                "--package-filter apache-airflow-providers-ssh "
-                "--package-filter apache-airflow-providers-trino",
+                "docs-list-as-string": "apache-airflow helm-chart amazon apache-beam apache-cassandra "
+                "cncf-kubernetes common-sql facebook google hashicorp microsoft-azure microsoft-mssql mysql "
+                "openlineage oracle postgres presto salesforce sftp ssh trino",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always CLI "
-                "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,"
-                "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
+                "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,hashicorp,"
+                "microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
                 "salesforce,sftp,ssh,trino] Providers[google]",
             },
             id="CLI tests and Google-related provider tests should run if cli/chart files changed",
@@ -738,7 +716,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow",
+                "docs-list-as-string": "apache-airflow",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -756,7 +734,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
@@ -776,13 +754,12 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
                 "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
-                "Providers[amazon] WWW "
-                "API Always CLI Other Providers[google]",
+                "Providers[amazon] WWW API Always CLI Other Providers[google]",
             },
             id="Tests for all providers should run if any other than API/WWW/CLI/Operators file changed.",
         ),
@@ -817,7 +794,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
@@ -837,7 +814,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": "Operators Core WWW API Always CLI Other",
             },
@@ -856,7 +833,7 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
                 "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
@@ -991,73 +968,33 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("docs/apache-airflow-providers-google/docs.rst",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow-providers-amazon "
-                "--package-filter apache-airflow-providers-apache-beam "
-                "--package-filter apache-airflow-providers-apache-cassandra "
-                "--package-filter apache-airflow-providers-cncf-kubernetes "
-                "--package-filter apache-airflow-providers-common-sql "
-                "--package-filter apache-airflow-providers-facebook "
-                "--package-filter apache-airflow-providers-google "
-                "--package-filter apache-airflow-providers-hashicorp "
-                "--package-filter apache-airflow-providers-microsoft-azure "
-                "--package-filter apache-airflow-providers-microsoft-mssql "
-                "--package-filter apache-airflow-providers-mysql "
-                "--package-filter apache-airflow-providers-openlineage "
-                "--package-filter apache-airflow-providers-oracle "
-                "--package-filter apache-airflow-providers-postgres "
-                "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-salesforce "
-                "--package-filter apache-airflow-providers-sftp "
-                "--package-filter apache-airflow-providers-ssh "
-                "--package-filter apache-airflow-providers-trino",
+                "docs-list-as-string": "amazon apache-beam apache-cassandra cncf-kubernetes common-sql "
+                "facebook google hashicorp microsoft-azure microsoft-mssql mysql "
+                "openlineage oracle postgres presto salesforce sftp ssh trino",
             },
             id="Google provider docs changed",
         ),
         pytest.param(
             ("airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-amazon "
-                "--package-filter apache-airflow-providers-apache-drill "
-                "--package-filter apache-airflow-providers-apache-druid "
-                "--package-filter apache-airflow-providers-apache-hive "
-                "--package-filter apache-airflow-providers-apache-impala "
-                "--package-filter apache-airflow-providers-apache-pinot "
-                "--package-filter apache-airflow-providers-common-sql "
-                "--package-filter apache-airflow-providers-databricks "
-                "--package-filter apache-airflow-providers-elasticsearch "
-                "--package-filter apache-airflow-providers-exasol "
-                "--package-filter apache-airflow-providers-google "
-                "--package-filter apache-airflow-providers-jdbc "
-                "--package-filter apache-airflow-providers-microsoft-mssql "
-                "--package-filter apache-airflow-providers-mysql "
-                "--package-filter apache-airflow-providers-odbc "
-                "--package-filter apache-airflow-providers-openlineage "
-                "--package-filter apache-airflow-providers-oracle "
-                "--package-filter apache-airflow-providers-postgres "
-                "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-slack "
-                "--package-filter apache-airflow-providers-snowflake "
-                "--package-filter apache-airflow-providers-sqlite "
-                "--package-filter apache-airflow-providers-trino "
-                "--package-filter apache-airflow-providers-vertica",
+                "docs-list-as-string": "apache-airflow amazon apache-drill apache-druid apache-hive "
+                "apache-impala apache-pinot common-sql databricks elasticsearch "
+                "exasol google jdbc microsoft-mssql mysql odbc openlineage "
+                "oracle postgres presto slack snowflake sqlite trino vertica",
             },
             id="Common SQL provider package python files changed",
         ),
         pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow-providers-airbyte "
-                "--package-filter apache-airflow-providers-http",
+                "docs-list-as-string": "airbyte http",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-airbyte "
-                "--package-filter apache-airflow-providers-http",
+                "docs-list-as-string": "apache-airflow airbyte http",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -1068,66 +1005,59 @@ def test_upgrade_to_newer_dependencies(
                 "docs/apache-airflow-providers/docs.rst",
             ),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers "
-                "--package-filter apache-airflow-providers-airbyte "
-                "--package-filter apache-airflow-providers-http",
+                "docs-list-as-string": "apache-airflow providers-index airbyte http",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),
         pytest.param(
             ("docs/apache-airflow/docs.rst",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow",
+                "docs-list-as-string": "apache-airflow",
             },
             id="Only Airflow docs changed",
         ),
         pytest.param(
             ("airflow/providers/celery/file.py",),
-            {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-celery "
-                "--package-filter apache-airflow-providers-cncf-kubernetes"
-            },
+            {"docs-list-as-string": "apache-airflow celery cncf-kubernetes"},
             id="Celery python files changed",
         ),
         pytest.param(
             ("docs/conf.py",),
             {
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Docs conf.py changed",
         ),
         pytest.param(
             ("airflow/test.py",),
             {
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Core files changed. All provider docs should also be built",
         ),
         pytest.param(
             ("docs/docker-stack/test.rst",),
-            {"docs-filter-list-as-string": "--package-filter docker-stack"},
+            {"docs-list-as-string": "docker-stack"},
             id="Docker stack files changed. No provider docs to build",
         ),
         pytest.param(
             ("airflow/test.py", "chart/airflow/values.yaml"),
             {
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Core files and helm chart files changed. All provider docs should be built",
         ),
         pytest.param(
             ("chart/airflow/values.yaml",),
             {
-                "docs-filter-list-as-string": "--package-filter helm-chart",
+                "docs-list-as-string": "helm-chart",
             },
             id="Helm chart files changed. No provider, airflow docs to build",
         ),
         pytest.param(
             ("docs/helm-chart/airflow/values.yaml",),
             {
-                "docs-filter-list-as-string": "--package-filter helm-chart",
+                "docs-list-as-string": "helm-chart",
             },
             id="Docs helm chart files changed. No provider, airflow docs to build",
         ),
@@ -1166,53 +1096,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
-
-
-@pytest.mark.parametrize(
-    "files, labels, expected_outputs, should_fail",
-    [
-        pytest.param(
-            ("airflow/providers/yandex/test.py",),
-            (),
-            None,
-            True,
-            id="Suspended provider changes should fail",
-        ),
-        pytest.param(
-            ("airflow/providers/yandex/test.py",),
-            ("allow suspended provider changes",),
-            {"affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED},
-            False,
-            id="Suspended provider changes should not fail if appropriate label is set",
-        ),
-        pytest.param(
-            ("airflow/providers/yandex/test.py", "airflow/providers/airbyte/test.py"),
-            ("allow suspended provider changes",),
-            {"affected-providers-list-as-string": "airbyte http"},
-            False,
-            id="Only non-suspended provider changes should be listed",
-        ),
-    ],
-)
-def test_suspended_providers(
-    files: tuple[str, ...], labels: tuple[str], expected_outputs: dict[str, str], should_fail: bool
-):
-    failed = False
-    try:
-        stderr = str(
-            SelectiveChecks(
-                files=files,
-                commit_ref="HEAD",
-                github_event=GithubEvents.PULL_REQUEST,
-                pr_labels=labels,
-                default_branch="main",
-            )
-        )
-    except SystemExit:
-        failed = True
-    assert failed == should_fail
-    if not failed:
-        assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
 @pytest.mark.parametrize(
@@ -1333,3 +1216,30 @@ def test_runs_on(
         default_branch="main",
     )
     assert_outputs_are_printed({"runs-on": runs_on}, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, has_migrations",
+    [
+        pytest.param(
+            ("airflow/test.py",),
+            False,
+            id="No migrations",
+        ),
+        pytest.param(
+            ("airflow/migrations/test_sql", "aiflow/test.py"),
+            True,
+            id="With migrations",
+        ),
+    ],
+)
+def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
+    stderr = str(
+        SelectiveChecks(
+            files=files,
+            commit_ref="HEAD",
+            github_event=GithubEvents.PULL_REQUEST,
+            default_branch="main",
+        )
+    )
+    assert_outputs_are_printed({"has-migrations": str(has_migrations).lower()}, str(stderr))
