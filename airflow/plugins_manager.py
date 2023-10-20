@@ -78,14 +78,16 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "hooks",
     "executors",
     "macros",
+    "admin_views",
     "flask_blueprints",
+    "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "source",
     "ti_deps",
     "timetables",
-    "source",
     "listeners",
 }
 
