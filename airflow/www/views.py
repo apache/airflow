@@ -5849,8 +5849,8 @@ class DevView(BaseView):
 
     @expose("/coverage/<path:path>")
     def coverage(self, path):
-        self.template_folder = Path.cwd() / "htmlcov"
-        self.static_folder = Path.cwd() / "htmlcov"
+        self.template_folder = Path("htmlcov").resolve()
+        self.static_folder = Path("htmlcov").resolve()
         return send_from_directory(self.template_folder, path)
 
 
