@@ -114,7 +114,7 @@ class ConfDict(dict):
         try:
             json.dumps(conf)
         except TypeError:
-            raise AirflowException("conf parameter should be JSON Serializable")
+            raise AirflowException("Cannot assign non JSON Serializable value")
         if isinstance(conf, dict):
             return conf
         else:
