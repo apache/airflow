@@ -26,6 +26,7 @@ import unittest
 from pathlib import Path
 from unittest import mock, mock as async_mock
 from unittest.mock import MagicMock, Mock, patch
+from urllib.parse import parse_qs
 
 import boto3
 import pytest
@@ -1068,10 +1069,7 @@ class TestAwsS3Hook:
         presigned_url = hook.generate_presigned_url(
             client_method="get_object", params={"Bucket": s3_bucket, "Key": "my_key"}
         )
-
-        url = presigned_url.split("?")[1]
-        params = {x[0]: x[1] for x in [x.split("=") for x in url[0:].split("&")]}
-
+        params = parse_qs(presigned_url.partition("?")[-1])
         assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
 
     def test_should_throw_error_if_extra_args_is_not_dict(self):
