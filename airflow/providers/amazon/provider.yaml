@@ -759,14 +759,14 @@ config:
       conn_id:
         description: |
           The Airflow connection (i.e. credentials) used by the ECS executor to make API calls to AWS ECS.
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: "aws_default"
         default: "aws_default"
       region_name:
         description: |
           The name of the AWS Region where Amazon ECS is configured. Required.
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: "us-east-1"
         default: ~
@@ -774,14 +774,14 @@ config:
         description: |
           Whether to assign a public IP address to the containers launched by the ECS executor.
           For more info see url to Boto3 docs above.
-        version_added: "2.8"
+        version_added: "8.10"
         type: boolean
         example: "True"
         default: "False"
       cluster:
         description: |
           Name of the Amazon ECS Cluster. Required.
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: "ecs_executor_cluster"
         default: ~
@@ -791,7 +791,7 @@ config:
           The container should be specified in the ECS Task Definition and will receive an airflow
           CLI command as an additional parameter to its entrypoint. For more info see url to Boto3
           docs above. Required.
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: "ecs_executor_container"
         default: ~
@@ -806,7 +806,7 @@ config:
 
           If the launch type is FARGATE, this will run the tasks on new AWS Fargate
           instances.
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: "FARGATE"
         default: "FARGATE"
@@ -815,7 +815,7 @@ config:
           The platform version the task uses. A platform version is only specified
           for tasks hosted on Fargate. If one isn't specified, the LATEST platform
           version is used.
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: "1.4.0"
         default: "LATEST"
@@ -824,7 +824,7 @@ config:
           The comma-separated IDs of the security groups associated with the task. If you
           don't specify a security group, the default security group for the VPC is used.
           There's a limit of 5 security groups. For more info see url to Boto3 docs above.
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: "sg-XXXX,sg-YYYY"
         default: ~
@@ -832,7 +832,7 @@ config:
         description: |
           The comma-separated IDs of the subnets associated with the task or service.
           There's a limit of 16 subnets. For more info see url to Boto3 docs above.
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: "subnet-XXXXXXXX,subnet-YYYYYYYY"
         default: ~
@@ -841,21 +841,21 @@ config:
           The family and revision (family:revision) or full ARN of the task definition
           to run. If a revision isn't specified, the latest ACTIVE revision is used.
           For more info see url to Boto3 docs above.
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: executor_task_definition:LATEST
         default: ~
       max_run_task_attempts:
         description: |
           The maximum number of times the ECS Executor should attempt to run a task.
-        version_added: "2.8"
+        version_added: "8.10"
         type: integer
         example: "3"
         default: "3"
       run_task_kwargs:
         description: |
           A JSON string containing arguments to provide the ECS `run_task` API (see url above).
-        version_added: "2.8"
+        version_added: "8.10"
         type: string
         example: '{"tags": {"key": "schema", "value": "1.0"}}'
         default: ~
