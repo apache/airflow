@@ -52,11 +52,6 @@ def delete_temp_file():
 
 
 @task
-def create_bucket():
-    AWS_BUCKET.mkdir(exist_ok=True)
-
-
-@task
 def remove_bucket():
     AWS_BUCKET.unlink(recursive=True)
 
@@ -75,7 +70,6 @@ with DAG(
     chain(
         # TEST SETUP
         create_temp_file(),
-        create_bucket(),
         # TEST BODY
         transfer,
         # TEST TEARDOWN

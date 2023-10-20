@@ -141,7 +141,7 @@ class ObjectStoragePath(os.PathLike):
 
         return self._hash
 
-    def __truediv__(self, other):
+    def __truediv__(self, other) -> ObjectStoragePath:
         o_protocol, o_bucket, o_key = self.split_path(other)
         if not isinstance(other, str) and o_bucket and self._bucket != o_bucket:
             raise ValueError("Cannot combine paths from different buckets / containers")
@@ -188,19 +188,19 @@ class ObjectStoragePath(os.PathLike):
 
     def stat(self, *, follow_symlinks=True):
         """Return the result of the `stat()` system call."""  # noqa: D402
-        stat = self.store.fs.stat(self, follow_symlinks=follow_symlinks)
+        stat = self.store.fs.stat(self)
 
         return os.stat_result(
             (
-                stat["mode"],
-                stat["ino"],
+                stat["mode"] if stat["mode"] else 0,
+                stat["ino"] if stat["ino"] else 0,
                 None,  # no dev
-                stat["nlink"],
-                stat["uid"],
-                stat["gid"],
-                stat["size"],
+                stat["nlink"] if stat["nlink"] else None,
+                stat["uid"] if stat["uid"] else None,
+                stat["gid"] if stat["gid"] else None,
+                stat["Size"] if stat["Size"] else -1,
                 None,  # no atime
-                int(stat["mtime"]),
+                int(stat["LastModified"]) if stat["LastModified"] else 0,
                 int(stat["created"]),
             )
         )
@@ -621,22 +621,45 @@ class ObjectStoragePath(os.PathLike):
         else:
             return [ObjectStoragePath(c, store=self.store) for c in items]
 
-    def copy(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
+    def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
         """Copy file(s) from this path to another location.
 
-        :param path: Destination path
+        :param dst: Destination path
         :param recursive: If True, copy directories recursively.
 
         kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
-        if isinstance(path, str):
-            path = ObjectStoragePath(path)
+        if isinstance(dst, str):
+            dst = ObjectStoragePath(dst)
 
-        if self.samestore(path):
-            return self.store.fs.copy(str(self), str(path), recursive=recursive, **kwargs)
+        # same -> same
+        if self.samestore(dst):
+            self.store.fs.copy(self, dst, recursive=recursive, **kwargs)
+            return
+
+        # use optimized path for local -> remote or remote -> local
+        if self.store.protocol == "file":
+            lpath = self.store.fs._strip_protocol(str(self))
+            dst.store.fs.put(lpath, str(dst), recursive=recursive, **kwargs)
+            return
+
+        if dst.store.protocol == "file":
+            rpath = dst.store.fs._strip_protocol(str(dst))
+            dst.store.fs.get(str(self), rpath, recursive=recursive, **kwargs)
+            return
+
+        # remote -> remote
+        if self.key.endswith(self.sep):
+            raise NotImplementedError("Cannot copy directories between remote stores yet.")
+
+        if dst.key.endswith(self.sep):
+            dst.mkdir(exists_ok=True)
+            # directory
+            if self.sep in self.key:
+                dst = dst / self.key.split(self.sep)[1]
 
         # non-local copy
-        with self.open("rb") as f1, path.open("wb") as f2:
+        with self.open("rb") as f1, dst.open("wb") as f2:
             # make use of system dependent buffer size
             shutil.copyfileobj(f1, f2, **kwargs)
 

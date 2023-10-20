@@ -50,6 +50,7 @@ class FileTransferOperator(BaseOperator):
         dst: str | ObjectStoragePath,
         source_conn_id: str | None = None,
         dest_conn_id: str | None = None,
+        overwrite: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -58,6 +59,7 @@ class FileTransferOperator(BaseOperator):
         self.dst = dst
         self.source_conn_id = source_conn_id
         self.dst_conn_id = dest_conn_id
+        self.overwrite = overwrite
 
     def execute(self, context: Context) -> None:
         src: ObjectStoragePath
@@ -72,5 +74,9 @@ class FileTransferOperator(BaseOperator):
             dst = ObjectStoragePath(self.dst, self.dst_conn_id)
         else:
             dst = self.dst
+
+        if not self.overwrite:
+            if dst.exists():
+                raise ValueError(f"Destination {dst} already exists")
 
         src.copy(dst)
