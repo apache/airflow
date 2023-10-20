@@ -87,6 +87,7 @@ body:
         - oracle
         - pagerduty
         - papermill
+        - pinecone
         - plexus
         - postgres
         - presto

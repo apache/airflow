@@ -730,6 +730,14 @@
     "cross-providers-deps": [],
     "excluded-python-versions": []
   },
+  "pinecone": {
+    "deps": [
+      "apache-airflow>=2.4.0",
+      "pinecone-client"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "plexus": {
     "deps": [
       "apache-airflow>=2.5.0",
