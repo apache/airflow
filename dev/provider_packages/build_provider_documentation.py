@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     try:
         subprocess.run([".breeze", "build-docs", "--clean-build"] + provider_filters, check=True)
-    except subprocess.CalledProcessError:
-        print("ERROR: Failed to build docs with .breeze")
+    except subprocess.CalledProcessError as e:
+        raise Exception(f"Failed to build provider docs with .breeze: {e}")
 
     os.chdir(os.environ["AIRFLOW_SITE_DIRECTORY"])
