@@ -44,7 +44,7 @@ venv
 files
 airflow.iml
 .gitmodules
-scripts/ci/installed_providers.txt
+installed_providers.txt
 
 # Generated doc files
 .*html
