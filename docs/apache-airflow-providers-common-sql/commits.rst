@@ -28,14 +28,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.8.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`128f6b9e40 <https://github.com/apache/airflow/commit/128f6b9e40c4cf96f900629294175f9c5babd703>`_  2023-10-13   ``Add missing header into 'common.sql' changelog (#34910)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`659d94f0ae <https://github.com/apache/airflow/commit/659d94f0ae89f47a7d4b95d6c19ab7f87bd3a60f>`_  2023-09-21   ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+`f5c2748c33 <https://github.com/apache/airflow/commit/f5c2748c3346bdebf445afd615657af8849345dd>`_  2023-09-08   ``fix(providers/sql): respect soft_fail argument when exception is raised (#34199)``
+=================================================================================================  ===========  ====================================================================================
+
 1.7.2
 .....
 
-Latest change: 2023-09-05
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  ========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
 `d757f6a3af <https://github.com/apache/airflow/commit/d757f6a3af24c3ec0d48c8c983d6ba5d6ed2202e>`_  2023-09-03   ``Fix BigQueryValueCheckOperator deferrable mode optimisation (#34018)``
 =================================================================================================  ===========  ========================================================================
