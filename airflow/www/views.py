@@ -26,6 +26,7 @@ import json
 import logging
 import math
 import operator
+import os
 import sys
 import traceback
 import warnings
@@ -5834,20 +5835,29 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
 ##############################################################################
 
 
+def restrict_to_dev(f):
+    def wrapper(*args, **kwargs):
+        if not os.environ.get("AIRFLOW_ENV", None) == "development":
+            logging.error("You can only access this view in development mode")
+            return abort(404)
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
 class DevView(BaseView):
     """View to show Airflow Dev Endpoints.
 
-    This view should only be accessible in development mode. For
-    now, once there's a htmlcov, the coverage report will be shown
-    even in production.
+    This view should only be accessible in development mode. You can enable development mode by setting
+    `AIRFLOW_ENV=development` in your environment.
 
-    TODO: Restrict this to only be accessible in development mode.
     :meta private:
     """
 
     route_base = "/dev"
 
     @expose("/coverage/<path:path>")
+    @restrict_to_dev
     def coverage(self, path):
         self.template_folder = Path("htmlcov").resolve()
         self.static_folder = Path("htmlcov").resolve()
