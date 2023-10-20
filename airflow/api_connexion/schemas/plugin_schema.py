@@ -34,6 +34,9 @@ class PluginSchema(Schema):
     global_operator_extra_links = fields.List(fields.String())
     operator_extra_links = fields.List(fields.String())
     source = fields.String()
+    ti_deps = fields.List(fields.String())
+    listeners = fields.List(fields.String())
+    timetables = fields.List(fields.String())
 
 
 class PluginCollection(NamedTuple):
