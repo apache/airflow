@@ -97,11 +97,14 @@ class TableauHook(BaseHook):
 
     def __enter__(self):
         if not self.tableau_conn:
-            self.tableau_conn = self.get_conn()
+            self._refresh_tableau_conn()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.server.auth.sign_out()
+
+    def _refresh_tableau_conn(self):
+        self.tableau_conn = self.get_conn()
 
     def get_conn(self) -> Auth.contextmgr:
         """
@@ -160,7 +163,7 @@ class TableauHook(BaseHook):
         :param job_id: The id of the job to check.
         :return: An Enum that describe the Tableau job's return code
         """
-        self.get_conn()
+        self._refresh_tableau_conn()
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
 
     def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
