@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 import os
 import warnings
 from collections import defaultdict
@@ -95,6 +96,29 @@ class TISchedulingDecision(NamedTuple):
     unfinished_tis: list[TI]
     finished_tis: list[TI]
 
+class ConfDict(dict):
+    """Custom dictionary for storing only JSON serializable values"""
+
+    def __init__(self, val=None):
+        super().__init__(self.is_jsonable(val))
+
+    def __setitem__(self, key, value):
+        self.is_jsonable({key: value})
+        super().__setitem__(key, value)
+
+    @staticmethod
+    def is_jsonable(conf: dict) -> dict | None:
+        """Prevent setting non-json attributes"""
+        if conf is None:
+            return {}
+        try:
+            json.dumps(conf)
+        except TypeError:
+            raise AirflowException("conf parameter should be JSON Serializable")
+        if isinstance(conf, dict):
+            return conf
+        else:
+            raise AirflowException(f"{conf} must be a dict")
 
 def _creator_note(val):
     """Creator the ``note`` association proxy."""
@@ -126,7 +150,7 @@ class DagRun(Base, LoggingMixin):
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
-    conf = Column(PickleType)
+    _conf = Column(PickleType)
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
@@ -210,7 +234,7 @@ class DagRun(Base, LoggingMixin):
         execution_date: datetime | None = None,
         start_date: datetime | None = None,
         external_trigger: bool | None = None,
-        conf: Any | None = None,
+        _conf: dict | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
         dag_hash: str | None = None,
@@ -228,7 +252,7 @@ class DagRun(Base, LoggingMixin):
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-        self.conf = conf or {}
+        self._conf = ConfDict(_conf)
         if state is not None:
             self.state = state
         if queued_at is NOTSET:
@@ -257,6 +281,14 @@ class DagRun(Base, LoggingMixin):
                 f"The run_id provided '{run_id}' does not match the pattern '{regex}' or '{RUN_ID_REGEX}'"
             )
         return run_id
+
+    @property
+    def conf(self):
+        return self._conf
+
+    @conf.setter
+    def conf(self, value):
+        self._conf = ConfDict(value)
 
     @property
     def stats_tags(self) -> dict[str, str]:
