@@ -16,7 +16,7 @@
     under the License.
 
 
-.. warning:: 
+.. warning::
    The ECS Executor is alpha/experimental at the moment and may be subject to change without warning.
 
 
