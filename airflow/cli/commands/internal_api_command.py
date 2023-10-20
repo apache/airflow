@@ -79,7 +79,6 @@ def internal_api(args):
             host=args.hostname,
         )
     else:
-
         log.info(
             textwrap.dedent(
                 f"""\
