@@ -65,7 +65,6 @@ with DAG(
     user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME},
     default_args={"project_id": PROJECT_ID},
 ) as dag:
-
     create_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
     )

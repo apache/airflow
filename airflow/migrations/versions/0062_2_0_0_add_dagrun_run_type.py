@@ -61,7 +61,6 @@ def upgrade():
     dag_run_columns = [col.get("name") for col in inspector.get_columns("dag_run")]
 
     if "run_type" not in dag_run_columns:
-
         # Add nullable column
         with op.batch_alter_table("dag_run") as batch_op:
             batch_op.add_column(sa.Column("run_type", run_type_col_type, nullable=True))

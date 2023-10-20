@@ -44,7 +44,6 @@ class StepFunctionsExecutionCompleteTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str | None = None,
         region_name: str | None = None,
     ) -> None:
-
         super().__init__(
             serialized_fields={"execution_arn": execution_arn, "region_name": region_name},
             waiter_name="step_function_succeeded",

@@ -410,11 +410,7 @@ _MIN_BOTO3_VERSION = "1.28.0"
 
 _devel_only_amazon = [
     "aws_xray_sdk",
-    "moto[glue]>=4.0",
-    # TODO: Remove the two below after https://github.com/aws/serverless-application-model/pull/3282
-    # gets released and add back "cloudformation" extra to moto above
-    "openapi-spec-validator >=0.2.8",
-    "jsonschema>=3.0",
+    "moto[cloudformation,glue]>=4.2.5",
     f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
@@ -1046,4 +1042,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()  # comment
+    do_setup()  # comment to trigger upgrade to newer dependencies when setup.py is changed

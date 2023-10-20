@@ -269,7 +269,7 @@ class KubernetesExecutor(BaseExecutor):
             )
 
     def start(self) -> None:
-        """Starts the executor."""
+        """Start the executor."""
         self.log.info("Start Kubernetes executor")
         self.scheduler_job_id = str(self.job_id)
         self.log.debug("Start with scheduler_job_id: %s", self.scheduler_job_id)
@@ -302,7 +302,7 @@ class KubernetesExecutor(BaseExecutor):
         queue: str | None = None,
         executor_config: Any | None = None,
     ) -> None:
-        """Executes task asynchronously."""
+        """Execute task asynchronously."""
         if TYPE_CHECKING:
             assert self.task_queue
 
@@ -469,7 +469,6 @@ class KubernetesExecutor(BaseExecutor):
         messages = []
         log = []
         try:
-
             from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
@@ -603,7 +602,6 @@ class KubernetesExecutor(BaseExecutor):
         from kubernetes.client.rest import ApiException
 
         try:
-
             kube_client.patch_namespaced_pod(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
@@ -639,7 +637,6 @@ class KubernetesExecutor(BaseExecutor):
             from kubernetes.client.rest import ApiException
 
             try:
-
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
@@ -689,7 +686,7 @@ class KubernetesExecutor(BaseExecutor):
                     self.result_queue.task_done()
 
     def end(self) -> None:
-        """Called when the executor shuts down."""
+        """Shut down the executor."""
         if TYPE_CHECKING:
             assert self.task_queue
             assert self.result_queue
@@ -725,7 +722,8 @@ class KubernetesExecutor(BaseExecutor):
 
 
 def _get_parser() -> argparse.ArgumentParser:
-    """This method is used by Sphinx to generate documentation.
+    """
+    Generate documentation; used by Sphinx.
 
     :meta private:
     """

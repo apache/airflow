@@ -138,7 +138,8 @@ class ExasolHook(DbApiHook):
 
     @staticmethod
     def get_description(statement: ExaStatement) -> Sequence[Sequence]:
-        """Copied implementation from DB2-API wrapper.
+        """
+        Get description; copied implementation from DB2-API wrapper.
 
         For more info, see
         https://github.com/exasol/pyexasol/blob/master/docs/DBAPI_COMPAT.md#db-api-20-wrapper

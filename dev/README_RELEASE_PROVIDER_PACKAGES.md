@@ -311,6 +311,11 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
+Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
+
 ```shell script
 ./dev/provider_packages/tag_providers.sh
 ```
@@ -952,6 +957,11 @@ If you decided to remove some packages from the release make sure to do amend th
 
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
+
+Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
 ./dev/provider_packages/tag_providers.sh

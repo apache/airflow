@@ -222,7 +222,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Creating topic (path) %s", topic_path)
         try:
-
             publisher.create_topic(
                 request={
                     "name": topic_path,
@@ -274,7 +273,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Deleting topic (path) %s", topic_path)
         try:
-
             publisher.delete_topic(
                 request={"topic": topic_path}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
@@ -446,7 +444,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Deleting subscription (path) %s", subscription_path)
         try:
-
             subscriber.delete_subscription(
                 request={"subscription": subscription_path},
                 retry=retry,
@@ -561,7 +558,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
         try:
-
             subscriber.acknowledge(
                 request={"subscription": subscription_path, "ack_ids": ack_ids},
                 retry=retry,

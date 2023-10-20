@@ -39,7 +39,11 @@ def test_runtype_enum_escape():
             session=session,
         )
 
-        query = session.query(DagRun.dag_id, DagRun.state, DagRun.run_type,).filter(
+        query = session.query(
+            DagRun.dag_id,
+            DagRun.state,
+            DagRun.run_type,
+        ).filter(
             DagRun.dag_id == dag.dag_id,
             # make sure enum value can be used in filter queries
             DagRun.run_type == DagRunType.SCHEDULED,

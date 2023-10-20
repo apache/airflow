@@ -154,7 +154,6 @@ the operator.
 .. code-block:: python
 
         class HelloOperator(BaseOperator):
-
             template_fields: Sequence[str] = ("name",)
 
             def __init__(self, name: str, world: str, **kwargs) -> None:
@@ -190,7 +189,6 @@ with actual value. Note that Jinja substitutes the operator attributes and not t
 .. code-block:: python
 
         class HelloOperator(BaseOperator):
-
             template_fields: Sequence[str] = ("guest_name",)
             template_ext = ".sql"
 
@@ -283,7 +281,6 @@ Let's assume you want to use the ``HelloOperator`` defined earlier:
 .. code-block:: python
 
         class HelloOperator(BaseOperator):
-
             template_fields: Sequence[str] = ("name",)
 
             def __init__(self, name: str, world: str, **kwargs) -> None:
@@ -303,7 +300,6 @@ is guaranteed to be a ``Sequence[str]`` type (i.e. a list or tuple of strings), 
 .. code-block:: python
 
     class MyHelloOperator(HelloOperator):
-
         template_fields: Sequence[str] = (*HelloOperator.template_fields, "world")
 
 Now you can use ``MyHelloOperator`` like this:

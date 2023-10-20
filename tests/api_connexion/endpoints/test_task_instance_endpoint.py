@@ -57,6 +57,7 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ],
@@ -647,7 +648,6 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         ],
     )
     def test_should_respond_200(self, task_instances, update_extras, url, expected_ti, session):
-
         self.create_task_instances(
             session,
             update_extras=update_extras,

@@ -27,7 +27,6 @@ from airflow.utils import db
 
 
 class TestSparkJDBCHook:
-
     _config = {
         "cmd_type": "spark_to_jdbc",
         "jdbc_table": "tableMcTableFace",

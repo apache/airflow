@@ -114,7 +114,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_fail_all_failed_tasks(self, hook_mock):
-
         hook_mock.return_value.execute_job.return_value = self._mock_operation(3, 0, 3)
 
         operator = CloudRunExecuteJobOperator(
@@ -154,7 +153,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable(self, hook_mock):
-
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
@@ -164,7 +162,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_timeout(self, hook_mock):
-
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
@@ -178,7 +175,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_fail(self, hook_mock):
-
         operator = CloudRunExecuteJobOperator(
             task_id=TASK_ID, project_id=PROJECT_ID, region=REGION, job_name=JOB_NAME, deferrable=True
         )
@@ -202,7 +198,6 @@ class TestCloudRunExecuteJobOperator:
 
     @mock.patch(CLOUD_RUN_HOOK_PATH)
     def test_execute_deferrable_execute_complete_method_success(self, hook_mock):
-
         hook_mock.return_value.get_job.return_value = JOB
 
         operator = CloudRunExecuteJobOperator(
