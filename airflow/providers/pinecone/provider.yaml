@@ -34,7 +34,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - pinecone-client
 
 hooks:
