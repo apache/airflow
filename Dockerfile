@@ -195,7 +195,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-: "${MYSQL_CLIENT_TYPE:-mysql}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
 
 export_key() {
     local key="${1}"
@@ -289,16 +289,16 @@ install_mariadb_client() {
 
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        MYSQL_CLIENT_TYPE="mariadb"
+        INSTALL_MYSQL_CLIENT_TYPE="mariadb"
     fi
 
-    if [[ "${MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
+    if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
         install_mysql_client "${@}"
-    elif [[ "${MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
+    elif [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
         install_mariadb_client "${@}"
     else
         echo
-        echo "${COLOR_RED}Specify either mysql or mariadb, got ${MYSQL_CLIENT_TYPE}${COLOR_RESET}"
+        echo "${COLOR_RED}Specify either mysql or mariadb, got ${INSTALL_MYSQL_CLIENT_TYPE}${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -1219,7 +1219,7 @@ COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 ARG INSTALL_MYSQL_CLIENT="true"
-ARG MYSQL_CLIENT_TYPE="mysql"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
 ARG AIRFLOW_REPO=apache/airflow
@@ -1270,7 +1270,7 @@ ARG AIRFLOW_USER_HOME_DIR
 ARG AIRFLOW_UID
 
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    MYSQL_CLIENT_TYPE=${MYSQL_CLIENT_TYPE} \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
     INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
 
@@ -1442,7 +1442,7 @@ ARG RUNTIME_APT_COMMAND="echo"
 ARG ADDITIONAL_RUNTIME_APT_COMMAND=""
 ARG ADDITIONAL_RUNTIME_APT_ENV=""
 ARG INSTALL_MYSQL_CLIENT="true"
-ARG MYSQL_CLIENT_TYPE="mysql"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
 
@@ -1451,7 +1451,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     RUNTIME_APT_COMMAND=${RUNTIME_APT_COMMAND} \
     ADDITIONAL_RUNTIME_APT_COMMAND=${ADDITIONAL_RUNTIME_APT_COMMAND} \
     INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    MYSQL_CLIENT_TYPE=${MYSQL_CLIENT_TYPE} \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
     INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \

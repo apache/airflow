@@ -36,7 +36,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
-: "${MYSQL_CLIENT_TYPE:-mysql}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
 
 export_key() {
     local key="${1}"
@@ -129,22 +129,22 @@ install_mariadb_client() {
 }
 
 # Install MySQL client only if it is not disabled.
-# MYSQL_CLIENT_TYPE=mysql : Install MySQL client from Oracle repository.
-# MYSQL_CLIENT_TYPE=mariadb : Install MariaDB client from MariaDB repository.
+# INSTALL_MYSQL_CLIENT_TYPE=mysql : Install MySQL client from Oracle repository.
+# INSTALL_MYSQL_CLIENT_TYPE=mariadb : Install MariaDB client from MariaDB repository.
 # https://mariadb.com/kb/en/mariadb-clientserver-tcp-protocol/
-# For ARM64 MYSQL_CLIENT_TYPE ignored and always install MariaDB.
+# For ARM64 INSTALL_MYSQL_CLIENT_TYPE ignored and always install MariaDB.
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        MYSQL_CLIENT_TYPE="mariadb"
+        INSTALL_MYSQL_CLIENT_TYPE="mariadb"
     fi
 
-    if [[ "${MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
+    if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
         install_mysql_client "${@}"
-    elif [[ "${MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
+    elif [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
         install_mariadb_client "${@}"
     else
         echo
-        echo "${COLOR_RED}Specify either mysql or mariadb, got ${MYSQL_CLIENT_TYPE}${COLOR_RESET}"
+        echo "${COLOR_RED}Specify either mysql or mariadb, got ${INSTALL_MYSQL_CLIENT_TYPE}${COLOR_RESET}"
         echo
         exit 1
     fi

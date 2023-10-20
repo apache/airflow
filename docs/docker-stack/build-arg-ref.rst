@@ -171,7 +171,7 @@ for examples of using those arguments.
 |                                          |                                          | The mysql extra is removed from extras   |
 |                                          |                                          | if the client is not installed.          |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``MYSQL_CLIENT_TYPE``                    | ``mysql``                                | Type of MySQL client library.            |
+| ``INSTALL_MYSQL_CLIENT_TYPE``            | ``mysql``                                | Type of MySQL client library.            |
 |                                          |                                          | This can be ``mysql`` or ``mariadb``.    |
 |                                          |                                          | Regardless of the parameter will         |
 |                                          |                                          | always be used ``mariadb`` on ARM        |
