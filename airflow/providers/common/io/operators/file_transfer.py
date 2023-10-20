@@ -48,8 +48,8 @@ class FileTransferOperator(BaseOperator):
         *,
         src: str | ObjectStoragePath,
         dst: str | ObjectStoragePath,
-        source_conn_id: str | None,
-        dest_conn_id: str | None,
+        source_conn_id: str | None = None,
+        dest_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
