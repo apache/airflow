@@ -937,7 +937,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if dag:
             self.dag = dag
 
-        self._parent_logger = "airflow.task.operators"
+        self._parent_logger_name = "airflow.task.operators"
         self._logger_name = logger_name
 
         # Lineage

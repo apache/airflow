@@ -68,7 +68,7 @@ class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name."""
 
     _log: logging.Logger | None = None
-    _parent_logger: str | None = None
+    _parent_logger_name: str | None = None
     _logger_name: str | None = None
 
     def __init__(self, context=None):
@@ -79,20 +79,20 @@ class LoggingMixin:
         """Generate a logger name.
 
         Generate logger name based on:
-            - The class `_parent_logger` attribute.
+            - The class `_parent_logger_name` attribute.
             If set to None, only the `_logger_name` attribute will be used to create a logger name.
             - The class `_logger_name` attribute.
             If set to None, fallback to class.__module__ and class.__name__. When the attribute is an empty
             string, the returned logger name is equal to the parent logger name.
 
-        When there is no `_parent_logger` and an empty string as `_logger_name`, the returned logger name is
-        an empty string.
+        When there is no `_parent_logger_name` and an empty string as `_logger_name`, the returned logger name
+        is an empty string.
         """
         return ".".join(
             filter(
                 None,
                 [
-                    obj._parent_logger,
+                    obj._parent_logger_name,
                     obj._logger_name
                     if obj._logger_name is not None
                     else f"{clazz.__module__}.{clazz.__name__}",

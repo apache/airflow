@@ -83,10 +83,10 @@ class TestLoggingMixin:
         handler1.set_context.assert_called_once_with(value)
         handler2.set_context.assert_called_once_with(value)
 
-    def test_default_logger_name_when_no_parent_logger(self):
+    def test_default_logger_name_when_no_parent_logger_name(self):
         """
-        Ensure that an object with `_parent_logger = None` (like LoggingMixin) has a logger name equals to
-        its module and class path.
+        Ensure that an object with `_parent_logger_name = None` (like LoggingMixin) has a logger name equals
+        to its module and class path.
         """
 
         class DummyClass(LoggingMixin):
@@ -94,14 +94,14 @@ class TestLoggingMixin:
 
         assert DummyClass().log.name == "tests.utils.test_logging_mixin.DummyClass"
 
-    def test_logger_name_is_root_when_no_parent_logger_and_no_logger_name(self):
+    def test_logger_name_is_root_when_no_parent_logger_name_and_no_logger_name(self):
         """
-        When the `_parent_logger` and `_logger_name` are totally empty, the resulting logger name is an
+        When the `_parent_logger_name` and `_logger_name` are totally empty, the resulting logger name is an
         empty string. Passing an empty string to `logging.getLogger` will create a logger with name 'root'.
         """
 
         class EmptyStringLogger(LoggingMixin):
-            _parent_logger: str | None = None
+            _parent_logger_name: str | None = None
             _logger_name: str | None = ""
 
         assert EmptyStringLogger().log.name == "root"
