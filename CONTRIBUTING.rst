@@ -1443,7 +1443,7 @@ You can join the channels via links at the `Airflow Community page <https://airf
 * The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home?src=breadcrumbs>`_ for:
    * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
    * helpful, shared resources (for example Apache Airflow logos
-   * information that can be re-used by others (for example instructions on preparing workshops)
+   * information that can be reused by others (for example instructions on preparing workshops)
 * GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs
    * not for architectural discussions (use the devlist for that)

@@ -245,12 +245,10 @@ webserver_config.py itself if you wish.
 
 
     class GithubTeamAuthorizer(FabAirflowSecurityManagerOverride):
-
         # In this example, the oauth provider == 'github'.
         # If you ever want to support other providers, see how it is done here:
         # https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/security/manager.py#L550
         def get_oauth_user_info(self, provider: str, resp: Any) -> dict[str, Union[str, list[str]]]:
-
             # Creates the user info payload from Github.
             # The user previously allowed your app to act on their behalf,
             #   so now we can query the user and teams endpoints for their data.

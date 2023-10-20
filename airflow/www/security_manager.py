@@ -60,7 +60,6 @@ EXISTING_ROLES = {
 }
 
 if TYPE_CHECKING:
-
     pass
 
 

@@ -164,7 +164,6 @@ class TestSecretsManagerBackend:
 
     @mock_secretsmanager
     def test_get_variable(self):
-
         secret_id = "airflow/variables/hello"
         create_param = {"Name": secret_id, "SecretString": "world"}
 

@@ -83,7 +83,6 @@ class TestHiveCliHook:
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
-
             hook = MockHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
@@ -207,7 +206,6 @@ class TestHiveCliHook:
                 dag_run_id_ctx_var_name: "test_dag_run_id",
             },
         ):
-
             hook = MockHiveCliHook()
             mock_popen.return_value = MockSubProcess(output=mock_output)
 
@@ -468,7 +466,6 @@ class TestHiveMetastoreHook:
         )
 
     def test_check_for_named_partition(self):
-
         # Check for existing partition.
 
         partition = f"{self.partition_by}={DEFAULT_DATE_DS}"
@@ -492,7 +489,6 @@ class TestHiveMetastoreHook:
         )
 
     def test_get_table(self):
-
         self.hook.metastore.__enter__().get_table = mock.MagicMock()
         self.hook.get_table(db=self.database, table_name=self.table)
         self.hook.metastore.__enter__().get_table.assert_called_with(

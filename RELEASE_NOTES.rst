@@ -2137,6 +2137,7 @@ For example, in your ``custom_config.py``:
 
     from airflow.utils.log.timezone_aware import TimezoneAware
 
+
     # before
     class YourCustomFormatter(logging.Formatter):
         ...
@@ -2160,7 +2161,7 @@ Bug Fixes
 - Fix ``pid`` check (#24636)
 - Rotate session id during login (#25771)
 - Fix mapped sensor with reschedule mode (#25594)
-- Cache the custom secrets backend so the same instance gets re-used (#25556)
+- Cache the custom secrets backend so the same instance gets reused (#25556)
 - Add right padding (#25554)
 - Fix reducing mapped length of a mapped task at runtime after a clear (#25531)
 - Fix ``airflow db reset`` when dangling tables exist (#25441)
@@ -3364,7 +3365,7 @@ Note: Upgrading the database to ``2.2.0`` or later can take some time to complet
 ``worker_log_server_port`` configuration has been moved to the ``logging`` section.
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-The ``worker_log_server_port`` configuration option has been moved from ``[celery]`` section to ``[logging]`` section to allow for re-use between different executors.
+The ``worker_log_server_port`` configuration option has been moved from ``[celery]`` section to ``[logging]`` section to allow for reuse between different executors.
 
 ``pandas`` is now an optional dependency
 """"""""""""""""""""""""""""""""""""""""""""
@@ -4163,7 +4164,7 @@ serve as a DagBag cache burst time.
 ``default_queue`` configuration has been moved to the ``operators`` section.
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-The ``default_queue`` configuration option has been moved from ``[celery]`` section to ``[operators]`` section to allow for re-use between different executors.
+The ``default_queue`` configuration option has been moved from ``[celery]`` section to ``[operators]`` section to allow for reuse between different executors.
 
 New Features
 ^^^^^^^^^^^^
@@ -4242,7 +4243,7 @@ Improvements
 - Update Tree View date ticks (#14141)
 - Make the tooltip to Pause / Unpause a DAG clearer (#13642)
 - Warn about precedence of env var when getting variables (#13501)
-- Move ``[celery] default_queue`` config to ``[operators] default_queue`` to re-use between executors  (#14699)
+- Move ``[celery] default_queue`` config to ``[operators] default_queue`` to reuse between executors  (#14699)
 
 Bug Fixes
 ^^^^^^^^^
@@ -4662,7 +4663,7 @@ Airflow 2.0.0 (2020-12-18)
 --------------------------
 
 The full changelog is about 3,000 lines long (already excluding everything backported to 1.10)
-so please check `Airflow 2.0.0 Highligths Blog Post <https://airflow.apache.org/blog/airflow-two-point-oh-is-here/>`_
+so please check `Airflow 2.0.0 Highlights Blog Post <https://airflow.apache.org/blog/airflow-two-point-oh-is-here/>`_
 instead.
 
 Significant Changes
@@ -6364,7 +6365,7 @@ Other GCP hooks are unaffected.
 ``airflow.providers.google.cloud.sensors.pubsub.PubSubPullSensor``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In the ``PubSubPublishOperator`` and ``PubSubHook.publsh`` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
+In the ``PubSubPublishOperator`` and ``PubSubHook.publish`` method the data field in a message should be bytestring (utf-8 encoded) rather than base64 encoded string.
 
 Due to the normalization of the parameters within GCP operators and hooks a parameters like ``project`` or ``topic_project``
 are deprecated and will be substituted by parameter ``project_id``.
@@ -7783,7 +7784,7 @@ Improvements
 - [AIRFLOW-6871] Optimize tree view for large DAGs (#7492)
 - [AIRFLOW-7063] Fix dag.clear() slowness caused by count (#7723)
 - [AIRFLOW-7023] Remove duplicated package definitions in setup.py (#7675)
-- [AIRFLOW-7001] Time zone removed from MySQL TIMSTAMP field inserts
+- [AIRFLOW-7001] Time zone removed from MySQL TIMESTAMP field inserts
 - [AIRFLOW-7105] Unify Secrets Backend method interfaces (#7830)
 - Make BaseSecretsBackend.build_path generic (#7948)
 - Allow hvac package installation using 'hashicorp' extra (#7915)

@@ -366,7 +366,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
 
         else:
-
             connection_cmd = self._get_spark_binary_path()
 
             # The url to the spark master
@@ -554,7 +553,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # Keep polling as long as the driver is processing
         while self._driver_status not in ["FINISHED", "UNKNOWN", "KILLED", "FAILED", "ERROR"]:
-
             # Sleep for n seconds as we do not want to spam the cluster
             time.sleep(self._status_poll_interval)
 

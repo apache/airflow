@@ -66,7 +66,7 @@ const Dag = () => {
   const { data: dagDetailsData, isLoading: isLoadingDagDetails } =
     useDagDetails();
 
-  // fields to exclude from "dagDetailsData" since handled seprately or not required
+  // fields to exclude from "dagDetailsData" since handled separately or not required
   const dagDataExcludeFields = [
     "defaultView",
     "fileToken",

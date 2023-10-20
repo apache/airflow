@@ -84,7 +84,6 @@ class TestCLIGetNumReadyWorkersRunning:
 
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestCliInternalAPI(_ComonCLIGunicornTestClass):
-
     main_process_regexp = r"airflow internal-api"
 
     @pytest.mark.execution_timeout(210)

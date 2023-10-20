@@ -27,7 +27,6 @@ from airflow.providers.microsoft.azure.operators.cosmos import AzureCosmosInsert
 
 
 class TestAzureCosmosDbHook:
-
     # Set up an environment to test with
     @pytest.fixture(autouse=True)
     def setup_test_cases(self, create_mock_connection):

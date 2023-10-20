@@ -1558,7 +1558,6 @@ class TestVertexAIGetModelsOperator:
     @mock.patch(VERTEX_AI_PATH.format("model_service.Model.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
     def test_execute(self, mock_hook, to_dict_mock):
-
         op = GetModelOperator(
             task_id=TASK_ID,
             model_id=TEST_MODEL_NAME,
@@ -1586,7 +1585,6 @@ class TestVertexAIListModelVersionsOperator:
     @mock.patch(VERTEX_AI_PATH.format("model_service.Model.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
     def test_execute(self, mock_hook, to_dict_mock):
-
         op = ListModelVersionsOperator(
             task_id=TASK_ID,
             model_id=TEST_MODEL_NAME,
@@ -1614,7 +1612,6 @@ class TestVertexAISetDefaultVersionOnModelOperator:
     @mock.patch(VERTEX_AI_PATH.format("model_service.Model.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
     def test_execute(self, mock_hook, to_dict_mock):
-
         op = SetDefaultVersionOnModelOperator(
             task_id=TASK_ID,
             model_id=TEST_MODEL_NAME,
@@ -1642,7 +1639,6 @@ class TestVertexAIAddVersionAliasesOnModelOperator:
     @mock.patch(VERTEX_AI_PATH.format("model_service.Model.to_dict"))
     @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
     def test_execute(self, mock_hook, to_dict_mock):
-
         op = AddVersionAliasesOnModelOperator(
             task_id=TASK_ID,
             model_id=TEST_MODEL_NAME,

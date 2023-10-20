@@ -37,7 +37,6 @@ def _apply_function(message):
 @pytest.mark.integration("kafka")
 class TestTrigger:
     def setup_method(self):
-
         for num in [1]:
             db.merge_conn(
                 Connection(

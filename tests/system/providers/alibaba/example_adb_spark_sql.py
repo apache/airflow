@@ -34,7 +34,6 @@ with DAG(
     max_active_runs=1,
     catchup=False,
 ) as dag:
-
     show_databases = AnalyticDBSparkSQLOperator(task_id="task1", sql="SHOE DATABASES;")
 
     show_tables = AnalyticDBSparkSQLOperator(task_id="task2", sql="SHOW TABLES;")
