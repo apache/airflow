@@ -693,9 +693,9 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow helm-chart amazon apache-beam apache-cassandra "
-                "cncf-kubernetes common-sql facebook google hashicorp microsoft-azure "
-                "microsoft-mssql mysql openlineage oracle postgres "
+                "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
+                "cncf.kubernetes common.sql facebook google hashicorp microsoft.azure "
+                "microsoft.mssql mysql openlineage oracle postgres "
                 "presto salesforce samba sftp ssh trino",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
