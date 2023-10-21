@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-19T12:14:51Z
+# This constraints file was automatically generated on 2023-10-21T19:21:08Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -12,7 +12,7 @@ Authlib==1.2.1
 Babel==2.13.0
 ConfigUpdater==3.1.1
 Deprecated==1.2.14
-Flask-AppBuilder==4.3.6
+Flask-AppBuilder==4.3.9
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.1.0
@@ -42,7 +42,7 @@ SQLAlchemy-Utils==0.41.1
 SQLAlchemy==1.4.49
 SecretStorage==3.3.3
 Sphinx==5.3.0
-WTForms==3.0.1
+WTForms==3.1.0
 Werkzeug==2.2.3
 adal==1.2.7
 aiobotocore==2.7.0
@@ -82,13 +82,13 @@ astroid==2.15.8
 asttokens==2.4.0
 async-timeout==4.0.3
 atlasclient==1.0.0
-atlassian-python-api==3.41.2
+atlassian-python-api==3.41.3
 attrs==23.1.0
 aws-sam-translator==1.78.0
 aws-xray-sdk==2.12.1
 azure-batch==14.0.0
 azure-common==1.1.28
-azure-core==1.29.4
+azure-core==1.29.5
 azure-cosmos==4.5.1
 azure-datalake-store==0.0.53
 azure-identity==1.14.1
@@ -191,8 +191,8 @@ gcloud-aio-storage==9.0.0
 gcsfs==2023.9.2
 geomet==0.2.1.post1
 gevent==23.9.1
-gitdb==4.0.10
-google-ads==22.0.0
+gitdb==4.0.11
+google-ads==22.1.0
 google-api-core==2.12.0
 google-api-python-client==2.104.0
 google-auth-httplib2==0.1.1
@@ -202,23 +202,23 @@ google-cloud-aiplatform==1.35.0
 google-cloud-appengine-logging==1.3.2
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.3
-google-cloud-batch==0.17.1
+google-cloud-batch==0.17.2
 google-cloud-bigquery-datatransfer==3.12.1
 google-cloud-bigquery-storage==2.22.0
 google-cloud-bigquery==3.12.0
 google-cloud-bigtable==2.21.0
-google-cloud-build==3.20.0
+google-cloud-build==3.20.1
 google-cloud-compute==1.14.1
 google-cloud-container==2.32.0
 google-cloud-core==2.3.3
 google-cloud-datacatalog==3.16.0
-google-cloud-dataflow-client==0.8.4
+google-cloud-dataflow-client==0.8.5
 google-cloud-dataform==0.5.3
 google-cloud-dataplex==1.7.0
 google-cloud-dataproc-metastore==1.13.0
 google-cloud-dataproc==5.6.0
 google-cloud-dlp==3.12.3
-google-cloud-kms==2.19.1
+google-cloud-kms==2.19.2
 google-cloud-language==2.11.1
 google-cloud-logging==3.8.0
 google-cloud-memcache==1.7.3
@@ -228,17 +228,17 @@ google-cloud-os-login==2.10.0
 google-cloud-pubsub==2.18.4
 google-cloud-redis==2.13.2
 google-cloud-resource-manager==1.10.4
-google-cloud-run==0.9.1
+google-cloud-run==0.10.0
 google-cloud-secret-manager==2.16.4
 google-cloud-spanner==3.40.1
-google-cloud-speech==2.21.0
+google-cloud-speech==2.21.1
 google-cloud-storage-transfer==1.9.2
 google-cloud-storage==2.12.0
 google-cloud-tasks==2.14.2
 google-cloud-texttospeech==2.14.2
-google-cloud-translate==3.12.0
+google-cloud-translate==3.12.1
 google-cloud-videointelligence==2.11.4
-google-cloud-vision==3.4.4
+google-cloud-vision==3.4.5
 google-cloud-workflows==1.12.1
 google-crc32c==1.5.0
 google-re2==1.1
@@ -260,7 +260,7 @@ httpcore==0.16.3
 httplib2==0.22.0
 httpx==0.23.3
 humanize==4.8.0
-hvac==1.2.1
+hvac==2.0.0
 identify==2.5.30
 idna==3.4
 ijson==3.2.3
@@ -419,7 +419,6 @@ pydruid==0.6.5
 pyenchant==3.2.2
 pyexasol==0.25.2
 pygraphviz==1.11
-pyhcl==0.4.5
 pyjsparser==2.7.1
 pykerberos==1.2.4
 pymongo==4.5.0
@@ -434,7 +433,7 @@ pytest-capture-warnings==0.0.4
 pytest-cov==4.1.0
 pytest-httpx==0.21.3
 pytest-instafail==0.5.0
-pytest-mock==3.11.1
+pytest-mock==3.12.0
 pytest-rerunfailures==12.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.3.1
@@ -470,12 +469,12 @@ requests==2.31.0
 responses==0.23.3
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
-rich-argparse==1.3.0
+rich-argparse==1.4.0
 rich-click==1.7.0
 rich==13.6.0
 rpds-py==0.10.6
 rsa==4.9
-ruff==0.1.0
+ruff==0.1.1
 s3transfer==0.7.0
 sarif-om==1.0.4
 scramp==1.4.4
