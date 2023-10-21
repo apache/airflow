@@ -33,8 +33,6 @@ class stat_result(dict):
     See os.stat for more information.
     """
 
-    _info: dict
-
     def __init__(self, *arg, **kwargs):
         super().__init__(**kwargs)
         self.update(*arg, **kwargs)
