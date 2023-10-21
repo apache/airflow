@@ -2663,3 +2663,50 @@ This will also remove breeze from the folder: ``${HOME}.local/bin/``
 .. code-block:: bash
 
     pipx uninstall apache-airflow-breeze
+
+
+Debugging/developing Breeze
+===========================
+
+Breeze can be quite easily debugged with PyCharm/VSCode or any other IDE - but it might be less discoverable
+if you never tested modules and if you do not know how to bypass version check of breeze.
+
+For testing, you can create your own virtual environment, or use the one that ``pipx`` created for you if you
+already installed breeze following the recommended ``pipx install -e ./dev/breeze`` command.
+
+For local virtualenv, you can use ``pyenv`` or any other virtualenv wrapper. For example with ``pyenv``,
+you can use ``pyenv virtualenv 3.8.6 airflow-breeze`` to create virtualenv called ``airflow-breeze``
+with Python 3.8.6. Then you can use ``pyenv activate airflow-breeze`` to activate it and install breeze
+in editable mode with ``pip install -e ./dev/breeze``.
+
+For ``pipx`` virtualenv, you can use the virtualenv that ``pipx`` created for you. You can find the name
+where ``pipx`` keeps their venvs via ``pipx list`` command. Usually it is
+``${HOME}/.local/pipx/venvs/apache-airflow-breeze`` where ``$HOME`` is your home directory.
+
+The venv can be used for running breeze tests and for debugging breeze. While running tests should
+be usually "out-of-the-box" for most IDEs, once you configure ``./dev/breeze`` project to use the venv,
+running/debugging a particular breeze command you want to debug might be a bit more tricky.
+
+When you configure your "Run/Debug configuration" to run breeze command you should
+make sure to follow these steps:
+
+* pick one of the above interpreters to use (usually you need to choose ``bin/python`` inside the venv)
+* choose ``module`` to run and set it to ``airflow_breeze.breeze`` - this is the entrypoint of breeze
+* add parameters you want to run breeze with (for example ``ci-image build`` if you want to debug
+  how breeze builds the CI image
+* set ``SKIP_UPGRADE_CHECK`` environment variable to ``true`` to bypass built-in upgrade check of breeze,
+  this will bypass the check we run in Breeze to see if there are new requirements to install for it
+
+See example configuration for PyCharm which has run/debug configuration for
+``breeze sbom generate-providers-requirements --provider-id sqlite --python 3.8``
+
+.. raw:: html
+
+    <div align="center">
+        <img src="images/pycharm_debug_breeze.png" width="640"
+             alt="Airflow Breeze - PyCharm debugger configuration">
+    </div>
+
+Then you can setup breakpoints and debug breeze as any other Python script or test.
+
+Similar configuration can be done for VSCode.
