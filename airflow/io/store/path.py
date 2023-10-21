@@ -26,6 +26,7 @@ from stat import S_ISLNK
 from fsspec.utils import stringify_path
 
 from airflow.io.store import ObjectStore, attach
+from airflow.io.store.stat import stat_result
 
 
 def _rewrite_info(info: dict, store: ObjectStore) -> dict:
@@ -178,32 +179,16 @@ class ObjectStoragePath(os.PathLike):
 
         return self._store
 
-    def stat_extended(self):
-        st = self.store.fs.stat(self)
-
-        st["protocol"] = self.store.protocol
-        st["conn_id"] = self.store.conn_id
-
-        return st
-
     def stat(self, *, follow_symlinks=True):
-        """Return the result of the `stat()` system call."""  # noqa: D402
+        """Return the result of the `stat()` call."""  # noqa: D402
         stat = self.store.fs.stat(self)
-
-        return os.stat_result(
-            (
-                stat["mode"] if stat["mode"] else 0,
-                stat["ino"] if stat["ino"] else 0,
-                None,  # no dev
-                stat["nlink"] if stat["nlink"] else None,
-                stat["uid"] if stat["uid"] else None,
-                stat["gid"] if stat["gid"] else None,
-                stat["Size"] if stat["Size"] else -1,
-                None,  # no atime
-                int(stat["LastModified"]) if stat["LastModified"] else 0,
-                int(stat["created"]),
-            )
+        stat.update(
+            {
+                "protocol": self.store.protocol,
+                "conn_id": self.store.conn_id,
+            }
         )
+        return stat_result(stat)
 
     def lstat(self):
         """Like stat() except that it doesn't follow symlinks."""
@@ -227,7 +212,6 @@ class ObjectStoragePath(os.PathLike):
     def is_symlink(self):
         """Whether this path is a symbolic link."""
         try:
-            self.lstat().st_mode
             return S_ISLNK(self.lstat().st_mode)
         except OSError:
             # Path doesn't exist
@@ -253,8 +237,8 @@ class ObjectStoragePath(os.PathLike):
         if other_path != ObjectStoragePath:
             return False
 
-        st = self.stat_extended()
-        other_st = other_path.stat_extended()
+        st = self.stat()
+        other_st = other_path.stat()
 
         return (
             st["protocol"] == other_st["protocol"]
