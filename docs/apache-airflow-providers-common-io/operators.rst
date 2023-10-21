@@ -26,13 +26,22 @@ These operators perform various operations on a filesystem or object storage.
 Transfer a file
 ~~~~~~~~~~~~~~~
 
-Use the :class:`~airflow.providers.common.io.operators.file_transfer.FilteTransferOperator` to copy a file from one
+Use the :class:`~airflow.providers.common.io.operators.file_transfer.FileTransferOperator` to copy a file from one
 location to another. Parameters of the operator are:
 
 - ``src`` - source path as a str or ObjectStoragePath
 - ``dst`` - destination path as a str or ObjectStoragePath
 - ``src_conn_id`` - source connection id (default: ``None``)
 - ``dst_conn_id`` - destination connection id (default: ``None``)
+- ``overwrite`` - overwrite destination (default: ``False``)
 
 If the ``src`` and the ``dst`` are both on the same object storage, copy will be performed in the object storage.
 Otherwise the data will be streamed from the source to the destination.
+
+The example below shows how to instantiate the SQLExecuteQueryOperator task.
+
+.. exampleinclude:: /../../tests/system/providers/common/io/example_file_transfer_local_to_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_transfer_local_to_s3]
+    :end-before: [END howto_transfer_local_to_s3]

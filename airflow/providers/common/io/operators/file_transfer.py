@@ -38,9 +38,9 @@ class FileTransferOperator(BaseOperator):
     :param source_conn_id: The optional source connection id.
     :param dest_conn_id: The optional destination connection id.
 
-     .. seealso::
-    For more information on how to use this operator, take a look at the guide:
-    :ref:`howto/operator:FileTransferOperator`
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:FileTransferOperator`
     """
 
     def __init__(
