@@ -309,7 +309,6 @@ class TestMLEngineBatchPredictionOperator:
 
 
 class TestMLEngineTrainingCancelJobOperator:
-
     TRAINING_DEFAULT_ARGS = {
         "project_id": "test-project",
         "job_id": "test_training",

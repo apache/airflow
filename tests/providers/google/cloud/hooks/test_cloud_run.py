@@ -122,7 +122,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
     def test_list_jobs(self, mock_batch_service_client, cloud_run_hook):
-
         number_of_jobs = 3
         region = "us-central1"
         project_id = "test_project_id"

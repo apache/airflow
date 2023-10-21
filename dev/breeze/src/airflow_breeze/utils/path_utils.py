@@ -249,7 +249,10 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         get_console().print(
             "\n[error]Breeze should only be installed with -e flag[/]\n\n"
             "[warning]Please go to Airflow sources and run[/]\n\n"
-            f"     {NAME} self-upgrade --force\n"
+            f"     {NAME} setup self-upgrade --use-current-airflow-sources\n"
+            '[warning]If during installation you see warning starting "Ignoring --editable install",[/]\n'
+            '[warning]make sure you first downgrade "packaging" package to <23.2, for example by:[/]\n\n'
+            f'     pip install "packaging<23.2"\n\n'
         )
         sys.exit(1)
     airflow_sources = get_used_airflow_sources()

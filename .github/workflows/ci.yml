@@ -110,7 +110,7 @@ jobs:
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      docs-filter-list-as-string: ${{ steps.selective-checks.outputs.docs-filter-list-as-string }}
+      docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
@@ -392,7 +392,7 @@ jobs:
       ${{needs.build-info.outputs.build-job-description}} PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, build-ci-images]
+    needs: [build-info, build-ci-images, generate-constraints]
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -694,8 +694,7 @@ jobs:
             docs-inventory-
       - name: "Build docs"
         run: >
-          breeze build-docs
-          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }}
       - name: "Clone airflow-site"
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
@@ -704,7 +703,7 @@ jobs:
         run: >
           breeze release-management publish-docs
           --override-versioned --run-in-parallel
-          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          ${{ needs.build-info.outputs.docs-list-as-string }}
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
       - name: "Generate back references for apache-airflow"
@@ -1737,10 +1736,8 @@ jobs:
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
         uses: actions/checkout@v3
-        if: needs.build-info.outputs.canary-run == 'true'
         with:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
@@ -1806,7 +1803,7 @@ jobs:
       - name: "Prepare providers packages for PROD build"
         run: >
           breeze release-management prepare-provider-packages
-          --package-list-file ./scripts/ci/installed_providers.txt
+          --package-list-file ./airflow/providers/installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"

@@ -215,7 +215,6 @@ Imagine this code:
       catchup=False,
       tags=["example"],
   ) as dag:
-
       operator = PythonOperator(
           task_id=get_task_id(),
           python_callable=get_array,
@@ -250,7 +249,6 @@ What you can do check it, add to your code you want to check some print statemen
       catchup=False,
       tags=["example"],
   ) as dag:
-
       operator = PythonOperator(
           task_id=get_task_id(),
           python_callable=get_array,

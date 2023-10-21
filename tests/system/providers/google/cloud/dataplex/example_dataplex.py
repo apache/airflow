@@ -83,7 +83,6 @@ with DAG(
     schedule="@once",
     tags=["example", "dataplex"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )

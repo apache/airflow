@@ -52,7 +52,6 @@ class EventsTimetable(Timetable):
         presorted: bool = False,
         description: str | None = None,
     ):
-
         self.event_dates = list(event_dates)  # Must be reversible and indexable
         if not presorted:
             # For long lists this could take a while, so only want to do it once

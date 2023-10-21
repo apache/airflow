@@ -136,7 +136,6 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.topic = topic
