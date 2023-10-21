@@ -39,7 +39,6 @@ INTERVAL = datetime.timedelta(hours=12)
 class TestBranchDateTimeOperator:
     @classmethod
     def setup_class(cls):
-
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
@@ -79,7 +78,6 @@ class TestBranchDateTimeOperator:
         )
 
     def teardown_method(self):
-
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()

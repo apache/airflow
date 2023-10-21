@@ -110,7 +110,7 @@ class AirflowAppBuilder:
     sm: BaseSecurityManager
     # Babel Manager Class
     bm = None
-    # dict with addon name has key and intantiated class has value
+    # dict with addon name has key and instantiated class has value
     addon_managers: dict
     # temporary list that hold addon_managers config key
     _addon_managers: list

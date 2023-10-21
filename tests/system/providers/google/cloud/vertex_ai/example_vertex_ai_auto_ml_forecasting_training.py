@@ -90,7 +90,6 @@ with DAG(
     catchup=False,
     tags=["example", "vertex_ai", "auto_ml"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=FORECAST_GCS_BUCKET_NAME,

@@ -52,7 +52,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes DbtCloudRunJobTrigger arguments and classpath."""
+        """Serialize DbtCloudRunJobTrigger arguments and classpath."""
         return (
             "airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger",
             {

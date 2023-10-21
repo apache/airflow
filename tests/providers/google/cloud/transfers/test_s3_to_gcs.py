@@ -239,7 +239,6 @@ class TestS3ToGoogleCloudStorageOperator:
         gcs_destination,
         gcs_object,
     ):
-
         operator = S3ToGCSOperator(
             task_id=TASK_ID,
             bucket=S3_BUCKET,

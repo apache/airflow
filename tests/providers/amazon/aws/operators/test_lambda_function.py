@@ -43,6 +43,29 @@ NO_LOG_RESPONSE_SENTINEL = type("NoLogResponseSentinel", (), {})()
 
 
 class TestLambdaCreateFunctionOperator:
+    def test_init(self):
+        op = LambdaCreateFunctionOperator(
+            task_id="task_test",
+            function_name=FUNCTION_NAME,
+            role=ROLE_ARN,
+            code={
+                "ImageUri": IMAGE_URI,
+            },
+            aws_conn_id="aws_conn_test",
+            region_name="foo-bar-1",
+            verify="/spam/egg.pem",
+            botocore_config={"baz": "qux"},
+        )
+
+        assert op.function_name == FUNCTION_NAME
+        assert op.role == ROLE_ARN
+        assert op.code == {"ImageUri": IMAGE_URI}
+
+        assert op.aws_conn_id == "aws_conn_test"
+        assert op.region_name == "foo-bar-1"
+        assert op.verify == "/spam/egg.pem"
+        assert op.botocore_config == {"baz": "qux"}
+
     @mock.patch.object(LambdaHook, "create_lambda")
     @mock.patch.object(LambdaHook, "conn")
     def test_create_lambda_without_wait_for_completion(self, mock_hook_conn, mock_hook_create_lambda):
@@ -61,7 +84,17 @@ class TestLambdaCreateFunctionOperator:
 
     @mock.patch.object(LambdaHook, "create_lambda")
     @mock.patch.object(LambdaHook, "conn")
-    def test_create_lambda_with_wait_for_completion(self, mock_hook_conn, mock_hook_create_lambda):
+    @pytest.mark.parametrize(
+        "op_kwargs",
+        [
+            pytest.param({}, id="no-additional-parameters"),
+            pytest.param(
+                {"region_name": "eu-west-1", "verify": True, "botocore_config": {}},
+                id="additional-parameters",
+            ),
+        ],
+    )
+    def test_create_lambda_with_wait_for_completion(self, mock_hook_conn, mock_hook_create_lambda, op_kwargs):
         operator = LambdaCreateFunctionOperator(
             task_id="task_test",
             function_name=FUNCTION_NAME,
@@ -70,6 +103,8 @@ class TestLambdaCreateFunctionOperator:
                 "ImageUri": IMAGE_URI,
             },
             wait_for_completion=True,
+            aws_conn_id="aws_conn_test",
+            **op_kwargs,
         )
         operator.execute(None)
 
@@ -100,12 +135,18 @@ class TestLambdaInvokeFunctionOperator:
             payload=payload,
             log_type="None",
             aws_conn_id="aws_conn_test",
+            region_name="foo-bar-1",
+            verify="/spam/egg.pem",
+            botocore_config={"baz": "qux"},
         )
         assert lambda_operator.task_id == "test"
         assert lambda_operator.function_name == "test"
         assert lambda_operator.payload == payload
         assert lambda_operator.log_type == "None"
         assert lambda_operator.aws_conn_id == "aws_conn_test"
+        assert lambda_operator.region_name == "foo-bar-1"
+        assert lambda_operator.verify == "/spam/egg.pem"
+        assert lambda_operator.botocore_config == {"baz": "qux"}
 
     @mock.patch.object(LambdaHook, "invoke_lambda")
     @mock.patch.object(LambdaHook, "conn")

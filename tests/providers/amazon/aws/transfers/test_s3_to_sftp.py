@@ -44,7 +44,6 @@ DEFAULT_DATE = datetime(2018, 1, 1)
 
 class TestS3ToSFTPOperator:
     def setup_method(self):
-
         hook = SSHHook(ssh_conn_id="ssh_default")
         hook.no_host_key_check = True
         dag = DAG(

@@ -27,7 +27,15 @@ from airflow.www.security_manager import AirflowSecurityManagerV2
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
-    from airflow.auth.managers.models.resource_details import ConnectionDetails, DagAccessEntity, DagDetails
+    from airflow.auth.managers.models.resource_details import (
+        ConfigurationDetails,
+        ConnectionDetails,
+        DagAccessEntity,
+        DagDetails,
+        DatasetDetails,
+        PoolDetails,
+        VariableDetails,
+    )
 
 
 class EmptyAuthManager(BaseAuthManager):
@@ -40,7 +48,13 @@ class EmptyAuthManager(BaseAuthManager):
     def get_user_id(self) -> str:
         raise NotImplementedError()
 
-    def is_authorized_configuration(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+    def is_authorized_configuration(
+        self,
+        *,
+        method: ResourceMethod,
+        details: ConfigurationDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_cluster_activity(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
@@ -50,7 +64,7 @@ class EmptyAuthManager(BaseAuthManager):
         self,
         *,
         method: ResourceMethod,
-        connection_details: ConnectionDetails | None = None,
+        details: ConnectionDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         raise NotImplementedError()
@@ -59,16 +73,25 @@ class EmptyAuthManager(BaseAuthManager):
         self,
         *,
         method: ResourceMethod,
-        dag_access_entity: DagAccessEntity | None = None,
-        dag_details: DagDetails | None = None,
+        access_entity: DagAccessEntity | None = None,
+        details: DagDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_dataset(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+    def is_authorized_dataset(
+        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_variable(self, *, method: ResourceMethod, user: BaseUser | None = None) -> bool:
+    def is_authorized_pool(
+        self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
+        raise NotImplementedError()
+
+    def is_authorized_variable(
+        self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
         raise NotImplementedError()
 
     def is_authorized_website(self, *, user: BaseUser | None = None) -> bool:

@@ -20,7 +20,12 @@ from __future__ import annotations
 from typing import Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.utils.mixins import AwsBaseHookMixin, AwsHookParams, AwsHookType
+from airflow.providers.amazon.aws.utils.mixins import (
+    AwsBaseHookMixin,
+    AwsHookParams,
+    AwsHookType,
+    aws_template_fields,
+)
 
 
 class AwsBaseOperator(BaseOperator, AwsBaseHookMixin[AwsHookType]):
@@ -71,11 +76,7 @@ class AwsBaseOperator(BaseOperator, AwsBaseHookMixin[AwsHookType]):
     :meta private:
     """
 
-    template_fields: Sequence[str] = (
-        "aws_conn_id",
-        "region_name",
-        "botocore_config",
-    )
+    template_fields: Sequence[str] = aws_template_fields()
 
     def __init__(
         self,

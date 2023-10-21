@@ -129,7 +129,6 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_failures(self, aci_mock):
-
         expected_cg = make_mock_container(state="Terminated", exit_code=1, detail_status="test")
         aci_mock.return_value.get_state.return_value = expected_cg
 
@@ -151,7 +150,6 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_tags(self, aci_mock):
-
         expected_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
         aci_mock.return_value.get_state.return_value = expected_cg
         tags = {"testKey": "testValue"}
@@ -268,7 +266,6 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_windows_os_and_diff_restart_policy(self, aci_mock):
-
         aci_mock.return_value.get_state.return_value = make_mock_container(
             state="Terminated", exit_code=0, detail_status="test"
         )
@@ -294,7 +291,6 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_fails_with_incorrect_os_type(self, aci_mock):
-
         aci_mock.return_value.get_state.return_value = make_mock_container(
             state="Terminated", exit_code=0, detail_status="test"
         )
@@ -320,7 +316,6 @@ class TestACIOperator:
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_fails_with_incorrect_restart_policy(self, aci_mock):
-
         aci_mock.return_value.get_state.return_value = make_mock_container(
             state="Terminated", exit_code=0, detail_status="test"
         )

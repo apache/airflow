@@ -39,7 +39,6 @@ airflow_version = "2.0.0"
 
 
 def upgrade():
-
     conn = op.get_bind()
     inspector = inspect(conn)
     tables = inspector.get_table_names()
