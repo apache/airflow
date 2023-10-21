@@ -23,7 +23,6 @@ from unittest import mock
 import pytest
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.utils import stringify_path
-from s3fs import S3FileSystem
 
 from airflow.io.store import _STORE_CACHE, ObjectStore, attach
 from airflow.io.store.path import ObjectStoragePath
@@ -49,18 +48,15 @@ class FakeRemoteFileSystem(LocalFileSystem):
 
 class TestFs:
     def test_alias(self):
-        store = attach("s3")
-        assert isinstance(store.fs, S3FileSystem)
-
         store = attach("file", alias="local")
         assert isinstance(store.fs, LocalFileSystem)
         assert "local" in _STORE_CACHE
 
     def test_init_objectstoragepath(self):
-        path = ObjectStoragePath("s3://bucket/key/part1/part2")
+        path = ObjectStoragePath("file://bucket/key/part1/part2")
         assert path.bucket == "bucket"
         assert path.key == "key/part1/part2"
-        assert path._protocol == "s3"
+        assert path._protocol == "file"
 
     def test_read_write(self):
         o = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
@@ -177,7 +173,7 @@ class TestFs:
         _to.unlink()
 
     def test_serde_objectstoragepath(self):
-        path = "s3://bucket/key/part1/part2"
+        path = "file://bucket/key/part1/part2"
         o = ObjectStoragePath(path)
         s = o.serialize()
         d = ObjectStoragePath.deserialize(s, 1)
@@ -186,12 +182,12 @@ class TestFs:
         assert o == d
 
     def test_serde_store(self):
-        store = attach("s3", conn_id="aws")
+        store = attach("file", conn_id="mock")
         s = store.serialize()
         d = ObjectStore.deserialize(s, 1)
 
-        assert s["protocol"] == "s3"
-        assert s["conn_id"] == "aws"
+        assert s["protocol"] == "file"
+        assert s["conn_id"] == "mock"
         assert s["filesystem"] is None
         assert store == d
 
