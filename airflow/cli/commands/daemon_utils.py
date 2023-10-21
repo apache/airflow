@@ -36,22 +36,14 @@ def run_command_with_daemon_mode(
     umask: str = settings.DAEMON_UMASK,
     pid_file: str | None = None,
 ):
-    """Run the command in daemon process if enabled or in this process if not.
+    """Run the command in a daemon process if daemon mode enabled or within this process if not.
 
-    Parameters
-    ----------
-    args : Namespace
-        The set of arguments passed to the original CLI command
-    process_name : str
-        Process name used in naming log and PID files for the daemon
-    callback : Callable
-        The actual command to run with or without daemon context
-    should_setup_logging : bool
-        If true, then a log file handler for the daemon process will be created
-    umask : str
-        File access creation mask ("umask") to set for the process on daemon start
-    pid_file : str
-        If specified, this file path us used to store daemon process PID.
+    :param args: the set of arguments passed to the original CLI command
+    :param process_name: process name used in naming log and PID files for the daemon
+    :param callback: the actual command to run with or without daemon context
+    :param should_setup_logging: if true, then a log file handler for the daemon process will be created
+    :param umask: file access creation mask ("umask") to set for the process on daemon start
+    :param pid_file: if specified, this file path us used to store daemon process PID.
         If not specified, a file path is generated with the default pattern.
     """
     if args.daemon:
