@@ -44,8 +44,8 @@ scheme.
 Basic Use
 ---------
 
-To use object storage you instantiate a Path-like (see below) object with the URI of the object you
-want to interact with. For example, to point to a bucket in s3 you would do the following:
+To use object storage, you need to instantiate a Path-like (see below) object with the URI of the
+object you want to interact with. For example, to point to a bucket in s3, you would do the following:
 
 .. code-block:: python
 
