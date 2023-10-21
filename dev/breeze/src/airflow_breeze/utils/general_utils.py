@@ -21,7 +21,7 @@ from airflow_breeze.global_constants import ALL_SPECIAL_DOC_KEYS, get_available_
 providers_prefix = "apache-airflow-providers-"
 
 
-def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
+def get_docs_filter_name_from_short_hand(short_form_providers: tuple[str]):
     providers = []
     for short_form_provider in short_form_providers:
         if specific_doc := ALL_SPECIAL_DOC_KEYS.get(short_form_provider):
