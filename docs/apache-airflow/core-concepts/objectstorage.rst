@@ -28,7 +28,7 @@ This abstraction allows you to use a variety of object storage systems in your D
 change you code to deal with every different object storage system. In addition, it allows you to use
 most of the standard Python modules, like ``shutil``, that can work with file-like objects.
 
-Support for a particular object storage system is dependent on the providers you have installed. For
+Support for a particular object storage system depends on the providers you have installed. For
 example, if you have installed the ``apache-airflow-providers-google`` provider, you will be able to
 use the ``gcs`` scheme for object storage. Out of the box, Airflow provides support for the ``file``
 scheme.
