@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import datetime
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
 import re2
@@ -276,7 +276,10 @@ class BaseSecurityManager:
         elif current_user_jwt:
             return current_user_jwt
 
-    def oauth_user_info_getter(self, f):
+    def oauth_user_info_getter(
+        self,
+        func: Callable[[BaseSecurityManager, str, dict[str, Any] | None], dict[str, Any]],
+    ):
         """
         Get OAuth user info; used by all providers.
 
@@ -290,17 +293,11 @@ class BaseSecurityManager:
                 if provider == 'github':
                     me = sm.oauth_remotes[provider].get('user')
                     return {'username': me.data.get('login')}
-                else:
-                    return {}
+                return {}
         """
 
-        def wraps(provider, response=None):
-            ret = f(self, provider, response=response)
-            # Checks if decorator is well behaved and returns a dict as supposed.
-            if not isinstance(ret, dict):
-                log.error("OAuth user info decorated function did not returned a dict, but: %s", type(ret))
-                return {}
-            return ret
+        def wraps(provider: str, response: dict[str, Any] | None = None) -> dict[str, Any]:
+            return func(self, provider, response)
 
         self.oauth_user_info = wraps
         return wraps
