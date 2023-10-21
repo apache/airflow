@@ -75,7 +75,7 @@ def create_context(task) -> Context:
 @pytest.fixture(scope="session")
 def kubeconfig_path():
     kubeconfig_path = os.environ.get("KUBECONFIG")
-    return kubeconfig_path if kubeconfig_path else os.path.expanduser("~/.kube/config")
+    return kubeconfig_path or os.path.expanduser("~/.kube/config")
 
 
 @pytest.fixture

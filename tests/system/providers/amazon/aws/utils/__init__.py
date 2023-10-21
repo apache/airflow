@@ -97,7 +97,7 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     :param key: The key to search for within the returned Parameter Value.
     :return: The value of the provided key from SSM
     """
-    _test_name: str = test_name if test_name else _get_test_name()
+    _test_name: str = test_name or _get_test_name()
     hook = SsmHook(aws_conn_id=None)
     value: str = ""
 

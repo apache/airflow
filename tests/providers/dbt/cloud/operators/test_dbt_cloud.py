@@ -367,7 +367,7 @@ class TestDbtCloudRunJobOperator:
 
         assert url == (
             EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
-                account_id=account_id if account_id else DEFAULT_ACCOUNT_ID,
+                account_id=account_id or DEFAULT_ACCOUNT_ID,
                 project_id=PROJECT_ID,
                 run_id=_run_response["data"]["id"],
             )
