@@ -431,10 +431,10 @@ class TestBaseChartTest:
 
     def test_app_name_label_not_exceed_63_char(self):
         """Test label app.kubernetes.io/name does not exceed 63 char."""
-        release_name = "airflow-some-long-release-name"
+        long_release_name = "airflow" * 7
         chart_version, airflow_version = get_chart_and_airflow_version()
         k8s_objects = render_chart(
-            name=release_name,
+            name=long_release_name,
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
                 "executor": "CeleryExecutor",
