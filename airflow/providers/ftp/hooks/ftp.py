@@ -77,8 +77,7 @@ class FTPHook(BaseHook):
         :param path: full path to the remote directory
         """
         conn = self.get_conn()
-        files = dict(conn.mlsd(path=path))
-        return files
+        return dict(conn.mlsd(path))
 
     def list_directory(self, path: str) -> list[str]:
         """
