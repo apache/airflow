@@ -335,7 +335,6 @@ jobs:
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, build-ci-images]
-    if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
     env:
       RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
