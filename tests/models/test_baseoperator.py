@@ -41,9 +41,9 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.template.templater import LiteralValue
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.template import literal_value
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
@@ -278,9 +278,9 @@ class TestBaseOperator:
             ),
             # By default, Jinja2 drops one (single) trailing newline
             ("{{ foo }}\n\n", {"foo": "bar"}, "bar\n"),
-            (LiteralValue("{{ foo }}"), {"foo": "bar"}, "{{ foo }}"),
-            (LiteralValue(["{{ foo }}_1", "{{ foo }}_2"]), {"foo": "bar"}, ["{{ foo }}_1", "{{ foo }}_2"]),
-            (LiteralValue(("{{ foo }}_1", "{{ foo }}_2")), {"foo": "bar"}, ("{{ foo }}_1", "{{ foo }}_2")),
+            (literal_value("{{ foo }}"), {"foo": "bar"}, "{{ foo }}"),
+            (literal_value(["{{ foo }}_1", "{{ foo }}_2"]), {"foo": "bar"}, ["{{ foo }}_1", "{{ foo }}_2"]),
+            (literal_value(("{{ foo }}_1", "{{ foo }}_2")), {"foo": "bar"}, ("{{ foo }}_1", "{{ foo }}_2")),
         ],
     )
     def test_render_template(self, content, context, expected_output):

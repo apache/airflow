@@ -23,8 +23,9 @@ from airflow.template.templater import LiteralValue
 
 def literal_value(value: Any) -> LiteralValue:
     """
-    Wraps a value intended for use in an operator's template field, ensuring it will be rendered as-is
-    without applying Jinja templating to its contents.
+    Wrap a value to ensure it is rendered as-is without applying Jinja templating to its contents.
+
+    Designed for use in an operator's template field.
 
     :param value: The value to be rendered without templating
     """
