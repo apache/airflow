@@ -151,7 +151,6 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowOptionalProviderFeatureException(e)
 
         for col in df:
-
             if df[col].dtype.name == "object" and file_format == "parquet":
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
@@ -184,7 +183,6 @@ class SqlToS3Operator(BaseOperator):
 
         for group_name, df in self._partition_dataframe(df=data_df):
             with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
-
                 self.log.info("Writing data to temp file")
                 getattr(df, file_options.function)(tmp_file.name, **self.pd_kwargs)
 

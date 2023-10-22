@@ -583,7 +583,6 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -833,7 +832,6 @@ class DataplexDeleteDataQualityScanOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -925,7 +923,6 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region

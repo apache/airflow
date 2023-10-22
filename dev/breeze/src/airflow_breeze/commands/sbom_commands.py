@@ -270,7 +270,7 @@ def update_sbom_information(
 def generate_providers_requirements(
     airflow_version: str | None,
     python: str,
-    provider_id: tuple[str],
+    provider_id: tuple[str, ...],
     run_in_parallel: bool,
     parallelism: int,
     debug_resources: bool,

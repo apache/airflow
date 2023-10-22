@@ -194,7 +194,7 @@ class TestScheduler:
             values=values,
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):

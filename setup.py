@@ -328,7 +328,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.6",
+    "flask-appbuilder[oauth]==4.3.9",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -1042,4 +1042,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()  # comment to trigger upgrade to newer dependencies
+    do_setup()  # comment to trigger upgrade to newer dependencies when setup.py is changed

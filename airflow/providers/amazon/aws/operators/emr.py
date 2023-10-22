@@ -1241,7 +1241,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
-
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.log.info("Application state is %s", app_state)

@@ -114,7 +114,6 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.gdrive_hook: GoogleDriveHook | None = None
 
     def execute(self, context: Context):
-
         self.gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

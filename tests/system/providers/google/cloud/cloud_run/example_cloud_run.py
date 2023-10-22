@@ -135,7 +135,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START howto_operator_cloud_run_create_job]
     create1 = CloudRunCreateJobOperator(
         task_id=create1_task_name,
