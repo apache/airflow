@@ -558,7 +558,7 @@
   "microsoft.azure": {
     "deps": [
       "adal>=1.2.7",
-      "adlfs>=2023.9.2",
+      "adlfs>=2023.10.0",
       "apache-airflow>=2.5.0",
       "azure-batch>=8.0.0",
       "azure-cosmos>=4.0.0",
