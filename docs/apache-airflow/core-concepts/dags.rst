@@ -105,7 +105,7 @@ There are two main ways to declare individual task dependencies. The recommended
 
 Or, you can also use the more explicit ``set_upstream`` and ``set_downstream`` methods::
 
-    first_task.set_downstream(second_task, third_task)
+    first_task.set_downstream([second_task, third_task])
     third_task.set_upstream(fourth_task)
 
 There are also shortcuts to declaring more complex dependencies. If you want to make two lists of tasks depend on all parts of each other, you can't use either of the approaches above, so you need to use ``cross_downstream``::
@@ -371,6 +371,8 @@ As with the callable for ``@task.branch``, this method can return the ID of a do
             else:
                 return None
 
+Similar like ``@task.branch`` decorator for regular Python code there are also branch decorators which use a virtual environment called ``@task.branch_virtualenv`` or external python called ``@task.branch_external_python``.
+
 
 .. _concepts:latest-only:
 
@@ -503,7 +505,6 @@ For example, here is a DAG that uses a ``for`` loop to define some tasks:
    :emphasize-lines: 7
 
     with DAG("loop_example", ...):
-
         first = EmptyOperator(task_id="first")
         last = EmptyOperator(task_id="last")
 

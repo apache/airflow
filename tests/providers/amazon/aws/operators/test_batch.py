@@ -46,7 +46,6 @@ RESPONSE_WITHOUT_FAILURES = {
 
 
 class TestBatchOperator:
-
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
 

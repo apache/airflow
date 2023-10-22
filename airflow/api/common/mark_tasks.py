@@ -548,7 +548,6 @@ def __set_dag_run_state_to_running_or_queued(
         return res
 
     if execution_date:
-
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
         dag_run = dag.get_dagrun(execution_date=execution_date)

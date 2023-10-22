@@ -59,10 +59,10 @@ class CronMixin:
             timezone = Timezone(timezone)
         self._timezone = timezone
 
-        descriptor = ExpressionDescriptor(
-            expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
-        )
         try:
+            descriptor = ExpressionDescriptor(
+                expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+            )
             # checking for more than 5 parameters in Cron and avoiding evaluation for now,
             # as Croniter has inconsistent evaluation with other libraries
             if len(croniter(self._expression).expanded) > 5:

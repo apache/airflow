@@ -73,7 +73,7 @@ class TestTriggerer:
             values=values,
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_disable_wait_for_migration(self):
@@ -691,7 +691,6 @@ class TestTriggererKedaAutoScaler:
         ],
     )
     def test_should_use_keda_query(self, query, expected_query):
-
         docs = render_chart(
             values={
                 "triggerer": {

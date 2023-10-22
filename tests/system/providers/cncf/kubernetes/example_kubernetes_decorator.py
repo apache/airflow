@@ -29,7 +29,6 @@ with DAG(
     tags=["example", "cncf", "kubernetes"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_kubernetes]
     @task.kubernetes(
         image="python:3.8-slim-buster",

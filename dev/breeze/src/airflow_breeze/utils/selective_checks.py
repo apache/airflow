@@ -695,12 +695,12 @@ class SelectiveChecks:
         )
 
     @cached_property
-    def docs_filter_list_as_string(self) -> str | None:
+    def docs_list_as_string(self) -> str | None:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
             return None
         if self._default_branch != "main":
-            return "--package-filter apache-airflow --package-filter docker-stack"
+            return "apache-airflow docker-stack"
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
         providers_affected = find_all_providers_affected(
@@ -719,15 +719,15 @@ class SelectiveChecks:
         if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
             packages.append("apache-airflow")
         if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
-            packages.append("apache-airflow-providers")
+            packages.append("providers-index")
         if any(file.startswith(("chart/", "docs/helm-chart")) for file in self._files):
             packages.append("helm-chart")
         if any(file.startswith("docs/docker-stack/") for file in self._files):
             packages.append("docker-stack")
         if providers_affected:
             for provider in providers_affected:
-                packages.append(f"apache-airflow-providers-{provider.replace('.', '-')}")
-        return " ".join([f"--package-filter {package}" for package in packages])
+                packages.append(provider.replace("-", "."))
+        return " ".join(packages)
 
     @cached_property
     def skip_pre_commits(self) -> str:

@@ -58,7 +58,6 @@ class TestGenerateDagYamlCommand:
 
 
 class TestCleanUpPodsCommand:
-
     label_selector = "dag_id,task_id,try_number,airflow_version"
 
     @classmethod

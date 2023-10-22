@@ -120,7 +120,7 @@ class GunicornMonitor(LoggingMixin):
             return {}
 
         all_filenames: list[str] = []
-        for (root, _, filenames) in os.walk(settings.PLUGINS_FOLDER):
+        for root, _, filenames in os.walk(settings.PLUGINS_FOLDER):
             all_filenames.extend(os.path.join(root, f) for f in filenames)
         plugin_state = {f: self._get_file_hash(f) for f in sorted(all_filenames)}
         return plugin_state
@@ -367,7 +367,6 @@ def webserver(args):
             ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None,
         )
     else:
-
         pid_file, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file
         )

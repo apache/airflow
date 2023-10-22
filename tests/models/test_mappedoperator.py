@@ -467,7 +467,6 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
 
 def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session):
-
     with set_current_task_instance_session(session=session):
 
         class MyOperator(BaseOperator):

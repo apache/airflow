@@ -49,7 +49,6 @@ class SSHClientSideEffect:
 
 class TestSSHOperator:
     def setup_method(self):
-
         hook = SSHHook(ssh_conn_id="ssh_default")
         hook.no_host_key_check = True
 
