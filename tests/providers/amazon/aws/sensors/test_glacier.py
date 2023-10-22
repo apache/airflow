@@ -28,49 +28,68 @@ SUCCEEDED = "Succeeded"
 IN_PROGRESS = "InProgress"
 
 
+@pytest.fixture
+def mocked_describe_job():
+    with mock.patch("airflow.providers.amazon.aws.sensors.glacier.GlacierHook.describe_job") as m:
+        yield m
+
+
 class TestAmazonGlacierSensor:
     def setup_method(self):
-        self.op = GlacierJobOperationSensor(
+        self.default_op_kwargs = dict(
             task_id="test_athena_sensor",
-            aws_conn_id="aws_default",
             vault_name="airflow",
             job_id="1a2b3c4d",
             poke_interval=60 * 20,
         )
+        self.op = GlacierJobOperationSensor(**self.default_op_kwargs, aws_conn_id=None)
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.sensors.glacier.GlacierHook.describe_job",
-        side_effect=[{"Action": "", "StatusCode": JobStatus.SUCCEEDED.value}],
-    )
-    def test_poke_succeeded(self, _):
+    def test_base_aws_op_attributes(self):
+        op = GlacierJobOperationSensor(**self.default_op_kwargs)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
+        op = GlacierJobOperationSensor(
+            **self.default_op_kwargs,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.aws_conn_id == "aws-test-custom-conn"
+        assert op.hook._region_name == "eu-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
+    def test_poke_succeeded(self, mocked_describe_job):
+        mocked_describe_job.side_effect = [{"Action": "", "StatusCode": JobStatus.SUCCEEDED.value}]
         assert self.op.poke(None)
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.sensors.glacier.GlacierHook.describe_job",
-        side_effect=[{"Action": "", "StatusCode": JobStatus.IN_PROGRESS.value}],
-    )
-    def test_poke_in_progress(self, _):
+    def test_poke_in_progress(self, mocked_describe_job):
+        mocked_describe_job.side_effect = [{"Action": "", "StatusCode": JobStatus.IN_PROGRESS.value}]
         assert not self.op.poke(None)
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.sensors.glacier.GlacierHook.describe_job",
-        side_effect=[{"Action": "", "StatusCode": ""}],
-    )
-    def test_poke_fail(self, _):
-        with pytest.raises(AirflowException) as ctx:
+    def test_poke_fail(self, mocked_describe_job):
+        mocked_describe_job.side_effect = [{"Action": "", "StatusCode": ""}]
+        with pytest.raises(AirflowException, match="Sensor failed"):
             self.op.poke(None)
-        assert "Sensor failed" in str(ctx.value)
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+        "soft_fail, expected_exception",
+        [
+            pytest.param(False, AirflowException, id="not-soft-fail"),
+            pytest.param(True, AirflowSkipException, id="soft-fail"),
+        ],
     )
-    @mock.patch("airflow.providers.amazon.aws.hooks.glacier.GlacierHook.describe_job")
-    def test_fail_poke(self, describe_job, soft_fail, expected_exception):
+    def test_fail_poke(self, soft_fail, expected_exception, mocked_describe_job):
         self.op.soft_fail = soft_fail
         response = {"Action": "some action", "StatusCode": "Failed"}
         message = f'Sensor failed. Job status: {response["Action"]}, code status: {response["StatusCode"]}'
         with pytest.raises(expected_exception, match=message):
-            describe_job.return_value = response
+            mocked_describe_job.return_value = response
             self.op.poke(context={})
 
 

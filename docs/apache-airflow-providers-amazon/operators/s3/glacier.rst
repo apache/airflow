@@ -32,6 +32,11 @@ Operators
 
 .. _howto/operator:GlacierCreateJobOperator:
 
+Generic Parameters
+------------------
+
+.. include:: ../_partials/generic_parameters.rst
+
 Create an Amazon Glacier job
 ============================
 
