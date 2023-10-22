@@ -184,7 +184,7 @@ serialized_simple_dag_ground_truth = {
                     },
                 },
                 "doc_md": "### Task Tutorial Documentation",
-                "_parent_logger_name": "airflow.task.operators",
+                "_log_config_logger_name": "airflow.task.operators",
             },
             {
                 "task_id": "custom_task",
@@ -207,7 +207,7 @@ serialized_simple_dag_ground_truth = {
                 "is_setup": False,
                 "is_teardown": False,
                 "on_failure_fail_dagrun": False,
-                "_parent_logger_name": "airflow.task.operators",
+                "_log_config_logger_name": "airflow.task.operators",
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
@@ -1211,7 +1211,7 @@ class TestStringifiedDAGs:
         fields = {k: v for (k, v) in vars(base_operator).items() if k in BaseOperator.get_serialized_fields()}
         assert fields == {
             "_logger_name": None,
-            "_parent_logger_name": "airflow.task.operators",
+            "_log_config_logger_name": "airflow.task.operators",
             "_post_execute_hook": None,
             "_pre_execute_hook": None,
             "depends_on_past": False,

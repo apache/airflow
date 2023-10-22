@@ -49,7 +49,7 @@ class BaseHook(LoggingMixin):
 
     def __init__(self, logger_name: str | None = None):
         super().__init__()
-        self._parent_logger_name = "airflow.task.hooks"
+        self._log_config_logger_name = "airflow.task.hooks"
         self._logger_name = logger_name
 
     @classmethod
