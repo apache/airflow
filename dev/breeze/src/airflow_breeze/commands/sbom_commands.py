@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import click
@@ -50,7 +51,6 @@ from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import perform_environment_checks
-from airflow_breeze.utils.github import get_active_airflow_versions
 from airflow_breeze.utils.parallel import (
     DockerBuildxProgressMatcher,
     ShowLastLineProgressMatcher,
@@ -306,16 +306,18 @@ def build_all_airflow_images(
 
 
 @sbom.command(name="generate-providers-requirements", help="Generate requirements for selected provider.")
-@click.option(
-    "--airflow-version", type=str, required=False, help="Airflow version to use to generate the requirements"
-)
 @option_historical_python_version
 @click.option(
     "--provider-id",
     type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
     required=False,
     help="Provider to generate the requirements for",
-    multiple=True,
+)
+@click.option(
+    "--provider-version",
+    type=str,
+    required=False,
+    help="Provider to generate the requirements for",
 )
 @option_verbose
 @option_dry_run
@@ -331,9 +333,9 @@ def build_all_airflow_images(
     help="Force update providers requirements even if they already exist.",
 )
 def generate_providers_requirements(
-    airflow_version: str | None,
     python: str,
-    provider_id: tuple[str, ...],
+    provider_id: str | None,
+    provider_version: str | None,
     run_in_parallel: bool,
     parallelism: int,
     debug_resources: bool,
@@ -348,39 +350,61 @@ def generate_providers_requirements(
     else:
         python_versions = [python]
 
-    provider_ids = provider_id
+    with open(PROVIDER_METADATA_JSON_FILE_PATH) as f:
+        provider_metadata = json.load(f)
 
-    if len(provider_ids) == 0:
+    if provider_id is None:
+        if provider_version is not None and provider_version != "latest":
+            get_console().print(
+                "[error] You cannot pin the version of the providers if you generate the requirements for "
+                "all historical or latest versions. --provider-version needs to be unset when you pass None "
+                "or latest to --provider-id"
+            )
+            sys.exit(1)
+        provider_ids = provider_metadata.keys()
+    else:
+        provider_ids = [provider_id]
+
+    if provider_version is None:
         user_confirm(
-            "You are about to generate all providers requirements based on the "
-            "`provider_metadata.json` file (for all releases). Do you want to proceed?",
+            f"You are about to generate providers requirements for all historical versions for "
+            f"{len(provider_ids)} provider(s) based on `provider_metadata.json` file. "
+            f"Do you want to proceed?",
             quit_allowed=False,
             default_answer=Answer.YES,
         )
-        with open(PROVIDER_METADATA_JSON_FILE_PATH) as f:
-            provider_metadata = json.load(f)
-            providers_info = [
+
+    providers_info = []
+    for provider_id in provider_ids:
+        if provider_version is not None:
+            if provider_version == "latest":
+                # Only the latest version for each provider
+                p_version, info = list(provider_metadata[provider_id].items())[-1]
+            else:
+                # Specified providers version
+                info = provider_metadata[provider_id][provider_version]
+                p_version = provider_version
+
+            airflow_version = info["associated_airflow_version"]
+
+            providers_info += [
+                (provider_id, p_version, python_version, airflow_version)
+                for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[airflow_version]
+                if python_version in python_versions
+            ]
+        else:
+            # All historical providers' versions
+            providers_info += [
                 (
                     provider_id,
-                    provider_version,
+                    p_version,
                     python_version,
                     info["associated_airflow_version"],
                 )
-                for (provider_id, provider_versions) in provider_metadata.items()
-                for (provider_version, info) in provider_versions.items()
+                for (p_version, info) in provider_metadata[provider_id].items()
                 for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[info["associated_airflow_version"]]
                 if python_version in python_versions
             ]
-    else:
-        if airflow_version is None:
-            airflow_version = get_active_airflow_versions(confirm=False)[-1]
-            get_console().print(f"[info]Using {airflow_version} as airflow version")
-        providers_info = [
-            (provider_id, None, python_version, airflow_version)
-            for provider_id in provider_ids
-            for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[airflow_version]
-            if python_version in python_versions
-        ]
 
     if run_in_parallel:
         parallelism = min(parallelism, len(providers_info))

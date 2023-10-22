@@ -70,9 +70,9 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Generate provider requirements flags",
             "options": [
-                "--airflow-version",
                 "--python",
                 "--provider-id",
+                "--provider-version",
                 "--force",
             ],
         },
