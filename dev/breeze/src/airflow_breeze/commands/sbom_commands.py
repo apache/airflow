@@ -241,6 +241,70 @@ def update_sbom_information(
             )
 
 
+@sbom.command(name="build-all-airflow-images", help="Generate images with airflow versions pre-installed")
+@option_historical_python_version
+@option_verbose
+@option_dry_run
+@option_answer
+@option_run_in_parallel
+@option_parallelism
+@option_debug_resources
+@option_include_success_outputs
+@option_skip_cleanup
+def build_all_airflow_images(
+    python: str,
+    run_in_parallel: bool,
+    parallelism: int,
+    debug_resources: bool,
+    include_success_outputs: bool,
+    skip_cleanup: bool,
+):
+    if python is None:
+        python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
+    else:
+        python_versions = [python]
+
+    if run_in_parallel:
+        parallelism = min(parallelism, len(python_versions))
+        get_console().print(f"[info]Running {len(python_versions)} jobs in parallel")
+        with ci_group(f"Building all airflow base images for python: {python_versions}"):
+            all_params = [
+                f"Building all airflow base image for python: {python_version}"
+                for python_version in python_versions
+            ]
+            with run_with_pool(
+                parallelism=parallelism,
+                all_params=all_params,
+                debug_resources=debug_resources,
+                progress_matcher=DockerBuildxProgressMatcher(),
+            ) as (pool, outputs):
+                results = [
+                    pool.apply_async(
+                        build_all_airflow_versions_base_image,
+                        kwds={
+                            "python_version": python_version,
+                            "confirm": False,
+                            "output": outputs[index],
+                        },
+                    )
+                    for (index, python_version) in enumerate(python_versions)
+                ]
+        check_async_run_results(
+            results=results,
+            success="All airflow base images were built successfully",
+            outputs=outputs,
+            include_success_outputs=include_success_outputs,
+            skip_cleanup=skip_cleanup,
+        )
+    else:
+        for python_version in python_versions:
+            build_all_airflow_versions_base_image(
+                python_version=python_version,
+                confirm=False,
+                output=None,
+            )
+
+
 @sbom.command(name="generate-providers-requirements", help="Generate requirements for selected provider.")
 @click.option(
     "--airflow-version", type=str, required=False, help="Airflow version to use to generate the requirements"
@@ -317,46 +381,6 @@ def generate_providers_requirements(
             for python_version in AIRFLOW_PYTHON_COMPATIBILITY_MATRIX[airflow_version]
             if python_version in python_versions
         ]
-
-    if run_in_parallel:
-        parallelism = min(parallelism, len(python_versions))
-        get_console().print(f"[info]Running {len(python_versions)} jobs in parallel")
-        with ci_group(f"Building all airflow base images for python: {python_versions}"):
-            all_params = [
-                f"Building all airflow base image for python: {python_version}"
-                for python_version in python_versions
-            ]
-            with run_with_pool(
-                parallelism=parallelism,
-                all_params=all_params,
-                debug_resources=debug_resources,
-                progress_matcher=DockerBuildxProgressMatcher(),
-            ) as (pool, outputs):
-                results = [
-                    pool.apply_async(
-                        build_all_airflow_versions_base_image,
-                        kwds={
-                            "python_version": python_version,
-                            "confirm": False,
-                            "output": outputs[index],
-                        },
-                    )
-                    for (index, python_version) in enumerate(python_versions)
-                ]
-        check_async_run_results(
-            results=results,
-            success="All airflow base images were built successfully",
-            outputs=outputs,
-            include_success_outputs=include_success_outputs,
-            skip_cleanup=skip_cleanup,
-        )
-    else:
-        for python_version in python_versions:
-            build_all_airflow_versions_base_image(
-                python_version=python_version,
-                confirm=False,
-                output=None,
-            )
 
     if run_in_parallel:
         parallelism = min(parallelism, len(providers_info))

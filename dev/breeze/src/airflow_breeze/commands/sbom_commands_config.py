@@ -20,6 +20,7 @@ SBOM_COMMANDS: dict[str, str | list[str]] = {
     "name": "SBOM commands",
     "commands": [
         "update-sbom-information",
+        "build-all-airflow-images",
         "generate-providers-requirements",
     ],
 }
@@ -34,6 +35,24 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--include-provider-dependencies",
                 "--force",
+            ],
+        },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+            ],
+        },
+    ],
+    "breeze sbom build-all-airflow-images": [
+        {
+            "name": "Generate all airflow images flags",
+            "options": [
+                "--python",
             ],
         },
         {
