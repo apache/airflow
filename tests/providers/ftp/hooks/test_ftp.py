@@ -45,12 +45,17 @@ class TestFTPHook:
 
         self.conn_mock.quit.assert_called_once_with()
 
+    def test_describe_directory(self):
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.describe_directory(self.path)
+
+        self.conn_mock.mlsd.assert_called_once_with(self.path)
+
     def test_list_directory(self):
         with fh.FTPHook() as ftp_hook:
             ftp_hook.list_directory(self.path)
 
-        self.conn_mock.cwd.assert_called_once_with(self.path)
-        self.conn_mock.nlst.assert_called_once_with()
+        self.conn_mock.nlst.assert_called_once_with(self.path)
 
     def test_create_directory(self):
         with fh.FTPHook() as ftp_hook:
