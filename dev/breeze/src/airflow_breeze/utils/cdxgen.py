@@ -136,6 +136,7 @@ DOCKER_FILE_PREFIX = f"/files/{TARGET_DIR_NAME}/"
 def get_requirements_for_provider(
     provider_id: str,
     airflow_version: str,
+    output: Output | None,
     provider_version: str | None = None,
     python_version: str = DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     force: bool = False,
@@ -166,7 +167,7 @@ def get_requirements_for_provider(
         and os.path.exists(provider_without_core_file)
         and force is False
     ):
-        get_console().print(
+        get_console(output=output).print(
             f"[warning] Requirements for provider {provider_id} version {provider_version} python "
             f"{python_version} already exist, skipping. Set force=True to force generation."
         )
@@ -201,10 +202,11 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_with
             get_all_airflow_versions_image_name(python_version=python_version),
             "-c",
             ";".join(command.splitlines()[1:-1]),
-        ]
+        ],
+        output=output,
     )
-    get_console().print(f"[info]Airflow requirements in {airflow_core_path}")
-    get_console().print(f"[info]Provider requirements in {provider_with_core_path}")
+    get_console(output=output).print(f"[info]Airflow requirements in {airflow_core_path}")
+    get_console(output=output).print(f"[info]Provider requirements in {provider_with_core_path}")
     base_packages = {package.split("==")[0] for package in airflow_core_path.read_text().splitlines()}
     base_packages.add("apache-airflow-providers-" + provider_id.replace(".", "-"))
     provider_packages = sorted(
@@ -214,13 +216,13 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_with
             if line.split("==")[0] not in base_packages
         ]
     )
-    get_console().print(
+    get_console(output=output).print(
         f"[info]Provider {provider_id} has {len(provider_packages)} transitively "
         f"dependent packages (excluding airflow and its dependencies)"
     )
-    get_console().print(provider_packages)
+    get_console(output=output).print(provider_packages)
     provider_without_core_file.write_text("".join(f"{p}\n" for p in provider_packages))
-    get_console().print(
+    get_console(output=output).print(
         f"[success]Generated {provider_id}:{provider_version}:{python_version} requirements in "
         f"{provider_without_core_file}"
     )
@@ -233,8 +235,9 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_with
 
 def build_all_airflow_versions_base_image(
     python_version: str,
+    output: Output | None,
     confirm: bool = True,
-):
+) -> tuple[int, str]:
     """
     Build an image with all airflow versions pre-installed in separate virtualenvs.
     """
@@ -263,7 +266,7 @@ RUN python -m venv /opt/airflow/airflow-{airflow_version} && \
 constraints-{airflow_version}/constraints-{python_version}.txt
 """
     build_command = run_command(
-        ["docker", "build", "--tag", image_name, "-"], input=dockerfile, text=True, check=True
+        ["docker", "build", "--tag", image_name, "-"], input=dockerfile, text=True, check=True, output=output
     )
     return build_command.returncode, f"All airflow image built for python {python_version}"
 

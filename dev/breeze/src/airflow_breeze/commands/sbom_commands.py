@@ -51,7 +51,12 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.github import get_active_airflow_versions
-from airflow_breeze.utils.parallel import ShowLastLineProgressMatcher, check_async_run_results, run_with_pool
+from airflow_breeze.utils.parallel import (
+    DockerBuildxProgressMatcher,
+    ShowLastLineProgressMatcher,
+    check_async_run_results,
+    run_with_pool,
+)
 from airflow_breeze.utils.path_utils import AIRFLOW_TMP_DIR_PATH, PROVIDER_METADATA_JSON_FILE_PATH
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -325,7 +330,7 @@ def generate_providers_requirements(
                 parallelism=parallelism,
                 all_params=all_params,
                 debug_resources=debug_resources,
-                progress_matcher=ShowLastLineProgressMatcher(),
+                progress_matcher=DockerBuildxProgressMatcher(),
             ) as (pool, outputs):
                 results = [
                     pool.apply_async(
@@ -333,9 +338,10 @@ def generate_providers_requirements(
                         kwds={
                             "python_version": python_version,
                             "confirm": False,
+                            "output": outputs[index],
                         },
                     )
-                    for python_version in python_versions
+                    for (index, python_version) in enumerate(python_versions)
                 ]
         check_async_run_results(
             results=results,
@@ -349,6 +355,7 @@ def generate_providers_requirements(
             build_all_airflow_versions_base_image(
                 python_version=python_version,
                 confirm=False,
+                output=None,
             )
 
     if run_in_parallel:
@@ -371,13 +378,17 @@ def generate_providers_requirements(
                         get_requirements_for_provider,
                         kwds={
                             "provider_id": provider_id,
-                            "provider_version": provider_version,
                             "airflow_version": airflow_version,
+                            "provider_version": provider_version,
                             "python_version": python_version,
                             "force": force,
+                            "output": outputs[index],
                         },
                     )
-                    for (provider_id, provider_version, python_version, airflow_version) in providers_info
+                    for (
+                        index,
+                        (provider_id, provider_version, python_version, airflow_version),
+                    ) in enumerate(providers_info)
                 ]
         check_async_run_results(
             results=results,
@@ -394,4 +405,5 @@ def generate_providers_requirements(
                 airflow_version=airflow_version,
                 python_version=python_version,
                 force=force,
+                output=None,
             )
