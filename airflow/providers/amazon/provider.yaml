@@ -741,7 +741,7 @@ additional-extras:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
   - name: s3fs
     dependencies:
-      - s3fs>=2023.10.0
+      - s3fs>=2023.9.2
 
 config:
   aws:
