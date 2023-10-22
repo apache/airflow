@@ -90,11 +90,7 @@ class FTPHook(BaseHook):
         :param path: full path to the remote directory to list
         """
         conn = self.get_conn()
-        current_path = conn.pwd()
-        conn.cwd(path)
-        files = conn.nlst()
-        conn.cwd(current_path)
-        return files
+        return conn.nlst(path)
 
     def create_directory(self, path: str) -> None:
         """
