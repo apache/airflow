@@ -27,15 +27,15 @@ Prerequisite Tasks
 
 .. include:: ../../_partials/prerequisite_tasks.rst
 
-Operators
----------
-
-.. _howto/operator:GlacierCreateJobOperator:
-
 Generic Parameters
 ------------------
 
 .. include:: ../../_partials/generic_parameters.rst
+
+Operators
+---------
+
+.. _howto/operator:GlacierCreateJobOperator:
 
 Create an Amazon Glacier job
 ============================
