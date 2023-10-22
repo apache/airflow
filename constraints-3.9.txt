@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-21T19:28:30Z
+# This constraints file was automatically generated on 2023-10-22T12:15:35Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -92,7 +92,7 @@ anyascii==0.3.2
 anyio==4.0.0
 apache-airflow-providers-airbyte==3.4.0
 apache-airflow-providers-alibaba==2.6.0
-apache-airflow-providers-amazon==8.8.0
+apache-airflow-providers-amazon==8.9.0
 apache-airflow-providers-apache-beam==5.3.0
 apache-airflow-providers-apache-cassandra==3.3.0
 apache-airflow-providers-apache-drill==2.5.0
@@ -112,7 +112,7 @@ apache-airflow-providers-apprise==1.1.0
 apache-airflow-providers-arangodb==2.3.0
 apache-airflow-providers-asana==2.3.0
 apache-airflow-providers-atlassian-jira==2.2.0
-apache-airflow-providers-celery==3.4.0
+apache-airflow-providers-celery==3.4.1
 apache-airflow-providers-cloudant==3.3.0
 apache-airflow-providers-cncf-kubernetes==7.7.0
 apache-airflow-providers-common-sql==1.8.0
@@ -128,7 +128,7 @@ apache-airflow-providers-exasol==4.3.0
 apache-airflow-providers-facebook==3.3.0
 apache-airflow-providers-ftp==3.6.0
 apache-airflow-providers-github==2.4.0
-apache-airflow-providers-google==10.10.0
+apache-airflow-providers-google==10.10.1
 apache-airflow-providers-grpc==3.3.0
 apache-airflow-providers-hashicorp==3.5.0
 apache-airflow-providers-http==4.6.0
@@ -146,13 +146,13 @@ apache-airflow-providers-neo4j==3.4.0
 apache-airflow-providers-odbc==4.1.0
 apache-airflow-providers-openfaas==3.3.0
 apache-airflow-providers-openlineage==1.1.1
-apache-airflow-providers-opensearch==1.0.0rc1
+apache-airflow-providers-opensearch==1.0.0
 apache-airflow-providers-opsgenie==5.2.0
 apache-airflow-providers-oracle==3.8.0
 apache-airflow-providers-pagerduty==3.4.0
 apache-airflow-providers-papermill==3.4.0
 apache-airflow-providers-plexus==3.3.0
-apache-airflow-providers-postgres==5.7.0
+apache-airflow-providers-postgres==5.7.1
 apache-airflow-providers-presto==5.2.0
 apache-airflow-providers-redis==3.4.0
 apache-airflow-providers-salesforce==5.5.0
@@ -629,7 +629,7 @@ statsd==4.0.1
 sympy==1.12
 tableauserverclient==0.25
 tabulate==0.9.0
-tblib==2.0.0
+tblib==3.0.0
 tenacity==8.2.3
 termcolor==2.3.0
 text-unidecode==1.3
