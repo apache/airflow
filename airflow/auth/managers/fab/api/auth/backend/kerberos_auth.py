@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,28 +17,23 @@
 # under the License.
 from __future__ import annotations
 
-from pathlib import Path
+import logging
+from functools import partial
+from typing import Any
 
-if __name__ not in ("__main__", "__mp_main__"):
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-        f"To run this script, run the ./{__file__} command"
-    )
+from requests_kerberos import HTTPKerberosAuth
 
+from airflow.api.auth.backend.kerberos_auth import (
+    init_app as base_init_app,
+    requires_authentication as base_requires_authentication,
+)
+from airflow.utils.airflow_flask_app import get_airflow_app
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
+log = logging.getLogger(__name__)
 
+CLIENT_AUTH: tuple[str, str] | Any | None = HTTPKerberosAuth(service="airflow")
 
-def stable_sort(x):
-    return x.casefold(), x
-
-
-def sort_uniq(sequence):
-    return sorted(set(sequence), key=stable_sort)
-
-
-if __name__ == "__main__":
-    installed_providers_path = Path(AIRFLOW_SOURCES) / "airflow" / "providers" / "installed_providers.txt"
-    content = installed_providers_path.read_text().splitlines(keepends=True)
-    sorted_content = sort_uniq(content)
-    installed_providers_path.write_text("".join(sorted_content))
+init_app = base_init_app
+requires_authentication = partial(
+    base_requires_authentication, find_user=get_airflow_app().appbuilder.sm.find_user
+)

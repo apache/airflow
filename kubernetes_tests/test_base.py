@@ -108,7 +108,7 @@ class BaseK8STest:
 
     @staticmethod
     def _delete_airflow_pod(name=""):
-        suffix = "-" + name if name else ""
+        suffix = f"-{name}" if name else ""
         air_pod = check_output(["kubectl", "get", "pods"]).decode()
         air_pod = air_pod.splitlines()
         names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]

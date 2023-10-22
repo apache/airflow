@@ -298,18 +298,9 @@ We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlche
 
     mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
 
-We also support the ``mysql-connector-python`` driver, which lets you connect through SSL
-without any cert options provided. If you wish to use ``mysql-connector-python`` driver, please install it with extras.
-
-.. code-block:: text
-
-   $ pip install mysql-connector-python
-
-The connection string in this case should look like:
-
-.. code-block:: text
-
-   mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
+.. important::
+    The integration of MySQL backend has only been validated using the ``mysqlclient`` driver
+    during Apache Airflow's continuous integration (CI) process.
 
 If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/14/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
 and setup of the SqlAlchemy connection.

@@ -61,7 +61,7 @@ class TestWorker:
             values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_should_add_extra_containers(self):
