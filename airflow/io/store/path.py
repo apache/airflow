@@ -401,7 +401,7 @@ class ObjectStoragePath(os.PathLike):
                     {k: _rewrite_info(v, self.store) for k, v in files.items()},
                 )
 
-    def ls(self, detail: bool = True, **kwargs):
+    def ls(self, detail: bool = True, **kwargs) -> list[ObjectStoragePath] | list[dict]:
         """
         List files at path.
 
@@ -501,7 +501,7 @@ class ObjectStoragePath(os.PathLike):
         return self.store.fs.ukey(str(self))
 
     def read_block(self, offset: int, length: int, delimiter=None):
-        r"""Read a block of bytes from.
+        r"""Read a block of bytes.
 
         Starting at ``offset`` of the file, read ``length`` bytes. If
         ``delimiter`` is set then we ensure that the read starts and stops at
@@ -608,6 +608,10 @@ class ObjectStoragePath(os.PathLike):
     def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
         """Copy file(s) from this path to another location.
 
+        For remote to remote copies, the key used for the destination will be the same as the source.
+        So that s3://src_bucket/foo/bar will be copied to gcs://dst_bucket/foo/bar and not
+        gcs://dst_bucket/bar.
+
         :param dst: Destination path
         :param recursive: If True, copy directories recursively.
 
@@ -632,20 +636,32 @@ class ObjectStoragePath(os.PathLike):
             dst.store.fs.get(str(self), rpath, recursive=recursive, **kwargs)
             return
 
-        # remote -> remote
-        if not self.is_file():
-            raise NotImplementedError("Cannot copy directories between remote stores yet.")
+        # remote dir -> remote dir
+        if self.is_dir():
+            if not recursive:
+                raise ValueError("Cannot copy directories without recursive=True.")
 
-        if dst.key.endswith(self.sep):
+            if dst.is_file():
+                raise ValueError("Cannot copy directory to a file.")
+
             dst.mkdir(exists_ok=True)
-            # directory
-            if self.sep in self.key:
-                dst = dst / self.key.split(self.sep)[1]
 
-        # non-local copy
-        with self.open("rb") as f1, dst.open("wb") as f2:
-            # make use of system dependent buffer size
-            shutil.copyfileobj(f1, f2, **kwargs)
+            for path in self.ls():
+                path = typing.cast(ObjectStoragePath, path)
+                path.copy(dst, recursive=True, **kwargs)
+
+            return
+
+        # remote file -> remote dir
+        if self.is_file():
+            if dst.key.endswith(self.sep):
+                dst.mkdir(exists_ok=True)
+                dst = dst / self.key
+
+            # non-local copy
+            with self.open("rb") as f1, dst.open("wb") as f2:
+                # make use of system dependent buffer size
+                shutil.copyfileobj(f1, f2, **kwargs)
 
     def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
         """Move file(s) from this path to another location.

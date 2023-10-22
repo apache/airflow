@@ -17,12 +17,13 @@
 from __future__ import annotations
 
 import os
+import uuid
 from datetime import datetime
+from typing import cast
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.io.store.path import ObjectStoragePath
-from airflow.models.baseoperator import chain
 from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -31,24 +32,27 @@ DAG_ID = "example_file_transfer_local_to_s3"
 
 SAMPLE_TEXT = "This is some sample text."
 
-FILENAME = "sample-txt.txt"
-TEMP_FILE_PATH = ObjectStoragePath("file:///tmp") / FILENAME
+TEMP_FILE_PATH = ObjectStoragePath("file:///tmp")
 
 AWS_BUCKET_NAME = f"bucket-aws-{DAG_ID}-{ENV_ID}".replace("_", "-")
 AWS_BUCKET = ObjectStoragePath(f"s3://{AWS_BUCKET_NAME}")
 
-AWS_FILE_PATH = AWS_BUCKET / FILENAME
+AWS_FILE_PATH = AWS_BUCKET
 
 
 @task
-def create_temp_file():
-    with TEMP_FILE_PATH.open("w") as file:
+def create_temp_file() -> ObjectStoragePath:
+    path = ObjectStoragePath(TEMP_FILE_PATH / str(uuid.uuid4()))
+
+    with path.open("w") as file:
         file.write(SAMPLE_TEXT)
+
+    return path
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_temp_file():
-    TEMP_FILE_PATH.unlink()
+def delete_temp_file(path: ObjectStoragePath):
+    path.unlink()
 
 
 @task
@@ -63,24 +67,17 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
+    temp_file = create_temp_file()
+    temp_file_path = cast(ObjectStoragePath, temp_file)
+
     # [START howto_transfer_local_to_s3]
-    transfer = FileTransferOperator(src=TEMP_FILE_PATH, dst=AWS_FILE_PATH, task_id="transfer")
+    transfer = FileTransferOperator(src=temp_file_path, dst=AWS_BUCKET, task_id="transfer")
     # [END howto_transfer_local_to_s3]
 
-    chain(
-        # TEST SETUP
-        create_temp_file(),
-        # TEST BODY
-        transfer,
-        # TEST TEARDOWN
-        remove_bucket(),
-        delete_temp_file(),
-    )
+    temp_file >> transfer >> remove_bucket() >> delete_temp_file(temp_file_path)
 
     from tests.system.utils.watcher import watcher
 
-    # This test needs watcher in order to properly mark success/failure
-    # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
 
 

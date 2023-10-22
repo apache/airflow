@@ -89,6 +89,27 @@ Opening a file:
             return f.read()
 
 
+Leveraging XCOM, you can pass paths between tasks:
+
+.. code-block:: python
+
+      @task
+      def create(path: ObjectStoragePath) -> ObjectStoragePath:
+          return path / "new_file.txt"
+
+
+      @task
+      def write_file(path: ObjectStoragePath, content: str):
+          with path.open("wb") as f:
+              f.write(content)
+
+
+      new_file = create(base)
+      write = write_file(new_file, b"data")
+
+      read >> write
+
+
 .. _concepts:api:
 
 Path-like API
