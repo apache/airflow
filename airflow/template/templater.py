@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class LiteralValue:
     """
-    A wrapper for a value that should be rendered as-is, without applying any templating to its contents.
+    A wrapper for a value that should be rendered as-is, without applying jinja templating to its contents.
 
     :param value: The value to be rendered without templating
     """

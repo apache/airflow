@@ -191,14 +191,14 @@ This will fail with ``TemplateNotFound: cat script.sh``, but we can prevent airf
 
 
 It is also possible to exclude a string from templating and use it directly by wrapping it in
-:class:`~airflow.template.templater.LiteralValue`. This approach disables the rendering of both macros and files and
+:func:`~airflow.util.template.literal_value`. This approach disables the rendering of both macros and files and
 can be applied to selected nested fields, while retaining the default templating rules for the remainder of the content.
 
 .. code-block:: python
 
     fixed_print_script = BashOperator(
         task_id="fixed_print_script",
-        bash_command=LiteralValue("cat script.sh"),
+        bash_command=literal_value("cat script.sh"),
     )
 
 .. _concepts:templating-native-objects:
