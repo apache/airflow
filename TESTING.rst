@@ -1963,9 +1963,12 @@ b. Execute one of the commands below based on the desired coverage area:
 
 c. After execution, the coverage report will be available at: http://localhost:28000/dev/coverage/index.html.
 
- .. note:
- 
-     In order to see the coverage report, you must start webserver first in breeze environment via `airflow webserver`. Once you enter `breeze`, you can start `tmux`  (terminal multiplexer) and split the terminal (by pressing `ctrl-B "` for example) to contiinue testing and run the webserver in one tetminal and run tests in the second one (you can switch between the terminals with `ctrl-B <arrow>`).
+ .. note::
+
+     In order to see the coverage report, you must start webserver first in breeze environment via `airflow webserver`.
+     Once you enter `breeze`, you can start `tmux`  (terminal multiplexer) and split the terminal (by pressing `ctrl-B "` for example)
+     to contiinue testing and run the webserver in one tetminal and run tests in the second one (you can switch between
+     the terminals with `ctrl-B <arrow>`).
 
 Modules Not Fully Covered:
 --------------------------
