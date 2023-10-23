@@ -67,7 +67,7 @@ def flower(args):
     if args.flower_conf:
         options.append(f"--conf={args.flower_conf}")
 
-    run_command_with_daemon_mode(args, "flower", lambda: celery_app.start(options))
+    run_command_with_daemon_option(args, "flower", lambda: celery_app.start(options))
 
 
 @contextmanager
