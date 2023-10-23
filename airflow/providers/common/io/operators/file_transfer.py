@@ -78,7 +78,7 @@ class FileTransferOperator(BaseOperator):
             dst = self.dst
 
         if not self.overwrite:
-            if dst.exists():
+            if dst.exists() and dst.is_file():
                 raise ValueError(f"Destination {dst} already exists")
 
         src.copy(dst)
