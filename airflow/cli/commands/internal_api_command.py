@@ -130,7 +130,7 @@ def internal_api(args):
         # then have a copy of the app
         run_args += ["--preload"]
 
-        def kill_proc(signum, gunicorn_master_proc):
+        def kill_proc(signum: int, gunicorn_master_proc: psutil.Process | subprocess.Popen):
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
