@@ -385,6 +385,7 @@ def suppress_logs_and_warning(f: T) -> T:
 
 
 class DaemonContextWrapper(daemon.DaemonContext):
+    """Wrapper around DaemonContext to reset Stats instance in daemon process."""
 
     def __enter__(self):
         # in daemon context stats client needs to be reinitialized.
