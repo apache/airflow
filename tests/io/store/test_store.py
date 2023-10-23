@@ -177,8 +177,8 @@ class TestFs:
 
     def test_copy_remote_remote(self):
         # foo = xxx added to prevent same fs token
-        attach("fakefs", fs=FakeRemoteFileSystem(auto_mkdir=True, foo="bar"))
-        attach("fakefs2", fs=FakeRemoteFileSystem(auto_mkdir=True, foo="baz"))
+        attach("ffs", fs=FakeRemoteFileSystem(auto_mkdir=True, foo="bar"))
+        attach("ffs2", fs=FakeRemoteFileSystem(auto_mkdir=True, foo="baz"))
 
         dir_src = f"/tmp/{str(uuid.uuid4())}"
         dir_dst = f"/tmp/{str(uuid.uuid4())}"
@@ -186,12 +186,12 @@ class TestFs:
 
         # note we are dealing with object storage characteristics
         # while working on a local filesystem, so it might feel not intuitive
-        _from = ObjectStoragePath(f"fakefs://{dir_src}")
+        _from = ObjectStoragePath(f"ffs://{dir_src}")
         _from_file = _from / key
         _from_file.touch()
         assert _from_file.exists()
 
-        _to = ObjectStoragePath(f"fakefs2://{dir_dst}")
+        _to = ObjectStoragePath(f"ffs2://{dir_dst}")
         _from.copy(_to)
 
         assert _to.exists()
