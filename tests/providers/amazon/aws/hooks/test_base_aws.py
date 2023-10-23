@@ -431,7 +431,6 @@ class TestAwsBaseHook:
 
     @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
     def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs):
-
         with conf_vars(
             {
                 ("aws_ecs_executor", "cluster"): "foo",

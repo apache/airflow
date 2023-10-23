@@ -786,7 +786,7 @@ class TestEcsExecutorConfig:
         task_kwargs = _recursive_flatten_dict(ecs_executor_config.build_task_kwargs())
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
-        for (expected_key, expected_value) in CONFIG_DEFAULTS.items():
+        for expected_key, expected_value in CONFIG_DEFAULTS.items():
             # "conn_id" and max_run_task_attempts are used by the executor, but are not expected to appear
             # in the task_kwargs.
             if expected_key in [AllEcsConfigKeys.AWS_CONN_ID, AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS]:

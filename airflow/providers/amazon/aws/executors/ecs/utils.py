@@ -258,7 +258,7 @@ def parse_assign_public_ip(assign_public_ip):
 def camelize_dict_keys(nested_dict) -> dict:
     """Accept a potentially nested dictionary and recursively convert all keys into camelCase."""
     result = {}
-    for (key, value) in nested_dict.items():
+    for key, value in nested_dict.items():
         new_key = camelize(key, uppercase_first_letter=False)
         if isinstance(value, dict) and (key.lower() != "tags"):
             # The key name on tags can be whatever the user wants, and we should not mess with them.

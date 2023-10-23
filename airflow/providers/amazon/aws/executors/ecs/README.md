@@ -184,7 +184,7 @@ Some important things to point out for remote logging in the context of the ECS 
  - The configuration options for Airflow remote logging must be configured on the host running the Airflow Webserver (so that it can fetch logs from the remote location) as well as within the ECS container running the Airflow Tasks (so that it can upload the logs to the remote location). See [here](https://airflow.apache.org/docs/apache-airflow/stable/howto/set-config.html) to read more about how to set Airflow configuration via config file or environment variable exports.
  - Adding the Airflow remote logging config to the container can be done in many ways. Some examples include, but are not limited to:
     - Exported as environment variables directly in the Dockerfile (see the [Dockerfile Section above](#dockerfile-for-ecs-executor))
-    - Updating the `airflow.cfg` file or copy/mounting/downloading a custom `ariflow.cfg` in the Dockerfile.
+    - Updating the `airflow.cfg` file or copy/mounting/downloading a custom `airflow.cfg` in the Dockerfile.
     - Added in the ECS Task Definition in plain text or via [Secrets/System Manager](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar.html)
     - Or, using [ECS Task Environment Files](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/taskdef-envfiles.html)
  - You must have credentials configured within the container to be able to interact with the remote service for your logs (e.g. S3, CloudWatch Logs, etc). This can be done in many ways. Some examples include, but are not limited to:

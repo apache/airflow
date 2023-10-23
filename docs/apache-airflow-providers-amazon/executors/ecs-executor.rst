@@ -340,7 +340,7 @@ the ECS executor:
    -  Exported as environment variables directly in the Dockerfile (see
       the Dockerfile section :ref:`above <dockerfile_for_ecs_executor>`)
    -  Updating the ``airflow.cfg`` file or copy/mounting/downloading a
-      custom ``ariflow.cfg`` in the Dockerfile.
+      custom ``airflow.cfg`` in the Dockerfile.
    -  Added in the ECS Task Definition in plain text or via
       `Secrets/System
       Manager <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/secrets-envvar.html>`__
