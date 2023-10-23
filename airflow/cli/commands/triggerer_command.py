@@ -23,7 +23,7 @@ from multiprocessing import Process
 from typing import Generator
 
 from airflow import settings
-from airflow.cli.commands.daemon_utils import run_command_with_daemon_mode
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -61,9 +61,9 @@ def triggerer(args):
     print(settings.HEADER)
     triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
 
-    run_command_with_daemon_mode(
-        args,
-        "triggerer",
-        lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate),
+    run_command_with_daemon_option(
+        args=args,
+        process_name="triggerer",
+        callback=lambda: triggerer_run(args.skip_serve_logs, args.capacity, triggerer_heartrate),
         should_setup_logging=True,
     )

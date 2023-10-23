@@ -38,7 +38,7 @@ from sqlalchemy.engine.url import make_url
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.cli.commands.daemon_utils import run_command_with_daemon_mode
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.commands.webserver_command import GunicornMonitor
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -180,10 +180,10 @@ def internal_api(args):
 
         pid_file_path = Path(pid_file)
         monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
-        run_command_with_daemon_mode(
-            args,
-            "internal-api",
-            lambda: start_and_monitor_gunicorn(args),
+        run_command_with_daemon_option(
+            args=args,
+            process_name="internal-api",
+            callback=lambda: start_and_monitor_gunicorn(args),
             should_setup_logging=True,
             pid_file=monitor_pid_file,
         )

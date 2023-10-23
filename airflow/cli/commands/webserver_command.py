@@ -33,7 +33,7 @@ import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile
 
 from airflow import settings
-from airflow.cli.commands.daemon_utils import run_command_with_daemon_mode
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.utils import cli as cli_utils
@@ -481,10 +481,10 @@ def webserver(args):
 
         pid_file_path = Path(pid_file)
         monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
-        run_command_with_daemon_mode(
-            args,
-            "webserver",
-            lambda: start_and_monitor_gunicorn(args),
+        run_command_with_daemon_option(
+            args=args,
+            process_name="webserver",
+            callback=lambda: start_and_monitor_gunicorn(args),
             should_setup_logging=True,
             pid_file=monitor_pid_file,
         )

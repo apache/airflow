@@ -24,7 +24,7 @@ from multiprocessing import Process
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.cli.commands.daemon_utils import run_command_with_daemon_mode
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
@@ -57,8 +57,11 @@ def scheduler(args: Namespace):
     """Start Airflow Scheduler."""
     print(settings.HEADER)
 
-    run_command_with_daemon_mode(
-        args, "scheduler", lambda: _run_scheduler_job(args), should_setup_logging=True
+    run_command_with_daemon_option(
+        args=args,
+        process_name="scheduler",
+        callback=lambda: _run_scheduler_job(args),
+        should_setup_logging=True,
     )
 
 

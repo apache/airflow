@@ -21,7 +21,7 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from airflow.cli.commands.daemon_utils import run_command_with_daemon_mode
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
@@ -62,9 +62,9 @@ def dag_processor(args):
 
     job_runner = _create_dag_processor_job_runner(args)
 
-    run_command_with_daemon_mode(
-        args,
-        "dag-processor",
-        lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute),
+    run_command_with_daemon_option(
+        args=args,
+        process_name="dag-processor",
+        callback=lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute),
         should_setup_logging=True,
     )

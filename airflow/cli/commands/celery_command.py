@@ -31,7 +31,7 @@ from celery.signals import after_setup_logger
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
-from airflow.cli.commands.daemon_utils import run_command_with_daemon_mode
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
@@ -67,7 +67,9 @@ def flower(args):
     if args.flower_conf:
         options.append(f"--conf={args.flower_conf}")
 
-    run_command_with_daemon_option(args, "flower", lambda: celery_app.start(options))
+    run_command_with_daemon_option(
+        args=args, process_name="flower", callback=lambda: celery_app.start(options)
+    )
 
 
 @contextmanager
@@ -203,10 +205,10 @@ def worker(args):
     else:
         umask = conf.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
 
-    run_command_with_daemon_mode(
-        args,
-        WORKER_PROCESS_NAME,
-        run_celery_worker,
+    run_command_with_daemon_option(
+        args=args,
+        process_name=WORKER_PROCESS_NAME,
+        callback=run_celery_worker,
         should_setup_logging=True,
         umask=umask,
         pid_file=worker_pid_file_path,

@@ -28,7 +28,8 @@ from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, si
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
 
 
-def run_command_with_daemon_mode(
+def run_command_with_daemon_option(
+    *,
     args: Namespace,
     process_name: str,
     callback: Callable,
