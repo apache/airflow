@@ -41,6 +41,7 @@ from airflow_breeze.utils.common_options import (
     option_mysql_version,
     option_postgres_version,
     option_python,
+    option_standalone_dag_processor,
     option_verbose,
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
@@ -107,6 +108,7 @@ class MainGroupWithAliases(BreezeGroup):
 @option_mysql_version
 @option_mssql_version
 @option_integration
+@option_standalone_dag_processor
 @option_forward_credentials
 @option_db_reset
 @option_max_time

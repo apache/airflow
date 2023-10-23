@@ -575,6 +575,12 @@ option_celery_broker = click.option(
     show_default=True,
 )
 option_celery_flower = click.option("--celery-flower", help="Start celery flower", is_flag=True)
+option_standalone_dag_processor = click.option(
+    "--standalone-dag-processor",
+    help="Run standalone dag processor for start-airflow.",
+    is_flag=True,
+    envvar="STANDALONE_DAG_PROCESSOR",
+)
 option_install_selected_providers = click.option(
     "--install-selected-providers",
     help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",

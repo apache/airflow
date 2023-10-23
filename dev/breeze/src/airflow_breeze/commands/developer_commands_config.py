@@ -40,6 +40,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mysql-version",
                 "--mssql-version",
                 "--integration",
+                "--standalone-dag-processor",
                 "--forward-credentials",
                 "--db-reset",
                 "--max-time",
@@ -69,6 +70,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--executor",
                 "--celery-broker",
                 "--celery-flower",
+            ],
+        },
+        {
+            "name": "Airflow execution modes",
+            "options": [
+                "--standalone-dag-processor",
             ],
         },
         {
@@ -138,6 +145,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--executor",
                 "--celery-broker",
                 "--celery-flower",
+            ],
+        },
+        {
+            "name": "Airflow execution modes",
+            "options": [
+                "--standalone-dag-processor",
             ],
         },
         {
