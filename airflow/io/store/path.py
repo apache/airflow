@@ -179,6 +179,10 @@ class ObjectStoragePath(os.PathLike):
 
         return self._store
 
+    @property
+    def parent(self) -> ObjectStoragePath:
+        return ObjectStoragePath(self.store.fs._parent(str(self)), store=self.store)
+
     def stat(self, *, follow_symlinks=True):
         """Return the result of the `stat()` call."""  # noqa: D402
         stat = self.store.fs.stat(self)
@@ -432,7 +436,7 @@ class ObjectStoragePath(os.PathLike):
         """
         return self.store.fs.touch(str(self), truncate=truncate)
 
-    def mkdir(self, create_parents: bool = True, **kwargs):
+    def mkdir(self, create_parents: bool = True, exists_ok: bool = False, **kwargs):
         """
         Create a directory entry at the specified path or within a bucket/container.
 
@@ -441,10 +445,18 @@ class ObjectStoragePath(os.PathLike):
 
         :param create_parents: bool
                               if True, this is equivalent to 'makedirs'.
+        :param exists_ok: bool
+                            if True, do not raise an error if the target directory already exists.
 
         kwargs: Additional keyword arguments, which may include permissions, etc.
         """
-        return self.store.fs.mkdir(str(self), create_parents=create_parents, **kwargs)
+        if not exists_ok and self.exists():
+            raise FileExistsError(f"Target {self} exists")
+
+        try:
+            self.store.fs.mkdir(str(self), create_parents=create_parents, **kwargs)
+        except FileExistsError:
+            pass
 
     def unlink(self, recursive: bool = False, maxdepth: int | None = None):
         """
@@ -605,6 +617,21 @@ class ObjectStoragePath(os.PathLike):
         else:
             return [ObjectStoragePath(c, store=self.store) for c in items]
 
+    def _cp_file(self, dst: str | ObjectStoragePath, **kwargs):
+        """Copy a single file from this path to another location by streaming the data."""
+        if isinstance(dst, str):
+            dst = ObjectStoragePath(dst)
+
+        # create the directory or bucket if required
+        if dst.key.endswith(self.sep) or not dst.key:
+            dst.mkdir(exists_ok=True, create_parents=True)
+            dst = dst / self.key
+
+        # streaming copy
+        with self.open("rb") as f1, dst.open("wb") as f2:
+            # make use of system dependent buffer size
+            shutil.copyfileobj(f1, f2, **kwargs)
+
     def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
         """Copy file(s) from this path to another location.
 
@@ -633,35 +660,40 @@ class ObjectStoragePath(os.PathLike):
 
         if dst.store.protocol == "file":
             rpath = dst.store.fs._strip_protocol(str(dst))
-            dst.store.fs.get(str(self), rpath, recursive=recursive, **kwargs)
+            self.store.fs.get(str(self), rpath, recursive=recursive, **kwargs)
             return
+
+        if not self.exists():
+            raise FileNotFoundError(f"{self} does not exist")
 
         # remote dir -> remote dir
         if self.is_dir():
-            if not recursive:
-                raise ValueError("Cannot copy directories without recursive=True.")
-
             if dst.is_file():
                 raise ValueError("Cannot copy directory to a file.")
 
-            dst.mkdir(exists_ok=True)
+            out = self.store.fs.expand_path(str(self), recursive=True, **kwargs)
+            source_stripped = self.store.fs._strip_protocol(str(self))
 
-            for path in self.ls():
-                path = typing.cast(ObjectStoragePath, path)
-                path.copy(dst, recursive=True, **kwargs)
+            for path in out:
+                # this check prevents one extra call to is_dir() as
+                # glob returns self as well
+                if path == source_stripped:
+                    continue
+
+                src_obj = ObjectStoragePath(path, store=self.store)
+
+                # skip directories, empty directories will not be created
+                if src_obj.is_dir():
+                    continue
+
+                src_obj._cp_file(dst)
 
             return
 
         # remote file -> remote dir
         if self.is_file():
-            if dst.key.endswith(self.sep):
-                dst.mkdir(exists_ok=True)
-                dst = dst / self.key
-
-            # non-local copy
-            with self.open("rb") as f1, dst.open("wb") as f2:
-                # make use of system dependent buffer size
-                shutil.copyfileobj(f1, f2, **kwargs)
+            self._cp_file(dst, **kwargs)
+            return
 
     def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
         """Move file(s) from this path to another location.
