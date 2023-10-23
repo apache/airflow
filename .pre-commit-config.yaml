@@ -574,6 +574,46 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_sync_init_decorator.py
         pass_filenames: false
         files: ^airflow/models/dag\.py$|^airflow/(?:decorators|utils)/task_group\.py$
+      - id: check-base-operator-usage
+        language: pygrep
+        name: Check BaseOperator core imports
+        description: Make sure BaseOperator is imported from airflow.models.baseoperator in core
+        entry: "from airflow\\.models import.* BaseOperator\\b"
+        files: \.py$
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/decorators/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/providers/.*$|
+          ^airflow/sensors/.*$|
+          ^dev/provider_packages/.*$
+      - id: check-base-operator-usage
+        language: pygrep
+        name: Check BaseOperatorLink core imports
+        description: Make sure BaseOperatorLink is imported from airflow.models.baseoperatorlink in core
+        entry: "from airflow\\.models import.* BaseOperatorLink"
+        files: \.py$
+        pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/decorators/.*$|
+          ^airflow/hooks/.*$|
+          ^airflow/operators/.*$|
+          ^airflow/providers/.*$|
+          ^airflow/sensors/.*$|
+          ^dev/provider_packages/.*$
+      - id: check-base-operator-usage
+        language: pygrep
+        name: Check BaseOperator[Link] other imports
+        description: Make sure BaseOperator[Link] is imported from airflow.models outside of core
+        entry: "from airflow\\.models\\.baseoperator(link)? import.* BaseOperator"
+        pass_filenames: true
+        files: >
+          (?x)
+          ^airflow/providers/.*\.py$
+        exclude: ^.*/.*_vendor/
       - id: check-decorated-operator-implements-custom-name
         name: Check @task decorator implements custom_operator_name
         language: python

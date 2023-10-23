@@ -154,6 +154,10 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-base-operator-partial-arguments                     | Check BaseOperator and partial() arguments                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-base-operator-usage                                 | * Check BaseOperator core imports                            |         |
+|                                                           | * Check BaseOperatorLink core imports                        |         |
+|                                                           | * Check BaseOperator[Link] other imports                     |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-boring-cyborg-configuration                         | Checks for Boring Cyborg configuration consistency           |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-breeze-top-dependencies-limited                     | Breeze should have small number of top-level dependencies    |         |

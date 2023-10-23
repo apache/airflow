@@ -31,6 +31,7 @@ PRE_COMMIT_LIST = [
     "check-airflow-provider-compatibility",
     "check-apache-license-rat",
     "check-base-operator-partial-arguments",
+    "check-base-operator-usage",
     "check-boring-cyborg-configuration",
     "check-breeze-top-dependencies-limited",
     "check-builtin-literals",
