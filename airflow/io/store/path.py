@@ -488,6 +488,12 @@ class ObjectStoragePath(os.PathLike):
 
         Returns the new Path instance pointing to the target path.
         """
+        if isinstance(target, str):
+            target = ObjectStoragePath(target, store=self.store)
+
+        if not self.samestore(target):
+            raise ValueError("You can only rename within the same store")
+
         if not overwrite:
             if self.store.fs.exists(target):
                 raise FileExistsError(f"Target {target} exists")
