@@ -224,6 +224,7 @@ def build_docs_for_packages(
     spellcheck_only: bool,
     jobs: int,
     verbose: bool,
+    retry: bool = False,
 ) -> tuple[dict[str, list[DocBuildError]], dict[str, list[SpellingError]]]:
     """Builds documentation for all packages and combines errors."""
     all_build_errors: dict[str, list[DocBuildError]] = defaultdict(list)
