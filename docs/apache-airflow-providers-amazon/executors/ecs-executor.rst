@@ -61,6 +61,9 @@ section or via environment variables using the
 more information on how to set these options, see `Setting Configuration
 Options <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-config.html>`__
 
+.. note::
+   Configuration options must be consistent across all the hosts/environments running the Airflow components (Scheduler, Webserver, ECS Task containers, etc). See `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__ for more details on setting configurations.
+
 In the case of conflicts, the order of precedence is:
 
 1. Load default values for options which have defaults.
@@ -172,7 +175,7 @@ Role. The Task Execution Role is the role that is used by the container
 agent to make AWS API requests on your behalf. For the purposes of the
 ECS Executor, this role needs to have at least the
 ``AmazonECSTaskExecutionRolePolicy`` as well as the
-``CloudWatchLogsFullAccess`` policies. The Task Role is the role that is
+``CloudWatchLogsFullAccess`` (or ``CloudWatchLogsFullAccessV2``) policies. The Task Role is the role that is
 used by the containers to make AWS API requests. This role needs to have
 permissions based on the tasks that are described in the DAG being run.
 If you are loading DAGs via an S3 bucket, this role needs to have
@@ -309,7 +312,7 @@ the configured VPC. This means that logs are not directly accessible to
 the Airflow Webserver and when containers are stopped, after task
 completion, the logs would be permanently lost.
 
-Remote logging can be employed when using the ECS executor to persist
+Remote logging should be employed when using the ECS executor to persist
 your Airflow Task logs and make them viewable from the Airflow
 Webserver.
 
@@ -326,11 +329,11 @@ and Cloudwatch remote logging
 Some important things to point out for remote logging in the context of
 the ECS executor:
 
--  The configuration options for Airflow remote logging must be
-   configured on the host running the Airflow Webserver (so that it can
-   fetch logs from the remote location) as well as within the ECS
-   container running the Airflow Tasks (so that it can upload the logs
-   to the remote location). See
+-  The configuration options for Airflow remote logging should be
+   configured on all hosts and containers running Airflow. For example
+   the Webserver requires this config so that it can fetch logs from
+   the remote location and the ECS container requires the config so that
+   it can upload the logs to the remote location. See
    `here <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-config.html>`__
    to read more about how to set Airflow configuration via config file
    or environment variable exports.
@@ -362,8 +365,11 @@ the ECS executor:
       *specifically* for interacting with your chosen remote logging
       destination.
 
-A Note on ECS Task Logging
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+.. note::
+   Configuration options must be consistent across all the hosts/environments running the Airflow components (Scheduler, Webserver, ECS Task containers, etc). See `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__ for more details on setting configurations.
+
+ECS Task Logging
+~~~~~~~~~~~~~~~~
 
 ECS can be configured to use the awslogs log driver to send log
 information to CloudWatch Logs for the ECS Tasks themselves. These logs
@@ -375,7 +381,7 @@ remote logging configuration. Information on enabling this logging can
 be found
 `here <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/using_awslogs.html>`__.
 
-**Note: These logs will not be viewable from the Airflow Webserver UI.**
+**Note: These logs will NOT be viewable from the Airflow Webserver UI.**
 
 Performance and Tuning
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -527,7 +533,7 @@ Create Task Definition
 
 - ``AIRFLOW__ECS_EXECUTOR__SUBNETS``, with the value being a comma separated list of subnet IDs of the subnets associated with the RDS instance.
 
-1. Add other configuration as necessary for Airflow generally (see `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__), the ECS executor (see :ref:`here <config-options>`) or for remote logging (see :ref:`here <logging>`).
+1. Add other configuration as necessary for Airflow generally (see `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__), the ECS executor (see :ref:`here <config-options>`) or for remote logging (see :ref:`here <logging>`). Note that any configuration changes should be made across the entire Airflow environment to keep configuration consistent.
 
 2. Click Create.
 
@@ -576,7 +582,7 @@ To configure Airflow to utilize the ECS Executor and leverage the resources we'v
 
 This script should be run on the host(s) running the Airflow Scheduler and Webserver, before those processes are started.
 
-The script sets environment variables that configure Airflow to use the ECS Executor and provide necessary information for task execution.
+The script sets environment variables that configure Airflow to use the ECS Executor and provide necessary information for task execution. Any other configuration changes made (such as for remote logging) should be added to this example script to keep configuration consistent across the Airflow environment.
 
 Initialize the Airflow DB
 ~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -62,8 +62,10 @@ ENV REQUIREMENTS_PATH=$requirements_path
 ## AWS Authentication
 # The image requires access to AWS services. This Dockerfile supports 2 ways to authenticate with AWS.
 # The first is using build arguments where you can provide the AWS credentials as arguments
-# passed when building the image. The other option is to copy the ~/.aws folder to the container,
-# and authenticate using the credentials in that folder.
+# passed when building the image. The other option is to leverage the ECS execution role which is automatically
+# supported by the container running on ECS. Airflow will default to using Boto credential strategy which will
+# look for roles from ECS. See the ECS Executor Airflow documentation for more details.
+
 # If you would like to use an alternative method of authentication, feel free to make the
 # necessary changes to this file.
 
