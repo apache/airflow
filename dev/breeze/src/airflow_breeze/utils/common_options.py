@@ -580,6 +580,12 @@ option_standalone_dag_processor = click.option(
     is_flag=True,
     envvar="STANDALONE_DAG_PROCESSOR",
 )
+option_database_isolation = click.option(
+    "--database-isolation",
+    help="Run airflow in database isolation mode.",
+    is_flag=True,
+    envvar="DATABASE_ISOLATION",
+)
 option_install_selected_providers = click.option(
     "--install-selected-providers",
     help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",

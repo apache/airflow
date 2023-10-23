@@ -112,6 +112,13 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
+    if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
+        echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
+        export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
+        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080
+        export AIRFLOW__WEBSERVER_RUN_INTERNAL_API=True
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"

@@ -629,6 +629,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "BACKEND": "backend",
     "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",
+    "DATABASE_ISOLATION": "database_isolation",
     "DB_RESET": "db_reset",
     "DEV_MODE": "dev_mode",
     "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
