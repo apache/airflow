@@ -250,7 +250,7 @@ if PACKAGE_NAME == "apache-airflow":
         "baseoperator.py",
         "connection.py",
         "dag.py",
-        "dagrun.py"
+        "dagrun.py",
         "dagbag.py",
         "param.py",
         "taskinstance.py",
