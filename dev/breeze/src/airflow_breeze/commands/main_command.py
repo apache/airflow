@@ -31,6 +31,7 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
     option_builder,
+    option_database_isolation,
     option_db_reset,
     option_dry_run,
     option_forward_credentials,
@@ -108,6 +109,7 @@ class MainGroupWithAliases(BreezeGroup):
 @option_mysql_version
 @option_mssql_version
 @option_integration
+@option_database_isolation
 @option_standalone_dag_processor
 @option_forward_credentials
 @option_db_reset
