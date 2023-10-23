@@ -568,6 +568,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
     set_value_to_default_if_not_set(env, "AIRFLOW_ENABLE_AIP_44", "true")
+    set_value_to_default_if_not_set(env, "AIRFLOW_ENV", "development")
     set_value_to_default_if_not_set(env, "ANSWER", answer or "")
     set_value_to_default_if_not_set(env, "BASE_BRANCH", "main")
     set_value_to_default_if_not_set(env, "BREEZE", "true")
