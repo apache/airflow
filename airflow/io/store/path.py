@@ -632,6 +632,8 @@ class ObjectStoragePath(os.PathLike):
         if dst.key.endswith(self.sep) or not dst.key:
             dst.mkdir(exists_ok=True, create_parents=True)
             dst = dst / self.key
+        elif dst.is_dir():
+            dst = dst / self.key
 
         # streaming copy
         with self.open("rb") as f1, dst.open("wb") as f2:
@@ -655,7 +657,7 @@ class ObjectStoragePath(os.PathLike):
 
         # same -> same
         if self.samestore(dst):
-            self.store.fs.copy(self, dst, recursive=recursive, **kwargs)
+            self.store.fs.copy(str(self), dst, recursive=recursive, **kwargs)
             return
 
         # use optimized path for local -> remote or remote -> local
@@ -676,6 +678,8 @@ class ObjectStoragePath(os.PathLike):
         if self.is_dir():
             if dst.is_file():
                 raise ValueError("Cannot copy directory to a file.")
+
+            dst.mkdir(exists_ok=True, create_parents=True)
 
             out = self.store.fs.expand_path(str(self), recursive=True, **kwargs)
             source_stripped = self.store.fs._strip_protocol(str(self))

@@ -35,9 +35,12 @@ BAR = FOO
 
 
 class FakeRemoteFileSystem(LocalFileSystem):
+    id = "fakefs"
+    auto_mk_dir = True
+
     @property
     def fsid(self):
-        return "fakefs"
+        return self.id
 
     @classmethod
     def _strip_protocol(cls, path) -> str:
@@ -118,7 +121,7 @@ class TestFs:
             ("is_file", {}, "isfile", FOO, ObjectStoragePath(BAR), {}),
             # ("is_symlink", {}, "islink", FOO, ObjectStoragePath(BAR), {}),
             ("touch", {}, "touch", FOO, BAR, {"truncate": True}),
-            ("mkdir", {}, "mkdir", FOO, BAR, {"create_parents": True}),
+            ("mkdir", {"exists_ok": True}, "mkdir", FOO, BAR, {"create_parents": True}),
             ("read_text", {}, "read_text", FOO, BAR, {"encoding": None, "errors": None, "newline": None}),
             ("read_bytes", {}, "read_bytes", FOO, BAR, {"start": None, "end": None}),
             ("rm", {}, "rm", FOO, BAR, {"maxdepth": None, "recursive": False}),
@@ -171,6 +174,33 @@ class TestFs:
         assert _to.exists()
 
         _to.unlink()
+
+    def test_copy_remote_remote(self):
+        # foo = xxx added to prevent same fs token
+        attach("fakefs", fs=FakeRemoteFileSystem(auto_mkdir=True, foo="bar"))
+        attach("fakefs2", fs=FakeRemoteFileSystem(auto_mkdir=True, foo="baz"))
+
+        dir_src = f"/tmp/{str(uuid.uuid4())}"
+        dir_dst = f"/tmp/{str(uuid.uuid4())}"
+        key = "foo/bar/baz.txt"
+
+        # note we are dealing with object storage characteristics
+        # while working on a local filesystem, so it might feel not intuitive
+        _from = ObjectStoragePath(f"fakefs://{dir_src}")
+        _from_file = _from / key
+        _from_file.touch()
+        assert _from_file.exists()
+
+        _to = ObjectStoragePath(f"fakefs2://{dir_dst}")
+        _from.copy(_to)
+
+        assert _to.exists()
+        assert _to.is_dir()
+        assert (_to / _from.key / key).exists()
+        assert (_to / _from.key / key).is_file()
+
+        _from.unlink(recursive=True)
+        _to.unlink(recursive=True)
 
     def test_serde_objectstoragepath(self):
         path = "file://bucket/key/part1/part2"
