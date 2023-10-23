@@ -47,8 +47,8 @@ class OpenAIEmbeddingOperator(BaseOperator):
     def __init__(
         self,
         conn_id: str,
-        input_text: str | None = None,
-        input_callable: Callable[[Any], Any] | None = None,
+        input_text: str | list[Any] | None = None,
+        input_callable: Callable[[Any], str | list[Any]] | None = None,
         input_callable_args: Collection[Any] | None = None,
         input_callable_kwargs: Mapping[str, Any] | None = None,
         model: str = "text-embedding-ada-002",

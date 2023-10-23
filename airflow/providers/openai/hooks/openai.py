@@ -67,7 +67,7 @@ class OpenAIHook(BaseHook):
         return str(conn.password)
 
     def create_embeddings(
-        self, text: str, model: str = "text-embedding-ada-002", **kwargs: Any
+        self, text: str | list[Any], model: str = "text-embedding-ada-002", **kwargs: Any
     ) -> list[float]:
         """Generate embeddings for the given text using the given model.
 
