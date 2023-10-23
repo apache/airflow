@@ -44,6 +44,7 @@
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
+  - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
@@ -310,6 +311,11 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
+
+Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
 ./dev/provider_packages/tag_providers.sh
@@ -953,9 +959,27 @@ If you decided to remove some packages from the release make sure to do amend th
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
+Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
+
 ```shell script
 ./dev/provider_packages/tag_providers.sh
 ```
+
+## Update providers metadata
+
+```shell script
+branch="update-providers-metadata-$(date '+%Y-%m-%d%n')
+git checkout -b "${branch}"
+breeze release-management generate-providers-metadata
+git add -p .
+git commit -m "Update providers metadata $(date ${branch})"
+git push --set-upstream origin "${branch}"
+```
+
+Create PR ang get it merged
 
 ## Notify developers of release
 

@@ -57,6 +57,7 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ],
@@ -647,13 +648,58 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         ],
     )
     def test_should_respond_200(self, task_instances, update_extras, url, expected_ti, session):
-
         self.create_task_instances(
             session,
             update_extras=update_extras,
             task_instances=task_instances,
         )
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        assert response.status_code == 200
+        assert response.json["total_entries"] == expected_ti
+        assert len(response.json["task_instances"]) == expected_ti
+
+    @pytest.mark.parametrize(
+        "task_instances, user, expected_ti",
+        [
+            pytest.param(
+                {
+                    "example_python_operator": 2,
+                    "example_skip_dag": 1,
+                },
+                "test_read_only_one_dag",
+                2,
+            ),
+            pytest.param(
+                {
+                    "example_python_operator": 1,
+                    "example_skip_dag": 2,
+                },
+                "test_read_only_one_dag",
+                1,
+            ),
+            pytest.param(
+                {
+                    "example_python_operator": 1,
+                    "example_skip_dag": 2,
+                },
+                "test",
+                3,
+            ),
+        ],
+    )
+    def test_return_TI_only_from_readable_dags(self, task_instances, user, expected_ti, session):
+        for dag_id in task_instances:
+            self.create_task_instances(
+                session,
+                task_instances=[
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=i)}
+                    for i in range(task_instances[dag_id])
+                ],
+                dag_id=dag_id,
+            )
+        response = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances", environ_overrides={"REMOTE_USER": user}
+        )
         assert response.status_code == 200
         assert response.json["total_entries"] == expected_ti
         assert len(response.json["task_instances"]) == expected_ti

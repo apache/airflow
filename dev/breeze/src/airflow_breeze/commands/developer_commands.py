@@ -42,7 +42,7 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
-    argument_packages_plus_all_providers_for_shorthand,
+    argument_short_doc_packages_with_providers_index,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -84,6 +84,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
+from airflow_breeze.utils.general_utils import expand_all_providers
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     cleanup_python_generated_files,
@@ -177,7 +178,7 @@ def shell(
     python: str,
     backend: str,
     builder: str,
-    integration: tuple[str],
+    integration: tuple[str, ...],
     postgres_version: str,
     mysql_version: str,
     mssql_version: str,
@@ -290,7 +291,7 @@ def start_airflow(
     python: str,
     backend: str,
     builder: str,
-    integration: tuple[str],
+    integration: tuple[str, ...],
     postgres_version: str,
     load_example_dags: bool,
     load_default_connections: bool,
@@ -365,7 +366,7 @@ def start_airflow(
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
-@argument_packages_plus_all_providers_for_shorthand
+@argument_short_doc_packages_with_providers_index
 @option_builder
 @click.option(
     "--package-filter",
@@ -390,13 +391,13 @@ def start_airflow(
 @option_verbose
 @option_dry_run
 def build_docs(
-    packages_plus_all_providers: tuple[str],
+    short_doc_packages: tuple[str, ...],
     docs_only: bool,
     spellcheck_only: bool,
     builder: str,
     clean_build: bool,
     one_pass_only: bool,
-    package_filter: tuple[str],
+    package_filter: tuple[str, ...],
     github_repository: str,
 ):
     """
@@ -421,7 +422,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         skip_environment_initialization=True,
-        packages_plus_all_providers=packages_plus_all_providers,
+        short_doc_packages=expand_all_providers(short_doc_packages),
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = get_env_variables_for_docker_commands(params)

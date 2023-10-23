@@ -175,7 +175,7 @@ if [[ ${INTEGRATION_PINOT} == "true" ]]; then
     check_service "Pinot (Broker API)" "${CMD}" 50
 fi
 if [[ ${INTEGRATION_KAFKA} == "true" ]]; then
-    check_service "Kakfa Cluster" "run_nc broker 9092" 50
+    check_service "Kafka Cluster" "run_nc broker 9092" 50
 fi
 
 if [[ ${EXIT_CODE} != 0 ]]; then

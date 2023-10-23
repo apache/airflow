@@ -517,7 +517,8 @@ Example of updating constraints for Airflow 2.5.0 - 2.6.3 and updating `pymssql`
 breeze release-management update-constraints --constraints-repo /home/user/airflow-constraints \
     --airflow-versions 2.5.0,2.5.1,2.5.2,2.5.3,2.6.0,2.6.1,2.6.2,2.6.3 \
     --updated-constraint pymssql==2.2.8 \
-    --commit-message "Update pymssql constraint to 2.2.8"
+    --commit-message "Update pymssql constraint to 2.2.8" \
+    --airflow-constraints-mode constraints
 ```
 
 Example of updating multiple constraints:
@@ -527,5 +528,6 @@ breeze release-management update-constraints --constraints-repo /home/user/airfl
     --airflow-versions 2.5.0,2.5.1,2.5.2,2.5.3,2.6.0,2.6.1,2.6.2,2.6.3 \
     --updated-constraint pymssql==2.2.8 \
     --updated-constraint Authlib==1.3.0 \
-    --commit-message "Update pymssql constraint to 2.2.8 and Authlib to 1.3.0"
+    --commit-message "Update pymssql constraint to 2.2.8 and Authlib to 1.3.0" \
+    --airflow-constraints-mode constraints
 ```

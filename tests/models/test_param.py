@@ -281,7 +281,7 @@ class TestParamsDict:
 
         # Validate the ParamsDict
         plain_dict = pd.validate()
-        assert type(plain_dict) == dict
+        assert isinstance(plain_dict, dict)
         pd2.validate()
         pd3.validate()
 

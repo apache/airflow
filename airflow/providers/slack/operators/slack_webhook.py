@@ -24,6 +24,8 @@ from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 
 if TYPE_CHECKING:
+    from slack_sdk.http_retry import RetryHandler
+
     from airflow.utils.context import Context
 
 
@@ -51,7 +53,10 @@ class SlackWebhookOperator(BaseOperator):
     :param username: The username to post to slack with
     :param icon_emoji: The emoji to use as icon for the user posting to Slack
     :param icon_url: The icon image URL string to use in place of the default icon.
-    :param proxy: Proxy to use to make the Slack webhook call
+    :param proxy: Proxy to make the Slack Incoming Webhook call. Optional
+    :param timeout: The maximum number of seconds the client will wait to connect
+        and receive a response from Slack. Optional
+    :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebhookClient``. Optional
     """
 
     template_fields: Sequence[str] = (
@@ -75,6 +80,8 @@ class SlackWebhookOperator(BaseOperator):
         icon_emoji: str | None = None,
         icon_url: str | None = None,
         proxy: str | None = None,
+        timeout: int | None = None,
+        retry_handlers: list[RetryHandler] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -87,11 +94,18 @@ class SlackWebhookOperator(BaseOperator):
         self.username = username
         self.icon_emoji = icon_emoji
         self.icon_url = icon_url
+        self.timeout = timeout
+        self.retry_handlers = retry_handlers
 
     @cached_property
     def hook(self) -> SlackWebhookHook:
         """Create and return an SlackWebhookHook (cached)."""
-        return SlackWebhookHook(slack_webhook_conn_id=self.slack_webhook_conn_id, proxy=self.proxy)
+        return SlackWebhookHook(
+            slack_webhook_conn_id=self.slack_webhook_conn_id,
+            proxy=self.proxy,
+            timeout=self.timeout,
+            retry_handlers=self.retry_handlers,
+        )
 
     def execute(self, context: Context) -> None:
         """Call the SlackWebhookHook to post the provided Slack message."""

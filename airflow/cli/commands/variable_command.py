@@ -20,13 +20,12 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from json import JSONDecodeError
 
 from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import is_stdout
+from airflow.cli.utils import print_export_output
 from airflow.models import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
@@ -132,7 +131,4 @@ def variables_export(args):
 
     with args.file as varfile:
         json.dump(var_dict, varfile, sort_keys=True, indent=4)
-        if is_stdout(varfile):
-            print("\nVariables successfully exported.", file=sys.stderr)
-        else:
-            print(f"Variables successfully exported to {varfile.name}.")
+        print_export_output("Variables", var_dict, varfile)

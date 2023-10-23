@@ -1002,7 +1002,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
-                time.sleep(min(self._scheduler_idle_sleep_time, next_event if next_event else 0))
+                time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
 
             if loop_count >= self.num_runs > 0:
                 self.log.info(

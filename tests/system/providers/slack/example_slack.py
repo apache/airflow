@@ -34,7 +34,6 @@ with DAG(
     max_active_runs=1,
     tags=["example"],
 ) as dag:
-
     # Send file with filename and filetype
     slack_operator_file = SlackAPIFileOperator(
         task_id="slack_file_upload_1",

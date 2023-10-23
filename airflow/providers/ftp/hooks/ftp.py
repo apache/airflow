@@ -55,7 +55,7 @@ class FTPHook(BaseHook):
             self.close_conn()
 
     def get_conn(self) -> ftplib.FTP:
-        """Returns a FTP connection object."""
+        """Return an FTP connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
@@ -65,7 +65,7 @@ class FTPHook(BaseHook):
         return self.conn
 
     def close_conn(self):
-        """Closes the connection; an error will occur if the connection was never opened."""
+        """Close the connection; an error will occur if the connection was never opened."""
         conn = self.conn
         conn.quit()
         self.conn = None
@@ -83,7 +83,7 @@ class FTPHook(BaseHook):
 
     def list_directory(self, path: str) -> list[str]:
         """
-        Returns a list of files on the remote system.
+        Return a list of files on the remote system.
 
         :param path: full path to the remote directory to list
         """
@@ -95,7 +95,7 @@ class FTPHook(BaseHook):
 
     def create_directory(self, path: str) -> None:
         """
-        Creates a directory on the remote system.
+        Create a directory on the remote system.
 
         :param path: full path to the remote directory to create
         """
@@ -104,7 +104,7 @@ class FTPHook(BaseHook):
 
     def delete_directory(self, path: str) -> None:
         """
-        Deletes a directory on the remote system.
+        Delete a directory on the remote system.
 
         :param path: full path to the remote directory to delete
         """
@@ -119,7 +119,7 @@ class FTPHook(BaseHook):
         block_size: int = 8192,
     ) -> None:
         """
-        Transfers the remote file to a local location.
+        Transfer the remote file to a local location.
 
         If local_full_path_or_buffer is a string path, the file will be put
         at that location; if it is a file-like buffer, the file will
@@ -143,6 +143,7 @@ class FTPHook(BaseHook):
 
             remote_path = "/path/to/remote/file"
             local_path = "/path/to/local/file"
+
 
             # with a custom callback (in this case displaying progress on each read)
             def print_progress(percent_progress):
@@ -221,7 +222,7 @@ class FTPHook(BaseHook):
 
     def delete_file(self, path: str) -> None:
         """
-        Removes a file on the FTP Server.
+        Remove a file on the FTP Server.
 
         :param path: full path to the remote file
         """
@@ -240,7 +241,7 @@ class FTPHook(BaseHook):
 
     def get_mod_time(self, path: str) -> datetime.datetime:
         """
-        Returns a datetime object representing the last time the file was modified.
+        Return a datetime object representing the last time the file was modified.
 
         :param path: remote file path
         """
@@ -255,7 +256,7 @@ class FTPHook(BaseHook):
 
     def get_size(self, path: str) -> int | None:
         """
-        Returns the size of a file (in bytes).
+        Return the size of a file (in bytes).
 
         :param path: remote file path
         """
@@ -277,7 +278,7 @@ class FTPSHook(FTPHook):
     """Interact with FTPS."""
 
     def get_conn(self) -> ftplib.FTP:
-        """Returns a FTPS connection object."""
+        """Return an FTPS connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)

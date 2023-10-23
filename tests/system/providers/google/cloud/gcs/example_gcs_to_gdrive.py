@@ -42,7 +42,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
-FOLDER_ID = os.environ.get("GCP_GDRIVE_FOLDER_ID", None)
+FOLDER_ID = os.environ.get("GCP_GDRIVE_FOLDER_ID", "root")
 
 DAG_ID = "example_gcs_to_gdrive"
 

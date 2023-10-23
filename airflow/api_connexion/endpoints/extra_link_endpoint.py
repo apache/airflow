@@ -22,8 +22,8 @@ from sqlalchemy import select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import TaskNotFound
-from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -35,13 +35,7 @@ if TYPE_CHECKING:
     from airflow.models.dagbag import DagBag
 
 
-@security.requires_access(
-    [
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
-)
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_extra_links(
     *,
@@ -77,7 +71,5 @@ def get_extra_links(
     all_extra_link_pairs = (
         (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
     )
-    all_extra_links = {
-        link_name: link_url if link_url else None for link_name, link_url in sorted(all_extra_link_pairs)
-    }
+    all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}
     return all_extra_links
