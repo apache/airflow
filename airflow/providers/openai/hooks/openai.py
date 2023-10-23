@@ -77,13 +77,3 @@ class OpenAIHook(BaseHook):
         response = openai.Embedding.create(model=model, input=text, **kwargs)
         embeddings: list[float] = response["data"][0]["embedding"]
         return embeddings
-
-    def create_completions(self, prompt: str, model: str = "davinci-002", **kwargs: Any) -> str:
-        """
-        Create completions for the given text using the given model.
-
-        :param prompt: The text for which to generate completions
-        :param model: The model to use for generating completions
-        """
-        response = openai.Completion.create(model=model, prompt=prompt, **kwargs)
-        return str(response.choices[0].text)

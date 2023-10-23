@@ -55,13 +55,6 @@ def test_create_embeddings(openai_hook, mock_embeddings_response):
     assert embeddings == [0.1, 0.2, 0.3]
 
 
-def test_create_completions(openai_hook, mock_completions_response):
-    prompt = "Please complete this sentence: "
-    with patch("openai.Completion.create", return_value=mock_completions_response):
-        completion = openai_hook.create_completions(prompt)
-    assert completion == "the quick brown fox"
-
-
 def test_get_api_key():
     mock_connection = Mock()
     mock_connection.password = "your_api_key"
