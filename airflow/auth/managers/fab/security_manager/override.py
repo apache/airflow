@@ -101,10 +101,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     :param appbuilder: The appbuilder.
     """
 
-    """ The obj instance for authentication view """
     auth_view = None
-    """ The obj instance for user view """
+    """ The obj instance for authentication view """
     user_view = None
+    """ The obj instance for user view """
+
     """ Models """
     role_model = Role
     action_model = Action
@@ -112,18 +113,18 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     permission_model = Permission
     registeruser_model = RegisterUser
 
-    """ Flask-JWT-Extended """
     jwt_manager = None
-    """ Flask-OpenID OpenID """
+    """ Flask-JWT-Extended """
     oid = None
-    """ OAuth email whitelists """
+    """ Flask-OpenID OpenID """
     oauth = None
     """ OAuth email whitelists """
     oauth_remotes: dict[str, Any]
+    """ OAuth email whitelists """
     oauth_user_info = None
 
-    """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
     oauth_allow_list: dict[str, list] = {}
+    """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
 
     def __init__(self, appbuilder):
         # done in super, but we need it before we can call super.
