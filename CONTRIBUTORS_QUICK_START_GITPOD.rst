@@ -58,6 +58,21 @@ Gitpod default image have all the required packages installed.
 
 1. Run ``pipx install -e ./dev/breeze`` to install Breeze
 
+.. warning::
+
+  If you see below warning - it means that you hit `known issue <https://github.com/pypa/pipx/issues/1092>`_
+  with ``packaging`` version 23.2:
+  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+  to avoid having to create a new src/ directory.
+
+  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command. for example
+  by running ``pip install "packaging<23.2"``.
+
+  .. code-block::bash
+
+     pip install "packaging==23.1"
+     pipx install -e ./dev/breeze --force
+
 2. Run ``breeze`` to enter breeze in Gitpod.
 
 Setting up database in Breeze

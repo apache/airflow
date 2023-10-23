@@ -63,7 +63,8 @@ extend-select = [
     "D419",
     "TCH001",  # typing-only-first-party-import
     "TCH002",  # typing-only-third-party-import
-    "TID251",
+    "TID251",  # Specific modules or module members that may not be imported or accessed
+    "TID253",  # Ban certain modules from being imported at module level
 ]
 extend-ignore = [
     "D203",
@@ -128,15 +129,16 @@ combine-as-imports = true
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
-"tests/*" = ["D"]
 "scripts/*" = ["D"]
-"dev/*" = ["D"]
 "docs/*" = ["D"]
 "provider_packages/*" = ["D"]
-"docker_tests/*" = ["D"]
-"kubernetes_tests/*" = ["D"]
 "*/example_dags/*" = ["D"]
 "chart/*" = ["D"]
+# In addition ignore top level imports, e.g. pandas, numpy in tests and dev
+"dev/*" = ["D", "TID253"]
+"tests/*" = ["D", "TID253"]
+"docker_tests/*" = ["D", "TID253"]
+"kubernetes_tests/*" = ["D", "TID253"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -149,6 +151,14 @@ combine-as-imports = true
 [tool.ruff.flake8-tidy-imports.banned-api]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
+
+[tool.ruff.flake8-tidy-imports]
+# Ban certain modules from being imported at module level, instead requiring
+# that they're imported lazily (e.g., within a function definition).
+banned-module-level-imports = ["numpy", "pandas"]
+
+[tool.ruff.flake8-type-checking]
+exempt-modules = ["typing", "typing_extensions"]
 
 [tool.coverage.run]
 branch = true
@@ -175,5 +185,3 @@ exclude_also = [
     "@(typing(_extensions)?\\.)?overload",
     "if TYPE_CHECKING:"
 ]
-[tool.ruff.flake8-type-checking]
-exempt-modules = ["typing", "typing_extensions"]

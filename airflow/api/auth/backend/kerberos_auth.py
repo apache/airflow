@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
+
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.airflow_flask_app import get_airflow_app
 
 #
@@ -46,7 +49,7 @@ from airflow.utils.airflow_flask_app import get_airflow_app
 import logging
 import os
 from functools import wraps
-from typing import Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import kerberos
 from flask import Response, _request_ctx_stack as stack, g, make_response, request  # type: ignore
@@ -54,6 +57,9 @@ from requests_kerberos import HTTPKerberosAuth
 
 from airflow.configuration import conf
 from airflow.utils.net import getfqdn
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.models.base_user import BaseUser
 
 log = logging.getLogger(__name__)
 
@@ -129,8 +135,16 @@ def _gssapi_authenticate(token):
 T = TypeVar("T", bound=Callable)
 
 
-def requires_authentication(function: T):
+def requires_authentication(function: T, find_user: Callable[[str], BaseUser] | None = None):
     """Decorate functions that require authentication with Kerberos."""
+    if not find_user:
+        warnings.warn(
+            "This module is deprecated. Please use "
+            "`airflow.auth.managers.fab.api.auth.backend.kerberos_auth` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        find_user = get_airflow_app().appbuilder.sm.find_user
 
     @wraps(function)
     def decorated(*args, **kwargs):
@@ -140,7 +154,7 @@ def requires_authentication(function: T):
             token = "".join(header.split()[1:])
             return_code = _gssapi_authenticate(token)
             if return_code == kerberos.AUTH_GSS_COMPLETE:
-                g.user = get_airflow_app().appbuilder.sm.find_user(username=ctx.kerberos_user)
+                g.user = find_user(ctx.kerberos_user)
                 response = function(*args, **kwargs)
                 response = make_response(response)
                 if ctx.kerberos_token is not None:

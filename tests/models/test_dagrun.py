@@ -87,9 +87,7 @@ class TestDagRun:
         session: Session,
     ):
         now = timezone.utcnow()
-        if execution_date is None:
-            execution_date = now
-        execution_date = pendulum.instance(execution_date)
+        execution_date = pendulum.instance(execution_date or now)
         if is_backfill:
             run_type = DagRunType.BACKFILL_JOB
             data_interval = dag.infer_automated_data_interval(execution_date)
