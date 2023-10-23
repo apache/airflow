@@ -43,6 +43,7 @@ class AthenaOperator(BaseOperator):
 
     :param query: Presto to be run on athena. (templated)
     :param database: Database to select. (templated)
+    :param catalog: Catalog to select. (templated)
     :param output_location: s3 path to write the query results into. (templated)
     :param aws_conn_id: aws connection to use
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
@@ -57,7 +58,7 @@ class AthenaOperator(BaseOperator):
     """
 
     ui_color = "#44b5e2"
-    template_fields: Sequence[str] = ("query", "database", "output_location", "workgroup")
+    template_fields: Sequence[str] = ("query", "database", "output_location", "workgroup", "catalog")
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
 
@@ -76,6 +77,7 @@ class AthenaOperator(BaseOperator):
         max_polling_attempts: int | None = None,
         log_query: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        catalog: str = "AwsDataCatalog",
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,6 +94,7 @@ class AthenaOperator(BaseOperator):
         self.query_execution_id: str | None = None
         self.log_query: bool = log_query
         self.deferrable = deferrable
+        self.catalog: str = catalog
 
     @cached_property
     def hook(self) -> AthenaHook:
@@ -101,6 +104,7 @@ class AthenaOperator(BaseOperator):
     def execute(self, context: Context) -> str | None:
         """Run Presto Query on Athena."""
         self.query_execution_context["Database"] = self.database
+        self.query_execution_context["Catalog"] = self.catalog
         self.result_configuration["OutputLocation"] = self.output_location
         self.query_execution_id = self.hook.run_query(
             self.query,
