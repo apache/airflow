@@ -385,25 +385,21 @@ class PlainXComArg(XComArg):
             )
             if unfinished_ti_exists:
                 return None  # Not all of the expanded tis are done yet.
-            query = session.scalar(
-                select(func.count(XCom.map_index)).where(
-                    XCom.dag_id == task.dag_id,
-                    XCom.run_id == run_id,
-                    XCom.task_id == task.task_id,
-                    XCom.map_index >= 0,
-                    XCom.key == XCOM_RETURN_KEY,
-                )
+            query = select(func.count(XCom.map_index)).where(
+                XCom.dag_id == task.dag_id,
+                XCom.run_id == run_id,
+                XCom.task_id == task.task_id,
+                XCom.map_index >= 0,
+                XCom.key == XCOM_RETURN_KEY,
             )
         else:
-            query = session.scalar(
-                select(TaskMap.length).where(
-                    TaskMap.dag_id == task.dag_id,
-                    TaskMap.run_id == run_id,
-                    TaskMap.task_id == task.task_id,
-                    TaskMap.map_index < 0,
-                )
+            query = select(TaskMap.length).where(
+                TaskMap.dag_id == task.dag_id,
+                TaskMap.run_id == run_id,
+                TaskMap.task_id == task.task_id,
+                TaskMap.map_index < 0,
             )
-        return query
+        return session.scalar(query)
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:

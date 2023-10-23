@@ -228,12 +228,11 @@ class TriggerDagRunOperator(BaseOperator):
         # This execution date is parsed from the return trigger event
         provided_execution_date = event[1]["execution_dates"][0]
         try:
-            dag_run = session.scalar(
+            dag_run = session.execute(
                 select(DagRun).where(
                     DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_execution_date
                 )
-            )
-
+            ).scalar_one()
         except NoResultFound:
             raise AirflowException(
                 f"No DAG run found for DAG {self.trigger_dag_id} and execution date {self.execution_date}"
