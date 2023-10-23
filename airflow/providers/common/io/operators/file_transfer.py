@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.io.store.path import ObjectStoragePath
 from airflow.models import BaseOperator
@@ -42,6 +42,8 @@ class FileTransferOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:FileTransferOperator`
     """
+
+    template_fields: Sequence[str] = ("src", "dst")
 
     def __init__(
         self,
