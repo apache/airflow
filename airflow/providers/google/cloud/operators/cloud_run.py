@@ -271,7 +271,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         job_name: str,
-        overrides: dict | None = None,
+        overrides: dict[str, str | dict[str, str]] | None = None,
         polling_period_seconds: float = 10,
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",

@@ -113,7 +113,7 @@ class CloudRunHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def execute_job(
-        self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID, overrides: dict | None = None
+        self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID, overrides: dict[str, str | dict[str, str]] | None = None
     ) -> operation.Operation:
         run_job_request = RunJobRequest(
             name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides
