@@ -913,7 +913,7 @@ class S3Hook(AwsBaseHook):
         :return: the key object from the bucket
         """
 
-        def __sanitize_extra_args() -> dict[str, str]:
+        def sanitize_extra_args() -> dict[str, str]:
             """Parse extra_args and return a dict with only the args listed in ALLOWED_DOWNLOAD_ARGS."""
             return {
                 arg_name: arg_value
@@ -929,7 +929,7 @@ class S3Hook(AwsBaseHook):
         )
         obj = s3_resource.Object(bucket_name, key)
 
-        obj.load(**__sanitize_extra_args())
+        obj.load(**sanitize_extra_args())
         return obj
 
     @unify_bucket_name_and_key
