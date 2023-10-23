@@ -1946,28 +1946,28 @@ Airflow's CI process automatically uploads the code coverage report to codecov.i
 
 Viewing the Coverage Report Online:
 -----------------------------------
-- For the most recent coverage report of the main branch, visit: https://codecov.io/gh/apache/airflow.
+For the most recent coverage report of the main branch, visit: https://codecov.io/gh/apache/airflow.
 
 Generating Local Coverage Reports:
 ----------------------------------
 If you wish to obtain coverage reports for specific areas of the codebase on your local machine, follow these steps:
 
-   a. Initiate a breeze shell.
+a. Initiate a breeze shell.
 
-   b. Execute one of the commands below based on the desired coverage area:
+b. Execute one of the commands below based on the desired coverage area:
 
    - **Core:** ``python scripts/cov/core_coverage.py``
    - **REST API:** ``python scripts/cov/restapi_coverage.py``
    - **CLI:** ``python scripts/cov/cli_coverage.py``
    - **Webserver:** ``python scripts/cov/www_coverage.py``
 
-   c. After execution, the coverage report will be available at: http://localhost:28000/dev/coverage/index.html.
+c. After execution, the coverage report will be available at: http://localhost:28000/dev/coverage/index.html.
 
 Modules Not Fully Covered:
 --------------------------
 Each coverage command provides a list of modules that aren't fully covered. If you wish to enhance coverage for a particular module:
 
-   a. Work on the module to improve its coverage.
+a. Work on the module to improve its coverage.
 
-   b. Once coverage reaches 100%, you can safely remove the module from the list of modules that are not fully covered.
-      This list is inside each command's source code.
+b. Once coverage reaches 100%, you can safely remove the module from the list of modules that are not fully covered.
+   This list is inside each command's source code.
