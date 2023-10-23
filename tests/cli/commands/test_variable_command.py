@@ -59,7 +59,7 @@ class TestCliVariables:
             self.parser.parse_args(["variables", "set", var_key, "bar", "--description", expected_var_desc])
         )
 
-        assert Variable.get(var_key) is not None
+        assert Variable.get(var_key) == "bar"
         with create_session() as session:
             actual_var_desc = session.scalar(select(Variable.description).where(Variable.key == var_key))
             assert actual_var_desc == expected_var_desc
