@@ -78,7 +78,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         interval: int | None = None,
     ) -> dict[str, Any]:
         """
-        Sends a single datapoint metric to Datadog.
+        Send a single datapoint metric to Datadog.
 
         :param metric_name: The name of the metric
         :param datapoint: A single integer or float related to the metric
@@ -122,7 +122,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         device_name: list[str] | None = None,
     ) -> dict[str, Any]:
         """
-        Posts an event to datadog (processing finished, potentially alerts, other issues).
+        Post an event to datadog (processing finished, potentially alerts, other issues).
 
         Think about this as a means to maintain persistence of alerts, rather than alerting itself.
 
@@ -160,7 +160,7 @@ class DatadogHook(BaseHook, LoggingMixin):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -174,7 +174,7 @@ class DatadogHook(BaseHook, LoggingMixin):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["schema", "login", "password", "port", "extra"],
             "relabeling": {"host": "Events host name"},

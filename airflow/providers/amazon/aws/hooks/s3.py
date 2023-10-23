@@ -21,7 +21,6 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import gzip as gz
-import io
 import logging
 import os
 import re
@@ -219,12 +218,12 @@ class S3Hook(AwsBaseHook):
         elif format[0] == "https:":
             temp_split = format[1].split(".")
             if temp_split[0] == "s3":
-                split_url = format[1].split("/")
-                bucket_name = split_url[1]
-                key = "/".join(split_url[2:])
+                # "https://s3.region-code.amazonaws.com/bucket-name/key-name"
+                _, bucket_name, key = format[1].split("/", 2)
             elif temp_split[1] == "s3":
+                # "https://bucket-name.s3.region-code.amazonaws.com/key-name"
                 bucket_name = temp_split[0]
-                key = "/".join(format[1].split("/")[1:])
+                key = format[1].partition("/")[-1]
             else:
                 raise S3HookUriParseFailure(
                     "Please provide a bucket name using a valid virtually hosted format which should "
@@ -1120,10 +1119,8 @@ class S3Hook(AwsBaseHook):
         if compression == "gzip":
             bytes_data = gz.compress(bytes_data)
 
-        file_obj = io.BytesIO(bytes_data)
-
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
-        file_obj.close()
+        with BytesIO(bytes_data) as f:
+            self._upload_file_obj(f, key, bucket_name, replace, encrypt, acl_policy)
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1155,9 +1152,8 @@ class S3Hook(AwsBaseHook):
         :param acl_policy: The string to specify the canned ACL policy for the
             object to be uploaded
         """
-        file_obj = io.BytesIO(bytes_data)
-        self._upload_file_obj(file_obj, key, bucket_name, replace, encrypt, acl_policy)
-        file_obj.close()
+        with BytesIO(bytes_data) as f:
+            self._upload_file_obj(f, key, bucket_name, replace, encrypt, acl_policy)
 
     @unify_bucket_name_and_key
     @provide_bucket_name

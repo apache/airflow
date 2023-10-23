@@ -56,7 +56,6 @@ class TestConsumeFromTopic:
         )
 
     def test_operator(self):
-
         operator = ConsumeFromTopicOperator(
             kafka_config_id="kafka_d",
             topics=["test"],
@@ -69,7 +68,6 @@ class TestConsumeFromTopic:
         operator.execute(context={})
 
     def test_operator_callable(self):
-
         operator = ConsumeFromTopicOperator(
             kafka_config_id="kafka_d",
             topics=["test"],

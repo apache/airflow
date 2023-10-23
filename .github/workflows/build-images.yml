@@ -140,8 +140,27 @@ jobs:
           # Stdout is redirected to GITHUB_ENV but we also print it to stderr to see it in ci log
           print(output, file=sys.stderr)
           EOF
-      - name: "Get target branch build scripts"
-        uses: ./.github/actions/get-target-branch-build-scripts
+      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
+        uses: actions/checkout@v3
+        with:
+          path: "target-airflow"
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+          submodules: recursive
+      - name: >
+          Override "scripts/ci", "dev" and ".github/actions" with the target branch
+          so that the PR does not override it
+        # We should not override those scripts which become part of the image as they will not be
+        # changed in the image built - we should only override those that are executed to build
+        # the image.
+        shell: bash
+        run: |
+          rm -rfv "scripts/ci"
+          mv -v "target-airflow/scripts/ci" "scripts"
+          rm -rfv "dev"
+          mv -v "target-airflow/dev" "."
+          rm -rfv ".github/actions"
+          mv -v "target-airflow/.github/actions" ".github"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Selective checks
@@ -184,8 +203,27 @@ jobs:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Get target branch build scripts"
-        uses: ./.github/actions/get-target-branch-build-scripts
+      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
+        uses: actions/checkout@v3
+        with:
+          path: "target-airflow"
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+          submodules: recursive
+      - name: >
+          Override "scripts/ci", "dev" and ".github/actions" with the target branch
+          so that the PR does not override it
+        # We should not override those scripts which become part of the image as they will not be
+        # changed in the image built - we should only override those that are executed to build
+        # the image.
+        shell: bash
+        run: |
+          rm -rfv "scripts/ci"
+          mv -v "target-airflow/scripts/ci" "scripts"
+          rm -rfv "dev"
+          mv -v "target-airflow/dev" "."
+          rm -rfv ".github/actions"
+          mv -v "target-airflow/.github/actions" ".github"
       - name: >
           Build CI Images ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-ci-images
@@ -195,6 +233,20 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
           BUILD_TIMEOUT_MINUTES: 70
+      - name: "Source constraints"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers
+        env:
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+      - name: "Upload constraint artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: constraints
+          path: ./files/constraints-*/constraints-*.txt
+          retention-days: 7
 
   build-prod-images:
     permissions:
@@ -224,8 +276,27 @@ jobs:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Get target branch build scripts"
-        uses: ./.github/actions/get-target-branch-build-scripts
+      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
+        uses: actions/checkout@v3
+        with:
+          path: "target-airflow"
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+          submodules: recursive
+      - name: >
+          Override "scripts/ci", "dev" and ".github/actions" with the target branch
+          so that the PR does not override it
+        # We should not override those scripts which become part of the image as they will not be
+        # changed in the image built - we should only override those that are executed to build
+        # the image.
+        shell: bash
+        run: |
+          rm -rfv "scripts/ci"
+          mv -v "target-airflow/scripts/ci" "scripts"
+          rm -rfv "dev"
+          mv -v "target-airflow/dev" "."
+          rm -rfv ".github/actions"
+          mv -v "target-airflow/.github/actions" ".github"
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
@@ -264,8 +335,27 @@ jobs:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Get target branch build scripts"
-        uses: ./.github/actions/get-target-branch-build-scripts
+      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
+        uses: actions/checkout@v3
+        with:
+          path: "target-airflow"
+          ref: ${{ github.base_ref }}
+          persist-credentials: false
+          submodules: recursive
+      - name: >
+          Override "scripts/ci", "dev" and ".github/actions" with the target branch
+          so that the PR does not override it
+        # We should not override those scripts which become part of the image as they will not be
+        # changed in the image built - we should only override those that are executed to build
+        # the image.
+        shell: bash
+        run: |
+          rm -rfv "scripts/ci"
+          mv -v "target-airflow/scripts/ci" "scripts"
+          rm -rfv "dev"
+          mv -v "target-airflow/dev" "."
+          rm -rfv ".github/actions"
+          mv -v "target-airflow/.github/actions" ".github"
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: "Install Breeze"

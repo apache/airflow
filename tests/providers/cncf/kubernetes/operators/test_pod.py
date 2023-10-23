@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from contextlib import contextmanager, nullcontext
+from io import BytesIO
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -25,7 +26,6 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1PodSecurityContext, V1PodStatus, models as k8s
 from urllib3 import HTTPResponse
-from urllib3.packages.six import BytesIO
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
@@ -1299,9 +1299,7 @@ class TestKubernetesPodOperator:
         self, remote_pod, extra_kwargs, actual_exit_code, expected_exc
     ):
         """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
-        k = KubernetesPodOperator(
-            task_id="task", on_finish_action="delete_pod", **(extra_kwargs if extra_kwargs else {})
-        )
+        k = KubernetesPodOperator(task_id="task", on_finish_action="delete_pod", **(extra_kwargs or {}))
 
         base_container = MagicMock()
         base_container.name = k.base_container_name
@@ -1576,7 +1574,7 @@ class TestKubernetesPodOperatorAsync:
             in_cluster=True,
             get_logs=True,
             deferrable=True,
-            **(extra_kwargs if extra_kwargs else {}),
+            **(extra_kwargs or {}),
         )
 
         base_container = MagicMock()

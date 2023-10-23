@@ -187,6 +187,10 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/cli",
             r"^tests/cli",
         ],
+        SelectiveUnitTestTypes.OPERATORS: [
+            r"^airflow/operators",
+            r"^tests/operators",
+        ],
         SelectiveUnitTestTypes.PROVIDERS: [
             r"^airflow/providers/",
             r"^tests/system/providers/",
@@ -585,6 +589,9 @@ class SelectiveChecks:
             self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.CLI)
         )
         matched_files.update(
+            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.OPERATORS)
+        )
+        matched_files.update(
             self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.API)
         )
 
@@ -670,7 +677,7 @@ class SelectiveChecks:
         self._extract_long_provider_tests(current_test_types)
 
         # this should be hard-coded as we want to have very specific sequence of tests
-        sorting_order = ["Core", "Providers[-amazon,google]", "Other", "Providers[amazon]", "WWW"]
+        sorting_order = ["Operators", "Core", "Providers[-amazon,google]", "Providers[amazon]", "WWW"]
         sort_key = {item: i for i, item in enumerate(sorting_order)}
         # Put the test types in the order we want them to run
         return " ".join(sorted(current_test_types, key=lambda x: (sort_key.get(x, len(sorting_order)), x)))
@@ -688,12 +695,12 @@ class SelectiveChecks:
         )
 
     @cached_property
-    def docs_filter_list_as_string(self) -> str | None:
+    def docs_list_as_string(self) -> str | None:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
             return None
         if self._default_branch != "main":
-            return "--package-filter apache-airflow --package-filter docker-stack"
+            return "apache-airflow docker-stack"
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
         providers_affected = find_all_providers_affected(
@@ -712,15 +719,15 @@ class SelectiveChecks:
         if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
             packages.append("apache-airflow")
         if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
-            packages.append("apache-airflow-providers")
+            packages.append("providers-index")
         if any(file.startswith(("chart/", "docs/helm-chart")) for file in self._files):
             packages.append("helm-chart")
         if any(file.startswith("docs/docker-stack/") for file in self._files):
             packages.append("docker-stack")
         if providers_affected:
             for provider in providers_affected:
-                packages.append(f"apache-airflow-providers-{provider.replace('.', '-')}")
-        return " ".join([f"--package-filter {package}" for package in packages])
+                packages.append(provider.replace("-", "."))
+        return " ".join(packages)
 
     @cached_property
     def skip_pre_commits(self) -> str:

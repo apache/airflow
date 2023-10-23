@@ -227,7 +227,6 @@ class TestCLIGetNumReadyWorkersRunning:
 
 
 class TestCliWebServer(_ComonCLIGunicornTestClass):
-
     main_process_regexp = r"airflow webserver"
 
     @pytest.mark.execution_timeout(210)

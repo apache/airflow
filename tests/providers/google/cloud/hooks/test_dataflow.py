@@ -827,7 +827,6 @@ class TestDataflowTemplateHook:
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
     def test_start_template_dataflow(self, mock_conn, mock_controller, mock_uuid):
-
         launch_method = (
             mock_conn.return_value.projects.return_value.locations.return_value.templates.return_value.launch
         )
@@ -1248,7 +1247,6 @@ class TestDataflowJob:
         ],
     )
     def test_dataflow_job_wait_for_multiple_jobs_and_one_in_terminal_state(self, state, exception_regex):
-
         (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list.return_value.execute.return_value
         ) = {
@@ -1285,7 +1283,6 @@ class TestDataflowJob:
             dataflow_job.wait_for_done()
 
     def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
-
         mock_jobs_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list
         )
@@ -1356,7 +1353,6 @@ class TestDataflowJob:
         assert dataflow_job.get_jobs() == [job]
 
     def test_dataflow_job_is_job_running_with_no_job(self):
-
         mock_jobs_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list
         )
@@ -1723,7 +1719,6 @@ class TestDataflowJob:
         mock_jobs.return_value.update.assert_not_called()
 
     def test_fetch_list_job_messages_responses(self):
-
         mock_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
         )
@@ -1749,7 +1744,6 @@ class TestDataflowJob:
         assert result == ["response_1"]
 
     def test_fetch_all_jobs_when_no_jobs_returned(self):
-
         (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list.return_value.execute.return_value
         ) = {}

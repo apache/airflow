@@ -79,7 +79,7 @@ def test_session_id_rotates(app, user_client):
     resp = user_client.get("/logout/")
     assert resp.status_code == 302
 
-    patch_path = "airflow.www.fab_security.manager.check_password_hash"
+    patch_path = "airflow.auth.managers.fab.security_manager.override.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
         resp = user_client.post("/login/", data={"username": "test_user", "password": "test_user"})

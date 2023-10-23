@@ -434,7 +434,7 @@ class DagBag(LoggingMixin):
 
         found_dags = []
 
-        for (dag, mod) in top_level_dags:
+        for dag, mod in top_level_dags:
             dag.fileloc = mod.__file__
             try:
                 dag.validate()
