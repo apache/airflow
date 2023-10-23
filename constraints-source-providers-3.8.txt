@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-23T12:34:54Z
+# This constraints file was automatically generated on 2023-10-23T20:55:22Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -117,7 +117,7 @@ bcrypt==4.0.1
 beautifulsoup4==4.12.2
 billiard==4.1.0
 bitarray==2.8.2
-black==23.10.0
+black==23.10.1
 blinker==1.6.3
 boto3==1.28.64
 botocore==1.31.64
@@ -129,7 +129,7 @@ celery==5.3.4
 certifi==2023.7.22
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.82.2
+cfn-lint==0.83.0
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.1
@@ -185,12 +185,12 @@ fastjsonschema==2.18.1
 filelock==3.12.4
 flower==2.0.1
 frozenlist==1.4.0
-fsspec==2023.9.2
+fsspec==2023.10.0
 future==0.18.3
 gcloud-aio-auth==4.2.3
 gcloud-aio-bigquery==7.0.0
 gcloud-aio-storage==9.0.0
-gcsfs==2023.9.2
+gcsfs==2023.10.0
 geomet==0.2.1.post1
 gevent==23.9.1
 gitdb==4.0.11
@@ -517,7 +517,7 @@ sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==8.0.0
 spython==0.3.0
 sqlalchemy-bigquery==1.8.0
-sqlalchemy-drill==1.1.2
+sqlalchemy-drill==1.1.4
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.6.2
 sqlparse==0.4.4
@@ -576,7 +576,7 @@ urllib3==1.26.18
 userpath==1.9.1
 vertica-python==1.3.5
 vine==5.0.0
-virtualenv==20.24.5
+virtualenv==20.24.6
 watchtower==3.0.1
 wcwidth==0.2.8
 websocket-client==1.6.4
