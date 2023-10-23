@@ -135,7 +135,11 @@ def internal_api(args):
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
                 gunicorn_master_proc.wait(timeout=30)
-            if gunicorn_master_proc.is_running():
+            if isinstance(gunicorn_master_proc, subprocess.Popen):
+                still_running = gunicorn_master_proc.poll() is not None
+            else:
+                still_running = gunicorn_master_proc.is_running()
+            if still_running:
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
