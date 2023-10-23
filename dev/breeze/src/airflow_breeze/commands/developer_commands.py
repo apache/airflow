@@ -50,6 +50,7 @@ from airflow_breeze.utils.common_options import (
     option_builder,
     option_celery_broker,
     option_celery_flower,
+    option_database_isolation,
     option_db_reset,
     option_downgrade_sqlalchemy,
     option_dry_run,
@@ -71,6 +72,7 @@ from airflow_breeze.utils.common_options import (
     option_platform_single,
     option_postgres_version,
     option_python,
+    option_standalone_dag_processor,
     option_upgrade_boto,
     option_use_airflow_version,
     option_use_packages_from_dist,
@@ -173,6 +175,8 @@ class TimerThread(threading.Thread):
 @option_executor
 @option_celery_broker
 @option_celery_flower
+@option_standalone_dag_processor
+@option_database_isolation
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 def shell(
     python: str,
@@ -203,6 +207,8 @@ def shell(
     extra_args: tuple,
     upgrade_boto: bool,
     downgrade_sqlalchemy: bool,
+    standalone_dag_processor: bool,
+    database_isolation: bool,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run():
@@ -242,6 +248,8 @@ def shell(
         celery_flower=celery_flower,
         upgrade_boto=upgrade_boto,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        standalone_dag_processor=standalone_dag_processor,
+        database_isolation=database_isolation,
     )
     sys.exit(result.returncode)
 
@@ -287,6 +295,8 @@ def shell(
 @option_executor
 @option_celery_broker
 @option_celery_flower
+@option_standalone_dag_processor
+@option_database_isolation
 def start_airflow(
     python: str,
     backend: str,
@@ -315,6 +325,8 @@ def start_airflow(
     executor: str,
     celery_broker: str,
     celery_flower: bool,
+    standalone_dag_processor: bool,
+    database_isolation: bool,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -359,6 +371,8 @@ def start_airflow(
         executor=executor,
         celery_broker=celery_broker,
         celery_flower=celery_flower,
+        standalone_dag_processor=standalone_dag_processor,
+        database_isolation=database_isolation,
     )
     sys.exit(result.returncode)
 
