@@ -807,6 +807,79 @@ class SelectiveChecks:
         return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
+    def is_self_hosted_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating It should run on "self-hosted" runner.
+
+        All self-hosted runners have "self-hosted" label.
+        """
+        return "self-hosted" in json.loads(self.runs_on)
+
+    @cached_property
+    def is_airflow_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating It should run on Airflow managed runner.
+
+        All Airflow team-managed runners will have "airflow-runner" label.
+        """
+        # TODO: when we have it properly set-up with labels we should just check for
+        #       "airflow-runner" presence in runs_on
+        runs_on_array = json.loads(self.runs_on)
+        return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
+
+    @cached_property
+    def is_amd_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating AMD architecture.
+
+        Matching amd label, asf-runner, and any ubuntu that does not contain arm
+        The last case is just in case - currently there are no public runners that have ARM
+        instances, but they can add them in the future. It might be that for compatibility
+        they will just add arm in the runner name - because currently GitHub users use just
+        one label "ubuntu-*" for all their work and depend on them being AMD ones.
+        """
+        return any(
+            [
+                "amd" == label.lower()
+                or "amd64" == label.lower()
+                or "x64" == label.lower()
+                or "asf-runner" == label
+                or ("ubuntu" in label and "arm" not in label.lower())
+                for label in json.loads(self.runs_on)
+            ]
+        )
+
+    @cached_property
+    def is_arm_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating ARM architecture.
+
+        Matches any label containing arm - including ASF-specific "asf-arm" label.
+
+        # See https://cwiki.apache.org/confluence/pages/viewpage.action?spaceKey=INFRA&title=ASF+Infra+provided+self-hosted+runners
+        """
+        return any(
+            [
+                "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
+                for label in json.loads(self.runs_on)
+            ]
+        )
+
+    @cached_property
+    def is_vm_runner(self) -> bool:
+        """Whether the runner is VM runner (managed by airflow)."""
+        # TODO: when we have it properly set-up with labels we should just check for
+        #       "airflow-runner" presence in runs_on
+        return self.is_airflow_runner
+
+    @cached_property
+    def is_k8s_runner(self) -> bool:
+        """Whether the runner is K8s runner (managed by airflow)."""
+        # TODO: when we have it properly set-up with labels we should just check for
+        #       "k8s-runner" presence in runs_on
+        return False
+
+    @cached_property
     def mssql_parallelism(self) -> int:
         # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
         return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1

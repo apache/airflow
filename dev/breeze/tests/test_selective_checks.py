@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import Any
 
 import pytest
+from rich.console import Console
 
 from airflow_breeze.global_constants import COMMITTERS, GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -35,17 +37,51 @@ def escape_ansi_colors(line):
     return ANSI_COLORS_MATCHER.sub("", line)
 
 
+# Can be replaced with cache when we move to Python 3.9 (when 3.8 is EOL)
+@lru_cache(maxsize=None)
+def get_rich_console() -> Console:
+    return Console(color_system="truecolor", force_terminal=True)
+
+
+def print_in_color(s: Any = ""):
+    get_rich_console().print(s)
+
+
 def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
     escaped_stderr = escape_ansi_colors(stderr)
-    for name, value in expected_outputs.items():
-        if value is None:
-            search_string = rf"^{re.escape(name)}="
-            if re.search(search_string, escaped_stderr, re.MULTILINE):
-                raise AssertionError(f"The {name} output should not be in {escaped_stderr}")
+    received_output_as_dict = dict(line.split("=", 1) for line in escaped_stderr.splitlines() if "=" in line)
+    for expected_key, expected_value in expected_outputs.items():
+        if expected_value is None:
+            if expected_key in received_output_as_dict:
+                print_in_color(f"\n[red]ERROR: The '{expected_key}' should not be present in:[/]")
+                print_in_color(received_output_as_dict)
+                print_in_color("\n")
+                assert expected_key is not None
+
         else:
-            search_string = rf"^{re.escape(name)}={re.escape(value)}$"
-            if not re.search(search_string, escaped_stderr, re.MULTILINE):
-                raise AssertionError(f"Expected {name}={value} not found in {escaped_stderr}")
+            received_value = received_output_as_dict.get(expected_key)
+            if received_value != expected_value:
+                if received_value is not None:
+                    print_in_color(f"\n[red]ERROR: The key '{expected_key}' has unexpected value:")
+                    print_in_color(received_value)
+                    print_in_color("Expected value:\n")
+                    print_in_color(expected_value)
+                    print_in_color("\nOutput received:")
+                    print_in_color(received_output_as_dict)
+                    print_in_color()
+                    assert expected_value == received_value
+                else:
+                    print_in_color(
+                        f"\n[red]ERROR: The key '{expected_key}' missing but "
+                        f"it is expected. Expected value:"
+                    )
+                    print_in_color(expected_value)
+                    print_in_color("\nOutput received:")
+                    print_in_color(received_output_as_dict)
+                    print_in_color()
+                    print_in_color(received_output_as_dict)
+                    print_in_color()
+                    assert received_value is not None
 
 
 @pytest.mark.parametrize(
@@ -1101,20 +1137,54 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 
 @pytest.mark.parametrize(
-    "github_event, github_actor, github_repository, pr_labels, github_context_dict, runs_on",
+    "github_event, github_actor, github_repository, pr_labels, github_context_dict, "
+    "runs_on, "
+    "is_self_hosted_runner, is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner",
     [
-        pytest.param(GithubEvents.PUSH, "user", "apache/airflow", [], dict(), "self-hosted", id="Push event"),
+        pytest.param(
+            GithubEvents.PUSH,
+            "user",
+            "apache/airflow",
+            [],
+            dict(),
+            '["self-hosted", "Linux", "X64"]',
+            "true",
+            "true",
+            "true",
+            "false",
+            "true",
+            "false",
+            id="Push event",
+        ),
         pytest.param(
             GithubEvents.PUSH,
             "user",
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Push event for private repo",
         ),
         pytest.param(
-            GithubEvents.PULL_REQUEST, "user", "apache/airflow", [], dict(), "ubuntu-22.04", id="Pull request"
+            GithubEvents.PULL_REQUEST,
+            "user",
+            "apache/airflow",
+            [],
+            dict(),
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
+            id="Pull request",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
@@ -1122,7 +1192,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request private repo",
         ),
         pytest.param(
@@ -1131,7 +1207,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(),
-            "self-hosted",
+            '["self-hosted", "Linux", "X64"]',
+            "true",
+            "true",
+            "true",
+            "false",
+            "true",
+            "false",
             id="Pull request committer",
         ),
         pytest.param(
@@ -1140,7 +1222,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request committer pr non-committer",
         ),
         pytest.param(
@@ -1149,7 +1237,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request private repo committer",
         ),
         pytest.param(
@@ -1158,7 +1252,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request target",
         ),
         pytest.param(
@@ -1167,7 +1267,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request target private repo",
         ),
         pytest.param(
@@ -1176,7 +1282,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(),
-            "self-hosted",
+            '["self-hosted", "Linux", "X64"]',
+            "true",
+            "true",
+            "true",
+            "false",
+            "true",
+            "false",
             id="Pull request target committer",
         ),
         pytest.param(
@@ -1185,7 +1297,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request target committer pr non-committer",
         ),
         pytest.param(
@@ -1194,7 +1312,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request targe private repo committer",
         ),
     ],
@@ -1206,6 +1330,12 @@ def test_runs_on(
     pr_labels: list[str],
     github_context_dict: dict[str, Any],
     runs_on: str,
+    is_self_hosted_runner: str,
+    is_airflow_runner: str,
+    is_amd_runner: str,
+    is_arm_runner: str,
+    is_vm_runner: str,
+    is_k8s_runner: str,
 ):
     stderr = SelectiveChecks(
         files=(),
@@ -1218,6 +1348,12 @@ def test_runs_on(
         default_branch="main",
     )
     assert_outputs_are_printed({"runs-on": runs_on}, str(stderr))
+    assert_outputs_are_printed({"is-self-hosted-runner": is_self_hosted_runner}, str(stderr))
+    assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
+    assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))
+    assert_outputs_are_printed({"is-arm-runner": is_arm_runner}, str(stderr))
+    assert_outputs_are_printed({"is-vm-runner": is_vm_runner}, str(stderr))
+    assert_outputs_are_printed({"is-k8s-runner": is_k8s_runner}, str(stderr))
 
 
 @pytest.mark.parametrize(

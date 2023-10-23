@@ -28,8 +28,12 @@ from pathlib import Path
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
 
-RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
-RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
+RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
+# we should get more sophisticated logic here in the future, but for now we just check if
+# we use self airflow, vm-based, amd hosted runner as a default
+# TODO: when we have it properly set-up with labels we should change it to
+# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
+RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
 SELF_HOSTED_RUNNERS_CPU_COUNT = 8
 
 ANSWER = ""
