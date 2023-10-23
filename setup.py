@@ -471,7 +471,6 @@ _devel_only_tests = [
     "coverage>=7.2",
     "pytest",
     "pytest-asyncio",
-    "pytest-capture-warnings",
     "pytest-cov",
     "pytest-httpx",
     "pytest-instafail",
