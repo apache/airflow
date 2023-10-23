@@ -311,13 +311,14 @@ def build_all_airflow_images(
     "--provider-id",
     type=BetterChoice(list(PROVIDER_DEPENDENCIES.keys())),
     required=False,
-    help="Provider to generate the requirements for",
+    help="Provider id to generate the requirements for",
 )
 @click.option(
     "--provider-version",
     type=str,
     required=False,
-    help="Provider to generate the requirements for",
+    help="Provider version to generate the requirements for i.e `2.1.0`. `latest` is also a supported value "
+    "to account for the most recent version of the provider",
 )
 @option_verbose
 @option_dry_run
