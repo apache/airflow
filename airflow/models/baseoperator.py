@@ -654,9 +654,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
     :param logger_name: Name of the logger used by the Operator to emit logs.
-        Default is "airflow.task.operators". If set to `None`, the logger name will fall back
-        to `{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
-        *airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
+        If set to `None` (default), the logger name will fall back to
+        `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
+        *airflow.task.operators.airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
     """
 
     # Implementing Operator.
