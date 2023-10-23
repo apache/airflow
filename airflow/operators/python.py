@@ -729,6 +729,10 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
     these paths can't move forward. The ``skipped`` states are propagated
     downstream to allow for the DAG state to fill up and the DAG run's state
     to be inferred.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchPythonVirtualenvOperator`
     """
 
     def execute(self, context: Context) -> Any:
@@ -910,6 +914,10 @@ class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
     Extends ExternalPythonOperator, so expects to get Python:
     virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path,
     so it can run on separate virtual environment similarly to ExternalPythonOperator.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchExternalPythonOperator`
     """
 
     def execute(self, context: Context) -> Any:

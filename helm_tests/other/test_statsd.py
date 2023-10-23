@@ -102,7 +102,7 @@ class TestStatsd:
             values=values,
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_scheduler_name(self):

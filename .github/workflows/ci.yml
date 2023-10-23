@@ -335,7 +335,6 @@ jobs:
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, build-ci-images]
-    if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
     env:
       RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
@@ -1736,10 +1735,8 @@ jobs:
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
         uses: actions/checkout@v3
-        if: needs.build-info.outputs.canary-run == 'true'
         with:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
@@ -1805,7 +1802,7 @@ jobs:
       - name: "Prepare providers packages for PROD build"
         run: >
           breeze release-management prepare-provider-packages
-          --package-list-file ./scripts/ci/installed_providers.txt
+          --package-list-file ./airflow/providers/installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"
