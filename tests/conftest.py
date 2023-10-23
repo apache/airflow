@@ -634,7 +634,6 @@ def dag_maker(request):
                 if "start_date" in default_args:
                     self.start_date = default_args.get("start_date")
             if not self.start_date:
-
                 if hasattr(request.module, "DEFAULT_DATE"):
                     self.start_date = getattr(request.module, "DEFAULT_DATE")
                 else:

@@ -169,7 +169,7 @@ class TestDataprocClusterTrigger:
             status=ClusterStatus(state=ClusterStatus.State.ERROR),
         )
 
-        actual_event = await (cluster_trigger.run()).asend(None)
+        actual_event = await cluster_trigger.run().asend(None)
         await asyncio.sleep(0.5)
 
         expected_event = TriggerEvent(
@@ -239,7 +239,7 @@ class TestDataprocBatchTrigger:
             }
         )
 
-        actual_event = await (batch_trigger.run()).asend(None)
+        actual_event = await batch_trigger.run().asend(None)
         await asyncio.sleep(0.5)
         assert expected_event == actual_event
 
@@ -252,7 +252,7 @@ class TestDataprocBatchTrigger:
 
         expected_event = TriggerEvent({"batch_id": TEST_BATCH_ID, "batch_state": Batch.State.FAILED})
 
-        actual_event = await (batch_trigger.run()).asend(None)
+        actual_event = await batch_trigger.run().asend(None)
         await asyncio.sleep(0.5)
         assert expected_event == actual_event
 
@@ -263,7 +263,7 @@ class TestDataprocBatchTrigger:
 
         expected_event = TriggerEvent({"batch_id": TEST_BATCH_ID, "batch_state": Batch.State.CANCELLED})
 
-        actual_event = await (batch_trigger.run()).asend(None)
+        actual_event = await batch_trigger.run().asend(None)
         await asyncio.sleep(0.5)
         assert expected_event == actual_event
 
@@ -314,7 +314,7 @@ class TestDataprocWorkflowTrigger:
                 "message": "Operation is successfully ended.",
             }
         )
-        actual_event = await (workflow_trigger.run()).asend(None)
+        actual_event = await workflow_trigger.run().asend(None)
         assert expected_event == actual_event
 
     @pytest.mark.asyncio
@@ -332,5 +332,5 @@ class TestDataprocWorkflowTrigger:
                 "message": "test_error",
             }
         )
-        actual_event = await (workflow_trigger.run()).asend(None)
+        actual_event = await workflow_trigger.run().asend(None)
         assert expected_event == actual_event

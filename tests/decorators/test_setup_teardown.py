@@ -1262,7 +1262,6 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["teardowntask2"].upstream_task_ids == {"mytask2", "setuptask2"}
 
     def test_check_for_circular_dependency(self, dag_maker):
-
         with dag_maker() as dag:
             s1 = make_task("s1", type_="classic", setup_=True)
             s2 = make_task("s2", type_="classic", setup_=True)
@@ -1285,7 +1284,6 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["t2"].downstream_task_ids == {"t1"}
 
     def test_mixing_construct_with_add_task(self, dag_maker):
-
         with dag_maker() as dag:
             s1 = make_task("s1", type_="classic")
             s2 = make_task("s2", type_="classic")

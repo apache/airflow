@@ -38,7 +38,6 @@ class RedisPublishOperator(BaseOperator):
     template_fields: Sequence[str] = ("channel", "message")
 
     def __init__(self, *, channel: str, message: str, redis_conn_id: str = "redis_default", **kwargs) -> None:
-
         super().__init__(**kwargs)
         self.redis_conn_id = redis_conn_id
         self.channel = channel

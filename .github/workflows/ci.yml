@@ -110,11 +110,17 @@ jobs:
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      docs-filter-list-as-string: ${{ steps.selective-checks.outputs.docs-filter-list-as-string }}
+      docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
-      runs-on: ${{ steps.selective-checks.outputs.runs-on }}
+      runs-on: ${{steps.selective-checks.outputs.runs-on}}
+      is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
+      is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
+      is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
+      is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
+      is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
+      is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
       has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
@@ -192,7 +198,7 @@ jobs:
   push-early-buildx-cache-to-github-registry:
     timeout-minutes: 50
     name: "Push Early Image Cache"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
     strategy:
@@ -264,7 +270,7 @@ jobs:
   check-that-image-builds-quickly:
     timeout-minutes: 5
     name: "Check that image builds quickly"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
       - push-early-buildx-cache-to-github-registry
@@ -295,7 +301,7 @@ jobs:
     name: >-
       ${{needs.build-info.outputs.build-job-description}} CI images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
@@ -326,13 +332,73 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
           BUILD_TIMEOUT_MINUTES: 70
 
+  generate-constraints:
+    permissions:
+      contents: read
+    timeout-minutes: 70
+    name: >
+      Preview constraints
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, build-ci-images]
+    env:
+      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
+      PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+    if: needs.build-info.outputs.image-build == 'true'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
+        run: breeze ci-image pull --run-in-parallel --tag-as-latest --wait-for-image
+      - name: "Source constraints"
+        shell: bash
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers
+      - name: "No providers constraints"
+        shell: bash
+        timeout-minutes: 25
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints-no-providers
+      - name: "PyPI constraints"
+        shell: bash
+        timeout-minutes: 25
+        run: >
+          breeze release-management generate-constraints --run-in-parallel
+          --airflow-constraints-mode constraints
+      - name: "Dependency upgrade summary"
+        shell: bash
+        run: |
+          for PYTHON_VERSION in ${{ env.PYTHON_VERSIONS }}; do
+            echo "Summarizing Python $PYTHON_VERSION"
+            cat "files/constraints-${PYTHON_VERSION}"/*.md >> $GITHUB_STEP_SUMMARY || true
+          done
+      - name: "Upload constraint artifacts"
+        uses: actions/upload-artifact@v3
+        with:
+          name: constraints
+          path: ./files/constraints-*/constraints-*.txt
+          retention-days: 7
+      - name: "Fix ownership"
+        run: breeze ci fix-ownership
+        if: always()
+
   build-prod-images:
     timeout-minutes: 80
     name: >
       ${{needs.build-info.outputs.build-job-description}} PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
-    needs: [build-info, build-ci-images]
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, build-ci-images, generate-constraints]
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -369,7 +435,7 @@ jobs:
   run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     steps:
       - name: Cleanup repo
@@ -394,7 +460,7 @@ jobs:
   tests-www:
     timeout-minutes: 10
     name: React WWW tests
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     if: needs.build-info.outputs.run-www-tests == 'true'
     steps:
@@ -422,7 +488,7 @@ jobs:
   test-openapi-client-generation:
     timeout-minutes: 10
     name: "Test OpenAPI client generation"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     if: needs.build-info.outputs.needs-api-codegen == 'true'
     steps:
@@ -439,7 +505,7 @@ jobs:
   test-examples-of-prod-image-building:
     timeout-minutes: 60
     name: "Test examples of production image building"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     if: needs.build-info.outputs.image-build == 'true'
     steps:
@@ -465,7 +531,7 @@ jobs:
   test-git-clone-on-windows:
     timeout-minutes: 5
     name: "Test git clone on Windows"
-    runs-on: windows-latest
+    runs-on: "windows-latest"
     needs: [build-info]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
@@ -473,7 +539,6 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-    if: needs.build-info.outputs.runs-on != 'self-hosted'
 
   wait-for-ci-images:
     timeout-minutes: 120
@@ -508,7 +573,7 @@ jobs:
   static-checks:
     timeout-minutes: 45
     name: "Static checks"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -553,7 +618,7 @@ jobs:
   static-checks-basic-checks-only:
     timeout-minutes: 30
     name: "Static checks: basic checks only"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -607,7 +672,7 @@ jobs:
   docs:
     timeout-minutes: 90
     name: "Build docs"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     if: needs.build-info.outputs.docs-build == 'true'
     env:
@@ -634,8 +699,7 @@ jobs:
             docs-inventory-
       - name: "Build docs"
         run: >
-          breeze build-docs
-          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          breeze build-docs ${{ needs.build-info.outputs.docs-list-as-string }}
       - name: "Clone airflow-site"
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
@@ -644,7 +708,7 @@ jobs:
         run: >
           breeze release-management publish-docs
           --override-versioned --run-in-parallel
-          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          ${{ needs.build-info.outputs.docs-list-as-string }}
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
       - name: "Generate back references for apache-airflow"
@@ -674,7 +738,7 @@ jobs:
   prepare-test-provider-packages-wheel:
     timeout-minutes: 80
     name: "Provider packages wheel (verify)"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -729,7 +793,7 @@ jobs:
   provider-airflow-compatibility-check:
     timeout-minutes: 80
     name: "Providers Airflow 2.5 compatibility check"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -796,7 +860,7 @@ jobs:
   prepare-install-provider-packages-sdist:
     timeout-minutes: 80
     name: "Provider packages sdist (install)"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -846,9 +910,11 @@ jobs:
   test-airflow-release-commands:
     timeout-minutes: 80
     name: "Test Airflow release commands"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
-    if: needs.build-info.outputs.runs-on == 'self-hosted'
+    if: >
+      needs.build-info.outputs.is-self-hosted-runner == 'true'
+      && needs.build-info.outputs.is-airflow-runner == 'false'
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
@@ -881,7 +947,7 @@ jobs:
   tests-helm:
     timeout-minutes: 80
     name: "Unit tests Helm: ${{matrix.helm-test-package}}"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
       fail-fast: false
@@ -925,7 +991,7 @@ jobs:
     name: >
       Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
@@ -981,7 +1047,7 @@ jobs:
       LatestBotoPostgres${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1030,7 +1096,7 @@ jobs:
       MinSQLAlchemy${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1079,7 +1145,7 @@ jobs:
       InProgressDisabledPostgres${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1127,7 +1193,7 @@ jobs:
     name: >
       MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
@@ -1180,7 +1246,7 @@ jobs:
     name: >
       MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
@@ -1206,7 +1272,8 @@ jobs:
       PARALLELISM: "${{needs.build-info.outputs.mssql-parallelism}}"
     if: >
       needs.build-info.outputs.run-tests == 'true' &&
-      (needs.build-info.outputs.runs-on == 'self-hosted' ||
+      (needs.build-info.outputs.is-self-hosted-runner == 'true' &&
+       needs.build-info.outputs.is-airflow-runner == 'true' ||
       needs.build-info.outputs.full-tests-needed == 'true' ||
       needs.build-info.outputs.has-migrations == 'true')
     steps:
@@ -1239,7 +1306,7 @@ jobs:
     timeout-minutes: 130
     name: >
       Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
       matrix:
@@ -1287,7 +1354,7 @@ jobs:
   tests-integration-postgres:
     timeout-minutes: 130
     name: Integration Tests Postgres
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1317,35 +1384,35 @@ jobs:
         run: |
           breeze testing integration-tests --integration cassandra
           breeze down
-        if: needs.build-info.outputs.runs-on != 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner != 'true'
       - name: "Integration Tests Postgres: mongo"
         run: |
           breeze testing integration-tests --integration mongo
           breeze down
-        if: needs.build-info.outputs.runs-on != 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner != 'true'
       - name: "Integration Tests Postgres: pinot"
         run: |
           breeze testing integration-tests --integration pinot
           breeze down
-        if: needs.build-info.outputs.runs-on != 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner != 'true'
       - name: "Integration Tests Postgres: celery"
         run: |
           breeze testing integration-tests --integration celery
           breeze down
-        if: needs.build-info.outputs.runs-on != 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner != 'true'
       - name: "Integration Tests Postgres: trino, kerberos"
         run: |
           breeze testing integration-tests --integration trino --integration kerberos
           breeze down
-        if: needs.build-info.outputs.runs-on != 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner != 'true'
       - name: "Integration Tests Postgres: Kafka"
         run: |
           breeze testing integration-tests --integration kafka
           breeze down
-        if: needs.build-info.outputs.runs-on != 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner != 'true'
       - name: "Integration Tests Postgres: all-testable"
         run: breeze testing integration-tests --integration all-testable
-        if: needs.build-info.outputs.runs-on == 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner == 'true'
       - name: >
           Post Tests success: Integration Postgres"
         uses: ./.github/actions/post_tests_success
@@ -1359,7 +1426,7 @@ jobs:
   tests-integration-mysql:
     timeout-minutes: 130
     name: Integration Tests MySQL
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
@@ -1379,32 +1446,32 @@ jobs:
       - name: Cleanup repo
         shell: bash
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.runs-on == 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner == 'true'
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-        if: needs.build-info.outputs.runs-on == 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner == 'true'
       - name: "Prepare breeze & CI image: ${{env.PYTHON_MAJOR_MINOR_VERSION}}:${{env.IMAGE_TAG}}"
         uses: ./.github/actions/prepare_breeze_and_image
-        if: needs.build-info.outputs.runs-on == 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner == 'true'
       - name: "Integration Tests MySQL: all-testable"
         run: breeze testing integration-tests --integration all-testable
-        if: needs.build-info.outputs.runs-on == 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner == 'true'
       - name: >
           Post Tests success: Integration MySQL"
         uses: ./.github/actions/post_tests_success
-        if: success() && needs.build-info.outputs.runs-on == 'self-hosted'
+        if: needs.build-info.outputs.is-airflow-runner == 'true'
       - name: >
           Post Tests failure: Integration MySQL"
         uses: ./.github/actions/post_tests_failure
-        if: failure() && needs.build-info.outputs.runs-on == 'self-hosted'
+        if: failure()
 
 
   tests-quarantined:
     timeout-minutes: 60
     name: "Quarantined tests"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     continue-on-error: true
     needs: [build-info, wait-for-ci-images]
     env:
@@ -1415,7 +1482,7 @@ jobs:
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.runs-on == 'self-hosted'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.is-airflow-runner == 'true'
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1468,7 +1535,7 @@ jobs:
   summarize-warnings:
     timeout-minutes: 15
     name: "Summarize warnings"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
       - tests-postgres
@@ -1502,7 +1569,7 @@ jobs:
   wait-for-prod-images:
     timeout-minutes: 80
     name: "Wait for & verify PROD images"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images, build-prod-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
@@ -1544,7 +1611,7 @@ jobs:
   test-docker-compose-quick-start:
     timeout-minutes: 60
     name: "Test docker-compose quick start"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-prod-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
@@ -1574,7 +1641,7 @@ jobs:
     name: "\
       Helm: ${{matrix.executor}} - ${{matrix.use-standard-naming}} - \
       ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-prod-images]
     strategy:
       matrix:
@@ -1640,13 +1707,13 @@ jobs:
         run: breeze ci fix-ownership
         if: always()
 
-  constraints:
+  update-constraints:
     permissions:
       contents: write
       packages: write
     timeout-minutes: 80
-    name: "Constraints"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    name: "Update constraints"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
       - docs
@@ -1658,10 +1725,12 @@ jobs:
       - tests-postgres
       - tests-integration-postgres
       - tests-integration-mysql
-      - push-early-buildx-cache-to-github-registry
+      # Skip when generate constraints fails
+      - generate-constraints
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
     if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
     steps:
       - name: Cleanup repo
@@ -1671,33 +1740,23 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
-        run: breeze ci-image pull --run-in-parallel --tag-as-latest
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      - name: "Generate constraints"
-        run: |
-          breeze release-management generate-constraints --run-in-parallel \
-              --airflow-constraints-mode constraints-source-providers
-          breeze release-management generate-constraints \
-              --run-in-parallel --airflow-constraints-mode constraints-no-providers
-#          breeze release-management generate-constraints \
-#              --run-in-parallel --airflow-constraints-mode constraints
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
-        if: needs.build-info.outputs.canary-run == 'true'
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
         uses: actions/checkout@v3
-        if: needs.build-info.outputs.canary-run == 'true'
         with:
           path: "repo"
           ref: ${{ steps.constraints-branch.outputs.branch }}
           persist-credentials: false
+      - name: "Download constraints from the constraints preview"
+        uses: actions/download-artifact@v3
+        with:
+          name: constraints
+          path: ./files
+      - name: "Diff in constraints for ${{needs.build-info.outputs.python-versions}}"
+        run: ./scripts/ci/constraints/ci_diff_constraints.sh
+      # only commit and push constraints in canary runs (main)
       - name: "Commit changed constraint files for ${{needs.build-info.outputs.python-versions}}"
         run: ./scripts/ci/constraints/ci_commit_constraints.sh
         if: needs.build-info.outputs.canary-run == 'true'
@@ -1708,9 +1767,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.constraints-branch.outputs.branch }}
           directory: "repo"
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()
 
   # Push BuildX cache to GitHub Registry in Apache repository, if all tests are successful and build
   # is executed as result of direct push to "main" or one of the "vX-Y-test" branches
@@ -1719,11 +1775,10 @@ jobs:
   push-buildx-cache-to-github-registry:
     timeout-minutes: 50
     name: "Push Image Cache"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
-      - constraints
-      - docs
+      - update-constraints
     if: needs.build-info.outputs.canary-run == 'true'
     strategy:
       fail-fast: false
@@ -1754,7 +1809,7 @@ jobs:
       - name: "Prepare providers packages for PROD build"
         run: >
           breeze release-management prepare-provider-packages
-          --package-list-file ./scripts/ci/installed_providers.txt
+          --package-list-file ./airflow/providers/installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"
@@ -1808,16 +1863,20 @@ jobs:
         run: breeze ci fix-ownership
         if: always()
 
+  # This is only a check if ARM images are successfully building when committer runs PR from
+  # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
+  # There is no point in running this one in "canary" run, because the above step is doing the
+  # same build anyway.
   build-ci-arm-images:
     timeout-minutes: 50
     name: >
       Build CI ARM images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
-      - wait-for-ci-images
-      - wait-for-prod-images
+      - generate-constraints
+      - docs
       - static-checks
       - tests-sqlite
       - tests-mysql
@@ -1831,7 +1890,6 @@ jobs:
       # Force more parallelism for build even on small instances
       PARALLELISM: 6
     if: >
-      needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       needs.build-info.outputs.in-workflow-build == 'true' &&
       needs.build-info.outputs.canary-run != 'true'
     steps:

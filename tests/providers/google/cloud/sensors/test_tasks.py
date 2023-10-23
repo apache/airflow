@@ -37,7 +37,6 @@ FULL_TASK_PATH = "projects/test-project/locations/asia-east2/queues/test-queue/t
 class TestCloudTasksEmptySensor:
     @mock.patch("airflow.providers.google.cloud.sensors.tasks.CloudTasksHook")
     def test_queue_empty(self, mock_hook):
-
         operator = TaskQueueEmptySensor(
             task_id=TASK_NAME, location=LOCATION, project_id=PROJECT_ID, queue_name=QUEUE_ID, poke_interval=0
         )

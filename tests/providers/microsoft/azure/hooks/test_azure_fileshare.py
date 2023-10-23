@@ -58,14 +58,12 @@ class TestAzureFileshareHook:
         )
 
     def test_key_and_connection(self):
-
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_test_key")
         assert hook._conn_id == "azure_fileshare_test_key"
         share_client = hook.share_service_client
         assert isinstance(share_client, ShareServiceClient)
 
     def test_sas_token(self):
-
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras")
         assert hook._conn_id == "azure_fileshare_extras"
         share_client = hook.share_service_client

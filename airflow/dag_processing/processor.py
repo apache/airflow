@@ -479,7 +479,6 @@ class DagFileProcessor(LoggingMixin):
                 if (ti.dag_id, ti.task_id, next_info.logical_date) in recorded_slas_query:
                     continue
                 if next_info.logical_date + task.sla < ts:
-
                     sla_miss = SlaMiss(
                         task_id=ti.task_id,
                         dag_id=ti.dag_id,
@@ -884,7 +883,6 @@ class DagFileProcessor(LoggingMixin):
         pickle_dags: bool = False,
         session=NEW_SESSION,
     ):
-
         import_errors = DagBag._sync_to_db(dags=dags, processor_subdir=dag_directory, session=session)
         session.commit()
 
