@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pendulum
 import pytest
 import time_machine
-from pendulum.tz.timezone import Timezone, UTC
+from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG
@@ -72,8 +72,7 @@ class TestTimeSensorAsync:
         with DAG("test_target_time_aware", start_date=timezone.datetime(2020, 1, 1, 23, 0)):
             aware_time = time(0, 1).replace(tzinfo=pendulum.local_timezone())
             op = TimeSensorAsync(task_id="test", target_time=aware_time)
-            assert hasattr(op.target_datetime.tzinfo, "offset")
-            assert op.target_datetime.tzinfo.offset == 0
+            assert op.target_datetime.tzinfo == timezone.utc
 
     def test_target_time_naive_dag_timezone(self):
         """
@@ -85,4 +84,4 @@ class TestTimeSensorAsync:
         ):
             op = TimeSensorAsync(task_id="test", target_time=pendulum.time(9, 0))
             assert op.target_datetime.time() == pendulum.time(1, 0)
-            assert op.target_datetime.tzinfo == UTC
+            assert op.target_datetime.tzinfo == timezone.utc
