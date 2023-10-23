@@ -662,6 +662,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
     "CELERY_FLOWER": "celery_flower",
+    "STANDALONE_DAG_PROCESSOR": "standalone_dag_processor",
 }
 
 DOCKER_VARIABLE_CONSTANTS = {
