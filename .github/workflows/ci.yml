@@ -1718,7 +1718,6 @@ jobs:
       - tests-postgres
       - tests-integration-postgres
       - tests-integration-mysql
-      - push-early-buildx-cache-to-github-registry
       # Skip when generate constraints fails
       - generate-constraints
     env:
@@ -1772,8 +1771,7 @@ jobs:
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
-      - generate-constraints
-      - docs
+      - update-constraints
     if: needs.build-info.outputs.canary-run == 'true'
     strategy:
       fail-fast: false
@@ -1858,6 +1856,10 @@ jobs:
         run: breeze ci fix-ownership
         if: always()
 
+  # This is only a check if ARM images are successfully building when committer runs PR from
+  # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
+  # There is no point in running this one in "canary" run, because the above step is doing the
+  # same build anyway.
   build-ci-arm-images:
     timeout-minutes: 50
     name: >
@@ -1866,8 +1868,8 @@ jobs:
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
-      - wait-for-ci-images
-      - wait-for-prod-images
+      - generate-constraints
+      - docs
       - static-checks
       - tests-sqlite
       - tests-mysql
@@ -1881,7 +1883,6 @@ jobs:
       # Force more parallelism for build even on small instances
       PARALLELISM: 6
     if: >
-      needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       needs.build-info.outputs.in-workflow-build == 'true' &&
       needs.build-info.outputs.canary-run != 'true'
     steps:
