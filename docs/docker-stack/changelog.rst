@@ -60,7 +60,7 @@ Airflow 2.7
 
 * 2.7.3
 
-  * You can specify type of MySQL Client libraries when you build the image via ``INSTALL_MYSQL_CLIENT_TYPE``
+  * Add experimental feature for select type of MySQL Client libraries during the build custom image via ``INSTALL_MYSQL_CLIENT_TYPE``
     build arg. ``mysql`` for install MySQL client libraries from `Oracle APT repository <https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/>`_,
     ``mariadb`` for install MariaDB client libraries from `MariaDB repository <https://mariadb.com/kb/en/mariadb-package-repository-setup-and-usage/#mariadb-repository>`_.
     The selection of MySQL Client libraries only available on AMD64 (x86_64) for ARM docker image it will always install
