@@ -17,18 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-import base64
 import datetime
-import json
 import logging
 import os
 import random
 import uuid
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Container, Iterable, Sequence
 
-import re2
+import jwt
 from flask import flash, g, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -42,6 +40,7 @@ from flask_appbuilder.const import (
     LOGMSG_ERR_SEC_AUTH_LDAP_TLS,
     LOGMSG_WAR_SEC_LOGIN_FAILED,
     LOGMSG_WAR_SEC_NOLDAP_OBJ,
+    MICROSOFT_KEY_SET_URL,
 )
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
@@ -78,6 +77,7 @@ if TYPE_CHECKING:
 
     from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.fab.models import User
+    from airflow.www.fab_security.manager import BaseSecurityManager
 
 log = logging.getLogger(__name__)
 
@@ -1496,7 +1496,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 
-    def oauth_user_info_getter(self, f):
+    def oauth_user_info_getter(
+        self,
+        func: Callable[[BaseSecurityManager, str, dict[str, Any] | None], dict[str, Any]],
+    ):
         """
         Decorator function to be the OAuth user info getter for all the providers.
 
@@ -1510,24 +1513,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 if provider == 'github':
                     me = sm.oauth_remotes[provider].get('user')
                     return {'username': me.data.get('login')}
-                else:
-                    return {}
+                return {}
         """
 
-        def wraps(provider, response=None):
-            ret = f(self, provider, response=response)
-            # Checks if decorator is well behaved and returns a dict as supposed.
-            if not isinstance(ret, dict):
-                log.error("OAuth user info decorated function did not returned a dict, but: %s", type(ret))
-                return {}
-            return ret
+        def wraps(provider: str, response: dict[str, Any] | None = None) -> dict[str, Any]:
+            return func(self, provider, response)
 
         self.oauth_user_info = wraps
         return wraps
 
-    def get_oauth_user_info(self, provider, resp):
-        """
-        Get the OAuth user information from different OAuth APIs.
+    def get_oauth_user_info(self, provider: str, resp: dict[str, Any]) -> dict[str, Any]:
+        """There are different OAuth APIs with different ways to retrieve user info.
 
         All providers have different ways to retrieve user info.
         """
@@ -1567,23 +1563,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "last_name": data.get("family_name", ""),
                 "email": data.get("email", ""),
             }
-        # for Azure AD Tenant. Azure OAuth response contains
-        # JWT token which has user info.
-        # JWT token needs to be base64 decoded.
-        # https://docs.microsoft.com/en-us/azure/active-directory/develop/
-        # active-directory-protocols-oauth-code
         if provider == "azure":
-            log.debug("Azure response received : %s", resp)
-            id_token = resp["id_token"]
-            log.debug(str(id_token))
-            me = self._azure_jwt_token_parse(id_token)
-            log.debug("Parse JWT token : %s", me)
+            me = self._decode_and_validate_azure_jwt(resp["id_token"])
+            log.debug("User info from Azure: %s", me)
+            # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-token-claims-reference#payload-claims
             return {
-                "name": me.get("name", ""),
-                "email": me["upn"],
+                "email": me["email"],
                 "first_name": me.get("given_name", ""),
                 "last_name": me.get("family_name", ""),
-                "id": me["oid"],
                 "username": me["oid"],
                 "role_keys": me.get("roles", []),
             }
@@ -1836,52 +1823,22 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ---------------
     """
 
-    @staticmethod
-    def _azure_parse_jwt(token):
-        """
-        Parse Azure JWT token content.
+    def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
+        import requests
 
-        :param token: the JWT token
+        return requests.get(MICROSOFT_KEY_SET_URL).json()
 
-        :meta private:
-        """
-        jwt_token_parts = r"^([^\.\s]*)\.([^\.\s]+)\.([^\.\s]*)$"
-        matches = re2.search(jwt_token_parts, token)
-        if not matches or len(matches.groups()) < 3:
-            log.error("Unable to parse token.")
-            return {}
-        return {
-            "header": matches.group(1),
-            "Payload": matches.group(2),
-            "Sig": matches.group(3),
-        }
+    def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
+        verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)
+        if verify_signature:
+            from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
-    @staticmethod
-    def _azure_jwt_token_parse(token):
-        """
-        Parse and decode Azure JWT token.
+            keyset = JsonWebKey.import_key_set(self._get_microsoft_jwks())
+            claims = authlib_jwt.decode(id_token, keyset)
+            claims.validate()
+            return claims
 
-        :param token: the JWT token
-
-        :meta private:
-        """
-        jwt_split_token = FabAirflowSecurityManagerOverride._azure_parse_jwt(token)
-        if not jwt_split_token:
-            return
-
-        jwt_payload = jwt_split_token["Payload"]
-        # Prepare for base64 decoding
-        payload_b64_string = jwt_payload
-        payload_b64_string += "=" * (4 - (len(jwt_payload) % 4))
-        decoded_payload = base64.urlsafe_b64decode(payload_b64_string.encode("ascii"))
-
-        if not decoded_payload:
-            log.error("Payload of id_token could not be base64 url decoded.")
-            return
-
-        jwt_decoded_payload = json.loads(decoded_payload.decode("utf-8"))
-
-        return jwt_decoded_payload
+        return jwt.decode(id_token, options={"verify_signature": False})
 
     def _ldap_bind_indirect(self, ldap, con) -> None:
         """

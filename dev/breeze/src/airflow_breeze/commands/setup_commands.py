@@ -428,7 +428,7 @@ def get_commands() -> list[str]:
         for line in content.splitlines():
             strip_line = line.strip()
             if strip_line and not strip_line.startswith("#"):
-                results.append(":".join(strip_line.split(":")[:-1]))
+                results.append(strip_line.rpartition(":")[0])
     return results
 
 

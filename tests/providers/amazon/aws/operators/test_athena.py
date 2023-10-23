@@ -36,12 +36,13 @@ MOCK_DATA = {
     "task_id": "test_athena_operator",
     "query": "SELECT * FROM TEST_TABLE",
     "database": "TEST_DATABASE",
+    "catalog": "AwsDataCatalog",
     "outputLocation": "s3://test_s3_bucket/",
     "client_request_token": "eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
     "workgroup": "primary",
 }
 
-query_context = {"Database": MOCK_DATA["database"]}
+query_context = {"Database": MOCK_DATA["database"], "Catalog": MOCK_DATA["catalog"]}
 result_configuration = {"OutputLocation": MOCK_DATA["outputLocation"]}
 
 
@@ -69,9 +70,26 @@ class TestAthenaOperator:
         assert self.athena.task_id == MOCK_DATA["task_id"]
         assert self.athena.query == MOCK_DATA["query"]
         assert self.athena.database == MOCK_DATA["database"]
+        assert self.athena.catalog == MOCK_DATA["catalog"]
         assert self.athena.aws_conn_id == "aws_default"
         assert self.athena.client_request_token == MOCK_DATA["client_request_token"]
         assert self.athena.sleep_time == 0
+
+    @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
+    @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_run_override_catalog(self, mock_conn, mock_run_query, mock_check_query_status):
+        query_context_catalog = {"Database": MOCK_DATA["database"], "Catalog": "MyCatalog"}
+        self.athena.catalog = "MyCatalog"
+        self.athena.execute({})
+        mock_run_query.assert_called_once_with(
+            MOCK_DATA["query"],
+            query_context_catalog,
+            result_configuration,
+            MOCK_DATA["client_request_token"],
+            MOCK_DATA["workgroup"],
+        )
+        assert mock_check_query_status.call_count == 1
 
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
