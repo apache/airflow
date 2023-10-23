@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime as dt
-from functools import lru_cache
 from typing import overload
 
 import pendulum
@@ -27,11 +26,14 @@ from pendulum.datetime import DateTime
 from pendulum.tz import fixed_timezone
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-# UTC time zone as a FixedTimezone instance (subclass of tzinfo)
-# This type uses for compatibility with type provided by pendulum 2.x
+from airflow.compat.functools import cache
+
+# UTC time zone as a Timezone instance (subclass of tzinfo)
+# This type uses for compatibility between pendulum v2 and v3
 # - in pendulum 2.x ``pendulum.tz.timezone`` returns FixedTimezone
 # - in pendulum 3.x ``pendulum.timezone`` returns Timezone
-utc = FixedTimezone(offset=0, name="UTC")
+# Same is valid for pendulum.tz.UTC
+utc = Timezone("UTC")
 
 
 def is_localized(value):
@@ -281,7 +283,7 @@ def td_format(td_object: None | dt.timedelta | float | int) -> str | None:
     return joined
 
 
-@lru_cache(maxsize=None)
+@cache
 def parse_timezone(name: str | int) -> Timezone | FixedTimezone:
     """
     Parse timezone and return one of the pendulum Timezone.

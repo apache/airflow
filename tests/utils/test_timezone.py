@@ -134,11 +134,17 @@ def test_parse_timezone_iana(tz_name):
     assert parse_timezone(tz_name) is tz
 
 
+@pytest.mark.parametrize("tz_name", ["utc", "UTC", "uTc"])
+def test_parse_timezone_utc(tz_name):
+    tz = parse_timezone(tz_name)
+    assert tz.name == "UTC"
+    assert parse_timezone(tz_name) is tz
+    assert tz is timezone.utc, "Expected that UTC timezone is same object as `airflow.utils.timezone.utc`"
+
+
 @pytest.mark.parametrize(
     "tz_name, expected_offset, expected_name",
     [
-        pytest.param("UTC", 0, "UTC", id="UTC"),
-        pytest.param("utc", 0, "UTC", id="utc-lower-case"),
         pytest.param(0, 0, "+00:00", id="zero-offset"),
         pytest.param(-3600, -3600, "-01:00", id="1-hour-behind"),
         pytest.param(19800, 19800, "+05:30", id="5.5-hours-ahead"),
