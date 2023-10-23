@@ -5838,7 +5838,9 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
 def restrict_to_dev(f):
     def wrapper(*args, **kwargs):
         if not os.environ.get("AIRFLOW_ENV", None) == "development":
-            logging.error("You can only access this view in development mode")
+            logging.error(
+                "You can only access this view in development mode. Set AIRFLOW_ENV=development to view it."
+            )
             return abort(404)
         return f(*args, **kwargs)
 
