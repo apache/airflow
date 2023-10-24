@@ -1227,7 +1227,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self):
         state = dict(self.__dict__)
-        del state["_log"]
+        if self._log:
+            del state["_log"]
 
         return state
 
