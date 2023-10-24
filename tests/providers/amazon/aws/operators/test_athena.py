@@ -53,9 +53,9 @@ class TestAthenaOperator:
             "start_date": DEFAULT_DATE,
         }
 
-        self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", default_args=args, schedule="@once")
+        self.dag = DAG(TEST_DAG_ID, default_args=args, schedule="@once")
 
-        self.athena = AthenaOperator(
+        self.default_op_kwargs = dict(
             task_id="test_athena_operator",
             query="SELECT * FROM TEST_TABLE",
             database="TEST_DATABASE",
@@ -63,15 +63,37 @@ class TestAthenaOperator:
             client_request_token="eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
             sleep_time=0,
             max_polling_attempts=3,
-            dag=self.dag,
         )
+        self.athena = AthenaOperator(**self.default_op_kwargs, aws_conn_id=None, dag=self.dag)
+
+    def test_base_aws_op_attributes(self):
+        op = AthenaOperator(**self.default_op_kwargs)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+        assert op.hook.log_query is True
+
+        op = AthenaOperator(
+            **self.default_op_kwargs,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+            log_query=False,
+        )
+        assert op.hook.aws_conn_id == "aws-test-custom-conn"
+        assert op.hook._region_name == "eu-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+        assert op.hook.log_query is False
 
     def test_init(self):
         assert self.athena.task_id == MOCK_DATA["task_id"]
         assert self.athena.query == MOCK_DATA["query"]
         assert self.athena.database == MOCK_DATA["database"]
         assert self.athena.catalog == MOCK_DATA["catalog"]
-        assert self.athena.aws_conn_id == "aws_default"
         assert self.athena.client_request_token == MOCK_DATA["client_request_token"]
         assert self.athena.sleep_time == 0
 
