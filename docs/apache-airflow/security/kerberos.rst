@@ -100,11 +100,17 @@ Launch the ticket renewer by
     # run ticket renewer
     airflow kerberos
 
-To support more advanced deployment models for using kerberos in an init fashion or sidecar fashion,
+To support more advanced deployment models for using kerberos in daemon or one-time fashion,
 you can specify the mode while running the ``airflow kerberos`` as either "daemon" or "one-time".
 
 * daemon: The airflow kerberos process will run forever
 * one-time: The airflow kerberos will run once and exit. In case of failure the main task won't spin up.
+
+Example usages:
+``
+airflow kerberos --mode daemon
+airflow kerberos --mode one-time
+``
 
 Hadoop
 ^^^^^^
