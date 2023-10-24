@@ -155,7 +155,7 @@ class ClearTaskInstanceFormSchema(Schema):
 class SetTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of setting state of task instance of a DAG."""
 
-    dry_run = fields.Boolean(dump_default=True)
+    dry_run = fields.Boolean(load_default=True)
     task_id = fields.Str(required=True)
     execution_date = fields.DateTime(validate=validate_istimezone)
     dag_run_id = fields.Str()
