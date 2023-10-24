@@ -100,6 +100,12 @@ Launch the ticket renewer by
     # run ticket renewer
     airflow kerberos
 
+To support more advanced deployment models for using kerberos in an init fashion or sidecar fashion, you can specify the mode
+field in your config.yml, specify mode as either "init" or "sidecar".
+
+* Sidecar: The airflow kerberos process will run forever
+* Init: The airflow kerberos will run once and exit. In case of failure the main container won't spin up.
+
 Hadoop
 ^^^^^^
 

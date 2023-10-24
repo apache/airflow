@@ -2350,6 +2350,14 @@ triggerer:
 kerberos:
   description: ~
   options:
+    mode:
+      description: |
+        Specify the mode in which kerberos container will run, can be sidecar mode vs init container mode.
+        The sidecar mode runs indefinitely but the init container mode performs kinit once and exits.
+      version_added: 2.7.3
+      type: string
+      example: ~
+      default: "sidecar"
     ccache:
       description: |
         Location of your ccache file once kinit has been performed.

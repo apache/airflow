@@ -46,6 +46,10 @@ NEED_KRB181_WORKAROUND: bool | None = None
 
 log = logging.getLogger(__name__)
 
+SIDECAR_MODE = "sidecar"
+INIT_MODE = "init"
+DEFAULT_MODE = SIDECAR_MODE
+
 
 def get_kerberos_principle(principal: str | None) -> str:
     """Retrieve Kerberos principal. Fallback to principal from Airflow configuration if not provided."""
@@ -188,6 +192,16 @@ def run(principal: str | None, keytab: str):
         log.warning("Keytab renewer not starting, no keytab configured")
         sys.exit(0)
 
-    while True:
+    mode = conf.get("kerberos", "mode")
+    if mode != INIT_MODE or mode != SIDECAR_MODE:
+        mode = DEFAULT_MODE
+
+    log.info("Using airflow kerberos mode: %s", mode)
+
+    if mode == SIDECAR_MODE:
+        while True:
+            renew_from_kt(principal, keytab)
+            time.sleep(conf.getint("kerberos", "reinit_frequency"))
+    else:
         renew_from_kt(principal, keytab)
         time.sleep(conf.getint("kerberos", "reinit_frequency"))
