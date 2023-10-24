@@ -67,6 +67,18 @@ the aiobotocore module to be installed.
 
 .. _howto/operator:EmrServerlessStopApplicationOperator:
 
+Open Application UIs
+""""""""""""""""""""
+
+The operator can also be configured to generate one-time links to the application UIs and Spark stdout logs
+by passing the ``enable_application_ui_links=True`` as a parameter.
+
+You need to ensure you have the following IAM permissions to generate the dashboard link.
+
+.. code-block::
+
+        "emr-serverless:GetDashboardForJobRun"
+
 Stop an EMR Serverless Application
 ==================================
 

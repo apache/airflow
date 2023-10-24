@@ -1173,6 +1173,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
+    :param enable_application_ui_links: If True, the operator will generate one-time links to EMR Serverless application UIs.
+        The generated links will allow any user with access to the DAG to see the Spark or Tez UI or Spark stdout logs.
+        Defaults to False.
     """
 
     template_fields: Sequence[str] = (
@@ -1191,9 +1194,18 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
     @property
     def operator_extra_links(self):
-        op_extra_links = [EmrServerlessDashboardLink()]
-        if "sparkSubmit" in self.job_driver:
-            op_extra_links.extend([EmrServerlessLogsLink()])
+        """
+        Dynamically add extra links depending on the job type and if they're enabled.
+
+        If S3 or CloudWatch monitoring configurations exist, add links directly to the relevant conoles.
+        Only add dashboard links if they're explicitly enabled. These are one-time links that any user can acccess,
+        but expire on first click or one hour, whichever comes first.
+        """
+        op_extra_links = []
+        if self.enable_application_ui_links:
+            op_extra_links.extend([EmrServerlessDashboardLink()])
+            if "sparkSubmit" in self.job_driver:
+                op_extra_links.extend([EmrServerlessLogsLink()])
         if self.has_monitoring_enabled("s3MonitoringConfiguration"):
             op_extra_links.extend([EmrServerlessS3LogsLink()])
         if self.has_monitoring_enabled("cloudWatchLoggingConfiguration"):
@@ -1217,6 +1229,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        enable_application_ui_links: bool = False,
         **kwargs,
     ):
         if waiter_check_interval_seconds is NOTSET:
@@ -1252,6 +1265,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.job_id: str | None = None
         self.deferrable = deferrable
+        self.enable_application_ui_links = enable_application_ui_links
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
