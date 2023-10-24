@@ -40,16 +40,12 @@ ExecutorConfigType = Dict[str, Any]
 
 CONFIG_GROUP_NAME = "aws_ecs_executor"
 
-RUN_TASK_KWARG_DEFAULTS = {
-    "assign_public_ip": "False",
-    "launch_type": "FARGATE",
-    "platform_version": "LATEST",
-}
-
 CONFIG_DEFAULTS = {
     "conn_id": "aws_default",
     "max_run_task_attempts": "3",
-    **RUN_TASK_KWARG_DEFAULTS,
+    "assign_public_ip": "False",
+    "launch_type": "FARGATE",
+    "platform_version": "LATEST",
 }
 
 

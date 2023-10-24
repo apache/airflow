@@ -30,13 +30,11 @@ below for documentation on the parameters accepted by the Boto3 run_task functio
 from __future__ import annotations
 
 import json
-from copy import deepcopy
 from json import JSONDecodeError
 
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_GROUP_NAME,
-    RUN_TASK_KWARG_DEFAULTS,
     AllEcsConfigKeys,
     RunTaskKwargsConfigKeys,
     camelize_dict_keys,
@@ -50,7 +48,7 @@ def _fetch_templated_kwargs() -> dict[str, str]:
     return json.loads(str(run_task_kwargs_value))
 
 
-def _fetch_explicit_kwargs() -> dict[str, str]:
+def _fetch_config_values() -> dict[str, str]:
     return prune_dict(
         {key: conf.get(CONFIG_GROUP_NAME, key, fallback=None) for key in RunTaskKwargsConfigKeys()}
     )
@@ -59,9 +57,8 @@ def _fetch_explicit_kwargs() -> dict[str, str]:
 def build_task_kwargs() -> dict:
     # This will put some kwargs at the root of the dictionary that do NOT belong there. However,
     # the code below expects them to be there and will rearrange them as necessary.
-    task_kwargs = deepcopy(RUN_TASK_KWARG_DEFAULTS)
+    task_kwargs = _fetch_config_values()
     task_kwargs.update(_fetch_templated_kwargs())
-    task_kwargs.update(_fetch_explicit_kwargs())
 
     # There can only be 1 count of these containers
     task_kwargs["count"] = 1  # type: ignore

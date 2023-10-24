@@ -64,14 +64,14 @@ Options <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-config.
 .. note::
    Configuration options must be consistent across all the hosts/environments running the Airflow components (Scheduler, Webserver, ECS Task containers, etc). See `here <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html>`__ for more details on setting configurations.
 
-In the case of conflicts, the order of precedence is:
+In the case of conflicts, the order of precedence from lowest to highest is:
 
 1. Load default values for options which have defaults.
-2. Load any values provided in the RUN_TASK_KWARGS option if one is
-   provided.
-3. Load any values explicitly provided through airflow.cfg or
+2. Load any values explicitly provided through airflow.cfg or
    environment variables. These are checked with Airflow's config
    precedence.
+3. Load any values provided in the RUN_TASK_KWARGS option if one is
+   provided.
 
 Required config options:
 ~~~~~~~~~~~~~~~~~~~~~~~~

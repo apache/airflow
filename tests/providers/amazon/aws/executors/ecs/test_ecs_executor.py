@@ -40,7 +40,6 @@ from airflow.providers.amazon.aws.executors.ecs import (
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
-    RUN_TASK_KWARG_DEFAULTS,
     EcsExecutorTask,
     _recursive_flatten_dict,
     parse_assign_public_ip,
@@ -800,12 +799,13 @@ class TestEcsExecutorConfig:
 
     def test_provided_values_override_defaults(self, assign_subnets):
         """
-        Expected precedence is default values are overwritten by values provided in run_task_kwargs
-        and those are overwritten by values provided explicitly.
+        Expected precedence is default values are overwritten by values provided explicitly,
+        and those values are overwritten by those provided in run_task_kwargs.
         """
         default_version = CONFIG_DEFAULTS[AllEcsConfigKeys.PLATFORM_VERSION]
         templated_version = "1"
-        explicit_version = "2"
+        first_explicit_version = "2"
+        second_explicit_version = "3"
 
         run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
         platform_version_env_key = (
@@ -823,7 +823,13 @@ class TestEcsExecutorConfig:
 
         assert task_kwargs["platformVersion"] == default_version
 
-        # Provide a value via template and assert that it is applied.
+        # Provide a new value explicitly and assert that it is applied over the default.
+        os.environ[platform_version_env_key] = first_explicit_version
+        task_kwargs = ecs_executor_config.build_task_kwargs()
+
+        assert task_kwargs["platformVersion"] == first_explicit_version
+
+        # Provide a value via template and assert that it is applied over the explicit value.
         os.environ[run_task_kwargs_env_key] = json.dumps(
             {AllEcsConfigKeys.PLATFORM_VERSION: templated_version}
         )
@@ -831,72 +837,53 @@ class TestEcsExecutorConfig:
 
         assert task_kwargs["platformVersion"] == templated_version
 
-        # Provide a new value explicitly and assert that it is applied.
-        os.environ[platform_version_env_key] = explicit_version
+        # Provide a new value explicitly and assert it is not applied over the templated values.
+        os.environ[platform_version_env_key] = second_explicit_version
         task_kwargs = ecs_executor_config.build_task_kwargs()
 
-        assert task_kwargs["platformVersion"] == explicit_version
+        assert task_kwargs["platformVersion"] == templated_version
 
-    def test_provided_kwargs_are_not_dropped(self, assign_subnets):
-        """
-        Since the explicit options are applied after those provided via run_task_kwargs,
-        verify that those provided by kwargs and not overridden are still there.
-        """
-        default_version = RUN_TASK_KWARG_DEFAULTS[AllEcsConfigKeys.PLATFORM_VERSION]
+    def test_count_can_not_be_modified_by_the_user(self, assign_subnets):
+        """The ``count`` parameter must always be 1; verify that the user can not override this value."""
+
         templated_version = "1"
         templated_cluster = "templated_cluster_name"
-        templated_tags = {"Apache": "Airflow"}
-        templated_overrides = {"containerOverrides": [{"memory": 5}]}
-        explicit_version = "2"
-
         provided_run_task_kwargs = {
             AllEcsConfigKeys.PLATFORM_VERSION: templated_version,
             AllEcsConfigKeys.CLUSTER: templated_cluster,
-            "tags": templated_tags,  # The user should be allowed to pass arbitrary run task args
             "count": 2,  # The user should not be allowed to overwrite count, it must be value of 1
-            "overrides": templated_overrides,
         }
 
         run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
-        platform_version_env_key = (
-            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.PLATFORM_VERSION}".upper()
-        )
         # Required param which doesn't have a default
         os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
 
-        # Confirm the default value is applied when no value is provided.
-        assert run_task_kwargs_env_key not in os.environ
-        assert platform_version_env_key not in os.environ
-
-        task_kwargs = ecs_executor_config.build_task_kwargs()
-
-        # Platform version will be the default since no overrides or explicit config was passed for it yet
-        assert task_kwargs["platformVersion"] == default_version
-        # There is no default for "cluster" so it should not exist.
-        assert task_kwargs.get("cluster") is None
-
-        # Provide values for "platform_version" and "cluster" via task run kwargs template and assert
-        # that they are applied.
+        # Provide values via task run kwargs template and assert that they are applied,
+        # which verifies that the OTHER values were changed.
         os.environ[run_task_kwargs_env_key] = json.dumps(provided_run_task_kwargs)
         task_kwargs = ecs_executor_config.build_task_kwargs()
         assert task_kwargs["platformVersion"] == templated_version
         assert task_kwargs["cluster"] == templated_cluster
-        # This also verifies that tag names are exempt from the camel-case conversion.
-        assert task_kwargs["tags"] == templated_tags
-        # Assert that count is NOT overridden, since it _must_ be 1
-        assert task_kwargs["count"] == 1
-        # The container override provided by the user should not be removed or overridden
-        assert task_kwargs["overrides"]["containerOverrides"][0]["memory"] == 5
 
-        # Provide a new value explicitly for template_version and assert that it is applied while the
-        # value for cluster still comes from the run kwargs template
-        os.environ[platform_version_env_key] = explicit_version
+        # Assert that count was NOT overridden when the others were applied.
+        assert task_kwargs["count"] == 1
+
+    def test_verify_tags_are_used_as_provided(self, assign_subnets):
+        """Confirm that the ``tags`` provided are not converted to camelCase."""
+        templated_tags = {"Apache": "Airflow"}
+
+        provided_run_task_kwargs = {
+            "tags": templated_tags,  # The user should be allowed to pass arbitrary run task args
+        }
+
+        run_task_kwargs_env_key = f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.RUN_TASK_KWARGS}".upper()
+        # Required param which doesn't have a default
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "foobar"
+
+        os.environ[run_task_kwargs_env_key] = json.dumps(provided_run_task_kwargs)
         task_kwargs = ecs_executor_config.build_task_kwargs()
-        assert task_kwargs["platformVersion"] == explicit_version
-        # The env var which set the run_task_kwargs with "cluster" is still there, so even though we
-        # explicitly set "platform_version" after that, and that value from the run_task_kwargs
-        # should be overridden, "cluster" should still be what run_task_kwargs set it to, as well as tags.
-        assert task_kwargs["cluster"] == templated_cluster
+
+        # Verify that tag names are exempt from the camel-case conversion.
         assert task_kwargs["tags"] == templated_tags
 
     def test_that_provided_kwargs_are_moved_to_correct_nesting(self, assign_subnets):
