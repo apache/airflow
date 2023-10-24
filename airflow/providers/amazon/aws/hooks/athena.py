@@ -27,6 +27,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any
 
+from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
@@ -120,7 +121,26 @@ class AthenaHook(AwsBaseHook):
         self.log.info("Query execution id: %s", query_execution_id)
         return query_execution_id
 
-    def check_query_status(self, query_execution_id: str) -> str | None:
+    def get_query_execution(self, query_execution_id: str, use_cached_response: bool = False) -> dict:
+        """Get information about a single execution of a query.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Athena.Client.get_query_execution`
+
+        :param query_execution_id: Id of submitted athena query
+        :param use_cached_response: If True, use execution information cache
+        """
+        # second check if to satisfy mypy
+        if use_cached_response or not hasattr(self._get_query_execution, "__wrapped__"):
+            return self._get_query_execution(query_execution_id=query_execution_id)
+        return self._get_query_execution.__wrapped__(self, query_execution_id=query_execution_id)
+
+    @cache
+    def _get_query_execution(self, query_execution_id: str):
+        response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
+        return response
+
+    def check_query_status(self, query_execution_id: str, use_cached_response: bool = False) -> str | None:
         """Fetch the state of a submitted query.
 
         .. seealso::
@@ -130,7 +150,9 @@ class AthenaHook(AwsBaseHook):
         :return: One of valid query states, or *None* if the response is
             malformed.
         """
-        response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
+        response = self.get_query_execution(
+            query_execution_id=query_execution_id, use_cached_response=use_cached_response
+        )
         state = None
         try:
             state = response["QueryExecution"]["Status"]["State"]
@@ -143,7 +165,9 @@ class AthenaHook(AwsBaseHook):
             # The error is being absorbed to implement retries.
             return state
 
-    def get_state_change_reason(self, query_execution_id: str) -> str | None:
+    def get_state_change_reason(
+        self, query_execution_id: str, use_cached_response: bool = False
+    ) -> str | None:
         """
         Fetch the reason for a state change (e.g. error message). Returns None or reason string.
 
@@ -152,7 +176,9 @@ class AthenaHook(AwsBaseHook):
 
         :param query_execution_id: Id of submitted athena query
         """
-        response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
+        response = self.get_query_execution(
+            query_execution_id=query_execution_id, use_cached_response=use_cached_response
+        )
         reason = None
         try:
             reason = response["QueryExecution"]["Status"]["StateChangeReason"]
@@ -277,7 +303,9 @@ class AthenaHook(AwsBaseHook):
         """
         output_location = None
         if query_execution_id:
-            response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
+            response = self.get_query_execution(
+                query_execution_id=query_execution_id, use_cached_response=True
+            )
 
             if response:
                 try:

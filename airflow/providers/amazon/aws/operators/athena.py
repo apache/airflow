@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from openlineage.client.facet import BaseFacet
     from openlineage.client.run import Dataset
 
+    from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -164,6 +165,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 f"query_execution_id is {self.query_execution_id}."
             )
 
+        # Save output location from API response for later use in OpenLineage.
+        self.output_location = self.hook.get_output_location(self.query_execution_id)
+
         return self.query_execution_id
 
     def execute_complete(self, context, event=None):
@@ -192,7 +196,12 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                     )
                     self.hook.poll_query_status(self.query_execution_id, sleep_time=self.sleep_time)
 
-    def get_openlineage_facets_on_start(self):
+    def get_openlineage_facets_on_start(self) -> OperatorLineage:
+        """Retrieve OpenLineage data by parsing SQL queries and enriching them with Athena API.
+
+        In addition to CTAS query, query and calculation results are stored in S3 location.
+        For that reason additional output is attached with this location.
+        """
         from openlineage.client.facet import ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
         from openlineage.client.run import Dataset
 
@@ -233,8 +242,6 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             )
         )
 
-        # Athena can output query result to a new table with CTAS query.
-        # cf. https://docs.aws.amazon.com/athena/latest/ug/ctas.html
         outputs: list[Dataset] = list(
             filter(
                 None,
@@ -245,30 +252,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             )
         )
 
-        # In addition to CTAS query, it's also possible to specify output location on S3
-        # with a mandatory parameter, OutputLocation in ResultConfiguration.
-        # cf. https://docs.aws.amazon.com/athena/latest/APIReference/API_ResultConfiguration.html#athena-Type-ResultConfiguration-OutputLocation  # noqa: E501
-        #
-        # Depending on the query type and the external_location property in the CTAS query,
-        # its behavior changes as follows:
-        #
-        # * Normal SELECT statement
-        #   -> The result is put into output_location as files rather than a table.
-        #
-        # * CTAS statement without external_location (`CREATE TABLE ... AS SELECT ...`)
-        #   -> The result is put into output_location as a table,
-        #      that is, both metadata files and data files are in there.
-        #
-        # * CTAS statement with external_location
-        #   (`CREATE TABLE ... WITH (external_location='s3://bucket/key') AS SELECT ...`)
-        #   -> The result is output as a table, but metadata and data files are
-        #      separated into output_location and external_location respectively.
-        #
-        # For the last case, output_location may be unnecessary as OL's output information,
-        # but we keep it as of now since it may be useful for some purpose.
-        output_location = self.output_location
-        parsed = urlparse(output_location)
-        outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path))
+        if self.output_location:
+            parsed = urlparse(self.output_location)
+            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path))
 
         return OperatorLineage(job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs)
 
@@ -281,14 +267,10 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         )
         from openlineage.client.run import Dataset
 
-        # Currently, AthenaOperator and AthenaHook don't have a functionality to specify catalog,
-        # and it seems to implicitly assume that the default catalog (AwsDataCatalog) is target.
-        CATALOG_NAME = "AwsDataCatalog"
-
         client = self.hook.get_conn()
         try:
             table_metadata = client.get_table_metadata(
-                CatalogName=CATALOG_NAME, DatabaseName=database, TableName=table
+                CatalogName=self.catalog, DatabaseName=database, TableName=table
             )
 
             # Dataset has also its' physical location which we can add in symlink facet.
@@ -298,7 +280,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 "symlinks": SymlinksDatasetFacet(
                     identifiers=[
                         SymlinksDatasetFacetIdentifiers(
-                            namespace=f"{parsed_path.scheme}://{parsed_path.netloc}",  # type: ignore
+                            namespace=f"{parsed_path.scheme}://{parsed_path.netloc}",
                             name=str(parsed_path.path),
                             type="TABLE",
                         )
@@ -313,7 +295,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 facets["schema"] = SchemaDatasetFacet(fields=fields)
             return Dataset(
                 namespace=f"awsathena://athena.{self.hook.region_name}.amazonaws.com",
-                name=".".join(filter(None, (CATALOG_NAME, database, table))),
+                name=".".join(filter(None, (self.catalog, database, table))),
                 facets=facets,
             )
 
