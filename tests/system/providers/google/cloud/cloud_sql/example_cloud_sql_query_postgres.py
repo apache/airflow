@@ -29,9 +29,10 @@ from typing import TYPE_CHECKING
 
 from googleapiclient import discovery
 
-from airflow import models, settings
+from airflow import settings
 from airflow.decorators import task, task_group
-from airflow.models import Connection
+from airflow.models.connection import Connection
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
@@ -49,7 +50,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "cloudsql-query-pg"
 REGION = "us-central1"
 
-CLOUD_SQL_INSTANCE_NAME = f"{ENV_ID}-{DAG_ID}".replace("_", "-")
+CLOUD_SQL_INSTANCE_NAME = f"instance-{ENV_ID}-{DAG_ID}".replace("_", "-")
 CLOUD_SQL_DATABASE_NAME = "test_db"
 CLOUD_SQL_USER = "test_user"
 CLOUD_SQL_PASSWORD = "JoxHlwrPzwch0gz9"
@@ -167,7 +168,7 @@ CONNECTIONS = [
 log = logging.getLogger(__name__)
 
 
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,

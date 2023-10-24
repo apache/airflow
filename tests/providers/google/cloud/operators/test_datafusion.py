@@ -36,8 +36,10 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
+from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 
 HOOK_STR = "airflow.providers.google.cloud.operators.datafusion.DataFusionHook"
+RESOURCE_PATH_TO_DICT_STR = "airflow.providers.google.cloud.operators.datafusion.resource_path_to_dict"
 
 TASK_ID = "test_task"
 LOCATION = "test-location"
@@ -53,9 +55,11 @@ RUNTIME_ARGS = {"arg1": "a", "arg2": "b"}
 
 
 class TestCloudDataFusionUpdateInstanceOperator:
+    @mock.patch(RESOURCE_PATH_TO_DICT_STR)
     @mock.patch(HOOK_STR)
-    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook):
+    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook, mock_resource_to_dict):
         update_maks = "instance.name"
+        mock_resource_to_dict.return_value = {"projects": PROJECT_ID}
         op = CloudDataFusionUpdateInstanceOperator(
             task_id="test_tasks",
             instance_name=INSTANCE_NAME,
@@ -77,8 +81,10 @@ class TestCloudDataFusionUpdateInstanceOperator:
 
 
 class TestCloudDataFusionRestartInstanceOperator:
+    @mock.patch(RESOURCE_PATH_TO_DICT_STR)
     @mock.patch(HOOK_STR)
-    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook):
+    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook, mock_resource_path_to_dict):
+        mock_resource_path_to_dict.return_value = {"projects": PROJECT_ID}
         op = CloudDataFusionRestartInstanceOperator(
             task_id="test_tasks",
             instance_name=INSTANCE_NAME,
@@ -94,8 +100,10 @@ class TestCloudDataFusionRestartInstanceOperator:
 
 
 class TestCloudDataFusionCreateInstanceOperator:
+    @mock.patch(RESOURCE_PATH_TO_DICT_STR)
     @mock.patch(HOOK_STR)
-    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook):
+    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook, mock_resource_path_to_dict):
+        mock_resource_path_to_dict.return_value = {"projects": PROJECT_ID}
         op = CloudDataFusionCreateInstanceOperator(
             task_id="test_tasks",
             instance_name=INSTANCE_NAME,
@@ -132,8 +140,10 @@ class TestCloudDataFusionDeleteInstanceOperator:
 
 
 class TestCloudDataFusionGetInstanceOperator:
+    @mock.patch(RESOURCE_PATH_TO_DICT_STR)
     @mock.patch(HOOK_STR)
-    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook):
+    def test_execute_check_hook_call_should_execute_successfully(self, mock_hook, mock_resource_path_to_dict):
+        mock_resource_path_to_dict.return_value = {"projects": PROJECT_ID}
         op = CloudDataFusionGetInstanceOperator(
             task_id="test_tasks",
             instance_name=INSTANCE_NAME,
@@ -235,12 +245,14 @@ class TestCloudDataFusionStartPipelineOperator:
             pipeline_name=PIPELINE_NAME,
             namespace=NAMESPACE,
             runtime_args=RUNTIME_ARGS,
+            pipeline_type=DataFusionPipelineType.BATCH,
         )
 
         mock_hook.return_value.wait_for_pipeline_state.assert_called_once_with(
             success_states=[*SUCCESS_STATES, PipelineStates.RUNNING],
             pipeline_id=PIPELINE_ID,
             pipeline_name=PIPELINE_NAME,
+            pipeline_type=DataFusionPipelineType.BATCH,
             namespace=NAMESPACE,
             instance_url=INSTANCE_URL,
             timeout=300,
@@ -275,11 +287,12 @@ class TestCloudDataFusionStartPipelineOperator:
             pipeline_name=PIPELINE_NAME,
             namespace=NAMESPACE,
             runtime_args=RUNTIME_ARGS,
+            pipeline_type=DataFusionPipelineType.BATCH,
         )
         mock_hook.return_value.wait_for_pipeline_state.assert_not_called()
 
 
-class TestCloudDataFusionStartPipelineOperatorAsynch:
+class TestCloudDataFusionStartPipelineOperatorAsync:
     @mock.patch(HOOK_STR)
     def test_asynch_execute_should_execute_successfully(self, mock_hook):
         """
@@ -374,6 +387,7 @@ class TestCloudDataFusionStartPipelineOperatorAsynch:
             pipeline_name=PIPELINE_NAME,
             namespace=NAMESPACE,
             runtime_args=RUNTIME_ARGS,
+            pipeline_type=DataFusionPipelineType.BATCH,
         )
 
     @mock.patch(HOOK_STR)

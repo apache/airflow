@@ -389,7 +389,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @pytest.mark.parametrize("fmt", ["AVRO", "PARQUET", "NEWLINE_DELIMITED_JSON", "DATASTORE_BACKUP"])
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_with_non_csv_as_src_fmt(self, _, fmt):
-
         try:
             self.hook.run_load(
                 destination_project_dataset_table="my_dataset.my_table",
@@ -2142,9 +2141,12 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
     @pytest.mark.parametrize(
         "job_status, expected",
         [
-            ({"status": {"state": "DONE"}}, "success"),
-            ({"status": {"state": "DONE", "errorResult": "Timeout"}}, "error"),
-            ({"status": {"state": "running"}}, "running"),
+            ({"status": {"state": "DONE"}}, {"status": "success", "message": "Job completed"}),
+            (
+                {"status": {"state": "DONE", "errorResult": {"message": "Timeout"}}},
+                {"status": "error", "message": "Timeout"},
+            ),
+            ({"status": {"state": "running"}}, {"status": "running", "message": "Job running"}),
         ],
     )
     @pytest.mark.asyncio

@@ -73,7 +73,6 @@ class LookerStartPdtBuildOperator(GoogleCloudBaseOperator):
         self.materialization_id: str | None = None
 
     def execute(self, context: Context) -> str:
-
         self.hook = LookerHook(looker_conn_id=self.looker_conn_id)
 
         resp = self.hook.start_pdt_build(

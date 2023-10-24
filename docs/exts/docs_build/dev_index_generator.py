@@ -19,7 +19,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from glob import glob
+from pathlib import Path
 
 import jinja2
 
@@ -45,24 +45,16 @@ def _render_template(template_name, **kwargs):
 
 
 def _render_content():
-    provider_packages = [
-        os.path.basename(os.path.dirname(p)) for p in glob(f"{BUILD_DIR}/docs/apache-airflow-providers-*/")
-    ]
     providers = []
-    for package_name in provider_packages:
+    provider_yamls = {p["package-name"]: p for p in ALL_PROVIDER_YAMLS}
+    for path in sorted(Path(BUILD_DIR).glob("docs/apache-airflow-providers-*/")):
+        package_name = path.name
         try:
-            current_provider = next(
-                provider_yaml
-                for provider_yaml in ALL_PROVIDER_YAMLS
-                if provider_yaml["package-name"] == package_name
-            )
-            providers.append(current_provider)
-        except StopIteration:
+            providers.append(provider_yamls[package_name])
+        except KeyError:
             print(f"WARNING! Could not find provider.yaml file for package: {package_name}")
 
-    content = _render_template(
-        "dev_index_template.html.jinja2", providers=sorted(providers, key=lambda k: k["package-name"])
-    )
+    content = _render_template("dev_index_template.html.jinja2", providers=providers)
     return content
 
 

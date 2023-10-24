@@ -108,8 +108,8 @@ class EmrAddStepsOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         steps: list[dict] | str | None = None,
         wait_for_completion: bool = False,
-        waiter_delay: int | None = 30,
-        waiter_max_attempts: int | None = 60,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
         execution_role_arn: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
@@ -180,8 +180,8 @@ class EmrAddStepsOperator(BaseOperator):
                     job_flow_id=job_flow_id,
                     step_ids=step_ids,
                     aws_conn_id=self.aws_conn_id,
-                    max_attempts=self.waiter_max_attempts,
-                    poll_interval=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    waiter_delay=self.waiter_delay,
                 ),
                 method_name="execute_complete",
             )
@@ -190,10 +190,10 @@ class EmrAddStepsOperator(BaseOperator):
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
-            raise AirflowException(f"Error resuming cluster: {event}")
+            raise AirflowException(f"Error while running steps: {event}")
         else:
             self.log.info("Steps completed successfully")
-        return event["step_ids"]
+        return event["value"]
 
 
 class EmrStartNotebookExecutionOperator(BaseOperator):
@@ -265,14 +265,18 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_max_attempts = waiter_countdown // waiter_check_interval_seconds
         if waiter_delay is NOTSET:
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_delay = waiter_check_interval_seconds
         super().__init__(**kwargs)
@@ -381,14 +385,18 @@ class EmrStopNotebookExecutionOperator(BaseOperator):
             warnings.warn(
                 "The parameter waiter_countdown has been deprecated to standardize "
                 "naming conventions.  Please use waiter_max_attempts instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_max_attempts = waiter_countdown // waiter_check_interval_seconds
         if waiter_delay is NOTSET:
             warnings.warn(
                 "The parameter waiter_check_interval_seconds has been deprecated to "
                 "standardize naming conventions.  Please use waiter_delay instead.  In the "
-                "future this will default to None and defer to the waiter's default value."
+                "future this will default to None and defer to the waiter's default value.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             waiter_delay = waiter_check_interval_seconds
         super().__init__(**kwargs)
@@ -757,52 +765,51 @@ class EmrCreateJobFlowOperator(BaseOperator):
             job_flow_overrides = self.job_flow_overrides
         response = self._emr_hook.create_job_flow(job_flow_overrides)
 
-        if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Job flow creation failed: {response}")
-        else:
-            self._job_flow_id = response["JobFlowId"]
-            self.log.info("Job flow with id %s created", self._job_flow_id)
-            EmrClusterLink.persist(
+
+        self._job_flow_id = response["JobFlowId"]
+        self.log.info("Job flow with id %s created", self._job_flow_id)
+        EmrClusterLink.persist(
+            context=context,
+            operator=self,
+            region_name=self._emr_hook.conn_region_name,
+            aws_partition=self._emr_hook.conn_partition,
+            job_flow_id=self._job_flow_id,
+        )
+        if self._job_flow_id:
+            EmrLogsLink.persist(
                 context=context,
                 operator=self,
                 region_name=self._emr_hook.conn_region_name,
                 aws_partition=self._emr_hook.conn_partition,
                 job_flow_id=self._job_flow_id,
+                log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
             )
-            if self._job_flow_id:
-                EmrLogsLink.persist(
-                    context=context,
-                    operator=self,
-                    region_name=self._emr_hook.conn_region_name,
-                    aws_partition=self._emr_hook.conn_partition,
+        if self.deferrable:
+            self.defer(
+                trigger=EmrCreateJobFlowTrigger(
                     job_flow_id=self._job_flow_id,
-                    log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
-                )
-            if self.deferrable:
-                self.defer(
-                    trigger=EmrCreateJobFlowTrigger(
-                        job_flow_id=self._job_flow_id,
-                        aws_conn_id=self.aws_conn_id,
-                        poll_interval=self.waiter_delay,
-                        max_attempts=self.waiter_max_attempts,
-                    ),
-                    method_name="execute_complete",
-                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
-                )
-            if self.wait_for_completion:
-                self._emr_hook.get_waiter("job_flow_waiting").wait(
-                    ClusterId=self._job_flow_id,
-                    WaiterConfig=prune_dict(
-                        {
-                            "Delay": self.waiter_delay,
-                            "MaxAttempts": self.waiter_max_attempts,
-                        }
-                    ),
-                )
-
-            return self._job_flow_id
+                    aws_conn_id=self.aws_conn_id,
+                    poll_interval=self.waiter_delay,
+                    max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+            )
+        if self.wait_for_completion:
+            self._emr_hook.get_waiter("job_flow_waiting").wait(
+                ClusterId=self._job_flow_id,
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
+        return self._job_flow_id
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
@@ -948,10 +955,10 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self.log.info("Terminating JobFlow %s", self.job_flow_id)
         response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
 
-        if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"JobFlow termination failed: {response}")
-        else:
-            self.log.info("Terminating JobFlow with id %s", self.job_flow_id)
+
+        self.log.info("Terminating JobFlow with id %s", self.job_flow_id)
 
         if self.deferrable:
             self.defer(

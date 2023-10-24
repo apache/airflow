@@ -40,12 +40,14 @@ from flask_appbuilder.views import IndexView, UtilView
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.www.extensions.init_auth_manager import get_auth_manager
+from airflow.www.extensions.init_auth_manager import get_auth_manager, init_auth_manager
 
 if TYPE_CHECKING:
+    from flask import Flask
     from flask_appbuilder import BaseView
     from flask_appbuilder.security.manager import BaseSecurityManager
     from sqlalchemy.orm import Session
+
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
@@ -108,7 +110,7 @@ class AirflowAppBuilder:
     sm: BaseSecurityManager
     # Babel Manager Class
     bm = None
-    # dict with addon name has key and intantiated class has value
+    # dict with addon name has key and instantiated class has value
     addon_managers: dict
     # temporary list that hold addon_managers config key
     _addon_managers: list
@@ -655,22 +657,13 @@ class AirflowAppBuilder:
                         view.get_init_inner_views().append(v)
 
 
-def init_appbuilder(app) -> AirflowAppBuilder:
+def init_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
-    from airflow.www.security import AirflowSecurityManager
-
-    security_manager_class = app.config.get("SECURITY_MANAGER_CLASS") or AirflowSecurityManager
-
-    if not issubclass(security_manager_class, AirflowSecurityManager):
-        raise Exception(
-            """Your CUSTOM_SECURITY_MANAGER must now extend AirflowSecurityManager,
-             not FAB's security manager."""
-        )
-
+    auth_manager = init_auth_manager(app)
     return AirflowAppBuilder(
         app=app,
         session=settings.Session,
-        security_manager_class=security_manager_class,
+        security_manager_class=auth_manager.get_security_manager_override_class(),
         base_template="airflow/main.html",
         update_perms=conf.getboolean("webserver", "UPDATE_FAB_PERMS"),
         auth_rate_limited=conf.getboolean("webserver", "AUTH_RATE_LIMITED", fallback=True),

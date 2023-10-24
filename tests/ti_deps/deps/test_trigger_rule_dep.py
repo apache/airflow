@@ -23,7 +23,6 @@ from unittest import mock
 from unittest.mock import Mock
 
 import pytest
-from pytest import param
 
 from airflow.decorators import task, task_group
 from airflow.models.baseoperator import BaseOperator
@@ -680,77 +679,77 @@ class TestTriggerRuleDep:
     @pytest.mark.parametrize(
         "task_cfg, states, exp_reason, exp_state",
         [
-            param(
+            pytest.param(
                 dict(work=2, setup=0),
                 dict(success=2, done=2),
                 None,
                 None,
                 id="no setups",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=1),
                 dict(success=2, done=2),
                 "but found 1 task(s) that were not done",
                 None,
                 id="setup not done",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=1),
                 dict(success=2, done=3),
                 "requires at least one upstream setup task be successful",
                 UPSTREAM_FAILED,
                 id="setup failed",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=2),
                 dict(success=2, done=4, success_setup=1),
                 None,
                 None,
                 id="one setup failed one success",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=2),
                 dict(success=2, done=3, success_setup=1),
                 "found 1 task(s) that were not done",
                 None,
                 id="one setup success one running",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=1),
                 dict(success=2, done=3, failed=1),
                 "requires at least one upstream setup task be successful",
                 UPSTREAM_FAILED,
                 id="setup failed",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=2),
                 dict(success=2, done=4, failed=1, skipped_setup=1),
                 "requires at least one upstream setup task be successful",
                 UPSTREAM_FAILED,
                 id="one setup failed one skipped",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=2),
                 dict(success=2, done=4, failed=0, skipped_setup=2),
                 "requires at least one upstream setup task be successful",
                 SKIPPED,
                 id="two setups both skipped",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=1),
                 dict(success=3, done=3, success_setup=1),
                 None,
                 None,
                 id="all success",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=1),
                 dict(success=1, done=3, success_setup=1),
                 None,
                 None,
                 id="work failed",
             ),
-            param(
+            pytest.param(
                 dict(work=2, setup=1),
                 dict(success=2, done=3, skipped_setup=1),
                 "requires at least one upstream setup task be successful",
@@ -797,6 +796,30 @@ class TestTriggerRuleDep:
             failed=0,
             removed=0,
             upstream_failed=0,
+            done=1,
+            normal_tasks=["FakeTaskID"],
+        )
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                dep_context=DepContext(flag_upstream_failed=False),
+                session=session,
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+
+    def test_all_skipped_tr_failure_upstream_failed(self, session, get_task_instance):
+        """
+        All-skipped trigger rule failure if an upstream task is in a `upstream_failed` state
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_SKIPPED,
+            success=0,
+            skipped=0,
+            failed=0,
+            removed=0,
+            upstream_failed=1,
             done=1,
             normal_tasks=["FakeTaskID"],
         )

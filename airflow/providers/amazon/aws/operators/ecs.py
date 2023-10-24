@@ -475,8 +475,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         number_logs_exception: int = 10,
         wait_for_completion: bool = True,
         waiter_delay: int = 6,
-        waiter_max_attempts: int = 1000000 * 365 * 24 * 60 * 10,
-        # Set the default waiter duration to 1M years (attempts*delay)
+        waiter_max_attempts: int = 1000000,
+        # Set the default waiter duration to 70 days (attempts*delay)
         # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,

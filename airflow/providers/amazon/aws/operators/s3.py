@@ -331,10 +331,10 @@ class S3CreateObjectOperator(BaseOperator):
         :ref:`howto/operator:S3CreateObjectOperator`
 
     :param s3_bucket: Name of the S3 bucket where to save the object. (templated)
-        It should be omitted when `bucket_key` is provided as a full s3:// url.
+        It should be omitted when ``s3_key`` is provided as a full s3:// url.
     :param s3_key: The key of the object to be created. (templated)
         It can be either full s3:// style url or relative path from root level.
-        When it's specified as a full s3:// url, please omit bucket_name.
+        When it's specified as a full s3:// url, please omit ``s3_bucket``.
     :param data: string or bytes to save as content.
     :param replace: If True, it will overwrite the key if it already exists
     :param encrypt: If True, the file will be encrypted on the server-side
@@ -455,7 +455,6 @@ class S3DeleteObjectsOperator(BaseOperator):
         verify: str | bool | None = None,
         **kwargs,
     ):
-
         super().__init__(**kwargs)
         self.bucket = bucket
         self.keys = keys
@@ -470,7 +469,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         if not exactly_one(self.keys is None, self.prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
 
-        if isinstance(self.keys, (list, str)) and not bool(self.keys):
+        if isinstance(self.keys, (list, str)) and not self.keys:
             return
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
@@ -543,7 +542,6 @@ class S3FileTransformOperator(BaseOperator):
         replace: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id

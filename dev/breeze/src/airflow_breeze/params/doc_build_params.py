@@ -20,26 +20,17 @@ import os
 from dataclasses import dataclass
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.utils.general_utils import get_docs_filter_name_from_short_hand
 
 providers_prefix = "apache-airflow-providers-"
 
 
-def get_provider_name_from_short_hand(short_form_providers: tuple[str]):
-    providers = []
-    for short_form_provider in short_form_providers:
-        short_form_provider.split(".")
-
-        parts = "-".join(short_form_provider.split("."))
-        providers.append(providers_prefix + parts)
-    return tuple(providers)
-
-
 @dataclass
 class DocBuildParams:
-    package_filter: tuple[str]
+    package_filter: tuple[str, ...]
     docs_only: bool
     spellcheck_only: bool
-    packages_plus_all_providers: tuple[str]
+    short_doc_packages: tuple[str, ...]
     skip_environment_initialization: bool = False
     one_pass_only: bool = False
     github_actions = os.environ.get("GITHUB_ACTIONS", "false")
@@ -55,11 +46,10 @@ class DocBuildParams:
             doc_args.append("--one-pass-only")
         if AIRFLOW_BRANCH != "main":
             doc_args.append("--disable-provider-checks")
-        if self.packages_plus_all_providers:
-            providers = get_provider_name_from_short_hand(self.packages_plus_all_providers)
-            for single_provider in providers:
-                doc_args.extend(["--package-filter", single_provider])
+        if self.short_doc_packages:
+            for filter_from_short_doc in get_docs_filter_name_from_short_hand(self.short_doc_packages):
+                doc_args.extend(["--package-filter", filter_from_short_doc])
         if self.package_filter:
-            for single_filter in self.package_filter:
-                doc_args.extend(["--package-filter", single_filter])
+            for filter in self.package_filter:
+                doc_args.extend(["--package-filter", filter])
         return doc_args

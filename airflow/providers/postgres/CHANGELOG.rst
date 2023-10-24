@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+5.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'PostgresOperator' should not overwrite 'SQLExecuteQueryOperator.template_fields' (#34969)``
+
+5.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add 'get_ui_field_behaviour()' method to PostgresHook (#34811)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
 5.6.1
 .....
 

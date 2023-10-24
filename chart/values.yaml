@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.7.1"
+defaultAirflowTag: "2.7.2"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.7.1"
+airflowVersion: "2.7.2"
 
 # Images
 images:
@@ -726,8 +726,6 @@ workers:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   env: []
 
@@ -901,8 +899,6 @@ scheduler:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   env: []
 
@@ -1018,10 +1014,12 @@ migrateDatabaseJob:
   args:
     - "bash"
     - "-c"
-    # The format below is necessary to get `helm lint` happy
-    - |-
+    - >-
       exec \
-      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "db upgrade" "upgradedb" }}
+
+      airflow {{ semverCompare ">=2.7.0" .Values.airflowVersion
+      | ternary "db migrate" (semverCompare ">=2.0.0" .Values.airflowVersion
+      | ternary "db upgrade" "upgradedb") }}
 
   # Annotations on the database migration pod
   annotations: {}
@@ -1301,9 +1299,6 @@ webserver:
     securityContexts:
       container: {}
 
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
-
   env: []
 
 # Airflow Triggerer Config
@@ -1468,9 +1463,6 @@ triggerer:
     # Detailed default security context for waitForMigrations for container level
     securityContexts:
       container: {}
-
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   env: []
 
@@ -2074,6 +2066,11 @@ redis:
     # Annotations to add to redis volumes
     annotations: {}
 
+  # Configuration for empty dir volume (if redis.persistence.enabled == false)
+  # emptyDirConfig:
+  #   sizeLimit: 1Gi
+  #   medium: Memory
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -2221,6 +2218,7 @@ cleanup:
 
   # Detailed default security context for cleanup for container level
   securityContexts:
+    pod: {}
     container: {}
 
   # container level lifecycle hooks
@@ -2447,6 +2445,11 @@ dags:
     # - name: ""
     #   value: ""
 
+    # Configuration for empty dir volume
+    # emptyDirConfig:
+    #   sizeLimit: 1Gi
+    #   medium: Memory
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -2456,6 +2459,11 @@ dags:
     #   memory: 128Mi
 
 logs:
+  # Configuration for empty dir volume (if logs.persistence.enabled == false)
+  # emptyDirConfig:
+  #   sizeLimit: 1Gi
+  #   medium: Memory
+
   persistence:
     # Enable persistent volume for storing logs
     enabled: false

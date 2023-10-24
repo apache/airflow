@@ -30,8 +30,8 @@ from google.cloud.bigquery_datatransfer_v1 import (
     TransferState,
 )
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -356,7 +356,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         )
 
     def _wait_for_transfer_to_be_done(self, run_id: str, transfer_config_id: str, interval: int = 10):
-        if interval < 0:
+        if interval <= 0:
             raise ValueError("Interval must be > 0")
 
         while True:
@@ -371,7 +371,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
             state = transfer_run.state
 
             if self._job_is_done(state):
-                if state == TransferState.FAILED or state == TransferState.CANCELLED:
+                if state in (TransferState.FAILED, TransferState.CANCELLED):
                     raise AirflowException(f"Transfer run was finished with {state} status.")
 
                 result = TransferRun.to_dict(transfer_run)
@@ -393,7 +393,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
 
     def execute_completed(self, context: Context, event: dict):
         """Method to be executed after invoked trigger in defer method finishes its job."""
-        if event["status"] == "failed" or event["status"] == "cancelled":
+        if event["status"] in ("failed", "cancelled"):
             self.log.error("Trigger finished its work with status: %s.", event["status"])
             raise AirflowException(event["message"])
 

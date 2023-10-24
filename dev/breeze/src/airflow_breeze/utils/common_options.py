@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
     DEFAULT_CELERY_BROKER,
+    PROVIDERS_INDEX_KEY,
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
@@ -444,12 +445,22 @@ argument_packages = click.argument(
     required=False,
     type=BetterChoice(get_available_documentation_packages(short_version=True)),
 )
-argument_packages_plus_all_providers = click.argument(
-    "packages_plus_all_providers",
+argument_short_doc_packages = click.argument(
+    "short_doc_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(["all-providers"] + get_available_documentation_packages(short_version=True)),
+    type=BetterChoice(["all-providers", *get_available_documentation_packages(short_version=True)]),
 )
+
+argument_short_doc_packages_with_providers_index = click.argument(
+    "short_doc_packages",
+    nargs=-1,
+    required=False,
+    type=BetterChoice(
+        ["all-providers", PROVIDERS_INDEX_KEY, *get_available_documentation_packages(short_version=True)]
+    ),
+)
+
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
@@ -564,6 +575,18 @@ option_celery_broker = click.option(
     show_default=True,
 )
 option_celery_flower = click.option("--celery-flower", help="Start celery flower", is_flag=True)
+option_standalone_dag_processor = click.option(
+    "--standalone-dag-processor",
+    help="Run standalone dag processor for start-airflow.",
+    is_flag=True,
+    envvar="STANDALONE_DAG_PROCESSOR",
+)
+option_database_isolation = click.option(
+    "--database-isolation",
+    help="Run airflow in database isolation mode.",
+    is_flag=True,
+    envvar="DATABASE_ISOLATION",
+)
 option_install_selected_providers = click.option(
     "--install-selected-providers",
     help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",
@@ -612,4 +635,16 @@ option_airflow_site_directory = click.option(
     type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
     help="Local directory path of cloned airflow-site repo.",
     required=True,
+)
+option_upgrade_boto = click.option(
+    "--upgrade-boto",
+    help="Remove aiobotocore and upgrade botocore and boto to the latest version.",
+    is_flag=True,
+    envvar="UPGRADE_BOTO",
+)
+option_downgrade_sqlalchemy = click.option(
+    "--downgrade-sqlalchemy",
+    help="Downgrade SQLAlchemy to minimum supported version.",
+    is_flag=True,
+    envvar="DOWNGRADE_SQLALCHEMY",
 )

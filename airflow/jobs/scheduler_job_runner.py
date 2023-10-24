@@ -126,7 +126,7 @@ def _is_parent_process() -> bool:
     return multiprocessing.current_process().name == "MainProcess"
 
 
-class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
+class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
 
@@ -233,7 +233,6 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         self.processor_agent: DagFileProcessorAgent | None = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
-        self._paused_dag_without_running_dagruns: set = set()
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -1003,7 +1002,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
-                time.sleep(min(self._scheduler_idle_sleep_time, next_event if next_event else 0))
+                time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
 
             if loop_count >= self.num_runs > 0:
                 self.log.info(
@@ -1177,17 +1176,25 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
             if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
-                dag.create_dagrun(
-                    run_type=DagRunType.SCHEDULED,
-                    execution_date=dag_model.next_dagrun,
-                    state=DagRunState.QUEUED,
-                    data_interval=data_interval,
-                    external_trigger=False,
-                    session=session,
-                    dag_hash=dag_hash,
-                    creating_job_id=self.job.id,
-                )
-                active_runs_of_dags[dag.dag_id] += 1
+                try:
+                    dag.create_dagrun(
+                        run_type=DagRunType.SCHEDULED,
+                        execution_date=dag_model.next_dagrun,
+                        state=DagRunState.QUEUED,
+                        data_interval=data_interval,
+                        external_trigger=False,
+                        session=session,
+                        dag_hash=dag_hash,
+                        creating_job_id=self.job.id,
+                    )
+                    active_runs_of_dags[dag.dag_id] += 1
+                # Exceptions like ValueError, ParamValidationError, etc. are raised by
+                # dag.create_dagrun() when dag is misconfigured. The scheduler should not
+                # crash due to misconfigured dags. We should log any exception encountered
+                # and continue to the next dag.
+                except Exception:
+                    self.log.exception("Failed creating DagRun for %s", dag.dag_id)
+                    continue
             if self._should_update_dag_next_dagruns(
                 dag,
                 dag_model,
@@ -1348,12 +1355,14 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         def _update_state(dag: DAG, dag_run: DagRun):
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
-            if dag.timetable.periodic:
+            if dag.timetable.periodic and not dag_run.external_trigger and dag_run.clear_number < 1:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
                 # information is not stored on a DagRun, only before the actual
                 # execution on DagModel.next_dagrun_create_after. We should add
                 # a field on DagRun for this instead of relying on the run
                 # always happening immediately after the data interval.
+                # We only publish these metrics for scheduled dag runs and only
+                # when ``external_trigger`` is *False* and ``clear_number`` is 0.
                 expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
                 # Publish metrics twice with backward compatible name, and then with tags
@@ -1417,12 +1426,10 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
         # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
         query = (
-            session.query(DagModel)
-            .filter(DagModel.dag_id == dag_run.dag_id)
-            .options(joinedload(DagModel.parent_dag))
+            select(DagModel).where(DagModel.dag_id == dag_run.dag_id).options(joinedload(DagModel.parent_dag))
         )
-        dag_model = with_row_locks(
-            query, of=DagModel, session=session, **skip_locked(session=session)
+        dag_model = session.scalars(
+            with_row_locks(query, of=DagModel, session=session, **skip_locked(session=session))
         ).one_or_none()
 
         if not dag:

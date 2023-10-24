@@ -22,7 +22,6 @@ from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pytest import param
 
 from airflow.exceptions import AirflowException
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
@@ -55,7 +54,6 @@ class TestYandexHook:
 
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_get_credentials_raise_exception(self, get_connection_mock):
-
         """tests 'get_credentials' method raising exception if none of the required fields are passed."""
 
         # Inputs to constructor
@@ -144,10 +142,10 @@ class TestYandexHook:
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://?extra__yandexcloud__folder_id=abc&extra__yandexcloud__public_ssh_key=abc", id="prefix"
             ),
-            param("a://?folder_id=abc&public_ssh_key=abc", id="no-prefix"),
+            pytest.param("a://?folder_id=abc&public_ssh_key=abc", id="no-prefix"),
         ],
     )
     @patch("airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials", new=MagicMock())

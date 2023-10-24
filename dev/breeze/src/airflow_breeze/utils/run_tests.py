@@ -65,7 +65,6 @@ def run_docker_compose_tests(
     image_name: str,
     extra_pytest_args: tuple,
     skip_docker_compose_deletion: bool,
-    wait_for_containers_timeout: int,
 ) -> tuple[int, str]:
     command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
     if command_result.returncode != 0:
@@ -77,7 +76,6 @@ def run_docker_compose_tests(
     env["DOCKER_IMAGE"] = image_name
     if skip_docker_compose_deletion:
         env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
-    env["WAIT_FOR_CONTAINERS_TIMEOUT"] = str(wait_for_containers_timeout)
     command_result = run_command(
         [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
         env=env,

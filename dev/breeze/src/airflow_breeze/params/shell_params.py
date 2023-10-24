@@ -120,12 +120,15 @@ class ShellParams:
     dry_run: bool = False
     verbose: bool = False
     upgrade_boto: bool = False
+    downgrade_sqlalchemy: bool = False
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
     only_min_version_update: bool = False
     regenerate_missing_docs: bool = False
     skip_provider_dependencies_check: bool = False
+    standalone_dag_processor: bool = False
+    database_isolation: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)

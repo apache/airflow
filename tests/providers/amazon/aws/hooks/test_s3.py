@@ -24,6 +24,7 @@ import re
 import unittest
 from unittest import mock, mock as async_mock
 from unittest.mock import MagicMock, Mock, patch
+from urllib.parse import parse_qs
 
 import boto3
 import pytest
@@ -1052,10 +1053,7 @@ class TestAwsS3Hook:
         presigned_url = hook.generate_presigned_url(
             client_method="get_object", params={"Bucket": s3_bucket, "Key": "my_key"}
         )
-
-        url = presigned_url.split("?")[1]
-        params = {x[0]: x[1] for x in [x.split("=") for x in url[0:].split("&")]}
-
+        params = parse_qs(presigned_url.partition("?")[-1])
         assert {"AWSAccessKeyId", "Signature", "Expires"}.issubset(set(params.keys()))
 
     def test_should_throw_error_if_extra_args_is_not_dict(self):
@@ -1298,9 +1296,9 @@ def test_unify_and_provide_bucket_name_combination(
     first.
     """
     if has_conn == "with_conn":
-        c = Connection(schema="conn_bucket")
+        c = Connection(extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}})
     else:
-        c = Connection(schema=None)
+        c = Connection()
     key = "key.txt" if key_kind == "rel_key" else "s3://key_bucket/key.txt"
     if has_bucket == "with_bucket":
         kwargs = {"bucket_name": "kwargs_bucket", "key": key}
@@ -1317,7 +1315,6 @@ def test_unify_and_provide_bucket_name_combination(
                 return bucket_name, key
 
     else:
-
         with caplog.at_level("WARNING"):
 
             class MyHook(S3Hook):
@@ -1347,9 +1344,9 @@ def test_unify_and_provide_bucket_name_combination(
 @patch("airflow.hooks.base.BaseHook.get_connection")
 def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_kind, expected):
     if has_conn == "with_conn":
-        c = Connection(schema="conn_bucket")
+        c = Connection(extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}})
     else:
-        c = Connection(schema=None)
+        c = Connection()
     mock_conn.return_value = c
     key = "key.txt" if key_kind == "rel_key" else "s3://key_bucket/key.txt"
     if has_bucket == "with_bucket":

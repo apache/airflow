@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import logging
 import os
 import sys
@@ -29,6 +30,7 @@ import pytest
 from airflow.hooks.base import BaseHook
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
+from airflow.utils.module_loading import qualname
 from airflow.www import app as application
 from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
@@ -137,7 +139,6 @@ class TestPluginsRBAC:
         assert self.app.blueprints["test_plugin"].name == bp.name
 
     def test_app_static_folder(self):
-
         # Blueprint static folder should be properly set
         assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
 
@@ -167,7 +168,6 @@ class TestPluginsManager:
         plugins_manager.plugins = []
 
     def test_no_log_when_no_plugins(self, caplog):
-
         with mock_plugin_manager(plugins=[]):
             from airflow import plugins_manager
 
@@ -206,10 +206,9 @@ class TestPluginsManager:
 
             assert 6 == len(plugins_manager.plugins)
             for plugin in plugins_manager.plugins:
-                if "AirflowTestOnLoadPlugin" not in str(plugin):
-                    continue
-                assert "postload" == plugin.name
-                break
+                if "AirflowTestOnLoadPlugin" in str(plugin):
+                    assert "postload" == plugin.name
+                    break
             else:
                 pytest.fail("Wasn't able to find a registered `AirflowTestOnLoadPlugin`")
 
@@ -380,7 +379,13 @@ class TestPluginsManager:
             plugins_manager.integrate_listener_plugins(get_listener_manager())
 
             assert get_listener_manager().has_listeners
-            assert get_listener_manager().pm.get_plugins().pop().__name__ == "tests.listeners.empty_listener"
+            listeners = get_listener_manager().pm.get_plugins()
+            listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
+            # sort names as order of listeners is not guaranteed
+            assert [
+                "tests.listeners.class_listener.ClassBasedListener",
+                "tests.listeners.empty_listener",
+            ] == sorted(listener_names)
 
     def test_should_import_plugin_from_providers(self):
         from airflow import plugins_manager

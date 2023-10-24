@@ -827,7 +827,6 @@ class TestDataflowTemplateHook:
     @mock.patch(DATAFLOW_STRING.format("_DataflowJobsController"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.get_conn"))
     def test_start_template_dataflow(self, mock_conn, mock_controller, mock_uuid):
-
         launch_method = (
             mock_conn.return_value.projects.return_value.locations.return_value.templates.return_value.launch
         )
@@ -861,6 +860,7 @@ class TestDataflowTemplateHook:
             project_number=TEST_PROJECT,
             location=DEFAULT_DATAFLOW_LOCATION,
             drain_pipeline=False,
+            expected_terminal_state=None,
             cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
             wait_until_finished=None,
         )
@@ -900,6 +900,7 @@ class TestDataflowTemplateHook:
             project_number=TEST_PROJECT,
             location=TEST_LOCATION,
             drain_pipeline=False,
+            expected_terminal_state=None,
             cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
             wait_until_finished=None,
         )
@@ -943,6 +944,7 @@ class TestDataflowTemplateHook:
             drain_pipeline=False,
             cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
             wait_until_finished=None,
+            expected_terminal_state=None,
         )
         mock_controller.return_value.wait_for_done.assert_called_once()
 
@@ -986,6 +988,7 @@ class TestDataflowTemplateHook:
             drain_pipeline=False,
             cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
             wait_until_finished=None,
+            expected_terminal_state=None,
         )
         mock_uuid.assert_called_once_with()
 
@@ -1033,6 +1036,7 @@ class TestDataflowTemplateHook:
             drain_pipeline=False,
             cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
             wait_until_finished=None,
+            expected_terminal_state=None,
         )
         mock_uuid.assert_called_once_with()
 
@@ -1232,18 +1236,17 @@ class TestDataflowJob:
     @pytest.mark.parametrize(
         "state, exception_regex",
         [
-            (DataflowJobStatus.JOB_STATE_FAILED, "Google Cloud Dataflow job name-2 has failed\\."),
-            (DataflowJobStatus.JOB_STATE_CANCELLED, "Google Cloud Dataflow job name-2 was cancelled\\."),
-            (DataflowJobStatus.JOB_STATE_DRAINED, "Google Cloud Dataflow job name-2 was drained\\."),
-            (DataflowJobStatus.JOB_STATE_UPDATED, "Google Cloud Dataflow job name-2 was updated\\."),
+            (DataflowJobStatus.JOB_STATE_FAILED, "unexpected terminal state: JOB_STATE_FAILED"),
+            (DataflowJobStatus.JOB_STATE_CANCELLED, "unexpected terminal state: JOB_STATE_CANCELLED"),
+            (DataflowJobStatus.JOB_STATE_DRAINED, "unexpected terminal state: JOB_STATE_DRAINED"),
+            (DataflowJobStatus.JOB_STATE_UPDATED, "unexpected terminal state: JOB_STATE_UPDATED"),
             (
                 DataflowJobStatus.JOB_STATE_UNKNOWN,
-                "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN",
+                "JOB_STATE_UNKNOWN",
             ),
         ],
     )
     def test_dataflow_job_wait_for_multiple_jobs_and_one_in_terminal_state(self, state, exception_regex):
-
         (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list.return_value.execute.return_value
         ) = {
@@ -1280,7 +1283,6 @@ class TestDataflowJob:
             dataflow_job.wait_for_done()
 
     def test_dataflow_job_wait_for_multiple_jobs_and_streaming_jobs(self):
-
         mock_jobs_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list
         )
@@ -1351,7 +1353,6 @@ class TestDataflowJob:
         assert dataflow_job.get_jobs() == [job]
 
     def test_dataflow_job_is_job_running_with_no_job(self):
-
         mock_jobs_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list
         )
@@ -1446,52 +1447,52 @@ class TestDataflowJob:
             (
                 DataflowJobType.JOB_TYPE_BATCH,
                 DataflowJobStatus.JOB_STATE_FAILED,
-                "Google Cloud Dataflow job name-2 has failed\\.",
+                "JOB_STATE_FAILED",
             ),
             (
                 DataflowJobType.JOB_TYPE_STREAMING,
                 DataflowJobStatus.JOB_STATE_FAILED,
-                "Google Cloud Dataflow job name-2 has failed\\.",
+                "JOB_STATE_FAILED",
             ),
             (
                 DataflowJobType.JOB_TYPE_STREAMING,
                 DataflowJobStatus.JOB_STATE_UNKNOWN,
-                "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN",
+                "JOB_STATE_UNKNOWN",
             ),
             (
                 DataflowJobType.JOB_TYPE_BATCH,
                 DataflowJobStatus.JOB_STATE_UNKNOWN,
-                "Google Cloud Dataflow job name-2 was unknown state: JOB_STATE_UNKNOWN",
+                "JOB_STATE_UNKNOWN",
             ),
             (
                 DataflowJobType.JOB_TYPE_BATCH,
                 DataflowJobStatus.JOB_STATE_CANCELLED,
-                "Google Cloud Dataflow job name-2 was cancelled\\.",
+                "JOB_STATE_CANCELLED",
             ),
             (
                 DataflowJobType.JOB_TYPE_STREAMING,
                 DataflowJobStatus.JOB_STATE_CANCELLED,
-                "Google Cloud Dataflow job name-2 was cancelled\\.",
+                "JOB_STATE_CANCELLED",
             ),
             (
                 DataflowJobType.JOB_TYPE_BATCH,
                 DataflowJobStatus.JOB_STATE_DRAINED,
-                "Google Cloud Dataflow job name-2 was drained\\.",
+                "JOB_STATE_DRAINED",
             ),
             (
                 DataflowJobType.JOB_TYPE_STREAMING,
                 DataflowJobStatus.JOB_STATE_DRAINED,
-                "Google Cloud Dataflow job name-2 was drained\\.",
+                "JOB_STATE_DRAINED",
             ),
             (
                 DataflowJobType.JOB_TYPE_BATCH,
                 DataflowJobStatus.JOB_STATE_UPDATED,
-                "Google Cloud Dataflow job name-2 was updated\\.",
+                "JOB_STATE_UPDATED",
             ),
             (
                 DataflowJobType.JOB_TYPE_STREAMING,
                 DataflowJobStatus.JOB_STATE_UPDATED,
-                "Google Cloud Dataflow job name-2 was updated\\.",
+                "JOB_STATE_UPDATED",
             ),
         ],
     )
@@ -1508,6 +1509,47 @@ class TestDataflowJob:
             multiple_jobs=True,
         )
         with pytest.raises(Exception, match=exception_regex):
+            dataflow_job._check_dataflow_job_state(job)
+
+    @pytest.mark.parametrize(
+        "job_type, expected_terminal_state, match",
+        [
+            (
+                DataflowJobType.JOB_TYPE_BATCH,
+                "test",
+                "invalid",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_STREAMING,
+                DataflowJobStatus.JOB_STATE_DONE,
+                "cannot be JOB_STATE_DONE while it is a streaming job",
+            ),
+            (
+                DataflowJobType.JOB_TYPE_BATCH,
+                DataflowJobStatus.JOB_STATE_DRAINED,
+                "cannot be JOB_STATE_DRAINED while it is a batch job",
+            ),
+        ],
+    )
+    def test_check_dataflow_job_state__invalid_expected_state(self, job_type, expected_terminal_state, match):
+        job = {
+            "id": "id-2",
+            "name": "name-2",
+            "type": job_type,
+            "currentState": DataflowJobStatus.JOB_STATE_QUEUED,
+        }
+        dataflow_job = _DataflowJobsController(
+            dataflow=self.mock_dataflow,
+            project_number=TEST_PROJECT,
+            name=UNIQUE_JOB_NAME,
+            location=TEST_LOCATION,
+            poll_sleep=0,
+            job_id=TEST_JOB_ID,
+            num_retries=20,
+            multiple_jobs=False,
+            expected_terminal_state=expected_terminal_state,
+        )
+        with pytest.raises(Exception, match=match):
             dataflow_job._check_dataflow_job_state(job)
 
     def test_dataflow_job_cancel_job(self):
@@ -1673,7 +1715,6 @@ class TestDataflowJob:
         mock_jobs.return_value.update.assert_not_called()
 
     def test_fetch_list_job_messages_responses(self):
-
         mock_list = (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
         )
@@ -1699,7 +1740,6 @@ class TestDataflowJob:
         assert result == ["response_1"]
 
     def test_fetch_all_jobs_when_no_jobs_returned(self):
-
         (
             self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.list.return_value.execute.return_value
         ) = {}

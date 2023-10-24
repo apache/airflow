@@ -46,8 +46,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.decorators import task_group
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator,
     BigtableCreateTableOperator,
@@ -80,7 +80,7 @@ CBT_TABLE_ID = f"bigtable-table-id{ENV_ID}"
 CBT_POKE_INTERVAL = 60
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

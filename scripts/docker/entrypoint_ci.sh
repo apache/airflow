@@ -106,6 +106,19 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     echo "  * ${COLOR_BLUE}Airflow core SQL connection:${COLOR_RESET} ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
     echo
 
+    if [[ ${STANDALONE_DAG_PROCESSOR=} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Running forcing scheduler/standalone_dag_processor to be True${COLOR_RESET}"
+        echo
+        export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
+    fi
+    if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
+        echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
+        export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
+        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080
+        export AIRFLOW__WEBSERVER_RUN_INTERNAL_API=True
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
@@ -328,6 +341,22 @@ fi
 rm -f "${AIRFLOW_SOURCES}/pytest.ini"
 rm -f "${AIRFLOW_SOURCES}/.coveragerc"
 
+if [[ ${UPGRADE_BOTO=} == "true" ]]; then
+    echo
+    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
+    echo
+    pip uninstall --root-user-action ignore aiobotocore -y || true
+    pip install --root-user-action ignore --upgrade boto3 botocore
+    pip check
+fi
+if [[ ${DOWNGRADE_SQLALCHEMY=} == "true" ]]; then
+    min_sqlalchemy_version=$(grep "sqlalchemy>=" setup.cfg | sed "s/.*>=\([0-9\.]*\).*/\1/")
+    echo
+    echo "${COLOR_BLUE}Downgrading sqlalchemy to minimum supported version: ${min_sqlalchemy_version}${COLOR_RESET}"
+    echo
+    pip install --root-user-action ignore "sqlalchemy==${min_sqlalchemy_version}"
+    pip check
+fi
 
 set +u
 # If we do not want to run tests, we simply drop into bash
@@ -423,8 +452,8 @@ if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
     python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
 fi
 
-declare -a SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
-    ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
+declare -a SELECTED_TESTS CLI_TESTS API_TESTS OPERATORS_TESTS ALWAYS_TESTS PROVIDERS_TESTS \
+    CORE_TESTS WWW_TESTS ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
 
 # Finds all directories that are not on the list of tests
 # - so that we do not skip any in the future if new directories are added
@@ -455,6 +484,7 @@ else
     API_TESTS=("tests/api_experimental" "tests/api_connexion" "tests/api_internal")
     PROVIDERS_TESTS=("tests/providers")
     ALWAYS_TESTS=("tests/always")
+    OPERATORS_TESTS=("tests/operators")
     CORE_TESTS=(
         "tests/core"
         "tests/executors"
@@ -477,6 +507,7 @@ else
         "${PROVIDERS_TESTS[@]}"
         "${CORE_TESTS[@]}"
         "${ALWAYS_TESTS[@]}"
+        "${OPERATORS_TESTS[@]}"
         "${WWW_TESTS[@]}"
         "${SYSTEM_TESTS[@]}"
     )
@@ -498,6 +529,8 @@ else
         SELECTED_TESTS=("${CORE_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Always" ]]; then
         SELECTED_TESTS=("${ALWAYS_TESTS[@]}")
+    elif [[ ${TEST_TYPE:=""} == "Operators" ]]; then
+        SELECTED_TESTS=("${OPERATORS_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
@@ -561,15 +594,8 @@ else
         exit 1
     fi
 fi
-if [[ ${UPGRADE_BOTO=} == "true" ]]; then
-    echo
-    echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
-    echo
-    pip uninstall aiobotocore -y || true
-    pip install --upgrade boto3 botocore
-fi
-readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
-    ALL_TESTS ALL_PRESELECTED_TESTS
+readonly SELECTED_TESTS CLI_TESTS API_TESTS OPERATORS_TESTS ALWAYS_TESTS PROVIDERS_TESTS \
+    CORE_TESTS WWW_TESTS ALL_TESTS ALL_PRESELECTED_TESTS
 
 if [[ ${TEST_TYPE:=""} == "Long" ]]; then
     EXTRA_PYTEST_ARGS+=(
@@ -598,7 +624,6 @@ echo "Running tests ${SELECTED_TESTS[*]}"
 echo
 
 ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${SELECTED_TESTS[@]}")
-
 if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
     "${IN_CONTAINER_DIR}/run_system_tests.sh" "${ARGS[@]}"
 else

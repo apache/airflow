@@ -94,7 +94,6 @@ class TestTrigger:
 
     @pytest.mark.asyncio
     async def test_trigger_run_good(self, mocker):
-
         mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
 
         trigger = AwaitMessageTrigger(
@@ -112,7 +111,6 @@ class TestTrigger:
 
     @pytest.mark.asyncio
     async def test_trigger_run_bad(self, mocker):
-
         mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
 
         trigger = AwaitMessageTrigger(

@@ -66,6 +66,10 @@ function in_container_script_start() {
 #
 function in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "linux" ]]; then
+        if [[ ${DOCKER_IS_ROOTLESS=} == "true" ]]; then
+             echo "${COLOR_YELLOW}Skip fixing ownership of generated files: Docker is rootless${COLOR_RESET}"
+             return
+        fi
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"
@@ -329,9 +333,10 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
+    set -x
     pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
-
+    set +x
 }
 
 function install_all_provider_packages_from_wheels() {

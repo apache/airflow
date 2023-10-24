@@ -26,14 +26,12 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from pytest import MonkeyPatch, param
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.webhook.webhook_response import WebhookResponse
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook, check_webhook_response
-from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
 
 TEST_TOKEN = "T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
 TEST_WEBHOOK_URL = f"https://hooks.slack.com/services/{TEST_TOKEN}"
@@ -126,7 +124,7 @@ def slack_webhook_connections():
             host="some.netloc",
         ),
     ]
-    with MonkeyPatch.context() as mp:
+    with pytest.MonkeyPatch.context() as mp:
         for conn in connections:
             mp.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.get_uri())
         yield
@@ -447,43 +445,14 @@ class TestSlackWebhookHook:
             text="Test Text", headers=headers, unfurl_links=unfurl_links, unfurl_media=unfurl_media
         )
 
-    def test__ensure_prefixes_removal(self):
-        """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-        path = "airflow.providers.slack.hooks.slack_webhook._ensure_prefixes"
-        if not object_exists(path):
-            raise Exception(
-                "You must remove this test. It only exists to "
-                "remind us to remove decorator `_ensure_prefixes`."
-            )
-
-        if get_provider_min_airflow_version("apache-airflow-providers-slack") >= (2, 5):
-            raise Exception(
-                "You must now remove `_ensure_prefixes` from SlackWebhookHook."
-                " The functionality is now taken care of by providers manager."
-            )
-
-    def test___ensure_prefixes(self):
-        """
-        Check that ensure_prefixes decorator working properly
-
-        Note: remove this test when removing ensure_prefixes (after min airflow version >= 2.5.0
-        """
-        assert list(SlackWebhookHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "schema",
-            "host",
-            "password",
-            "extra__slackwebhook__timeout",
-            "extra__slackwebhook__proxy",
-        ]
-
     @pytest.mark.parametrize(
         "uri",
         [
-            param(
+            pytest.param(
                 "a://:abc@?extra__slackwebhook__timeout=123&extra__slackwebhook__proxy=proxy",
                 id="prefix",
             ),
-            param("a://:abc@?timeout=123&proxy=proxy", id="no-prefix"),
+            pytest.param("a://:abc@?timeout=123&proxy=proxy", id="no-prefix"),
         ],
     )
     def test_backcompat_prefix_works(self, uri):

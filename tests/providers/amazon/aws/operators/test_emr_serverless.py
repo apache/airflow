@@ -667,7 +667,7 @@ class TestEmrServerlessStartJobOperator:
             executionRoleArn=execution_role_arn,
             jobDriver=job_driver,
             configurationOverrides=configuration_overrides,
-            name=f"emr_serverless_job_airflow_{str(UUID(generated_name_uuid, version=4))}",
+            name=f"emr_serverless_job_airflow_{UUID(generated_name_uuid, version=4)}",
         )
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")

@@ -21,12 +21,10 @@ from unittest import mock
 
 import pytest
 from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
-from pytest import param
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
-from tests.test_utils.providers import get_provider_min_airflow_version
 
 ADX_TEST_CONN_ID = "adx_test_connection_id"
 
@@ -246,35 +244,15 @@ class TestAzureDataExplorerHook:
         properties.set_option("option1", "option_value")
         assert mock_execute.called_with("Database", "Logs | schema", properties=properties)
 
-    def test_get_ui_field_behaviour_placeholders(self):
-        """
-        Check that ensure_prefixes decorator working properly
-
-        Note: remove this test and the _ensure_prefixes decorator after min airflow version >= 2.5.0
-        """
-        assert list(AzureDataExplorerHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "login",
-            "password",
-            "auth_method",
-            "tenant",
-            "certificate",
-            "thumbprint",
-        ]
-        if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
-            raise Exception(
-                "You must now remove `_ensure_prefixes` from azure utils."
-                " The functionality is now taken care of by providers manager."
-            )
-
     @pytest.mark.parametrize(
         "mocked_connection",
         [
-            param(
+            pytest.param(
                 "a://usr:pw@host?extra__azure_data_explorer__tenant=my-tenant"
                 "&extra__azure_data_explorer__auth_method=AAD_APP",
                 id="prefix",
             ),
-            param("a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", id="no-prefix"),
+            pytest.param("a://usr:pw@host?tenant=my-tenant&auth_method=AAD_APP", id="no-prefix"),
         ],
         indirect=True,
     )

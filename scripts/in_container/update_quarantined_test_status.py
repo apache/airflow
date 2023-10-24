@@ -152,7 +152,7 @@ def get_history_status(history: TestHistory):
         return "Stable"
     if all(history.states[0 : num_runs - 1]):
         return "Just one more"
-    if all(history.states[0 : int(num_runs / 2)]):
+    if all(history.states[0 : num_runs // 2]):
         return "Almost there"
     return "Flaky"
 

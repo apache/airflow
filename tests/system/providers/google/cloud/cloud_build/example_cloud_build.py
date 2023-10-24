@@ -27,8 +27,8 @@ from typing import Any, cast
 
 import yaml
 
-from airflow import models
 from airflow.decorators import task_group
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_build import (
@@ -69,7 +69,7 @@ CREATE_BUILD_FROM_REPO_BODY: dict[str, Any] = {
 # [END howto_operator_create_build_from_repo_body]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -180,7 +180,6 @@ with models.DAG(
 
     @task_group(group_id="no_wait_cancel_retry_get")
     def no_wait_cancel_retry_get():
-
         # [START howto_operator_create_build_without_wait]
         create_build_without_wait = CloudBuildCreateBuildOperator(
             task_id="create_build_without_wait",

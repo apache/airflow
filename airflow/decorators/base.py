@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import textwrap
 import warnings
 from functools import cached_property
-from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -41,7 +41,7 @@ import attr
 import re2
 import typing_extensions
 
-from airflow import Dataset
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
@@ -293,7 +293,7 @@ class DecoratedOperator(BaseOperator):
 
     def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
-        res = dedent(raw_source)
+        res = textwrap.dedent(raw_source)
         res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
@@ -351,7 +351,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         except TypeError:  # Can't evaluate return type.
             return False
         ttype = getattr(return_type, "__origin__", return_type)
-        return ttype == dict or ttype == Dict
+        return ttype is dict or ttype is Dict
 
     def __attrs_post_init__(self):
         if "self" in self.function_signature.parameters:
@@ -544,7 +544,8 @@ class DecoratedMappedOperator(MappedOperator):
 
     def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
-        assert self.expand_input is EXPAND_INPUT_EMPTY
+        if self.expand_input is not EXPAND_INPUT_EMPTY:
+            raise AssertionError(f"unexpected expand_input: {self.expand_input}")
         op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session)
         return {"op_kwargs": op_kwargs}, resolved_oids
 

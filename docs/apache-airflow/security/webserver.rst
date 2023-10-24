@@ -113,7 +113,7 @@ and leverage the REMOTE_USER method:
     from typing import Any, Callable
 
     from flask import current_app
-    from airflow.www.fab_security.manager import AUTH_REMOTE_USER
+    from flask_appbuilder.const import AUTH_REMOTE_USER
 
 
     class CustomMiddleware:
@@ -169,7 +169,7 @@ Here is an example of what you might have in your webserver_config.py:
 
 .. code-block:: python
 
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     from flask_appbuilder.security.manager import AUTH_OAUTH
     import os
 
@@ -200,7 +200,7 @@ Here is an example of what you might have in your webserver_config.py:
     ]
 
 
-    class CustomSecurityManager(AirflowSecurityManager):
+    class CustomSecurityManager(FabAirflowSecurityManagerOverride):
         pass
 
 
@@ -213,7 +213,7 @@ webserver_config.py itself if you wish.
 
 .. code-block:: python
 
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     import logging
     from typing import Any, List, Union
     import os
@@ -244,13 +244,11 @@ webserver_config.py itself if you wish.
         return list(set(team_role_map.get(team, FAB_PUBLIC_ROLE) for team in team_list))
 
 
-    class GithubTeamAuthorizer(AirflowSecurityManager):
-
+    class GithubTeamAuthorizer(FabAirflowSecurityManagerOverride):
         # In this example, the oauth provider == 'github'.
         # If you ever want to support other providers, see how it is done here:
         # https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/security/manager.py#L550
         def get_oauth_user_info(self, provider: str, resp: Any) -> dict[str, Union[str, list[str]]]:
-
             # Creates the user info payload from Github.
             # The user previously allowed your app to act on their behalf,
             #   so now we can query the user and teams endpoints for their data.
@@ -313,9 +311,9 @@ setting the ``RATELIMIT_*`` configuration settings in ``webserver_config.py``.
 For example, to use Redis as a rate limit storage you can use the following configuration (you need
 to set ``redis_host`` to your Redis instance)
 
-```
-RATELIMIT_STORAGE_URI = 'redis://redis_host:6379/0
-```
+.. code-block:: python
+
+    RATELIMIT_STORAGE_URI = "redis://redis_host:6379/0"
 
 You can also configure other rate limit settings in ``webserver_config.py`` - for more details, see the
 `Flask Limiter rate limit configuration <https://flask-limiter.readthedocs.io/en/stable/configuration.html>`_.

@@ -32,7 +32,6 @@ from airflow.providers.qubole.hooks.qubole import (
 )
 
 if TYPE_CHECKING:
-
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 

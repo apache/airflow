@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.5.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ==================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+=================================================================================================  ===========  ==================================================
+
 3.4.0
 .....
 
-Latest change: 2023-08-23
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  ======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `2ae1c10bfa <https://github.com/apache/airflow/commit/2ae1c10bfa59d1b2b5d8d453cd64d9858cb18c0b>`_  2023-08-23   ``add support for Yandex Dataproc cluster labels (#29811)``
 `2b43fa473f <https://github.com/apache/airflow/commit/2b43fa473f02cfe58c9af25c861187a7712a78ef>`_  2023-08-22   ``Resume yandex provider (#33574)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``

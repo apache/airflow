@@ -26,7 +26,8 @@ import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
-from typing import Generator
+from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -35,13 +36,14 @@ from slugify import slugify
 
 from airflow.decorators import task_group
 from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
-from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchExternalPythonOperator,
     BranchPythonOperator,
+    BranchPythonVirtualenvOperator,
     ExternalPythonOperator,
     PythonOperator,
     PythonVirtualenvOperator,
@@ -58,6 +60,10 @@ from airflow.utils.types import NOTSET, DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.db import clear_db_runs
 
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+
+TI = TaskInstance
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, "tests", "config_templates")
 LOGGER_NAME = "airflow.task.operators"
@@ -826,15 +832,13 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
         if expected_state == TaskInstanceState.FAILED:
             with pytest.raises(CalledProcessError):
-                self.run_as_task(
-                    f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs if extra_kwargs else {})
-                )
+                self.run_as_task(f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs or {}))
         else:
             ti = self.run_as_task(
                 f,
                 return_ti=True,
                 op_kwargs={"exit_code": actual_exit_code},
-                **(extra_kwargs if extra_kwargs else {}),
+                **(extra_kwargs or {}),
             )
             assert ti.state == expected_state
 
@@ -964,7 +968,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return
             raise Exception
 
-        self.run_as_task(f, python_version=3, use_dill=False, requirements=["dill"])
+        self.run_as_task(f, python_version="3", use_dill=False, requirements=["dill"])
 
     def test_without_dill(self):
         def f(a):
@@ -983,6 +987,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return a
 
         self.run_as_task(f, index_urls=["https://abc.def.de", "http://xyz.abc.de"], op_args=[4])
+
+    def test_caching(self):
+        def f(a):
+            import sys
+
+            assert "pytest_venv_1234" in sys.executable
+            return a
+
+        with TemporaryDirectory(prefix="pytest_venv_1234") as tmp_dir:
+            self.run_as_task(f, venv_cache_path=tmp_dir, op_args=[4])
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
@@ -1121,18 +1135,11 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
             task._read_result(path=mock.Mock())
 
 
-class TestBranchExternalPythonOperator(BaseTestPythonVirtualenvOperator):
-    opcls = BranchExternalPythonOperator
-
+class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     @pytest.fixture(autouse=True)
     def setup_tests(self):
         self.branch_1 = EmptyOperator(task_id="branch_1")
         self.branch_2 = EmptyOperator(task_id="branch_2")
-
-    @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
-        kwargs["python"] = sys.executable
-        return kwargs
 
     def test_with_args(self):
         def f(a, b, c=False, d=False):
@@ -1278,6 +1285,23 @@ class TestBranchExternalPythonOperator(BaseTestPythonVirtualenvOperator):
         ti = self.create_ti(f)
         with pytest.raises(AirflowException, match="Invalid tasks found: {'some_task_id'}"):
             ti.run()
+
+
+class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator):
+    opcls = BranchPythonVirtualenvOperator
+
+    @staticmethod
+    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        return kwargs
+
+
+class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
+    opcls = BranchExternalPythonOperator
+
+    @staticmethod
+    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        kwargs["python"] = sys.executable
+        return kwargs
 
 
 class TestCurrentContext:

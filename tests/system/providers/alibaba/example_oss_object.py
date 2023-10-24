@@ -39,7 +39,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     create_object = OSSUploadObjectOperator(
         file="your local file",
         key="your oss key",

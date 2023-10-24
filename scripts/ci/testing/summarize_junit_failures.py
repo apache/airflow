@@ -81,25 +81,19 @@ def summarize_file(input, test_type, backend):
 
     testsuite = root.find(".//testsuite")
 
-    fail_message = ""
+    fail_message_parts = []
 
-    num = int(testsuite.get("failures"))
-    if num:
-        fail_message = f"{num} failure"
-        if num != 1:
-            fail_message += "s"
+    num_failures = int(testsuite.get("failures"))
+    if num_failures:
+        fail_message_parts.append(f"{num_failures} failure{'' if num_failures == 1 else 's'}")
 
-    num = int(testsuite.get("errors"))
-    if num:
-        if fail_message:
-            fail_message += ", "
-        fail_message += f"{num} error"
-        if num != 1:
-            fail_message += "s"
+    num_errors = int(testsuite.get("errors"))
+    if num_errors:
+        fail_message_parts.append(f"{num_errors} error{'' if num_errors == 1 else 's'}")
 
-    if not fail_message:
+    if not fail_message_parts:
         return
-    print(f"\n{TEXT_RED}==== {test_type} {backend}: {fail_message} ===={TEXT_RESET}\n")
+    print(f"\n{TEXT_RED}==== {test_type} {backend}: {', '.join(fail_message_parts)} ===={TEXT_RESET}\n")
 
     for testcase in testsuite.findall(".//testcase[error]"):
         case_name = translate_name(testcase)
@@ -114,7 +108,6 @@ def summarize_file(input, test_type, backend):
 if __name__ == "__main__":
     fname_pattern = re.compile("^test_result-(?P<test_type>.*?)-(?P<backend>.*).xml$")
     for fname in sys.argv[1:]:
-
         match = fname_pattern.match(os.path.basename(fname))
 
         if not match:

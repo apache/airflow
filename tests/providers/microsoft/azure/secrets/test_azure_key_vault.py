@@ -150,3 +150,30 @@ class TestAzureKeyVaultBackend:
         backend = AzureKeyVaultBackend(**kwargs)
         assert backend.get_config("test_mysql") is None
         mock_get_secret.assert_not_called()
+
+    @mock.patch("airflow.providers.microsoft.azure.secrets.key_vault.DefaultAzureCredential")
+    @mock.patch("airflow.providers.microsoft.azure.secrets.key_vault.ClientSecretCredential")
+    @mock.patch("airflow.providers.microsoft.azure.secrets.key_vault.SecretClient")
+    def test_client_authenticate_with_default_azure_credential(
+        self, mock_client, mock_client_secret_credential, mock_defaul_azure_credential
+    ):
+        backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
+        backend.client
+        assert not mock_client_secret_credential.called
+        mock_defaul_azure_credential.assert_called_once()
+
+    @mock.patch("airflow.providers.microsoft.azure.secrets.key_vault.DefaultAzureCredential")
+    @mock.patch("airflow.providers.microsoft.azure.secrets.key_vault.ClientSecretCredential")
+    @mock.patch("airflow.providers.microsoft.azure.secrets.key_vault.SecretClient")
+    def test_client_authenticate_with_client_secret_credential(
+        self, mock_client, mock_client_secret_credential, mock_defaul_azure_credential
+    ):
+        backend = AzureKeyVaultBackend(
+            vault_url="https://example-akv-resource-name.vault.azure.net/",
+            tenant_id="tenant_id",
+            client_id="client_id",
+            client_secret="client_secret",
+        )
+        backend.client
+        assert not mock_defaul_azure_credential.called
+        mock_client_secret_credential.assert_called_once()
