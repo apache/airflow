@@ -56,7 +56,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
 
     aws: AwsGenericHook = AwsGenericHook(aws_conn_id=conn_id, client_type="s3")
     session = aws.get_session(deferrable=True)
-    endpoint_url = aws.conn_config.extra_config.get("endpoint_url", None)
+    endpoint_url = aws.conn_config.get_service_endpoint_url(service_name="s3")
 
     config_kwargs: dict[str, Any] = aws.conn_config.extra_config.get("config_kwargs", {})
     register_events: dict[str, Callable[[Properties], None]] = {}
