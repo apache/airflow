@@ -20,12 +20,14 @@ import os
 from dataclasses import dataclass
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-from airflow_breeze.utils.general_utils import get_provider_name_from_short_hand
+from airflow_breeze.utils.general_utils import get_docs_filter_name_from_short_hand
+
+providers_prefix = "apache-airflow-providers-"
 
 
 @dataclass
 class DocBuildParams:
-    package_filter: tuple[str]
+    package_filter: tuple[str, ...]
     docs_only: bool
     spellcheck_only: bool
     short_doc_packages: tuple[str, ...]
@@ -45,10 +47,9 @@ class DocBuildParams:
         if AIRFLOW_BRANCH != "main":
             doc_args.append("--disable-provider-checks")
         if self.short_doc_packages:
-            providers = get_provider_name_from_short_hand(self.short_doc_packages)
-            for single_provider in providers:
-                doc_args.extend(["--package-filter", single_provider])
+            for filter_from_short_doc in get_docs_filter_name_from_short_hand(self.short_doc_packages):
+                doc_args.extend(["--package-filter", filter_from_short_doc])
         if self.package_filter:
-            for single_filter in self.package_filter:
-                doc_args.extend(["--package-filter", single_filter])
+            for filter in self.package_filter:
+                doc_args.extend(["--package-filter", filter])
         return doc_args

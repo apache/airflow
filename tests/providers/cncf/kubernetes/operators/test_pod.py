@@ -1299,9 +1299,7 @@ class TestKubernetesPodOperator:
         self, remote_pod, extra_kwargs, actual_exit_code, expected_exc
     ):
         """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
-        k = KubernetesPodOperator(
-            task_id="task", on_finish_action="delete_pod", **(extra_kwargs if extra_kwargs else {})
-        )
+        k = KubernetesPodOperator(task_id="task", on_finish_action="delete_pod", **(extra_kwargs or {}))
 
         base_container = MagicMock()
         base_container.name = k.base_container_name
@@ -1576,7 +1574,7 @@ class TestKubernetesPodOperatorAsync:
             in_cluster=True,
             get_logs=True,
             deferrable=True,
-            **(extra_kwargs if extra_kwargs else {}),
+            **(extra_kwargs or {}),
         )
 
         base_container = MagicMock()
