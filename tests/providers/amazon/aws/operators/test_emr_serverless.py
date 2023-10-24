@@ -357,7 +357,7 @@ class TestEmrServerlessCreateApplicationOperator:
 
 class TestEmrServerlessStartJobOperator:
     def setup_method(self):
-        self.mock_context = MagicMock()
+        self.mock_context = mock.MagicMock()
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
