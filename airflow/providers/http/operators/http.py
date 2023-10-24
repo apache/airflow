@@ -211,6 +211,7 @@ class SimpleHttpOperator(BaseOperator):
     @staticmethod
     def _default_response_maker(response: Response | list[Response]) -> Callable:
         """Create a default response maker function based on the type of response.
+
         :param response: The response object or list of response objects.
         :return: A function that returns response text(s).
         """
