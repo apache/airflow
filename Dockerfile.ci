@@ -155,6 +155,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
 
 export_key() {
     local key="${1}"
@@ -248,9 +249,18 @@ install_mariadb_client() {
 
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        INSTALL_MYSQL_CLIENT_TYPE="mariadb"
+    fi
+
+    if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
+        install_mysql_client "${@}"
+    elif [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
         install_mariadb_client "${@}"
     else
-        install_mysql_client "${@}"
+        echo
+        echo "${COLOR_RED}Specify either mysql or mariadb, got ${INSTALL_MYSQL_CLIENT_TYPE}${COLOR_RESET}"
+        echo
+        exit 1
     fi
 fi
 EOF
@@ -1344,10 +1354,12 @@ COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scrip
 ARG HOME=/root
 ARG AIRFLOW_HOME=/root/airflow
 ARG AIRFLOW_SOURCES=/opt/airflow
+ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
 
 ENV HOME=${HOME} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
-    AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+    AIRFLOW_SOURCES=${AIRFLOW_SOURCES} \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE}
 
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
@@ -1435,6 +1447,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
 # * install airflow in editable mode
 # * install always current version of airflow
     INSTALL_MYSQL_CLIENT="true" \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT="true" \
     INSTALL_POSTGRES_CLIENT="true" \
     AIRFLOW_INSTALLATION_METHOD="." \
