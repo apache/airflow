@@ -61,11 +61,12 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     config_kwargs: dict[str, Any] = aws.conn_config.extra_config.get("config_kwargs", {})
     register_events: dict[str, Callable[[Properties], None]] = {}
 
-    if signer := aws.service_config.get("signer", None):
+    s3_service_config = aws.service_config
+    if signer := s3_service_config.get("signer", None):
         log.info("Loading signer %s", signer)
         if singer_func := SIGNERS.get(signer):
-            uri = aws.service_config.get("signer_uri", None)
-            token = aws.service_config.get("signer_token", None)
+            uri = s3_service_config.get("signer_uri", None)
+            token = s3_service_config.get("signer_token", None)
             if not uri or not token:
                 raise ValueError(f"Signer {signer} requires uri and token")
 
@@ -81,7 +82,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
         else:
             raise ValueError(f"Signer not available: {signer}")
 
-    if proxy_uri := aws.service_config.get(S3_PROXY_URI, None):
+    if proxy_uri := s3_service_config.get(S3_PROXY_URI, None):
         config_kwargs["proxies"] = {"http": proxy_uri, "https": proxy_uri}
 
     fs = S3FileSystem(session=session, config_kwargs=config_kwargs, endpoint_url=endpoint_url)
