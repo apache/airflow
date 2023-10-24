@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
-
 # [START tutorial]
 # [START import_module]
 import pendulum
@@ -44,7 +42,7 @@ aq_fields = {
     "TRSC_PT1H_avg": "float64",
 }
 
-base = ObjectStoragePath("s3://airflow-tutorial-data/", conn_id="minio")
+base = ObjectStoragePath("s3://airflow-tutorial-data/", conn_id="aws_default")
 
 
 # [START instantiate_dag]
@@ -96,45 +94,29 @@ def tutorial_objectstorage():
         base.mkdir(exists_ok=True)
 
         formatted_date = execution_date.format("YYYYMMDD")
-        path = base / f"air_quality_{formatted_date}.json"
+        path = base / f"air_quality_{formatted_date}.parquet"
 
-        with path.open("w") as file:
-            file.write(json.dumps(response.json()))
+        df = pd.DataFrame(response.json()).astype(aq_fields)
+        with path.open("wb") as file:
+            df.to_parquet(file)
 
         return path
 
     # [END get_air_quality_data]
 
     @task
-    def analyze(path: ObjectStoragePath, **kwargs) -> ObjectStoragePath:
+    def analyze(path: ObjectStoragePath, **kwargs):
         """
         #### Analyze
-        This task analyzes the air quality data, prints the results and saves the results
-        to a parquet file.
+        This task analyzes the air quality data, prints the results
         """
-        execution_date = kwargs["logical_date"]
-
-        # duckdb does not use pathlike interfaces yet
-        # see https://github.com/duckdb/duckdb/issues/8182
-        with path.open("rb") as file:
-            df = pd.read_json(file).astype(aq_fields)
-
-        # just to make sure df does not get optimized away
-        assert df is not None
-
         conn = duckdb.connect(database=":memory:")
-        conn.execute("CREATE OR REPLACE TABLE airquality_urban AS SELECT * FROM df")
+        conn.register_filesystem(path.fs)
+        conn.execute(f"CREATE OR REPLACE TABLE airquality_urban AS SELECT * FROM read_parquet('{path}')")
 
         df2 = conn.execute("SELECT * FROM airquality_urban").fetchdf()
 
         print(df2.head())
-
-        formatted_date = execution_date.format("YYYYMMDD")
-        parquet_file = base / f"air_quality_{formatted_date}.parquet"
-        with parquet_file.open("wb") as file:
-            df2.to_parquet(file)
-
-        return parquet_file
 
     # [START main_flow]
     obj_path = get_air_quality_data()

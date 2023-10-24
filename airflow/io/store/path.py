@@ -28,6 +28,9 @@ from fsspec.utils import stringify_path
 from airflow.io.store import ObjectStore, attach
 from airflow.io.store.stat import stat_result
 
+if typing.TYPE_CHECKING:
+    from fsspec import AbstractFileSystem
+
 
 def _rewrite_info(info: dict, store: ObjectStore) -> dict:
     info["name"] = ObjectStoragePath(info["name"], store=store)
@@ -178,6 +181,14 @@ class ObjectStoragePath(os.PathLike):
             raise ValueError("Cannot do operations. No store attached.")
 
         return self._store
+
+    @property
+    def protocol(self) -> str:
+        return self._protocol
+
+    @property
+    def fs(self) -> AbstractFileSystem:
+        return self.store.fs
 
     @property
     def parent(self) -> ObjectStoragePath:
