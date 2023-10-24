@@ -109,8 +109,6 @@ class ConfDict(dict):
     @staticmethod
     def is_jsonable(conf: dict) -> dict | None:
         """Prevent setting non-json attributes"""
-        if conf is None:
-            return {}
         try:
             json.dumps(conf)
         except TypeError:
@@ -234,7 +232,7 @@ class DagRun(Base, LoggingMixin):
         execution_date: datetime | None = None,
         start_date: datetime | None = None,
         external_trigger: bool | None = None,
-        _conf: Any | None = None,
+        conf: Any | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
         dag_hash: str | None = None,
@@ -252,7 +250,7 @@ class DagRun(Base, LoggingMixin):
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-        self._conf = ConfDict(_conf)
+        self._conf = ConfDict(conf or {})
         if state is not None:
             self.state = state
         if queued_at is NOTSET:
