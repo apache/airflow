@@ -35,7 +35,7 @@ class TestGetDocsUrl:
             ),
             (
                 "2.0.0.dev0",
-                "migration.html",
+                "migrations-ref.html",
                 "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/"
                 "apache-airflow/stable/migrations-ref.html",
             ),
