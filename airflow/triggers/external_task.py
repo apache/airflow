@@ -72,8 +72,9 @@ class TaskStateTrigger(BaseTrigger):
         self.execution_dates = execution_dates
         self.poll_interval = poll_interval
         self.trigger_start_time = trigger_start_time
-        self.states = states if states else [TaskInstanceState.SUCCESS.value]
+        self.states = states or [TaskInstanceState.SUCCESS.value]
         self._timeout_sec = 60 if timeout == conf.getfloat("sensors", "default_timeout") else timeout
+
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serialize TaskStateTrigger arguments and classpath."""

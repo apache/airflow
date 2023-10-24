@@ -28,8 +28,12 @@ from pathlib import Path
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
 
-RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
-RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
+RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
+# we should get more sophisticated logic here in the future, but for now we just check if
+# we use self airflow, vm-based, amd hosted runner as a default
+# TODO: when we have it properly set-up with labels we should change it to
+# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
+RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
 SELF_HOSTED_RUNNERS_CPU_COUNT = 8
 
 ANSWER = ""
@@ -101,6 +105,13 @@ PIP_VERSION = "23.3"
 
 # key used for generating providers index
 PROVIDERS_INDEX_KEY = "providers-index"
+# keys for generated non providers docs
+NON_PROVIDERS_DOC_KEYS = ["apache-airflow", "docker-stack", "helm-chart"]
+# Mapping which store short-key:full-key
+ALL_SPECIAL_DOC_KEYS = {
+    PROVIDERS_INDEX_KEY: "apache-airflow-providers",
+    **dict(zip(NON_PROVIDERS_DOC_KEYS, NON_PROVIDERS_DOC_KEYS)),
+}
 
 
 @lru_cache(maxsize=None)
@@ -165,7 +176,7 @@ def get_available_documentation_packages(short_version=False, only_providers: bo
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
     available_packages = []
     if not only_providers:
-        available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
+        available_packages.extend(NON_PROVIDERS_DOC_KEYS)
     all_providers = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
     all_providers.sort()
     available_packages.extend(all_providers)
@@ -213,6 +224,44 @@ else:
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
 CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
+
+
+AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
+    "2.0.0": ["3.6", "3.7", "3.8"],
+    "2.0.1": ["3.6", "3.7", "3.8"],
+    "2.0.2": ["3.6", "3.7", "3.8"],
+    "2.1.0": ["3.6", "3.7", "3.8"],
+    "2.1.1": ["3.6", "3.7", "3.8"],
+    "2.1.2": ["3.6", "3.7", "3.8", "3.9"],
+    "2.1.3": ["3.6", "3.7", "3.8", "3.9"],
+    "2.1.4": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.0": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.1": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.2": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.3": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.4": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.5": ["3.6", "3.7", "3.8", "3.9"],
+    "2.3.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.4": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.2": ["3.7", "3.8", "3.9", "3.10", "3.11"],
+    "2.6.3": ["3.7", "3.8", "3.9", "3.10", "3.11"],
+    "2.7.0": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.1": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.2": ["3.8", "3.9", "3.10", "3.11"],
+}
 
 DB_RESET = False
 START_AIRFLOW = "false"
