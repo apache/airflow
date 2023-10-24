@@ -1234,7 +1234,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __setstate__(self, state):
         self.__dict__ = state
-        self._log = None
 
     def render_template_fields(
         self,
