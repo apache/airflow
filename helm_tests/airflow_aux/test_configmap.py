@@ -152,13 +152,13 @@ metadata:
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
         assert expected in cfg.splitlines()
 
-    def test_overriden_flower_url_prefix(self):
+    def test_overridedn_flower_url_prefix(self):
         docs = render_chart(
-            values={"executor": "CeleryExecutor", "ingress": {"flower": {"path": "/overriden-path"}}},
+            values={"executor": "CeleryExecutor", "ingress": {"flower": {"path": "/overridden-path"}}},
             show_only=["templates/configmaps/configmap.yaml"],
         )
 
-        expected = "flower_url_prefix = /overriden-path"
+        expected = "flower_url_prefix = /overridden-path"
 
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
         assert expected in cfg.splitlines()
