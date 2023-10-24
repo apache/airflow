@@ -101,7 +101,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.3"
+PIP_VERSION = "23.3.1"
 
 # key used for generating providers index
 PROVIDERS_INDEX_KEY = "providers-index"
