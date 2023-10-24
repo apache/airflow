@@ -113,8 +113,8 @@ Example of custom logging for the ``SQLExecuteQueryOperator`` and the ``HttpHook
       from pydantic.utils import deep_update
       from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 
-      LOGGING_CONFIG = deepcopy(DEFAULT_LOGGING_CONFIG)
-      LOGGING_CONFIG.deep_update(
+      LOGGING_CONFIG = deep_update(
+          deepcopy(DEFAULT_LOGGING_CONFIG),
           {
               "loggers": {
                   "airflow.task.operators.airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator": {
@@ -128,7 +128,7 @@ Example of custom logging for the ``SQLExecuteQueryOperator`` and the ``HttpHook
                       "propagate": False,
                   },
               }
-          }
+          },
       )
 
 
@@ -143,7 +143,8 @@ Example of custom logger name:
       SQLExecuteQueryOperator(..., logger_name="sql.big_query")
 
       # In your custom `log_config.py`
-      LOGGING_CONFIG.deep_update(
+      LOGGING_CONFIG = deep_update(
+          deepcopy(DEFAULT_LOGGING_CONFIG),
           {
               "loggers": {
                   "airflow.task.operators.sql.big_query": {
@@ -152,5 +153,5 @@ Example of custom logger name:
                       "propagate": True,
                   },
               }
-          }
+          },
       )
