@@ -22,6 +22,7 @@ from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
 from airflow.security import kerberos as krb
+from airflow.security.kerberos import KerberosMode
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -32,6 +33,17 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 def kerberos(args):
     """Start a kerberos ticket renewer."""
     print(settings.HEADER)
+
+    mode_mapping = {
+        "daemon": KerberosMode.DAEMON,
+        "one-time": KerberosMode.ONE_TIME,
+    }
+    if args.mode:
+        mode_enum = mode_mapping.get(args.mode, KerberosMode.DAEMON)
+        if mode_enum is None:
+            raise ValueError("Invalid mode. Mode must be 'daemon' or 'one-time'.")
+    else:
+        mode_enum = KerberosMode.DAEMON
 
     if args.daemon:
         pid, stdout, stderr, _ = setup_locations(
@@ -49,6 +61,6 @@ def kerberos(args):
             )
 
             with ctx:
-                krb.run(principal=args.principal, keytab=args.keytab)
+                krb.run(principal=args.principal, keytab=args.keytab, mode=mode_enum)
     else:
-        krb.run(principal=args.principal, keytab=args.keytab)
+        krb.run(principal=args.principal, keytab=args.keytab, mode=mode_enum)
