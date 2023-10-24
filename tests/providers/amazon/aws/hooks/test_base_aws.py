@@ -434,7 +434,7 @@ class TestAwsBaseHook:
         with conf_vars(
             {
                 ("aws_ecs_executor", "cluster"): "foo",
-                ("aws_ecs_executor", "region"): "us-east-1",
+                ("aws_ecs_executor", "region_name"): "us-east-1",
                 ("aws_ecs_executor", "container_name"): "bar",
                 ("aws_ecs_executor", "conn_id"): "fish",
             }
