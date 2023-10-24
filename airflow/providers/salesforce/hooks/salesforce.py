@@ -242,8 +242,8 @@ class SalesforceHook(BaseHook):
         # between 0 and 10 are turned into timestamps
         # if the column cannot be converted,
         # just return the original column untouched
-        import pandas as pd
         import numpy as np
+        import pandas as pd
 
         try:
             column = pd.to_datetime(column)
