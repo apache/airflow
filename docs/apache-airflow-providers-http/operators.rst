@@ -121,17 +121,16 @@ Here we pass form data to a ``POST`` operation which is equal to a usual form su
 
 .. _howto/operator:PaginatedHttpOperator:
 
-PaginatedHttpOperator
----------------------
+You can also do a series of call on a paginated API:
 
-The :class:`~airflow.providers.http.operators.paginated.PaginatedHttpOperator` allow to repeatedly call an API
+The :class:`~airflow.providers.http.operators.paginated.SimpleHttpOperator` allows to repeatedly call an API
 endpoint, typically to loop over its pages. All API responses are stored in memory by the Operator and returned
 in one single result. Thus, it can be more memory and CPU intensive compared to the SimpleHttpOperator.
 
-By default, the result of the SimpleHttpOperator will be a list of Response.text (instead of one single
+By default, the result of the SimpleHttpOperator will become a list of Response.text (instead of one single
 Response.text object).
 
-First example - Let's assume your API returns a JSON body containing a cursor:
+Example - Let's assume your API returns a JSON body containing a cursor:
 You can write a ``pagination_function`` that will receive the raw ``request.Response`` object of your request, and
 generate new request parameters (as ``dict``) based on this cursor. The SimpleHttpOperator will repeat calls to the
 API until the function stop returning anything.
