@@ -1394,6 +1394,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             operator=self,
             region_name=self.hook.conn_region_name,
             aws_partition=self.hook.conn_partition,
+            conn_id=self.hook.aws_conn_id,
             application_id=self.application_id,
             job_run_id=self.job_id,
         )
@@ -1405,6 +1406,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 operator=self,
                 region_name=self.hook.conn_region_name,
                 aws_partition=self.hook.conn_partition,
+                conn_id=self.hook.aws_conn_id,
                 application_id=self.application_id,
                 job_run_id=self.job_id,
             )

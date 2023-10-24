@@ -106,8 +106,7 @@ class EmrServerlessLogsLink(BaseAwsLink):
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
         if not conf:
             return ""
-        conn_id = operator.aws_conn_id
-        hook = EmrServerlessHook(aws_conn_id=conn_id)
+        hook = EmrServerlessHook(aws_conn_id=conf.get("conn_id"))
         resp = hook.conn.get_dashboard_for_job_run(
             applicationId=conf.get("application_id"), jobRunId=conf.get("job_run_id")
         )
@@ -137,8 +136,7 @@ class EmrServerlessDashboardLink(BaseAwsLink):
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
         if not conf:
             return ""
-        conn_id = operator.aws_conn_id
-        hook = EmrServerlessHook(aws_conn_id=conn_id)
+        hook = EmrServerlessHook(aws_conn_id=conf.get("conn_id"))
         # Dashboard cannot be served when job is pending/scheduled
         resp = hook.conn.get_dashboard_for_job_run(
             applicationId=conf.get("application_id"), jobRunId=conf.get("job_run_id")
