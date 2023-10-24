@@ -76,7 +76,7 @@ class TestAmazonSystemTestHelpers:
     def test_fetch_variable_success(
         self, mock_getenv, env_value, ssm_value, default_value, expected_result
     ) -> None:
-        mock_getenv.return_value = env_value if env_value else ssm_value
+        mock_getenv.return_value = env_value or ssm_value
 
         result = utils.fetch_variable(ANY, default_value) if default_value else utils.fetch_variable(ANY_STR)
 
