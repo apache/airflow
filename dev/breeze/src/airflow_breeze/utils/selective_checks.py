@@ -695,12 +695,12 @@ class SelectiveChecks:
         )
 
     @cached_property
-    def docs_filter_list_as_string(self) -> str | None:
+    def docs_list_as_string(self) -> str | None:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
             return None
         if self._default_branch != "main":
-            return "--package-filter apache-airflow --package-filter docker-stack"
+            return "apache-airflow docker-stack"
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
         providers_affected = find_all_providers_affected(
@@ -719,15 +719,15 @@ class SelectiveChecks:
         if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
             packages.append("apache-airflow")
         if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
-            packages.append("apache-airflow-providers")
+            packages.append("providers-index")
         if any(file.startswith(("chart/", "docs/helm-chart")) for file in self._files):
             packages.append("helm-chart")
         if any(file.startswith("docs/docker-stack/") for file in self._files):
             packages.append("docker-stack")
         if providers_affected:
             for provider in providers_affected:
-                packages.append(f"apache-airflow-providers-{provider.replace('.', '-')}")
-        return " ".join([f"--package-filter {package}" for package in packages])
+                packages.append(provider.replace("-", "."))
+        return " ".join(packages)
 
     @cached_property
     def skip_pre_commits(self) -> str:
@@ -800,6 +800,79 @@ class SelectiveChecks:
             if actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
                 return RUNS_ON_SELF_HOSTED_RUNNER
         return RUNS_ON_PUBLIC_RUNNER
+
+    @cached_property
+    def is_self_hosted_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating It should run on "self-hosted" runner.
+
+        All self-hosted runners have "self-hosted" label.
+        """
+        return "self-hosted" in json.loads(self.runs_on)
+
+    @cached_property
+    def is_airflow_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating It should run on Airflow managed runner.
+
+        All Airflow team-managed runners will have "airflow-runner" label.
+        """
+        # TODO: when we have it properly set-up with labels we should just check for
+        #       "airflow-runner" presence in runs_on
+        runs_on_array = json.loads(self.runs_on)
+        return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
+
+    @cached_property
+    def is_amd_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating AMD architecture.
+
+        Matching amd label, asf-runner, and any ubuntu that does not contain arm
+        The last case is just in case - currently there are no public runners that have ARM
+        instances, but they can add them in the future. It might be that for compatibility
+        they will just add arm in the runner name - because currently GitHub users use just
+        one label "ubuntu-*" for all their work and depend on them being AMD ones.
+        """
+        return any(
+            [
+                "amd" == label.lower()
+                or "amd64" == label.lower()
+                or "x64" == label.lower()
+                or "asf-runner" == label
+                or ("ubuntu" in label and "arm" not in label.lower())
+                for label in json.loads(self.runs_on)
+            ]
+        )
+
+    @cached_property
+    def is_arm_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating ARM architecture.
+
+        Matches any label containing arm - including ASF-specific "asf-arm" label.
+
+        # See https://cwiki.apache.org/confluence/pages/viewpage.action?spaceKey=INFRA&title=ASF+Infra+provided+self-hosted+runners
+        """
+        return any(
+            [
+                "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
+                for label in json.loads(self.runs_on)
+            ]
+        )
+
+    @cached_property
+    def is_vm_runner(self) -> bool:
+        """Whether the runner is VM runner (managed by airflow)."""
+        # TODO: when we have it properly set-up with labels we should just check for
+        #       "airflow-runner" presence in runs_on
+        return self.is_airflow_runner
+
+    @cached_property
+    def is_k8s_runner(self) -> bool:
+        """Whether the runner is K8s runner (managed by airflow)."""
+        # TODO: when we have it properly set-up with labels we should just check for
+        #       "k8s-runner" presence in runs_on
+        return False
 
     @cached_property
     def mssql_parallelism(self) -> int:

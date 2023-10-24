@@ -118,7 +118,7 @@ class Param:
 
         if value is not NOTSET:
             self._warn_if_not_json(value)
-        final_val = value if value is not NOTSET else self.value
+        final_val = self.value if value is NOTSET else value
         if isinstance(final_val, ArgNotSet):
             if suppress_exception:
                 return None

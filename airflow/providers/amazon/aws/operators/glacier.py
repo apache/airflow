@@ -19,14 +19,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class GlacierCreateJobOperator(BaseOperator):
+class GlacierCreateJobOperator(AwsBaseOperator[GlacierHook]):
     """
     Initiate an Amazon Glacier inventory-retrieval job.
 
@@ -38,25 +39,18 @@ class GlacierCreateJobOperator(BaseOperator):
     :param vault_name: the Glacier vault on which job is executed
     """
 
-    template_fields: Sequence[str] = ("vault_name",)
+    aws_hook_class = GlacierHook
+    template_fields: Sequence[str] = aws_template_fields("vault_name")
 
-    def __init__(
-        self,
-        *,
-        aws_conn_id="aws_default",
-        vault_name: str,
-        **kwargs,
-    ):
+    def __init__(self, *, vault_name: str, **kwargs):
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
         self.vault_name = vault_name
 
     def execute(self, context: Context):
-        hook = GlacierHook(aws_conn_id=self.aws_conn_id)
-        return hook.retrieve_inventory(vault_name=self.vault_name)
+        return self.hook.retrieve_inventory(vault_name=self.vault_name)
 
 
-class GlacierUploadArchiveOperator(BaseOperator):
+class GlacierUploadArchiveOperator(AwsBaseOperator[GlacierHook]):
     """
     This operator add an archive to an Amazon S3 Glacier vault.
 
@@ -74,7 +68,8 @@ class GlacierUploadArchiveOperator(BaseOperator):
     :param aws_conn_id: The reference to the AWS connection details
     """
 
-    template_fields: Sequence[str] = ("vault_name",)
+    aws_hook_class = GlacierHook
+    template_fields: Sequence[str] = aws_template_fields("vault_name")
 
     def __init__(
         self,
@@ -84,11 +79,9 @@ class GlacierUploadArchiveOperator(BaseOperator):
         checksum: str | None = None,
         archive_description: str | None = None,
         account_id: str | None = None,
-        aws_conn_id="aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
         self.account_id = account_id
         self.vault_name = vault_name
         self.body = body
@@ -96,8 +89,7 @@ class GlacierUploadArchiveOperator(BaseOperator):
         self.archive_description = archive_description
 
     def execute(self, context: Context):
-        hook = GlacierHook(aws_conn_id=self.aws_conn_id)
-        return hook.get_conn().upload_archive(
+        return self.hook.conn.upload_archive(
             accountId=self.account_id,
             vaultName=self.vault_name,
             archiveDescription=self.archive_description,

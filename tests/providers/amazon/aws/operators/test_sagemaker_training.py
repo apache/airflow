@@ -80,7 +80,7 @@ class TestSageMakerTrainingOperator:
         }
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
-        for (key1, key2) in EXPECTED_INTEGER_FIELDS:
+        for key1, key2 in EXPECTED_INTEGER_FIELDS:
             assert self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
 
     @mock.patch.object(SageMakerHook, "describe_training_job")

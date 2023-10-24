@@ -154,7 +154,7 @@ of Airflow) performs the following tasks:
   Another drawback of `pipx` is that installs one global
   version of breeze for all projects, where it is quite
   possible that someone has two different versions of
-  Airflow repository checked out and the bootstraping
+  Airflow repository checked out and the bootstrapping
   script provides this capability.
 
 The bootstrapping script is temporary measure, until the

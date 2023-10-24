@@ -90,7 +90,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
 
     .. code-block:: python
 
-        CreateBucket = GoogleCloudStorageCreateBucketOperator(
+        CreateBucket = GCSCreateBucketOperator(
             task_id="CreateNewBucket",
             bucket_name="test-bucket",
             storage_class="MULTI_REGIONAL",
@@ -187,7 +187,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         The following Operator would list all the Avro files from ``sales/sales-2017``
         folder in ``data`` bucket. ::
 
-            GCS_Files = GoogleCloudStorageListOperator(
+            GCS_Files = GCSListOperator(
                 task_id='GCS_Files',
                 bucket='data',
                 prefix='sales/sales-2017/',

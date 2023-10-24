@@ -587,7 +587,6 @@ def test_sync_perm_for_dag_removes_existing_permissions_if_empty(app, security_m
             role_name=test_role,
             permissions=[],
         ) as user:
-
             security_manager.bulk_sync_roles(
                 [
                     {
@@ -626,7 +625,6 @@ def test_sync_perm_for_dag_removes_permissions_from_other_roles(app, security_ma
             role_name=test_role,
             permissions=[],
         ) as user:
-
             security_manager.bulk_sync_roles(
                 [
                     {
@@ -666,7 +664,6 @@ def test_sync_perm_for_dag_does_not_prune_roles_when_access_control_unset(app, s
             role_name=test_role,
             permissions=[],
         ) as user:
-
             security_manager.bulk_sync_roles(
                 [
                     {

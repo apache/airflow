@@ -78,7 +78,6 @@ with DAG(
     default_args=default_args,
     description="Examples of OpenSearch Operators",
 ) as dag:
-
     # [START howto_operator_opensearch_create_index]
     create_index = OpenSearchCreateIndexOperator(
         task_id="create_index",

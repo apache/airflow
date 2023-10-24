@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import tempfile
 import time
 from pprint import pprint
 
@@ -37,8 +36,6 @@ log = logging.getLogger(__name__)
 
 PATH_TO_PYTHON_BINARY = sys.executable
 
-BASE_DIR = tempfile.gettempdir()
-
 
 def x():
     pass
@@ -51,7 +48,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START howto_operator_python]
     @task(task_id="print_the_context")
     def print_context(ds=None, **kwargs):

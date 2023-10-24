@@ -29,7 +29,6 @@ def conf_vars(overrides):
     original = {}
     original_env_vars = {}
     for (section, key), value in overrides.items():
-
         env = conf._env_var_name(section, key)
         if env in os.environ:
             original_env_vars[env] = os.environ.pop(env)
