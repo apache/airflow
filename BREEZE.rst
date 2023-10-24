@@ -2284,6 +2284,18 @@ These are all of the available flags for the ``update-sbom-information`` command
   :width: 100%
   :alt: Breeze update sbom information
 
+Build all airflow images
+.............................
+
+In order to generate providers requirements, we need docker images with all airflow versions pre-installed,
+such images are built with the ``build-all-airflow-images`` command.
+This command will build one docker image per python version, with all the airflow versions >=2.0.0 compatible.
+
+.. image:: ./images/breeze/output_sbom_build-all-airflow-images.svg.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_build-all-airflow-images.svg
+  :width: 100%
+  :alt: Breeze build all airflow images
+
 Generating Provider requirements
 .................................
 
