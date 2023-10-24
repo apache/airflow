@@ -1227,15 +1227,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self) -> dict:
         state = dict(self.__dict__)
-        state["_log"] = self._log.name if self._log else None
+        state["_log"] = bool(self._log)
 
         return state
 
     def __setstate__(self, state: dict) -> None:
-        logger_name: str | None = state.pop("_log")
+        set_logger: bool = state.pop("_log")
         self.__dict__ = state
-        if logger_name is not None:
-            self._log = logging.getLogger(logger_name)
+        if set_logger:
+            self._get_log(obj=self, clazz=self.__class__)
 
     def render_template_fields(
         self,
