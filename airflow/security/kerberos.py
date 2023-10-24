@@ -202,7 +202,7 @@ def run(principal: str | None, keytab: str, mode: KerberosMode = KerberosMode.DA
         log.warning("Keytab renewer not starting, no keytab configured")
         sys.exit(0)
 
-    log.info("Using airflow kerberos with mode: %s", mode)
+    log.info("Using airflow kerberos with mode: %s", mode.value)
 
     if mode == KerberosMode.DAEMON:
         while True:

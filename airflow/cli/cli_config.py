@@ -561,6 +561,7 @@ ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
 ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs="?", default=conf.get("kerberos", "keytab"))
+ARG_KERBEROS_MODE = Arg(("-m", "--mode"), help="mode to run airflow kerberos", nargs="?", default="daemon")
 # run
 ARG_INTERACTIVE = Arg(
     ("-N", "--interactive"),
@@ -1887,6 +1888,7 @@ core_commands: list[CLICommand] = [
         args=(
             ARG_PRINCIPAL,
             ARG_KEYTAB,
+            ARG_KERBEROS_MODE,
             ARG_PID,
             ARG_DAEMON,
             ARG_STDOUT,

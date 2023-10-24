@@ -39,7 +39,7 @@ def kerberos(args):
         "one-time": KerberosMode.ONE_TIME,
     }
     if args.mode:
-        mode_enum = mode_mapping.get(args.mode, KerberosMode.DAEMON)
+        mode_enum = mode_mapping.get(args.mode)
         if mode_enum is None:
             raise ValueError("Invalid mode. Mode must be 'daemon' or 'one-time'.")
     else:
