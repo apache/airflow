@@ -64,7 +64,7 @@ class TestTemplater:
     def test_not_render_literal_value(self):
         templater = Templater()
         templater.template_ext = []
-        context = Context({"name": "world"})  # type: ignore
+        context = Context()
         content = LiteralValue("Hello {{ name }}")
 
         rendered_content = templater.render_template(content, context)
@@ -74,7 +74,7 @@ class TestTemplater:
     def test_not_render_file_literal_value(self):
         templater = Templater()
         templater.template_ext = [".txt"]
-        context = Context({})  # type: ignore
+        context = Context()
         content = LiteralValue("template_file.txt")
 
         rendered_content = templater.render_template(content, context)

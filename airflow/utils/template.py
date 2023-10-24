@@ -21,7 +21,7 @@ from typing import Any
 from airflow.template.templater import LiteralValue
 
 
-def literal_value(value: Any) -> LiteralValue:
+def literal(value: Any) -> LiteralValue:
     """
     Wrap a value to ensure it is rendered as-is without applying Jinja templating to its contents.
 
