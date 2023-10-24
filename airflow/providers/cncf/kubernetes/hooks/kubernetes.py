@@ -503,7 +503,7 @@ class AsyncKubernetesHook(KubernetesHook):
             return async_client.ApiClient()
 
         if kubeconfig is not None:
-            async with aiofiles.tempfile.TemporaryFile("wb") as temp_config:
+            async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug(
                     "Reading kubernetes configuration file from connection "
                     "object and writing temporary config file with its content",
