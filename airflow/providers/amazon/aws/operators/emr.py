@@ -28,7 +28,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.emr import (
     EmrClusterLink,
     EmrLogsLink,
@@ -1418,9 +1417,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 .get("s3MonitoringConfiguration", {})
                 .get("logUri")
             )
-            bucket, prefix = S3Hook.parse_s3_url(
-                f"{log_uri.rstrip('/')}/applications/{self.application_id}/jobs/{self.job_id}"
-            )
             EmrServerlessS3LogsLink.persist(
                 context=context,
                 operator=self,
@@ -1438,7 +1434,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 application_id=self.application_id,
                 job_run_id=self.job_id,
             )
-            self.log.info("You can view EMR Serverless Job run S3 logs at: %s", emrs_s3_url)
+            self.log.info("S3 logs available at: %s", emrs_s3_url)
 
         if self.has_monitoring_enabled("cloudWatchLoggingConfiguration"):
             cloudwatch_config = (
@@ -1465,7 +1461,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 awslogs_group=log_group_name,
                 stream_prefix=log_stream_prefix,
             )
-            self.log.info("You can view EMR Serverless Job run CloudWatch logs at: %s", emrs_cloudwatch_url)
+            self.log.info("CloudWatch logs available at: %s", emrs_cloudwatch_url)
 
 
 class EmrServerlessStopApplicationOperator(BaseOperator):
