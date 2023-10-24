@@ -70,10 +70,10 @@ def tutorial_objectstorage():
         """
         #### Get Air Quality Data
         This task gets air quality data from the Finnish Meteorological Institute's
-        open data API. The data is saved as json.
+        open data API. The data is saved as parquet.
         """
         execution_date = kwargs["logical_date"]
-        start_time = execution_date - pendulum.duration(days=1)
+        start_time = kwargs["data_interval_start"]
 
         params = {
             "format": "json",
