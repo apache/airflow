@@ -22,6 +22,7 @@ import json
 import time
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
+from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
@@ -227,14 +228,11 @@ class TriggerDagRunOperator(BaseOperator):
         # This execution date is parsed from the return trigger event
         provided_execution_date = event[1]["execution_dates"][0]
         try:
-            dag_run = (
-                session.query(DagRun)
-                .filter(
+            dag_run = session.execute(
+                select(DagRun).where(
                     DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_execution_date
                 )
-                .one()
-            )
-
+            ).scalar_one()
         except NoResultFound:
             raise AirflowException(
                 f"No DAG run found for DAG {self.trigger_dag_id} and execution date {self.execution_date}"

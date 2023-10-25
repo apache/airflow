@@ -27,25 +27,20 @@ import time
 from contextlib import suppress
 from pathlib import Path
 from time import sleep
-from typing import TYPE_CHECKING, NoReturn
+from typing import NoReturn
 
-import daemon
 import psutil
-from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile
 
 from airflow import settings
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging
+from airflow.utils.cli import setup_locations
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.process_utils import check_if_pidfile_process_is_running
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-
-if TYPE_CHECKING:
-    import types
 
 log = logging.getLogger(__name__)
 
@@ -367,13 +362,6 @@ def webserver(args):
             ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None,
         )
     else:
-        pid_file, stdout, stderr, log_file = setup_locations(
-            "webserver", args.pid, args.stdout, args.stderr, args.log_file
-        )
-
-        # Check if webserver is already running if not, remove old pidfile
-        check_if_pidfile_process_is_running(pid_file=pid_file, process_name="webserver")
-
         print(
             textwrap.dedent(
                 f"""\
@@ -387,6 +375,7 @@ def webserver(args):
             )
         )
 
+        pid_file, _, _, _ = setup_locations("webserver", pid=args.pid)
         run_args = [
             sys.executable,
             "-m",
@@ -436,9 +425,7 @@ def webserver(args):
             # all writing to the database at the same time, we use the --preload option.
             run_args += ["--preload"]
 
-        gunicorn_master_proc: psutil.Process | subprocess.Popen
-
-        def kill_proc(signum: int, frame: types.FrameType | None) -> NoReturn:
+        def kill_proc(signum: int, gunicorn_master_proc: psutil.Process | subprocess.Popen) -> NoReturn:
             log.info("Received signal: %s. Closing gunicorn.", signum)
             gunicorn_master_proc.terminate()
             with suppress(TimeoutError):
@@ -451,14 +438,14 @@ def webserver(args):
                 gunicorn_master_proc.kill()
             sys.exit(0)
 
-        def monitor_gunicorn(gunicorn_master_pid: int) -> NoReturn:
+        def monitor_gunicorn(gunicorn_master_proc: psutil.Process | subprocess.Popen) -> NoReturn:
             # Register signal handlers
-            signal.signal(signal.SIGINT, kill_proc)
-            signal.signal(signal.SIGTERM, kill_proc)
+            signal.signal(signal.SIGINT, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
+            signal.signal(signal.SIGTERM, lambda signum, _: kill_proc(signum, gunicorn_master_proc))
 
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
             GunicornMonitor(
-                gunicorn_master_pid=gunicorn_master_pid,
+                gunicorn_master_pid=gunicorn_master_proc.pid,
                 num_workers_expected=num_workers,
                 master_timeout=conf.getint("webserver", "web_server_master_timeout"),
                 worker_refresh_interval=conf.getint("webserver", "worker_refresh_interval", fallback=30),
@@ -468,42 +455,36 @@ def webserver(args):
                 ),
             ).start()
 
+        def start_and_monitor_gunicorn(args):
+            if args.daemon:
+                subprocess.Popen(run_args, close_fds=True)
+
+                # Reading pid of gunicorn master as it will be different that
+                # the one of process spawned above.
+                gunicorn_master_proc_pid = None
+                while not gunicorn_master_proc_pid:
+                    sleep(0.1)
+                    gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
+
+                # Run Gunicorn monitor
+                gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
+                monitor_gunicorn(gunicorn_master_proc)
+            else:
+                with subprocess.Popen(run_args, close_fds=True) as gunicorn_master_proc:
+                    monitor_gunicorn(gunicorn_master_proc)
+
         if args.daemon:
             # This makes possible errors get reported before daemonization
             os.environ["SKIP_DAGS_PARSING"] = "True"
-            app = create_app(None)
+            create_app(None)
             os.environ.pop("SKIP_DAGS_PARSING")
 
-            handle = setup_logging(log_file)
-
-            pid_path = Path(pid_file)
-            pidlock_path = pid_path.with_name(f"{pid_path.stem}-monitor{pid_path.suffix}")
-
-            with open(stdout, "a") as stdout, open(stderr, "a") as stderr:
-                stdout.truncate(0)
-                stderr.truncate(0)
-
-                ctx = daemon.DaemonContext(
-                    pidfile=TimeoutPIDLockFile(pidlock_path, -1),
-                    files_preserve=[handle],
-                    stdout=stdout,
-                    stderr=stderr,
-                    umask=int(settings.DAEMON_UMASK, 8),
-                )
-                with ctx:
-                    subprocess.Popen(run_args, close_fds=True)
-
-                    # Reading pid of gunicorn master as it will be different that
-                    # the one of process spawned above.
-                    gunicorn_master_proc_pid = None
-                    while not gunicorn_master_proc_pid:
-                        sleep(0.1)
-                        gunicorn_master_proc_pid = read_pid_from_pidfile(pid_file)
-
-                    # Run Gunicorn monitor
-                    gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
-                    monitor_gunicorn(gunicorn_master_proc.pid)
-
-        else:
-            with subprocess.Popen(run_args, close_fds=True) as gunicorn_master_proc:
-                monitor_gunicorn(gunicorn_master_proc.pid)
+        pid_file_path = Path(pid_file)
+        monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
+        run_command_with_daemon_option(
+            args=args,
+            process_name="webserver",
+            callback=lambda: start_and_monitor_gunicorn(args),
+            should_setup_logging=True,
+            pid_file=monitor_pid_file,
+        )
