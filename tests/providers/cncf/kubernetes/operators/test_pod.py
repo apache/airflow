@@ -132,11 +132,13 @@ class TestKubernetesPodOperator:
                 requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
                 limits={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
             ),
-            volume_mounts=[k8s.V1VolumeMount(
-                name="{{ dag.dag_id }}",
-                mount_path="mount_path",
-                sub_path="{{ dag.dag_id }}",
-            )],
+            volume_mounts=[
+                k8s.V1VolumeMount(
+                    name="{{ dag.dag_id }}",
+                    mount_path="mount_path",
+                    sub_path="{{ dag.dag_id }}",
+                )
+            ],
             pod_template_file="{{ dag.dag_id }}",
             config_file="{{ dag.dag_id }}",
             labels="{{ dag.dag_id }}",
