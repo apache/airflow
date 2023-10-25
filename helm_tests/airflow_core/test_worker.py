@@ -651,6 +651,16 @@ class TestWorker:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    @pytest.mark.parametrize(
+        "evictionStr, evictionBool",
+        [("true", True), ("false", False)],
+    )
+    def test_safetoevict_annotations(self, evictionStr, evictionBool):
+        docs = render_chart(
+            values={"workers": {"safeToEvict": evictionBool}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert jmespath.search("spec.template.metadata.annotations", docs[0])["cluster-autoscaler.kubernetes.io/safe-to-evict"] == evictionStr
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
