@@ -376,7 +376,7 @@ breeze build-docs --clean-build \
 If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
-./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
+breeze build-docs --clean-build amazon apache.beam google ....
 ```
 
 
