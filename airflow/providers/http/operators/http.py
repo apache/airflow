@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import base64
 import pickle
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from requests import Response
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.http.triggers.http import HttpTrigger
@@ -37,13 +38,13 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class SimpleHttpOperator(BaseOperator):
+class HttpOperator(BaseOperator):
     """
     Calls an endpoint on an HTTP system to execute an action.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SimpleHttpOperator`
+        :ref:`howto/operator:HttpOperator`
 
     :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run
         the operator against
@@ -275,3 +276,59 @@ class SimpleHttpOperator(BaseOperator):
             headers=merge_dicts(self.headers, next_page_params.get("headers", {})),
             extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {})),
         )
+
+
+class SimpleHttpOperator(HttpOperator):
+    """
+    Calls an endpoint on an HTTP system to execute an action.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:HttpOperator`
+
+    :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run
+        the operator against
+    :param endpoint: The relative part of the full url. (templated)
+    :param method: The HTTP method to use, default = "POST"
+    :param data: The data to pass. POST-data in POST/PUT and params
+        in the URL for a GET request. (templated)
+    :param headers: The HTTP headers to be added to the GET request
+    :param pagination_function: A callable that generates the parameters used to call the API again.
+        Typically used when the API is paginated and returns for e.g a cursor, a 'next page id', or
+        a 'next page URL'. When provided, the Operator will call the API repeatedly until this callable
+        returns None. Also, the result of the Operator will become by default a list of Response.text
+        objects (instead of a single response object). Same with the other injected functions (like
+        response_check, response_filter, ...) which will also receive a list of Response object. This
+        function should return a dict of parameters (`endpoint`, `data`, `headers`, `extra_options`),
+        which will be merged and override the one used in the initial API call.
+    :param response_check: A check against the 'requests' response object.
+        The callable takes the response object as the first positional argument
+        and optionally any number of keyword arguments available in the context dictionary.
+        It should return True for 'pass' and False otherwise. If a pagination_function
+        is provided, this function will receive a list of response objects instead of a
+        single response object.
+    :param response_filter: A function allowing you to manipulate the response
+        text. e.g response_filter=lambda response: json.loads(response.text).
+        The callable takes the response object as the first positional argument
+        and optionally any number of keyword arguments available in the context dictionary.
+        If a pagination_function is provided, this function will receive a list of response
+        object instead of a single response object.
+    :param extra_options: Extra options for the 'requests' library, see the
+        'requests' documentation (options to modify timeout, ssl, etc.)
+    :param log_response: Log the response (default: False)
+    :param auth_type: The auth type for the service
+    :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
+    :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
+    :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
+    :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
+        ``socket.TCP_KEEPINTVL``)
+    :param deferrable: Run operator in the deferrable mode
+    """
+
+    def __init__(self, **kwargs: Any):
+        warnings.warn(
+            "Class `SimpleHttpOperator` is deprecated and "
+            "will be removed in a future release. Please use `HttpOperator` instead.",
+            AirflowProviderDeprecationWarning,
+        )
+        super().__init__(**kwargs)

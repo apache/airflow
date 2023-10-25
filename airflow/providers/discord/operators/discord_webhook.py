@@ -21,13 +21,13 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
-from airflow.providers.http.operators.http import SimpleHttpOperator
+from airflow.providers.http.operators.http import HttpOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class DiscordWebhookOperator(SimpleHttpOperator):
+class DiscordWebhookOperator(HttpOperator):
     """
     This operator allows you to post messages to Discord using incoming webhooks.
 

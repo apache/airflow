@@ -26,20 +26,20 @@ import pytest
 from requests import Response
 
 from airflow.exceptions import AirflowException, TaskDeferred
-from airflow.providers.http.operators.http import SimpleHttpOperator
+from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.triggers.http import HttpTrigger
 
 
 @mock.patch.dict("os.environ", AIRFLOW_CONN_HTTP_EXAMPLE="http://www.example.com")
-class TestSimpleHttpOp:
+class TestHttpOperator:
     def test_response_in_logs(self, requests_mock):
         """
-        Test that when using SimpleHttpOperator with 'GET',
+        Test that when using HttpOperator with 'GET',
         the log contains 'Example Domain' in it
         """
 
         requests_mock.get("http://www.example.com", text="Example.com fake response")
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             method="GET",
             endpoint="/",
@@ -52,7 +52,7 @@ class TestSimpleHttpOp:
 
     def test_response_in_logs_after_failed_check(self, requests_mock):
         """
-        Test that when using SimpleHttpOperator with log_response=True,
+        Test that when using HttpOperator with log_response=True,
         the response is logged even if request_check fails
         """
 
@@ -60,7 +60,7 @@ class TestSimpleHttpOp:
             return response.text != "invalid response"
 
         requests_mock.get("http://www.example.com", text="invalid response")
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             method="GET",
             endpoint="/",
@@ -77,7 +77,7 @@ class TestSimpleHttpOp:
 
     def test_filters_response(self, requests_mock):
         requests_mock.get("http://www.example.com", json={"value": 5})
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             method="GET",
             endpoint="/",
@@ -88,7 +88,7 @@ class TestSimpleHttpOp:
         assert result == {"value": 5}
 
     def test_async_defer_successfully(self, requests_mock):
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             deferrable=True,
         )
@@ -97,7 +97,7 @@ class TestSimpleHttpOp:
         assert isinstance(exc.value.trigger, HttpTrigger), "Trigger is not a HttpTrigger"
 
     def test_async_execute_successfully(self, requests_mock):
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             deferrable=True,
         )
@@ -114,7 +114,7 @@ class TestSimpleHttpOp:
 
     def test_paginated_responses(self, requests_mock):
         """
-        Test that the SimpleHttpOperator calls repetitively the API when a
+        Test that the HttpOperator calls repetitively the API when a
         pagination_function is provided, and as long as this function returns
         a dictionary that override previous' call parameters.
         """
@@ -133,7 +133,7 @@ class TestSimpleHttpOp:
                 )
 
         requests_mock.get("http://www.example.com", json={"value": 5})
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             method="GET",
             endpoint="/",
@@ -145,7 +145,7 @@ class TestSimpleHttpOp:
 
     def test_async_paginated_responses(self, requests_mock):
         """
-        Test that the SimpleHttpOperator calls asynchronously and repetitively
+        Test that the HttpOperator calls asynchronously and repetitively
         the API when a pagination_function is provided, and as long as this function
         returns a dictionary that override previous' call parameters.
         """
@@ -174,7 +174,7 @@ class TestSimpleHttpOp:
                 has_returned = True
                 return dict(endpoint="/")
 
-        operator = SimpleHttpOperator(
+        operator = HttpOperator(
             task_id="test_HTTP_op",
             pagination_function=pagination_function,
             deferrable=True,

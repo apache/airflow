@@ -497,13 +497,13 @@ To retrieve an XCom result for a key other than ``return_value``, you can use:
     Using the ``.output`` property as an input to another task is supported only for operator parameters
     listed as a ``template_field``.
 
-In the code example below, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
+In the code example below, a :class:`~airflow.providers.http.operators.http.HttpOperator` result
 is captured via :doc:`XComs </core-concepts/xcoms>`. This XCom result, which is the task output, is then passed
 to a TaskFlow function which parses the response as JSON.
 
 .. code-block:: python
 
-    get_api_results_task = SimpleHttpOperator(
+    get_api_results_task = HttpOperator(
         task_id="get_api_results",
         endpoint="/api/query",
         do_xcom_push=True,
