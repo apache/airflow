@@ -179,8 +179,10 @@ metadata:
                 "/opt/airflow/dags/custom/repo/tests/dags",
             ),
             (
-                {"mountPath": "/opt/airflow/dags/custom",
-                 "gitSync": {"enabled": True, "subPath": "mysubPath"}},
+                {
+                    "mountPath": "/opt/airflow/dags/custom",
+                    "gitSync": {"enabled": True, "subPath": "mysubPath"},
+                },
                 "/opt/airflow/dags/custom/repo/mysubPath",
             ),
             (
