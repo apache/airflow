@@ -660,7 +660,13 @@ class TestWorker:
             values={"workers": {"safeToEvict": evictionBool}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        assert jmespath.search("spec.template.metadata.annotations", docs[0])["cluster-autoscaler.kubernetes.io/safe-to-evict"] == evictionStr
+        assert (
+            jmespath.search("spec.template.metadata.annotations", docs[0])[
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == evictionStr
+        )
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
