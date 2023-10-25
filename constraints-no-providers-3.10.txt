@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-23T21:00:09Z
+# This constraints file was automatically generated on 2023-10-25T10:47:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -8,7 +8,7 @@
 # Airflow in any way.
 #
 Authlib==1.2.1
-Babel==2.13.0
+Babel==2.13.1
 ConfigUpdater==3.1.1
 Deprecated==1.2.14
 Flask-AppBuilder==4.3.9
@@ -53,7 +53,7 @@ billiard==4.1.0
 blinker==1.6.3
 botocore==1.31.64
 cachelib==0.9.0
-cachetools==5.3.1
+cachetools==5.3.2
 celery==5.3.4
 certifi==2023.7.22
 cffi==1.16.0
@@ -70,7 +70,7 @@ colorlog==4.8.0
 connexion==2.14.2
 cron-descriptor==1.4.0
 croniter==2.0.1
-cryptography==41.0.4
+cryptography==41.0.5
 dask==2023.10.0
 decorator==5.1.1
 dill==0.3.7

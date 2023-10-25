@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-23T21:03:15Z
+# This constraints file was automatically generated on 2023-10-25T10:53:00Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -29,7 +29,7 @@
 # pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]==2.9.0"
 #
 Authlib==1.2.1
-Babel==2.13.0
+Babel==2.13.1
 ConfigUpdater==3.1.1
 Deprecated==1.2.14
 Flask-AppBuilder==4.3.9
@@ -186,7 +186,7 @@ async-timeout==4.0.3
 atlasclient==1.0.0
 atlassian-python-api==3.41.3
 attrs==23.1.0
-aws-sam-translator==1.78.0
+aws-sam-translator==1.79.0
 aws-xray-sdk==2.12.1
 azure-batch==14.0.0
 azure-common==1.1.28
@@ -224,7 +224,7 @@ blinker==1.6.3
 boto3==1.28.64
 botocore==1.31.64
 cachelib==0.9.0
-cachetools==5.3.1
+cachetools==5.3.2
 cassandra-driver==3.28.0
 cattrs==23.1.2
 celery==5.3.4
@@ -237,7 +237,6 @@ chardet==5.2.0
 charset-normalizer==3.3.1
 checksumdir==1.2.0
 ciso8601==2.3.0
-click-default-group==1.2.4
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
@@ -253,7 +252,7 @@ coverage==7.3.2
 crcmod==1.7
 cron-descriptor==1.4.0
 croniter==2.0.1
-cryptography==41.0.4
+cryptography==41.0.5
 curlify==2.2.1
 dask==2023.4.1
 databricks-sql-connector==2.9.3
@@ -298,7 +297,7 @@ gevent==23.9.1
 gitdb==4.0.11
 google-ads==22.1.0
 google-api-core==2.12.0
-google-api-python-client==2.104.0
+google-api-python-client==2.105.0
 google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.1.0
 google-auth==2.23.3
@@ -395,7 +394,7 @@ jsonschema-path==0.3.1
 jsonschema-specifications==2023.7.1
 jsonschema==4.19.1
 junit-xml==1.9
-jupyter_client==8.4.0
+jupyter_client==8.5.0
 jupyter_core==5.4.0
 keyring==24.2.0
 kombu==5.3.2
@@ -542,7 +541,7 @@ pytest-mock==3.12.0
 pytest-rerunfailures==12.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.3.1
-pytest==7.4.2
+pytest==7.4.3
 python-arango==7.7.0
 python-daemon==3.0.1
 python-dateutil==2.8.2
@@ -579,7 +578,7 @@ rich-click==1.7.0
 rich==13.6.0
 rpds-py==0.10.6
 rsa==4.9
-ruff==0.1.1
+ruff==0.1.2
 s3transfer==0.7.0
 sarif-om==1.0.4
 scramp==1.4.4
@@ -643,9 +642,9 @@ tomli==2.0.1
 tomlkit==0.12.1
 toolz==0.12.0
 tornado==6.3.3
-towncrier==23.6.0
+towncrier==23.10.0
 tqdm==4.66.1
-traitlets==5.11.2
+traitlets==5.12.0
 trino==0.327.0
 twine==4.0.2
 types-Deprecated==1.2.9.3
@@ -685,7 +684,7 @@ websocket-client==1.6.4
 wrapt==1.15.0
 xmltodict==0.13.0
 yamllint==1.32.0
-yandexcloud==0.237.0
+yandexcloud==0.238.0
 yarl==1.9.2
 zeep==4.2.1
 zenpy==2.0.41
