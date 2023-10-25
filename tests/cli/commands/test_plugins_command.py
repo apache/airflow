@@ -61,7 +61,9 @@ class TestPluginsCommand:
         assert info == [
             {
                 "name": "test_plugin",
+                "admin_views": [],
                 "macros": ["tests.plugins.test_plugin.plugin_macro"],
+                "menu_links": [],
                 "executors": ["tests.plugins.test_plugin.PluginExecutor"],
                 "flask_blueprints": [
                     "<flask.blueprints.Blueprint: name='test_plugin' import_name='tests.plugins.test_plugin'>"
@@ -85,7 +87,10 @@ class TestPluginsCommand:
                     "<tests.test_utils.mock_operators.CustomBaseIndexOpLink object>",
                 ],
                 "hooks": ["tests.plugins.test_plugin.PluginHook"],
-                "listeners": ["tests.listeners.empty_listener"],
+                "listeners": [
+                    "tests.listeners.empty_listener",
+                    "tests.listeners.class_listener.ClassBasedListener",
+                ],
                 "source": None,
                 "appbuilder_menu_items": [
                     {"name": "Google", "href": "https://www.google.com", "category": "Search"},
@@ -102,7 +107,6 @@ class TestPluginsCommand:
 
     @mock_plugin_manager(plugins=[TestPlugin])
     def test_should_display_one_plugins_as_table(self):
-
         with redirect_stdout(StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=table"]))
             stdout = temp_stdout.getvalue()

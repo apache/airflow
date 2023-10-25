@@ -38,7 +38,6 @@ LOG_STREAM_NAME = "test/stream/d56a66bb98a14c4593defa1548686edf"
 
 
 class TestBatchClient:
-
     MAX_RETRIES = 2
     STATUS_RETRIES = 3
 

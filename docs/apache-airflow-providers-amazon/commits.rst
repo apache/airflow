@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.9.0
+.....
+
+Latest change: 2023-10-16
+
+=================================================================================================  ===========  ===========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================
+`4a37777567 <https://github.com/apache/airflow/commit/4a377775672b7148e8935e20844e7a0ba491bdd8>`_  2023-10-16   ``Glue 'DataBrew' operator (#34807)``
+`b392f66c42 <https://github.com/apache/airflow/commit/b392f66c424fc3b8cbc957e02c67847409551cab>`_  2023-10-16   ``Set 'EcsRunTaskOperator' default waiter duration to 70 days (#34928)``
+`b1196460db <https://github.com/apache/airflow/commit/b1196460db1a21b2c6c3ef2e841fc6d0c22afe97>`_  2023-10-16   ``Add 'check_interval' and 'max_attempts' as parameter of 'DynamoDBToS3Operator' (#34972)``
+`f23170c9dd <https://github.com/apache/airflow/commit/f23170c9dd23556a40bd07b5d24f06220eec15c4>`_  2023-10-16   ``D401 Support - A thru Common (Inclusive) (#34934)``
+=================================================================================================  ===========  ===========================================================================================
+
 8.8.0
 .....
 
-Latest change: 2023-10-12
+Latest change: 2023-10-13
 
 =================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
 `545e4d505e <https://github.com/apache/airflow/commit/545e4d505e669473f42a6637f5593d0860dac086>`_  2023-10-12   ``Extend hooks arguments into 'AwsBaseWaiterTrigger' (#34884)``
 `84a3daed86 <https://github.com/apache/airflow/commit/84a3daed8691d5e129eaf3e02061efb8b6ca56cb>`_  2023-10-11   ``Implements 'AwsBaseOperator' and 'AwsBaseSensor' (#34784)``
 `8e26865763 <https://github.com/apache/airflow/commit/8e2686576399417faf9478d7119110287d4c8630>`_  2023-10-06   ``Refactor consolidate import from io in providers (#34378)``

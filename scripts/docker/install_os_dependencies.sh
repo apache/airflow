@@ -18,7 +18,7 @@
 # shellcheck shell=bash
 set -euo pipefail
 
-DOCKER_CLI_VERSION=20.10.9
+DOCKER_CLI_VERSION=24.0.6
 
 if [[ "$#" != 1 ]]; then
     echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".

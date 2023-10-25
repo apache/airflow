@@ -81,7 +81,6 @@ class TestFunctionHookNoDefaultProjectId:
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
         mck, open_module = get_open_mock()
         with mock.patch(f"{open_module}.open", mck):
-
             generate_upload_url_method = (
                 get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.generateUploadUrl
             )
@@ -223,7 +222,6 @@ class TestFunctionHookDefaultProjectId:
     def test_upload_function_zip(self, get_conn, requests_put, mock_project_id):
         mck, open_module = get_open_mock()
         with mock.patch(f"{open_module}.open", mck):
-
             generate_upload_url_method = (
                 get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.generateUploadUrl
             )
@@ -252,7 +250,6 @@ class TestFunctionHookDefaultProjectId:
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
         mck, open_module = get_open_mock()
         with mock.patch(f"{open_module}.open", mck):
-
             generate_upload_url_method = (
                 get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.generateUploadUrl
             )

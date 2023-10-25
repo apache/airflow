@@ -35,7 +35,6 @@ class TestMsSqlToHiveTransfer:
         self.kwargs = dict(sql="sql", hive_table="table", task_id="test_mssql_to_hive", dag=None)
 
     def test_type_map_binary(self):
-
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.BINARY.value)
 
         assert mapped_type == "INT"

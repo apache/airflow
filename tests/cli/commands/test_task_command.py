@@ -551,7 +551,6 @@ class TestCliTasks:
         )
 
     def test_task_states_for_dag_run(self):
-
         dag2 = DagBag().dags["example_python_operator"]
         task2 = dag2.get_task(task_id="print_the_context")
         default_date2 = timezone.datetime(2016, 1, 9)

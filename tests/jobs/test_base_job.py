@@ -55,7 +55,6 @@ class TestJob:
         assert job.end_date is not None
 
     def test_base_job_respects_plugin_hooks(self):
-
         import sys
 
         job = Job()

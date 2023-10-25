@@ -88,6 +88,7 @@ asia
 assertEqualIgnoreMultipleSpaces
 assigment
 ast
+astroid
 Async
 async
 AsyncResult
@@ -866,6 +867,7 @@ KeyManagementServiceClient
 keyring
 keyspace
 keytab
+kfp
 Kibana
 killMode
 Kinesis
@@ -958,6 +960,7 @@ mesos
 MessageAttributes
 metaclass
 metadatabase
+metadataStores
 metarouter
 Metastore
 metastore
@@ -1150,7 +1153,6 @@ POSIX
 postfix
 Postgres
 postgres
-Postgresql
 postgresql
 postMessage
 Potiuk
@@ -1189,6 +1191,7 @@ productionalize
 ProductSearchClient
 profiler
 programmatically
+proj
 projectId
 projectid
 proto
