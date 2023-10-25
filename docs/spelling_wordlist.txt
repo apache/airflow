@@ -122,6 +122,7 @@ Avro
 avro
 aws
 awsbatch
+awslogs
 Azkaban
 Azri
 backcompat
@@ -516,6 +517,7 @@ dynamodb
 dynload
 ec
 ecb
+ecs
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -1622,6 +1624,7 @@ Un
 un
 unarchived
 unassigns
+uncomment
 uncommenting
 Undead
 undead
