@@ -18,17 +18,17 @@
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from google.cloud.run_v2 import (
-    CreateJobRequest, 
-    DeleteJobRequest, 
-    GetJobRequest, 
-    Job, 
+    CreateJobRequest,
+    DeleteJobRequest,
+    GetJobRequest,
+    Job,
     JobsAsyncClient,
-    JobsClient, 
-    ListJobsRequest, 
-    RunJobRequest, 
+    JobsClient,
+    ListJobsRequest,
+    RunJobRequest,
     UpdateJobRequest,
 )
 from google.longrunning import operations_pb2
@@ -113,7 +113,11 @@ class CloudRunHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def execute_job(
-        self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID, overrides: dict[str, str | dict[str, str]] | None = None
+        self,
+        job_name: str,
+        region: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        overrides: dict[str, Any] | None = None,
     ) -> operation.Operation:
         run_job_request = RunJobRequest(
             name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides

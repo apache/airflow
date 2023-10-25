@@ -217,7 +217,7 @@ class TestCloudRunExecuteJobOperator:
         overrides = {
             "container_overrides": [{"args": ["python", "main.py"]}],
             "task_count": 1,
-            "timeout": "60s"
+            "timeout": "60s",
         }
 
         operator = CloudRunExecuteJobOperator(
@@ -235,7 +235,7 @@ class TestCloudRunExecuteJobOperator:
         overrides = {
             "container_overrides": [{"args": ["python", "main.py"]}],
             "task_count": -1,
-            "timeout": "60s"
+            "timeout": "60s",
         }
 
         operator = CloudRunExecuteJobOperator(
@@ -250,7 +250,7 @@ class TestCloudRunExecuteJobOperator:
         overrides = {
             "container_overrides": [{"args": ["python", "main.py"]}],
             "task_count": 1,
-            "timeout": "60"
+            "timeout": "60",
         }
 
         operator = CloudRunExecuteJobOperator(
@@ -265,7 +265,7 @@ class TestCloudRunExecuteJobOperator:
         overrides = {
             "container_overrides": [{"name": "job", "args": "python main.py"}],
             "task_count": 1,
-            "timeout": "60s"
+            "timeout": "60s",
         }
 
         operator = CloudRunExecuteJobOperator(

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.cloud.run_v2 import Job
 
@@ -271,7 +271,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         job_name: str,
-        overrides: dict[str, str | dict[str, str]] | None = None,
+        overrides: dict[str, Any] | None = None,
         polling_period_seconds: float = 10,
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
