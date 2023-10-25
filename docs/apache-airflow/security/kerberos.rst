@@ -100,17 +100,29 @@ Launch the ticket renewer by
     # run ticket renewer
     airflow kerberos
 
-To support more advanced deployment models for using kerberos in daemon or one-time fashion,
-you can specify the mode while running the ``airflow kerberos`` as either "daemon" or "one-time".
+To support more advanced deployment models for using kerberos in standard or one-time fashion,
+you can specify the mode while running the ``airflow kerberos`` by using the ``--one-time`` flag.
 
-* daemon: The airflow kerberos process will run forever
+* standard: The airflow kerberos command will run endlessly. The ticket renewer process runs continuously every few seconds
+and refreshes the ticket if it has expired.
 * one-time: The airflow kerberos will run once and exit. In case of failure the main task won't spin up.
 
+The default mode is standard.
+
 Example usages:
-``
-airflow kerberos --mode daemon
-airflow kerberos --mode one-time
-``
+
+For standard mode:
+
+.. code-block:: bash
+
+    airflow kerberos
+
+For one time mode:
+
+.. code-block:: bash
+
+
+    airflow kerberos --one-time
 
 Hadoop
 ^^^^^^
