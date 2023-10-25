@@ -121,7 +121,6 @@ For one time mode:
 
 .. code-block:: bash
 
-
     airflow kerberos --one-time
 
 Hadoop
