@@ -434,8 +434,8 @@ class PodGenerator:
         )
 
         # Reconcile the pods starting with the first chronologically,
-        # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
-        pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
+        # Pod from the pod_template_File -> Pod from the K8s executor -> Pod from executor_config arg
+        pod_list = [base_worker_pod, dynamic_pod, pod_override_object]
 
         try:
             pod = reduce(PodGenerator.reconcile_pods, pod_list)
