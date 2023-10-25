@@ -900,7 +900,7 @@ repos:
         files: newsfragments/.*\.rst
         entry: ./scripts/ci/pre_commit/pre_commit_newsfragments.py
         pass_filenames: true
-        # We sometimes won't have news fragments in the repo, so always run it so `check-hooks-apply` passes
+        # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
         # This is fast, so not too much downside
         always_run: true
       - id: update-breeze-cmd-output
