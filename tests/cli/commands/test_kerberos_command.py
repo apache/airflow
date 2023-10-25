@@ -113,7 +113,7 @@ class TestKerberosCommand:
 
         kerberos_command.kerberos(args)
         mock_krb.run.assert_called_once_with(
-            keytab="/tmp/airflow.keytab", principal="PRINCIPAL", mode=KerberosMode.ONE_TIME
+            keytab="/tmp/airflow.keytab", principal="PRINCIPAL", mode=KerberosMode.STANDARD
         )
 
     @mock.patch("airflow.cli.commands.kerberos_command.krb")
