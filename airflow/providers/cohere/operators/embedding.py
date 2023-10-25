@@ -18,9 +18,8 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping
+from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cohere.hooks.cohere import CohereHook
 
@@ -47,12 +46,11 @@ class CohereEmbeddingOperator(BaseOperator):
     :param max_retries: No. of times to retry before failing.
     """
 
+    template_fields: Sequence[str] = ("input_text",)
+
     def __init__(
         self,
-        input_text: list[str] | None = None,
-        input_callable: Callable[[Any], list[str]] | None = None,
-        input_callable_args: Collection[Any] | None = None,
-        input_callable_kwargs: Mapping[str, Any] | None = None,
+        input_text: list[str],
         conn_id: str = CohereHook.default_conn_name,
         timeout: int | None = None,
         max_retries: int | None = None,
@@ -61,31 +59,14 @@ class CohereEmbeddingOperator(BaseOperator):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.input_text = input_text
-        self.input_callable = input_callable
-        self.input_callable_args = input_callable_args or ()
-        self.input_callable_kwargs = input_callable_kwargs or {}
         self.timeout = timeout
         self.max_retries = max_retries
-        self.text_to_embed = self._get_text_to_embed()
 
     @cached_property
     def hook(self) -> CohereHook:
         """Return an instance of the CohereHook."""
         return CohereHook(conn_id=self.conn_id, timeout=self.timeout, max_retries=self.max_retries)
 
-    def _get_text_to_embed(self) -> list[str]:
-        """Get the text to embed by evaluating ``input_text`` and ``input_callable``."""
-        if self.input_text and self.input_callable:
-            raise RuntimeError("Only one of 'input_text' and 'input_callable' is allowed")
-        if self.input_callable:
-            if not callable(self.input_callable):
-                raise AirflowException("`input_callable` param must be callable")
-            return self.input_callable(*self.input_callable_args, **self.input_callable_kwargs)
-        elif self.input_text:
-            return self.input_text
-        else:
-            raise RuntimeError("Either one of 'input_text' and 'input_callable' must be provided")
-
     def execute(self, context: Context) -> list[list[float]]:
         """Embed texts using Cohere embed services."""
-        return self.hook.create_embeddings(self.text_to_embed)
+        return self.hook.create_embeddings(self.input_text)

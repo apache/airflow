@@ -16,33 +16,34 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 from airflow import DAG
+from airflow.decorators import task
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_cohere_embedding"
-CONN_ID = "cohere_default"
-
-# [START howto_cohere_operator]
-with DAG(DAG_ID, schedule=None, start_date=datetime(2023, 1, 1), catchup=False) as dag:
+with DAG("example_cohere_embedding", schedule=None, start_date=datetime(2023, 1, 1), catchup=False) as dag:
+    # [START howto_operator_cohere_embedding]
     texts = [
         "On Kernel-Target Alignment. We describe a family of global optimization procedures",
         " that automatically decompose optimization problems into smaller loosely coupled",
         " problems, then combine the solutions of these with message passing algorithms.",
     ]
 
-    def get_text():
+    @task
+    def task_to_get_text():
         return texts
 
-    CohereEmbeddingOperator(input_text=texts, task_id="embedding_via_text", conn_id=CONN_ID)
-    CohereEmbeddingOperator(input_callable=get_text, task_id="embedding_via_callable", conn_id=CONN_ID)
-# [END howto_cohere_operator]
+    def get_task():
+        return texts
+
+    CohereEmbeddingOperator(input_text=texts, task_id="embedding_via_text")
+    CohereEmbeddingOperator(input_text=task_to_get_text(), task_id="embedding_via_task")
+    CohereEmbeddingOperator(input_text=get_task(), task_id="embedding_via_callable")
+    # [END howto_operator_cohere_embedding]
 
 
-from tests.system.utils import get_test_run  # noqa: E402
+from tests.system.utils import get_test_run
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
 test_run = get_test_run(dag)

@@ -82,7 +82,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.4.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.4.0``
-``cohere``          ``4.27``
+``cohere``          ``>=4.27``
 ==================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!

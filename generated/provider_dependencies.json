@@ -272,7 +272,7 @@
   "cohere": {
     "deps": [
       "apache-airflow>=2.5.0",
-      "cohere"
+      "cohere>=4.27"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
