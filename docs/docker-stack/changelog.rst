@@ -66,6 +66,8 @@ Airflow 2.7
     The selection of MySQL Client libraries only available on AMD64 (x86_64) for ARM docker image it will always install
     MariaDB client.
 
+  * Docker CLI version in the image is bumped to 24.0.6 version.
+
 * 2.7.0
 
   * As of now, Python 3.7 is no longer supported by the Python community. Therefore, to use Airflow 2.7.0, you must ensure your Python version is
