@@ -455,7 +455,6 @@ jobs:
            echo "Please run 'breeze setup version' and commit the changes." && false)
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
-      - run: breeze setup check-all-params-in-groups
 
   tests-www:
     timeout-minutes: 10

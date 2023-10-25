@@ -62,7 +62,7 @@ setup:config:0b95b129703e11a99b8ddd05a0dd6b35
 setup:regenerate-command-images:ea2fba3440bd4e84311a53abe6e8dc56
 setup:self-upgrade:4af905a147fcd6670a0e33d3d369a94b
 setup:version:be116d90a21c2afe01087f7609774e1e
-setup:000b1d18baa7f1a740a1afb6a6bfe246
+setup:9dff88972f7c2ba4da2ad47f77ba2d06
 shell:619e9de6bb9e6eb26acab06c8aedb183
 start-airflow:c238330495a57851030415e34042173b
 static-checks:19926b8fcea5784b28d4a0d99865363c
