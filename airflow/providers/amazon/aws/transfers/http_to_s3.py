@@ -18,6 +18,7 @@
 """This module contains operator to move data from HTTP endpoint to S3."""
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
@@ -138,8 +139,10 @@ class HttpToS3Operator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-    def execute(self, context: Context):
-        http_hook = HttpHook(
+    @cached_property
+    def http_hook(self) -> HttpHook:
+        """Create and return an HttpHook."""
+        return HttpHook(
             self.method,
             http_conn_id=self.http_conn_id,
             auth_type=self.auth_type,
@@ -148,12 +151,20 @@ class HttpToS3Operator(BaseOperator):
             tcp_keep_alive_count=self.tcp_keep_alive_count,
             tcp_keep_alive_interval=self.tcp_keep_alive_interval,
         )
-        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
+    @cached_property
+    def s3_hook(self) -> S3Hook:
+        """Create and return an S3Hook."""
+        return S3Hook(
+            aws_conn_id=self.aws_conn_id,
+            verify=self.verify,
+        )
+
+    def execute(self, context: Context):
         self.log.info("Calling HTTP method")
-        response = http_hook.run(self.endpoint, self.data, self.headers, self.extra_options)
+        response = self.http_hook.run(self.endpoint, self.data, self.headers, self.extra_options)
 
-        s3_hook.load_bytes(
+        self.s3_hook.load_bytes(
             response.content,
             self.s3_key,
             self.s3_bucket,
