@@ -65,7 +65,6 @@ class TestAwsTaskLogFetcher:
         ),
     )
     def test_run(self, get_log_events_mock, event_is_set_mock):
-
         self.log_fetcher.run()
 
         self.logger_mock.info.assert_has_calls(

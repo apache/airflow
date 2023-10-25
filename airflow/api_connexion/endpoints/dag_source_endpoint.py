@@ -24,11 +24,11 @@ from itsdangerous import BadSignature, URLSafeSerializer
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.schemas.dag_source_schema import dag_source_schema
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models.dagcode import DagCode
-from airflow.security import permissions
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE)])
+@security.requires_access_dag("GET", DagAccessEntity.CODE)
 def get_dag_source(*, file_token: str) -> Response:
     """Get source code using file token."""
     secret_key = current_app.config["SECRET_KEY"]

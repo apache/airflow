@@ -260,8 +260,8 @@ class TestAzureDataFactoryRunPipelineOperator:
             EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK.format(
                 run_id=PIPELINE_RUN_RESPONSE["run_id"],
                 subscription_id=SUBSCRIPTION_ID,
-                resource_group_name=resource_group if resource_group else conn_resource_group_name,
-                factory_name=factory if factory else conn_factory_name,
+                resource_group_name=resource_group or conn_resource_group_name,
+                factory_name=factory or conn_factory_name,
             )
         )
 

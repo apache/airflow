@@ -226,6 +226,15 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.security_context == security_context
 
+    def test_host_aliases(self):
+        host_aliases = [k8s.V1HostAlias(ip="192.0.2.1", hostnames=["my.service.com"])]
+        k = KubernetesPodOperator(
+            host_aliases=host_aliases,
+            task_id="task",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.host_aliases == host_aliases
+
     def test_container_security_context(self):
         container_security_context = {"allowPrivilegeEscalation": False}
         k = KubernetesPodOperator(
@@ -1299,9 +1308,7 @@ class TestKubernetesPodOperator:
         self, remote_pod, extra_kwargs, actual_exit_code, expected_exc
     ):
         """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
-        k = KubernetesPodOperator(
-            task_id="task", on_finish_action="delete_pod", **(extra_kwargs if extra_kwargs else {})
-        )
+        k = KubernetesPodOperator(task_id="task", on_finish_action="delete_pod", **(extra_kwargs or {}))
 
         base_container = MagicMock()
         base_container.name = k.base_container_name
@@ -1576,7 +1583,7 @@ class TestKubernetesPodOperatorAsync:
             in_cluster=True,
             get_logs=True,
             deferrable=True,
-            **(extra_kwargs if extra_kwargs else {}),
+            **(extra_kwargs or {}),
         )
 
         base_container = MagicMock()

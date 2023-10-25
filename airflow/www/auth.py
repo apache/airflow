@@ -35,7 +35,7 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.models import Connection
+    from airflow.models.connection import Connection
 
 T = TypeVar("T", bound=Callable)
 
@@ -48,7 +48,7 @@ def get_access_denied_message():
 
 def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
     """
-    Factory for decorator that checks current user's permissions against required permissions.
+    Check current user's permissions against required permissions.
 
     Deprecated. Do not use this decorator, use one of the decorator `has_access_*` defined in
     airflow/www/auth.py instead.
@@ -70,12 +70,12 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
 
 def _has_access_no_details(is_authorized_callback: Callable[[], bool]) -> Callable[[T], T]:
     """
-    Generic Decorator that checks current user's permissions against required permissions.
+    Check current user's permissions against required permissions.
 
     This works only for resources with no details. This function is used in some ``has_access_`` functions
     below.
 
-    :param is_authorized_callback: callback to execute to figure whether the user authorized to access
+    :param is_authorized_callback: callback to execute to figure whether the user is authorized to access
         the resource?
     """
 
@@ -140,9 +140,7 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
             ]
             is_authorized = all(
                 [
-                    get_auth_manager().is_authorized_connection(
-                        method=method, connection_details=connection_details
-                    )
+                    get_auth_manager().is_authorized_connection(method=method, details=connection_details)
                     for connection_details in connections_details
                 ]
             )
@@ -191,8 +189,8 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
 
             is_authorized = get_auth_manager().is_authorized_dag(
                 method=method,
-                dag_access_entity=access_entity,
-                dag_details=None if not dag_id else DagDetails(id=dag_id),
+                access_entity=access_entity,
+                details=None if not dag_id else DagDetails(id=dag_id),
             )
 
             return _has_access(
@@ -208,15 +206,15 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
 
 
 def has_access_dataset(method: ResourceMethod) -> Callable[[T], T]:
-    """Decorator that checks current user's permissions against required permissions for datasets."""
+    """Check current user's permissions against required permissions for datasets."""
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_dataset(method=method))
 
 
 def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
-    """Decorator that checks current user's permissions against required permissions for variables."""
+    """Check current user's permissions against required permissions for variables."""
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_variable(method=method))
 
 
 def has_access_website() -> Callable[[T], T]:
-    """Decorator that checks current user's permissions to access the website."""
+    """Check current user's permissions to access the website."""
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_website())

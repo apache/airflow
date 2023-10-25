@@ -89,7 +89,6 @@ class TestDatasetSchema(TestDatasetSchemaBase):
 
 class TestDatasetCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
-
         datasets = [
             DatasetModel(
                 uri=f"s3://bucket/key/{i+1}",

@@ -1279,7 +1279,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.create_tag(
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1298,7 +1297,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag_protobuff(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.create_tag(
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,
@@ -1317,7 +1315,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag_template(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.create_tag_template(
                 location=TEST_LOCATION,
                 tag_template_id=TEST_TAG_TEMPLATE_ID,
@@ -1334,7 +1331,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_create_tag_template_field(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.create_tag_template_field(
                 location=TEST_LOCATION,
                 tag_template=TEST_TAG_TEMPLATE_ID,
@@ -1352,7 +1348,6 @@ class TestCloudDataCatalogMissingProjectIdHook:
     @mock.patch("airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.get_conn")
     def test_delete_entry(self, mock_get_conn, mock_get_creds_and_project_id) -> None:
         with pytest.raises(AirflowException, match=TEST_MESSAGE):
-
             self.hook.delete_entry(
                 location=TEST_LOCATION,
                 entry_group=TEST_ENTRY_GROUP_ID,

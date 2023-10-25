@@ -528,7 +528,7 @@ def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[s
 
 def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydantic) -> None:
     """
-    Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them.
+    Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them.
 
     :param task_instance: the task instance
 
@@ -2080,9 +2080,13 @@ class TaskInstance(Base, LoggingMixin):
             # If the task continues after being deferred (next_method is set), use the original start_date
             self.start_date = self.start_date if self.next_method else timezone.utcnow()
             if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
-                task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
-                if task_reschedule:
-                    self.start_date = task_reschedule.start_date
+                tr_start_date = session.scalar(
+                    TR.stmt_for_task_instance(self, descending=False)
+                    .with_only_columns(TR.start_date)
+                    .limit(1)
+                )
+                if tr_start_date:
+                    self.start_date = tr_start_date
 
             # Secondly we find non-runnable but requeueable tis. We reset its state.
             # This is because we might have hit concurrency limits,
@@ -2185,7 +2189,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
 
     def clear_next_method_args(self) -> None:
-        """Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them."""
+        """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""
         _clear_next_method_args(task_instance=self)
 
     @provide_session

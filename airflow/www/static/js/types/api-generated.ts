@@ -44,6 +44,15 @@ export interface paths {
     /**
      * Test a connection.
      *
+     * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+     * For more information on capabilities of users, see the documentation:
+     * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+     * It is strongly advised to not enable the feature until you make sure that only
+     * highly trusted UI/API users have "edit connection" permissions.
+     *
+     * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+     * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
+     *
      * *New in version 2.2.0*
      */
     post: operations["test_connection"];
@@ -1588,6 +1597,12 @@ export interface components {
       operator_extra_links?: (string | null)[];
       /** @description The plugin source */
       source?: string | null;
+      /** @description The plugin task instance dependencies */
+      ti_deps?: string[];
+      /** @description The plugin listeners */
+      listeners?: string[];
+      /** @description The plugin timetables */
+      timetables?: string[];
     };
     /**
      * @description A collection of plugin.
@@ -2567,6 +2582,15 @@ export interface operations {
   };
   /**
    * Test a connection.
+   *
+   * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+   * For more information on capabilities of users, see the documentation:
+   * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+   * It is strongly advised to not enable the feature until you make sure that only
+   * highly trusted UI/API users have "edit connection" permissions.
+   *
+   * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+   * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
    *
    * *New in version 2.2.0*
    */

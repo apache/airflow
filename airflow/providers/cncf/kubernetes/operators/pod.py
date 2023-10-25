@@ -110,7 +110,7 @@ def _create_pod_id(
     unique: bool = True,
 ) -> str:
     """
-    Generates unique pod ID given a dag_id and / or task_id.
+    Generate unique pod ID given a dag_id and / or task_id.
 
     TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
 
@@ -200,6 +200,7 @@ class KubernetesPodOperator(BaseOperator):
         comma separated list: secret_a,secret_b
     :param service_account_name: Name of the service account
     :param hostnetwork: If True enable host networking on the pod.
+    :param host_aliases: A list of host aliases to apply to the containers in the pod.
     :param tolerations: A list of kubernetes tolerations.
     :param security_context: security options the pod should run with (PodSecurityContext).
     :param container_security_context: security options the container should run with.
@@ -303,6 +304,7 @@ class KubernetesPodOperator(BaseOperator):
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
         hostnetwork: bool = False,
+        host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
         security_context: k8s.V1PodSecurityContext | dict | None = None,
         container_security_context: k8s.V1SecurityContext | dict | None = None,
@@ -381,6 +383,7 @@ class KubernetesPodOperator(BaseOperator):
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.hostnetwork = hostnetwork
+        self.host_aliases = host_aliases
         self.tolerations = (
             [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
         )
@@ -525,7 +528,7 @@ class KubernetesPodOperator(BaseOperator):
         return self.hook.core_v1_client
 
     def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True) -> k8s.V1Pod | None:
-        """Returns an already-running pod for this task instance if one exists."""
+        """Return an already-running pod for this task instance if one exists."""
         label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
         pod_list = self.client.list_namespaced_pod(
             namespace=namespace,
@@ -564,7 +567,7 @@ class KubernetesPodOperator(BaseOperator):
             raise
 
     def extract_xcom(self, pod: k8s.V1Pod):
-        """Retrieves xcom value and kills xcom sidecar container."""
+        """Retrieve xcom value and kill xcom sidecar container."""
         result = self.pod_manager.extract_xcom(pod)
         if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
             self.log.info("xcom result file is empty.")
@@ -637,7 +640,7 @@ class KubernetesPodOperator(BaseOperator):
         self.invoke_defer_method()
 
     def invoke_defer_method(self):
-        """Method to easily redefine triggers which are being used in child classes."""
+        """Redefine triggers which are being used in child classes."""
         trigger_start_time = utcnow()
         self.defer(
             trigger=KubernetesPodTrigger(
@@ -771,7 +774,7 @@ class KubernetesPodOperator(BaseOperator):
                 self.log.error("Pod Event: %s - %s", event.reason, event.message)
 
     def is_istio_enabled(self, pod: V1Pod) -> bool:
-        """Checks if istio is enabled for the namespace of the pod by inspecting the namespace labels."""
+        """Check if istio is enabled for the namespace of the pod by inspecting the namespace labels."""
         if not pod:
             return False
 
@@ -867,7 +870,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def build_pod_request_obj(self, context: Context | None = None) -> k8s.V1Pod:
         """
-        Returns V1Pod object based on pod template file, full pod spec, and other operator parameters.
+        Return V1Pod object based on pod template file, full pod spec, and other operator parameters.
 
         The V1Pod attributes are derived (in order of precedence) from operator params, full pod spec, pod
         template file.
@@ -897,6 +900,7 @@ class KubernetesPodOperator(BaseOperator):
                 affinity=self.affinity,
                 tolerations=self.tolerations,
                 init_containers=self.init_containers,
+                host_aliases=self.host_aliases,
                 containers=[
                     k8s.V1Container(
                         image=self.image,
@@ -973,7 +977,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def dry_run(self) -> None:
         """
-        Prints out the pod definition that would be created by this operator.
+        Print out the pod definition that would be created by this operator.
 
         Does not include labels specific to the task instance (since there isn't
         one in a dry_run) and excludes all empty elements.
