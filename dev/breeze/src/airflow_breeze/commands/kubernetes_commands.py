@@ -167,6 +167,13 @@ option_use_standard_naming = click.option(
     envvar="USE_STANDARD_NAMING",
 )
 
+option_multi_namespace_mode = click.option(
+    "--multi-namespace-mode",
+    help="Use multi namespace mode.",
+    is_flag=True,
+    envvar="MULTI_NAMESPACE_MODE",
+)
+
 option_rebuild_base_image = click.option(
     "--rebuild-base-image",
     help="Rebuilds base Airflow image before building K8S image.",
@@ -954,6 +961,7 @@ def _deploy_helm_chart(
     executor: str,
     use_standard_naming: bool,
     extra_options: tuple[str, ...] | None = None,
+    multi_namespace_mode: bool = False,
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
     action = "Deploying" if not upgrade else "Upgrading"
@@ -994,6 +1002,8 @@ def _deploy_helm_chart(
             "config.logging.logging_level=DEBUG",
             "--set",
             f"executor={executor}",
+            "--set",
+            f"multiNamespaceMode={'true' if multi_namespace_mode else 'false'}",
         ]
         if upgrade:
             # force upgrade
@@ -1024,6 +1034,7 @@ def _deploy_airflow(
     wait_time_in_seconds: int,
     use_standard_naming: bool,
     extra_options: tuple[str, ...] | None = None,
+    multi_namespace_mode: bool = False,
 ) -> tuple[int, str]:
     action = "Deploying" if not upgrade else "Upgrading"
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
@@ -1036,6 +1047,7 @@ def _deploy_airflow(
         executor=executor,
         use_standard_naming=use_standard_naming,
         extra_options=extra_options,
+        multi_namespace_mode=multi_namespace_mode,
     )
     if result.returncode == 0:
         get_console(output=output).print(
@@ -1073,6 +1085,7 @@ def _deploy_airflow(
 @option_debug_resources
 @option_include_success_outputs
 @option_use_standard_naming
+@option_multi_namespace_mode
 @option_python_versions
 @option_kubernetes_versions
 @option_verbose
@@ -1093,6 +1106,7 @@ def deploy_airflow(
     python_versions: str,
     kubernetes_versions: str,
     extra_options: tuple[str, ...],
+    multi_namespace_mode: bool = False,
 ):
     if run_in_parallel:
         python_version_array: list[str] = python_versions.split(" ")
@@ -1121,6 +1135,7 @@ def deploy_airflow(
                             "wait_time_in_seconds": wait_time_in_seconds,
                             "extra_options": extra_options,
                             "output": outputs[index],
+                            "multi_namespace_mode": multi_namespace_mode,
                         },
                     )
                     for index, combo in enumerate(combos)
@@ -1142,6 +1157,7 @@ def deploy_airflow(
             use_standard_naming=use_standard_naming,
             wait_time_in_seconds=wait_time_in_seconds,
             extra_options=extra_options,
+            multi_namespace_mode=multi_namespace_mode,
         )
         if return_code == 0:
             get_console().print(
@@ -1430,6 +1446,7 @@ def _run_complete_tests(
     extra_options: tuple[str, ...] | None,
     test_args: tuple[str, ...],
     output: Output | None,
+    multi_namespace_mode: bool = False,
 ) -> tuple[int, str]:
     get_console(output=output).print(f"\n[info]Rebuilding k8s image for Python {python}\n")
     returncode, message = _rebuild_k8s_image(
@@ -1486,6 +1503,7 @@ def _run_complete_tests(
             use_standard_naming=use_standard_naming,
             wait_time_in_seconds=wait_time_in_seconds,
             extra_options=extra_options,
+            multi_namespace_mode=multi_namespace_mode,
         )
         if returncode != 0:
             _logs(python=python, kubernetes_version=kubernetes_version)
@@ -1516,6 +1534,7 @@ def _run_complete_tests(
                 use_standard_naming=use_standard_naming,
                 wait_time_in_seconds=wait_time_in_seconds,
                 extra_options=extra_options,
+                multi_namespace_mode=multi_namespace_mode,
             )
             if returncode != 0:
                 _logs(python=python, kubernetes_version=kubernetes_version)
@@ -1562,6 +1581,7 @@ def _run_complete_tests(
 @option_debug_resources
 @option_include_success_outputs
 @option_use_standard_naming
+@option_multi_namespace_mode
 @option_python_versions
 @option_kubernetes_versions
 @option_verbose
@@ -1585,6 +1605,7 @@ def run_complete_tests(
     use_standard_naming: bool,
     python_versions: str,
     kubernetes_versions: str,
+    multi_namespace_mode: bool,
     test_args: tuple[str, ...],
 ):
     result = create_virtualenv(force_venv_setup=force_venv_setup)
@@ -1623,6 +1644,7 @@ def run_complete_tests(
                             "extra_options": None,
                             "test_args": pytest_args,
                             "output": outputs[index],
+                            "multi_namespace_mode": multi_namespace_mode,
                         },
                     )
                     for index, combo in enumerate(combos)
@@ -1649,6 +1671,7 @@ def run_complete_tests(
             extra_options=None,
             test_args=test_args,
             output=None,
+            multi_namespace_mode=multi_namespace_mode,
         )
         if result != 0:
             sys.exit(result)
