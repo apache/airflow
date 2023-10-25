@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+10.10.2
+.......
+
+Misc
+~~~~
+
+* ``Added 'overrides' parameter to CloudRunExecuteJobOperator (#34874)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Update gcs.py Create and List comment Examples (#35028)``
+   * ``Upgrade pre-commits (#35033)``
+
 10.10.1
 .......
 

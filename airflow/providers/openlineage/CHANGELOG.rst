@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Send column lineage from SQL operators. (#34843)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
 1.1.1
 .....
 

@@ -26,6 +26,37 @@
 Changelog
 ---------
 
+8.10.0
+......
+
+.. note::
+  This release introduce experimental feature: AWS ECS Executor.
+
+Features
+~~~~~~~~
+
+* ``Add AWS ECS Executor (#34381)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Enable encryption in S3 download_files() hook. (#35037)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon AppFlow Operators (#35082)``
+* ``Use base aws classes in Amazon Athena Operators/Sensors/Triggers (#35133)``
+* ``Use base aws classes in Amazon Lambda Operators/Sensors (#34890)``
+* ``Use base aws classes in Amazon S3 Glacier Operators/Sensors (#35108)``
+* ``Expose catalog parameter in 'AthenaOperator' (#35103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor string splitting (#34185)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+
 8.9.0
 .....
 
