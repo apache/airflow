@@ -18,9 +18,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 
@@ -57,38 +54,3 @@ def test_cohere_embedding_operator(cohere_client, get_connection):
         api_key=api_key, api_url=api_url, timeout=timeout, max_retries=max_retries
     )
     assert val == embedded_obj
-
-
-@pytest.mark.parametrize(
-    "inputs, expected_exception, error_message",
-    (
-        (
-            {"input_text": "test", "input_callable": "some_value"},
-            RuntimeError,
-            "Only one of 'input_text' and 'input_callable' is allowed",
-        ),
-        ({"input_callable": "str_type"}, AirflowException, "`input_callable` param must be callable"),
-        ({}, RuntimeError, "Either one of 'input_text' and 'input_callable' must be provided"),
-    ),
-)
-def test_validate_inputs(inputs, expected_exception, error_message):
-    print(
-        "inputs : ", inputs, " expected_exception : ", expected_exception, " error_message: ", error_message
-    )
-    with pytest.raises(expected_exception, match=error_message):
-        CohereEmbeddingOperator(task_id="embed", conn_id="some_conn", **inputs)
-
-
-@pytest.mark.parametrize(
-    "inputs, expected_text",
-    (
-        ({"input_text": ["some text", "some text"]}, ["some text", "some text"]),
-        (
-            {"input_callable": lambda: ["some other text", "some other text"]},
-            ["some other text", "some other text"],
-        ),
-    ),
-)
-def test_get_text(inputs, expected_text):
-    op = CohereEmbeddingOperator(task_id="embed", conn_id="some_conn", **inputs)
-    assert op.text_to_embed == expected_text
