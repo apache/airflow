@@ -113,7 +113,7 @@ class TestKerberosCommand:
 
     @mock.patch("airflow.cli.commands.kerberos_command.krb")
     @conf_vars({("core", "executor"): "CeleryExecutor"})
-    def test_run_command_with_mode_daemon(self, mock_krb):
+    def test_run_command_with_mode_standard(self, mock_krb):
         args = self.parser.parse_args(["kerberos", "PRINCIPAL", "--keytab", "/tmp/airflow.keytab"])
 
         kerberos_command.kerberos(args)
