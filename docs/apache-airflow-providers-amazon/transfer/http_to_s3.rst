@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-================
+=================
 HTTP to Amazon S3
-================
+=================
 
 Use the ``HttpToS3Operator`` transfer content from a http endpoint to an Amazon Simple Storage Service (S3) file.
 
@@ -32,7 +32,7 @@ Operators
 .. _howto/operator:HttpToS3Operator:
 
 HTTP to Amazon S3 transfer operator
-==================================
+===================================
 
 This operator copies data from a HTTP endpoint to an Amazon S3 file.
 
