@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import aiofiles
 import contextlib
 import json
 import tempfile
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generator
 
+import aiofiles
 from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
 from kubernetes.config import ConfigException
