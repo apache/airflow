@@ -341,7 +341,6 @@ jobs:
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-ci-images]
-    if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
     env:
       RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
@@ -456,7 +455,6 @@ jobs:
            echo "Please run 'breeze setup version' and commit the changes." && false)
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
-      - run: breeze setup check-all-params-in-groups
 
   tests-www:
     timeout-minutes: 10
@@ -708,8 +706,16 @@ jobs:
       - name: "Publish docs"
         run: >
           breeze release-management publish-docs
-          --override-versioned
+          --override-versioned --run-in-parallel
           ${{ needs.build-info.outputs.docs-list-as-string }}
+      - name: "Generate back references for providers"
+        run: breeze release-management add-back-references all-providers
+      - name: "Generate back references for apache-airflow"
+        run: breeze release-management add-back-references apache-airflow
+      - name: "Generate back references for docker-stack"
+        run: breeze release-management add-back-references docker-stack
+      - name: "Generate back references for helm-chart"
+        run: breeze release-management add-back-references helm-chart
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >

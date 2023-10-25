@@ -170,6 +170,16 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-site-directory",
             ],
         },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+            ],
+        },
     ],
     "breeze release-management add-back-references": [
         {
@@ -218,10 +228,22 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Update constraints flags",
             "options": [
                 "--constraints-repo",
-                "--remote-name",
-                "--airflow-versions",
                 "--commit-message",
+                "--remote-name",
+            ],
+        },
+        {
+            "name": "Selection criteria",
+            "options": [
+                "--airflow-versions",
+                "--airflow-constraints-mode",
+            ],
+        },
+        {
+            "name": "Action to perform",
+            "options": [
                 "--updated-constraint",
+                "--comment-file",
             ],
         },
     ],
