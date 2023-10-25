@@ -36,7 +36,7 @@ COPY <<"EOF" /install_os_dependencies.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-DOCKER_CLI_VERSION=20.10.9
+DOCKER_CLI_VERSION=24.0.6
 
 if [[ "$#" != 1 ]]; then
     echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
@@ -155,6 +155,7 @@ COLOR_RESET=$'\e[0m'
 readonly COLOR_RESET
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
+: "${INSTALL_MYSQL_CLIENT_TYPE:-mysql}"
 
 export_key() {
     local key="${1}"
@@ -248,9 +249,18 @@ install_mariadb_client() {
 
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
     if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        INSTALL_MYSQL_CLIENT_TYPE="mariadb"
+    fi
+
+    if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
+        install_mysql_client "${@}"
+    elif [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
         install_mariadb_client "${@}"
     else
-        install_mysql_client "${@}"
+        echo
+        echo "${COLOR_RED}Specify either mysql or mariadb, got ${INSTALL_MYSQL_CLIENT_TYPE}${COLOR_RESET}"
+        echo
+        exit 1
     fi
 fi
 EOF
@@ -469,7 +479,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.3"
+            export AIRFLOW_PIP_VERSION="23.3.1"
         fi
     fi
 }
@@ -1333,7 +1343,7 @@ RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 # THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
 # AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=23.3
+ARG AIRFLOW_PIP_VERSION=23.3.1
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
 COPY --from=scripts common.sh /scripts/docker/
 
@@ -1344,10 +1354,12 @@ COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scrip
 ARG HOME=/root
 ARG AIRFLOW_HOME=/root/airflow
 ARG AIRFLOW_SOURCES=/opt/airflow
+ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
 
 ENV HOME=${HOME} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
-    AIRFLOW_SOURCES=${AIRFLOW_SOURCES}
+    AIRFLOW_SOURCES=${AIRFLOW_SOURCES} \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE}
 
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
@@ -1396,7 +1408,7 @@ ARG AIRFLOW_CI_BUILD_EPOCH="5"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
-ARG AIRFLOW_PIP_VERSION=23.3
+ARG AIRFLOW_PIP_VERSION=23.3.1
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -1435,6 +1447,7 @@ ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
 # * install airflow in editable mode
 # * install always current version of airflow
     INSTALL_MYSQL_CLIENT="true" \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
     INSTALL_MSSQL_CLIENT="true" \
     INSTALL_POSTGRES_CLIENT="true" \
     AIRFLOW_INSTALLATION_METHOD="." \
