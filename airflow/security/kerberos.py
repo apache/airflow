@@ -56,7 +56,7 @@ class KerberosMode(Enum):
     :return: None.
     """
 
-    DAEMON = "daemon"
+    STANDARD = "standard"
     ONE_TIME = "one-time"
 
 
@@ -189,7 +189,7 @@ def detect_conf_var() -> bool:
         return b"X-CACHECONF:" in file.read()
 
 
-def run(principal: str | None, keytab: str, mode: KerberosMode = KerberosMode.DAEMON):
+def run(principal: str | None, keytab: str, mode: KerberosMode = KerberosMode.STANDARD):
     """
     Run the kerberos renewer.
 
@@ -204,10 +204,9 @@ def run(principal: str | None, keytab: str, mode: KerberosMode = KerberosMode.DA
 
     log.info("Using airflow kerberos with mode: %s", mode.value)
 
-    if mode == KerberosMode.DAEMON:
+    if mode == KerberosMode.STANDARD:
         while True:
             renew_from_kt(principal, keytab)
             time.sleep(conf.getint("kerberos", "reinit_frequency"))
     elif mode == KerberosMode.ONE_TIME:
         renew_from_kt(principal, keytab)
-        time.sleep(conf.getint("kerberos", "reinit_frequency"))

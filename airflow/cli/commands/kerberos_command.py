@@ -31,19 +31,12 @@ def kerberos(args):
     """Start a kerberos ticket renewer."""
     print(settings.HEADER)
 
-    mode_mapping = {
-        "daemon": KerberosMode.DAEMON,
-        "one-time": KerberosMode.ONE_TIME,
-    }
-    if args.mode:
-        mode_enum = mode_mapping.get(args.mode)
-        if mode_enum is None:
-            raise ValueError("Invalid mode. Mode must be 'daemon' or 'one-time'.")
-    else:
-        mode_enum = KerberosMode.DAEMON
+    mode = KerberosMode.STANDARD
+    if args.one_time:
+        mode = KerberosMode.ONE_TIME
 
     run_command_with_daemon_option(
         args=args,
         process_name="kerberos",
-        callback=lambda: krb.run(principal=args.principal, keytab=args.keytab, mode=mode_enum),
+        callback=lambda: krb.run(principal=args.principal, keytab=args.keytab, mode=mode),
     )
