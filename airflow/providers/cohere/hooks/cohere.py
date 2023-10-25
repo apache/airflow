@@ -58,7 +58,9 @@ class CohereHook(BaseHook):
             api_key=conn.password, timeout=self.timeout, max_retries=self.max_retries, api_url=conn.host
         )
 
-    def embed_text(self, texts: list[str], model: str = "embed-multilingual-v2.0") -> list[list[float]]:
+    def create_embeddings(
+        self, texts: list[str], model: str = "embed-multilingual-v2.0"
+    ) -> list[list[float]]:
         response = self.cohere_client.embed(texts=texts, model=model)
         embeddings = response.embeddings
         return embeddings  # type:ignore[no-any-return]

@@ -39,7 +39,7 @@ with DAG(DAG_ID, schedule=None, start_date=datetime(2023, 1, 1), catchup=False) 
 
     CohereEmbeddingOperator(input_text=texts, task_id="embedding_via_text", conn_id=CONN_ID)
     CohereEmbeddingOperator(input_callable=get_text, task_id="embedding_via_callable", conn_id=CONN_ID)
-# [START howto_cohere_operator]
+# [END howto_cohere_operator]
 
 
 from tests.system.utils import get_test_run  # noqa: E402

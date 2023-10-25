@@ -29,8 +29,11 @@ if TYPE_CHECKING:
 
 
 class CohereEmbeddingOperator(BaseOperator):
-    """
-    Creates the embedding base by interacting with Cohere's hosted services.
+    """Creates the embedding base by interacting with cohere hosted services.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CohereEmbeddingOperator`
 
     :param conn_id: Optional. The name of the Airflow connection to get connection
         information for Cohere. Defaults to "cohere_default".
@@ -38,10 +41,10 @@ class CohereEmbeddingOperator(BaseOperator):
         should be provided.
     :param input_callable: The callable that provides the input texts to generate embeddings for.
         Only one of input_text or input_callable should be provided.
-    :param input_callable_args: The list of arguments to be passed to ``input_callable``
-    :param input_callable_kwargs: The kwargs to be passed to ``input_callable``
-    :param timeout: Timeout in seconds for Cohere API
-    :param max_retries : No. of times to retry before failing.
+    :param input_callable_args: The list of arguments to be passed to ``input_callable``.
+    :param input_callable_kwargs: The kwargs to be passed to ``input_callable``.
+    :param timeout: Timeout in seconds for Cohere API.
+    :param max_retries: No. of times to retry before failing.
     """
 
     def __init__(
@@ -85,4 +88,4 @@ class CohereEmbeddingOperator(BaseOperator):
 
     def execute(self, context: Context) -> list[list[float]]:
         """Embed texts using Cohere embed services."""
-        return self.hook.embed_text(self.text_to_embed)
+        return self.hook.create_embeddings(self.text_to_embed)

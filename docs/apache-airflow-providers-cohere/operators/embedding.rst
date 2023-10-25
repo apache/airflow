@@ -20,11 +20,7 @@
 CohereEmbeddingOperator
 ========================
 
-<<<<<<< HEAD
-Use the :class:`~astronomer_providers_llm.providers.cohere.operators.embedding.CohereEmbeddingOperator` to
-=======
 Use the :class:`~airflow.providers.cohere.operators.embedding.CohereEmbeddingOperator` to
->>>>>>> d50e02cd6b (Add Cohere Provider)
 interact with Cohere APIs to create embeddings for a given text.
 
 

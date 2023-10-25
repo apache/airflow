@@ -33,16 +33,7 @@
     :caption: Guides
 
     Connection types <connections>
-    Operators <operators/cohere>
-
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
-    :caption: Commits
-
-    Detailed list of commits <commits>
-
+    Operators <operators/embedding>
 
 .. toctree::
     :hidden:
