@@ -38,5 +38,5 @@ Example Code:
 .. exampleinclude:: /../../tests/system/providers/cohere/example_cohere_embedding_operator.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_cohere_operator]
-    :end-before: [END howto_cohere_operator]
+    :start-after: [START howto_operator_cohere_embedding]
+    :end-before: [END howto_operator_cohere_embedding]

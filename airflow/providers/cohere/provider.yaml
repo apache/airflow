@@ -31,6 +31,8 @@ versions:
 integrations:
   - integration-name: Cohere
     external-doc-url: https://docs.cohere.com/docs
+    how-to-guide:
+      - /docs/apache-airflow-providers-cohere/operators/embedding.rst
     tags: [software]
 
 dependencies:
@@ -43,7 +45,7 @@ hooks:
       - airflow.providers.cohere.hooks.cohere
 
 operators:
-  - integration-name: Cohere Embedding Model
+  - integration-name: Cohere
     python-modules:
       - airflow.providers.cohere.operators.embedding
 
