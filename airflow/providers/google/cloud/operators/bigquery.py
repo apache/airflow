@@ -2869,7 +2869,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                     trigger=BigQueryInsertJobTrigger(
                         conn_id=self.gcp_conn_id,
                         job_id=self.job_id,
-                        project_id=project_id,
+                        project_id=self.project_id,
                         poll_interval=self.poll_interval,
                     ),
                     method_name="execute_complete",
