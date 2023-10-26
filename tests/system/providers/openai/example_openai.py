@@ -49,6 +49,12 @@ def example_openai_dag():
     [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial_taskflow_api.html)
     """
 
+    texts = [
+        "On Kernel-Target Alignment. We describe a family of global optimization procedures",
+        " that automatically decompose optimization problems into smaller loosely coupled",
+        " problems, then combine the solutions of these with message passing algorithms.",
+    ]
+
     @task()
     def create_embeddings_using_hook():
         """
@@ -58,29 +64,36 @@ def example_openai_dag():
         hardcoded JSON string.
         """
         openai_hook = OpenAIHook()
-        embeddings = openai_hook.create_embeddings("hello how are you?")
+        embeddings = openai_hook.create_embeddings(texts[0])
         return embeddings
 
-    @task(multiple_outputs=True)
+    @task()
     def task_to_store_input_text_in_xcom():
-        return {"input_text": "Hello how are you?"}
-
-    xcom_text = task_to_store_input_text_in_xcom()
+        return texts[0]
 
     # [START howto_operator_openai_embedding]
     OpenAIEmbeddingOperator(
         task_id="embedding_using_xcom_data",
         conn_id="openai_default",
-        input_text=xcom_text["input_text"],
+        input_text=task_to_store_input_text_in_xcom(),
         model="text-embedding-ada-002",
     )
 
     OpenAIEmbeddingOperator(
         task_id="embedding_using_callable",
         conn_id="openai_default",
-        input_callable=input_text_callable,
-        input_callable_args=["input_arg1_value", "input2_value"],
-        input_callable_kwargs={"input_kwarg1": "input_kwarg1_value", "input_kwarg2": "input_kwarg2_value"},
+        input_text=input_text_callable(
+            "input_arg1_value",
+            "input2_value",
+            input_kwarg1="input_kwarg1_value",
+            input_kwarg2="input_kwarg2_value",
+        ),
+        model="text-embedding-ada-002",
+    )
+    OpenAIEmbeddingOperator(
+        task_id="embedding_using_callable",
+        conn_id="openai_default",
+        input_text=texts,
         model="text-embedding-ada-002",
     )
     # [END howto_operator_openai_embedding]

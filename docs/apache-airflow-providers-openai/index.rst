@@ -79,12 +79,12 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``   ``>=2.5.0``
-``openai[datalib]`` ``>=0.28.1``
-==================  ==================
+===================  ==================
+PIP package          Version required
+===================  ==================
+``apache-airflow``    ``>=2.5.0``
+``openai[datalib]``  ``>=0.28.1``
+===================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 .. toctree::

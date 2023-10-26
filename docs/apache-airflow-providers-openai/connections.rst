@@ -32,6 +32,3 @@ Configuring the Connection
 
 API Key (required)
     Specify your OpenAI API Key to connect.
-
-
-.. _howto/connection:openai:

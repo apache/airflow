@@ -27,8 +27,8 @@ interact with Open APIs to create embeddings for given text.
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-The OpenAIEmbeddingOperator requires the ``input_text`` or ``input_callable`` as an input to embedding API. Use the ``conn_id`` parameter to specify the OpenAI connection to use to
-connect to your account. Be aware that either input_text or input_callable must be provided, and only one of them can be used, not both.
+The OpenAIEmbeddingOperator requires the ``input_text`` as an input to embedding API. Use the ``conn_id`` parameter to specify the OpenAI connection to use to
+connect to your account.
 
 An example using the operator is in way:
 

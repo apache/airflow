@@ -31,11 +31,13 @@ versions:
 integrations:
   - integration-name: OpenAI
     external-doc-url: https://platform.openai.com/docs/introduction
+    how-to-guide:
+      - /docs/apache-airflow-providers-openai/operators/openai.rst
     tags: [software]
 
 dependencies:
   - apache-airflow>=2.5.0
-  - openai[datalib]
+  - openai[datalib]>=0.28.1
 
 hooks:
   - integration-name: OpenAI

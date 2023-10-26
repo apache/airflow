@@ -18,9 +18,8 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.openai.hooks.openai import OpenAIHook
 
@@ -31,6 +30,10 @@ if TYPE_CHECKING:
 class OpenAIEmbeddingOperator(BaseOperator):
     """
     Operator that accepts input text to generate OpenAI embeddings using the specified model.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:OpenAIEmbeddingOperator`
 
     :param conn_id: The OpenAI connection.
     :param input_text: The text to generate OpenAI embeddings on. Either input_text or input_callable
@@ -47,10 +50,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
     def __init__(
         self,
         conn_id: str,
-        input_text: str | list[Any] | None = None,
-        input_callable: Callable[[Any], str | list[Any]] | None = None,
-        input_callable_args: Collection[Any] | None = None,
-        input_callable_kwargs: Mapping[str, Any] | None = None,
+        input_text: str | list[Any],
         model: str = "text-embedding-ada-002",
         **kwargs: Any,
     ):
@@ -59,9 +59,6 @@ class OpenAIEmbeddingOperator(BaseOperator):
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.input_text = input_text
-        self.input_callable = input_callable
-        self.input_callable_args = input_callable_args or ()
-        self.input_callable_kwargs = input_callable_kwargs or {}
         self.model = model
 
     @cached_property
@@ -70,17 +67,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id, **self.hook_params)
 
     def execute(self, context: Context) -> list[float]:
-        if self.input_text and self.input_callable:
-            raise RuntimeError("Only one of 'input_text' and 'input_callable' is allowed")
-        if self.input_callable:
-            if not callable(self.input_callable):
-                raise AirflowException("`input_callable` param must be callable")
-            input_text = self.input_callable(*self.input_callable_args, **self.input_callable_kwargs)
-        elif self.input_text:
-            input_text = self.input_text
-        else:
-            raise RuntimeError("Either one of 'input_text' and 'input_callable' must be provided")
-        self.log.info("Input text: %s", input_text)
-        embeddings = self.hook.create_embeddings(input_text, model=self.model, **self.embedding_params)
+        self.log.info("Input text: %s", self.input_text)
+        embeddings = self.hook.create_embeddings(self.input_text, model=self.model, **self.embedding_params)
         self.log.info("Embeddings: %s", embeddings)
         return embeddings
