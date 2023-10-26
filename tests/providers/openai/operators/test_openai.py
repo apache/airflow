@@ -18,20 +18,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-import pytest
-
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
 from airflow.utils.context import Context
-
-
-@pytest.fixture
-def operator():
-    pass
-    # return OpenAIEmbeddingOperator(
-    #     task_id="TaskId",
-    #     conn_id="test_conn_id",
-    #     model="test_model",
-    # )
 
 
 def test_execute_with_input_text():
