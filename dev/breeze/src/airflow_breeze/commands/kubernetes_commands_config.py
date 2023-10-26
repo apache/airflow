@@ -225,7 +225,6 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--upgrade",
                 "--wait-time-in-seconds",
                 "--use-standard-naming",
-                "--multi-namespace-mode",
             ],
         },
         {
