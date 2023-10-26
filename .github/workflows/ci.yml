@@ -455,7 +455,6 @@ jobs:
            echo "Please run 'breeze setup version' and commit the changes." && false)
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
-      - run: breeze setup check-all-params-in-groups
 
   tests-www:
     timeout-minutes: 10
@@ -1684,7 +1683,7 @@ jobs:
           KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
           EXECUTOR: ${{matrix.executor}}
           USE_STANDARD_NAMING: ${{matrix.use-standard-naming}}
-          VERBOSE: false
+          VERBOSE: true
       - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()

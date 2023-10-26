@@ -162,3 +162,40 @@ metadata:
 
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
         assert expected in cfg.splitlines()
+
+    @pytest.mark.parametrize(
+        "dag_values, expected_default_dag_folder",
+        [
+            (
+                {"gitSync": {"enabled": True}},
+                "/opt/airflow/dags/repo/tests/dags",
+            ),
+            (
+                {"persistence": {"enabled": True}},
+                "/opt/airflow/dags",
+            ),
+            (
+                {"mountPath": "/opt/airflow/dags/custom", "gitSync": {"enabled": True}},
+                "/opt/airflow/dags/custom/repo/tests/dags",
+            ),
+            (
+                {
+                    "mountPath": "/opt/airflow/dags/custom",
+                    "gitSync": {"enabled": True, "subPath": "mysubPath"},
+                },
+                "/opt/airflow/dags/custom/repo/mysubPath",
+            ),
+            (
+                {"mountPath": "/opt/airflow/dags/custom", "persistence": {"enabled": True}},
+                "/opt/airflow/dags/custom",
+            ),
+        ],
+    )
+    def test_expected_default_dag_folder(self, dag_values, expected_default_dag_folder):
+        docs = render_chart(
+            values={"dags": dag_values},
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+        cfg = jmespath.search('data."airflow.cfg"', docs[0])
+        expected_folder_config = f"dags_folder = {expected_default_dag_folder}"
+        assert expected_folder_config in cfg.splitlines()

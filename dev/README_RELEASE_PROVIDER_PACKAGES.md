@@ -383,7 +383,7 @@ breeze build-docs providers-index cncf.kubernetes sftp --clean-build
 If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
-./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
+breeze build-docs --clean-build amazon apache.beam google ....
 ```
 
 - Now you can preview the documentation.
@@ -1048,7 +1048,7 @@ If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------
 
-Normally we do not announce on providers in social media other than a new provider added which doesn't happen often.
+As a rule we announce only new providers that were added.
 If you believe there is a reason to announce in social media for another case consult with PMCs about it.
 Example for special case: an exciting new capability that the community waited for and should have big impact.
 

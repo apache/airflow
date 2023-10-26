@@ -28,7 +28,6 @@ source_files = ["airflow/api_experimental", "airflow/api_connexion", "airflow/ap
 restapi_files = ["tests/api_experimental", "tests/api_connexion", "tests/api_internal"]
 
 files_not_fully_covered = [
-    "airflow/api_connexion/endpoints/dag_endpoint.py",
     "airflow/api_connexion/endpoints/dag_run_endpoint.py",
     "airflow/api_connexion/endpoints/forward_to_fab_endpoint.py",
     "airflow/api_connexion/endpoints/pool_endpoint.py",
