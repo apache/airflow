@@ -29,6 +29,7 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from io import StringIO
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -69,6 +70,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.security import permissions
+from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
@@ -93,6 +95,9 @@ from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs,
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
+if TYPE_CHECKING:
+    from airflow.models.abstractoperator import AbstractOperator
+
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(__file__).parents[2]
@@ -112,6 +117,11 @@ def clear_datasets():
     clear_db_datasets()
     yield
     clear_db_datasets()
+
+
+class TestPriorityWeightStrategy(PriorityWeightStrategy):
+    def get_weight(self, task: AbstractOperator):
+        return 99
 
 
 class TestDag:
@@ -427,6 +437,13 @@ class TestDag:
         with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}):
             with pytest.raises(AirflowException):
                 EmptyOperator(task_id="should_fail", weight_rule="no rule")
+
+    def test_dag_task_custom_weight_strategy(self):
+        with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}):
+            task = EmptyOperator(
+                task_id="empty_task", weight_rule="tests.models.test_dag.TestPriorityWeightStrategy"
+            )
+            assert task.priority_weight_total == 99
 
     def test_get_num_task_instances(self):
         test_dag_id = "test_get_num_task_instances_dag"

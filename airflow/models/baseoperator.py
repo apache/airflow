@@ -78,6 +78,7 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import get_priority_weight_strategy
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -92,7 +93,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
-from airflow.utils.weight_rule import WeightRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -899,13 +899,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"received '{type(priority_weight)}'."
             )
         self.priority_weight = priority_weight
-        if not WeightRule.is_valid(weight_rule):
-            raise AirflowException(
-                f"The weight_rule must be one of "
-                f"{WeightRule.all_weight_rules},'{dag.dag_id if dag else ''}.{task_id}'; "
-                f"received '{weight_rule}'."
-            )
         self.weight_rule = weight_rule
+        self._weight_strategy = get_priority_weight_strategy(weight_rule)
         self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:
             # TODO: Remove in Airflow 3.0
