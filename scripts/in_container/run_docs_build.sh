@@ -17,24 +17,62 @@
 # under the License.
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 
-#. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
+OPTIONAL_VERBOSE_FLAG=()
+PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
 
 set -euo pipefail
 
-# This should only be sourced from in_container directory!
 IN_CONTAINER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# shellcheck source=scripts/in_container/_in_container_utils.sh
-. "${IN_CONTAINER_DIR}/_in_container_utils.sh"
-if [[ ${IN_CONTAINER_INITIALIZED=} != "true" ]]; then
-    in_container_set_colors
-    in_container_basic_sanity_check
-    in_container_script_start
-fi
+function in_container_set_colors() {
+    COLOR_BLUE=$'\e[34m'
+    COLOR_GREEN=$'\e[32m'
+    COLOR_RED=$'\e[31m'
+    COLOR_RESET=$'\e[0m'
+    COLOR_YELLOW=$'\e[33m'
+    export COLOR_BLUE
+    export COLOR_GREEN
+    export COLOR_RED
+    export COLOR_RESET
+    export COLOR_YELLOW
+}
+
+function in_container_basic_sanity_check() {
+    
+    function assert_in_container() {
+    export VERBOSE=${VERBOSE:="false"}
+    if [[ ! -f /.dockerenv ]]; then
+        echo
+        echo "${COLOR_RED}ERROR: You are not inside the Airflow docker container!  ${COLOR_RESET}"
+        echo
+        echo "You should only run this script in the Airflow docker container as it may override your files."
+        echo "Learn more about how we develop and test airflow in:"
+        echo "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst"
+        echo
+        exit 1
+    fi
+    }
+
+    function in_container_go_to_airflow_sources() {
+    pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
+    }
+
+    assert_in_container
+    in_container_go_to_airflow_sources
+}
+
+function in_container_script_start() {
+    if [[ ${VERBOSE_COMMANDS:="false"} == "true" || ${VERBOSE_COMMANDS} == "True" ]]; then
+        set -x
+    fi
+}
+
+in_container_set_colors
+in_container_basic_sanity_check
+in_container_script_start
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 python -m docs.build_docs "${@}"
-
 
 if [[ ( ${CI:="false"} == "true" || ${CI} == "True" ) && -d "${AIRFLOW_SOURCES}/docs/_build/docs/" ]]; then
     rm -rf "/files/documentation"
