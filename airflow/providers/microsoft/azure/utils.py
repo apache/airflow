@@ -51,6 +51,24 @@ def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
     return ret
 
 
+def get_default_azure_credential(
+    managed_identity_client_id: str | None, workload_identity_tenant_id: str | None
+) -> DefaultAzureCredential:
+    """Get DefaultAzureCredential based on provided arguments.
+
+    If managed_identity_client_id and workload_identity_tenant_id are provided, this function returns
+    DefaultAzureCredential with managed identity.
+    """
+    if managed_identity_client_id and workload_identity_tenant_id:
+        return DefaultAzureCredential(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
+            additionally_allowed_tenants=[workload_identity_tenant_id],
+        )
+    else:
+        return DefaultAzureCredential()
+
+
 class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
     """Adapt azure-identity credentials for backward compatibility.
 
@@ -65,8 +83,8 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         credential=None,
         resource_id="https://management.azure.com/.default",
         *,
-        managed_identity_client_id=None,
-        workload_identity_tenant_id=None,
+        managed_identity_client_id: str | None = None,
+        workload_identity_tenant_id: str | None = None,
         **kwargs,
     ):
         """Adapt azure-identity credentials for backward compatibility.
@@ -81,14 +99,7 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         """
         super().__init__(None)  # type: ignore[arg-type]
         if credential is None:
-            if managed_identity_client_id and workload_identity_tenant_id:
-                credential = DefaultAzureCredential(
-                    managed_identity_client_id=managed_identity_client_id,
-                    workload_identity_tenant_id=workload_identity_tenant_id,
-                    additionally_allowed_tenants=[workload_identity_tenant_id],
-                )
-            else:
-                credential = DefaultAzureCredential()
+            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
         self._policy = BearerTokenCredentialPolicy(credential, resource_id, **kwargs)
 
     def _make_request(self):
