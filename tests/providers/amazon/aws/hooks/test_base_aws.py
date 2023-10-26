@@ -41,6 +41,7 @@ from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
+from airflow.providers.amazon.aws.executors.ecs import AwsEcsExecutor
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
     AwsGenericHook,
@@ -419,7 +420,7 @@ class TestAwsBaseHook:
         return dict(tag.split("/") for tag in user_agent_string.split(" "))
 
     @pytest.mark.parametrize("found_classes", [["RandomOperator"], ["BaseSensorOperator", "TestSensor"]])
-    @mock.patch.object(AwsBaseHook, "_find_class_name")
+    @mock.patch.object(AwsBaseHook, "_find_operator_class_name")
     def test_user_agent_caller_target_function_found(self, mock_class_name, found_classes):
         mock_class_name.side_effect = found_classes
 
@@ -427,6 +428,21 @@ class TestAwsBaseHook:
 
         assert mock_class_name.call_count == len(found_classes)
         assert user_agent_tags["Caller"] == found_classes[-1]
+
+    @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
+    def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs):
+        with conf_vars(
+            {
+                ("aws_ecs_executor", "cluster"): "foo",
+                ("aws_ecs_executor", "region_name"): "us-east-1",
+                ("aws_ecs_executor", "container_name"): "bar",
+                ("aws_ecs_executor", "conn_id"): "fish",
+            }
+        ):
+            executor = AwsEcsExecutor()
+
+        user_agent_dict = dict(tag.split("/") for tag in executor.ecs.meta.config.user_agent.split(" "))
+        assert user_agent_dict["Caller"] == "AwsEcsExecutor"
 
     def test_user_agent_caller_target_function_not_found(self):
         default_caller_name = "Unknown"

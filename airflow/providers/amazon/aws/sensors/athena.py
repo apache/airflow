@@ -17,18 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
+
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
-from airflow.sensors.base import BaseSensorOperator
 
 
-class AthenaSensor(BaseSensorOperator):
+class AthenaSensor(AwsBaseSensor[AthenaHook]):
     """
     Poll the state of the Query until it reaches a terminal state; fails if the query fails.
 
@@ -40,9 +41,18 @@ class AthenaSensor(BaseSensorOperator):
     :param query_execution_id: query_execution_id to check the state of
     :param max_retries: Number of times to poll for query state before
         returning the current state, defaults to None
-    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     :param sleep_time: Time in seconds to wait between two consecutive call to
         check query status on athena, defaults to 10
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     INTERMEDIATE_STATES = (
@@ -55,8 +65,10 @@ class AthenaSensor(BaseSensorOperator):
     )
     SUCCESS_STATES = ("SUCCEEDED",)
 
-    template_fields: Sequence[str] = ("query_execution_id",)
-    template_ext: Sequence[str] = ()
+    aws_hook_class = AthenaHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "query_execution_id",
+    )
     ui_color = "#66c3ff"
 
     def __init__(
@@ -64,12 +76,10 @@ class AthenaSensor(BaseSensorOperator):
         *,
         query_execution_id: str,
         max_retries: int | None = None,
-        aws_conn_id: str = "aws_default",
         sleep_time: int = 10,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
         self.query_execution_id = query_execution_id
         self.sleep_time = sleep_time
         self.max_retries = max_retries
@@ -87,8 +97,3 @@ class AthenaSensor(BaseSensorOperator):
         if state in self.INTERMEDIATE_STATES:
             return False
         return True
-
-    @cached_property
-    def hook(self) -> AthenaHook:
-        """Create and return an AthenaHook."""
-        return AthenaHook(self.aws_conn_id)

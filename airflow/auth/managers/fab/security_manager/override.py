@@ -17,17 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-import base64
-import json
+import datetime
 import logging
 import os
 import random
 import uuid
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Container, Iterable, Sequence
 
-import re2
+import jwt
 from flask import flash, g, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -41,21 +40,30 @@ from flask_appbuilder.const import (
     LOGMSG_ERR_SEC_AUTH_LDAP_TLS,
     LOGMSG_WAR_SEC_LOGIN_FAILED,
     LOGMSG_WAR_SEC_NOLDAP_OBJ,
+    MICROSOFT_KEY_SET_URL,
 )
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
-from sqlalchemy import func, inspect, select
+from sqlalchemy import and_, func, inspect, select
 from sqlalchemy.exc import MultipleResultsFound
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow.auth.managers.fab.fab_auth_manager import MAP_METHOD_NAME_TO_FAB_ACTION_NAME
-from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role
+from airflow.auth.managers.fab.models import (
+    Action,
+    Permission,
+    RegisterUser,
+    Resource,
+    Role,
+    assoc_permission_role,
+)
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagModel
 from airflow.security import permissions
@@ -69,6 +77,7 @@ if TYPE_CHECKING:
 
     from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.fab.models import User
+    from airflow.www.fab_security.manager import BaseSecurityManager
 
 log = logging.getLogger(__name__)
 
@@ -92,10 +101,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     :param appbuilder: The appbuilder.
     """
 
-    """ The obj instance for authentication view """
     auth_view = None
-    """ The obj instance for user view """
+    """ The obj instance for authentication view """
     user_view = None
+    """ The obj instance for user view """
+
     """ Models """
     role_model = Role
     action_model = Action
@@ -103,8 +113,18 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     permission_model = Permission
     registeruser_model = RegisterUser
 
-    """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
+    jwt_manager = None
+    """ Flask-JWT-Extended """
+    oid = None
+    """ Flask-OpenID OpenID """
+    oauth = None
+    """ OAuth email whitelists """
+    oauth_remotes: dict[str, Any]
+    """ OAuth email whitelists """
+    oauth_user_info = None
+
     oauth_allow_list: dict[str, list] = {}
+    """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
 
     def __init__(self, appbuilder):
         # done in super, but we need it before we can call super.
@@ -304,11 +324,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return user
 
     @property
-    def auth_user_registration(self):
-        """Will user self registration be allowed."""
-        return self.appbuilder.app.config["AUTH_USER_REGISTRATION"]
-
-    @property
     def auth_type(self):
         """Get the auth type."""
         return self.appbuilder.app.config["AUTH_TYPE"]
@@ -434,6 +449,50 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def auth_ldap_group_field(self) -> str:
         """LDAP group field."""
         return self.appbuilder.get_app.config["AUTH_LDAP_GROUP_FIELD"]
+
+    @property
+    def auth_roles_mapping(self) -> dict[str, list[str]]:
+        """The mapping of auth roles."""
+        return self.appbuilder.get_app.config["AUTH_ROLES_MAPPING"]
+
+    @property
+    def auth_user_registration_role_jmespath(self) -> str:
+        """The JMESPATH role to use for user registration."""
+        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
+
+    @property
+    def api_login_allow_multiple_providers(self):
+        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
+
+    @property
+    def auth_username_ci(self):
+        """Gets the auth username for CI."""
+        return self.appbuilder.get_app.config.get("AUTH_USERNAME_CI", True)
+
+    @property
+    def auth_ldap_bind_first(self):
+        """LDAP bind first."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_BIND_FIRST"]
+
+    @property
+    def openid_providers(self):
+        """Openid providers."""
+        return self.appbuilder.get_app.config["OPENID_PROVIDERS"]
+
+    @property
+    def auth_type_provider_name(self):
+        provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
+        return provider_to_auth_type.get(self.auth_type)
+
+    @property
+    def auth_user_registration(self):
+        """Will user self registration be allowed."""
+        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION"]
+
+    @property
+    def auth_user_registration_role(self):
+        """The default user self registration role."""
+        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE"]
 
     @property
     def oauth_whitelists(self):
@@ -750,9 +809,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def get_all_roles(self):
         return self.get_session.query(self.role_model).all()
 
-    def get_public_role(self):
-        return self.get_session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
-
     def delete_role(self, role_name: str) -> None:
         """
         Delete the given Role.
@@ -767,6 +823,32 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             session.commit()
         else:
             raise AirflowException(f"Role named '{role_name}' does not exist")
+
+    def get_roles_from_keys(self, role_keys: list[str]) -> set[Role]:
+        """
+        Construct a list of FAB role objects, from a list of keys.
+
+        NOTE:
+        - keys are things like: "LDAP group DNs" or "OAUTH group names"
+        - we use AUTH_ROLES_MAPPING to map from keys, to FAB role names
+
+        :param role_keys: the list of FAB role keys
+        :return: a list of Role
+        """
+        _roles = set()
+        _role_keys = set(role_keys)
+        for role_key, fab_role_names in self.auth_roles_mapping.items():
+            if role_key in _role_keys:
+                for fab_role_name in fab_role_names:
+                    fab_role = self.find_role(fab_role_name)
+                    if fab_role:
+                        _roles.add(fab_role)
+                    else:
+                        log.warning("Can't find role specified in AUTH_ROLES_MAPPING: %s", fab_role_name)
+        return _roles
+
+    def get_public_role(self):
+        return self.get_session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
 
     """
     -----------
@@ -902,6 +984,31 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def get_all_users(self):
         return self.get_session.query(self.user_model).all()
+
+    def update_user_auth_stat(self, user, success=True):
+        """Update user authentication stats.
+
+        This is done upon successful/unsuccessful authentication attempts.
+
+        :param user:
+            The identified (but possibly not successfully authenticated) user
+            model
+        :param success:
+            Defaults to true, if true increments login_count, updates
+            last_login, and resets fail_login_count to 0, if false increments
+            fail_login_count on user model.
+        """
+        if not user.login_count:
+            user.login_count = 0
+        if not user.fail_login_count:
+            user.fail_login_count = 0
+        if success:
+            user.login_count += 1
+            user.last_login = datetime.datetime.now()
+            user.fail_login_count = 0
+        else:
+            user.fail_login_count += 1
+        self.update_user(user)
 
     """
     -------------
@@ -1390,9 +1497,34 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 
-    def get_oauth_user_info(self, provider, resp):
+    def oauth_user_info_getter(
+        self,
+        func: Callable[[BaseSecurityManager, str, dict[str, Any] | None], dict[str, Any]],
+    ):
         """
-        Get the OAuth user information from different OAuth APIs.
+        Decorator function to be the OAuth user info getter for all the providers.
+
+        Receives provider and response return a dict with the information returned from the provider.
+        The returned user info dict should have its keys with the same name as the User Model.
+
+        Use it like this an example for GitHub ::
+
+            @appbuilder.sm.oauth_user_info_getter
+            def my_oauth_user_info(sm, provider, response=None):
+                if provider == 'github':
+                    me = sm.oauth_remotes[provider].get('user')
+                    return {'username': me.data.get('login')}
+                return {}
+        """
+
+        def wraps(provider: str, response: dict[str, Any] | None = None) -> dict[str, Any]:
+            return func(self, provider, response)
+
+        self.oauth_user_info = wraps
+        return wraps
+
+    def get_oauth_user_info(self, provider: str, resp: dict[str, Any]) -> dict[str, Any]:
+        """There are different OAuth APIs with different ways to retrieve user info.
 
         All providers have different ways to retrieve user info.
         """
@@ -1432,23 +1564,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "last_name": data.get("family_name", ""),
                 "email": data.get("email", ""),
             }
-        # for Azure AD Tenant. Azure OAuth response contains
-        # JWT token which has user info.
-        # JWT token needs to be base64 decoded.
-        # https://docs.microsoft.com/en-us/azure/active-directory/develop/
-        # active-directory-protocols-oauth-code
         if provider == "azure":
-            log.debug("Azure response received : %s", resp)
-            id_token = resp["id_token"]
-            log.debug(str(id_token))
-            me = self._azure_jwt_token_parse(id_token)
-            log.debug("Parse JWT token : %s", me)
+            me = self._decode_and_validate_azure_jwt(resp["id_token"])
+            log.debug("User info from Azure: %s", me)
+            # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-token-claims-reference#payload-claims
             return {
-                "name": me.get("name", ""),
-                "email": me["upn"],
+                "email": me["email"],
                 "first_name": me.get("given_name", ""),
                 "last_name": me.get("family_name", ""),
-                "id": me["oid"],
                 "username": me["oid"],
                 "role_keys": me.get("roles", []),
             }
@@ -1517,6 +1640,172 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         return True
 
+    def set_oauth_session(self, provider, oauth_response):
+        """Set the current session with OAuth user secrets."""
+        # Get this provider key names for token_key and token_secret
+        token_key = self.get_oauth_token_key_name(provider)
+        token_secret = self.get_oauth_token_secret_name(provider)
+        # Save users token on encrypted session cookie
+        session["oauth"] = (
+            oauth_response[token_key],
+            oauth_response.get(token_secret, ""),
+        )
+        session["oauth_provider"] = provider
+
+    def get_oauth_token_key_name(self, provider):
+        """
+        Returns the token_key name for the oauth provider.
+
+        If none is configured defaults to oauth_token
+        this is configured using OAUTH_PROVIDERS and token_key key.
+        """
+        for _provider in self.oauth_providers:
+            if _provider["name"] == provider:
+                return _provider.get("token_key", "oauth_token")
+
+    def get_oauth_token_secret_name(self, provider):
+        """Gety the ``token_secret`` name for the oauth provider.
+
+        If none is configured, defaults to ``oauth_secret``. This is configured
+        using ``OAUTH_PROVIDERS`` and ``token_secret``.
+        """
+        for _provider in self.oauth_providers:
+            if _provider["name"] == provider:
+                return _provider.get("token_secret", "oauth_token_secret")
+
+    def auth_user_oauth(self, userinfo):
+        """
+        Method for authenticating user with OAuth.
+
+        :userinfo: dict with user information
+                   (keys are the same as User model columns)
+        """
+        # extract the username from `userinfo`
+        if "username" in userinfo:
+            username = userinfo["username"]
+        elif "email" in userinfo:
+            username = userinfo["email"]
+        else:
+            log.error("OAUTH userinfo does not have username or email %s", userinfo)
+            return None
+
+        # If username is empty, go away
+        if (username is None) or username == "":
+            return None
+
+        # Search the DB for this user
+        user = self.find_user(username=username)
+
+        # If user is not active, go away
+        if user and (not user.is_active):
+            return None
+
+        # If user is not registered, and not self-registration, go away
+        if (not user) and (not self.auth_user_registration):
+            return None
+
+        # Sync the user's roles
+        if user and self.auth_roles_sync_at_login:
+            user.roles = self._oauth_calculate_user_roles(userinfo)
+            log.debug("Calculated new roles for user=%r as: %s", username, user.roles)
+
+        # If the user is new, register them
+        if (not user) and self.auth_user_registration:
+            user = self.add_user(
+                username=username,
+                first_name=userinfo.get("first_name", ""),
+                last_name=userinfo.get("last_name", ""),
+                email=userinfo.get("email", "") or f"{username}@email.notfound",
+                role=self._oauth_calculate_user_roles(userinfo),
+            )
+            log.debug("New user registered: %s", user)
+
+            # If user registration failed, go away
+            if not user:
+                log.error("Error creating a new OAuth user %s", username)
+                return None
+
+        # LOGIN SUCCESS (only if user is now registered)
+        if user:
+            self._rotate_session_id()
+            self.update_user_auth_stat(user)
+            return user
+        else:
+            return None
+
+    def auth_user_oid(self, email):
+        """
+        Openid user Authentication.
+
+        :param email: user's email to authenticate
+        """
+        user = self.find_user(email=email)
+        if user is None or (not user.is_active):
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, email)
+            return None
+        else:
+            self._rotate_session_id()
+            self.update_user_auth_stat(user)
+            return user
+
+    def auth_user_remote_user(self, username):
+        """
+        REMOTE_USER user Authentication.
+
+        :param username: user's username for remote auth
+        """
+        user = self.find_user(username=username)
+
+        # User does not exist, create one if auto user registration.
+        if user is None and self.auth_user_registration:
+            user = self.add_user(
+                # All we have is REMOTE_USER, so we set
+                # the other fields to blank.
+                username=username,
+                first_name=username,
+                last_name="-",
+                email=username + "@email.notfound",
+                role=self.find_role(self.auth_user_registration_role),
+            )
+
+        # If user does not exist on the DB and not auto user registration,
+        # or user is inactive, go away.
+        elif user is None or (not user.is_active):
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+            return None
+
+        self._rotate_session_id()
+        self.update_user_auth_stat(user)
+        return user
+
+    def _rotate_session_id(self):
+        """Rotate the session ID.
+
+        We need to do this upon successful authentication when using the
+        database session backend.
+        """
+        if conf.get("webserver", "SESSION_BACKEND") == "database":
+            session.sid = str(uuid.uuid4())
+
+    """
+    ---------------
+    Private methods
+    ---------------
+    """
+
+    def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
+        if get_auth_manager().is_logged_in():
+            return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
+        elif current_user_jwt:
+            return self._get_user_permission_resources(
+                # the current_user_jwt is a lazy proxy, so we need to ignore type checking
+                current_user_jwt,  # type: ignore[arg-type]
+                "menu_access",
+                resource_names=menu_names,
+            )
+        else:
+            return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
+
     @staticmethod
     def ldap_extract_list(ldap_dict: dict[str, list[bytes]], field_name: str) -> list[str]:
         raw_list = ldap_dict.get(field_name, [])
@@ -1535,52 +1824,22 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ---------------
     """
 
-    @staticmethod
-    def _azure_parse_jwt(token):
-        """
-        Parse Azure JWT token content.
+    def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
+        import requests
 
-        :param token: the JWT token
+        return requests.get(MICROSOFT_KEY_SET_URL).json()
 
-        :meta private:
-        """
-        jwt_token_parts = r"^([^\.\s]*)\.([^\.\s]+)\.([^\.\s]*)$"
-        matches = re2.search(jwt_token_parts, token)
-        if not matches or len(matches.groups()) < 3:
-            log.error("Unable to parse token.")
-            return {}
-        return {
-            "header": matches.group(1),
-            "Payload": matches.group(2),
-            "Sig": matches.group(3),
-        }
+    def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
+        verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)
+        if verify_signature:
+            from authlib.jose import JsonWebKey, jwt as authlib_jwt
 
-    @staticmethod
-    def _azure_jwt_token_parse(token):
-        """
-        Parse and decode Azure JWT token.
+            keyset = JsonWebKey.import_key_set(self._get_microsoft_jwks())
+            claims = authlib_jwt.decode(id_token, keyset)
+            claims.validate()
+            return claims
 
-        :param token: the JWT token
-
-        :meta private:
-        """
-        jwt_split_token = FabAirflowSecurityManagerOverride._azure_parse_jwt(token)
-        if not jwt_split_token:
-            return
-
-        jwt_payload = jwt_split_token["Payload"]
-        # Prepare for base64 decoding
-        payload_b64_string = jwt_payload
-        payload_b64_string += "=" * (4 - (len(jwt_payload) % 4))
-        decoded_payload = base64.urlsafe_b64decode(payload_b64_string.encode("ascii"))
-
-        if not decoded_payload:
-            log.error("Payload of id_token could not be base64 url decoded.")
-            return
-
-        jwt_decoded_payload = json.loads(decoded_payload.decode("utf-8"))
-
-        return jwt_decoded_payload
+        return jwt.decode(id_token, options={"verify_signature": False})
 
     def _ldap_bind_indirect(self, ldap, con) -> None:
         """
@@ -1691,3 +1950,82 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 log.warning("Can't find AUTH_USER_REGISTRATION role: %s", registration_role_name)
 
         return list(user_role_objects)
+
+    def _oauth_calculate_user_roles(self, userinfo) -> list[str]:
+        user_role_objects = set()
+
+        # apply AUTH_ROLES_MAPPING
+        if self.auth_roles_mapping:
+            user_role_keys = userinfo.get("role_keys", [])
+            user_role_objects.update(self.get_roles_from_keys(user_role_keys))
+
+        # apply AUTH_USER_REGISTRATION_ROLE
+        if self.auth_user_registration:
+            registration_role_name = self.auth_user_registration_role
+
+            # if AUTH_USER_REGISTRATION_ROLE_JMESPATH is set,
+            # use it for the registration role
+            if self.auth_user_registration_role_jmespath:
+                import jmespath
+
+                registration_role_name = jmespath.search(self.auth_user_registration_role_jmespath, userinfo)
+
+            # lookup registration role in flask db
+            fab_role = self.find_role(registration_role_name)
+            if fab_role:
+                user_role_objects.add(fab_role)
+            else:
+                log.warning("Can't find AUTH_USER_REGISTRATION role: %s", registration_role_name)
+
+        return list(user_role_objects)
+
+    def _get_user_permission_resources(
+        self, user: User | None, action_name: str, resource_names: list[str] | None = None
+    ) -> set[str]:
+        """Get resource names with a certain action name that a user has access to.
+
+        Mainly used to fetch all menu permissions on a single db call, will also
+        check public permissions and builtin roles
+        """
+        if not resource_names:
+            resource_names = []
+
+        db_role_ids = []
+        if user is None:
+            # include public role
+            roles = [self.get_public_role()]
+        else:
+            roles = user.roles
+        # First check against builtin (statically configured) roles
+        # because no database query is needed
+        result = set()
+        for role in roles:
+            if role.name in self.builtin_roles:
+                for resource_name in resource_names:
+                    if self._has_access_builtin_roles(role, action_name, resource_name):
+                        result.add(resource_name)
+            else:
+                db_role_ids.append(role.id)
+        # Then check against database-stored roles
+        role_resource_names = [
+            perm.resource.name for perm in self.filter_roles_by_perm_with_action(action_name, db_role_ids)
+        ]
+        result.update(role_resource_names)
+        return result
+
+    def filter_roles_by_perm_with_action(self, action_name: str, role_ids: list[int]):
+        """Find roles with permission."""
+        return (
+            self.appbuilder.get_session.query(self.permission_model)
+            .join(
+                assoc_permission_role,
+                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
+            )
+            .join(self.role_model)
+            .join(self.action_model)
+            .join(self.resource_model)
+            .filter(
+                self.action_model.name == action_name,
+                self.role_model.id.in_(role_ids),
+            )
+        ).all()

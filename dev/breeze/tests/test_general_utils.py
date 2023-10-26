@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.utils.general_utils import get_provider_name_from_short_hand
+from airflow_breeze.utils.general_utils import get_docs_filter_name_from_short_hand
 
 
 @pytest.mark.parametrize(
@@ -43,4 +43,4 @@ from airflow_breeze.utils.general_utils import get_provider_name_from_short_hand
     ],
 )
 def test_get_provider_name_from_short_hand(short_form_providers, expected):
-    assert get_provider_name_from_short_hand(short_form_providers) == expected
+    assert get_docs_filter_name_from_short_hand(short_form_providers) == expected

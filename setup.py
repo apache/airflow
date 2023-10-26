@@ -328,7 +328,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.6",
+    "flask-appbuilder[oauth]==4.3.9",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -385,6 +385,7 @@ mypy_dependencies = [
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
     "mypy==1.2.0",
+    "types-aiofiles",
     "types-certifi",
     "types-croniter",
     "types-Deprecated",

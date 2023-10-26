@@ -568,7 +568,8 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
     set_value_to_default_if_not_set(env, "AIRFLOW_ENABLE_AIP_44", "true")
-    set_value_to_default_if_not_set(env, "ANSWER", answer if answer is not None else "")
+    set_value_to_default_if_not_set(env, "AIRFLOW_ENV", "development")
+    set_value_to_default_if_not_set(env, "ANSWER", answer or "")
     set_value_to_default_if_not_set(env, "BASE_BRANCH", "main")
     set_value_to_default_if_not_set(env, "BREEZE", "true")
     set_value_to_default_if_not_set(env, "BREEZE_INIT_COMMAND", "")
@@ -631,6 +632,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "BACKEND": "backend",
     "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",
+    "DATABASE_ISOLATION": "database_isolation",
     "DB_RESET": "db_reset",
     "DEV_MODE": "dev_mode",
     "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
@@ -661,6 +663,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
     "CELERY_FLOWER": "celery_flower",
+    "STANDALONE_DAG_PROCESSOR": "standalone_dag_processor",
 }
 
 DOCKER_VARIABLE_CONSTANTS = {

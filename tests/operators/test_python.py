@@ -832,15 +832,13 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
         if expected_state == TaskInstanceState.FAILED:
             with pytest.raises(CalledProcessError):
-                self.run_as_task(
-                    f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs if extra_kwargs else {})
-                )
+                self.run_as_task(f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs or {}))
         else:
             ti = self.run_as_task(
                 f,
                 return_ti=True,
                 op_kwargs={"exit_code": actual_exit_code},
-                **(extra_kwargs if extra_kwargs else {}),
+                **(extra_kwargs or {}),
             )
             assert ti.state == expected_state
 
