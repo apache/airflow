@@ -2848,6 +2848,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                             BigQueryTableLink.persist(**persist_kwargs)
         self.job_id = job.job_id
         project_id = self.project_id or self.hook.project_id
+        self.project_id = project_id
         if project_id:
             job_id_path = convert_job_id(
                 job_id=self.job_id, project_id=project_id, location=self.location  # type: ignore[arg-type]
