@@ -91,7 +91,7 @@ def example_openai_dag():
         model="text-embedding-ada-002",
     )
     OpenAIEmbeddingOperator(
-        task_id="embedding_using_callable",
+        task_id="embedding_using_text",
         conn_id="openai_default",
         input_text=texts,
         model="text-embedding-ada-002",
