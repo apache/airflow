@@ -69,6 +69,7 @@ versions:
   - 1.0.0
 
 dependencies:
+  - aiofiles>=23.2.0
   - apache-airflow>=2.5.0
   - asgiref>=3.5.2
   - cryptography>=2.0.0

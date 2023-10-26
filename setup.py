@@ -385,6 +385,7 @@ mypy_dependencies = [
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
     "mypy==1.2.0",
+    "types-aiofiles",
     "types-certifi",
     "types-croniter",
     "types-Deprecated",
