@@ -52,7 +52,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_databricks_jobs_create_json]
     # Example of using the JSON parameter to initialize the operator.
     job = {
