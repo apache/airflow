@@ -2525,7 +2525,7 @@ def test_mapped_task_group_serde():
         tg.expand(a=[".", ".."])
 
     ser_dag = SerializedBaseOperator.serialize(dag)
-    assert ser_dag["_task_group"]["children"]["tg"] == (
+    assert ser_dag[Encoding.VAR]["_task_group"]["children"]["tg"] == (
         "taskgroup",
         {
             "_group_id": "tg",
@@ -2549,7 +2549,7 @@ def test_mapped_task_group_serde():
         },
     )
 
-    serde_dag = SerializedDAG.deserialize_dag(ser_dag)
+    serde_dag = SerializedDAG.deserialize_dag(ser_dag[Encoding.VAR])
     serde_tg = serde_dag.task_group.children["tg"]
     assert isinstance(serde_tg, MappedTaskGroup)
     assert serde_tg._expand_input == DictOfListsExpandInput({"a": [".", ".."]})
@@ -2568,7 +2568,7 @@ def test_mapped_task_with_operator_extra_links_property():
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         _DummyOperator.partial(task_id="task").expand(inputs=[1, 2, 3])
     serialized_dag = SerializedBaseOperator.serialize(dag)
-    assert serialized_dag["tasks"][0] == {
+    assert serialized_dag[Encoding.VAR]["tasks"][0] == {
         "task_id": "task",
         "expand_input": {
             "type": "dict-of-lists",
@@ -2589,5 +2589,5 @@ def test_mapped_task_with_operator_extra_links_property():
         "_is_empty": False,
         "_is_mapped": True,
     }
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag)
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag[Encoding.VAR])
     assert deserialized_dag.task_dict["task"].operator_extra_links == [AirflowLink2()]
