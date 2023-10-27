@@ -18,9 +18,8 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
@@ -55,10 +54,7 @@ class WeaviateIngestOperator(BaseOperator):
         self,
         conn_id: str,
         class_name: str,
-        input_json: dict[str, Any] | None = None,
-        input_callable: Callable[[Any], Any] | None = None,
-        input_callable_args: Collection[Any] | None = None,
-        input_callable_kwargs: Mapping[str, Any] | None = None,
+        input_json: list[dict[str, Any]],
         **kwargs: Any,
     ) -> None:
         self.batch_params = kwargs.pop("batch_params", {})
@@ -67,9 +63,6 @@ class WeaviateIngestOperator(BaseOperator):
         self.class_name = class_name
         self.conn_id = conn_id
         self.input_json = input_json
-        self.input_callable = input_callable
-        self.input_callable_args = input_callable_args or ()
-        self.input_callable_kwargs = input_callable_kwargs or {}
 
     @cached_property
     def hook(self) -> WeaviateHook:
@@ -77,15 +70,5 @@ class WeaviateIngestOperator(BaseOperator):
         return WeaviateHook(conn_id=self.conn_id, **self.hook_params)
 
     def execute(self, context: Context) -> None:
-        if self.input_json and self.input_callable:
-            raise RuntimeError("Only one of 'input_text' and 'input_callable' is allowed")
-        if self.input_callable:
-            if not callable(self.input_callable):
-                raise AirflowException("`input_callable` param must be callable")
-            input_json = self.input_callable(*self.input_callable_args, **self.input_callable_kwargs)
-        elif self.input_json:
-            input_json = self.input_json
-        else:
-            raise RuntimeError("Either one of 'input_json' and 'input_callable' must be provided")
-        self.log.debug("Input json: %s", input_json)
-        self.hook.batch_data(self.class_name, input_json, **self.batch_params)
+        self.log.debug("Input json: %s", self.input_json)
+        self.hook.batch_data(self.class_name, self.input_json, **self.batch_params)

@@ -28,8 +28,8 @@ into the database.
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-The WeaviateIngestOperator requires the ``input_text`` or ``input_callable`` as an input to the operator. Use the ``conn_id`` parameter to specify the Weaviate connection to use to
-connect to your account. Be aware that either ``input_text`` or ``input_callable`` must be provided, and only one of them can be used, not both.
+The WeaviateIngestOperator requires the ``input_text`` as an input to the operator. Use the ``conn_id`` parameter to specify the Weaviate connection to use to
+connect to your account.
 
 An example using the operator to ingest data with custom vectors retrieved from XCOM:
 

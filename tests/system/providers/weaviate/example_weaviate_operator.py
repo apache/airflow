@@ -16,24 +16,70 @@
 # under the License.
 from __future__ import annotations
 
-import json
-from pathlib import Path
-
 import pendulum
 
 from airflow.decorators import dag, task, teardown
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
+sample_data_with_vector = [
+    {
+        "Answer": "Liver",
+        "Category": "SCIENCE",
+        "Question": "This organ removes excess glucose from the blood & stores it as glycogen",
+        "Vector": [
+            -0.006632288,
+            -0.0042016874,
+            0.030541966,
+        ],
+    },
+    {
+        "Answer": "Elephant",
+        "Category": "ANIMALS",
+        "Question": "It's the only living mammal in the order Proboseidea",
+        "Vector": [
+            -0.0166891,
+            -0.00092290324,
+            -0.0125168245,
+        ],
+    },
+    {
+        "Answer": "the nose or snout",
+        "Category": "ANIMALS",
+        "Question": "The gavial looks very much like a crocodile except for this bodily feature",
+        "Vector": [
+            -0.015592773,
+            0.019883318,
+            0.017782344,
+        ],
+    },
+]
+
+sample_data_without_vector = [
+    {
+        "Answer": "Liver",
+        "Category": "SCIENCE",
+        "Question": "This organ removes excess glucose from the blood & stores it as glycogen",
+    },
+    {
+        "Answer": "Elephant",
+        "Category": "ANIMALS",
+        "Question": "It's the only living mammal in the order Proboseidea",
+    },
+    {
+        "Answer": "the nose or snout",
+        "Category": "ANIMALS",
+        "Question": "The gavial looks very much like a crocodile except for this bodily feature",
+    },
+]
+
 
 def get_data_with_vectors(*args, **kwargs):
-    data = json.load(Path("./data/jeopardy_data_with_vectors.json").open())
-    return data
+    return sample_data_with_vector
 
 
 def get_data_without_vectors(*args, **kwargs):
-    data = json.load(Path("./data/jeopardy_data_without_vectors.json").open())
-    return data
+    return sample_data_without_vector
 
 
 @dag(
@@ -67,17 +113,14 @@ def example_weaviate_using_operator():
 
     @task(trigger_rule="all_done")
     def store_data_with_vectors_in_xcom():
-        data = json.load(Path("./data/jeopardy_data_with_vectors.json").open())
-        return data
-
-    xcom_data_with_vectors = store_data_with_vectors_in_xcom()
+        return sample_data_with_vector
 
     # [START howto_operator_weaviate_embedding_and_ingest_xcom_data_with_vectors]
     batch_data_with_vectors_xcom_data = WeaviateIngestOperator(
         task_id="batch_data_with_vectors_xcom_data",
         conn_id="weaviate_default",
         class_name="QuestionWithoutVectorizerUsingOperator",
-        input_json=xcom_data_with_vectors["return_value"],
+        input_json=store_data_with_vectors_in_xcom(),
         trigger_rule="all_done",
     )
     # [END howto_operator_weaviate_embedding_and_ingest_xcom_data_with_vectors]
@@ -87,9 +130,7 @@ def example_weaviate_using_operator():
         task_id="batch_data_with_vectors_callable_data",
         conn_id="weaviate_default",
         class_name="QuestionWithoutVectorizerUsingOperator",
-        input_callable=get_data_with_vectors,
-        input_callable_args=[],
-        input_callable_kwargs={},
+        input_json=get_data_with_vectors(),
         trigger_rule="all_done",
     )
     # [END howto_operator_weaviate_embedding_and_ingest_callable_data_with_vectors]
@@ -131,17 +172,14 @@ def example_weaviate_using_operator():
 
     @task(trigger_rule="all_done")
     def store_data_without_vectors_in_xcom():
-        data = json.load(Path("./data/jeopardy_data_without_vectors.json").open())
-        return data
-
-    xcom_data_without_vectors = store_data_without_vectors_in_xcom()
+        return sample_data_without_vector
 
     # [START howto_operator_weaviate_ingest_xcom_data_without_vectors]
     batch_data_without_vectors_xcom_data = WeaviateIngestOperator(
         task_id="batch_data_without_vectors_xcom_data",
         conn_id="weaviate_default",
         class_name="QuestionWithOpenAIVectorizerUsingOperator",
-        input_json=xcom_data_without_vectors["return_value"],
+        input_json=store_data_without_vectors_in_xcom(),
         trigger_rule="all_done",
     )
     # [END howto_operator_weaviate_ingest_xcom_data_without_vectors]
@@ -151,9 +189,7 @@ def example_weaviate_using_operator():
         task_id="batch_data_without_vectors_callable_data",
         conn_id="weaviate_default",
         class_name="QuestionWithOpenAIVectorizerUsingOperator",
-        input_callable=get_data_without_vectors,
-        input_callable_args=[],
-        input_callable_kwargs={},
+        input_json=get_data_without_vectors(),
         trigger_rule="all_done",
     )
     # [END howto_operator_weaviate_ingest_callable_data_without_vectors]
