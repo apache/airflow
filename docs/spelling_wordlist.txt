@@ -510,6 +510,7 @@ Dsn
 dsn
 dttm
 dtypes
+du
 durations
 dylib
 Dynamodb
@@ -1118,6 +1119,7 @@ paramiko
 Params
 params
 passwd
+pathlib
 pathType
 Paxos
 PEM
@@ -1617,6 +1619,7 @@ tzinfo
 UA
 ui
 uid
+ukey
 ulimit
 Umask
 umask

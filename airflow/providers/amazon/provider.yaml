@@ -444,6 +444,9 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
 
+filesystems:
+  - airflow.providers.amazon.aws.fs.s3
+
 hooks:
   - integration-name: Amazon Athena
     python-modules:
@@ -736,6 +739,9 @@ additional-extras:
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
+  - name: s3fs
+    dependencies:
+      - s3fs>=2023.9.2
 
 config:
   aws:
