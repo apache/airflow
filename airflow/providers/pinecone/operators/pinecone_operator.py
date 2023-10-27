@@ -18,9 +18,8 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.pinecone.hooks.pinecone_hook import PineconeHook
 
@@ -31,6 +30,10 @@ if TYPE_CHECKING:
 class PineconeIngestOperator(BaseOperator):
     """
     Airflow Operator to ingest vector embeddings into Pinecone.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PineconeIngestOperator`
 
     :param conn_id: pinecone_conn_id: The connection id to use when connecting to Pinecone.
     :param index_name: Name of the Pinecone index.
@@ -47,10 +50,7 @@ class PineconeIngestOperator(BaseOperator):
         *,
         conn_id: str = PineconeHook.default_conn_name,
         index_name: str,
-        input_vectors: list[Any] | None = None,
-        input_callable: Callable[[Any], list[Any]] | None = None,
-        input_callable_args: Collection[Any] | None = None,
-        input_callable_kwargs: Mapping[str, Any] | None = None,
+        input_vectors: list[Any],
         namespace: str = "",
         batch_size: int | None = None,
         **kwargs: Any,
@@ -62,9 +62,6 @@ class PineconeIngestOperator(BaseOperator):
         self.namespace = namespace
         self.batch_size = batch_size
         self.input_vectors = input_vectors
-        self.input_callable = input_callable
-        self.input_callable_args = input_callable_args or ()
-        self.input_callable_kwargs = input_callable_kwargs or {}
 
     @cached_property
     def hook(self) -> PineconeHook:
@@ -73,25 +70,11 @@ class PineconeIngestOperator(BaseOperator):
             conn_id=self.conn_id,
         )
 
-    def _get_vector(self) -> list[Any]:
-        if self.input_vectors and self.input_callable:
-            raise RuntimeError("Only one of 'input_text' and 'input_callable' is allowed")
-        if self.input_callable:
-            if not callable(self.input_callable):
-                raise AirflowException("`input_callable` param must be callable")
-            input_vectors = self.input_callable(*self.input_callable_args, **self.input_callable_kwargs)
-        elif self.input_vectors:
-            input_vectors = self.input_vectors
-        else:
-            raise RuntimeError("Either one of 'input_json' and 'input_callable' must be provided")
-
-        return input_vectors
-
     def execute(self, context: Context) -> None:
         """Ingest data into Pinecone using the PineconeHook."""
         self.hook.upsert(
             index_name=self.index_name,
-            vectors=self._get_vector(),
+            vectors=self.input_vectors,
             namespace=self.namespace,
             batch_size=self.batch_size,
             **self.upsert_kwargs,

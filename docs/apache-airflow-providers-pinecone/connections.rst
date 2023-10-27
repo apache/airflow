@@ -41,6 +41,3 @@ Pinecone API key (required)
 
 Project ID (required)
     Project ID corresponding to your API Key.
-
-
-.. _howto/connection:pinecone:

@@ -31,11 +31,13 @@ versions:
 integrations:
   - integration-name: Pinecone
     external-doc-url: https://docs.pinecone.io/docs/overview
+    how-to-guide:
+      - /docs/apache-airflow-providers-pinecone/operators/pinecone.rst
     tags: [software]
 
 dependencies:
   - apache-airflow>=2.5.0
-  - pinecone-client
+  - pinecone-client>=4.27
 
 hooks:
   - integration-name: Pinecone

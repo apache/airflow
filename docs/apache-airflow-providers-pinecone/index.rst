@@ -50,7 +50,7 @@
     :caption: Resources
 
     Python API <_api/airflow/providers/pinecone/index>
-    PyPI Repository <https://pypi.org/project/pinecone-client/>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-pinecone/>
     Installing from sources <installing-providers-from-sources>
 
 .. toctree::
@@ -93,9 +93,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.5.0``
-``pinecone-client`` ``4.27``
-==================  ==================
+===================  ==================
+PIP package          Version required
+===================  ==================
+``apache-airflow``    ``>=2.5.0``
+``pinecone-client``  ``>=4.27``
+===================  ==================
