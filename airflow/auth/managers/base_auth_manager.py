@@ -23,6 +23,9 @@ from typing import TYPE_CHECKING, Container, Literal
 
 from sqlalchemy import select
 
+from airflow.auth.managers.models.resource_details import (
+    DagDetails,
+)
 from airflow.models import DagModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -37,7 +40,6 @@ if TYPE_CHECKING:
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
-        DagDetails,
         DatasetDetails,
         PoolDetails,
         VariableDetails,

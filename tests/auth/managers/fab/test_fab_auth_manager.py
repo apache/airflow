@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import Mock
 
 import pytest
+from flask import Flask
 
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User
@@ -43,7 +44,7 @@ from airflow.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
-from airflow.www.security_appless import ApplessAirflowSecurityManager
+from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
@@ -56,11 +57,9 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
 
 @pytest.fixture
 def auth_manager():
-    app_mock = Mock(name="flask_app")
-    app_mock.config.get.return_value = None  # this is called to get the security manager override (if any)
-    auth_manager = FabAuthManager(app_mock)
-    auth_manager.security_manager = ApplessAirflowSecurityManager()
-    return auth_manager
+    flask_app = Flask(__name__)
+    appbuilder = init_appbuilder(flask_app)
+    return FabAuthManager(flask_app, appbuilder)
 
 
 class TestFabAuthManager:
@@ -346,8 +345,8 @@ class TestFabAuthManager:
         result = auth_manager.is_authorized_website(user=user)
         assert result == expected_result
 
-    def test_get_security_manager_override_class_return_fab_security_manager_override(self, auth_manager):
-        assert auth_manager.get_security_manager_override_class() is FabAirflowSecurityManagerOverride
+    def test_security_manager_return_fab_security_manager_override(self, auth_manager):
+        assert isinstance(auth_manager.security_manager, FabAirflowSecurityManagerOverride)
 
     def test_get_url_login_when_auth_view_not_defined(self, auth_manager):
         with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
