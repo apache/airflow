@@ -74,7 +74,7 @@ class DagRunPydantic(BaseModelPydantic):
     data_interval_end: Optional[datetime]
     last_scheduling_decision: Optional[datetime]
     dag_hash: Optional[str]
-    updated_at: datetime
+    updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
     consumed_dataset_events: List[DatasetEventPydantic]  # noqa
 

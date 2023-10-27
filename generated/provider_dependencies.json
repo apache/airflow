@@ -27,6 +27,7 @@
       "asgiref",
       "boto3>=1.28.0",
       "botocore>=1.31.0",
+      "inflection>=0.5.1",
       "jsonpath_ng>=1.5.3",
       "redshift_connector>=2.0.888",
       "sqlalchemy_redshift>=0.8.6",
@@ -257,6 +258,7 @@
   },
   "cncf.kubernetes": {
     "deps": [
+      "aiofiles>=23.2.0",
       "apache-airflow>=2.5.0",
       "asgiref>=3.5.2",
       "cryptography>=2.0.0",
