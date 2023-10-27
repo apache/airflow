@@ -26,7 +26,7 @@ from airflow.hooks.base import BaseHook
 
 class WeaviateHook(BaseHook):
     """
-    Interact with Weavaiate database to store vectors. This hook uses the `conn_id`.
+    Interact with Weaviate database to store vectors. This hook uses the `conn_id`.
 
     :param conn_id: The connection id to use when connecting to Weaviate. <howto/connection:weaviate>
     """
@@ -163,9 +163,9 @@ class WeaviateHook(BaseHook):
         """
         Query using near text.
 
-        This method uses a vector search using a Get query. we are using a nearText to provide weaviate
-        with a query search_text. Weaviate then converts this into a vector through the inference API
-         (OpenAI in this particular example) and uses that vector as the basis for a vector search.
+        This method uses a vector search using a Get query. we are using a nearText operator to provide
+        weaviate with a query search_text. Weaviate then converts this into a vector through the inference
+        API (OpenAI in this particular example) and uses that vector as the basis for a vector search.
         """
         client = self.get_client()
         results: dict[str, dict[Any, Any]] = (

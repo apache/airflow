@@ -50,7 +50,7 @@
     :caption: Resources
 
     Python API <_api/airflow/providers/weaviate/index>
-    PyPI Repository <https://pypi.org/project/weaviate-client/>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-weaviate/>
     Installing from sources <installing-providers-from-sources>
 
 .. toctree::

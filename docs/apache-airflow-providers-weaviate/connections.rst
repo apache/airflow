@@ -50,6 +50,3 @@ Extra (optional)
 
 Weaviate API Token (optional)
     Specify your Weaviate API Key to connect when API Key option is to be used for authentication.
-
-
-.. _howto/connection:weaviate:

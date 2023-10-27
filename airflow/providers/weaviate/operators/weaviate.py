@@ -32,17 +32,21 @@ class WeaviateIngestOperator(BaseOperator):
     """
     Operator that store vector in the Weaviate class.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:WeaviateIngestOperator`
+
     Operator that accepts input json to generate embeddings on or accepting provided custom vectors
-     and store them in the Weaviate class.
+    and store them in the Weaviate class.
 
     :param conn_id: The Weaviate connection.
     :param class: The Weaviate class to be used for storing the data objects into.
     :param input_json: The JSON representing Weaviate data objects to generate embeddings on (or provides
-    custom vectors) and store them in the Weaviate class. Either input_json or input_callable should
-     be provided.
+        custom vectors) and store them in the Weaviate class. Either input_json or input_callable should be
+        provided.
     :param input_callable: The callable that provides the input json to generate embeddings on
         (or provides custom vectors) and store them in the Weaviate class. Either input_text or
-         input_callable should be provided.
+        input_callable should be provided.
     """
 
     template_fields: Sequence[str] = ("input_json",)
