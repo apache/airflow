@@ -80,7 +80,6 @@ class SingularityOperator(BaseOperator):
         auto_remove: bool | None = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.auto_remove = auto_remove
         self.command = command
@@ -97,7 +96,6 @@ class SingularityOperator(BaseOperator):
         self.container = None
 
     def execute(self, context: Context) -> None:
-
         self.log.info("Preparing Singularity container %s", self.image)
         self.cli = Client
 
@@ -155,9 +153,8 @@ class SingularityOperator(BaseOperator):
         self.log.info("Stopping instance %s", self.instance)
         self.instance.stop()  # type: ignore[attr-defined]
 
-        if self.auto_remove is True:
-            if self.auto_remove and os.path.exists(self.image):
-                shutil.rmtree(self.image)
+        if self.auto_remove and os.path.exists(self.image):
+            shutil.rmtree(self.image)
 
         # If the container failed, raise the exception
         if result["return_code"] != 0:
@@ -179,6 +176,5 @@ class SingularityOperator(BaseOperator):
             self.instance.stop()
 
             # If an image exists, clean it up
-            if self.auto_remove is True:
-                if self.auto_remove and os.path.exists(self.image):
-                    shutil.rmtree(self.image)
+            if self.auto_remove and os.path.exists(self.image):
+                shutil.rmtree(self.image)

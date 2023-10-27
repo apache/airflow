@@ -56,31 +56,31 @@ class DagModelPydantic(BaseModelPydantic):
     """Serializable representation of the DagModel ORM SqlAlchemyModel used by internal API."""
 
     dag_id: str
-    root_dag_id: Optional[str]  # noqa
+    root_dag_id: Optional[str]
     is_paused_at_creation: bool = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused: bool = is_paused_at_creation
-    is_subdag: Optional[bool] = False  # noqa
-    is_active: bool = False
-    last_parsed_time: Optional[datetime]  # noqa
-    last_pickled: Optional[datetime]  # noqa
-    last_expired: Optional[datetime]  # noqa
-    scheduler_lock: Optional[bool]  # noqa
-    pickle_id: Optional[int]  # noqa
+    is_subdag: Optional[bool] = False
+    is_active: Optional[bool] = False
+    last_parsed_time: Optional[datetime]
+    last_pickled: Optional[datetime]
+    last_expired: Optional[datetime]
+    scheduler_lock: Optional[bool]
+    pickle_id: Optional[int]
     fileloc: str
-    processor_subdir: Optional[str]  # noqa
-    owners: Optional[str]  # noqa
-    description: Optional[str]  # noqa
-    default_view: Optional[str]  # noqa
-    schedule_interval: Optional[str]  # noqa
-    timetable_description: Optional[str]  # noqa
+    processor_subdir: Optional[str]
+    owners: Optional[str]
+    description: Optional[str]
+    default_view: Optional[str]
+    schedule_interval: Optional[str]
+    timetable_description: Optional[str]
     tags: List[DagTagPydantic]  # noqa
     dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa
 
     max_active_tasks: int
-    max_active_runs: Optional[int]  # noqa
+    max_active_runs: Optional[int]
 
     has_task_concurrency_limits: bool
-    has_import_errors: Optional[bool] = False  # noqa
+    has_import_errors: Optional[bool] = False
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""

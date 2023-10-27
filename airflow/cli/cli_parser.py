@@ -24,9 +24,9 @@
 from __future__ import annotations
 
 import argparse
-import collections
 import logging
 from argparse import Action
+from collections import Counter
 from functools import lru_cache
 from typing import TYPE_CHECKING, Iterable
 
@@ -82,7 +82,7 @@ ALL_COMMANDS_DICT: dict[str, CLICommand] = {sp.name: sp for sp in airflow_comman
 
 # Check if sub-commands are defined twice, which could be an issue.
 if len(ALL_COMMANDS_DICT) < len(airflow_commands):
-    dup = {k for k, v in collections.Counter([c.name for c in airflow_commands]).items() if v > 1}
+    dup = {k for k, v in Counter([c.name for c in airflow_commands]).items() if v > 1}
     raise CliConflictError(
         f"The following CLI {len(dup)} command(s) are defined more than once: {sorted(dup)}\n"
         f"This can be due to the executor '{ExecutorLoader.get_default_executor_name()}' "
@@ -99,7 +99,6 @@ class AirflowHelpFormatter(RichHelpFormatter):
 
     def _iter_indented_subactions(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):
-
             self._indent()
             subactions = action._get_subactions()
             action_subcommands, group_subcommands = partition(

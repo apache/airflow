@@ -29,8 +29,8 @@ import pytest
 
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
-from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
@@ -467,7 +467,6 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
 
 def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session):
-
     with set_current_task_instance_session(session=session):
 
         class MyOperator(BaseOperator):

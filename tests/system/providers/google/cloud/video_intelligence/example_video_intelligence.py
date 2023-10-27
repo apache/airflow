@@ -31,8 +31,8 @@ from datetime import datetime
 
 from google.api_core.retry import Retry
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.video_intelligence import (
@@ -62,14 +62,13 @@ FILE_NAME = "video.mp4"
 INPUT_URI = f"gs://{BUCKET_NAME_DST}/{FILE_NAME}"
 # [END howto_operator_video_intelligence_other_args]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME_DST)
 
     copy_single_file = GCSToGCSOperator(

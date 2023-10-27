@@ -92,7 +92,6 @@ def build_command_args() -> tuple[dict[str, list], list]:
     """Build Command argument from command and options."""
     command_args, hyphen_args = {}, set()
     for cmd in COMMAND_CLASSES:
-
         # get all available options from the class
         opts_list = get_options_list(COMMAND_CLASSES[cmd])
 

@@ -40,6 +40,8 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
             "init_api_connexion",
             "init_api_internal",
             "init_api_experimental",
+            "init_api_auth_provider",
+            "init_api_error_handlers",
             "sync_appbuilder_roles",
             "init_jinja_globals",
             "init_xframe_protection",
@@ -50,7 +52,6 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
 
         @functools.wraps(f)
         def func(*args, **kwargs):
-
             for method in methods:
                 if method not in skip_all_except:
                     patcher = patch(f"airflow.www.app.{method}", no_op)

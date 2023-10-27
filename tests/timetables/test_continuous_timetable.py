@@ -73,7 +73,6 @@ def test_first_run_before_start_date_correct_interval(timetable, restriction):
 
 @time_machine.travel(DURING_DATE)
 def test_run_uses_utcnow(timetable, restriction):
-
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=DataInterval(START_DATE, DURING_DATE),
         restriction=restriction,
@@ -84,7 +83,6 @@ def test_run_uses_utcnow(timetable, restriction):
 
 @time_machine.travel(AFTER_DATE)
 def test_no_runs_after_end_date(timetable, restriction):
-
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=DataInterval(START_DATE, DURING_DATE),
         restriction=restriction,

@@ -118,7 +118,7 @@ class TestSageMakerProcessingOperator:
         sagemaker.execute(None)
 
         assert sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
-        for (key1, key2, key3) in EXPECTED_INTEGER_FIELDS:
+        for key1, key2, key3 in EXPECTED_INTEGER_FIELDS:
             assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])
 
     @mock.patch.object(SageMakerHook, "describe_processing_job")
@@ -138,7 +138,7 @@ class TestSageMakerProcessingOperator:
         assert (
             sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS + EXPECTED_STOPPING_CONDITION_INTEGER_FIELDS
         )
-        for (key1, key2, *key3) in EXPECTED_INTEGER_FIELDS:
+        for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
             if key3:
                 (key3,) = key3
                 assert sagemaker.config[key1][key2][key3] == int(sagemaker.config[key1][key2][key3])

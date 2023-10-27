@@ -120,7 +120,7 @@ class TestGKEStartPodTrigger:
                 "message": "All containers inside pod have started successfully.",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -147,7 +147,7 @@ class TestGKEStartPodTrigger:
                 "message": FAILED_RESULT_MSG,
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -344,7 +344,7 @@ class TestGKEOperationTrigger:
                 "operation_name": OPERATION_NAME,
             }
         )
-        actual_event = await (operation_trigger.run()).asend(None)
+        actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -367,7 +367,7 @@ class TestGKEOperationTrigger:
                 "message": f"Operation has failed with status: {Operation.Status.STATUS_UNSPECIFIED}",
             }
         )
-        actual_event = await (operation_trigger.run()).asend(None)
+        actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -390,7 +390,7 @@ class TestGKEOperationTrigger:
                 "message": f"Operation has failed with status: {Operation.Status.ABORTING}",
             }
         )
-        actual_event = await (operation_trigger.run()).asend(None)
+        actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -407,7 +407,7 @@ class TestGKEOperationTrigger:
                 "message": EXC_MSG,
             }
         )
-        actual_event = await (operation_trigger.run()).asend(None)
+        actual_event = await operation_trigger.run().asend(None)
 
         assert actual_event == expected_event
 

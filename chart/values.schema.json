@@ -77,7 +77,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.7.1",
+            "default": "2.7.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -92,7 +92,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.7.1",
+            "default": "2.7.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -1974,35 +1974,6 @@
                                 "additionalProperties": false
                             }
                         },
-                        "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the worker. If not set, the values from global `containerLifecycleHooks` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "postStart": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo postStart handler > /usr/share/message"
-                                            ]
-                                        }
-                                    },
-                                    "preStop": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo preStop handler > /usr/share/message"
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
-                        },
                         "securityContexts": {
                             "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
@@ -2512,35 +2483,6 @@
                                 "additionalProperties": false
                             }
                         },
-                        "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "postStart": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo postStart handler > /usr/share/message"
-                                            ]
-                                        }
-                                    },
-                                    "preStop": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo preStop handler > /usr/share/message"
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
-                        },
                         "securityContexts": {
                             "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
                             "type": "object",
@@ -3011,35 +2953,6 @@
                                 ],
                                 "additionalProperties": false
                             }
-                        },
-                        "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "postStart": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo postStart handler > /usr/share/message"
-                                            ]
-                                        }
-                                    },
-                                    "preStop": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo preStop handler > /usr/share/message"
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
                         },
                         "securityContexts": {
                             "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
@@ -3523,35 +3436,6 @@
                                 ],
                                 "additionalProperties": false
                             }
-                        },
-                        "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "postStart": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo postStart handler > /usr/share/message"
-                                            ]
-                                        }
-                                    },
-                                    "preStop": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo preStop handler > /usr/share/message"
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
                         },
                         "securityContexts": {
                             "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
@@ -4836,35 +4720,6 @@
                                 ],
                                 "additionalProperties": false
                             }
-                        },
-                        "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the wait for migrations. If not set, the values from global `containerLifecycleHooks` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "postStart": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo postStart handler > /usr/share/message"
-                                            ]
-                                        }
-                                    },
-                                    "preStop": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo preStop handler > /usr/share/message"
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
                         },
                         "securityContexts": {
                             "description": "Security context definition for the wait for migrations. If not set, the values from global `securityContexts` will be used.",
@@ -6309,6 +6164,12 @@
                         }
                     }
                 },
+                "emptyDirConfig": {
+                    "description": "Configuration for redis empty dir volume.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
+                    "default": null
+                },
                 "resources": {
                     "description": "Resources for the Redis pods",
                     "type": "object",
@@ -7070,6 +6931,14 @@
             "x-docsSection": "Airflow",
             "additionalProperties": false,
             "properties": {
+                "mountPath": {
+                    "description": "Where dags volume will be mounted. Works for both `persistence` and `gitSync`. If not specified, dags mount path will be set to `$AIRFLOW_HOME/dags`",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
@@ -7190,6 +7059,12 @@
                                     "runAsGroup": 0
                                 }
                             ]
+                        },
+                        "emptyDirConfig": {
+                            "description": "Configuration for dags empty dir volume.",
+                            "type": "object",
+                            "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
+                            "default": null
                         },
                         "containerLifecycleHooks": {
                             "description": "Container Lifecycle Hooks definition for the git sync sidecar. If not set, the values from global `containerLifecycleHooks` will be used.",
@@ -7380,6 +7255,12 @@
                             "default": null
                         }
                     }
+                },
+                "emptyDirConfig": {
+                    "description": "Configuration for logs empty dir volume.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.EmptyDirVolumeSource",
+                    "default": null
                 }
             }
         }

@@ -25,7 +25,7 @@ from datetime import datetime
 
 from google.cloud import batch_v1
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.cloud_batch import (
     CloudBatchDeleteJobOperator,
@@ -115,14 +115,13 @@ def _create_job():
 # [END howto_operator_batch_job_creation]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "batch"],
 ) as dag:
-
     # [START howto_operator_batch_submit_job]
     submit1 = CloudBatchSubmitJobOperator(
         task_id=submit1_task_name,

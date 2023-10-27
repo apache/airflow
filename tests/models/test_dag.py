@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-import io
+import itertools
 import logging
 import os
 import pickle
@@ -27,6 +27,7 @@ import sys
 import weakref
 from contextlib import redirect_stdout
 from datetime import timedelta
+from io import StringIO
 from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
@@ -38,8 +39,7 @@ import time_machine
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import inspect
 
-import airflow
-from airflow import models, settings
+from airflow import settings
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.decorators import setup, task as task_decorator, teardown
@@ -49,12 +49,21 @@ from airflow.exceptions import (
     ParamValidationError,
     RemovedInAirflow3Warning,
 )
-from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
+from airflow.models.dag import (
+    DAG,
+    DagModel,
+    DagOwnerAttributes,
+    DagTag,
+    dag as dag_decorator,
+    get_dataset_triggered_next_run_info,
+)
+from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -86,7 +95,7 @@ from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
-repo_root = Path(airflow.__file__).parent.parent
+repo_root = Path(__file__).parents[2]
 
 
 @pytest.fixture
@@ -145,7 +154,7 @@ class TestDag:
         Test that when 'params' is _not_ passed to a new Dag, that the params
         attribute is set to an empty dictionary.
         """
-        dag = models.DAG("test-dag")
+        dag = DAG("test-dag")
 
         assert isinstance(dag.params, ParamsDict)
         assert 0 == len(dag.params)
@@ -160,7 +169,7 @@ class TestDag:
         params1 = {"parameter1": 1}
         params2 = {"parameter2": 2}
 
-        dag = models.DAG("test-dag", default_args={"params": params1}, params=params2)
+        dag = DAG("test-dag", default_args={"params": params1}, params=params2)
 
         assert params1["parameter1"] == dag.params["parameter1"]
         assert params2["parameter2"] == dag.params["parameter2"]
@@ -173,20 +182,20 @@ class TestDag:
         params = {"param1": Param(type="string")}
 
         with pytest.raises(AirflowException):
-            models.DAG("dummy-dag", params=params)
+            DAG("dummy-dag", params=params)
 
     def test_dag_invalid_default_view(self):
         """
         Test invalid `default_view` of DAG initialization
         """
         with pytest.raises(AirflowException, match="Invalid values of dag.default_view: only support"):
-            models.DAG(dag_id="test-invalid-default_view", default_view="airflow")
+            DAG(dag_id="test-invalid-default_view", default_view="airflow")
 
     def test_dag_default_view_default_value(self):
         """
         Test `default_view` default value of DAG initialization
         """
-        dag = models.DAG(dag_id="test-default_default_view")
+        dag = DAG(dag_id="test-default_default_view")
         assert conf.get("webserver", "dag_default_view").lower() == dag.default_view
 
     def test_dag_invalid_orientation(self):
@@ -194,13 +203,13 @@ class TestDag:
         Test invalid `orientation` of DAG initialization
         """
         with pytest.raises(AirflowException, match="Invalid values of dag.orientation: only support"):
-            models.DAG(dag_id="test-invalid-orientation", orientation="airflow")
+            DAG(dag_id="test-invalid-orientation", orientation="airflow")
 
     def test_dag_orientation_default_value(self):
         """
         Test `orientation` default value of DAG initialization
         """
-        dag = models.DAG(dag_id="test-default_orientation")
+        dag = DAG(dag_id="test-default_orientation")
         assert conf.get("webserver", "dag_orientation") == dag.orientation
 
     def test_dag_as_context_manager(self):
@@ -342,12 +351,9 @@ class TestDag:
                 [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(width)]
                 for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
-                for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
-                        current_task.set_upstream(prev_task)
+            for upstream, downstream in zip(pipeline, pipeline[1:]):
+                for up_task, down_task in itertools.product(upstream, downstream):
+                    down_task.set_upstream(up_task)
 
             for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
@@ -376,12 +382,9 @@ class TestDag:
                 ]
                 for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
-                for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
-                        current_task.set_upstream(prev_task)
+            for upstream, downstream in zip(pipeline, pipeline[1:]):
+                for up_task, down_task in itertools.product(upstream, downstream):
+                    down_task.set_upstream(up_task)
 
             for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
@@ -409,12 +412,9 @@ class TestDag:
                 ]
                 for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
-                for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
-                        current_task.set_upstream(prev_task)
+            for upstream, downstream in zip(pipeline, pipeline[1:]):
+                for up_task, down_task in itertools.product(upstream, downstream):
+                    down_task.set_upstream(up_task)
 
             for task in dag.task_dict.values():
                 # the sum of each stages after this task + itself
@@ -603,7 +603,7 @@ class TestDag:
         def jinja_udf(name):
             return f"Hello {name}"
 
-        dag = models.DAG(
+        dag = DAG(
             "test-dag",
             start_date=DEFAULT_DATE,
             user_defined_filters={"hello": jinja_udf},
@@ -1410,7 +1410,7 @@ class TestDag:
             op3 = EmptyOperator(task_id="t3")
             op1 >> op2 >> op3
 
-            with redirect_stdout(io.StringIO()) as stdout:
+            with redirect_stdout(StringIO()) as stdout:
                 dag.tree_view()
                 stdout = stdout.getvalue()
 
@@ -2468,7 +2468,7 @@ my_postgres_conn:
         assert dag.access_control == updated_permissions
 
     def test_validate_params_on_trigger_dag(self):
-        dag = models.DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
+        dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
         with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
@@ -2476,7 +2476,7 @@ my_postgres_conn:
                 execution_date=TEST_DATE,
             )
 
-        dag = models.DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
+        dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
         with pytest.raises(
             ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
         ):
@@ -2487,7 +2487,7 @@ my_postgres_conn:
                 conf={"param1": None},
             )
 
-        dag = models.DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
+        dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
         dag.create_dagrun(
             run_id="test_dagrun_missing_param",
             state=State.RUNNING,
@@ -2499,7 +2499,7 @@ my_postgres_conn:
         start_date = TEST_DATE
         delta = timedelta(days=1)
 
-        dag = models.DAG("dummy-dag", schedule=delta)
+        dag = DAG("dummy-dag", schedule=delta)
         dag_dates = dag.date_range(start_date=start_date, num=3)
 
         assert dag_dates == [
@@ -3490,10 +3490,10 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
 )
 def test__tags_length(tags: list[str], should_pass: bool):
     if should_pass:
-        models.DAG("test-dag", tags=tags)
+        DAG("test-dag", tags=tags)
     else:
         with pytest.raises(AirflowException):
-            models.DAG("test-dag", tags=tags)
+            DAG("test-dag", tags=tags)
 
 
 @pytest.mark.need_serialized_dag

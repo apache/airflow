@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import os
 from contextlib import redirect_stdout
+from io import StringIO
 
 import pytest
 
@@ -52,12 +52,12 @@ class TestCliVariables:
     def test_variables_get(self):
         Variable.set("foo", {"foo": "bar"}, serialize_json=True)
 
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             variable_command.variables_get(self.parser.parse_args(["variables", "get", "foo"]))
             assert '{\n  "foo": "bar"\n}\n' == stdout.getvalue()
 
     def test_get_variable_default_value(self):
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             variable_command.variables_get(
                 self.parser.parse_args(["variables", "get", "baz", "--default", "bar"])
             )

@@ -96,7 +96,6 @@ class TestSQLExecuteQueryOperator:
 
 
 class TestColumnCheckOperator:
-
     valid_column_mapping = {
         "X": {
             "null_check": {"equal_to": 0},
@@ -336,7 +335,6 @@ class TestColumnCheckOperator:
 
 
 class TestTableCheckOperator:
-
     count_check = "COUNT(*) == 1000"
     sum_check = "col_a + col_b < col_c"
     checks = {
@@ -1277,7 +1275,6 @@ class TestSqlBranch:
 
 
 class TestBaseSQLOperatorSubClass:
-
     from airflow.providers.common.sql.operators.sql import BaseSQLOperator
 
     class NewStyleBaseSQLOperatorSubClass(BaseSQLOperator):

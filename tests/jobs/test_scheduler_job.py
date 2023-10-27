@@ -17,14 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import contextlib
 import datetime
 import logging
 import os
-import shutil
+from collections import deque
 from datetime import timedelta
-from tempfile import mkdtemp
 from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -49,11 +47,14 @@ from airflow.jobs.backfill_job_runner import BackfillJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
-from airflow.models import DAG, DagBag, DagModel, DbCallbackRequest, Pool, TaskInstance
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.db_callback_request import DbCallbackRequest
+from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstanceKey
+from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -102,8 +103,6 @@ def disable_load_example():
 
 @pytest.fixture(scope="module")
 def dagbag():
-    from airflow.models.dagbag import DagBag
-
     # Ensure the DAGs we are looking at from the DB are up-to-date
     non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
     non_serialized_dagbag.sync_to_db()
@@ -210,16 +209,14 @@ class TestSchedulerJob:
         scheduler_job.heartrate = 0
         run_job(scheduler_job, execute_callable=self.job_runner._execute)
 
-    def test_no_orphan_process_will_be_left(self):
-        empty_dir = mkdtemp()
+    def test_no_orphan_process_will_be_left(self, tmp_path):
         current_process = psutil.Process()
         old_children = current_process.children(recursive=True)
         scheduler_job = Job(
             executor=MockExecutor(do_update=False),
         )
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=empty_dir, num_runs=1)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.fspath(tmp_path), num_runs=1)
         run_job(scheduler_job, execute_callable=self.job_runner._execute)
-        shutil.rmtree(empty_dir)
 
         # Remove potential noise created by previous tests.
         current_children = set(current_process.children(recursive=True)) - set(old_children)
@@ -3037,6 +3034,11 @@ class TestSchedulerJob:
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
 
+    # TODO: Investigate super-mysterious behaviour of this test hanging for sqlite. This test started
+    # To fail ONLY on sqlite but only on self-hosted runners and locally (not on public runners)
+    # We should uncomment it when we figure out what's going on
+    # Issue: https://github.com/apache/airflow/issues/35204
+    @pytest.mark.backend("mssql", "mysql", "postgres")
     def test_retry_handling_job(self):
         """
         Integration test of the scheduler not accidentally resetting
@@ -4813,8 +4815,8 @@ class TestSchedulerJob:
 
             return spy
 
-        num_queued_tis: collections.deque[int] = collections.deque([], 3)
-        num_finished_events: collections.deque[int] = collections.deque([], 3)
+        num_queued_tis: deque[int] = deque([], 3)
+        num_finished_events: deque[int] = deque([], 3)
 
         do_scheduling_spy = mock.patch.object(
             job_runner,
@@ -5119,6 +5121,31 @@ class TestSchedulerJob:
             .order_by(DatasetModel.uri)
         ]
         assert orphaned_datasets == ["ds2", "ds4"]
+
+    def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
+        """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""
+
+        with dag_maker("testdag1", serialized=True):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        dm1 = dag_maker.dag_model
+        # Here, the next_dagrun is set to None, which will cause an exception
+        dm1.next_dagrun = None
+        session.add(dm1)
+        session.flush()
+
+        with dag_maker("testdag2", serialized=True):
+            BashOperator(task_id="task", bash_command="echo 1")
+        dm2 = dag_maker.dag_model
+
+        scheduler_job = Job()
+        job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        # In the dagmodel list, the first dag should fail, but the second one should succeed
+        job_runner._create_dag_runs([dm1, dm2], session)
+        assert "Failed creating DagRun for testdag1" in caplog.text
+        assert not DagRun.find(dag_id="testdag1", session=session)
+        # Check if the second dagrun was created
+        assert DagRun.find(dag_id="testdag2", session=session)
 
 
 @pytest.mark.need_serialized_dag

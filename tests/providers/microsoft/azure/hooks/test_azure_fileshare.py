@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import io
+from io import StringIO
 from unittest import mock
 
 import pytest
@@ -58,14 +58,12 @@ class TestAzureFileshareHook:
         )
 
     def test_key_and_connection(self):
-
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_test_key")
         assert hook._conn_id == "azure_fileshare_test_key"
         share_client = hook.share_service_client
         assert isinstance(share_client, ShareServiceClient)
 
     def test_sas_token(self):
-
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras")
         assert hook._conn_id == "azure_fileshare_extras"
         share_client = hook.share_service_client
@@ -139,7 +137,7 @@ class TestAzureFileshareHook:
         hook = AzureFileShareHook(
             azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", file_path="file"
         )
-        data = io.StringIO("stream")
+        data = StringIO("stream")
         hook.get_file_to_stream(stream=data)
         mock_instance.download_file.assert_called_once_with()
 
