@@ -34,6 +34,10 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
     """
     Executes an SQL statement in a given SQL connection and sends the results to Slack API as file.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SqlToSlackApiFileOperator`
+
     :param sql: The SQL query to be executed
     :param sql_conn_id: reference to a specific DB-API Connection.
     :param slack_conn_id: :ref:`Slack API Connection <howto/connection:slack>`.
@@ -50,24 +54,6 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
     :param slack_title: Title of file.
     :param slack_base_url: A string representing the Slack API base URL. Optional
     :param df_kwargs: Keyword arguments forwarded to ``pandas.DataFrame.to_{format}()`` method.
-
-
-    Example:
-     .. code-block:: python
-
-        SqlToSlackApiFileOperator(
-            task_id="sql_to_slack",
-            sql="SELECT 1 a, 2 b, 3 c",
-            sql_conn_id="sql-connection",
-            slack_conn_id="slack-api-connection",
-            slack_filename="awesome.json.gz",
-            slack_channels="#random,#general",
-            slack_initial_comment="Awesome load to compressed multiline JSON.",
-            df_kwargs={
-                "orient": "records",
-                "lines": True,
-            },
-        )
     """
 
     template_fields: Sequence[str] = (
