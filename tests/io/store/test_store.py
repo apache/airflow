@@ -61,6 +61,11 @@ class TestFs:
         assert path.key == "key/part1/part2"
         assert path._protocol == "file"
 
+        path2 = ObjectStoragePath(path / "part3")
+        assert path2.bucket == "bucket"
+        assert path2.key == "key/part1/part2/part3"
+        assert path2._protocol == "file"
+
     def test_read_write(self):
         o = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
 

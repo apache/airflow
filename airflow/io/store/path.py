@@ -45,6 +45,13 @@ class ObjectStoragePath(os.PathLike):
     sep: typing.ClassVar[str] = "/"
     root_marker: typing.ClassVar[str] = "/"
 
+    _store: ObjectStore | None
+    _bucket: str
+    _key: str
+    _conn_id: str | None
+    _protocol: str
+    _hash: int | None
+
     __slots__ = (
         "_store",
         "_bucket",
@@ -54,18 +61,26 @@ class ObjectStoragePath(os.PathLike):
         "_hash",
     )
 
-    def __init__(self, path, conn_id: str | None = None, store: ObjectStore | None = None):
+    def __init__(
+        self, path: str | ObjectStoragePath, conn_id: str | None = None, store: ObjectStore | None = None
+    ):
         self._conn_id = conn_id
         self._store = store
 
         self._hash = None
 
-        self._protocol, self._bucket, self._key = self.split_path(path)
+        if isinstance(path, ObjectStoragePath):
+            self._protocol = path._protocol
+            self._bucket = path._bucket
+            self._key = path._key
+            self._store = path._store
+        else:
+            self._protocol, self._bucket, self._key = self.split_path(path)
 
         if store:
             self._conn_id = store.conn_id
             self._protocol = self._protocol if self._protocol else store.protocol
-        elif self._protocol:
+        elif self._protocol and not self._store:
             self._store = attach(self._protocol, conn_id)
 
     @classmethod
