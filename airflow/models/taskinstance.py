@@ -528,7 +528,7 @@ def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[s
 
 def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydantic) -> None:
     """
-    Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them.
+    Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them.
 
     :param task_instance: the task instance
 
@@ -2189,7 +2189,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.timing(f"task.{metric_name}", timing, tags={"task_id": self.task_id, "dag_id": self.dag_id})
 
     def clear_next_method_args(self) -> None:
-        """Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them."""
+        """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""
         _clear_next_method_args(task_instance=self)
 
     @provide_session

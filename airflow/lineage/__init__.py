@@ -70,7 +70,6 @@ def apply_lineage(func: T) -> T:
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
-
         self.log.debug("Lineage called with inlets: %s, outlets: %s", self.inlets, self.outlets)
 
         ret_val = func(self, context, *args, **kwargs)

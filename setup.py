@@ -328,7 +328,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.6",
+    "flask-appbuilder[oauth]==4.3.9",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -385,6 +385,7 @@ mypy_dependencies = [
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
     "mypy==1.2.0",
+    "types-aiofiles",
     "types-certifi",
     "types-croniter",
     "types-Deprecated",
@@ -496,6 +497,12 @@ aiobotocore = [
     "aiobotocore>=2.1.1",
 ]
 
+s3fs = [
+    # This is required for support of S3 file system which uses aiobotocore
+    # which can have a conflict with boto3 as mentioned above
+    "s3fs>=2023.9.2",
+]
+
 
 def get_provider_dependencies(provider_name: str) -> list[str]:
     if provider_name not in PROVIDER_DEPENDENCIES:
@@ -522,6 +529,7 @@ devel = get_unique_dependency_list(
         get_provider_dependencies("mysql"),
         pandas,
         password,
+        s3fs,
     ]
 )
 
@@ -567,6 +575,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "pandas": pandas,
     "password": password,
     "rabbitmq": rabbitmq,
+    "s3fs": s3fs,
     "sentry": sentry,
     "statsd": statsd,
     "virtualenv": virtualenv,
@@ -798,6 +807,7 @@ EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
+    "common.io",
     "common.sql",
     "ftp",
     "http",
@@ -1042,4 +1052,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()  # comment to trigger upgrade to newer dependencies
+    do_setup()  # comment to trigger upgrade to newer dependencies when setup.py is changed

@@ -176,7 +176,6 @@ class GoogleApiToS3Operator(BaseOperator):
     def _update_google_api_endpoint_params_via_xcom(
         self, task_instance: TaskInstance | TaskInstancePydantic
     ) -> None:
-
         if self.google_api_endpoint_params_via_xcom:
             google_api_endpoint_params = task_instance.xcom_pull(
                 task_ids=self.google_api_endpoint_params_via_xcom_task_ids,

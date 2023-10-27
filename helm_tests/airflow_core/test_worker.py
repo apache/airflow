@@ -61,7 +61,7 @@ class TestWorker:
             values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_should_add_extra_containers(self):
@@ -651,6 +651,22 @@ class TestWorker:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    @pytest.mark.parametrize(
+        "evictionStr, evictionBool",
+        [("true", True), ("false", False)],
+    )
+    def test_safetoevict_annotations(self, evictionStr, evictionBool):
+        docs = render_chart(
+            values={"workers": {"safeToEvict": evictionBool}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert (
+            jmespath.search("spec.template.metadata.annotations", docs[0])[
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == evictionStr
+        )
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
@@ -723,7 +739,6 @@ class TestWorkerKedaAutoScaler:
         ],
     )
     def test_should_use_keda_query(self, query, executor, expected_query):
-
         docs = render_chart(
             values={
                 "executor": executor,
@@ -832,7 +847,7 @@ class TestWorkerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "workers": {

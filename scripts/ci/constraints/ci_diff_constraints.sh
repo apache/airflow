@@ -15,20 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
-
-if [[ $# == "0" ]]; then
-    echo "ERROR: Pass provider ids as list"
-    exit 1
-fi
-
-provider_filters=()
-for provider in "${@}"
-do
-    provider_filters+=("--package-filter" "apache-airflow-providers-${provider//./-}")
-done
-
-.breeze build-docs \
-    --clean-build \
-    "${provider_filters[@]}"
-cd "${AIRFLOW_SITE_DIRECTORY}"
+cp -v ./files/constraints-*/constraints*.txt repo/
+cd repo || exit 1
+git diff --color --exit-code --ignore-matching-lines="^#.*" || echo "No changes in constraints"

@@ -35,7 +35,6 @@ with models.DAG(
     schedule=None,
     tags=["example"],
 ) as dag:
-
     upload_file = LocalFilesystemToADLSOperator(
         task_id="upload_task",
         local_path=LOCAL_FILE_PATH,

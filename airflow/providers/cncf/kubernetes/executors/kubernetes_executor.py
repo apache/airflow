@@ -494,7 +494,6 @@ class KubernetesExecutor(BaseExecutor):
         messages = []
         log = []
         try:
-
             from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
@@ -628,7 +627,6 @@ class KubernetesExecutor(BaseExecutor):
         from kubernetes.client.rest import ApiException
 
         try:
-
             kube_client.patch_namespaced_pod(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
@@ -664,7 +662,6 @@ class KubernetesExecutor(BaseExecutor):
             from kubernetes.client.rest import ApiException
 
             try:
-
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,

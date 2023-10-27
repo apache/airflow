@@ -145,7 +145,6 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         if files:
             for file in files:
                 with tempfile.NamedTemporaryFile() as temp_file:
-
                     dest_key = os.path.join(self.dest_s3_key, file)
                     self.log.info("Downloading data from blob: %s", file)
                     wasb_hook.get_file(

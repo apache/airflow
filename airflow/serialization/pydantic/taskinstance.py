@@ -203,7 +203,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         return _stats_tags(task_instance=self)
 
     def clear_next_method_args(self) -> None:
-        """Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them."""
+        """Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them."""
         from airflow.models.taskinstance import _clear_next_method_args
 
         _clear_next_method_args(task_instance=self)
