@@ -269,6 +269,13 @@
     "cross-providers-deps": [],
     "excluded-python-versions": []
   },
+  "common.io": {
+    "deps": [
+      "apache-airflow>=2.8.0"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "common.sql": {
     "deps": [
       "apache-airflow>=2.5.0",
@@ -409,6 +416,7 @@
       "gcloud-aio-auth>=4.0.0,<5.0.0",
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage",
+      "gcsfs>=2023.9.2",
       "google-ads>=21.2.0",
       "google-api-core>=2.11.0",
       "google-api-python-client>=1.6.0",
@@ -550,6 +558,7 @@
   "microsoft.azure": {
     "deps": [
       "adal>=1.2.7",
+      "adlfs>=2023.9.2",
       "apache-airflow>=2.5.0",
       "azure-batch>=8.0.0",
       "azure-cosmos>=4.0.0",
