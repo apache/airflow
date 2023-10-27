@@ -88,9 +88,9 @@ Requirements
 The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
 
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.5.0``
-``cohere``          ``>=3.24.2``
-==================  ==================
+===================  ==================
+PIP package          Version required
+===================  ==================
+``apache-airflow``    ``>=2.5.0``
+``weaviate-client``  ``>=3.24.2``
+===================  ==================

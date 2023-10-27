@@ -37,7 +37,7 @@ integrations:
 
 dependencies:
   - apache-airflow>=2.5.0
-  - weaviate-client
+  - weaviate-client>=3.24.2
 
 hooks:
   - integration-name: Weaviate

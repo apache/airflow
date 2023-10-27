@@ -928,7 +928,7 @@
   "weaviate": {
     "deps": [
       "apache-airflow>=2.5.0",
-      "weaviate-client"
+      "weaviate-client>=3.24.2"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
