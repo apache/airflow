@@ -116,7 +116,7 @@ class ConfDict(dict):
         if isinstance(conf, dict):
             return conf
         else:
-            raise AirflowException(f"{conf} must be a dict")
+            raise AirflowException(f"Object of type {type(value)} must be a dict")
 
 def _creator_note(val):
     """Creator the ``note`` association proxy."""
