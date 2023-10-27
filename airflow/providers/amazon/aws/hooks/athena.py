@@ -27,7 +27,6 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Any
 
-from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
@@ -83,6 +82,7 @@ class AthenaHook(AwsBaseHook):
         else:
             self.sleep_time = 30  # previous default value
         self.log_query = log_query
+        self.__query_results: dict[str, Any] = {}
 
     def run_query(
         self,
@@ -121,26 +121,23 @@ class AthenaHook(AwsBaseHook):
         self.log.info("Query execution id: %s", query_execution_id)
         return query_execution_id
 
-    def get_query_execution(self, query_execution_id: str, use_cached_response: bool = False) -> dict:
+    def get_query_info(self, query_execution_id: str, use_cache: bool = False) -> dict:
         """Get information about a single execution of a query.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_execution`
 
         :param query_execution_id: Id of submitted athena query
-        :param use_cached_response: If True, use execution information cache
+        :param use_cache: If True, use execution information cache
         """
-        # second check if to satisfy mypy
-        if use_cached_response or not hasattr(self._get_query_execution, "__wrapped__"):
-            return self._get_query_execution(query_execution_id=query_execution_id)
-        return self._get_query_execution.__wrapped__(self, query_execution_id=query_execution_id)
-
-    @cache
-    def _get_query_execution(self, query_execution_id: str):
+        if use_cache and query_execution_id in self.__query_results:
+            return self.__query_results[query_execution_id]
         response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
+        if use_cache:
+            self.__query_results[query_execution_id] = response
         return response
 
-    def check_query_status(self, query_execution_id: str, use_cached_response: bool = False) -> str | None:
+    def check_query_status(self, query_execution_id: str, use_cache: bool = False) -> str | None:
         """Fetch the state of a submitted query.
 
         .. seealso::
@@ -150,9 +147,7 @@ class AthenaHook(AwsBaseHook):
         :return: One of valid query states, or *None* if the response is
             malformed.
         """
-        response = self.get_query_execution(
-            query_execution_id=query_execution_id, use_cached_response=use_cached_response
-        )
+        response = self.get_query_info(query_execution_id=query_execution_id, use_cache=use_cache)
         state = None
         try:
             state = response["QueryExecution"]["Status"]["State"]
@@ -165,9 +160,7 @@ class AthenaHook(AwsBaseHook):
             # The error is being absorbed to implement retries.
             return state
 
-    def get_state_change_reason(
-        self, query_execution_id: str, use_cached_response: bool = False
-    ) -> str | None:
+    def get_state_change_reason(self, query_execution_id: str, use_cache: bool = False) -> str | None:
         """
         Fetch the reason for a state change (e.g. error message). Returns None or reason string.
 
@@ -176,9 +169,7 @@ class AthenaHook(AwsBaseHook):
 
         :param query_execution_id: Id of submitted athena query
         """
-        response = self.get_query_execution(
-            query_execution_id=query_execution_id, use_cached_response=use_cached_response
-        )
+        response = self.get_query_info(query_execution_id=query_execution_id, use_cache=use_cache)
         reason = None
         try:
             reason = response["QueryExecution"]["Status"]["StateChangeReason"]
@@ -303,9 +294,7 @@ class AthenaHook(AwsBaseHook):
         """
         output_location = None
         if query_execution_id:
-            response = self.get_query_execution(
-                query_execution_id=query_execution_id, use_cached_response=True
-            )
+            response = self.get_query_info(query_execution_id=query_execution_id, use_cache=True)
 
             if response:
                 try:
