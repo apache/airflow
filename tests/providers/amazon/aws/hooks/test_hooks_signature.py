@@ -28,7 +28,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 BASE_AWS_HOOKS = ["AwsGenericHook", "AwsBaseHook"]
 ALLOWED_THICK_HOOKS_PARAMETERS: dict[str, set[str]] = {
-    # This list should only be reduced not extended with new parameters, unless there is an exceptional reason.
+    # This list should only be reduced not extended with new parameters,
+    # unless there is an exceptional reason.
     "AthenaHook": {"sleep_time", "log_query"},
     "BatchClientHook": {"status_retries", "max_retries"},
     "BatchWaitersHook": {"waiter_config"},
@@ -120,7 +121,8 @@ def validate_hook(hook: type[AwsGenericHook], hook_name: str, hook_module: str) 
             f"'{hook_module}.{hook_name}' has additional attributes "
             f"{', '.join(map(repr, hook_extra_parameters))}. "
             "Expected that all `boto3` related hooks (based on `AwsGenericHook` or `AwsBaseHook`) "
-            "should not use additional attributes in class constructor, please move them to method signatures. "
+            "should not use additional attributes in class constructor, "
+            "please move them to method signatures. "
             f"Make sure that {hook_name!r} constructor has signature `def __init__(self, *args, **kwargs):`"
         )
     else:
