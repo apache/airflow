@@ -42,7 +42,9 @@ aq_fields = {
     "TRSC_PT1H_avg": "float64",
 }
 
+# [START create_object_storage_path]
 base = ObjectStoragePath("s3://airflow-tutorial-data/", conn_id="aws_default")
+# [END create_object_storage_path]
 
 
 # [START instantiate_dag]
@@ -58,7 +60,7 @@ def tutorial_objectstorage():
     This is a tutorial DAG to showcase the usage of the Object Storage API.
     Documentation that goes along with the Airflow Object Storage tutorial is
     located
-    [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial_objectstorage_api.html)
+    [here](https://airflow.apache.org/docs/apache-airflow/stable/tutorial/objectstorage.html)
     """
     # [END instantiate_dag]
     import duckdb
@@ -104,6 +106,7 @@ def tutorial_objectstorage():
 
     # [END get_air_quality_data]
 
+    # [START analyze]
     @task
     def analyze(path: ObjectStoragePath, **kwargs):
         """
@@ -117,6 +120,8 @@ def tutorial_objectstorage():
         df2 = conn.execute("SELECT * FROM airquality_urban").fetchdf()
 
         print(df2.head())
+
+    # [END analyze]
 
     # [START main_flow]
     obj_path = get_air_quality_data()
