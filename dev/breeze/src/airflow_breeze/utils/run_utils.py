@@ -250,8 +250,7 @@ def get_filesystem_type(filepath: str):
     for part in psutil.disk_partitions(all=True):
         if part.mountpoint == "/":
             root_type = part.fstype
-            continue
-        if filepath.startswith(part.mountpoint):
+        elif filepath.startswith(part.mountpoint):
             return part.fstype
 
     return root_type
@@ -302,14 +301,14 @@ def fix_group_permissions():
         get_console().print("[info]Fixing group permissions[/]")
     files_to_fix_result = run_command(["git", "ls-files", "./"], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
-        files_to_fix = files_to_fix_result.stdout.strip().split("\n")
+        files_to_fix = files_to_fix_result.stdout.strip().splitlines()
         for file_to_fix in files_to_fix:
             change_file_permission(Path(file_to_fix))
     directories_to_fix_result = run_command(
         ["git", "ls-tree", "-r", "-d", "--name-only", "HEAD"], capture_output=True, text=True
     )
     if directories_to_fix_result.returncode == 0:
-        directories_to_fix = directories_to_fix_result.stdout.strip().split("\n")
+        directories_to_fix = directories_to_fix_result.stdout.strip().splitlines()
         for directory_to_fix in directories_to_fix:
             change_directory_permission(Path(directory_to_fix))
 
@@ -410,10 +409,7 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
         )
     else:
         WWW_ASSET_COMPILE_LOCK.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            WWW_ASSET_COMPILE_LOCK.unlink()
-        except FileNotFoundError:
-            pass
+        WWW_ASSET_COMPILE_LOCK.unlink(missing_ok=True)
         try:
             with SoftFileLock(WWW_ASSET_COMPILE_LOCK, timeout=5):
                 with open(WWW_ASSET_OUT_FILE, "w") as output_file:
@@ -427,10 +423,7 @@ def _run_compile_internally(command_to_execute: list[str], dev: bool) -> RunComm
                         stdout=output_file,
                     )
                 if result.returncode == 0:
-                    try:
-                        WWW_ASSET_OUT_FILE.unlink()
-                    except FileNotFoundError:
-                        pass
+                    WWW_ASSET_OUT_FILE.unlink(missing_ok=True)
                 return result
         except Timeout:
             get_console().print("[error]Another asset compilation is running. Exiting[/]\n")

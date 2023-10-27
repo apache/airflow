@@ -26,7 +26,6 @@ import time
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from re import Pattern, match
 from typing import IO, Generator, NamedTuple
 
 import click
@@ -43,7 +42,6 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
     MOUNT_SELECTED,
     MULTI_PLATFORM,
-    get_available_documentation_packages,
 )
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.add_back_references import (
@@ -52,11 +50,13 @@ from airflow_breeze.utils.add_back_references import (
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.common_options import (
     argument_packages,
-    argument_packages_plus_all_providers,
+    argument_short_doc_packages,
+    argument_short_doc_packages_with_providers_index,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
     option_airflow_extras,
+    option_airflow_site_directory,
     option_answer,
     option_commit_sha,
     option_debug_resources,
@@ -81,13 +81,14 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
     perform_environment_checks,
 )
+from airflow_breeze.utils.general_utils import expand_all_providers
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
@@ -119,7 +120,7 @@ from airflow_breeze.utils.run_utils import (
     run_command,
     run_compile_www_assets,
 )
-from airflow_breeze.utils.shared_options import get_dry_run, get_forced_answer
+from airflow_breeze.utils.shared_options import get_dry_run, get_forced_answer, get_verbose
 from airflow_breeze.utils.suspended_providers import get_suspended_provider_ids
 
 option_debug_release_management = click.option(
@@ -514,7 +515,7 @@ WHEEL_FILENAME_PATTERN = re.compile(rf"{WHEEL_FILENAME_PREFIX}(.*)-[0-9].*\.whl"
 
 
 def _get_all_providers_in_dist(
-    filename_prefix: str, filename_pattern: Pattern[str]
+    filename_prefix: str, filename_pattern: re.Pattern[str]
 ) -> Generator[str, None, None]:
     for file in DIST_DIR.glob(f"{filename_prefix}*.tar.gz"):
         matched = filename_pattern.match(file.name)
@@ -769,30 +770,99 @@ def alias_image(image_from: str, image_to: str):
     )
 
 
+def run_docs_publishing(
+    package_name: str,
+    airflow_site_directory: str,
+    override_versioned: bool,
+    verbose: bool,
+    output: Output | None,
+) -> tuple[int, str]:
+    builder = PublishDocsBuilder(package_name=package_name, output=output, verbose=verbose)
+    builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
+    return (
+        0,
+        f"Docs published: {package_name}",
+    )
+
+
+PUBLISHING_DOCS_PROGRESS_MATCHER = r"Publishing docs|Copy directory"
+
+
+def run_publish_docs_in_parallel(
+    package_list: list[str],
+    airflow_site_directory: str,
+    override_versioned: bool,
+    include_success_outputs: bool,
+    parallelism: int,
+    skip_cleanup: bool,
+    debug_resources: bool,
+):
+    """Run docs publishing in parallel"""
+    with ci_group("Publishing docs for packages"):
+        all_params = [f"Publishing docs {package_name}" for package_name in package_list]
+        with run_with_pool(
+            parallelism=parallelism,
+            all_params=all_params,
+            debug_resources=debug_resources,
+            progress_matcher=GenericRegexpProgressMatcher(
+                regexp=PUBLISHING_DOCS_PROGRESS_MATCHER, lines_to_search=6
+            ),
+        ) as (pool, outputs):
+            results = [
+                pool.apply_async(
+                    run_docs_publishing,
+                    kwds={
+                        "package_name": package_name,
+                        "airflow_site_directory": airflow_site_directory,
+                        "override_versioned": override_versioned,
+                        "output": outputs[index],
+                        "verbose": get_verbose(),
+                    },
+                )
+                for index, package_name in enumerate(package_list)
+            ]
+    check_async_run_results(
+        results=results,
+        success="All package documentation published.",
+        outputs=outputs,
+        include_success_outputs=include_success_outputs,
+        skip_cleanup=skip_cleanup,
+        summarize_on_ci=SummarizeAfter.NO_SUMMARY,
+    )
+
+
 @release_management.command(
     name="publish-docs",
     help="Command to publish generated documentation to airflow-site",
 )
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
-@click.option(
-    "-a",
-    "--airflow-site-directory",
-    envvar="AIRFLOW_SITE_DIRECTORY",
-    help="Local directory path of cloned airflow-site repo.",
-    required=True,
-)
+@option_airflow_site_directory
+@argument_short_doc_packages_with_providers_index
 @click.option(
     "--package-filter",
-    help="List of packages to consider.",
-    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
+    "the short hand names or the glob pattern matching the full package name. "
+    "The list of short hand names can be found in --help output",
+    type=str,
     multiple=True,
 )
+@option_run_in_parallel
+@option_parallelism
+@option_debug_resources
+@option_include_success_outputs
+@option_skip_cleanup
 @option_verbose
 @option_dry_run
 def publish_docs(
     override_versioned: bool,
     airflow_site_directory: str,
-    package_filter: tuple[str],
+    short_doc_packages: tuple[str, ...],
+    package_filter: tuple[str, ...],
+    run_in_parallel: bool,
+    parallelism: int,
+    debug_resources: bool,
+    include_success_outputs: bool,
+    skip_cleanup: bool,
 ):
     """Publishes documentation to airflow-site."""
     if not os.path.isdir(airflow_site_directory):
@@ -801,37 +871,42 @@ def publish_docs(
             "Provide the path of cloned airflow-site repo\n"
         )
 
-    available_packages = get_available_packages()
-    package_filters = package_filter
+    current_packages = process_package_filters(
+        get_available_packages(), package_filter, expand_all_providers(short_doc_packages)
+    )
 
-    current_packages = process_package_filters(available_packages, package_filters)
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
         print(f" - {pkg}")
     print()
-    for package_name in current_packages:
-        builder = PublishDocsBuilder(package_name=package_name)
-        builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
+    if run_in_parallel:
+        run_publish_docs_in_parallel(
+            package_list=current_packages,
+            parallelism=parallelism,
+            skip_cleanup=skip_cleanup,
+            debug_resources=debug_resources,
+            include_success_outputs=True,
+            airflow_site_directory=airflow_site_directory,
+            override_versioned=override_versioned,
+        )
+    else:
+        for package_name in current_packages:
+            run_docs_publishing(
+                package_name, airflow_site_directory, override_versioned, verbose=get_verbose(), output=None
+            )
 
 
 @release_management.command(
     name="add-back-references",
     help="Command to add back references for documentation to make it backward compatible.",
 )
-@click.option(
-    "-a",
-    "--airflow-site-directory",
-    envvar="AIRFLOW_SITE_DIRECTORY",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True, resolve_path=True),
-    help="Local directory path of cloned airflow-site repo.",
-    required=True,
-)
-@argument_packages_plus_all_providers
+@option_airflow_site_directory
+@argument_short_doc_packages
 @option_verbose
 @option_dry_run
 def add_back_references(
     airflow_site_directory: str,
-    packages_plus_all_providers: tuple[str],
+    short_doc_packages: tuple[str, ...],
 ):
     """Adds back references for documentation generated by build-docs and publish-docs"""
     site_path = Path(airflow_site_directory)
@@ -841,16 +916,12 @@ def add_back_references(
             "Provide the path of cloned airflow-site repo\n"
         )
         sys.exit(1)
-    if not packages_plus_all_providers:
+    if not short_doc_packages:
         get_console().print(
             "\n[error]You need to specify at least one package to generate back references for\n"
         )
         sys.exit(1)
-    packages = list(packages_plus_all_providers)
-    if "all-providers" in packages_plus_all_providers:
-        packages.remove("all-providers")
-        packages.extend(get_available_documentation_packages(only_providers=True, short_version=True))
-    start_generating_back_references(site_path, packages)
+    start_generating_back_references(site_path, list(expand_all_providers(short_doc_packages)))
 
 
 @release_management.command(
@@ -903,7 +974,7 @@ def release_prod_images(
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     rebuild_or_pull_ci_image_if_needed(command_params=ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION))
-    if not match(r"^\d*\.\d*\.\d*$", airflow_version):
+    if not re.match(r"^\d*\.\d*\.\d*$", airflow_version):
         get_console().print(
             f"[warning]Skipping latest image tagging as this is a pre-release version: {airflow_version}"
         )
@@ -1016,16 +1087,19 @@ def release_prod_images(
                     f"{dockerhub_repo}:{airflow_version}-python{python}",
                     f"{dockerhub_repo}:latest-python{python}",
                 )
-        if slim_images:
-            alias_image(
-                f"{dockerhub_repo}:slim-{airflow_version}",
-                f"{dockerhub_repo}:slim-latest",
-            )
-        else:
-            alias_image(
-                f"{dockerhub_repo}:{airflow_version}",
-                f"{dockerhub_repo}:latest",
-            )
+        if python == DEFAULT_PYTHON_MAJOR_MINOR_VERSION:
+            # only tag latest  "default" image when we build default python version
+            # otherwise if the non-default images complete before the default one, their jobs will fail
+            if slim_images:
+                alias_image(
+                    f"{dockerhub_repo}:slim-{airflow_version}",
+                    f"{dockerhub_repo}:slim-latest",
+                )
+            else:
+                alias_image(
+                    f"{dockerhub_repo}:{airflow_version}",
+                    f"{dockerhub_repo}:latest",
+                )
 
 
 def is_package_in_dist(dist_files: list[str], package: str) -> bool:
@@ -1068,12 +1142,10 @@ def get_prs_for_package(package_id: str) -> list[int]:
             if skip_line:
                 # Skip first "....." header
                 skip_line = False
-                continue
-            if line.strip() == current_release_version:
+            elif line.strip() == current_release_version:
                 extract_prs = True
                 skip_line = True
-                continue
-            if extract_prs:
+            elif extract_prs:
                 if len(line) > 1 and all(c == "." for c in line.strip()):
                     # Header for next version reached
                     break
@@ -1149,16 +1221,14 @@ def generate_issue_content_providers(
                 )
                 continue
             prs = get_prs_for_package(package_id)
-            provider_prs[package_id] = list(filter(lambda pr: pr not in excluded_prs, prs))
+            provider_prs[package_id] = [pr for pr in prs if pr not in excluded_prs]
             all_prs.update(provider_prs[package_id])
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
         with Progress(console=get_console(), disable=disable_progress) as progress:
             task = progress.add_task(f"Retrieving {len(all_prs)} PRs ", total=len(all_prs))
-            pr_list = list(all_prs)
-            for i in range(len(pr_list)):
-                pr_number = pr_list[i]
+            for pr_number in all_prs:
                 progress.console.print(
                     f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
@@ -1323,11 +1393,11 @@ def update_comment(content: str, comment_file: Path) -> str:
             updated_lines.extend(comment_lines)
             updated = True
         updated_lines.append(line)
-    return "\n".join(updated_lines) + "\n"
+    return "".join(f"{line}\n" for line in updated_lines)
 
 
 def modify_single_file_constraints(
-    constraints_file: Path, updated_constraints: tuple[str] | None, comment_file: Path | None
+    constraints_file: Path, updated_constraints: tuple[str, ...] | None, comment_file: Path | None
 ) -> bool:
     constraint_content = constraints_file.read_text()
     original_content = constraint_content
@@ -1351,7 +1421,7 @@ def modify_single_file_constraints(
 
 def modify_all_constraint_files(
     constraints_repo: Path,
-    updated_constraint: tuple[str] | None,
+    updated_constraint: tuple[str, ...] | None,
     comit_file: Path | None,
     airflow_constrains_mode: str | None,
 ) -> bool:
@@ -1462,7 +1532,7 @@ def update_constraints(
     airflow_versions: str,
     commit_message: str,
     airflow_constraints_mode: str | None,
-    updated_constraint: tuple[str] | None,
+    updated_constraint: tuple[str, ...] | None,
     comment_file: Path | None,
 ) -> None:
     if not updated_constraint and not comment_file:

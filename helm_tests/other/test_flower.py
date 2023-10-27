@@ -65,7 +65,7 @@ class TestFlowerDeployment:
             values=values,
             show_only=["templates/flower/flower-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     @pytest.mark.parametrize(
@@ -162,6 +162,17 @@ class TestFlowerDeployment:
         )
         assert ["curl", "localhost:7777"] == jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
+        )
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"flower": {"enabled": True}, "schedulerName": "airflow-scheduler"},
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
         )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
@@ -592,7 +603,7 @@ class TestFlowerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "flower": {

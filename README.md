@@ -17,10 +17,11 @@
  under the License.
 -->
 
+<!-- START Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 # Apache Airflow
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
-[![GitHub Build](https://github.com/apache/airflow/workflows/CI%20Build/badge.svg)](https://github.com/apache/airflow/actions)
+[![GitHub Build](https://github.com/apache/airflow/workflows/Tests/badge.svg)](https://github.com/apache/airflow/actions)
 [![Coverage Status](https://codecov.io/gh/apache/airflow/graph/badge.svg?token=WdLKlKHOAU)](https://codecov.io/gh/apache/airflow)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
@@ -40,6 +41,7 @@ When workflows are defined as code, they become more maintainable, versionable, 
 
 Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The Airflow scheduler executes your tasks on an array of workers while following the specified dependencies. Rich command line utilities make performing complex surgeries on DAGs a snap. The rich user interface makes it easy to visualize pipelines running in production, monitor progress, and troubleshoot issues when needed.
 
+<!-- END Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
@@ -59,7 +61,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
-- [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
+- [Who maintains Apache Airflow?](#who-maintains-apache-airflow)
 - [Can I use the Apache Airflow logo in my presentation?](#can-i-use-the-apache-airflow-logo-in-my-presentation)
 - [Airflow merchandise](#airflow-merchandise)
 - [Links](#links)
@@ -82,24 +84,27 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 - **Elegant**: Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
 - **Scalable**: Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers.
 
+<!-- START Requirements, please keep comment here to allow auto update of PyPI readme.md -->
 ## Requirements
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)     | Stable version (2.7.0)    |
-|-------------|------------------------|---------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11      |
-| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)           |
-| Kubernetes  | 1.24, 1.25, 1.26, 1.27 | 1.24, 1.25, 1.26, 1.27    |
-| PostgreSQL  | 11, 12, 13, 14, 15     | 11, 12, 13, 14, 15        |
-| MySQL       | 5.7, 8.0, 8.1          | 5.7, 8.0                  |
-| SQLite      | 3.15.0+                | 3.15.0+                   |
-| MSSQL       | 2017(\*), 2019(\*)     | 2017(\*), 2019(\*)        |
+|             | Main version (dev)           | Stable version (2.7.1) |
+|-------------|------------------------------|------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11   |
+| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
+| Kubernetes  | 1.24, 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27 |
+| PostgreSQL  | 11, 12, 13, 14, 15, 16       | 11, 12, 13, 14, 15     |
+| MySQL       | 8.0, 8.1                     | 5.7, 8.0               |
+| SQLite      | 3.15.0+                      | 3.15.0+                |
+| MSSQL       | 2017(\*\*), 2019(\*\*)       | 2017(\*\*), 2019(\*\*) |
 
 \* Experimental
 
+\*\* **Discontinued soon**, not recommended for the new installation
+
 **Note**: MySQL 5.x versions are unable to or have limitations with
-running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/scheduler.html).
+running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).
 MariaDB is not tested/recommended.
 
 **Note**: SQLite is used in Airflow tests. Do not use it in production. We recommend
@@ -114,12 +119,14 @@ as this is the only environment that is supported. The only distro that is used 
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
 `Debian Bullseye`.
 
+<!-- END Requirements, please keep comment here to allow auto update of PyPI readme.md -->
+<!-- START Getting started, please keep comment here to allow auto update of PyPI readme.md -->
 ## Getting started
 
 Visit the official Airflow website documentation (latest **stable** release) for help with
-[installing Airflow](https://airflow.apache.org/docs/apache-airflow/stable/installation.html),
+[installing Airflow](https://airflow.apache.org/docs/apache-airflow/stable/installation/),
 [getting started](https://airflow.apache.org/docs/apache-airflow/stable/start.html), or walking
-through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflow/stable/tutorial.html).
+through a more complete [tutorial](https://airflow.apache.org/docs/apache-airflow/stable/tutorial/).
 
 > Note: If you're looking for documentation for the main branch (latest development branch): you can find it on [s.apache.org/airflow-docs](https://s.apache.org/airflow-docs/).
 
@@ -128,6 +135,8 @@ the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+I
 
 Documentation for dependent projects like provider packages, Docker image, Helm Chart, you'll find it in [the documentation index](https://airflow.apache.org/docs/).
 
+<!-- END Getting started, please keep comment here to allow auto update of PyPI readme.md -->
+<!-- START Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
 ## Installing from PyPI
 
 We publish Apache Airflow as `apache-airflow` package in PyPI. Installing it however might be sometimes tricky
@@ -163,20 +172,22 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.7.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.0/constraints-3.8.txt"
+pip install 'apache-airflow==2.7.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.7.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.0/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.7.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
 [providers](http://airflow.apache.org/docs/apache-airflow-providers/index.html).
 
+<!-- END Installing from PyPI, please keep comment here to allow auto update of PyPI readme.md -->
+<!-- START Official source code, please keep comment here to allow auto update of PyPI readme.md -->
 ## Official source code
 
 Apache Airflow is an [Apache Software Foundation](https://www.apache.org) (ASF) project,
@@ -191,6 +202,7 @@ and our official source code releases:
 Following the ASF rules, the source packages released must be sufficient for a user to build and test the
 release provided they have access to the appropriate platform and tools.
 
+<!-- END Official source code, please keep comment here to allow auto update of PyPI readme.md -->
 ## Convenience packages
 
 There are other ways of installing and using Airflow. Those are "convenience" methods - they are
@@ -280,7 +292,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.7.0                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.7.2                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -409,18 +421,23 @@ Those `extras` and `providers` dependencies are maintained in `provider.yaml` of
 By default, we should not upper-bound dependencies for providers, however each provider's maintainer
 might decide to add additional limits (and justify them with comment).
 
+<!-- START Contributing, please keep comment here to allow auto update of PyPI readme.md -->
 ## Contributing
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
 
 Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
 
+<!-- END Contributing, please keep comment here to allow auto update of PyPI readme.md -->
+<!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 ## Who uses Apache Airflow?
 
 More than 400 organizations are using Apache Airflow
 [in the wild](https://github.com/apache/airflow/blob/main/INTHEWILD.md).
 
-## Who Maintains Apache Airflow?
+<!-- END Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
+<!-- START Who maintains Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
+## Who maintains Apache Airflow?
 
 Airflow is the work of the [community](https://github.com/apache/airflow/graphs/contributors),
 but the [core committers/maintainers](https://people.apache.org/committers-by-project.html#airflow)
@@ -428,6 +445,7 @@ are responsible for reviewing and merging PRs as well as steering conversations 
 If you would like to become a maintainer, please review the Apache Airflow
 [committer requirements](https://github.com/apache/airflow/blob/main/COMMITTERS.rst#guidelines-to-become-an-airflow-committer).
 
+<!-- END Who maintains Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 ## Can I use the Apache Airflow logo in my presentation?
 
 Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/docs/apache-airflow/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).

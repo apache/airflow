@@ -33,7 +33,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.models.taskmixin import DAGNode
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
 
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
+    from airflow.models.taskmixin import DependencyMixin
     from airflow.utils.edgemodifier import EdgeModifier
 
 
@@ -565,8 +566,6 @@ class MappedTaskGroup(TaskGroup):
     def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
-        for op, _ in expand_input.iter_references():
-            self.set_upstream(op)
 
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this mapped task group."""
@@ -619,6 +618,11 @@ class MappedTaskGroup(TaskGroup):
             (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
         )
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        for op, _ in self._expand_input.iter_references():
+            self.set_upstream(op)
+        super().__exit__(exc_type, exc_val, exc_tb)
+
 
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
@@ -637,7 +641,7 @@ class TaskGroupContext:
 
     @classmethod
     def pop_context_managed_task_group(cls) -> TaskGroup | None:
-        """Pops the last TaskGroup from the list of manged TaskGroups and update the current TaskGroup."""
+        """Pops the last TaskGroup from the list of managed TaskGroups and update the current TaskGroup."""
         old_task_group = cls._context_managed_task_group
         if cls._previous_context_managed_task_groups:
             cls._context_managed_task_group = cls._previous_context_managed_task_groups.pop()

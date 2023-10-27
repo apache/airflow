@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import abc
-import collections
 import collections.abc
 import contextlib
 import copy
@@ -30,7 +29,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from inspect import signature
-from types import ClassMethodDescriptorType, FunctionType
+from types import FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -38,9 +37,7 @@ from typing import (
     ClassVar,
     Collection,
     Iterable,
-    List,
     Sequence,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -50,7 +47,6 @@ import attr
 import pendulum
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
@@ -75,7 +71,6 @@ from airflow.models.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
-    TaskStateChangeCallback,
 )
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
@@ -83,12 +78,10 @@ from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
-from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.decorators import fixup_decorator_warning_stack
@@ -98,18 +91,27 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.types import NOTSET
 from airflow.utils.weight_rule import WeightRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    import jinja2  # Slow import.
+    from types import ClassMethodDescriptorType
 
+    import jinja2  # Slow import.
+    from sqlalchemy.orm import Session
+
+    from airflow.models.abstractoperator import (
+        TaskStateChangeCallback,
+    )
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom_arg import XComArg
+    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+    from airflow.triggers.base import BaseTrigger
     from airflow.utils.task_group import TaskGroup
+    from airflow.utils.types import ArgNotSet
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -436,7 +438,7 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             result = func(self, **kwargs, default_args=default_args)
 
-            # Store the args passed to init -- we need them to support task.map serialzation!
+            # Store the args passed to init -- we need them to support task.map serialization!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
             # Set upstream task defined by XComArgs passed to template fields of the operator.
@@ -915,7 +917,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
-        self.do_xcom_push = do_xcom_push
+        self.do_xcom_push: bool = do_xcom_push
 
         self.doc_md = doc_md
         self.doc_json = doc_json
@@ -1102,9 +1104,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if self.__from_mapped:
             pass  # Don't add to DAG -- the mapped task takes the place.
-        elif self.task_id not in dag.task_dict:
-            dag.add_task(self)
-        elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
+        elif dag.task_dict.get(self.task_id) is not self:
             dag.add_task(self)
 
         self._dag = dag
@@ -1379,7 +1379,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return self.downstream_list
 
     def __repr__(self):
-        return "<Task({self.task_type}): {self.task_id}>".format(self=self)
+        return f"<Task({self.task_type}): {self.task_id}>"
 
     @property
     def operator_class(self) -> type[BaseOperator]:  # type: ignore[override]
@@ -1889,19 +1889,11 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
         raise ValueError("No dependencies were set. Did you forget to expand with `*`?")
 
 
-# pyupgrade assumes all type annotations can be lazily evaluated, but this is
-# not the case for attrs-decorated classes, since cattrs needs to evaluate the
-# annotation expressions at runtime, and Python before 3.9.0 does not lazily
-# evaluate those. Putting the expression in a top-level assignment statement
-# communicates this runtime requirement to pyupgrade.
-BaseOperatorClassList = List[Type[BaseOperator]]
-
-
 @attr.s(auto_attribs=True)
 class BaseOperatorLink(metaclass=ABCMeta):
     """Abstract base class that defines how we get an operator link."""
 
-    operators: ClassVar[BaseOperatorClassList] = []
+    operators: ClassVar[list[type[BaseOperator]]] = []
     """
     This property will be used by Airflow Plugins to find the Operators to which you want
     to assign this Operator Link

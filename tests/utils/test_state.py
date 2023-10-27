@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
@@ -39,7 +39,11 @@ def test_dagrun_state_enum_escape():
             session=session,
         )
 
-        query = session.query(DagRun.dag_id, DagRun.state, DagRun.run_type,).filter(
+        query = session.query(
+            DagRun.dag_id,
+            DagRun.state,
+            DagRun.run_type,
+        ).filter(
             DagRun.dag_id == dag.dag_id,
             # make sure enum value can be used in filter queries
             DagRun.state == DagRunState.QUEUED,

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import os
 import socket
 from base64 import b64encode
@@ -54,7 +55,6 @@ TEST_GET_PUT_PARAMS = [
 
 class TestSFTPOperator:
     def setup_method(self):
-
         hook = SSHHook(ssh_conn_id="ssh_default")
         hook.no_host_key_check = True
         self.hook = hook
@@ -327,10 +327,8 @@ class TestSFTPOperator:
             operation=SFTPOperation.PUT,
             dag=dag,
         )
-        try:
+        with contextlib.suppress(Exception):
             task_1.execute(None)
-        except Exception:
-            pass
         assert task_1.sftp_hook.ssh_conn_id == TEST_CONN_ID
 
         task_2 = SFTPOperator(
@@ -341,10 +339,8 @@ class TestSFTPOperator:
             operation=SFTPOperation.PUT,
             dag=dag,
         )
-        try:
+        with contextlib.suppress(Exception):
             task_2.execute(None)
-        except Exception:
-            pass
         assert task_2.sftp_hook.ssh_conn_id == TEST_CONN_ID
 
         # if both valid ssh_hook and ssh_conn_id are provided, ignore ssh_conn_id
@@ -357,10 +353,8 @@ class TestSFTPOperator:
             operation=SFTPOperation.PUT,
             dag=dag,
         )
-        try:
+        with contextlib.suppress(Exception):
             task_3.execute(None)
-        except Exception:
-            pass
         assert task_3.sftp_hook.ssh_conn_id == self.hook.ssh_conn_id
 
         # Exception should be raised if operation is invalid
@@ -399,10 +393,8 @@ class TestSFTPOperator:
             operation=SFTPOperation.PUT,
             dag=dag,
         )
-        try:
+        with contextlib.suppress(Exception):
             task_6.execute(None)
-        except Exception:
-            pass
         assert task_6.sftp_hook.remote_host == "remotehost"
 
     def test_unequal_local_remote_file_paths(self):

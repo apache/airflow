@@ -28,6 +28,26 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+3.5.2
+.....
+
+Misc
+~~~~
+
+* ``Custom fetch all handler for vertica to not miss errors (#34041)``
+
 3.5.1
 .....
 

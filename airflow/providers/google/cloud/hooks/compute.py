@@ -19,17 +19,19 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
-from google.api_core.retry import Retry
 from google.cloud.compute_v1.services.instance_group_managers import InstanceGroupManagersClient
 from google.cloud.compute_v1.services.instance_templates import InstanceTemplatesClient
 from google.cloud.compute_v1.services.instances import InstancesClient
-from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 1
@@ -511,7 +513,6 @@ class ComputeEngineHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name, zone=zone)
 
     def _execute_set_machine_type(self, zone: str, resource_id: str, body: dict, project_id: str) -> dict:
-
         return (
             self.get_conn()
             .instances()

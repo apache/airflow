@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
@@ -28,9 +28,12 @@ from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.job_schema import JobSchema
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
-from airflow.models import SlaMiss, TaskInstance
+from airflow.models import TaskInstance
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from airflow.models import SlaMiss
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
@@ -177,7 +180,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 class SetSingleTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of updating state of a single task instance."""
 
-    dry_run = fields.Boolean(dump_default=True)
+    dry_run = fields.Boolean(load_default=True)
     new_state = TaskInstanceStateField(
         required=True,
         validate=validate.OneOf(

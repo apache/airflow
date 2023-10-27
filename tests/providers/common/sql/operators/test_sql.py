@@ -96,7 +96,6 @@ class TestSQLExecuteQueryOperator:
 
 
 class TestColumnCheckOperator:
-
     valid_column_mapping = {
         "X": {
             "null_check": {"equal_to": 0},
@@ -336,7 +335,6 @@ class TestColumnCheckOperator:
 
 
 class TestTableCheckOperator:
-
     count_check = "COUNT(*) == 1000"
     sum_check = "col_a + col_b < col_c"
     checks = {
@@ -1158,9 +1156,7 @@ class TestSqlBranch:
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
-            elif ti.task_id == "branch_1":
-                assert ti.state == State.NONE
-            elif ti.task_id == "branch_2":
+            elif ti.task_id in ("branch_1", "branch_2"):
                 assert ti.state == State.NONE
             elif ti.task_id == "branch_3":
                 assert ti.state == State.SKIPPED
@@ -1231,9 +1227,7 @@ class TestSqlBranch:
             for ti in tis:
                 if ti.task_id == "make_choice":
                     assert ti.state == State.SUCCESS
-                elif ti.task_id == "branch_1":
-                    assert ti.state == State.NONE
-                elif ti.task_id == "branch_2":
+                elif ti.task_id in ("branch_1", "branch_2"):
                     assert ti.state == State.NONE
                 else:
                     raise ValueError(f"Invalid task id {ti.task_id} found!")
@@ -1281,7 +1275,6 @@ class TestSqlBranch:
 
 
 class TestBaseSQLOperatorSubClass:
-
     from airflow.providers.common.sql.operators.sql import BaseSQLOperator
 
     class NewStyleBaseSQLOperatorSubClass(BaseSQLOperator):

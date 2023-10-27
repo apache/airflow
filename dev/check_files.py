@@ -65,11 +65,10 @@ def get_packages() -> list[tuple[str, str]]:
     # e.g. https://pypi.org/project/apache-airflow-providers-airbyte/3.1.0rc1/
 
     packages = []
-    for line in content.split("\n"):
-        if not line:
-            continue
-        name, version = line.rstrip("/").split("/")[-2:]
-        packages.append((name, version))
+    for line in content.splitlines():
+        if line:
+            _, name, version = line.rstrip("/").rsplit("/", 2)
+            packages.append((name, version))
 
     return packages
 

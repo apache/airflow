@@ -152,13 +152,12 @@ class TestKillChildProcessesByPids:
         assert before_num_process == num_process
 
     def test_should_force_kill_process(self, caplog):
-
         process = multiprocessing.Process(target=my_sleep_subprocess_with_signals, args=())
         process.start()
         sleep(0)
 
         all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
-        assert str(process.pid) in map(lambda x: x.strip(), all_processes)
+        assert str(process.pid) in (x.strip() for x in all_processes)
 
         with caplog.at_level(logging.INFO, logger=process_utils.log.name):
             caplog.clear()
@@ -166,7 +165,7 @@ class TestKillChildProcessesByPids:
             assert f"Killing child PID: {process.pid}" in caplog.messages
         sleep(0)
         all_processes = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().splitlines()
-        assert str(process.pid) not in map(lambda x: x.strip(), all_processes)
+        assert str(process.pid) not in (x.strip() for x in all_processes)
 
 
 class TestPatchEnviron:

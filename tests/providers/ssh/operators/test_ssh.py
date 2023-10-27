@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from random import randrange
+import random
 from unittest import mock
 
 import pytest
@@ -49,7 +49,6 @@ class SSHClientSideEffect:
 
 class TestSSHOperator:
     def setup_method(self):
-
         hook = SSHHook(ssh_conn_id="ssh_default")
         hook.no_host_key_check = True
 
@@ -88,10 +87,9 @@ class TestSSHOperator:
                 cmd_timeout=cmd_timeout,
                 ssh_conn_id="ssh_default",
             )
-        ssh_hook = task.get_hook()
-        assert conn_timeout == ssh_hook.conn_timeout
-        assert cmd_timeout_expected == ssh_hook.cmd_timeout
-        assert "ssh_default" == ssh_hook.ssh_conn_id
+        assert conn_timeout == task.hook.conn_timeout
+        assert cmd_timeout_expected == task.hook.cmd_timeout
+        assert "ssh_default" == task.hook.ssh_conn_id
 
     @pytest.mark.parametrize(
         ("enable_xcom_pickling", "output", "expected"),
@@ -217,7 +215,7 @@ class TestSSHOperator:
     def test_push_ssh_exit_to_xcom(self, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same
         command = "not_a_real_command"
-        ssh_exit_code = randrange(1, 100)
+        ssh_exit_code = random.randrange(1, 100)
         self.exec_ssh_client_command.return_value = (ssh_exit_code, b"", b"ssh output")
 
         with dag_maker(dag_id=f"dag_{request.node.name}"):

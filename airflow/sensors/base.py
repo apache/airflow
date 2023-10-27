@@ -24,7 +24,7 @@ import logging
 import time
 import traceback
 from datetime import timedelta
-from typing import Any, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 from airflow import settings
 from airflow.configuration import conf
@@ -43,12 +43,15 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.context import Context
 
 # We need to keep the import here because GCSToLocalFilesystemOperator released in
 # Google Provider before 3.0.0 imported apply_defaults from here.
 # See  https://github.com/apache/airflow/issues/16035
 from airflow.utils.decorators import apply_defaults  # noqa: F401
+from airflow.utils.session import create_session
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
 _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
@@ -210,13 +213,16 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
             first_try_number = context["ti"].max_tries - self.retries + 1
-            task_reschedules = TaskReschedule.find_for_task_instance(
-                context["ti"], try_number=first_try_number
-            )
-            if not task_reschedules:
+            with create_session() as session:
+                start_date = session.scalar(
+                    TaskReschedule.stmt_for_task_instance(
+                        context["ti"], try_number=first_try_number, descending=False
+                    )
+                    .with_only_columns(TaskReschedule.start_date)
+                    .limit(1)
+                )
+            if not start_date:
                 start_date = timezone.utcnow()
-            else:
-                start_date = task_reschedules[0].start_date
             started_at = start_date
 
             def run_duration() -> float:
@@ -240,14 +246,19 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             except (
                 AirflowSensorTimeout,
                 AirflowTaskTimeout,
-                AirflowSkipException,
                 AirflowFailException,
             ) as e:
+                if self.soft_fail:
+                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
+                raise e
+            except AirflowSkipException as e:
                 raise e
             except Exception as e:
                 if self.silent_fail:
                     logging.error("Sensor poke failed: \n %s", traceback.format_exc())
                     poke_return = False
+                elif self.soft_fail:
+                    raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
                 else:
                     raise e
 

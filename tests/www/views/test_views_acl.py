@@ -122,7 +122,7 @@ def acl_app(app):
 
     yield app
 
-    for username, _ in USER_DATA.items():
+    for username in USER_DATA:
         user = security_manager.find_user(username=username)
         if user:
             security_manager.del_register_user(user)
@@ -488,6 +488,7 @@ def user_all_dags_tis(acl_app):
         role_name="role_all_dags_tis",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
@@ -537,6 +538,7 @@ def user_dags_tis_logs(acl_app):
         role_name="role_dags_tis_logs",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
@@ -693,6 +695,7 @@ def user_all_dags_edit_tis(acl_app):
         role_name="role_all_dags_edit_tis",
         permissions=[
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
         ],
@@ -855,6 +858,8 @@ def user_dag_level_access_with_ti_edit(acl_app):
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.resource_name_for_dag("example_bash_operator")),

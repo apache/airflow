@@ -55,8 +55,6 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         ],
     )
@@ -65,8 +63,6 @@ def configured_app(minimal_app_for_api):
         username="test_granular_permissions",
         role_name="TestGranularDag",
         permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         ],
     )
@@ -84,13 +80,16 @@ def configured_app(minimal_app_for_api):
 
 def _compare_xcom_collections(collection1: dict, collection_2: dict):
     assert collection1.get("total_entries") == collection_2.get("total_entries")
-    sort_key = lambda record: (
-        record.get("dag_id"),
-        record.get("task_id"),
-        record.get("execution_date"),
-        record.get("map_index"),
-        record.get("key"),
-    )
+
+    def sort_key(record):
+        return (
+            record.get("dag_id"),
+            record.get("task_id"),
+            record.get("execution_date"),
+            record.get("map_index"),
+            record.get("key"),
+        )
+
     assert sorted(collection1.get("xcom_entries", []), key=sort_key) == sorted(
         collection_2.get("xcom_entries", []), key=sort_key
     )

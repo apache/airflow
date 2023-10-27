@@ -27,6 +27,45 @@
 Changelog
 ---------
 
+4.6.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/http): respect soft_fail argument when exception is raised (#34391)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+
+4.5.2
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+* ``Convert hard-coded allowlist error code to be argument of HttpSensor (#33717)``
+
+4.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
 4.5.0
 .....
 

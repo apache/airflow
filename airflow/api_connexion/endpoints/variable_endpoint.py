@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from flask import Response
 from marshmallow import ValidationError
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
@@ -29,17 +29,21 @@ from airflow.api_connexion.endpoints.update_mask import extract_update_mask_data
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.variable_schema import variable_collection_schema, variable_schema
-from airflow.api_connexion.types import UpdateMask
 from airflow.models import Variable
 from airflow.security import permissions
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.api_connexion.types import UpdateMask
+
 RESOURCE_EVENT_PREFIX = "variable"
 
 
-@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("DELETE")
 @action_logging(
     event=action_event_from_permission(
         prefix=RESOURCE_EVENT_PREFIX,
@@ -53,17 +57,17 @@ def delete_variable(*, variable_key: str) -> Response:
     return Response(status=HTTPStatus.NO_CONTENT)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("DELETE")
 @provide_session
 def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
     """Get a variable by key."""
     var = session.scalar(select(Variable).where(Variable.key == variable_key).limit(1))
     if not var:
-        raise NotFound("Variable not found")
+        raise NotFound("Variable not found", detail="Variable does not exist")
     return variable_schema.dump(var)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_variables(
@@ -88,7 +92,7 @@ def get_variables(
     )
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("PUT")
 @provide_session
 @action_logging(
     event=action_event_from_permission(
@@ -112,6 +116,8 @@ def patch_variable(
         raise BadRequest("Invalid post body", detail="key from request body doesn't match uri parameter")
     non_update_fields = ["key"]
     variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
+    if not variable:
+        raise NotFound("Variable not found", detail="Variable does not exist")
     if update_mask:
         data = extract_update_mask_data(update_mask, non_update_fields, data)
     for key, val in data.items():
@@ -120,7 +126,7 @@ def patch_variable(
     return variable_schema.dump(variable)
 
 
-@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
+@security.requires_access_variable("POST")
 @action_logging(
     event=action_event_from_permission(
         prefix=RESOURCE_EVENT_PREFIX,

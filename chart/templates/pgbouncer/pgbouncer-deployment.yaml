@@ -82,6 +82,9 @@ spec:
       {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "pgbouncer.serviceAccountName" . }}
@@ -188,6 +191,9 @@ spec:
           {{- if $containerLifecycleHooksMetricsExporter }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksMetricsExporter) . | nindent 12 }}
           {{- end }}
+        {{- if .Values.pgbouncer.extraContainers }}
+          {{- toYaml .Values.pgbouncer.extraContainers | nindent 8 }}
+        {{- end }}
       volumes:
         - name: pgbouncer-config
           secret:

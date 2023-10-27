@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import Any
 
 import pytest
+from rich.console import Console
 
 from airflow_breeze.global_constants import COMMITTERS, GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
@@ -35,17 +37,51 @@ def escape_ansi_colors(line):
     return ANSI_COLORS_MATCHER.sub("", line)
 
 
+# Can be replaced with cache when we move to Python 3.9 (when 3.8 is EOL)
+@lru_cache(maxsize=None)
+def get_rich_console() -> Console:
+    return Console(color_system="truecolor", force_terminal=True)
+
+
+def print_in_color(s: Any = ""):
+    get_rich_console().print(s)
+
+
 def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
     escaped_stderr = escape_ansi_colors(stderr)
-    for name, value in expected_outputs.items():
-        if value is None:
-            search_string = rf"^{re.escape(name)}="
-            if re.search(search_string, escaped_stderr, re.MULTILINE):
-                raise AssertionError(f"The {name} output should not be in {escaped_stderr}")
+    received_output_as_dict = dict(line.split("=", 1) for line in escaped_stderr.splitlines() if "=" in line)
+    for expected_key, expected_value in expected_outputs.items():
+        if expected_value is None:
+            if expected_key in received_output_as_dict:
+                print_in_color(f"\n[red]ERROR: The '{expected_key}' should not be present in:[/]")
+                print_in_color(received_output_as_dict)
+                print_in_color("\n")
+                assert expected_key is not None
+
         else:
-            search_string = rf"^{re.escape(name)}={re.escape(value)}$"
-            if not re.search(search_string, escaped_stderr, re.MULTILINE):
-                raise AssertionError(f"Expected {name}={value} not found in {escaped_stderr}")
+            received_value = received_output_as_dict.get(expected_key)
+            if received_value != expected_value:
+                if received_value is not None:
+                    print_in_color(f"\n[red]ERROR: The key '{expected_key}' has unexpected value:")
+                    print_in_color(received_value)
+                    print_in_color("Expected value:\n")
+                    print_in_color(expected_value)
+                    print_in_color("\nOutput received:")
+                    print_in_color(received_output_as_dict)
+                    print_in_color()
+                    assert expected_value == received_value
+                else:
+                    print_in_color(
+                        f"\n[red]ERROR: The key '{expected_key}' missing but "
+                        f"it is expected. Expected value:"
+                    )
+                    print_in_color(expected_value)
+                    print_in_color("\nOutput received:")
+                    print_in_color(received_output_as_dict)
+                    print_in_color()
+                    print_in_color(received_output_as_dict)
+                    print_in_color()
+                    assert received_value is not None
 
 
 @pytest.mark.parametrize(
@@ -89,6 +125,26 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "parallel-test-types-list-as-string": "API Always",
                 },
                 id="Only API tests and DOCS should run",
+            )
+        ),
+        (
+            pytest.param(
+                ("airflow/operators/file.py",),
+                {
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "image-build": "true",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "true",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "Operators Always",
+                },
+                id="Only Operator tests and DOCS should run",
             )
         ),
         (
@@ -277,9 +333,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run - including all providers and upgrading to "
                 "newer requirements as setup.py changed and all Python versions",
@@ -300,9 +356,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run and upgrading to newer requirements as dependencies change",
             )
@@ -406,12 +462,12 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run including all providers when full tests are needed",
             )
@@ -433,12 +489,12 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run including full providers when full "
                 "tests are needed even with different label set as well",
@@ -458,12 +514,12 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                    "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-                    "Other Providers[amazon] WWW "
-                    "API Always CLI Providers[google]",
+                    "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+                    "Providers[amazon] WWW "
+                    "API Always CLI Other Providers[google]",
                 },
                 id="Everything should run including full providers when"
                 "full tests are needed even if no files are changed",
@@ -483,12 +539,11 @@ def test_expected_output_pull_request_main(
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter-list-as-string": "--package-filter apache-airflow "
-                    "--package-filter docker-stack",
+                    "docs-list-as-string": "apache-airflow docker-stack",
                     "full-tests-needed": "true",
                     "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
+                    "parallel-test-types-list-as-string": "Operators Core WWW API Always CLI Other",
                 },
                 id="Everything should run except Providers when full tests are needed for non-main branch",
             )
@@ -524,7 +579,7 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
-                "docs-filter-list-as-string": None,
+                "docs-list-as-string": None,
                 "full-tests-needed": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
@@ -540,14 +595,14 @@ def test_expected_output_full_tests_needed(
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
                 "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
-                "mysql openlineage oracle postgres presto salesforce sftp ssh trino",
+                "mysql openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "needs-helm-tests": "false",
                 "image-build": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -566,14 +621,14 @@ def test_expected_output_full_tests_needed(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.sql facebook google "
                 "hashicorp microsoft.azure microsoft.mssql mysql openlineage oracle postgres "
-                "presto salesforce sftp ssh trino",
+                "presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
@@ -595,12 +650,12 @@ def test_expected_output_full_tests_needed(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
+                "parallel-test-types-list-as-string": "Operators Core WWW API Always CLI Other",
             },
             id="All tests except Providers should run if core file changed in non-main branch",
         ),
@@ -633,7 +688,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
-                "docs-filter-list-as-string": None,
+                "docs-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": None,
@@ -650,7 +705,7 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
                 "parallel-test-types-list-as-string": "Always",
@@ -667,46 +722,31 @@ def test_expected_output_pull_request_v2_3(
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
                 "cncf.kubernetes common.sql "
                 "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
-                "openlineage oracle postgres presto salesforce sftp ssh trino",
+                "openlineage oracle postgres presto salesforce samba sftp ssh trino",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter helm-chart "
-                "--package-filter apache-airflow-providers-amazon "
-                "--package-filter apache-airflow-providers-apache-beam "
-                "--package-filter apache-airflow-providers-apache-cassandra "
-                "--package-filter apache-airflow-providers-cncf-kubernetes "
-                "--package-filter apache-airflow-providers-common-sql "
-                "--package-filter apache-airflow-providers-facebook "
-                "--package-filter apache-airflow-providers-google "
-                "--package-filter apache-airflow-providers-hashicorp "
-                "--package-filter apache-airflow-providers-microsoft-azure "
-                "--package-filter apache-airflow-providers-microsoft-mssql "
-                "--package-filter apache-airflow-providers-mysql "
-                "--package-filter apache-airflow-providers-openlineage "
-                "--package-filter apache-airflow-providers-oracle "
-                "--package-filter apache-airflow-providers-postgres "
-                "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-salesforce "
-                "--package-filter apache-airflow-providers-sftp "
-                "--package-filter apache-airflow-providers-ssh "
-                "--package-filter apache-airflow-providers-trino",
+                "docs-list-as-string": "apache-airflow helm-chart amazon apache.beam apache.cassandra "
+                "cncf.kubernetes common.sql facebook google hashicorp microsoft.azure "
+                "microsoft.mssql mysql openlineage oracle postgres "
+                "presto salesforce samba sftp ssh trino",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always CLI "
                 "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,openlineage,oracle,postgres,presto,"
-                "salesforce,sftp,ssh,trino] Providers[google]",
+                "salesforce,samba,sftp,ssh,trino] Providers[google]",
             },
             id="CLI tests and Google-related provider tests should run if cli/chart files changed",
         ),
         pytest.param(
             (
                 "airflow/cli/file.py",
+                "airflow/operators/file.py",
                 "airflow/www/file.py",
                 "airflow/api/file.py",
             ),
@@ -718,13 +758,13 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow",
+                "docs-list-as-string": "apache-airflow",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types-list-as-string": "WWW API Always CLI",
+                "parallel-test-types-list-as-string": "Operators WWW API Always CLI",
             },
-            id="No providers tests should run if only CLI/API/WWW file changed",
+            id="No providers tests should run if only CLI/API/Operators/WWW file changed",
         ),
         pytest.param(
             ("airflow/models/test.py",),
@@ -736,13 +776,13 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
-                "API Always CLI Providers[google]",
+                "API Always CLI Other Providers[google]",
             },
             id="Tests for all providers should run if model file changed",
         ),
@@ -756,15 +796,15 @@ def test_expected_output_pull_request_v2_3(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
-                "API Always CLI Providers[google]",
+                "API Always CLI Other Providers[google]",
             },
-            id="Tests for all providers should run if any other than API/WWW/CLI file changed.",
+            id="Tests for all providers should run if any other than API/WWW/CLI/Operators file changed.",
         ),
     ],
 )
@@ -797,11 +837,11 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
-                "API Always CLI Providers[google]",
+                "API Always CLI Other Providers[google]",
             },
             id="All tests run on push even if unimportant file changed",
         ),
@@ -817,9 +857,9 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-list-as-string": "apache-airflow docker-stack",
                 "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
+                "parallel-test-types-list-as-string": "Operators Core WWW API Always CLI Other",
             },
             id="All tests except Providers and Helm run on push"
             " even if unimportant file changed in non-main branch",
@@ -836,11 +876,11 @@ def test_expected_output_pull_request_target(
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
                 "Providers[amazon] WWW "
-                "API Always CLI Providers[google]",
+                "API Always CLI Other Providers[google]",
             },
             id="All tests run on push if core file changed",
         ),
@@ -891,22 +931,23 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "upgrade-to-newer-dependencies": "true"
             if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
             else "false",
-            "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
-            "Other Providers[amazon] WWW "
-            "API Always CLI Providers[google]",
+            "parallel-test-types-list-as-string": "Operators Core Providers[-amazon,google] "
+            "Providers[amazon] WWW "
+            "API Always CLI Other Providers[google]",
         },
         str(stderr),
     )
 
 
 @pytest.mark.parametrize(
-    "files, expected_outputs,",
+    "files, expected_outputs, pr_labels",
     [
         pytest.param(
             ("airflow/models/dag.py",),
             {
                 "upgrade-to-newer-dependencies": "false",
             },
+            (),
             id="Regular source changed",
         ),
         pytest.param(
@@ -914,6 +955,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "true",
             },
+            (),
             id="Setup.py changed",
         ),
         pytest.param(
@@ -921,6 +963,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "true",
             },
+            (),
             id="Setup.cfg changed",
         ),
         pytest.param(
@@ -928,6 +971,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "false",
             },
+            (),
             id="Provider.yaml changed",
         ),
         pytest.param(
@@ -935,17 +979,28 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             {
                 "upgrade-to-newer-dependencies": "true",
             },
+            (),
             id="Generated provider_dependencies changed",
+        ),
+        pytest.param(
+            ("airflow/models/dag.py",),
+            {
+                "upgrade-to-newer-dependencies": "true",
+            },
+            ("upgrade to newer dependencies",),
+            id="Regular source changed",
         ),
     ],
 )
-def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs: dict[str, str]):
+def test_upgrade_to_newer_dependencies(
+    files: tuple[str, ...], expected_outputs: dict[str, str], pr_labels: tuple[str]
+):
     stderr = SelectiveChecks(
         files=files,
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
-        pr_labels=(),
         default_branch="main",
+        pr_labels=pr_labels,
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
@@ -956,74 +1011,34 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
         pytest.param(
             ("docs/apache-airflow-providers-google/docs.rst",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow-providers-amazon "
-                "--package-filter apache-airflow-providers-apache-beam "
-                "--package-filter apache-airflow-providers-apache-cassandra "
-                "--package-filter apache-airflow-providers-cncf-kubernetes "
-                "--package-filter apache-airflow-providers-common-sql "
-                "--package-filter apache-airflow-providers-facebook "
-                "--package-filter apache-airflow-providers-google "
-                "--package-filter apache-airflow-providers-hashicorp "
-                "--package-filter apache-airflow-providers-microsoft-azure "
-                "--package-filter apache-airflow-providers-microsoft-mssql "
-                "--package-filter apache-airflow-providers-mysql "
-                "--package-filter apache-airflow-providers-openlineage "
-                "--package-filter apache-airflow-providers-oracle "
-                "--package-filter apache-airflow-providers-postgres "
-                "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-salesforce "
-                "--package-filter apache-airflow-providers-sftp "
-                "--package-filter apache-airflow-providers-ssh "
-                "--package-filter apache-airflow-providers-trino",
+                "docs-list-as-string": "amazon apache.beam apache.cassandra "
+                "cncf.kubernetes common.sql facebook google hashicorp "
+                "microsoft.azure microsoft.mssql mysql openlineage oracle "
+                "postgres presto salesforce samba sftp ssh trino",
             },
             id="Google provider docs changed",
         ),
         pytest.param(
             ("airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-amazon "
-                "--package-filter apache-airflow-providers-apache-drill "
-                "--package-filter apache-airflow-providers-apache-druid "
-                "--package-filter apache-airflow-providers-apache-hive "
-                "--package-filter apache-airflow-providers-apache-impala "
-                "--package-filter apache-airflow-providers-apache-pinot "
-                "--package-filter apache-airflow-providers-common-sql "
-                "--package-filter apache-airflow-providers-databricks "
-                "--package-filter apache-airflow-providers-elasticsearch "
-                "--package-filter apache-airflow-providers-exasol "
-                "--package-filter apache-airflow-providers-google "
-                "--package-filter apache-airflow-providers-jdbc "
-                "--package-filter apache-airflow-providers-microsoft-mssql "
-                "--package-filter apache-airflow-providers-mysql "
-                "--package-filter apache-airflow-providers-odbc "
-                "--package-filter apache-airflow-providers-openlineage "
-                "--package-filter apache-airflow-providers-oracle "
-                "--package-filter apache-airflow-providers-postgres "
-                "--package-filter apache-airflow-providers-presto "
-                "--package-filter apache-airflow-providers-qubole "
-                "--package-filter apache-airflow-providers-slack "
-                "--package-filter apache-airflow-providers-snowflake "
-                "--package-filter apache-airflow-providers-sqlite "
-                "--package-filter apache-airflow-providers-trino "
-                "--package-filter apache-airflow-providers-vertica",
+                "docs-list-as-string": "apache-airflow amazon apache.drill apache.druid apache.hive "
+                "apache.impala apache.pinot common.sql databricks elasticsearch "
+                "exasol google jdbc microsoft.mssql mysql odbc openlineage "
+                "oracle postgres presto slack snowflake sqlite trino vertica",
             },
             id="Common SQL provider package python files changed",
         ),
         pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow-providers-airbyte "
-                "--package-filter apache-airflow-providers-http",
+                "docs-list-as-string": "airbyte http",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-airbyte "
-                "--package-filter apache-airflow-providers-http",
+                "docs-list-as-string": "apache-airflow airbyte http",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -1034,66 +1049,59 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
                 "docs/apache-airflow-providers/docs.rst",
             ),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers "
-                "--package-filter apache-airflow-providers-airbyte "
-                "--package-filter apache-airflow-providers-http",
+                "docs-list-as-string": "apache-airflow providers-index airbyte http",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),
         pytest.param(
             ("docs/apache-airflow/docs.rst",),
             {
-                "docs-filter-list-as-string": "--package-filter apache-airflow",
+                "docs-list-as-string": "apache-airflow",
             },
             id="Only Airflow docs changed",
         ),
         pytest.param(
             ("airflow/providers/celery/file.py",),
-            {
-                "docs-filter-list-as-string": "--package-filter apache-airflow "
-                "--package-filter apache-airflow-providers-celery "
-                "--package-filter apache-airflow-providers-cncf-kubernetes"
-            },
+            {"docs-list-as-string": "apache-airflow celery cncf.kubernetes"},
             id="Celery python files changed",
         ),
         pytest.param(
             ("docs/conf.py",),
             {
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Docs conf.py changed",
         ),
         pytest.param(
             ("airflow/test.py",),
             {
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Core files changed. All provider docs should also be built",
         ),
         pytest.param(
             ("docs/docker-stack/test.rst",),
-            {"docs-filter-list-as-string": "--package-filter docker-stack"},
+            {"docs-list-as-string": "docker-stack"},
             id="Docker stack files changed. No provider docs to build",
         ),
         pytest.param(
             ("airflow/test.py", "chart/airflow/values.yaml"),
             {
-                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "docs-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Core files and helm chart files changed. All provider docs should be built",
         ),
         pytest.param(
             ("chart/airflow/values.yaml",),
             {
-                "docs-filter-list-as-string": "--package-filter helm-chart",
+                "docs-list-as-string": "helm-chart",
             },
             id="Helm chart files changed. No provider, airflow docs to build",
         ),
         pytest.param(
             ("docs/helm-chart/airflow/values.yaml",),
             {
-                "docs-filter-list-as-string": "--package-filter helm-chart",
+                "docs-list-as-string": "helm-chart",
             },
             id="Docs helm chart files changed. No provider, airflow docs to build",
         ),
@@ -1135,20 +1143,54 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
 
 
 @pytest.mark.parametrize(
-    "github_event, github_actor, github_repository, pr_labels, github_context_dict, runs_on",
+    "github_event, github_actor, github_repository, pr_labels, github_context_dict, "
+    "runs_on, "
+    "is_self_hosted_runner, is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner",
     [
-        pytest.param(GithubEvents.PUSH, "user", "apache/airflow", [], dict(), "self-hosted", id="Push event"),
+        pytest.param(
+            GithubEvents.PUSH,
+            "user",
+            "apache/airflow",
+            [],
+            dict(),
+            '["self-hosted", "Linux", "X64"]',
+            "true",
+            "true",
+            "true",
+            "false",
+            "true",
+            "false",
+            id="Push event",
+        ),
         pytest.param(
             GithubEvents.PUSH,
             "user",
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Push event for private repo",
         ),
         pytest.param(
-            GithubEvents.PULL_REQUEST, "user", "apache/airflow", [], dict(), "ubuntu-22.04", id="Pull request"
+            GithubEvents.PULL_REQUEST,
+            "user",
+            "apache/airflow",
+            [],
+            dict(),
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
+            id="Pull request",
         ),
         pytest.param(
             GithubEvents.PULL_REQUEST,
@@ -1156,7 +1198,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request private repo",
         ),
         pytest.param(
@@ -1165,7 +1213,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(),
-            "self-hosted",
+            '["self-hosted", "Linux", "X64"]',
+            "true",
+            "true",
+            "true",
+            "false",
+            "true",
+            "false",
             id="Pull request committer",
         ),
         pytest.param(
@@ -1174,7 +1228,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request committer pr non-committer",
         ),
         pytest.param(
@@ -1183,7 +1243,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request private repo committer",
         ),
         pytest.param(
@@ -1192,7 +1258,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request target",
         ),
         pytest.param(
@@ -1201,7 +1273,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request target private repo",
         ),
         pytest.param(
@@ -1210,7 +1288,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(),
-            "self-hosted",
+            '["self-hosted", "Linux", "X64"]',
+            "true",
+            "true",
+            "true",
+            "false",
+            "true",
+            "false",
             id="Pull request target committer",
         ),
         pytest.param(
@@ -1219,7 +1303,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             [],
             dict(event=dict(pull_request=dict(user=dict(login="user")))),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request target committer pr non-committer",
         ),
         pytest.param(
@@ -1228,7 +1318,13 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "private/airflow",
             [],
             dict(),
-            "ubuntu-22.04",
+            '["ubuntu-22.04"]',
+            "false",
+            "false",
+            "true",
+            "false",
+            "false",
+            "false",
             id="Pull request targe private repo committer",
         ),
     ],
@@ -1240,6 +1336,12 @@ def test_runs_on(
     pr_labels: list[str],
     github_context_dict: dict[str, Any],
     runs_on: str,
+    is_self_hosted_runner: str,
+    is_airflow_runner: str,
+    is_amd_runner: str,
+    is_arm_runner: str,
+    is_vm_runner: str,
+    is_k8s_runner: str,
 ):
     stderr = SelectiveChecks(
         files=(),
@@ -1252,6 +1354,12 @@ def test_runs_on(
         default_branch="main",
     )
     assert_outputs_are_printed({"runs-on": runs_on}, str(stderr))
+    assert_outputs_are_printed({"is-self-hosted-runner": is_self_hosted_runner}, str(stderr))
+    assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
+    assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))
+    assert_outputs_are_printed({"is-arm-runner": is_arm_runner}, str(stderr))
+    assert_outputs_are_printed({"is-vm-runner": is_vm_runner}, str(stderr))
+    assert_outputs_are_printed({"is-k8s-runner": is_k8s_runner}, str(stderr))
 
 
 @pytest.mark.parametrize(

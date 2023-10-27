@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+1.3.2
+.....
+
+Misc
+~~~~
+
+* ``Refactor unneeded  jumps in providers (#33833)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Simplify 'X for X in Y' to 'Y' where applicable (#33453)``
+
 1.3.0
 .....
 

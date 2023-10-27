@@ -30,3 +30,9 @@ You can read more about pre-commit hooks [here](../STATIC_CODE_CHECKS.rst#pre-co
   the providers. It contains historical metadata in providers that were released - it is useful to generate
   information in release notes and it is used to generate SBOM information for the providers. It is manually
   regenerated using `breeze release-management generate-providers-metadata` command."
+
+* `PYPI_README.md` - is generated from the comprehensive `README.md` of the project, which contains exhaustive
+  project details. Unlike the full `README.md`, `PYPI_README.md` is a distilled version tailored for PyPI,
+  focusing on select sections. This subset is produced by the `generate-pypi-readme` pre-commit hook specified in
+  the `.pre-commit-config.yaml` file. This hook triggers automatically whenever the related sections in the
+  `README.md` change, ensuring alignment between the two files.

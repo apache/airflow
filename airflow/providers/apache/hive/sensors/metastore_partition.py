@@ -54,7 +54,6 @@ class MetastorePartitionSensor(SqlSensor):
         mysql_conn_id: str = "metastore_mysql",
         **kwargs: Any,
     ):
-
         self.partition_name = partition_name
         self.table = table
         self.schema = schema
@@ -72,7 +71,7 @@ class MetastorePartitionSensor(SqlSensor):
             self.first_poke = False
             if "." in self.table:
                 self.schema, self.table = self.table.split(".")
-            self.sql = """
+            self.sql = f"""
             SELECT 'X'
             FROM PARTITIONS A0
             LEFT OUTER JOIN TBLS B0 ON A0.TBL_ID = B0.TBL_ID
@@ -81,7 +80,5 @@ class MetastorePartitionSensor(SqlSensor):
                 B0.TBL_NAME = '{self.table}' AND
                 C0.NAME = '{self.schema}' AND
                 A0.PART_NAME = '{self.partition_name}';
-            """.format(
-                self=self
-            )
+            """
         return super().poke(context)

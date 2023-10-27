@@ -16,20 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
-    from mypy_boto3_appflow.client import AppflowClient
-    from mypy_boto3_appflow.type_defs import TaskOutputTypeDef, TaskTypeDef
+    from mypy_boto3_appflow.client import AppflowClient  # noqa
 
 
-class AppflowHook(AwsBaseHook):
+class AppflowHook(AwsGenericHook["AppflowClient"]):
     """
-    Interact with Amazon Appflow.
+    Interact with Amazon AppFlow.
 
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("appflow") <Appflow.Client>`.
 
@@ -44,11 +42,6 @@ class AppflowHook(AwsBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "appflow"
         super().__init__(*args, **kwargs)
-
-    @cached_property
-    def conn(self) -> AppflowClient:
-        """Get the underlying boto3 Appflow client (cached)."""
-        return super().conn
 
     def run_flow(
         self,
@@ -93,9 +86,7 @@ class AppflowHook(AwsBaseHook):
         exec_details = last_execs[execution_id]
         self.log.info("Run complete, execution details: %s", exec_details)
 
-    def update_flow_filter(
-        self, flow_name: str, filter_tasks: list[TaskTypeDef], set_trigger_ondemand: bool = False
-    ) -> None:
+    def update_flow_filter(self, flow_name: str, filter_tasks, set_trigger_ondemand: bool = False) -> None:
         """
         Update the flow task filter; all filters will be removed if an empty array is passed to filter_tasks.
 
@@ -106,7 +97,7 @@ class AppflowHook(AwsBaseHook):
         """
         response = self.conn.describe_flow(flowName=flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
-        tasks: list[TaskTypeDef | TaskOutputTypeDef] = []
+        tasks = []
 
         # cleanup old filter tasks
         for task in response["tasks"]:

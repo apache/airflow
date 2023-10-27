@@ -28,13 +28,13 @@ import time
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable
 
-from requests import Session
 from simple_salesforce import Salesforce, api
 
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd
+    from requests import Session
 
 log = logging.getLogger(__name__)
 

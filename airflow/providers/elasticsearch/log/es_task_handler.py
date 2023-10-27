@@ -17,13 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import inspect
 import logging
 import sys
+import time
 import warnings
 from collections import defaultdict
-from datetime import datetime
 from operator import attrgetter
-from time import time
 from typing import TYPE_CHECKING, Any, Callable, List, Tuple
 from urllib.parse import quote, urlparse
 
@@ -31,17 +32,22 @@ from urllib.parse import quote, urlparse
 import elasticsearch
 import pendulum
 from elasticsearch.exceptions import NotFoundError
+from typing_extensions import Literal
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.session import create_session
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from airflow.models.taskinstance import TaskInstance
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
@@ -51,6 +57,32 @@ EsLogMsgType = List[Tuple[str, str]]
 # LogTemplate model to record the log ID template used. If this function does
 # not exist, the task handler should use the log_id_template attribute instead.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
+
+
+VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
+# Remove `self` from the valid set of kwargs
+VALID_ES_CONFIG_KEYS.remove("self")
+
+
+def get_es_kwargs_from_config() -> dict[str, Any]:
+    elastic_search_config = conf.getsection("elasticsearch_configs")
+    kwargs_dict = (
+        {key: value for key, value in elastic_search_config.items() if key in VALID_ES_CONFIG_KEYS}
+        if elastic_search_config
+        else {}
+    )
+    # For elasticsearch>8 retry_timeout have changed for elasticsearch to retry_on_timeout
+    # in Elasticsearch() compared to previous versions.
+    # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
+    if (
+        elastic_search_config
+        and "retry_timeout" in elastic_search_config
+        and not kwargs_dict.get("retry_on_timeout")
+    ):
+        retry_timeout = elastic_search_config.get("retry_timeout")
+        if retry_timeout is not None:
+            kwargs_dict["retry_on_timeout"] = retry_timeout
+    return kwargs_dict
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -92,17 +124,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         host: str = "http://localhost:9200",
         frontend: str = "localhost:5601",
         index_patterns: str | None = conf.get("elasticsearch", "index_patterns", fallback="_all"),
-        es_kwargs: dict | None = conf.getsection("elasticsearch_configs"),
+        es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
         *,
         filename_template: str | None = None,
         log_id_template: str | None = None,
     ):
         es_kwargs = es_kwargs or {}
-        # For elasticsearch>8,arguments like retry_timeout have changed for elasticsearch to retry_on_timeout
-        # in Elasticsearch() compared to previous versions.
-        # Read more at: https://elasticsearch-py.readthedocs.io/en/v8.8.2/api.html#module-elasticsearch
-        if es_kwargs.get("retry_timeout"):
-            es_kwargs["retry_on_timeout"] = es_kwargs.pop("retry_timeout")
+        if es_kwargs == "default_es_kwargs":
+            es_kwargs = get_es_kwargs_from_config()
         host = self.format_url(host)
         super().__init__(base_log_folder, filename_template)
         self.closed = False
@@ -135,9 +164,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     @staticmethod
     def format_url(host: str) -> str:
         """
-        Formats the given host string to ensure it starts with 'http'.
-
-        Checks if the host string represents a valid URL.
+        Format the given host string to ensure it starts with 'http' and check if it represents a valid URL.
 
         :params host: The host string to format and check.
         """
@@ -240,7 +267,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
-        logs = self.es_read(log_id, offset, metadata)
+        logs = self._es_read(log_id, offset)
         logs_by_host = self._group_logs_by_host(logs)
         next_offset = offset if not logs else attrgetter(self.offset_field)(logs[-1])
         # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
@@ -251,9 +278,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # end_of_log_mark may contain characters like '\n' which is needed to
         # have the log uploaded but will not be stored in elasticsearch.
         metadata["end_of_log"] = False
-        for logs in logs_by_host.values():
-            if logs[-1].message == self.end_of_log_mark:
-                metadata["end_of_log"] = True
+        if any(x[-1].message == self.end_of_log_mark for x in logs_by_host.values()):
+            metadata["end_of_log"] = True
 
         cur_ts = pendulum.now()
         if "last_log_timestamp" in metadata:
@@ -294,23 +320,22 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Using formatter._style.format makes it future proof i.e.
         # if we change the formatter style from '%' to '{' or '$', this will still work
         if self.json_format:
-            try:
+            with contextlib.suppress(Exception):
                 return self.formatter._style.format(
                     logging.makeLogRecord({**LOG_LINE_DEFAULTS, **log_line.to_dict()})
                 )
-            except Exception:
-                pass
 
         # Just a safe-guard to preserve backwards-compatibility
         return log_line.message
 
-    def es_read(self, log_id: str, offset: int | str, metadata: dict) -> list | ElasticSearchResponse:
+    def _es_read(self, log_id: str, offset: int | str) -> list | ElasticSearchResponse:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
         :param log_id: the log_id of the log to read.
         :param offset: the offset start to read log from.
-        :param metadata: log metadata, used for steaming log download.
+
+        :meta private:
         """
         query: dict[Any, Any] = {
             "query": {
@@ -345,7 +370,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def emit(self, record):
         if self.handler:
-            setattr(record, self.offset_field, int(time() * (10**9)))
+            setattr(record, self.offset_field, int(time.time() * (10**9)))
             self.handler.emit(record)
 
     def set_context(self, ti: TaskInstance) -> None:
@@ -361,7 +386,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.json_format:
             self.formatter = ElasticsearchJSONFormatter(
                 fmt=self.formatter._fmt,
-                json_fields=self.json_fields + [self.offset_field],
+                json_fields=[*self.json_fields, self.offset_field],
                 extras={
                     "dag_id": str(ti.dag_id),
                     "task_id": str(ti.task_id),
@@ -427,7 +452,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
         """
-        Creates an address for an external log collecting service.
+        Create an address for an external log collecting service.
 
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from.
@@ -444,7 +469,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def _resolve_nested(self, hit: dict[Any, Any], parent_class=None) -> type[Hit]:
         """
-        Resolves nested hits from Elasticsearch by iteratively navigating the `_nested` field.
+        Resolve nested hits from Elasticsearch by iteratively navigating the `_nested` field.
 
         The result is used to fetch the appropriate document class to handle the hit.
 

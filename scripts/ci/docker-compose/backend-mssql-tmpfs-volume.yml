@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.7"
 services:
   # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
   # O_DIRECT parameter for direct writing to the filesystem

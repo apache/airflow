@@ -18,17 +18,20 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import MagicMock
 
 import boto3
 import pytest
 from botocore.exceptions import ClientError
 from moto import mock_glue, mock_iam
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
 
 
 class TestGlueJobHook:

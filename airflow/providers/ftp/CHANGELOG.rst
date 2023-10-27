@@ -27,6 +27,44 @@
 Changelog
 ---------
 
+3.6.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+3.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/ftp): respect soft_fail argument when exception is raised (#34161)``
+
+Misc
+~~~~
+
+* ``Consolidate importing of os.path.* (#34060)``
+* ``Refactor regex in providers (#33898)``
+
+3.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Remove useless str() calls (#33629)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers - Final Pass (#33303)``
+
 3.5.0
 .....
 

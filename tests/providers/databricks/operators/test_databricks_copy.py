@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
 
 DATE = "2017-04-20"

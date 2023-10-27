@@ -95,25 +95,5 @@ class SecurityManager(BaseSecurityManager):
             return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
         return self.appbuilder.get_session.query(q).scalar()
 
-    def filter_roles_by_perm_with_action(self, action_name: str, role_ids: list[int]):
-        """Find roles with permission."""
-        return (
-            self.appbuilder.get_session.query(self.permission_model)
-            .join(
-                assoc_permission_role,
-                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
-            )
-            .join(self.role_model)
-            .join(self.action_model)
-            .join(self.resource_model)
-            .filter(
-                self.action_model.name == action_name,
-                self.role_model.id.in_(role_ids),
-            )
-        ).all()
-
     def perms_include_action(self, perms, action_name):
-        for perm in perms:
-            if perm.action and perm.action.name == action_name:
-                return True
-        return False
+        return any(perm.action and perm.action.name == action_name for perm in perms)

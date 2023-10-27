@@ -32,7 +32,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
     # [START howto_salesforce_apex_rest_operator]
     payload = {"activity": [{"user": "12345", "action": "update page", "time": "2014-04-21T13:00:15Z"}]}
 

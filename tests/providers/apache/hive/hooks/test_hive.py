@@ -83,7 +83,6 @@ class TestHiveCliHook:
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
             },
         ):
-
             hook = MockHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
@@ -207,7 +206,6 @@ class TestHiveCliHook:
                 dag_run_id_ctx_var_name: "test_dag_run_id",
             },
         ):
-
             hook = MockHiveCliHook()
             mock_popen.return_value = MockSubProcess(output=mock_output)
 
@@ -249,11 +247,11 @@ class TestHiveCliHook:
         hook.load_file(filepath=filepath, table=table, field_dict=field_dict, create=True, recreate=True)
 
         create_table = (
-            "DROP TABLE IF EXISTS {table};\n"
-            "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
+            f"DROP TABLE IF EXISTS {table};\n"
+            f"CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
             "ROW FORMAT DELIMITED\n"
             "FIELDS TERMINATED BY ','\n"
-            "STORED AS textfile\n;".format(table=table, fields=fields)
+            "STORED AS textfile\n;"
         )
 
         load_data = f"LOAD DATA LOCAL INPATH '{filepath}' OVERWRITE INTO TABLE {table} ;\n"
@@ -291,7 +289,7 @@ class TestHiveCliHook:
         bools = (True, False)
         for create, recreate in itertools.product(bools, bools):
             mock_load_file.reset_mock()
-            hook.load_df(df=pd.DataFrame({"c": range(0, 10)}), table="t", create=create, recreate=recreate)
+            hook.load_df(df=pd.DataFrame({"c": range(10)}), table="t", create=create, recreate=recreate)
 
             assert mock_load_file.call_count == 1
             kwargs = mock_load_file.call_args.kwargs
@@ -468,7 +466,6 @@ class TestHiveMetastoreHook:
         )
 
     def test_check_for_named_partition(self):
-
         # Check for existing partition.
 
         partition = f"{self.partition_by}={DEFAULT_DATE_DS}"
@@ -492,7 +489,6 @@ class TestHiveMetastoreHook:
         )
 
     def test_get_table(self):
-
         self.hook.metastore.__enter__().get_table = mock.MagicMock()
         self.hook.get_table(db=self.database, table_name=self.table)
         self.hook.metastore.__enter__().get_table.assert_called_with(

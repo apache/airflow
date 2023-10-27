@@ -22,10 +22,13 @@ import enum
 import logging
 import sys
 from io import IOBase
-from logging import Handler, Logger, StreamHandler
-from typing import IO, Any, TypeVar, cast
+from logging import Handler, StreamHandler
+from typing import IO, TYPE_CHECKING, Any, TypeVar, cast
 
 import re2
+
+if TYPE_CHECKING:
+    from logging import Logger
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re2.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
@@ -206,9 +209,9 @@ class RedirectStdHandler(StreamHandler):
     @property
     def stream(self):
         """Returns current stream."""
-        from airflow.settings import IS_K8S_EXECUTOR_POD
+        from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 
-        if IS_K8S_EXECUTOR_POD:
+        if IS_K8S_EXECUTOR_POD or IS_EXECUTOR_CONTAINER:
             return self._orig_stream
         if self._use_stderr:
             return sys.stderr

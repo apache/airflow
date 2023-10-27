@@ -22,20 +22,19 @@ import re
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-import jinja2
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, MAX_LABEL_LEN
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
-    from kubernetes.client.models import CoreV1EventList
+    import jinja2
 
     from airflow.utils.context import Context
 
@@ -124,6 +123,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             return
 
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
+
     def manage_template_specs(self):
         if self.application_file:
             template_body = _load_body_to_dict(open(self.application_file))
@@ -147,7 +147,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     @staticmethod
     def create_labels_for_pod(context: dict | None = None, include_try_number: bool = True) -> dict:
         """
-        Generate labels for the pod to track the pod in case of Operator crash
+        Generate labels for the pod to track the pod in case of Operator crash.
+
         :param include_try_number: add try number to labels
         :param context: task context provided by airflow DAG
         :return: dict.

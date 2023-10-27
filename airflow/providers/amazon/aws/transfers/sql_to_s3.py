@@ -20,17 +20,19 @@ from __future__ import annotations
 import enum
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     import pandas as pd
 
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
 
 
@@ -149,7 +151,6 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowOptionalProviderFeatureException(e)
 
         for col in df:
-
             if df[col].dtype.name == "object" and file_format == "parquet":
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
@@ -182,7 +183,6 @@ class SqlToS3Operator(BaseOperator):
 
         for group_name, df in self._partition_dataframe(df=data_df):
             with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
-
                 self.log.info("Writing data to temp file")
                 getattr(df, file_options.function)(tmp_file.name, **self.pd_kwargs)
 

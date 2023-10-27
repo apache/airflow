@@ -71,15 +71,12 @@ class DebugExecutor(BaseExecutor):
                 self.log.info("Setting %s to %s", ti.key, TaskInstanceState.UPSTREAM_FAILED)
                 ti.set_state(TaskInstanceState.UPSTREAM_FAILED)
                 self.change_state(ti.key, TaskInstanceState.UPSTREAM_FAILED)
-                continue
-
-            if self._terminated.is_set():
+            elif self._terminated.is_set():
                 self.log.info("Executor is terminated! Stopping %s to %s", ti.key, TaskInstanceState.FAILED)
                 ti.set_state(TaskInstanceState.FAILED)
                 self.change_state(ti.key, TaskInstanceState.FAILED)
-                continue
-
-            task_succeeded = self._run_task(ti)
+            else:
+                task_succeeded = self._run_task(ti)
 
     def _run_task(self, ti: TaskInstance) -> bool:
         self.log.debug("Executing task: %s", ti)
@@ -92,7 +89,7 @@ class DebugExecutor(BaseExecutor):
         except Exception as e:
             ti.set_state(TaskInstanceState.FAILED)
             self.change_state(key, TaskInstanceState.FAILED)
-            self.log.exception("Failed to execute task: %s.", str(e))
+            self.log.exception("Failed to execute task: %s.", e)
             return False
 
     def queue_task_instance(

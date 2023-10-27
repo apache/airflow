@@ -24,9 +24,10 @@ from unittest.mock import call
 import pytest
 from docker import APIClient
 from docker.errors import APIError
-from docker.types import DeviceRequest, LogConfig, Mount
+from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
 from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator
 
 TEST_CONN_ID = "docker_test_connection"
@@ -246,6 +247,7 @@ class TestDockerOperator:
             log_config=LogConfig(config={"max-size": "10m", "max-file": "5"}),
             ipc_mode=None,
             port_bindings={},
+            ulimits=[],
         )
         self.tempdir_mock.assert_called_once_with(dir=TEST_HOST_TEMP_DIRECTORY, prefix="airflowtmp")
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -317,6 +319,7 @@ class TestDockerOperator:
             log_config=LogConfig(config={}),
             ipc_mode=None,
             port_bindings={},
+            ulimits=[],
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name=TEST_IMAGE)
@@ -427,6 +430,7 @@ class TestDockerOperator:
                     log_config=LogConfig(config={}),
                     ipc_mode=None,
                     port_bindings={},
+                    ulimits=[],
                 ),
                 call(
                     mounts=[
@@ -446,6 +450,7 @@ class TestDockerOperator:
                     log_config=LogConfig(config={}),
                     ipc_mode=None,
                     port_bindings={},
+                    ulimits=[],
                 ),
             ]
         )
@@ -553,19 +558,19 @@ class TestDockerOperator:
     def test_execute_container_fails(self):
         failed_msg = {"StatusCode": 1}
         log_line = ["unicode container log 😁   ", b"byte string container log"]
-        expected_message = "Docker container failed: {failed_msg} lines {expected_log_output}"
+        expected_message = "Docker container failed: {failed_msg}"
         self.client_mock.attach.return_value = log_line
         self.client_mock.wait.return_value = failed_msg
 
         operator = DockerOperator(image="ubuntu", owner="unittest", task_id="unittest")
 
-        with pytest.raises(AirflowException) as raised_exception:
+        with pytest.raises(DockerContainerFailedException) as raised_exception:
             operator.execute(None)
 
         assert str(raised_exception.value) == expected_message.format(
             failed_msg=failed_msg,
-            expected_log_output=f'{log_line[0].strip()}\n{log_line[1].decode("utf-8")}',
         )
+        assert raised_exception.value.logs == [log_line[0].strip(), log_line[1].decode("utf-8")]
 
     def test_auto_remove_container_fails(self):
         self.client_mock.wait.return_value = {"StatusCode": 1}
@@ -708,3 +713,12 @@ class TestDockerOperator:
         assert "host_config" in self.client_mock.create_container.call_args.kwargs
         assert "port_bindings" in self.client_mock.create_host_config.call_args.kwargs
         assert port_bindings == self.client_mock.create_host_config.call_args.kwargs["port_bindings"]
+
+    def test_ulimits(self):
+        ulimits = [Ulimit(name="nofile", soft=1024, hard=2048)]
+        operator = DockerOperator(task_id="test", image="test", ulimits=ulimits)
+        operator.execute(None)
+        self.client_mock.create_container.assert_called_once()
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "ulimits" in self.client_mock.create_host_config.call_args.kwargs
+        assert ulimits == self.client_mock.create_host_config.call_args.kwargs["ulimits"]

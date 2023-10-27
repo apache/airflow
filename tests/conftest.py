@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import subprocess
 import sys
 from contextlib import ExitStack, suppress
@@ -41,6 +42,11 @@ os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get("CREDENTIALS_DIR") or "/files/airflow-breeze-config/keys"
 os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44") or "true"
+
+if platform.system() == "Darwin":
+    # mocks from unittest.mock work correctly in subprocesses only if they are created by "fork" method
+    # but macOS uses "spawn" by default
+    os.environ["AIRFLOW__CORE__MP_START_METHOD"] = "fork"
 
 from airflow import settings  # noqa: E402
 from airflow.models.tasklog import LogTemplate  # noqa: E402
@@ -613,7 +619,7 @@ def dag_maker(request):
             **kwargs,
         ):
             from airflow import settings
-            from airflow.models import DAG
+            from airflow.models.dag import DAG
             from airflow.utils import timezone
 
             if session is None:
@@ -628,7 +634,6 @@ def dag_maker(request):
                 if "start_date" in default_args:
                     self.start_date = default_args.get("start_date")
             if not self.start_date:
-
                 if hasattr(request.module, "DEFAULT_DATE"):
                     self.start_date = getattr(request.module, "DEFAULT_DATE")
                 else:

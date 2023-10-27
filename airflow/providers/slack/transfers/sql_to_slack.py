@@ -24,14 +24,15 @@ from tabulate import tabulate
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 from airflow.providers.slack.utils import parse_filename
 
 if TYPE_CHECKING:
     import pandas as pd
+    from slack_sdk.http_retry import RetryHandler
 
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
 
 
@@ -44,6 +45,10 @@ class BaseSqlToSlackOperator(BaseOperator):
     :param sql_hook_params: Extra config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
     :param parameters: The parameters to pass to the SQL query.
+    :param slack_proxy: Proxy to make the Slack Incoming Webhook / API calls. Optional
+    :param slack_timeout: The maximum number of seconds the client will wait to connect
+        and receive a response from Slack. Optional
+    :param slack_retry_handlers: List of handlers to customize retry logic. Optional
     """
 
     def __init__(
@@ -53,6 +58,9 @@ class BaseSqlToSlackOperator(BaseOperator):
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
         parameters: Iterable | Mapping[str, Any] | None = None,
+        slack_proxy: str | None = None,
+        slack_timeout: int | None = None,
+        slack_retry_handlers: list[RetryHandler] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -60,6 +68,9 @@ class BaseSqlToSlackOperator(BaseOperator):
         self.sql_hook_params = sql_hook_params
         self.sql = sql
         self.parameters = parameters
+        self.slack_proxy = slack_proxy
+        self.slack_timeout = slack_timeout
+        self.slack_retry_handlers = slack_retry_handlers
 
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
@@ -103,8 +114,6 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
     :param sql_hook_params: Extra config params to be passed to the underlying hook.
            Should match the desired hook constructor params.
     :param slack_conn_id: The connection id for Slack.
-    :param slack_webhook_token: The token to use to authenticate to Slack. If this is not provided, the
-        'slack_conn_id' attribute needs to be specified in the 'password' field.
     :param slack_channel: The channel to send message. Override default from Slack connection.
     :param results_df_name: The name of the JINJA template's dataframe variable, default is 'results_df'
     :param parameters: The parameters to pass to the SQL query
@@ -120,31 +129,23 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
         *,
         sql: str,
         sql_conn_id: str,
+        slack_conn_id: str,
         sql_hook_params: dict | None = None,
-        slack_conn_id: str | None = None,
-        slack_webhook_token: str | None = None,
         slack_channel: str | None = None,
         slack_message: str,
         results_df_name: str = "results_df",
         parameters: Iterable | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(
             sql=sql, sql_conn_id=sql_conn_id, sql_hook_params=sql_hook_params, parameters=parameters, **kwargs
         )
 
         self.slack_conn_id = slack_conn_id
-        self.slack_webhook_token = slack_webhook_token
         self.slack_channel = slack_channel
         self.slack_message = slack_message
         self.results_df_name = results_df_name
         self.kwargs = kwargs
-
-        if not self.slack_conn_id and not self.slack_webhook_token:
-            raise AirflowException(
-                "SqlToSlackOperator requires either a `slack_conn_id` or a `slack_webhook_token` argument"
-            )
 
     def _render_and_send_slack_message(self, context, df) -> None:
         # Put the dataframe into the context and render the JINJA template fields
@@ -157,14 +158,17 @@ class SqlToSlackOperator(BaseSqlToSlackOperator):
 
     def _get_slack_hook(self) -> SlackWebhookHook:
         return SlackWebhookHook(
-            slack_webhook_conn_id=self.slack_conn_id, webhook_token=self.slack_webhook_token
+            slack_webhook_conn_id=self.slack_conn_id,
+            proxy=self.slack_proxy,
+            timeout=self.slack_timeout,
+            retry_handlers=self.slack_retry_handlers,
         )
 
     def render_template_fields(self, context, jinja_env=None) -> None:
         # If this is the first render of the template fields, exclude slack_message from rendering since
         # the SQL results haven't been retrieved yet.
         if self.times_rendered == 0:
-            fields_to_render: Iterable[str] = filter(lambda x: x != "slack_message", self.template_fields)
+            fields_to_render: Iterable[str] = (x for x in self.template_fields if x != "slack_message")
         else:
             fields_to_render = self.template_fields
 
@@ -209,7 +213,9 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
          If omitting this parameter, then file will send to workspace.
     :param slack_initial_comment: The message text introducing the file in specified ``slack_channels``.
     :param slack_title: Title of file.
+    :param slack_base_url: A string representing the Slack API base URL. Optional
     :param df_kwargs: Keyword arguments forwarded to ``pandas.DataFrame.to_{format}()`` method.
+
 
     Example:
      .. code-block:: python
@@ -248,11 +254,12 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
         parameters: Iterable | Mapping[str, Any] | None = None,
-        slack_conn_id: str,
+        slack_conn_id: str = SlackHook.default_conn_name,
         slack_filename: str,
         slack_channels: str | Sequence[str] | None = None,
         slack_initial_comment: str | None = None,
         slack_title: str | None = None,
+        slack_base_url: str | None = None,
         df_kwargs: dict | None = None,
         **kwargs,
     ):
@@ -264,6 +271,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         self.slack_channels = slack_channels
         self.slack_initial_comment = slack_initial_comment
         self.slack_title = slack_title
+        self.slack_base_url = slack_base_url
         self.df_kwargs = df_kwargs or {}
 
     def execute(self, context: Context) -> None:
@@ -273,7 +281,13 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             supported_file_formats=self.SUPPORTED_FILE_FORMATS,
         )
 
-        slack_hook = SlackHook(slack_conn_id=self.slack_conn_id)
+        slack_hook = SlackHook(
+            slack_conn_id=self.slack_conn_id,
+            base_url=self.slack_base_url,
+            timeout=self.slack_timeout,
+            proxy=self.slack_proxy,
+            retry_handlers=self.slack_retry_handlers,
+        )
         with NamedTemporaryFile(mode="w+", suffix=f"_{self.slack_filename}") as fp:
             # tempfile.NamedTemporaryFile used only for create and remove temporary file,
             # pandas will open file in correct mode itself depend on file type.

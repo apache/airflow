@@ -36,6 +36,8 @@ class BuildCiParams(CommonBuildParams):
     airflow_extras: str = "devel_ci"
     airflow_pre_cached_pip_packages: bool = True
     force_build: bool = False
+    upgrade_to_newer_dependencies: bool = False
+    upgrade_on_failure: bool = False
     eager_upgrade_additional_requirements: str = ""
     skip_provider_dependencies_check: bool = False
 
@@ -66,7 +68,7 @@ class BuildCiParams(CommonBuildParams):
                         f"EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS={eager_upgrade_arg}",
                     ]
                 )
-        return extra_ci_flags
+        return super().extra_docker_build_flags + extra_ci_flags
 
     @property
     def md5sum_cache_dir(self) -> Path:
@@ -111,6 +113,7 @@ class BuildCiParams(CommonBuildParams):
             "additional_python_deps",
             "version_suffix_for_pypi",
             "commit_sha",
+            "build_progress",
         ]
 
     def __post_init__(self):

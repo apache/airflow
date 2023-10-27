@@ -229,7 +229,6 @@ class TestLivyHook:
 
     @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.run_method")
     def test_post_batch_arguments(self, mock_request):
-
         mock_request.return_value.status_code = 201
         mock_request.return_value.json.return_value = {
             "id": BATCH_ID,

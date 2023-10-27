@@ -339,6 +339,12 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-openlineage/**/*
     - tests/providers/openlineage/**/*
 
+  provider:opensearch:
+    - airflow/providers/opensearch/**/*
+    - docs/apache-airflow-providers-opensearch/**/*
+    - tests/providers/opensearch/**/*
+    - tests/system/providers/opensearch/**/*
+
   provider:opsgenie:
     - airflow/providers/opsgenie/**/*
     - docs/apache-airflow-providers-opsgenie/**/*
@@ -580,15 +586,17 @@ labelPRBasedOnFilePath:
     - tests/plugins/**/*
     - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
-  area:Scheduler/Executor:
-    - airflow/executors/**/*
+  area:Scheduler:
     - airflow/jobs/**/*
     - airflow/task/task_runner/**/*
     - airflow/dag_processing/**/*
-    - docs/apache-airflow/core-concepts/executor/**/*
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
-    - tests/executors/**/*
     - tests/jobs/**/*
+
+  area:Executors-core:
+    - airflow/executors/**/*
+    - docs/apache-airflow/core-concepts/executor/**/*
+    - tests/executors/**/*
 
   area:Secrets:
     - airflow/secrets/**/*

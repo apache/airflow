@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
 from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgeDisableRuleOperator,
@@ -29,6 +29,9 @@ from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgePutEventsOperator,
     EventBridgePutRuleOperator,
 )
+
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
 
 ENTRIES = [{"Detail": "test-detail", "Source": "test-source", "DetailType": "test-detail-type"}]
 FAILED_ENTRIES_RESPONSE = [{"ErrorCode": "test_code"}, {"ErrorCode": "test_code"}]
@@ -123,7 +126,6 @@ class TestEventBridgeEnableRuleOperator:
 
     @mock.patch.object(EventBridgeHook, "conn")
     def test_enable_rule(self, mock_conn: MagicMock):
-
         enable_rule = EventBridgeEnableRuleOperator(
             task_id="events_enable_rule_job",
             name=RULE_NAME,
@@ -144,7 +146,6 @@ class TestEventBridgeDisableRuleOperator:
 
     @mock.patch.object(EventBridgeHook, "conn")
     def test_disable_rule(self, mock_conn: MagicMock):
-
         disable_rule = EventBridgeDisableRuleOperator(
             task_id="events_disable_rule_job",
             name=RULE_NAME,

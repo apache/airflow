@@ -66,6 +66,10 @@ function in_container_script_start() {
 #
 function in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "linux" ]]; then
+        if [[ ${DOCKER_IS_ROOTLESS=} == "true" ]]; then
+             echo "${COLOR_YELLOW}Skip fixing ownership of generated files: Docker is rootless${COLOR_RESET}"
+             return
+        fi
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"
@@ -181,9 +185,9 @@ function install_airflow_from_wheel() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -220,9 +224,9 @@ function install_airflow_from_sdist() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -303,6 +307,12 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
         if [[ ${provider_package} == "apache-airflow-providers-yandex" ]]; then
             continue
         fi
+        # Until we release latest `hive` provider with pure-sasl support, we need to remove it from the
+        # list of providers to install for Python 3.11 because we cannot build sasl it for Python 3.11
+        if [[ ${provider_package} == "apache-airflow-providers-apache-hive" \
+            && ${PYTHON_MAJOR_MINOR_VERSION} == "3.11" ]]; then
+            continue
+        fi
         echo -n "Checking if ${provider_package} is available in PyPI: "
         res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
         if [[ ${res} == "200" ]]; then
@@ -323,9 +333,10 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
+    set -x
     pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
-
+    set +x
 }
 
 function install_all_provider_packages_from_wheels() {

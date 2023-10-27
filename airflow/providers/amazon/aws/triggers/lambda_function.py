@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from typing import TYPE_CHECKING
+
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class LambdaCreateFunctionCompleteTrigger(AwsBaseWaiterTrigger):
@@ -40,8 +44,8 @@ class LambdaCreateFunctionCompleteTrigger(AwsBaseWaiterTrigger):
         waiter_delay: int = 60,
         waiter_max_attempts: int = 30,
         aws_conn_id: str | None = None,
+        **kwargs,
     ) -> None:
-
         super().__init__(
             serialized_fields={"function_name": function_name, "function_arn": function_arn},
             waiter_name="function_active_v2",
@@ -58,7 +62,13 @@ class LambdaCreateFunctionCompleteTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return LambdaHook(aws_conn_id=self.aws_conn_id)
+        return LambdaHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

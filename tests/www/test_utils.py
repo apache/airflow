@@ -69,7 +69,7 @@ class TestUtils:
         assert min(window, total_pages) + extra_links == len(ulist_items)
 
         page_items = ulist_items[2:-2]
-        mid = int(len(page_items) / 2)
+        mid = len(page_items) // 2
         all_nodes = []
         pages = []
 
@@ -77,7 +77,7 @@ class TestUtils:
             last_page = total_pages - 1
 
             if current_page <= mid or total_pages < window:
-                pages = list(range(0, min(total_pages, window)))
+                pages = list(range(min(total_pages, window)))
             elif mid < current_page < last_page - mid:
                 pages = list(range(current_page - mid, current_page + mid + 1))
             else:
@@ -104,8 +104,7 @@ class TestUtils:
 
         if sorting_key and sorting_direction:
             if pages[0] == 0:
-                pages = pages[1:]
-                pages = list(map(lambda x: str(x), pages))
+                pages = [str(page) for page in pages[1:]]
 
             assert pages == all_nodes
 

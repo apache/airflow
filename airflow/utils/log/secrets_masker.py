@@ -42,10 +42,11 @@ import re2
 
 from airflow import settings
 from airflow.compat.functools import cache
-from airflow.typing_compat import TypeGuard
 
 if TYPE_CHECKING:
     from kubernetes.client import V1EnvVar
+
+    from airflow.typing_compat import TypeGuard
 
 Redactable = TypeVar("Redactable", str, "V1EnvVar", Dict[Any, Any], Tuple[Any, ...], List[Any])
 Redacted = Union[Redactable, str]
@@ -176,7 +177,7 @@ class SecretsMasker(logging.Filter):
             __file__,
             1,
             "",
-            tuple(),
+            (),
             exc_info=None,
             func="funcname",
         )
@@ -205,9 +206,8 @@ class SecretsMasker(logging.Filter):
 
         if self.replacer:
             for k, v in record.__dict__.items():
-                if k in self._record_attrs_to_ignore:
-                    continue
-                record.__dict__[k] = self.redact(v)
+                if k not in self._record_attrs_to_ignore:
+                    record.__dict__[k] = self.redact(v)
             if record.exc_info and record.exc_info[1] is not None:
                 exc = record.exc_info[1]
                 self._redact_exception_with_context(exc)

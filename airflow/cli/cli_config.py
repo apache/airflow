@@ -92,18 +92,17 @@ class Arg:
         self.flags = flags
         self.kwargs = {}
         for k, v in locals().items():
-            if v is _UNSET:
-                continue
-            if k in ("self", "flags"):
-                continue
-
-            self.kwargs[k] = v
+            if k not in ("self", "flags") and v is not _UNSET:
+                self.kwargs[k] = v
 
     def add_to_parser(self, parser: argparse.ArgumentParser):
         """Add this argument to an ArgumentParser."""
         if "metavar" in self.kwargs and "type" not in self.kwargs:
             if self.kwargs["metavar"] == "DIRPATH":
-                type = lambda x: self._is_valid_directory(parser, x)
+
+                def type(x):
+                    return self._is_valid_directory(parser, x)
+
                 self.kwargs["type"] = type
         parser.add_argument(*self.flags, **self.kwargs)
 
@@ -157,9 +156,7 @@ ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
     nargs="?",
     help="The execution_date of the DAG or run_id of the DAGRun (optional)",
 )
-ARG_TASK_REGEX = Arg(
-    ("-t", "--task-regex"), help="The regex to filter specific task_ids to backfill (optional)"
-)
+ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
 ARG_SUBDIR = Arg(
     ("-S", "--subdir"),
     help=(
@@ -554,10 +551,19 @@ ARG_VAR_EXPORT = Arg(
     help="Export all variables to JSON file",
     type=argparse.FileType("w", encoding="UTF-8"),
 )
+ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
+    ("-a", "--action-on-existing-key"),
+    help="Action to take if we encounter a variable key that already exists.",
+    default="overwrite",
+    choices=("overwrite", "fail", "skip"),
+)
 
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
 ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs="?", default=conf.get("kerberos", "keytab"))
+ARG_KERBEROS_ONE_TIME_MODE = Arg(
+    ("-o", "--one-time"), help="Run airflow kerberos one time instead of forever", action="store_true"
+)
 # run
 ARG_INTERACTIVE = Arg(
     ("-N", "--interactive"),
@@ -1451,7 +1457,7 @@ VARIABLES_COMMANDS = (
         name="import",
         help="Import variables",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_import"),
-        args=(ARG_VAR_IMPORT, ARG_VERBOSE),
+        args=(ARG_VAR_IMPORT, ARG_VAR_ACTION_ON_EXISTING_KEY, ARG_VERBOSE),
     ),
     ActionCommand(
         name="export",
@@ -1616,7 +1622,7 @@ CONNECTIONS_COMMANDS = (
         name="add",
         help="Add a connection",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_add"),
-        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA) + tuple(ALTERNATIVE_CONN_SPECS_ARGS),
+        args=(ARG_CONN_ID, ARG_CONN_URI, ARG_CONN_JSON, ARG_CONN_EXTRA, *ALTERNATIVE_CONN_SPECS_ARGS),
     ),
     ActionCommand(
         name="delete",
@@ -1886,6 +1892,7 @@ core_commands: list[CLICommand] = [
             ARG_KEYTAB,
             ARG_PID,
             ARG_DAEMON,
+            ARG_KERBEROS_ONE_TIME_MODE,
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,
@@ -2026,7 +2033,7 @@ core_commands: list[CLICommand] = [
         name="standalone",
         help="Run an all-in-one copy of Airflow",
         func=lazy_load_command("airflow.cli.commands.standalone_command.standalone"),
-        args=tuple(),
+        args=(),
     ),
 ]
 

@@ -15,24 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Vertex AI operators.
 
-.. spelling:word-list::
+"""This module contains Google Vertex AI operators."""
 
-    irreproducible
-    codepoints
-    Tensorboard
-    aiplatform
-    myVPC
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
-from google.cloud.aiplatform import gapic, hyperparameter_tuning
 from google.cloud.aiplatform_v1.types import HyperparameterTuningJob
 
 from airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job import (
@@ -45,6 +36,9 @@ from airflow.providers.google.cloud.links.vertex_ai import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform import gapic, hyperparameter_tuning
+
     from airflow.utils.context import Context
 
 
@@ -66,7 +60,7 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     :param max_trial_count: Required. The desired total number of Trials.
     :param parallel_trial_count: Required. The desired number of Trials to run in parallel.
     :param worker_pool_specs: Required. The spec of the worker pools including machine type and Docker
-        image. Can provided as a list of dictionaries or list of WorkerPoolSpec proto messages.
+        image. Can be provided as a list of dictionaries or list of WorkerPoolSpec proto messages.
     :param base_output_dir: Optional. GCS output directory of job. If not provided a timestamped
         directory in the staging directory will be used.
     :param custom_job_labels: Optional. The labels with user-defined metadata to organize CustomJobs.

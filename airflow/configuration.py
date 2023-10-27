@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import datetime
 import functools
-import io
 import itertools
 import json
 import logging
@@ -34,22 +34,26 @@ from base64 import b64encode
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
+from io import StringIO
 from json.decoder import JSONDecodeError
-from typing import IO, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
+from typing import IO, TYPE_CHECKING, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
 from urllib.parse import urlsplit
 
 import re2
 from packaging.version import parse as parse_version
 from typing_extensions import overload
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.exceptions import AirflowConfigException
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
+from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.utils import yaml
 from airflow.utils.empty_set import _get_empty_set_for_configuration
 from airflow.utils.module_loading import import_string
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.weight_rule import WeightRule
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import BaseAuthManager
+    from airflow.secrets import BaseSecretsBackend
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +61,10 @@ log = logging.getLogger(__name__)
 if not sys.warnoptions:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
+
+    # Temporarily suppress warnings from pydantic until we upgrade minimum version of pydantic to v2
+    # Which should happen in Airflow 2.8.0
+    warnings.filterwarnings(action="ignore", category=UserWarning, module=r"pydantic._internal._config")
 
 _SQLITE3_VERSION_PATTERN = re2.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
@@ -306,7 +314,11 @@ class AirflowConfigParser(ConfigParser):
             for s, s_c in self.configuration_description.items()
             for k, item in s_c.get("options").items()  # type: ignore[union-attr]
         }
-        sensitive = {(section, key) for (section, key), v in flattened.items() if v.get("sensitive") is True}
+        sensitive = {
+            (section.lower(), key.lower())
+            for (section, key), v in flattened.items()
+            if v.get("sensitive") is True
+        }
         depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
         depr_section = {
             (self.deprecated_sections[s][0], k) for s, k in sensitive if s in self.deprecated_sections
@@ -460,7 +472,7 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "logging_level"): _available_logging_levels,
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
-        ("logging", "celery_logging_level"): _available_logging_levels + [""],
+        ("logging", "celery_logging_level"): [*_available_logging_levels, ""],
         ("webserver", "analytical_tool"): ["google_analytics", "metarouter", "segment", ""],
     }
 
@@ -709,7 +721,6 @@ class AirflowConfigParser(ConfigParser):
     def validate(self):
         self._validate_sqlite3_version()
         self._validate_enums()
-        self._validate_max_tis_per_query()
 
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
@@ -730,26 +741,6 @@ class AirflowConfigParser(ConfigParser):
         self._upgrade_auth_backends()
         self._upgrade_postgres_metastore_conn()
         self.is_validated = True
-
-    def _validate_max_tis_per_query(self) -> None:
-        """
-        Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
-
-        If not met, a warning message is printed to guide the user to correct it.
-
-        More info: https://github.com/apache/airflow/pull/32572
-        """
-        max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
-        parallelism = self.getint("core", "parallelism")
-
-        if max_tis_per_query > parallelism:
-            warnings.warn(
-                f"Config scheduler.max_tis_per_query (value: {max_tis_per_query}) "
-                f"should NOT be greater than core.parallelism (value: {parallelism}). "
-                "Will now use core.parallelism as the max task instances per query "
-                "instead of specified value.",
-                UserWarning,
-            )
 
     def _upgrade_auth_backends(self):
         """
@@ -1469,14 +1460,13 @@ class AirflowConfigParser(ConfigParser):
             # if they are not provided through env, cmd and secret
             hidden = "< hidden >"
             for section, key in self.sensitive_config_values:
-                if not config_sources.get(section):
-                    continue
-                if config_sources[section].get(key, None):
-                    if display_source:
-                        source = config_sources[section][key][1]
-                        config_sources[section][key] = (hidden, source)
-                    else:
-                        config_sources[section][key] = hidden
+                if config_sources.get(section):
+                    if config_sources[section].get(key, None):
+                        if display_source:
+                            source = config_sources[section][key][1]
+                            config_sources[section][key] = (hidden, source)
+                        else:
+                            config_sources[section][key] = hidden
 
         return config_sources
 
@@ -1646,16 +1636,13 @@ class AirflowConfigParser(ConfigParser):
         configs: Iterable[tuple[str, ConfigParser]],
     ) -> bool:
         for config_type, config in configs:
-            if config_type == "default":
-                continue
-            try:
-                deprecated_section_array = config.items(section=deprecated_section, raw=True)
-                for key_candidate, _ in deprecated_section_array:
-                    if key_candidate == deprecated_key:
+            if config_type != "default":
+                with contextlib.suppress(NoSectionError):
+                    deprecated_section_array = config.items(section=deprecated_section, raw=True)
+                    if any(key == deprecated_key for key, _ in deprecated_section_array):
                         return True
-            except NoSectionError:
-                pass
-        return False
+        else:
+            return False
 
     @staticmethod
     def _deprecated_variable_is_set(deprecated_section: str, deprecated_key: str) -> bool:
@@ -1788,7 +1775,7 @@ class AirflowConfigParser(ConfigParser):
         unit_test_config_file = pathlib.Path(__file__).parent / "config_templates" / "unit_tests.cfg"
         unit_test_config = unit_test_config_file.read_text()
         self.remove_all_read_configurations()
-        with io.StringIO(unit_test_config) as test_config_file:
+        with StringIO(unit_test_config) as test_config_file:
             self.read_file(test_config_file)
         # set fernet key to a random value
         global FERNET_KEY
@@ -1851,8 +1838,8 @@ class AirflowConfigParser(ConfigParser):
                     raise AirflowConfigException(
                         f"The provider {provider} is attempting to contribute "
                         f"configuration section {provider_section} that "
-                        f"has already been added before. The source of it: {section_source}."
-                        "This is forbidden. A provider can only add new sections. It"
+                        f"has already been added before. The source of it: {section_source}. "
+                        "This is forbidden. A provider can only add new sections. It "
                         "cannot contribute options to existing sections or override other "
                         "provider's configuration.",
                         UserWarning,

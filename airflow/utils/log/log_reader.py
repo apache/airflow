@@ -19,22 +19,24 @@ from __future__ import annotations
 import logging
 import time
 from functools import cached_property
-from typing import Iterator
-
-from sqlalchemy.orm.session import Session
+from typing import TYPE_CHECKING, Iterator
 
 from airflow.configuration import conf
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
+    from airflow.models.taskinstance import TaskInstance
+
 
 class TaskLogReader:
     """Task log reader."""
 
-    STREAM_LOOP_SLEEP_SECONDS = 0.5
+    STREAM_LOOP_SLEEP_SECONDS = 1
     """Time to sleep between loops while waiting for more logs"""
 
     def read_log_chunks(

@@ -208,16 +208,14 @@ class InfoJsonEncodable(dict):
             raise Exception("Don't use both includes and excludes.")
         if self.includes:
             for field in self.includes:
-                if field in self._fields or not hasattr(self.obj, field):
-                    continue
-                setattr(self, field, getattr(self.obj, field))
-                self._fields.append(field)
+                if field not in self._fields and hasattr(self.obj, field):
+                    setattr(self, field, getattr(self.obj, field))
+                    self._fields.append(field)
         else:
             for field, val in self.obj.__dict__.items():
-                if field in self._fields or field in self.excludes or field in self.renames:
-                    continue
-                setattr(self, field, val)
-                self._fields.append(field)
+                if field not in self._fields and field not in self.excludes and field not in self.renames:
+                    setattr(self, field, val)
+                    self._fields.append(field)
 
 
 class DagInfo(InfoJsonEncodable):
@@ -399,15 +397,18 @@ def _is_name_redactable(name, redacted):
     return name not in redacted.skip_redact
 
 
-def print_exception(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except Exception as e:
-            log.exception(e)
+def print_warning(log):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except Exception as e:
+                log.warning(e)
 
-    return wrapper
+        return wrapper
+
+    return decorator
 
 
 @cache

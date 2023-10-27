@@ -22,10 +22,12 @@ GCSToGCSOperator operators.
 from __future__ import annotations
 
 import os
+import shutil
 from datetime import datetime
 
-from airflow import models
+from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
@@ -43,19 +45,38 @@ DAG_ID = "gcs_to_gcs"
 
 BUCKET_NAME_SRC = f"bucket_{DAG_ID}_{ENV_ID}"
 BUCKET_NAME_DST = f"bucket_dst_{DAG_ID}_{ENV_ID}"
-RANDOM_FILE_NAME = OBJECT_1 = OBJECT_2 = "/tmp/random.bin"
+RANDOM_FILE_NAME = OBJECT_1 = OBJECT_2 = "random.bin"
+HOME = "/home/airflow/gcs"
+PREFIX = f"{HOME}/data/{DAG_ID}_{ENV_ID}/"
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["gcs", "example"],
 ) as dag:
+
+    @task
+    def create_workdir() -> str:
+        """
+        Task creates working directory. The logic behind this task is a workaround that provides sustainable
+        execution in Composer environment: local files can be safely shared among tasks if they are located
+        within '/home/airflow/gcs/data/' folder which is mounted to GCS bucket under the hood
+        (https://cloud.google.com/composer/docs/composer-2/cloud-storage).
+        Otherwise, worker nodes don't share local path and thus files created by one task aren't guaranteed
+        to be accessible be others.
+        """
+        workdir = PREFIX if os.path.exists(HOME) else HOME
+        os.makedirs(PREFIX)
+        return workdir
+
+    create_workdir_task = create_workdir()
+
     generate_random_file = BashOperator(
         task_id="generate_random_file",
-        bash_command=f"cat /dev/urandom | head -c $((1 * 1024 * 1024)) > {RANDOM_FILE_NAME}",
+        bash_command=f"cat /dev/urandom | head -c $((1 * 1024 * 1024)) > {PREFIX + RANDOM_FILE_NAME}",
     )
 
     create_bucket_src = GCSCreateBucketOperator(
@@ -72,29 +93,29 @@ with models.DAG(
 
     upload_file_src = LocalFilesystemToGCSOperator(
         task_id="upload_file_src",
-        src=RANDOM_FILE_NAME,
-        dst=RANDOM_FILE_NAME,
+        src=PREFIX + RANDOM_FILE_NAME,
+        dst=PREFIX + RANDOM_FILE_NAME,
         bucket=BUCKET_NAME_SRC,
     )
 
     upload_file_src_sub = LocalFilesystemToGCSOperator(
         task_id="upload_file_src_sub",
-        src=RANDOM_FILE_NAME,
-        dst=f"subdir/{RANDOM_FILE_NAME}",
+        src=PREFIX + RANDOM_FILE_NAME,
+        dst=f"{PREFIX}subdir/{RANDOM_FILE_NAME}",
         bucket=BUCKET_NAME_SRC,
     )
 
     upload_file_dst = LocalFilesystemToGCSOperator(
         task_id="upload_file_dst",
-        src=RANDOM_FILE_NAME,
-        dst=RANDOM_FILE_NAME,
+        src=PREFIX + RANDOM_FILE_NAME,
+        dst=PREFIX + RANDOM_FILE_NAME,
         bucket=BUCKET_NAME_DST,
     )
 
     upload_file_dst_sub = LocalFilesystemToGCSOperator(
         task_id="upload_file_dst_sub",
-        src=RANDOM_FILE_NAME,
-        dst=f"subdir/{RANDOM_FILE_NAME}",
+        src=PREFIX + RANDOM_FILE_NAME,
+        dst=f"{PREFIX}subdir/{RANDOM_FILE_NAME}",
         bucket=BUCKET_NAME_DST,
     )
 
@@ -224,8 +245,13 @@ with models.DAG(
         task_id="delete_bucket_dst", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE
     )
 
+    @task(trigger_rule=TriggerRule.ALL_DONE)
+    def delete_work_dir(create_workdir_result: str) -> None:
+        shutil.rmtree(create_workdir_result)
+
     chain(
         # TEST SETUP
+        create_workdir_task,
         generate_random_file,
         [create_bucket_src, create_bucket_dst],
         [upload_file_src, upload_file_src_sub],
@@ -244,7 +270,7 @@ with models.DAG(
         move_single_file,
         move_files_with_list,
         # TEST TEARDOWN
-        [delete_bucket_src, delete_bucket_dst],
+        [delete_bucket_src, delete_bucket_dst, delete_work_dir(create_workdir_task)],
     )
 
     from tests.system.utils.watcher import watcher

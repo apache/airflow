@@ -21,7 +21,7 @@ import asyncio
 import json
 import re
 from enum import Enum
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import aiohttp
 import requests
@@ -29,9 +29,11 @@ from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
 
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class BatchState(Enum):
@@ -417,7 +419,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :param size: size value
         :return: true if valid format
         """
-        if size and not (isinstance(size, str) and re.match(r"^\d+[kmgt]b?$", size, re.IGNORECASE)):
+        if size and not (isinstance(size, str) and re.fullmatch(r"\d+[kmgt]b?", size, re.IGNORECASE)):
             raise ValueError(f"Invalid java size format for string'{size}'")
         return True
 
@@ -798,7 +800,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         :param size: size value
         :return: true if valid format
         """
-        if size and not (isinstance(size, str) and re.match(r"^\d+[kmgt]b?$", size, re.IGNORECASE)):
+        if size and not (isinstance(size, str) and re.fullmatch(r"\d+[kmgt]b?", size, re.IGNORECASE)):
             raise ValueError(f"Invalid java size format for string'{size}'")
         return True
 

@@ -18,17 +18,14 @@
 from __future__ import annotations
 
 import re
-import sys
 import warnings
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-import boto3
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import BaseOperator, XCom
+from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
@@ -38,11 +35,14 @@ from airflow.providers.amazon.aws.triggers.ecs import (
     ClusterInactiveTrigger,
     TaskDoneTrigger,
 )
+from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.helpers import prune_dict
-from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
+    import boto3
+
+    from airflow.models import TaskInstance
     from airflow.utils.context import Context
 
 DEFAULT_CONN_ID = "aws_default"
@@ -450,8 +450,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
         "network_configuration": "json",
         "tags": "json",
     }
-    REATTACH_XCOM_KEY = "ecs_task_arn"
-    REATTACH_XCOM_TASK_ID_TEMPLATE = "{task_id}_task_arn"
 
     def __init__(
         self,
@@ -477,7 +475,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         number_logs_exception: int = 10,
         wait_for_completion: bool = True,
         waiter_delay: int = 6,
-        waiter_max_attempts: int = 100,
+        waiter_max_attempts: int = 1000000,
+        # Set the default waiter duration to 70 days (attempts*delay)
+        # Airflow execution_timeout handles task timeout
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
@@ -507,6 +507,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
             self.awslogs_region = self.region
 
         self.arn: str | None = None
+        self._started_by: str | None = None
+
         self.retry_args = quota_retry
         self.task_log_fetcher: AwsTaskLogFetcher | None = None
         self.wait_for_completion = wait_for_completion
@@ -525,19 +527,25 @@ class EcsRunTaskOperator(EcsBaseOperator):
             return None
         return task_arn.split("/")[-1]
 
-    @provide_session
-    def execute(self, context, session=None):
+    def execute(self, context):
         self.log.info(
             "Running ECS Task - Task definition: %s - on cluster %s", self.task_definition, self.cluster
         )
         self.log.info("EcsOperator overrides: %s", self.overrides)
 
         if self.reattach:
-            self._try_reattach_task(context)
+            # Generate deterministic UUID which refers to unique TaskInstanceKey
+            ti: TaskInstance = context["ti"]
+            self._started_by = generate_uuid(*map(str, ti.key.primary))
+            self.log.info("Try to find run with startedBy=%r", self._started_by)
+            self._try_reattach_task(started_by=self._started_by)
 
         if not self.arn:
             # start the task except if we reattached to an existing one just before.
-            self._start_task(context)
+            self._start_task()
+
+        if self.do_xcom_push:
+            self.xcom_push(context, key="ecs_task_arn", value=self.arn)
 
         if self.deferrable:
             self.defer(
@@ -574,7 +582,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         else:
             self._wait_for_task_ended()
 
-        self._after_execution(session)
+        self._after_execution()
 
         if self.do_xcom_push and self.task_log_fetcher:
             return self.task_log_fetcher.get_last_log_message()
@@ -598,27 +606,15 @@ class EcsRunTaskOperator(EcsBaseOperator):
             if len(one_log["events"]) > 0:
                 return one_log["events"][0]["message"]
 
-    @provide_session
-    def _after_execution(self, session=None):
+    def _after_execution(self):
         self._check_success_task()
 
-        self.log.info("ECS Task has been successfully executed")
-
-        if self.reattach:
-            # Clear the XCom value storing the ECS task ARN if the task has completed
-            # as we can't reattach it anymore
-            self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
-
-    def _xcom_del(self, session, task_id):
-        session.query(XCom).filter(XCom.dag_id == self.dag_id, XCom.task_id == task_id).delete()
-
-    @AwsBaseHook.retry(should_retry_eni)
-    def _start_task(self, context):
+    def _start_task(self):
         run_opts = {
             "cluster": self.cluster,
             "taskDefinition": self.task_definition,
             "overrides": self.overrides,
-            "startedBy": self.owner,
+            "startedBy": self._started_by or self.owner,
         }
 
         if self.capacity_provider_strategy:
@@ -650,27 +646,17 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.arn = response["tasks"][0]["taskArn"]
         self.log.info("ECS task ID is: %s", self._get_ecs_task_id(self.arn))
 
-        if self.reattach:
-            # Save the task ARN in XCom to be able to reattach it if needed
-            self.xcom_push(context, key=self.REATTACH_XCOM_KEY, value=self.arn)
-
-    def _try_reattach_task(self, context):
-        task_def_resp = self.client.describe_task_definition(taskDefinition=self.task_definition)
-        ecs_task_family = task_def_resp["taskDefinition"]["family"]
-
+    def _try_reattach_task(self, started_by: str):
+        if not started_by:
+            raise AirflowException("`started_by` should not be empty or None")
         list_tasks_resp = self.client.list_tasks(
-            cluster=self.cluster, desiredStatus="RUNNING", family=ecs_task_family
+            cluster=self.cluster, desiredStatus="RUNNING", startedBy=started_by
         )
         running_tasks = list_tasks_resp["taskArns"]
-
-        # Check if the ECS task previously launched is already running
-        previous_task_arn = self.xcom_pull(
-            context,
-            task_ids=self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id),
-            key=self.REATTACH_XCOM_KEY,
-        )
-        if previous_task_arn in running_tasks:
-            self.arn = previous_task_arn
+        if running_tasks:
+            if len(running_tasks) > 1:
+                self.log.warning("Found more then one previously launched tasks: %s", running_tasks)
+            self.arn = running_tasks[0]
             self.log.info("Reattaching previously launched task: %s", self.arn)
         else:
             self.log.info("No active previously launched task found to reattach")
@@ -680,7 +666,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
             return
 
         waiter = self.client.get_waiter("tasks_stopped")
-        waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
         waiter.wait(
             cluster=self.cluster,
             tasks=[self.arn],
@@ -689,8 +674,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
                 "MaxAttempts": self.waiter_max_attempts,
             },
         )
-
-        return
 
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix

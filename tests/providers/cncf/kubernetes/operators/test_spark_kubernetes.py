@@ -34,6 +34,41 @@ from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKu
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
 
+
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+def test_spark_kubernetes_operator(mock_kubernetes_hook):
+    operator = SparkKubernetesOperator(
+        task_id="task_id",
+        application_file=join(Path(__file__).parent, "spark_application_test.yaml"),
+        kubernetes_conn_id="kubernetes_conn_id",
+        in_cluster=True,
+        cluster_context="cluster_context",
+        config_file="config_file",
+    )
+    mock_kubernetes_hook.assert_not_called()  # constructor shouldn't call the hook
+
+    assert "hook" not in operator.__dict__  # Cached property has not been accessed as part of construction.
+
+
+@patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+def test_spark_kubernetes_operator_hook(mock_kubernetes_hook):
+    operator = SparkKubernetesOperator(
+        task_id="task_id",
+        application_file=join(Path(__file__).parent, "spark_application_test.yaml"),
+        kubernetes_conn_id="kubernetes_conn_id",
+        in_cluster=True,
+        cluster_context="cluster_context",
+        config_file="config_file",
+    )
+    operator.hook
+    mock_kubernetes_hook.assert_called_with(
+        conn_id="kubernetes_conn_id",
+        in_cluster=True,
+        cluster_context="cluster_context",
+        config_file="config_file",
+    )
+
+
 TEST_K8S_DICT = {
     "apiVersion": "sparkoperator.k8s.io/v1beta2",
     "kind": "SparkApplication",
@@ -78,7 +113,6 @@ TEST_K8S_DICT = {
         "volumes": [],
     },
 }
-
 
 TEST_APPLICATION_DICT = {
     "apiVersion": "sparkoperator.k8s.io/v1beta2",

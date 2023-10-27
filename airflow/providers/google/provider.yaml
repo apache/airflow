@@ -30,6 +30,11 @@ description: |
 
 suspended: false
 versions:
+  - 10.10.1
+  - 10.10.0
+  - 10.9.0
+  - 10.8.0
+  - 10.7.0
   - 10.6.0
   - 10.5.0
   - 10.4.0
@@ -72,12 +77,13 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
-  - apache-airflow-providers-common-sql>=1.3.1
+  - apache-airflow>=2.5.0
+  - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
+  - gcsfs>=2023.9.2
   - google-ads>=21.2.0
   - google-api-core>=2.11.0
   - google-api-python-client>=1.6.0
@@ -117,6 +123,7 @@ dependencies:
   - google-cloud-videointelligence>=2.11.0
   - google-cloud-vision>=3.4.0
   - google-cloud-workflows>=1.10.0
+  - google-cloud-run>=0.9.0
   - google-cloud-batch>=0.13.0
   - grpcio-gcp>=0.2.2
   - httpx
@@ -182,6 +189,11 @@ integrations:
     external-doc-url: https://cloud.google.com/composer
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/cloud/cloud_composer.rst
+    tags: [google]
+  - integration-name: Google Cloud Run
+    external-doc-url: https://cloud.google.com/run
+    how-to-guide:
+      - /docs/apache-airflow-providers-google/operators/cloud/cloud_run.rst
     tags: [google]
   - integration-name: Google Cloud Batch
     external-doc-url: https://cloud.google.com/batch
@@ -489,6 +501,9 @@ operators:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.operators.cloud_run
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.operators.cloud_memorystore
@@ -611,6 +626,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.endpoint_service
       - airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.operators.vertex_ai.model_service
+      - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -687,6 +703,9 @@ sensors:
     python-modules:
       - airflow.providers.google.cloud.sensors.tasks
 
+filesystems:
+  - airflow.providers.google.cloud.fs.gcs
+
 hooks:
   - integration-name: Google Ads
     python-modules:
@@ -709,6 +728,9 @@ hooks:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.hooks.cloud_run
   - integration-name: Google Cloud Memorystore
     python-modules:
       - airflow.providers.google.cloud.hooks.cloud_memorystore
@@ -854,6 +876,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service
       - airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.hooks.vertex_ai.model_service
+      - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
@@ -877,6 +900,9 @@ triggers:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Cloud Run
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_run
   - integration-name: Google Cloud Storage Transfer Service
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_storage_transfer_service
@@ -889,6 +915,9 @@ triggers:
   - integration-name: Google Data Fusion
     python-modules:
       - airflow.providers.google.cloud.triggers.datafusion
+  - integration-name: Google Dataplex
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataplex
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.triggers.dataproc
@@ -928,9 +957,6 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gdrive_to_gcs.rst
     python-module: airflow.providers.google.cloud.transfers.gdrive_to_gcs
-  - source-integration-name: Microsoft SQL Server (MSSQL)
-    target-integration-name: Google Cloud Storage (GCS)
-    python-module: airflow.providers.google.cloud.transfers.mssql_to_gcs
   - source-integration-name: Microsoft Azure FileShare
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/azure_fileshare_to_gcs.rst
@@ -1113,6 +1139,8 @@ extra-links:
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIBatchPredictionJobListLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink

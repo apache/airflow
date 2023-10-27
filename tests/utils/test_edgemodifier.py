@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -45,7 +45,7 @@ def test_dag():
         return f"OP:{task_id}"
 
     with DAG(dag_id="test_xcom_dag", default_args=DEFAULT_ARGS) as dag:
-        operators = [PythonOperator(python_callable=f, task_id="test_op_%i" % i) for i in range(4)]
+        operators = [PythonOperator(python_callable=f, task_id=f"test_op_{i}") for i in range(4)]
         return dag, operators
 
 

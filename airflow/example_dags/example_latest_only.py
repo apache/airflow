@@ -18,16 +18,16 @@
 """Example of the LatestOnlyOperator"""
 from __future__ import annotations
 
-import datetime as dt
+import datetime
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.latest_only import LatestOnlyOperator
 
 with DAG(
     dag_id="latest_only",
-    schedule=dt.timedelta(hours=4),
-    start_date=dt.datetime(2021, 1, 1),
+    schedule=datetime.timedelta(hours=4),
+    start_date=datetime.datetime(2021, 1, 1),
     catchup=False,
     tags=["example2", "example3"],
 ) as dag:

@@ -31,30 +31,43 @@ from airflow.providers.slack.operators.slack import (
 )
 
 SLACK_API_TEST_CONNECTION_ID = "test_slack_conn_id"
+DEFAULT_HOOKS_PARAMETERS = {"base_url": None, "timeout": None, "proxy": None, "retry_handlers": None}
 
 
 class TestSlackAPIOperator:
-    @mock.patch("airflow.providers.slack.operators.slack.mask_secret")
-    def test_mask_token(self, mock_mask_secret):
-        SlackAPIOperator(task_id="test-mask-token", token="super-secret-token")
-        mock_mask_secret.assert_called_once_with("super-secret-token")
-
     @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
     @pytest.mark.parametrize(
-        "token,conn_id",
+        "slack_op_kwargs, hook_extra_kwargs",
         [
-            ("token", SLACK_API_TEST_CONNECTION_ID),
-            ("token", None),
-            (None, SLACK_API_TEST_CONNECTION_ID),
+            pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
+            pytest.param(
+                {
+                    "base_url": "https://foo.bar",
+                    "timeout": 42,
+                    "proxy": "http://spam.egg",
+                    "retry_handlers": [],
+                },
+                {
+                    "base_url": "https://foo.bar",
+                    "timeout": 42,
+                    "proxy": "http://spam.egg",
+                    "retry_handlers": [],
+                },
+                id="with-extra-hook-parameters",
+            ),
         ],
     )
-    def test_hook(self, mock_slack_hook_cls, token, conn_id):
+    def test_hook(self, mock_slack_hook_cls, slack_op_kwargs, hook_extra_kwargs):
         mock_slack_hook = mock_slack_hook_cls.return_value
-        op = SlackAPIOperator(task_id="test-mask-token", token=token, slack_conn_id=conn_id)
+        op = SlackAPIOperator(
+            task_id="test-mask-token", slack_conn_id=SLACK_API_TEST_CONNECTION_ID, **slack_op_kwargs
+        )
         hook = op.hook
         assert hook == mock_slack_hook
         assert hook is op.hook
-        mock_slack_hook_cls.assert_called_once_with(token=token, slack_conn_id=conn_id)
+        mock_slack_hook_cls.assert_called_once_with(
+            slack_conn_id=SLACK_API_TEST_CONNECTION_ID, **hook_extra_kwargs
+        )
 
 
 class TestSlackAPIPostOperator:
@@ -109,11 +122,10 @@ class TestSlackAPIPostOperator:
             "blocks": self.test_blocks_in_json,
         }
 
-    def __construct_operator(self, test_token, test_slack_conn_id, test_api_params=None):
+    def __construct_operator(self, test_slack_conn_id, test_api_params=None):
         return SlackAPIPostOperator(
             task_id="slack",
             username=self.test_username,
-            token=test_token,
             slack_conn_id=test_slack_conn_id,
             channel=self.test_channel,
             text=self.test_text,
@@ -124,11 +136,10 @@ class TestSlackAPIPostOperator:
         )
 
     def test_init_with_valid_params(self):
-        test_token = "test_token"
-
-        slack_api_post_operator = self.__construct_operator(test_token, None, self.test_api_params)
-        assert slack_api_post_operator.token == test_token
-        assert slack_api_post_operator.slack_conn_id is None
+        slack_api_post_operator = self.__construct_operator(
+            SLACK_API_TEST_CONNECTION_ID, self.test_api_params
+        )
+        assert slack_api_post_operator.slack_conn_id == SLACK_API_TEST_CONNECTION_ID
         assert slack_api_post_operator.method == self.expected_method
         assert slack_api_post_operator.text == self.test_text
         assert slack_api_post_operator.channel == self.test_channel
@@ -137,10 +148,7 @@ class TestSlackAPIPostOperator:
         assert slack_api_post_operator.icon_url == self.test_icon_url
         assert slack_api_post_operator.attachments == self.test_attachments
         assert slack_api_post_operator.blocks == self.test_blocks
-
-        slack_api_post_operator = self.__construct_operator(None, SLACK_API_TEST_CONNECTION_ID)
-        assert slack_api_post_operator.token is None
-        assert slack_api_post_operator.slack_conn_id == SLACK_API_TEST_CONNECTION_ID
+        assert not hasattr(slack_api_post_operator, "token")
 
     @mock.patch("airflow.providers.slack.operators.slack.SlackHook")
     def test_api_call_params_with_default_args(self, mock_hook):
@@ -177,10 +185,9 @@ class TestSlackAPIFileOperator:
         self.test_api_params = {"key": "value"}
         self.expected_method = "files.upload"
 
-    def __construct_operator(self, test_token, test_slack_conn_id, test_api_params=None):
+    def __construct_operator(self, test_slack_conn_id, test_api_params=None):
         return SlackAPIFileOperator(
             task_id="slack",
-            token=test_token,
             slack_conn_id=test_slack_conn_id,
             channels=self.test_channel,
             initial_comment=self.test_initial_comment,
@@ -191,11 +198,10 @@ class TestSlackAPIFileOperator:
         )
 
     def test_init_with_valid_params(self):
-        test_token = "test_token"
-
-        slack_api_post_operator = self.__construct_operator(test_token, None, self.test_api_params)
-        assert slack_api_post_operator.token == test_token
-        assert slack_api_post_operator.slack_conn_id is None
+        slack_api_post_operator = self.__construct_operator(
+            SLACK_API_TEST_CONNECTION_ID, self.test_api_params
+        )
+        assert slack_api_post_operator.slack_conn_id == SLACK_API_TEST_CONNECTION_ID
         assert slack_api_post_operator.method == self.expected_method
         assert slack_api_post_operator.initial_comment == self.test_initial_comment
         assert slack_api_post_operator.channels == self.test_channel
@@ -203,10 +209,7 @@ class TestSlackAPIFileOperator:
         assert slack_api_post_operator.filename == self.filename
         assert slack_api_post_operator.filetype == self.test_filetype
         assert slack_api_post_operator.content == self.test_content
-
-        slack_api_post_operator = self.__construct_operator(None, SLACK_API_TEST_CONNECTION_ID)
-        assert slack_api_post_operator.token is None
-        assert slack_api_post_operator.slack_conn_id == SLACK_API_TEST_CONNECTION_ID
+        assert not hasattr(slack_api_post_operator, "token")
 
     @mock.patch("airflow.providers.slack.operators.slack.SlackHook.send_file")
     @pytest.mark.parametrize("initial_comment", [None, "foo-bar"])

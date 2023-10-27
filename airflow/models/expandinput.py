@@ -24,8 +24,6 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequ
 
 import attr
 
-from airflow.typing_compat import TypeGuard
-from airflow.utils.context import Context
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -34,6 +32,8 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.models.xcom_arg import XComArg
+    from airflow.typing_compat import TypeGuard
+    from airflow.utils.context import Context
 
 ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
@@ -134,6 +134,7 @@ class DictOfListsExpandInput(NamedTuple):
         If any arguments are not known right now (upstream task not finished),
         they will not be present in the dict.
         """
+
         # TODO: This initiates one database call for each XComArg. Would it be
         # more efficient to do one single db call and unpack the value here?
         def _get_length(v: OperatorExpandArgument) -> int | None:

@@ -25,10 +25,11 @@ from airflow.providers.google.cloud.links.dataform import (
 )
 
 if TYPE_CHECKING:
+    from google.api_core.retry import Retry
+
     from airflow.utils.context import Context
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.dataform_v1beta1.types import (
     CompilationResult,
     InstallNpmPackagesResponse,
@@ -65,7 +66,7 @@ class DataformCreateCompilationResultOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("repository_id", "impersonation_chain")
+    template_fields = ("project_id", "region", "repository_id", "compilation_result", "impersonation_chain")
 
     def __init__(
         self,
@@ -131,7 +132,13 @@ class DataformGetCompilationResultOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("repository_id", "compilation_result_id", "impersonation_chain")
+    template_fields = (
+        "project_id",
+        "region",
+        "repository_id",
+        "compilation_result_id",
+        "impersonation_chain",
+    )
 
     def __init__(
         self,
@@ -201,7 +208,7 @@ class DataformCreateWorkflowInvocationOperator(GoogleCloudBaseOperator):
     :param wait_time: Number of seconds between checks
     """
 
-    template_fields = ("workflow_invocation", "impersonation_chain")
+    template_fields = ("project_id", "region", "repository_id", "workflow_invocation", "impersonation_chain")
     operator_extra_links = (DataformWorkflowInvocationLink(),)
 
     def __init__(
@@ -290,7 +297,13 @@ class DataformGetWorkflowInvocationOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("repository_id", "workflow_invocation_id", "impersonation_chain")
+    template_fields = (
+        "project_id",
+        "region",
+        "repository_id",
+        "workflow_invocation_id",
+        "impersonation_chain",
+    )
     operator_extra_links = (DataformWorkflowInvocationLink(),)
 
     def __init__(
@@ -357,7 +370,13 @@ class DataformCancelWorkflowInvocationOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("repository_id", "workflow_invocation_id", "impersonation_chain")
+    template_fields = (
+        "project_id",
+        "region",
+        "repository_id",
+        "workflow_invocation_id",
+        "impersonation_chain",
+    )
     operator_extra_links = (DataformWorkflowInvocationLink(),)
 
     def __init__(
@@ -425,6 +444,7 @@ class DataformCreateRepositoryOperator(GoogleCloudBaseOperator):
     operator_extra_links = (DataformRepositoryLink(),)
     template_fields = (
         "project_id",
+        "region",
         "repository_id",
         "impersonation_chain",
     )
@@ -504,6 +524,7 @@ class DataformDeleteRepositoryOperator(GoogleCloudBaseOperator):
 
     template_fields = (
         "project_id",
+        "region",
         "repository_id",
         "impersonation_chain",
     )
@@ -578,7 +599,9 @@ class DataformCreateWorkspaceOperator(GoogleCloudBaseOperator):
     operator_extra_links = (DataformWorkspaceLink(),)
     template_fields = (
         "project_id",
+        "region",
         "repository_id",
+        "workspace_id",
         "impersonation_chain",
     )
 
@@ -662,6 +685,7 @@ class DataformDeleteWorkspaceOperator(GoogleCloudBaseOperator):
 
     template_fields = (
         "project_id",
+        "region",
         "repository_id",
         "workspace_id",
         "impersonation_chain",
@@ -738,6 +762,7 @@ class DataformWriteFileOperator(GoogleCloudBaseOperator):
 
     template_fields = (
         "project_id",
+        "region",
         "repository_id",
         "workspace_id",
         "impersonation_chain",
@@ -819,6 +844,7 @@ class DataformMakeDirectoryOperator(GoogleCloudBaseOperator):
 
     template_fields = (
         "project_id",
+        "region",
         "repository_id",
         "workspace_id",
         "impersonation_chain",
@@ -899,6 +925,7 @@ class DataformRemoveFileOperator(GoogleCloudBaseOperator):
 
     template_fields = (
         "project_id",
+        "region",
         "repository_id",
         "workspace_id",
         "impersonation_chain",
@@ -977,6 +1004,7 @@ class DataformRemoveDirectoryOperator(GoogleCloudBaseOperator):
 
     template_fields = (
         "project_id",
+        "region",
         "repository_id",
         "workspace_id",
         "impersonation_chain",
@@ -1055,6 +1083,7 @@ class DataformInstallNpmPackagesOperator(GoogleCloudBaseOperator):
 
     template_fields = (
         "project_id",
+        "region",
         "repository_id",
         "workspace_id",
         "impersonation_chain",

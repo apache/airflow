@@ -81,7 +81,6 @@ class ProduceToTopicOperator(BaseOperator):
         poll_timeout: float = 0,
         **kwargs: Any,
     ) -> None:
-
         super().__init__(**kwargs)
 
         if delivery_callback:
@@ -107,7 +106,6 @@ class ProduceToTopicOperator(BaseOperator):
         return
 
     def execute(self, context) -> None:
-
         # Get producer and callable
         producer = KafkaProducerHook(kafka_config_id=self.kafka_config_id).get_producer()
 

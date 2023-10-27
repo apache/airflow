@@ -74,6 +74,10 @@ Variable                                    Type                  Description
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
+``{{ triggering_dataset_events }}``         dict[str,             | If in a Dataset Scheduled DAG, a map of Dataset URI to a list of triggering :class:`~airflow.models.dataset.DatasetEvent`
+                                            list[DatasetEvent]]   | (there may be more than one, if there are multiple Datasets with different frequencies).
+                                                                  | Read more here :doc:`Datasets <authoring-and-scheduling/datasets>`.
+                                                                  | Added in version 2.4.
 =========================================== ===================== ===================================================================
 
 .. note::
@@ -99,7 +103,7 @@ existing code to use other variables instead.
 =====================================   ====================================
 Deprecated Variable                     Description
 =====================================   ====================================
-``{{ execution_date }}``                the execution date (logical date), same as ``dag_run.logical_date``
+``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
 ``{{ next_execution_date }}``           the logical date of the next scheduled run (if applicable);
                                         you may be able to use ``data_interval_end`` instead
 ``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD`` if exists, else ``None``
@@ -128,7 +132,7 @@ You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
 ``{{ var.json.my_dict_var.key1 }}``.
 
-It is also possible to fetch a variable by string if needed with
+It is also possible to fetch a variable by string if needed (for example your variable key contains dots) with
 ``{{ var.value.get('my.var', 'fallback') }}`` or
 ``{{ var.json.get('my.dict.var', {'key1': 'val1'}) }}``. Defaults can be
 supplied in case the variable does not exist.

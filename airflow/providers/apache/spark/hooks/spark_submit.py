@@ -78,6 +78,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit or spark3-submit.
+    :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
+        on keytab for Kerberos login
     """
 
     conn_name_attr = "conn_id"
@@ -120,6 +122,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         env_vars: dict[str, Any] | None = None,
         verbose: bool = False,
         spark_binary: str | None = None,
+        *,
+        use_krb5ccache: bool = False,
     ) -> None:
         super().__init__()
         self._conf = conf or {}
@@ -138,7 +142,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._executor_memory = executor_memory
         self._driver_memory = driver_memory
         self._keytab = keytab
-        self._principal = principal
+        self._principal = self._resolve_kerberos_principal(principal) if use_krb5ccache else principal
+        self._use_krb5ccache = use_krb5ccache
         self._proxy_user = proxy_user
         self._name = name
         self._num_executors = num_executors
@@ -268,7 +273,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         connection_cmd += ["--master", self._connection["master"]]
 
         for key in self._conf:
-            connection_cmd += ["--conf", f"{key}={str(self._conf[key])}"]
+            connection_cmd += ["--conf", f"{key}={self._conf[key]}"]
         if self._env_vars and (self._is_kubernetes or self._is_yarn):
             if self._is_yarn:
                 tmpl = "spark.yarn.appMasterEnv.{}={}"
@@ -317,6 +322,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--keytab", self._keytab]
         if self._principal:
             connection_cmd += ["--principal", self._principal]
+        if self._use_krb5ccache:
+            if not os.getenv("KRB5CCNAME"):
+                raise AirflowException(
+                    "KRB5CCNAME environment variable required to use ticket ccache is missing."
+                )
+            connection_cmd += ["--conf", "spark.kerberos.renewal.credentials=ccache"]
         if self._proxy_user:
             connection_cmd += ["--proxy-user", self._proxy_user]
         if self._name:
@@ -366,7 +377,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
 
         else:
-
             connection_cmd = self._get_spark_binary_path()
 
             # The url to the spark master
@@ -383,6 +393,26 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self.log.debug("Poll driver status cmd: %s", connection_cmd)
 
         return connection_cmd
+
+    def _resolve_kerberos_principal(self, principal: str | None) -> str:
+        """Resolve kerberos principal if airflow > 2.8.
+
+        TODO: delete when min airflow version >= 2.8 and import directly from airflow.security.kerberos
+        """
+        from packaging.version import Version
+
+        from airflow.version import version
+
+        if Version(version) < Version("2.8"):
+            from airflow.utils.net import get_hostname
+
+            return principal or airflow_conf.get_mandatory_value("kerberos", "principal").replace(
+                "_HOST", get_hostname()
+            )
+        else:
+            from airflow.security.kerberos import get_kerberos_principle
+
+            return get_kerberos_principle(principal)
 
     def submit(self, application: str = "", **kwargs: Any) -> None:
         """
@@ -461,9 +491,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # If we run yarn cluster mode, we want to extract the application id from
             # the logs so we can kill the application when we stop it unexpectedly
             if self._is_yarn and self._connection["deploy_mode"] == "cluster":
-                match = re.search("(application[0-9_]+)", line)
+                match = re.search("application[0-9_]+", line)
                 if match:
-                    self._yarn_application_id = match.groups()[0]
+                    self._yarn_application_id = match.group(0)
                     self.log.info("Identified spark driver id: %s", self._yarn_application_id)
 
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
@@ -471,21 +501,21 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             elif self._is_kubernetes:
                 match = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver)", line)
                 if match:
-                    self._kubernetes_driver_pod = match.groups()[0]
+                    self._kubernetes_driver_pod = match.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
 
                 # Store the Spark Exit code
                 match_exit_code = re.search(r"\s*[eE]xit code: (\d+)", line)
                 if match_exit_code:
-                    self._spark_exit_code = int(match_exit_code.groups()[0])
+                    self._spark_exit_code = int(match_exit_code.group(1))
 
             # if we run in standalone cluster mode and we want to track the driver status
             # we need to extract the driver id from the logs. This allows us to poll for
             # the status using the driver id. Also, we can kill the driver when needed.
             elif self._should_track_driver_status and not self._driver_id:
-                match_driver_id = re.search(r"(driver-[0-9\-]+)", line)
+                match_driver_id = re.search(r"driver-[0-9\-]+", line)
                 if match_driver_id:
-                    self._driver_id = match_driver_id.groups()[0]
+                    self._driver_id = match_driver_id.group(0)
                     self.log.info("identified spark driver id: %s", self._driver_id)
 
             self.log.info(line)
@@ -554,7 +584,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         # Keep polling as long as the driver is processing
         while self._driver_status not in ["FINISHED", "UNKNOWN", "KILLED", "FAILED", "ERROR"]:
-
             # Sleep for n seconds as we do not want to spam the cluster
             time.sleep(self._status_poll_interval)
 

@@ -31,6 +31,7 @@ from marshmallow.exceptions import ValidationError
 
 from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import print_export_output
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -70,7 +71,7 @@ def users_create(args):
             valid_roles = appbuilder.sm.get_all_roles()
             raise SystemExit(f"{args.role} is not a valid role. Valid roles are: {valid_roles}")
         if args.use_random_password:
-            password = "".join(random.choice(string.printable) for _ in range(16))
+            password = "".join(random.choices(string.printable, k=16))
         elif args.password:
             password = args.password
         else:
@@ -173,7 +174,7 @@ def users_export(args):
 
         with open(args.export, "w") as file:
             file.write(json.dumps(users, sort_keys=True, indent=4))
-            print(f"{len(users)} users successfully exported to {file.name}")
+            print_export_output("users", users, file)
 
 
 @cli_utils.action_cli

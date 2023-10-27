@@ -89,7 +89,7 @@ def _promote_new_flags():
         console.print("[yellow]Still too slow?[/]")
         console.print()
     console.print("You can only build one documentation package:")
-    console.print("    [info]breeze build-docs --package-filter <PACKAGE-NAME>[/]")
+    console.print("    [info]breeze build-docs <PACKAGES>[/]")
     console.print()
     console.print("This usually takes from [yellow]20 seconds[/] to [yellow]2 minutes[/].")
     console.print()

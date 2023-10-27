@@ -24,6 +24,8 @@ description: |
 
 suspended: false
 versions:
+  - 4.2.0
+  - 4.1.1
   - 4.1.0
   - 4.0.0
   - 3.2.1
@@ -42,7 +44,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - hdfs[avro,dataframe,kerberos]>=2.0.4
 
 integrations:

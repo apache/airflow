@@ -54,11 +54,16 @@ movie, HTML, or PDF attachment when you could as easily describe it with plain t
 Before reporting vulnerabilities, please make sure to read and understand the
 [security model](https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html) of Airflow, because
 some of the potential security vulnerabilities that are valid for projects that are publicly accessible
-from the Internet, are not valid for Airflow. Airflow is not designed to be used by untrusted users, and some
-trusted users are trusted enough to do a variety of operations that could be considered as vulnerabilities
-in other products/circumstances. Therefore, some potential security vulnerabilities do not
-apply to Airflow, or have a different severity than some generic scoring systems (for example `CVSS`)
-calculation suggests.
+from the Internet, are not valid for Airflow.
+
+
+Airflow is not designed to be used by untrusted users, and some trusted users are trusted enough to do a
+variety of operations that could be considered as vulnerabilities in other products/circumstances.
+Therefore, some potential security vulnerabilities do not apply to Airflow, or have a different severity
+than some generic scoring systems (for example `CVSS`) calculation suggests. Severity of the issue is
+determined based on the criteria described in the
+[Severity Rating blog post](https://security.apache.org/blog/severityrating/) by the Apache Software
+Foundation Security team.
 
 The [Airflow Security Team](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#security-team) will get back to you after assessing the report.
 

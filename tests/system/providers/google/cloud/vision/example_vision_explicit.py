@@ -20,8 +20,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vision import (
     CloudVisionAddProductToProductSetOperator,
@@ -68,7 +68,7 @@ LOCATION = "europe-west1"
 BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
 FILE_NAME = "image1.jpg"
 
-GCP_VISION_PRODUCT_SET_ID = "product_set_explicit_id"
+GCP_VISION_PRODUCT_SET_ID = f"product_set_explicit_id_{ENV_ID}"
 GCP_VISION_PRODUCT_ID = "product_explicit_id"
 GCP_VISION_REFERENCE_IMAGE_ID = "reference_image_explicit_id"
 
@@ -92,14 +92,13 @@ BUCKET_NAME_SRC = "cloud-samples-data"
 PATH_SRC = "vision/ocr/sign.jpg"
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "vision"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", project_id=PROJECT_ID, bucket_name=BUCKET_NAME
     )

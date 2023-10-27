@@ -18,17 +18,22 @@ from __future__ import annotations
 
 import asyncio
 import typing
-from datetime import datetime
 
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import utcnow
+
+if typing.TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session
+
+    from airflow.utils.state import DagRunState
 
 
 class TaskStateTrigger(BaseTrigger):
@@ -65,7 +70,7 @@ class TaskStateTrigger(BaseTrigger):
         self.execution_dates = execution_dates
         self.poll_interval = poll_interval
         self.trigger_start_time = trigger_start_time
-        self.states = states if states else [TaskInstanceState.SUCCESS.value]
+        self.states = states or [TaskInstanceState.SUCCESS.value]
         self._timeout_sec = 60
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
@@ -90,8 +95,8 @@ class TaskStateTrigger(BaseTrigger):
         If dag with specified name was not in the running state after _timeout_sec seconds
         after starting execution process of the trigger, terminate with status 'timeout'.
         """
-        while True:
-            try:
+        try:
+            while True:
                 delta = utcnow() - self.trigger_start_time
                 if delta.total_seconds() < self._timeout_sec:
                     # mypy confuses typing here
@@ -107,9 +112,8 @@ class TaskStateTrigger(BaseTrigger):
                     return
                 self.log.info("Task is still running, sleeping for %s seconds...", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
-            except Exception:
-                yield TriggerEvent({"status": "failed"})
-                return
+        except Exception:
+            yield TriggerEvent({"status": "failed"})
 
     @sync_to_async
     @provide_session
