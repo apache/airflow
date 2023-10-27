@@ -55,19 +55,22 @@ class TestBatchOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
     def setup_method(self, _, get_client_type_mock):
         self.get_client_type_mock = get_client_type_mock
-        self.batch = BatchOperator(
+        self.default_op_kwargs = dict(
             task_id="task",
             job_name=JOB_NAME,
             job_queue="queue",
             job_definition="hello-world",
-            max_retries=self.MAX_RETRIES,
-            status_retries=self.STATUS_RETRIES,
             parameters=None,
             container_overrides={},
             array_properties=None,
+            tags={},
+        )
+        self.batch = BatchOperator(
+            **self.default_op_kwargs,
             aws_conn_id="airflow_test",
             region_name="eu-west-1",
-            tags={},
+            max_retries=self.MAX_RETRIES,
+            status_retries=self.STATUS_RETRIES,
         )
         self.client_mock = self.get_client_type_mock.return_value
         # We're mocking all actual AWS calls and don't need a connection. This
@@ -86,6 +89,32 @@ class TestBatchOperator:
         self.batch.job_id = JOB_ID
 
         self.mock_context = mock.MagicMock()
+
+    def test_base_aws_op_attributes(self):
+        op = BatchOperator(**self.default_op_kwargs)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+        assert op.hook.max_retries == 4200
+        assert op.hook.status_retries == 10
+
+        op = BatchOperator(
+            **self.default_op_kwargs,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+            max_retries=42,
+            status_retries=3,
+        )
+        assert op.hook.aws_conn_id == "aws-test-custom-conn"
+        assert op.hook._region_name == "eu-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+        assert op.hook.max_retries == 42
+        assert op.hook.status_retries == 3
 
     def test_init(self):
         assert self.batch.job_id == JOB_ID
@@ -111,19 +140,22 @@ class TestBatchOperator:
 
     def test_template_fields_overrides(self):
         assert self.batch.template_fields == (
-            "job_id",
-            "job_name",
-            "job_definition",
-            "job_queue",
-            "container_overrides",
             "array_properties",
-            "node_overrides",
-            "parameters",
-            "waiters",
-            "tags",
-            "wait_for_completion",
+            "aws_conn_id",
             "awslogs_enabled",
             "awslogs_fetch_interval",
+            "container_overrides",
+            "job_definition",
+            "job_id",
+            "job_name",
+            "job_queue",
+            "node_overrides",
+            "parameters",
+            "region_name",
+            "tags",
+            "verify",
+            "wait_for_completion",
+            "waiters",
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -305,28 +337,47 @@ class TestBatchOperator:
 
 
 class TestBatchCreateComputeEnvironmentOperator:
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self):
+        self.default_op_kwargs = dict(
+            task_id="test_batch_create_compute_environment_operator",
+            compute_environment_name="environment_name",
+            environment_type="environment_type",
+            state="environment_state",
+            compute_resources={},
+            tags={},
+        )
+
+    def test_base_aws_op_attributes(self):
+        op = BatchCreateComputeEnvironmentOperator(**self.default_op_kwargs)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
+        op = BatchCreateComputeEnvironmentOperator(
+            **self.default_op_kwargs,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.aws_conn_id == "aws-test-custom-conn"
+        assert op.hook._region_name == "eu-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
     @mock.patch.object(BatchClientHook, "client")
     def test_execute(self, mock_conn):
-        environment_name = "environment_name"
-        environment_type = "environment_type"
-        environment_state = "environment_state"
-        compute_resources = {}
-        tags = {}
-        operator = BatchCreateComputeEnvironmentOperator(
-            task_id="task",
-            compute_environment_name=environment_name,
-            environment_type=environment_type,
-            state=environment_state,
-            compute_resources=compute_resources,
-            tags=tags,
-        )
+        operator = BatchCreateComputeEnvironmentOperator(**self.default_op_kwargs)
         operator.execute(None)
         mock_conn.create_compute_environment.assert_called_once_with(
-            computeEnvironmentName=environment_name,
-            type=environment_type,
-            state=environment_state,
-            computeResources=compute_resources,
-            tags=tags,
+            computeEnvironmentName="environment_name",
+            type="environment_type",
+            state="environment_state",
+            computeResources={},
+            tags={},
         )
 
     @mock.patch.object(BatchClientHook, "client")
@@ -334,11 +385,7 @@ class TestBatchCreateComputeEnvironmentOperator:
         client_mock.create_compute_environment.return_value = {"computeEnvironmentArn": "my_arn"}
 
         operator = BatchCreateComputeEnvironmentOperator(
-            task_id="task",
-            compute_environment_name="my_env_name",
-            environment_type="my_env_type",
-            state="my_state",
-            compute_resources={},
+            **self.default_op_kwargs,
             max_retries=123456,
             poll_interval=456789,
             deferrable=True,
