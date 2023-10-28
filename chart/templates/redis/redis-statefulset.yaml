@@ -67,6 +67,9 @@ spec:
         {{- end }}
       {{- end }}
     spec:
+      {{- if .Values.redis.priorityClassName }}
+      priorityClassName: {{ .Values.redis.priorityClassName }}
+      {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}

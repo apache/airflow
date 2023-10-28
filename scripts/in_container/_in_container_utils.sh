@@ -185,9 +185,9 @@ function install_airflow_from_wheel() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -224,9 +224,9 @@ function install_airflow_from_sdist() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
