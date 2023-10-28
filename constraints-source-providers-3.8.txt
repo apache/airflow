@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-27T19:54:25Z
+# This constraints file was automatically generated on 2023-10-28T19:41:35Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -179,7 +179,7 @@ exceptiongroup==1.1.3
 execnet==2.0.2
 executing==2.0.0
 facebook-business==18.0.3
-fastavro==1.8.4
+fastavro==1.9.0
 fasteners==0.19
 fastjsonschema==2.18.1
 filelock==3.13.0
@@ -263,7 +263,7 @@ httplib2==0.22.0
 httpx==0.23.3
 humanize==4.8.0
 hvac==2.0.0
-identify==2.5.30
+identify==2.5.31
 idna==3.4
 ijson==3.2.3
 imagesize==1.4.1
@@ -320,7 +320,7 @@ mdurl==0.1.2
 mongomock==4.1.2
 monotonic==1.6
 more-itertools==10.1.0
-moto==4.2.6
+moto==4.2.7
 mpmath==1.3.0
 msal-extensions==1.0.0
 msal==1.24.1
@@ -404,7 +404,7 @@ psycopg2-binary==2.9.9
 ptyprocess==0.7.0
 pure-eval==0.2.2
 pure-sasl==0.6.2
-py-partiql-parser==0.4.0
+py-partiql-parser==0.4.1
 py4j==0.10.9.7
 pyOpenSSL==23.3.0
 pyarrow==11.0.0
@@ -470,6 +470,7 @@ requests-oauthlib==1.3.1
 requests-toolbelt==1.0.0
 requests==2.31.0
 responses==0.23.3
+restructuredtext-lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-argparse==1.4.0
