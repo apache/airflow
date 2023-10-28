@@ -120,7 +120,7 @@ class DagCallbackRequest(CallbackRequest):
         run_id: str,
         dagrun_state: DagRunState,
         processor_subdir: str | None,
-        sla_miss: bool | None = False,
+        sla_miss: bool = False,
         msg: str | None = None,
     ):
         super().__init__(full_filepath=full_filepath, processor_subdir=processor_subdir, msg=msg)
