@@ -1484,7 +1484,8 @@ class DAG(LoggingMixin):
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
-            context.update({"reason": reason})
+            if dagrun_state in State.finished_dr_states:
+                context.update({"reason": reason})
             for callback in callbacks:
                 cls.logger().info("Executing dag callback function: %s", callback)
                 try:
