@@ -16,21 +16,13 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-common-io
-------------------------------------------
+------------------------------------------------------
 
-Common IO Provider
+``Common IO Provider``
+
 
 This is detailed commit list of changes for versions provider package: ``common.io``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
-
-1.0.0
-.....
-
-Latest change: 2023-10-19
-
-=================================================================================================  ===========  ========================================================
-Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
-=================================================================================================  ===========  ========================================================
