@@ -32,11 +32,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.10.0
 ......
 
-Latest change: 2023-10-25
+Latest change: 2023-10-28
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`04e2fbd92b <https://github.com/apache/airflow/commit/04e2fbd92bb6cb2b5abf6f16786b9800a0d49808>`_  2023-10-27   ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+`86640d166c <https://github.com/apache/airflow/commit/86640d166c8d5b3c840bf98e5c6db0d91392fde3>`_  2023-10-26   ``Add Http to s3 operator (#35176)``
 `5f4d2b5dee <https://github.com/apache/airflow/commit/5f4d2b5dee2e98a05124865c6fa855bc26d0af26>`_  2023-10-25   ``Add AWS ECS Executor (#34381)``
 `95980a9bc5 <https://github.com/apache/airflow/commit/95980a9bc50c1accd34166ba608bbe2b4ebd6d52>`_  2023-10-25   ``Enable encryption in S3 download_files() hook. (#35037)``
 `3721c9a441 <https://github.com/apache/airflow/commit/3721c9a4413d3f5002b46589beeff490827cd9cb>`_  2023-10-24   ``Use base aws classes in Amazon S3 Glacier Operators/Sensors (#35108)``

@@ -32,11 +32,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.2.0
 .....
 
-Latest change: 2023-10-25
+Latest change: 2023-10-28
 
 =================================================================================================  ===========  =============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `0940d09859 <https://github.com/apache/airflow/commit/0940d098590139c8ab5940813f628530c86944b6>`_  2023-10-25   ``Send column lineage from SQL operators. (#34843)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
 =================================================================================================  ===========  =============================================================
