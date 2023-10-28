@@ -368,6 +368,7 @@ class TestRedis:
             docs[0],
         )
 
+
 class TestRedisServiceAccount:
     """Tests redis service account."""
 
