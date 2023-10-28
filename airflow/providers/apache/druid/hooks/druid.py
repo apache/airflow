@@ -55,9 +55,14 @@ class DruidHook(BaseHook):
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     """
 
+    conn_name_attr = "druid_ingest_conn_id"
+    default_conn_name = "druid_ingest_default"
+    conn_type = "druid_ingest"
+    hook_name = "Druid Ingest"
+
     def __init__(
         self,
-        druid_ingest_conn_id: str = "druid_ingest_default",
+        druid_ingest_conn_id: str = default_conn_name,
         timeout: int = 1,
         max_ingestion_time: int | None = None,
     ) -> None:
@@ -75,7 +80,7 @@ class DruidHook(BaseHook):
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
-        conn_type = conn.conn_type or "http"
+        conn_type = (conn.schema or "http") if conn.conn_type == self.conn_type else conn.conn_type
         if ingestion_type == IngestionType.BATCH:
             endpoint = conn.extra_dejson.get("endpoint", "")
         else:
@@ -104,7 +109,6 @@ class DruidHook(BaseHook):
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
         req_index = requests.post(url, data=json_index_spec, headers=self.header, auth=self.get_auth())
-
         code = req_index.status_code
         if code != 200:
             self.log.error("Error submitting the Druid job to %s (%s) %s", url, code, req_index.content)
@@ -163,8 +167,8 @@ class DruidDbApiHook(DbApiHook):
 
     conn_name_attr = "druid_broker_conn_id"
     default_conn_name = "druid_broker_default"
-    conn_type = "druid"
-    hook_name = "Druid"
+    conn_type = "druid_broker"
+    hook_name = "Druid Broker"
     supports_autocommit = False
 
     def __init__(self, context: dict | None = None, *args, **kwargs) -> None:
@@ -174,6 +178,7 @@ class DruidDbApiHook(DbApiHook):
     def get_conn(self) -> connect:
         """Establish a connection to druid broker."""
         conn = self.get_connection(getattr(self, self.conn_name_attr))
+
         druid_broker_conn = connect(
             host=conn.host,
             port=conn.port,
@@ -182,7 +187,12 @@ class DruidDbApiHook(DbApiHook):
             user=conn.login,
             password=conn.password,
             context=self.context,
+            header=conn.extra_dejson.get("header", False),
+            ssl_verify_cert=conn.extra_dejson.get("ssl_verify_cert", True),
+            ssl_client_cert=conn.extra_dejson.get("ssl_client_cert"),
+            proxies=conn.extra_dejson.get("proxies"),
         )
+
         self.log.info("Get the connection to druid broker on %s using user %s", conn.host, conn.login)
         return druid_broker_conn
 
@@ -200,7 +210,7 @@ class DruidDbApiHook(DbApiHook):
         endpoint = conn.extra_dejson.get("endpoint", "druid/v2/sql")
         return f"{conn_type}://{host}/{endpoint}"
 
-    def set_autocommit(self, conn: connect, autocommit: bool) -> NotImplementedError:
+    def set_autocommit(self, conn: connect, autocommit: bool) -> None:
         raise NotImplementedError()
 
     def insert_rows(
@@ -211,5 +221,5 @@ class DruidDbApiHook(DbApiHook):
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,
-    ) -> NotImplementedError:
+    ) -> None:
         raise NotImplementedError()

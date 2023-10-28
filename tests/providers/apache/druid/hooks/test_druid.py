@@ -182,7 +182,20 @@ class TestDruidHook:
     def test_get_conn_url(self, mock_get_connection):
         get_conn_value = MagicMock()
         get_conn_value.host = "test_host"
+        get_conn_value.schema = "https"
+        get_conn_value.conn_type = "druid_ingest"
+        get_conn_value.port = "1"
+        get_conn_value.extra_dejson = {"endpoint": "ingest"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidHook(timeout=1, max_ingestion_time=5)
+        assert hook.get_conn_url() == "https://test_host:1/ingest"
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_get_legacy_conn_url(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
         get_conn_value.conn_type = "https"
+        get_conn_value.schema = None
         get_conn_value.port = "1"
         get_conn_value.extra_dejson = {"endpoint": "ingest"}
         mock_get_connection.return_value = get_conn_value
@@ -271,7 +284,14 @@ class TestDruidDbApiHook:
         get_conn_value.login = "test_login"
         get_conn_value.password = "test_password"
         get_conn_value.port = 10000
-        get_conn_value.extra_dejson = {"endpoint": "/test/endpoint", "schema": "https"}
+        get_conn_value.extra_dejson = {
+            "endpoint": "/test/endpoint",
+            "schema": "https",
+            "header": True,
+            "ssl_verify_cert": False,
+            "ssl_client_cert": "cert",
+            "proxies": "localhost:9090",
+        }
         mock_get_connection.return_value = get_conn_value
         hook = DruidDbApiHook(context=specified_context)
         hook.get_conn()
@@ -283,6 +303,10 @@ class TestDruidDbApiHook:
             user="test_login",
             password="test_password",
             context=passed_context,
+            header=True,
+            ssl_verify_cert=False,
+            ssl_client_cert="cert",
+            proxies="localhost:9090",
         )
 
     def test_get_uri(self):

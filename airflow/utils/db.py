@@ -225,7 +225,7 @@ def create_default_connections(session: Session = NEW_SESSION):
     merge_conn(
         Connection(
             conn_id="druid_broker_default",
-            conn_type="druid",
+            conn_type="druid_broker",
             host="druid-broker",
             port=8082,
             extra='{"endpoint": "druid/v2/sql"}',
@@ -235,7 +235,7 @@ def create_default_connections(session: Session = NEW_SESSION):
     merge_conn(
         Connection(
             conn_id="druid_ingest_default",
-            conn_type="druid",
+            conn_type="druid_ingest",
             host="druid-overlord",
             port=8081,
             extra='{"endpoint": "druid/indexer/v1/task"}',
