@@ -1096,7 +1096,7 @@ class TestDagProcessorJobRunner:
             dag_id="test_start_date_scheduling",
             full_filepath=str(dag_filepath),
             dagrun_state=DagRunState.FAILED,
-            processor_subdir=str(tmpdir),
+            processor_subdir=str(tmp_path),
             run_id="123",
         )
         callback2 = DagCallbackRequest(
@@ -1187,7 +1187,7 @@ class TestDagProcessorJobRunner:
                 dag_id="test_start_date_scheduling",
                 full_filepath=str(dag_filepath),
                 dagrun_state=DagRunState.FAILED,
-                processor_subdir=str(tmpdir),
+                processor_subdir=str(tmp_path),
                 run_id="123",
                 sla_miss=True,
             )
