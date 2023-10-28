@@ -357,6 +357,17 @@ class TestRedis:
         )
         assert {"name": "redis-db", **expected} in jmespath.search("spec.template.spec.volumes", docs[0])
 
+    def test_priority_class_name(self):
+        docs = render_chart(
+            values={"redis": {"priorityClassName": "airflow-priority-class-name"}},
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+
+        assert "airflow-priority-class-name" == jmespath.search(
+            "spec.template.spec.priorityClassName",
+            docs[0],
+        )
+
 
 class TestRedisServiceAccount:
     """Tests redis service account."""
