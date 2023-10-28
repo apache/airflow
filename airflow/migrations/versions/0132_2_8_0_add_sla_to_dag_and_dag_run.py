@@ -19,7 +19,7 @@
 """add sla to dag and dag run
 
 Revision ID: 8ab46618a397
-Revises: 405de8318b3a
+Revises: bd5dfbe21f88
 Create Date: 2023-08-19 21:13:05.512281
 
 """
@@ -50,7 +50,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 
 # revision identifiers, used by Alembic.
 revision = "8ab46618a397"
-down_revision = "405de8318b3a"
+down_revision = "bd5dfbe21f88"
 branch_labels = None
 depends_on = None
 airflow_version = "2.8.0"

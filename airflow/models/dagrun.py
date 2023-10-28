@@ -146,7 +146,7 @@ class DagRun(Base, LoggingMixin):
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
     clear_number = Column(Integer, default=0, nullable=False)
-    sla_missed = Column(Boolean, default=True)
+    sla_missed = Column(Boolean, default=False, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -748,7 +748,7 @@ class DagRun(Base, LoggingMixin):
             elif dag.has_on_failure_callback:
                 if callback:
                     callback.dagrun_state = DagRunState.FAILED
-                    callback.msg = callback.msg + "task_failure"
+                    callback.msg = "task_failure"
                 else:
                     from airflow.models.dag import DagModel
 
@@ -776,7 +776,7 @@ class DagRun(Base, LoggingMixin):
             elif dag.has_on_success_callback:
                 if callback:
                     callback.dagrun_state = DagRunState.SUCCESS
-                    callback.msg = callback.msg + "success"
+                    callback.msg = "success"
                 else:
                     from airflow.models.dag import DagModel
 

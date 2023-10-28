@@ -1478,7 +1478,8 @@ class DAG(LoggingMixin):
             ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
 
         :param dagrun: DagRun object
-        :param success: Flag to specify if failure or success callback should be called
+        :param dagrun_state: State of DagRun that triggered the callback 
+        :param sla_miss: Was SLA missed when the callback was triggered
         :param reason: Completion reason
         :param session: Database session
         """
@@ -1491,13 +1492,18 @@ class DAG(LoggingMixin):
             session=session,
         ) or (None, None)
 
-        if callbacks:
-            tis = dagrun.get_task_instances(session=session)
-            ti = tis[-1]  # get first TaskInstance of DagRun
-            ti.task = self.get_task(ti.task_id)
-            context = ti.get_template_context(session=session)
-            if dagrun_state in State.finished_dr_states:
-                context.update({"reason": reason})
+        DAG.execute_callback(callbacks, context, self.dag_id)
+
+    @classmethod
+    def execute_callback(cls, callbacks: list[Callable] | None, context: Context | None, dag_id: str):
+        """
+        Triggers the callbacks with the given context.
+
+        :param callbacks: List of callbacks to call
+        :param context: Context to pass to all callbacks
+        :param dag_id: The dag_id of the DAG to find.
+        """
+        if callbacks and context:
             for callback in callbacks:
                 cls.logger().info("Executing dag callback function: %s", callback)
                 try:
