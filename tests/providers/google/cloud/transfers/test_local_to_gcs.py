@@ -29,7 +29,6 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 
 
 class TestFileToGcsOperator:
-
     _config = {"bucket": "dummy", "mime_type": "application/octet-stream", "gzip": False}
 
     def setup_method(self):

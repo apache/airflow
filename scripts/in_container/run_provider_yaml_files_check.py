@@ -340,7 +340,7 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
                 f"Currently configured list of {resource_type} modules in {yaml_file_path}",
                 extra_message="[yellow]Additional check[/]: If there are deprecated modules in the list,"
                 "please add them to DEPRECATED_MODULES in "
-                f"{pathlib.Path(__file__).relative_to(ROOT_DIR)}[/]",
+                f"{pathlib.Path(__file__).relative_to(ROOT_DIR)}",
             )
         except AssertionError as ex:
             nested_error = textwrap.indent(str(ex), "  ")

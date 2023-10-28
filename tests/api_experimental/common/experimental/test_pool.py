@@ -32,7 +32,6 @@ from tests.test_utils.db import clear_db_pools
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
 class TestPool:
-
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 

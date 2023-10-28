@@ -118,6 +118,7 @@ looks like:
         appbuilder_views = []
         # A list of dictionaries containing kwargs for FlaskAppBuilder add_link. See example below
         appbuilder_menu_items = []
+
         # A callback to perform actions when airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
         #   to protect against extra parameters injected into the on_load(...)
@@ -177,6 +178,7 @@ definitions in Airflow.
     from airflow.hooks.base import BaseHook
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
+
     # Will show up in Connections screen in a future version
     class PluginHook(BaseHook):
         pass
@@ -196,6 +198,7 @@ definitions in Airflow.
         static_folder="static",
         static_url_path="/static/test_plugin",
     )
+
 
     # Creating a flask appbuilder BaseView
     class TestAppBuilderBaseView(AppBuilderBaseView):

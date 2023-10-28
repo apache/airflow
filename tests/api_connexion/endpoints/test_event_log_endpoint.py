@@ -36,11 +36,26 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)],  # type: ignore
     )
+    create_user(
+        app,  # type:ignore
+        username="test_granular",
+        role_name="TestGranular",
+        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)],  # type: ignore
+    )
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+        "TEST_DAG_ID_1",
+        access_control={"TestGranular": [permissions.ACTION_CAN_READ]},
+    )
+    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
+        "TEST_DAG_ID_2",
+        access_control={"TestGranular": [permissions.ACTION_CAN_READ]},
+    )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     yield app
 
     delete_user(app, username="test")  # type: ignore
+    delete_user(app, username="test_granular")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
 
 
@@ -253,7 +268,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         for attr in ["dag_id", "task_id", "owner", "event"]:
             attr_value = f"TEST_{attr}_1".upper()
             response = self.client.get(
-                f"/api/v1/eventLogs?{attr}={attr_value}", environ_overrides={"REMOTE_USER": "test"}
+                f"/api/v1/eventLogs?{attr}={attr_value}", environ_overrides={"REMOTE_USER": "test_granular"}
             )
             assert response.status_code == 200
             assert {eventlog[attr] for eventlog in response.json["event_logs"]} == {attr_value}

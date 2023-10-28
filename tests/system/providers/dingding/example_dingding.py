@@ -53,7 +53,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_dingding]
     text_msg_remind_none = DingdingOperator(
         task_id="text_msg_remind_none",

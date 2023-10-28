@@ -74,7 +74,7 @@ class DagRunPydantic(BaseModelPydantic):
     data_interval_end: Optional[datetime]
     last_scheduling_decision: Optional[datetime]
     dag_hash: Optional[str]
-    updated_at: datetime
+    updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
     consumed_dataset_events: List[DatasetEventPydantic]  # noqa
 
@@ -92,7 +92,7 @@ class DagRunPydantic(BaseModelPydantic):
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
-        Returns the task instances for this dag run.
+        Return the task instances for this dag run.
 
         TODO: make it works for AIP-44
         """
@@ -107,7 +107,7 @@ class DagRunPydantic(BaseModelPydantic):
         map_index: int = -1,
     ) -> TI | None:
         """
-        Returns the task instance specified by task_id for this dag run.
+        Return the task instance specified by task_id for this dag run.
 
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
