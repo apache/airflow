@@ -447,7 +447,7 @@ class BaseSerialization:
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DAG):
-            return SerializedDAG.serialize_dag(var)
+            return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):

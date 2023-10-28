@@ -2096,6 +2096,7 @@ redis:
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
+  priorityClassName: ~
 
   # Set to 0 for backwards-compatiblity
   uid: 0
