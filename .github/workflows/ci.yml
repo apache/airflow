@@ -1638,7 +1638,7 @@ jobs:
   tests-kubernetes:
     timeout-minutes: 240
     name: "\
-      Helm: ${{matrix.executor}} - ${{matrix.use-standard-naming}} - \
+      K8S System:${{matrix.executor}} - ${{matrix.use-standard-naming}} - \
       ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-prod-images]
