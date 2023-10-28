@@ -32,11 +32,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 7.8.0
 .....
 
-Latest change: 2023-10-27
+Latest change: 2023-10-28
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `85f0ef35b8 <https://github.com/apache/airflow/commit/85f0ef35b831db61a4a6ac83f370cfff5323b842>`_  2023-10-27   ``Added to the rendering of KubernetesOperator V1VolumeMount, sub_path (#35129)``
 `d4002261b5 <https://github.com/apache/airflow/commit/d4002261b57236ffdca9a5790097f295794965cf>`_  2023-10-26   ``Replace blocking IO with async IO in AsyncKubernetesHook (#35162)``
 `4767f48a3b <https://github.com/apache/airflow/commit/4767f48a3b4537092e62fc2f91ec832dd560db72>`_  2023-10-25   ``feat: add hostAliases to pod spec in KubernetesPodOperator (#35063)``

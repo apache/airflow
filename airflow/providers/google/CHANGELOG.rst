@@ -27,8 +27,14 @@
 Changelog
 ---------
 
-10.10.2
+10.11.0
 .......
+
+Features
+~~~~~~~~
+
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+* ``Improve Dataprep hook (#34880)``
 
 Misc
 ~~~~
@@ -40,6 +46,7 @@ Misc
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
    * ``Update gcs.py Create and List comment Examples (#35028)``
    * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 
 10.10.1
 .......

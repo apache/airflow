@@ -27,4 +27,7 @@ Changelog
 
 1.0.0
 -----
+
 Initial version of the provider.
+
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
