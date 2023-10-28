@@ -444,7 +444,7 @@ _devel_only_devscripts = [
 ]
 
 _devel_only_duckdb = [
-    "duckdb>0.9.0",
+    "duckdb>=0.9.0",
 ]
 
 _devel_only_mongo = [
