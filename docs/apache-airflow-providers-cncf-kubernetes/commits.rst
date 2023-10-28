@@ -16,6 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-cncf-kubernetes
 ------------------------------------------------------
@@ -28,14 +29,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.8.0
+.....
+
+Latest change: 2023-10-27
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`85f0ef35b8 <https://github.com/apache/airflow/commit/85f0ef35b831db61a4a6ac83f370cfff5323b842>`_  2023-10-27   ``Added to the rendering of KubernetesOperator V1VolumeMount, sub_path (#35129)``
+`d4002261b5 <https://github.com/apache/airflow/commit/d4002261b57236ffdca9a5790097f295794965cf>`_  2023-10-26   ``Replace blocking IO with async IO in AsyncKubernetesHook (#35162)``
+`4767f48a3b <https://github.com/apache/airflow/commit/4767f48a3b4537092e62fc2f91ec832dd560db72>`_  2023-10-25   ``feat: add hostAliases to pod spec in KubernetesPodOperator (#35063)``
+`4c8c85ccc2 <https://github.com/apache/airflow/commit/4c8c85ccc2e52436276f692964abff4a3dc8495d>`_  2023-10-23   ``Consolidate the warning stacklevel in KubernetesPodTrigger (#35079)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+`f23170c9dd <https://github.com/apache/airflow/commit/f23170c9dd23556a40bd07b5d24f06220eec15c4>`_  2023-10-16   ``D401 Support - A thru Common (Inclusive) (#34934)``
+=================================================================================================  ===========  =================================================================================
+
 7.7.0
 .....
 
-Latest change: 2023-10-05
+Latest change: 2023-10-13
 
 =================================================================================================  ===========  ======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
 `0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
 `4234d8db7e <https://github.com/apache/airflow/commit/4234d8db7e4a51683f8236270c87375cf80ba3f4>`_  2023-10-04   ``Fix parsing KubernetesPodOperator multiline logs (#34412)``
 `cbb04e5133 <https://github.com/apache/airflow/commit/cbb04e513352e237baf6075ff8c6a59cc88d1122>`_  2023-10-01   ``Remove duplicated logs by reusing PodLogsConsumer (#34127)``

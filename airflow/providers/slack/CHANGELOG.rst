@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass additional arguments from Slack's Operators/Notifiers to Hooks (#35039)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+
 8.2.0
 .....
 

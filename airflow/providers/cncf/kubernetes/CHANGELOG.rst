@@ -27,6 +27,27 @@
 Changelog
 ---------
 
+7.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added to the rendering of KubernetesOperator V1VolumeMount, sub_path (#35129)``
+* ``feat: add hostAliases to pod spec in KubernetesPodOperator (#35063)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Replace blocking IO with async IO in AsyncKubernetesHook (#35162)``
+* ``Consolidate the warning stacklevel in KubernetesPodTrigger (#35079)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
 7.7.0
 .....
 

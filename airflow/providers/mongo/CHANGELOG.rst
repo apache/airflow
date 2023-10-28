@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add distinct function to MongoHook in apache-airflow-providers-mongo (#34466)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
 3.3.0
 .....
 
