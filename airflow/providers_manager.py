@@ -448,7 +448,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         core_dummy_hooks = {
             "generic": "Generic",
             "email": "Email",
-            "mesos_framework-id": "Mesos Framework ID",
         }
         for key, display in core_dummy_hooks.items():
             self._hooks_lazy_dict[key] = HookInfo(
