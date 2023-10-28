@@ -17,7 +17,7 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping, Callable
+from typing import Any, Callable, Iterable, List, Mapping, NamedTuple, cast
 from urllib.parse import quote_plus
 
 import pyodbc
@@ -26,9 +26,12 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
 
 
-def make_serializable(result: list[pyodbc.Row]) -> list[tuple]:
-    """Transform the pyodbc.Row objects returned from a SQL command into JSON-serializable objects."""
-    return [tuple(row) for row in result]
+def make_serializable(result: list[pyodbc.Row]) -> list[NamedTuple]:
+    """Transform the pyodbc.Row objects returned from an SQL command into JSON-serializable namedtuple."""
+    columns: list[tuple[str, type]] = [col[:2] for col in result[0].cursor_description]
+    Row = NamedTuple("Row", columns)
+
+    return [Row(*row) for row in result]
 
 
 class OdbcHook(DbApiHook):
