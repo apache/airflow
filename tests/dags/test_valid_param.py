@@ -18,17 +18,21 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.models.dag import DAG
+from airflow import DAG
 from airflow.models.param import Param
 from airflow.operators.python import PythonOperator
 
 with DAG(
-    "test_invalid_param",
+    "test_valid_param",
     start_date=datetime(2021, 1, 1),
-    schedule="0 0 * * *",
+    schedule=None,
     params={
-        # a mandatory str param
+        # a string default is not mandatory as DAG has no schedule
         "str_param": Param(type="string", minLength=2, maxLength=4),
+        # a string with None as default is also accepted as no schedule
+        "str_param2": Param(None, type="string", minLength=2, maxLength=4),
+        # But of course adding a valid default is also fine
+        "str_param3": Param("valid_default", type="string", minLength=2, maxLength=15),
     },
 ) as the_dag:
 
