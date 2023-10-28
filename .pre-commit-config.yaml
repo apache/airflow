@@ -518,6 +518,7 @@ repos:
           ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
           ^airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
+          ^airflow/providers/apache/spark/decorators/|
           ^airflow/providers/apache/spark/hooks/|
           ^airflow/providers/apache/spark/operators/|
           ^airflow/providers/exasol/hooks/exasol.py$|
@@ -546,6 +547,7 @@ repos:
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
+          ^docs/apache-airflow-providers-apache-spark/decorators/pyspark.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/conf.py$|
