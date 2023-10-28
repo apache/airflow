@@ -707,12 +707,8 @@ class TestWorker:
         assert "storage-class-2" == jmespath.search(
             "spec.volumeClaimTemplates[2].spec.storageClassName", docs[0]
         )
-        assert ["ReadWriteOnce"] == jmespath.search(
-            "spec.volumeClaimTemplates[1].spec.accessModes[0]", docs[0]
-        )
-        assert ["ReadWriteOnce"] == jmespath.search(
-            "spec.volumeClaimTemplates[2].spec.accessModes[0]", docs[0]
-        )
+        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[1].spec.accessModes", docs[0])
+        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[2].spec.accessModes", docs[0])
         assert "10Gi" == jmespath.search(
             "spec.volumeClaimTemplates[1].spec.resources.requests.storage", docs[0]
         )
