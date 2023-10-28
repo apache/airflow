@@ -169,7 +169,6 @@ labelPRBasedOnFilePath:
   provider:common-io:
     - airflow/providers/common/io/**/*
     - docs/apache-airflow-providers-common-io/**/*
-    - tests/providers/common/io/**/*
     - tests/system/providers/common/io/**/*
 
   provider:common-sql:
