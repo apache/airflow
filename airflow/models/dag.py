@@ -130,7 +130,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
@@ -1441,7 +1441,7 @@ class DAG(LoggingMixin):
         :param session: Database session
         """
         as_list = lambda x: x if isinstance(x, list) else [x]
-        
+
         callbacks = []
         if dagrun_state == DagRunState.SUCCESS:
             callbacks.extend(as_list(dag.on_success_callback))
@@ -1466,7 +1466,14 @@ class DAG(LoggingMixin):
         return None
 
     @provide_session
-    def handle_callback(self, dagrun: DagRun, dagrun_state: DagRunState, sla_miss: bool = False, reason=None, session=NEW_SESSION):
+    def handle_callback(
+        self,
+        dagrun: DagRun,
+        dagrun_state: DagRunState,
+        sla_miss: bool = False,
+        reason=None,
+        session=NEW_SESSION,
+    ):
         """
         Triggers on_failure_callback or on_success_callback as appropriate.
 
@@ -1483,7 +1490,12 @@ class DAG(LoggingMixin):
         :param session: Database session
         """
         callbacks, context = DAG.fetch_callback(
-            dag=self, dag_run_id=dagrun.run_id, dagrun_state=dagrun_state, sla_miss=sla_miss, reason=reason, session=session
+            dag=self,
+            dag_run_id=dagrun.run_id,
+            dagrun_state=dagrun_state,
+            sla_miss=sla_miss,
+            reason=reason,
+            session=session,
         ) or (None, None)
 
         if callbacks:
