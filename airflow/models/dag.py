@@ -1422,7 +1422,7 @@ class DAG(LoggingMixin):
         dag: DAG,
         dag_run_id: str,
         dagrun_state: DagRunState,
-        sla_miss: bool,
+        sla_miss: bool = False,
         reason: str | None = None,
         *,
         session: Session = NEW_SESSION,
