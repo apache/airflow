@@ -900,7 +900,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.priority_weight = priority_weight
         self.weight_rule = weight_rule
-        self._weight_strategy = get_priority_weight_strategy(weight_rule)
+        # validate the priority weight strategy
+        get_priority_weight_strategy(weight_rule)
         self.resources = coerce_resources(resources)
         if task_concurrency and not max_active_tis_per_dag:
             # TODO: Remove in Airflow 3.0

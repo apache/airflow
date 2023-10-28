@@ -329,7 +329,8 @@ class MappedOperator(AbstractOperator):
                 f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
                 f"{self.task_id!r}."
             )
-        self._weight_strategy = get_priority_weight_strategy(str(self.weight_rule))
+        # validate the priority weight strategy
+        get_priority_weight_strategy(str(self.weight_rule))
 
     @classmethod
     @cache
