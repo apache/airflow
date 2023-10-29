@@ -431,6 +431,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         string_args_path = tmp_dir / "string_args.txt"
         script_path = tmp_dir / "script.py"
         termination_log_path = tmp_dir / "termination.log"
+
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
@@ -445,7 +446,10 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             filename=os.fspath(script_path),
             render_template_as_native_obj=self.dag.render_template_as_native_obj,
         )
-
+        # For cached venv we need to make sure that the termination log does not exist
+        # Before process starts (it could be a left-over from a previous run)
+        if termination_log_path.exists():
+            termination_log_path.unlink()
         try:
             execute_in_subprocess(
                 cmd=[
