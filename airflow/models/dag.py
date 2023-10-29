@@ -1408,7 +1408,7 @@ class DAG(LoggingMixin):
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
-    def get_last_parsed_time(self, session=NEW_SESSION) -> None:
+    def get_last_parsed_time(self, session=NEW_SESSION) -> datetime:
         """Return the last time the DAG was parsed."""
         return session.scalar(select(DagModel.last_parsed_time).where(DagModel.dag_id == self.dag_id))
 
