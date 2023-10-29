@@ -19,10 +19,11 @@
 package-name: apache-airflow-providers-amazon
 name: Amazon
 description: |
-    Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
+  Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 suspended: false
 versions:
+  - 8.10.0
   - 8.9.0
   - 8.8.0
   - 8.7.1
@@ -444,6 +445,9 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
 
+filesystems:
+  - airflow.providers.amazon.aws.fs.s3
+
 hooks:
   - integration-name: Amazon Athena
     python-modules:
@@ -628,6 +632,10 @@ transfers:
     target-integration-name: Amazon DynamoDB
     how-to-guide: /docs/apache-airflow-providers-amazon/transfer/hive_to_dynamodb.rst
     python-module: airflow.providers.amazon.aws.transfers.hive_to_dynamodb
+  - source-integration-name: Hypertext Transfer Protocol (HTTP)
+    target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/transfer/http_to_s3.rst
+    python-module: airflow.providers.amazon.aws.transfers.http_to_s3
   - source-integration-name: Internet Message Access Protocol (IMAP)
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/transfer/imap_attachment_to_s3.rst
@@ -732,6 +740,9 @@ additional-extras:
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
+  - name: s3fs
+    dependencies:
+      - s3fs>=2023.9.2
 
 config:
   aws:
