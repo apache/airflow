@@ -457,6 +457,13 @@ Often you will see an issue that is assigned to specific milestone with Airflow 
 to the main branch and you might wonder which release the merged PR will be released in or which release the
 issue will be fixed in. The answer to it is as usual - it depends. The answer is different for PRs and Issues.
 
+To add a bit of context, ee are following the [Semver](https://semver.org/) versioning scheme as described in
+[Airflow release process](https://airflow.apache.org/docs/apache-airflow/stable/release-process.html). More
+details are explained in detail in this README in [Semantic versioning](#semantic-versioning) chapter, but
+in short, we have `MAJOR.MINOR.PATCH` versions of Airflow, where `MAJOR` version is incremented when there
+are breaking changes, `MINOR` version is incremented when there are new features added, and `PATCH` version
+is incremented when there are only bug-fixes and doc-only changes.
+
 Generally we release `MINOR` versions of Airflow from a branch that is named after the MINOR version. For example
 `2.7.*` releases are released from `v2-7-stable` branch, `2.8.*` releases are released from `v2-8-stable`
 branch, etc.
