@@ -645,6 +645,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             "cache_key": str(Variable.get("PythonVirtualenvOperator.cache_key", "")),
             "python_version": self.python_version,
             "system_site_packages": self.system_site_packages,
+            "use_dill": self.use_dill,
         }
         hash_text = json.dumps(hash_dict, sort_keys=True)
         hash_object = hashlib_wrapper.md5(hash_text.encode())
