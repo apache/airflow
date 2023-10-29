@@ -26,6 +26,8 @@ from airflow.operators.python import PythonOperator
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+SPARK_CONTEXT_KEYS = ["spark", "sc"]
+
 
 class _PySparkDecoratedOperator(DecoratedOperator, PythonOperator):
     custom_operator_name = "@task.pyspark"
@@ -81,12 +83,14 @@ class _PySparkDecoratedOperator(DecoratedOperator, PythonOperator):
             conf.set(key, value)
 
         spark = SparkSession.builder.config(conf=conf).getOrCreate()
+        sc = spark.sparkContext
 
         if not self.op_kwargs:
             self.op_kwargs = {}
 
         op_kwargs: dict[str, Any] = dict(self.op_kwargs)
         op_kwargs["spark"] = spark
+        op_kwargs["sc"] = sc
 
         self.op_kwargs = op_kwargs
         return super().execute(context)

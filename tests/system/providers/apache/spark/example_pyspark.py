@@ -23,6 +23,7 @@ import pendulum
 
 if typing.TYPE_CHECKING:
     import pandas as pd
+    from pyspark import SparkContext
     from pyspark.sql import SparkSession
 
 from airflow.decorators import dag, task
@@ -37,12 +38,12 @@ from airflow.decorators import dag, task
 def example_pyspark():
     """
     ### Example Pyspark DAG
-    This is an example DAG which uses the Pyspark operator to submit a job.
+    This is an example DAG which uses pyspark
     """
 
     # [START task_pyspark]
     @task.pyspark(conn_id="spark-local")
-    def spark_task(spark: SparkSession | None) -> pd.DataFrame:
+    def spark_task(spark: SparkSession, sc: SparkContext) -> pd.DataFrame:
         if spark is None:
             raise ValueError("Spark session is None")
 
@@ -64,8 +65,11 @@ def example_pyspark():
     def print_df(df: pd.DataFrame):
         print(df)
 
-    df = spark_task(spark=None)
+    df = spark_task()
     print_df(df)
 
 
-example_pyspark()
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
