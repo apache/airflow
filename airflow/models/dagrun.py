@@ -755,7 +755,7 @@ class DagRun(Base, LoggingMixin):
 
         tis_for_dagrun_state = self._tis_for_dagrun_state(dag=dag, tis=tis)
         # check if sla has just been missed for this dagrun
-        if dag.sla and not self.sla_missed and not self.run_type == DagRunType.BACKFILL_JOB:
+        if dag.sla is not None and not self.sla_missed and not self.run_type == DagRunType.BACKFILL_JOB:
             start_time = self.start_date
             ts = timezone.utcnow()
             if dag.sla < ts - start_time:
