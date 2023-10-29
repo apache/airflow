@@ -531,7 +531,22 @@ class TestCliDags:
         assert "owner" in out
         assert "airflow" in out
         assert "paused" in out
+        assert "airflow/example_dags/example_complex.py" in out
+        assert "- dag_id:" in out
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_list_dags_additional_comments(self):
+        args = self.parser.parse_args(
+            ["dags", "list", "--additional-columns", "last_parsed_time,is_subdag", "--output", "yaml"]
+        )
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            dag_command.dag_list_dags(args)
+            out = temp_stdout.getvalue()
+        assert "owner" in out
+        assert "airflow" in out
+        assert "paused" in out
         assert "last_parsed_time" in out
+        assert "is_subdag" in out
         assert "airflow/example_dags/example_complex.py" in out
         assert "- dag_id:" in out
 

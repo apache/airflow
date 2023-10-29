@@ -1407,11 +1407,6 @@ class DAG(LoggingMixin):
         """Return a boolean indicating whether this DAG is paused."""
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
 
-    @provide_session
-    def get_last_parsed_time(self, session=NEW_SESSION) -> datetime:
-        """Return the last time the DAG was parsed."""
-        return session.scalar(select(DagModel.last_parsed_time).where(DagModel.dag_id == self.dag_id))
-
     @property
     def is_paused(self):
         """Use `airflow.models.DAG.get_is_paused`, this attribute is deprecated."""
