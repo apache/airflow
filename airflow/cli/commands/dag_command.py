@@ -370,6 +370,7 @@ def dag_list_dags(args) -> None:
             "filepath": x.filepath,
             "owner": x.owner,
             "paused": x.get_is_paused(),
+            "last_parsed_time": x.get_last_parsed_time(),
         },
     )
 
