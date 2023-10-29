@@ -531,6 +531,7 @@ class TestCliDags:
         assert "owner" in out
         assert "airflow" in out
         assert "paused" in out
+        assert "last_parsed_time" in out
         assert "airflow/example_dags/example_complex.py" in out
         assert "- dag_id:" in out
 

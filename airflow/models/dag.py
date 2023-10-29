@@ -1409,7 +1409,7 @@ class DAG(LoggingMixin):
 
     @provide_session
     def get_last_parsed_time(self, session=NEW_SESSION) -> None:
-        """Return a datetime indicating the last time the DAG was parsed."""
+        """Return the last time the DAG was parsed."""
         return session.scalar(select(DagModel.last_parsed_time).where(DagModel.dag_id == self.dag_id))
 
     @property
