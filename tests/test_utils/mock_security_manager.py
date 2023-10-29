@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.www.security_manager import AirflowSecurityManagerV2
+from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 
 
-class MockSecurityManager(AirflowSecurityManagerV2):
+class MockSecurityManager(FabAirflowSecurityManagerOverride):
     VIEWER_VMS = {
         "Airflow",
     }

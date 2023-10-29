@@ -77,6 +77,15 @@ or you can define the same operator in the deferrable mode:
     :start-after: [START howto_operator_cloud_run_execute_job_deferrable_mode]
     :end-before: [END howto_operator_cloud_run_execute_job_deferrable_mode]
 
+You can also specify overrides that allow you to give a new entrypoint command to the job and more:
+
+:class:`~airflow.providers.google.cloud.operators.cloud_run.CloudRunExecuteJobOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_run/example_cloud_run.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_cloud_run_execute_job_with_overrides]
+    :end-before: [END howto_operator_cloud_run_execute_job_with_overrides]
 
 
 Update a job
