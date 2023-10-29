@@ -364,7 +364,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
-    def get_dag_detail(dag):
+    def get_dag_detail(dag: DAG) -> dict:
         dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         dag_detail = dag_schema.dump(dag_model)
         add_cols = args.additional_columns if args.additional_columns else []
@@ -372,7 +372,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
             "dag_id": dag.dag_id,
             "filepath": dag.filepath,
             "owner": dag.owner,
-            "paused": dag_model.is_paused,
+            "paused": dag_detail["is_paused"],
             **{k: v for k, v in dag_detail.items() if k in add_cols},
         }
 
