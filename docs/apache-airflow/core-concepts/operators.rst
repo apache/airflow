@@ -189,10 +189,11 @@ This will fail with ``TemplateNotFound: cat script.sh``, but we can prevent airf
     )
     fixed_print_script.template_ext = ()
 
-
 It is also possible to exclude a string from templating and use it directly by wrapping it in
 :func:`~airflow.util.template.literal`. This approach disables the rendering of both macros and files and
 can be applied to selected nested fields, while retaining the default templating rules for the remainder of the content.
+
+.. versionadded:: 2.8
 
 .. code-block:: python
 
