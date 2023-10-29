@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+4.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add operator to create jobs in Databricks (#35156)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+
 4.6.0
 .....
 

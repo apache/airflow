@@ -106,6 +106,19 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     echo "  * ${COLOR_BLUE}Airflow core SQL connection:${COLOR_RESET} ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
     echo
 
+    if [[ ${STANDALONE_DAG_PROCESSOR=} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Running forcing scheduler/standalone_dag_processor to be True${COLOR_RESET}"
+        echo
+        export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
+    fi
+    if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
+        echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
+        export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
+        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080
+        export AIRFLOW__WEBSERVER_RUN_INTERNAL_API=True
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
@@ -332,7 +345,7 @@ if [[ ${UPGRADE_BOTO=} == "true" ]]; then
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    pip uninstall --root-user-action ignore aiobotocore -y || true
+    pip uninstall --root-user-action ignore aiobotocore s3fs -y || true
     pip install --root-user-action ignore --upgrade boto3 botocore
     pip check
 fi
