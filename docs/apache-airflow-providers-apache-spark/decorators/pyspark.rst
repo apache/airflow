@@ -36,3 +36,16 @@ conn_id: str
 config_kwargs: dict
     The kwargs used for initializing the SparkConf object. This overrides
     the spark configuration options set in the connection.
+
+
+Example
+-------
+
+The following example shows how to use the ``@task.pyspark`` decorator. Note
+that the ``spark`` and ``sc`` objects are injected into the function.
+
+.. exampleinclude:: /../../tests/system/providers/apache/spark/example_pyspark.py
+    :language: python
+    :dedent: 4
+    :start-after: [START task_pyspark]
+    :end-before: [END task_pyspark]

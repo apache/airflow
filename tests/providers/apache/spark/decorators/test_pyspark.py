@@ -38,9 +38,9 @@ class TestPysparkDecorator:
 
     @mock.patch("pyspark.SparkConf.setAppName")
     @mock.patch("pyspark.sql.SparkSession")
-    def test_pyspark_decorator_with_connection(self, spark, conf, dag_maker):
+    def test_pyspark_decorator_with_connection(self, spark_mock, conf_mock, dag_maker):
         @task.pyspark(conn_id="pyspark_local", config_kwargs={"spark.executor.memory": "2g"})
-        def f():
+        def f(spark, sc):
             import random
 
             return [random.random() for _ in range(100)]
@@ -52,13 +52,13 @@ class TestPysparkDecorator:
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
         ti = dr.get_task_instances()[0]
         assert len(ti.xcom_pull()) == 100
-        conf().set.assert_called_with("spark.executor.memory", "2g")
-        conf().setMaster.assert_called_once_with("spark://none")
-        spark.builder.config.assert_called_once_with(conf=conf())
+        conf_mock().set.assert_called_with("spark.executor.memory", "2g")
+        conf_mock().setMaster.assert_called_once_with("spark://none")
+        spark_mock.builder.config.assert_called_once_with(conf=conf_mock())
 
     @mock.patch("pyspark.SparkConf.setAppName")
     @mock.patch("pyspark.sql.SparkSession")
-    def test_simple_pyspark_decorator(self, spark, conf, dag_maker):
+    def test_simple_pyspark_decorator(self, spark_mock, conf_mock, dag_maker):
         e = 2
 
         @task.pyspark
@@ -72,5 +72,5 @@ class TestPysparkDecorator:
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == e
-        conf().setMaster.assert_called_once_with("local[*]")
-        spark.builder.config.assert_called_once_with(conf=conf())
+        conf_mock().setMaster.assert_called_once_with("local[*]")
+        spark_mock.builder.config.assert_called_once_with(conf=conf_mock())

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
@@ -45,6 +46,15 @@ class _PySparkDecoratedOperator(DecoratedOperator, PythonOperator):
     ):
         self.conn_id = conn_id
         self.config_kwargs = config_kwargs or {}
+
+        signature = inspect.signature(python_callable)
+        parameters = [
+            param.replace(default=None) if param.name in SPARK_CONTEXT_KEYS else param
+            for param in signature.parameters.values()
+        ]
+        # mypy does not understand __signature__ attribute
+        # see https://github.com/python/mypy/issues/12472
+        python_callable.__signature__ = signature.replace(parameters=parameters)  # type: ignore[attr-defined]
 
         kwargs_to_upstream = {
             "python_callable": python_callable,
