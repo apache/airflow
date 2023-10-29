@@ -876,7 +876,7 @@ def _refresh_from_task(
     with contextlib.suppress(Exception):
         # This method is called from the different places, and sometimes the TI is not fully initialized
         task_instance.priority_weight = get_priority_weight_strategy(
-            task.priority_weight_strategy or str(task.weight_rule)
+            task.priority_weight_strategy
         ).get_weight(
             task_instance  # type: ignore
         )
@@ -1383,9 +1383,9 @@ class TaskInstance(Base, LoggingMixin):
 
         :meta private:
         """
-        priority_weight = get_priority_weight_strategy(
-            task.priority_weight_strategy or str(task.weight_rule)
-        ).get_weight(TaskInstance(task=task, run_id=run_id, map_index=map_index))
+        priority_weight = get_priority_weight_strategy(task.priority_weight_strategy).get_weight(
+            TaskInstance(task=task, run_id=run_id, map_index=map_index)
+        )
         return {
             "dag_id": task.dag_id,
             "task_id": task.task_id,
@@ -1397,7 +1397,7 @@ class TaskInstance(Base, LoggingMixin):
             "pool": task.pool,
             "pool_slots": task.pool_slots,
             "priority_weight": priority_weight,
-            "priority_weight_strategy": task.priority_weight_strategy or task.weight_rule,
+            "priority_weight_strategy": task.priority_weight_strategy,
             "run_as_user": task.run_as_user,
             "max_tries": task.retries,
             "executor_config": task.executor_config,
