@@ -403,7 +403,7 @@ class DbApiHook(BaseForDbApiHook):
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = self.make_serializable(handler(cur))
+                        result = self._make_serializable(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
