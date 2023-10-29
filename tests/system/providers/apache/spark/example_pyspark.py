@@ -44,9 +44,6 @@ def example_pyspark():
     # [START task_pyspark]
     @task.pyspark(conn_id="spark-local")
     def spark_task(spark: SparkSession, sc: SparkContext) -> pd.DataFrame:
-        if spark is None:
-            raise ValueError("Spark session is None")
-
         df = spark.createDataFrame(
             [
                 (1, "John Doe", 21),
