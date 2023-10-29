@@ -84,6 +84,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     pool_slots: int
     queue: str
     priority_weight: Optional[int]
+    priority_weight_strategy: Optional[str]
     operator: str
     custom_operator_name: Optional[str]
     queued_dttm: Optional[str]

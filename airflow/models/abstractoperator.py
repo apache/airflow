@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import inspect
+import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
@@ -29,7 +30,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskmixin import DAGNode, DependencyMixin
-from airflow.task.priority_strategy import get_priority_weight_strategy
 from airflow.template.templater import Templater
 from airflow.utils.context import Context
 from airflow.utils.db import exists_query
@@ -73,6 +73,9 @@ MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 *
 DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
     conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )
+DEFAULT_PRIORITY_WEIGHT_STRATEGY: str | None = conf.get(
+    "core", "default_task_priority_weight_strategy", fallback=None
+)
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
     "core", "default_task_execution_timeout"
@@ -99,6 +102,7 @@ class AbstractOperator(Templater, DAGNode):
     operator_class: type[BaseOperator] | dict[str, Any]
 
     weight_rule: str
+    priority_weight_strategy: str
     priority_weight: int
 
     # Defines the operator level extra links.
@@ -398,7 +402,27 @@ class AbstractOperator(Templater, DAGNode):
         - WeightRule.DOWNSTREAM - adds priority weight of all downstream tasks
         - WeightRule.UPSTREAM - adds priority weight of all upstream tasks
         """
-        return get_priority_weight_strategy(self.weight_rule).get_weight(self)
+        warnings.warn(
+            "Accessing `priority_weight_total` from AbstractOperator instance is deprecated."
+            " Please use `priority_weight` from task instance instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if self.weight_rule == WeightRule.ABSOLUTE:
+            return self.priority_weight
+        elif self.weight_rule == WeightRule.DOWNSTREAM:
+            upstream = False
+        elif self.weight_rule == WeightRule.UPSTREAM:
+            upstream = True
+        else:
+            upstream = False
+        dag = self.get_dag()
+        if dag is None:
+            return self.priority_weight
+        return self.priority_weight + sum(
+            dag.task_dict[task_id].priority_weight
+            for task_id in self.get_flat_relative_ids(upstream=upstream)
+        )
 
     @cached_property
     def operator_extra_link_dict(self) -> dict[str, Any]:

@@ -32,6 +32,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
+    DEFAULT_PRIORITY_WEIGHT_STRATEGY,
     DEFAULT_QUEUE,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
@@ -475,6 +476,10 @@ class MappedOperator(AbstractOperator):
     @property
     def weight_rule(self) -> int:  # type: ignore[override]
         return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+
+    @property
+    def priority_weight_strategy(self) -> str:  # type: ignore[override]
+        return self.partial_kwargs.get("priority_weight_strategy", DEFAULT_PRIORITY_WEIGHT_STRATEGY)
 
     @property
     def sla(self) -> datetime.timedelta | None:

@@ -96,7 +96,7 @@ from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
+    from airflow.models.taskinstance import TaskInstance
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
@@ -120,7 +120,7 @@ def clear_datasets():
 
 
 class TestPriorityWeightStrategy(PriorityWeightStrategy):
-    def get_weight(self, task: AbstractOperator):
+    def get_weight(self, ti: TaskInstance):
         return 99
 
 
@@ -439,11 +439,14 @@ class TestDag:
                 EmptyOperator(task_id="should_fail", weight_rule="no rule")
 
     def test_dag_task_custom_weight_strategy(self):
-        with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}):
+        with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
             task = EmptyOperator(
-                task_id="empty_task", weight_rule="tests.models.test_dag.TestPriorityWeightStrategy"
+                task_id="empty_task",
+                priority_weight_strategy="tests.models.test_dag.TestPriorityWeightStrategy",
             )
-            assert task.priority_weight_total == 99
+        dr = dag.create_dagrun(state=None, run_id="test", execution_date=DEFAULT_DATE)
+        ti = dr.get_task_instance(task.task_id)
+        assert ti.priority_weight == 99
 
     def test_get_num_task_instances(self):
         test_dag_id = "test_get_num_task_instances_dag"

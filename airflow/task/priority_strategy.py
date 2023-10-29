@@ -25,14 +25,14 @@ from airflow.exceptions import AirflowException
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
-    from airflow.models.abstractoperator import AbstractOperator
+    from airflow.models.taskinstance import TaskInstance
 
 
 class PriorityWeightStrategy(ABC):
     """Priority weight strategy interface."""
 
     @abstractmethod
-    def get_weight(self, task: AbstractOperator):
+    def get_weight(self, ti: TaskInstance):
         """Get the priority weight of a task."""
         ...
 
@@ -40,31 +40,32 @@ class PriorityWeightStrategy(ABC):
 class AbsolutePriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the task's priority weight directly."""
 
-    def get_weight(self, task: AbstractOperator):
-        return task.priority_weight
+    def get_weight(self, ti: TaskInstance):
+        return ti.task.priority_weight
 
 
 class DownstreamPriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the sum of the priority weights of all downstream tasks."""
 
-    def get_weight(self, task: AbstractOperator):
-        dag = task.get_dag()
+    def get_weight(self, ti: TaskInstance):
+        dag = ti.task.get_dag()
         if dag is None:
-            return task.priority_weight
-        return task.priority_weight + sum(
-            dag.task_dict[task_id].priority_weight for task_id in task.get_flat_relative_ids(upstream=False)
+            return ti.task.priority_weight
+        return ti.task.priority_weight + sum(
+            dag.task_dict[task_id].priority_weight
+            for task_id in ti.task.get_flat_relative_ids(upstream=False)
         )
 
 
 class UpstreamPriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the sum of the priority weights of all upstream tasks."""
 
-    def get_weight(self, task: AbstractOperator):
-        dag = task.get_dag()
+    def get_weight(self, ti: TaskInstance):
+        dag = ti.task.get_dag()
         if dag is None:
-            return task.priority_weight
-        return task.priority_weight + sum(
-            dag.task_dict[task_id].priority_weight for task_id in task.get_flat_relative_ids(upstream=True)
+            return ti.task.priority_weight
+        return ti.task.priority_weight + sum(
+            dag.task_dict[task_id].priority_weight for task_id in ti.task.get_flat_relative_ids(upstream=True)
         )
 
 
