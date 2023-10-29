@@ -119,7 +119,6 @@ class TestCloudBatchDeleteJobOperator:
 class TestCloudBatchListJobsOperator:
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute(self, hook_mock):
-
         filter = "filter_description"
         limit = 2
         operator = CloudBatchListJobsOperator(
@@ -134,7 +133,6 @@ class TestCloudBatchListJobsOperator:
 
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute_with_invalid_limit(self, hook_mock):
-
         filter = "filter_description"
         limit = -1
 
@@ -147,7 +145,6 @@ class TestCloudBatchListJobsOperator:
 class TestCloudBatchListTasksOperator:
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute(self, hook_mock):
-
         filter = "filter_description"
         limit = 2
         job_name = "test_job"
@@ -174,7 +171,6 @@ class TestCloudBatchListTasksOperator:
 
     @mock.patch(CLOUD_BATCH_HOOK_PATH)
     def test_execute_with_invalid_limit(self, hook_mock):
-
         filter = "filter_description"
         limit = -1
         job_name = "test_job"

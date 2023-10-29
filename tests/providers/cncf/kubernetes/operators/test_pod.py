@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 from contextlib import contextmanager, nullcontext
+from io import BytesIO
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -25,7 +26,6 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, V1PodSecurityContext, V1PodStatus, models as k8s
 from urllib3 import HTTPResponse
-from urllib3.packages.six import BytesIO
 
 from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
@@ -132,6 +132,13 @@ class TestKubernetesPodOperator:
                 requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
                 limits={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
             ),
+            volume_mounts=[
+                k8s.V1VolumeMount(
+                    name="{{ dag.dag_id }}",
+                    mount_path="mount_path",
+                    sub_path="{{ dag.dag_id }}",
+                )
+            ],
             pod_template_file="{{ dag.dag_id }}",
             config_file="{{ dag.dag_id }}",
             labels="{{ dag.dag_id }}",
@@ -147,6 +154,8 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.container_resources.limits["cpu"]
         assert dag_id == rendered.container_resources.requests["memory"]
         assert dag_id == rendered.container_resources.requests["cpu"]
+        assert dag_id == rendered.volume_mounts[0].name
+        assert dag_id == rendered.volume_mounts[0].sub_path
         assert dag_id == ti.task.image
         assert dag_id == ti.task.cmds
         assert dag_id == ti.task.namespace
@@ -225,6 +234,15 @@ class TestKubernetesPodOperator:
         )
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.security_context == security_context
+
+    def test_host_aliases(self):
+        host_aliases = [k8s.V1HostAlias(ip="192.0.2.1", hostnames=["my.service.com"])]
+        k = KubernetesPodOperator(
+            host_aliases=host_aliases,
+            task_id="task",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.host_aliases == host_aliases
 
     def test_container_security_context(self):
         container_security_context = {"allowPrivilegeEscalation": False}
@@ -624,7 +642,7 @@ class TestKubernetesPodOperator:
             ({"on_finish_action": "delete_succeeded_pod"}, True, False),
         ],
     )
-    @patch(f"{KPO_MODULE}.KubernetesPodOperator.kill_istio_sidecar")
+    @patch(f"{POD_MANAGER_CLASS}.delete_pod")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.is_istio_enabled")
     @patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
@@ -633,7 +651,7 @@ class TestKubernetesPodOperator:
         find_pod_mock,
         await_pod_completion_mock,
         is_istio_enabled_mock,
-        kill_istio_sidecar_mock,
+        delete_pod_mock,
         task_kwargs,
         base_container_fail,
         expect_to_delete_pod,
@@ -662,13 +680,13 @@ class TestKubernetesPodOperator:
         cont_status_2.state.running = True
         cont_status_2.state.terminated = False
 
-        await_pod_completion_mock.return_value.spec.containers = [sidecar]
+        await_pod_completion_mock.return_value.spec.containers = [sidecar, cont_status_1, cont_status_2]
         await_pod_completion_mock.return_value.status.phase = "Running"
         await_pod_completion_mock.return_value.status.container_statuses = [cont_status_1, cont_status_2]
         await_pod_completion_mock.return_value.metadata.name = "pod-with-istio-sidecar"
         await_pod_completion_mock.return_value.metadata.namespace = "default"
 
-        find_pod_mock.return_value.spec.containers = [sidecar]
+        find_pod_mock.return_value.spec.containers = [sidecar, cont_status_1, cont_status_2]
         find_pod_mock.return_value.status.phase = "Running"
         find_pod_mock.return_value.status.container_statuses = [cont_status_1, cont_status_2]
         find_pod_mock.return_value.metadata.name = "pod-with-istio-sidecar"
@@ -678,6 +696,7 @@ class TestKubernetesPodOperator:
 
         context = create_context(k)
         context["ti"].xcom_push = MagicMock()
+
         if base_container_fail:
             self.await_pod_mock.side_effect = AirflowException("fake failure")
             with pytest.raises(AirflowException, match="my-failure"):
@@ -685,15 +704,11 @@ class TestKubernetesPodOperator:
         else:
             k.execute(context=context)
 
-        assert is_istio_enabled_mock(find_pod_mock.return_value)
-        if task_kwargs["on_finish_action"] == "delete_pod":
-            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
-        elif expect_to_delete_pod and base_container_fail:
-            kill_istio_sidecar_mock.assert_called_with(find_pod_mock.return_value)
-        elif expect_to_delete_pod and not base_container_fail:
-            kill_istio_sidecar_mock.assert_called_with(await_pod_completion_mock.return_value)
+        if expect_to_delete_pod:
+            assert k.is_istio_enabled(find_pod_mock.return_value)
+            delete_pod_mock.assert_called_with(await_pod_completion_mock.return_value)
         else:
-            kill_istio_sidecar_mock.assert_not_called()
+            delete_pod_mock.assert_not_called()
 
     @pytest.mark.parametrize(
         "task_kwargs, should_be_deleted",
@@ -1302,9 +1317,7 @@ class TestKubernetesPodOperator:
         self, remote_pod, extra_kwargs, actual_exit_code, expected_exc
     ):
         """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
-        k = KubernetesPodOperator(
-            task_id="task", on_finish_action="delete_pod", **(extra_kwargs if extra_kwargs else {})
-        )
+        k = KubernetesPodOperator(task_id="task", on_finish_action="delete_pod", **(extra_kwargs or {}))
 
         base_container = MagicMock()
         base_container.name = k.base_container_name
@@ -1579,7 +1592,7 @@ class TestKubernetesPodOperatorAsync:
             in_cluster=True,
             get_logs=True,
             deferrable=True,
-            **(extra_kwargs if extra_kwargs else {}),
+            **(extra_kwargs or {}),
         )
 
         base_container = MagicMock()
@@ -1844,3 +1857,27 @@ def test_default_container_logs():
 
     k = TestSubclassKPO(task_id="task")
     assert k.container_logs == "test-base-container"
+
+
+@patch(KUB_OP_PATH.format("post_complete_action"))
+@patch(HOOK_CLASS)
+@patch(KUB_OP_PATH.format("pod_manager"))
+def test_async_skip_kpo_wait_termination_with_timeout_event(mock_manager, mocked_hook, post_complete_action):
+    metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
+    pending_state = mock.MagicMock(**metadata, **{"status.phase": "Pending"})
+    mocked_hook.return_value.get_pod.return_value = pending_state
+    ti_mock = MagicMock()
+
+    event = {"status": "timeout", "message": "timeout", "name": TEST_NAME, "namespace": TEST_NAMESPACE}
+
+    k = KubernetesPodOperator(task_id="task", deferrable=True)
+
+    # assert that the AirflowException is raised when the timeout event is present
+    with pytest.raises(AirflowException):
+        k.execute_complete({"ti": ti_mock}, event)
+
+    # assert that the await_pod_completion is not called
+    mock_manager.await_pod_completion.assert_not_called()
+
+    # assert that the cleanup is called
+    post_complete_action.assert_called_once()

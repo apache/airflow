@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.utils.context import Context
 
 logger = logging.getLogger(__name__)
@@ -117,7 +118,7 @@ class Param:
 
         if value is not NOTSET:
             self._warn_if_not_json(value)
-        final_val = value if value is not NOTSET else self.value
+        final_val = self.value if value is NOTSET else value
         if isinstance(final_val, ArgNotSet):
             if suppress_exception:
                 return None
@@ -338,7 +339,7 @@ class DagParam(ResolveMixin):
 def process_params(
     dag: DAG,
     task: Operator,
-    dag_run: DagRun | None,
+    dag_run: DagRun | DagRunPydantic | None,
     *,
     suppress_exception: bool,
 ) -> dict[str, Any]:

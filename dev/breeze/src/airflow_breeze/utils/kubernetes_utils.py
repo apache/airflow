@@ -32,13 +32,12 @@ from time import sleep
 from typing import Any, NamedTuple
 from urllib import request
 
-from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import ALLOWED_ARCHITECTURES, HELM_VERSION, KIND_VERSION, PIP_VERSION
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.host_info_utils import Architecture, get_host_architecture, get_host_os
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
-from airflow_breeze.utils.shared_options import get_dry_run
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 K8S_ENV_PATH = BUILD_CACHE_DIR / ".k8s-env"
 K8S_CLUSTERS_PATH = BUILD_CACHE_DIR / ".k8s-clusters"
@@ -270,7 +269,7 @@ def make_sure_kubernetes_tools_are_installed():
 def _requirements_changed() -> bool:
     if not CACHED_K8S_REQUIREMENTS.exists():
         get_console().print(
-            f"\n[warning]The K8S venv in {K8S_ENV_PATH}. has never been created. Installing it.\n"
+            f"\n[warning]The K8S venv in {K8S_ENV_PATH} has never been created. Installing it.\n"
         )
         return True
     requirements_file_content = K8S_REQUIREMENTS.read_text()
@@ -284,7 +283,7 @@ def _requirements_changed() -> bool:
     return False
 
 
-def _install_packages_in_k8s_virtualenv(with_constraints: bool):
+def _install_packages_in_k8s_virtualenv():
     install_command = [
         str(PYTHON_BIN_PATH),
         "-m",
@@ -293,20 +292,19 @@ def _install_packages_in_k8s_virtualenv(with_constraints: bool):
         "-r",
         str(K8S_REQUIREMENTS.resolve()),
     ]
-    if with_constraints:
-        install_command.extend(
-            [
-                "--constraint",
-                f"https://raw.githubusercontent.com/apache/airflow/{DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH}/"
-                f"constraints-{sys.version_info.major}.{sys.version_info.minor}.txt",
-            ]
-        )
-    install_packages_result = run_command(install_command, check=False, capture_output=True, text=True)
+    env = os.environ.copy()
+    env["INSTALL_PROVIDERS_FROM_SOURCES"] = "true"
+    capture_output = True
+    if get_verbose():
+        capture_output = False
+    install_packages_result = run_command(
+        install_command, check=False, capture_output=capture_output, text=True, env=env
+    )
     if install_packages_result.returncode != 0:
-        get_console().print(
-            f"[error]Error when installing packages from : {K8S_REQUIREMENTS.resolve()}[/]\n"
-            f"{install_packages_result.stdout}\n{install_packages_result.stderr}"
-        )
+        get_console().print(f"[error]Error when installing packages from : {K8S_REQUIREMENTS.resolve()}[/]\n")
+        if not get_verbose():
+            get_console().print(install_packages_result.stdout)
+            get_console().print(install_packages_result.stderr)
     return install_packages_result
 
 
@@ -328,7 +326,10 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
         get_console().print(f"[info]Forcing initializing K8S virtualenv in {K8S_ENV_PATH}")
     else:
         get_console().print(f"[info]Initializing K8S virtualenv in {K8S_ENV_PATH}")
-    shutil.rmtree(K8S_ENV_PATH, ignore_errors=True)
+    if get_dry_run():
+        get_console().print(f"[info]Dry run - would be removing {K8S_ENV_PATH}")
+    else:
+        shutil.rmtree(K8S_ENV_PATH, ignore_errors=True)
     venv_command_result = run_command(
         [sys.executable, "-m", "venv", str(K8S_ENV_PATH)],
         check=False,
@@ -354,12 +355,12 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
         return pip_reinstall_result
     get_console().print(f"[info]Installing necessary packages in {K8S_ENV_PATH}")
 
-    install_packages_result = _install_packages_in_k8s_virtualenv(with_constraints=True)
-    if install_packages_result.returncode != 0:
-        # if the first installation fails, attempt to install it without constraints
-        install_packages_result = _install_packages_in_k8s_virtualenv(with_constraints=False)
+    install_packages_result = _install_packages_in_k8s_virtualenv()
     if install_packages_result.returncode == 0:
-        CACHED_K8S_REQUIREMENTS.write_text(K8S_REQUIREMENTS.read_text())
+        if get_dry_run():
+            get_console().print(f"[info]Dry run - would be saving {K8S_REQUIREMENTS} to cache")
+        else:
+            CACHED_K8S_REQUIREMENTS.write_text(K8S_REQUIREMENTS.read_text())
     return install_packages_result
 
 

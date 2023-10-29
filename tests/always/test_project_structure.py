@@ -260,6 +260,15 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineCreateModelOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineCreateVersionOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteModelOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteVersionOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineGetModelOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineListVersionsOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineSetDefaultVersionOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
@@ -385,8 +394,10 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
 
     BASE_CLASSES = {
+        "airflow.providers.amazon.aws.operators.base_aws.AwsBaseOperator",
         "airflow.providers.amazon.aws.operators.rds.RdsBaseOperator",
         "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",
+        "airflow.providers.amazon.aws.sensors.base_aws.AwsBaseSensor",
         "airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor",
         "airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor",
         "airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor",

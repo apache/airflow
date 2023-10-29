@@ -156,9 +156,7 @@ ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
     nargs="?",
     help="The execution_date of the DAG or run_id of the DAGRun (optional)",
 )
-ARG_TASK_REGEX = Arg(
-    ("-t", "--task-regex"), help="The regex to filter specific task_ids to backfill (optional)"
-)
+ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
 ARG_SUBDIR = Arg(
     ("-S", "--subdir"),
     help=(
@@ -563,6 +561,9 @@ ARG_VAR_ACTION_ON_EXISTING_KEY = Arg(
 # kerberos
 ARG_PRINCIPAL = Arg(("principal",), help="kerberos principal", nargs="?")
 ARG_KEYTAB = Arg(("-k", "--keytab"), help="keytab", nargs="?", default=conf.get("kerberos", "keytab"))
+ARG_KERBEROS_ONE_TIME_MODE = Arg(
+    ("-o", "--one-time"), help="Run airflow kerberos one time instead of forever", action="store_true"
+)
 # run
 ARG_INTERACTIVE = Arg(
     ("-N", "--interactive"),
@@ -1891,6 +1892,7 @@ core_commands: list[CLICommand] = [
             ARG_KEYTAB,
             ARG_PID,
             ARG_DAEMON,
+            ARG_KERBEROS_ONE_TIME_MODE,
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,

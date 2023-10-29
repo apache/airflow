@@ -20,9 +20,9 @@ tests/system/providers/amazon/aws/utils/__init__.py
 """
 from __future__ import annotations
 
-import io
 import os
 import sys
+from io import StringIO
 from unittest.mock import ANY, patch
 
 import pytest
@@ -76,7 +76,7 @@ class TestAmazonSystemTestHelpers:
     def test_fetch_variable_success(
         self, mock_getenv, env_value, ssm_value, default_value, expected_result
     ) -> None:
-        mock_getenv.return_value = env_value if env_value else ssm_value
+        mock_getenv.return_value = env_value or ssm_value
 
         result = utils.fetch_variable(ANY, default_value) if default_value else utils.fetch_variable(ANY_STR)
 
@@ -110,7 +110,7 @@ class TestAmazonSystemTestHelpers:
     @pytest.mark.parametrize("env_id, is_valid", ENV_ID_TEST_CASES)
     def test_validate_env_id_success(self, env_id, is_valid):
         if is_valid:
-            captured_output = io.StringIO()
+            captured_output = StringIO()
             sys.stdout = captured_output
 
             result = _validate_env_id(env_id)

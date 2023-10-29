@@ -17,37 +17,67 @@
 # under the License.
 from __future__ import annotations
 
-import base64
-import json
+import datetime
 import logging
+import os
+import random
 import uuid
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Container, Iterable, Sequence
 
-import re2
+import jwt
 from flask import flash, g, session
 from flask_appbuilder import const
-from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
+from flask_appbuilder.const import (
+    AUTH_DB,
+    AUTH_LDAP,
+    AUTH_OAUTH,
+    AUTH_OID,
+    AUTH_REMOTE_USER,
+    LOGMSG_ERR_SEC_ADD_REGISTER_USER,
+    LOGMSG_ERR_SEC_AUTH_LDAP,
+    LOGMSG_ERR_SEC_AUTH_LDAP_TLS,
+    LOGMSG_WAR_SEC_LOGIN_FAILED,
+    LOGMSG_WAR_SEC_NOLDAP_OBJ,
+    MICROSOFT_KEY_SET_URL,
+)
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
-from sqlalchemy import func, inspect, select
+from sqlalchemy import and_, func, inspect, select
 from sqlalchemy.exc import MultipleResultsFound
-from werkzeug.security import generate_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow import AirflowException
-from airflow.auth.managers.fab.models import Action, Permission, RegisterUser, Resource, Role
+from airflow.auth.managers.fab.fab_auth_manager import MAP_METHOD_NAME_TO_FAB_ACTION_NAME
+from airflow.auth.managers.fab.models import (
+    Action,
+    Permission,
+    RegisterUser,
+    Resource,
+    Role,
+    assoc_permission_role,
+)
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.models import DagModel
+from airflow.security import permissions
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.auth.managers.fab.models import User
+    from airflow.www.fab_security.manager import BaseSecurityManager
 
 log = logging.getLogger(__name__)
 
@@ -71,10 +101,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     :param appbuilder: The appbuilder.
     """
 
-    """ The obj instance for authentication view """
     auth_view = None
-    """ The obj instance for user view """
+    """ The obj instance for authentication view """
     user_view = None
+    """ The obj instance for user view """
+
     """ Models """
     role_model = Role
     action_model = Action
@@ -82,8 +113,18 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     permission_model = Permission
     registeruser_model = RegisterUser
 
-    """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
+    jwt_manager = None
+    """ Flask-JWT-Extended """
+    oid = None
+    """ Flask-OpenID OpenID """
+    oauth = None
+    """ OAuth email whitelists """
+    oauth_remotes: dict[str, Any]
+    """ OAuth email whitelists """
+    oauth_user_info = None
+
     oauth_allow_list: dict[str, list] = {}
+    """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
 
     def __init__(self, appbuilder):
         # done in super, but we need it before we can call super.
@@ -283,11 +324,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return user
 
     @property
-    def auth_user_registration(self):
-        """Will user self registration be allowed."""
-        return self.appbuilder.app.config["AUTH_USER_REGISTRATION"]
-
-    @property
     def auth_type(self):
         """Get the auth type."""
         return self.appbuilder.app.config["AUTH_TYPE"]
@@ -320,6 +356,145 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.app.config["OAUTH_PROVIDERS"]
 
     @property
+    def auth_ldap_tls_cacertdir(self):
+        """LDAP TLS CA certificate directory."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_CACERTDIR"]
+
+    @property
+    def auth_ldap_tls_cacertfile(self):
+        """LDAP TLS CA certificate file."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_CACERTFILE"]
+
+    @property
+    def auth_ldap_tls_certfile(self):
+        """LDAP TLS certificate file."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_CERTFILE"]
+
+    @property
+    def auth_ldap_tls_keyfile(self):
+        """LDAP TLS key file."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_KEYFILE"]
+
+    @property
+    def auth_ldap_allow_self_signed(self):
+        """LDAP allow self signed."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_ALLOW_SELF_SIGNED"]
+
+    @property
+    def auth_ldap_tls_demand(self):
+        """LDAP TLS demand."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_DEMAND"]
+
+    @property
+    def auth_ldap_server(self):
+        """Gets the LDAP server object."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_SERVER"]
+
+    @property
+    def auth_ldap_use_tls(self):
+        """Should LDAP use TLS."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_USE_TLS"]
+
+    @property
+    def auth_ldap_bind_user(self):
+        """LDAP bind user."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_BIND_USER"]
+
+    @property
+    def auth_ldap_bind_password(self):
+        """LDAP bind password."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_BIND_PASSWORD"]
+
+    @property
+    def auth_ldap_search(self):
+        """LDAP search object."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_SEARCH"]
+
+    @property
+    def auth_ldap_search_filter(self):
+        """LDAP search filter."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_SEARCH_FILTER"]
+
+    @property
+    def auth_ldap_uid_field(self):
+        """LDAP UID field."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_UID_FIELD"]
+
+    @property
+    def auth_ldap_firstname_field(self):
+        """LDAP first name field."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_FIRSTNAME_FIELD"]
+
+    @property
+    def auth_ldap_lastname_field(self):
+        """LDAP last name field."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_LASTNAME_FIELD"]
+
+    @property
+    def auth_ldap_email_field(self):
+        """LDAP email field."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_EMAIL_FIELD"]
+
+    @property
+    def auth_ldap_append_domain(self):
+        """LDAP append domain."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_APPEND_DOMAIN"]
+
+    @property
+    def auth_ldap_username_format(self):
+        """LDAP username format."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_USERNAME_FORMAT"]
+
+    @property
+    def auth_ldap_group_field(self) -> str:
+        """LDAP group field."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_GROUP_FIELD"]
+
+    @property
+    def auth_roles_mapping(self) -> dict[str, list[str]]:
+        """The mapping of auth roles."""
+        return self.appbuilder.get_app.config["AUTH_ROLES_MAPPING"]
+
+    @property
+    def auth_user_registration_role_jmespath(self) -> str:
+        """The JMESPATH role to use for user registration."""
+        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
+
+    @property
+    def api_login_allow_multiple_providers(self):
+        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
+
+    @property
+    def auth_username_ci(self):
+        """Gets the auth username for CI."""
+        return self.appbuilder.get_app.config.get("AUTH_USERNAME_CI", True)
+
+    @property
+    def auth_ldap_bind_first(self):
+        """LDAP bind first."""
+        return self.appbuilder.get_app.config["AUTH_LDAP_BIND_FIRST"]
+
+    @property
+    def openid_providers(self):
+        """Openid providers."""
+        return self.appbuilder.get_app.config["OPENID_PROVIDERS"]
+
+    @property
+    def auth_type_provider_name(self):
+        provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
+        return provider_to_auth_type.get(self.auth_type)
+
+    @property
+    def auth_user_registration(self):
+        """Will user self registration be allowed."""
+        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION"]
+
+    @property
+    def auth_user_registration_role(self):
+        """The default user self registration role."""
+        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE"]
+
+    @property
     def oauth_whitelists(self):
         warnings.warn(
             "The 'oauth_whitelists' property is deprecated. Please use 'oauth_allow_list' instead.",
@@ -331,6 +506,43 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def create_builtin_roles(self):
         """Returns FAB builtin roles."""
         return self.appbuilder.app.config.get("FAB_ROLES", {})
+
+    def create_admin_standalone(self) -> tuple[str | None, str | None]:
+        """Create an Admin user with a random password so that users can access airflow."""
+        from airflow.configuration import AIRFLOW_HOME, make_group_other_inaccessible
+
+        user_name = "admin"
+
+        # We want a streamlined first-run experience, but we do not want to
+        # use a preset password as people will inevitably run this on a public
+        # server. Thus, we make a random password and store it in AIRFLOW_HOME,
+        # with the reasoning that if you can read that directory, you can see
+        # the database credentials anyway.
+        password_path = os.path.join(AIRFLOW_HOME, "standalone_admin_password.txt")
+
+        user_exists = self.find_user(user_name) is not None
+        we_know_password = os.path.isfile(password_path)
+
+        # If the user does not exist, make a random password and make it
+        if not user_exists:
+            print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
+            role = self.find_role("Admin")
+            assert role is not None
+            # password does not contain visually similar characters: ijlIJL1oO0
+            password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
+            with open(password_path, "w") as file:
+                file.write(password)
+            make_group_other_inaccessible(password_path)
+            self.add_user(user_name, "Admin", "User", "admin@example.com", role, password)
+            print(f"FlaskAppBuilder Authentication Manager: Created {user_name} user")
+        # If the user does exist, and we know its password, read the password
+        elif user_exists and we_know_password:
+            with open(password_path) as file:
+                password = file.read().strip()
+        # Otherwise we don't know the password
+        else:
+            password = None
+        return user_name, password
 
     def _init_config(self):
         """
@@ -463,6 +675,91 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.error(const.LOGMSG_ERR_SEC_CREATE_DB, e)
             exit(1)
 
+    def get_readable_dags(self, user) -> Iterable[DagModel]:
+        """Get the DAGs readable by authenticated user."""
+        warnings.warn(
+            "`get_readable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
+            "instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
+            return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
+
+    def get_editable_dags(self, user) -> Iterable[DagModel]:
+        """Get the DAGs editable by authenticated user."""
+        warnings.warn(
+            "`get_editable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
+            "instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
+            return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
+
+    @provide_session
+    def get_accessible_dags(
+        self,
+        user_actions: Container[str] | None,
+        user,
+        session: Session = NEW_SESSION,
+    ) -> Iterable[DagModel]:
+        warnings.warn(
+            "`get_accessible_dags` has been deprecated. Please use "
+            "`get_auth_manager().get_permitted_dag_ids` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=3,
+        )
+
+        dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
+        return session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids)))
+
+    @provide_session
+    def get_accessible_dag_ids(
+        self,
+        user,
+        user_actions: Container[str] | None = None,
+        session: Session = NEW_SESSION,
+    ) -> set[str]:
+        warnings.warn(
+            "`get_accessible_dag_ids` has been deprecated. Please use "
+            "`get_auth_manager().get_permitted_dag_ids` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=3,
+        )
+        if not user_actions:
+            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
+        fab_action_name_to_method_name = {v: k for k, v in MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()}
+        user_methods: Container[ResourceMethod] = [
+            fab_action_name_to_method_name[action]
+            for action in fab_action_name_to_method_name
+            if action in user_actions
+        ]
+        return get_auth_manager().get_permitted_dag_ids(user=user, methods=user_methods, session=session)
+
+    @staticmethod
+    def get_readable_dag_ids(user=None) -> set[str]:
+        """Get the DAG IDs readable by authenticated user."""
+        return get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user)
+
+    @staticmethod
+    def get_editable_dag_ids(user=None) -> set[str]:
+        """Get the DAG IDs editable by authenticated user."""
+        return get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=user)
+
+    def can_access_some_dags(self, action: str, dag_id: str | None = None) -> bool:
+        """Check if user has read or write access to some dags."""
+        if dag_id and dag_id != "~":
+            root_dag_id = self._get_root_dag_id(dag_id)
+            return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))
+
+        user = g.user
+        if action == permissions.ACTION_CAN_READ:
+            return any(self.get_readable_dag_ids(user))
+        return any(self.get_editable_dag_ids(user))
+
     """
     -----------
     Role entity
@@ -512,9 +809,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def get_all_roles(self):
         return self.get_session.query(self.role_model).all()
 
-    def get_public_role(self):
-        return self.get_session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
-
     def delete_role(self, role_name: str) -> None:
         """
         Delete the given Role.
@@ -529,6 +823,32 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             session.commit()
         else:
             raise AirflowException(f"Role named '{role_name}' does not exist")
+
+    def get_roles_from_keys(self, role_keys: list[str]) -> set[Role]:
+        """
+        Construct a list of FAB role objects, from a list of keys.
+
+        NOTE:
+        - keys are things like: "LDAP group DNs" or "OAUTH group names"
+        - we use AUTH_ROLES_MAPPING to map from keys, to FAB role names
+
+        :param role_keys: the list of FAB role keys
+        :return: a list of Role
+        """
+        _roles = set()
+        _role_keys = set(role_keys)
+        for role_key, fab_role_names in self.auth_roles_mapping.items():
+            if role_key in _role_keys:
+                for fab_role_name in fab_role_names:
+                    fab_role = self.find_role(fab_role_name)
+                    if fab_role:
+                        _roles.add(fab_role)
+                    else:
+                        log.warning("Can't find role specified in AUTH_ROLES_MAPPING: %s", fab_role_name)
+        return _roles
+
+    def get_public_role(self):
+        return self.get_session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
 
     """
     -----------
@@ -664,6 +984,31 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def get_all_users(self):
         return self.get_session.query(self.user_model).all()
+
+    def update_user_auth_stat(self, user, success=True):
+        """Update user authentication stats.
+
+        This is done upon successful/unsuccessful authentication attempts.
+
+        :param user:
+            The identified (but possibly not successfully authenticated) user
+            model
+        :param success:
+            Defaults to true, if true increments login_count, updates
+            last_login, and resets fail_login_count to 0, if false increments
+            fail_login_count on user model.
+        """
+        if not user.login_count:
+            user.login_count = 0
+        if not user.fail_login_count:
+            user.fail_login_count = 0
+        if success:
+            user.login_count += 1
+            user.last_login = datetime.datetime.now()
+            user.fail_login_count = 0
+        else:
+            user.fail_login_count += 1
+        self.update_user(user)
 
     """
     -------------
@@ -930,9 +1275,256 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE, e)
                 self.get_session.rollback()
 
-    def get_oauth_user_info(self, provider, resp):
+    """
+    --------------------
+    Auth related methods
+    --------------------
+    """
+
+    def auth_user_ldap(self, username, password):
         """
-        Get the OAuth user information from different OAuth APIs.
+        Authenticate user with LDAP.
+
+        NOTE: this depends on python-ldap module.
+
+        :param username: the username
+        :param password: the password
+        """
+        # If no username is provided, go away
+        if (username is None) or username == "":
+            return None
+
+        # Search the DB for this user
+        user = self.find_user(username=username)
+
+        # If user is not active, go away
+        if user and (not user.is_active):
+            return None
+
+        # If user is not registered, and not self-registration, go away
+        if (not user) and (not self.auth_user_registration):
+            return None
+
+        # Ensure python-ldap is installed
+        try:
+            import ldap
+        except ImportError:
+            log.error("python-ldap library is not installed")
+            return None
+
+        try:
+            # LDAP certificate settings
+            if self.auth_ldap_tls_cacertdir:
+                ldap.set_option(ldap.OPT_X_TLS_CACERTDIR, self.auth_ldap_tls_cacertdir)
+            if self.auth_ldap_tls_cacertfile:
+                ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, self.auth_ldap_tls_cacertfile)
+            if self.auth_ldap_tls_certfile:
+                ldap.set_option(ldap.OPT_X_TLS_CERTFILE, self.auth_ldap_tls_certfile)
+            if self.auth_ldap_tls_keyfile:
+                ldap.set_option(ldap.OPT_X_TLS_KEYFILE, self.auth_ldap_tls_keyfile)
+            if self.auth_ldap_allow_self_signed:
+                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_ALLOW)
+                ldap.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+            elif self.auth_ldap_tls_demand:
+                ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_DEMAND)
+                ldap.set_option(ldap.OPT_X_TLS_NEWCTX, 0)
+
+            # Initialise LDAP connection
+            con = ldap.initialize(self.auth_ldap_server)
+            con.set_option(ldap.OPT_REFERRALS, 0)
+            if self.auth_ldap_use_tls:
+                try:
+                    con.start_tls_s()
+                except Exception:
+                    log.error(LOGMSG_ERR_SEC_AUTH_LDAP_TLS, self.auth_ldap_server)
+                    return None
+
+            # Define variables, so we can check if they are set in later steps
+            user_dn = None
+            user_attributes = {}
+
+            # Flow 1 - (Indirect Search Bind):
+            #  - in this flow, special bind credentials are used to perform the
+            #    LDAP search
+            #  - in this flow, AUTH_LDAP_SEARCH must be set
+            if self.auth_ldap_bind_user:
+                # Bind with AUTH_LDAP_BIND_USER/AUTH_LDAP_BIND_PASSWORD
+                # (authorizes for LDAP search)
+                self._ldap_bind_indirect(ldap, con)
+
+                # Search for `username`
+                #  - returns the `user_dn` needed for binding to validate credentials
+                #  - returns the `user_attributes` needed for
+                #    AUTH_USER_REGISTRATION/AUTH_ROLES_SYNC_AT_LOGIN
+                if self.auth_ldap_search:
+                    user_dn, user_attributes = self._search_ldap(ldap, con, username)
+                else:
+                    log.error("AUTH_LDAP_SEARCH must be set when using AUTH_LDAP_BIND_USER")
+                    return None
+
+                # If search failed, go away
+                if user_dn is None:
+                    log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ, username)
+                    return None
+
+                # Bind with user_dn/password (validates credentials)
+                if not self._ldap_bind(ldap, con, user_dn, password):
+                    if user:
+                        self.update_user_auth_stat(user, False)
+
+                    # Invalid credentials, go away
+                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+                    return None
+
+            # Flow 2 - (Direct Search Bind):
+            #  - in this flow, the credentials provided by the end-user are used
+            #    to perform the LDAP search
+            #  - in this flow, we only search LDAP if AUTH_LDAP_SEARCH is set
+            #     - features like AUTH_USER_REGISTRATION & AUTH_ROLES_SYNC_AT_LOGIN
+            #       will only work if AUTH_LDAP_SEARCH is set
+            else:
+                # Copy the provided username (so we can apply formatters)
+                bind_username = username
+
+                # update `bind_username` by applying AUTH_LDAP_APPEND_DOMAIN
+                #  - for Microsoft AD, which allows binding with userPrincipalName
+                if self.auth_ldap_append_domain:
+                    bind_username = bind_username + "@" + self.auth_ldap_append_domain
+
+                # Update `bind_username` by applying AUTH_LDAP_USERNAME_FORMAT
+                #  - for transforming the username into a DN,
+                #    for example: "uid=%s,ou=example,o=test"
+                if self.auth_ldap_username_format:
+                    bind_username = self.auth_ldap_username_format % bind_username
+
+                # Bind with bind_username/password
+                # (validates credentials & authorizes for LDAP search)
+                if not self._ldap_bind(ldap, con, bind_username, password):
+                    if user:
+                        self.update_user_auth_stat(user, False)
+
+                    # Invalid credentials, go away
+                    log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, bind_username)
+                    return None
+
+                # Search for `username` (if AUTH_LDAP_SEARCH is set)
+                #  - returns the `user_attributes`
+                #    needed for AUTH_USER_REGISTRATION/AUTH_ROLES_SYNC_AT_LOGIN
+                #  - we search on `username` not `bind_username`,
+                #    because AUTH_LDAP_APPEND_DOMAIN and AUTH_LDAP_USERNAME_FORMAT
+                #    would result in an invalid search filter
+                if self.auth_ldap_search:
+                    user_dn, user_attributes = self._search_ldap(ldap, con, username)
+
+                    # If search failed, go away
+                    if user_dn is None:
+                        log.info(LOGMSG_WAR_SEC_NOLDAP_OBJ, username)
+                        return None
+
+            # Sync the user's roles
+            if user and user_attributes and self.auth_roles_sync_at_login:
+                user.roles = self._ldap_calculate_user_roles(user_attributes)
+                log.debug("Calculated new roles for user=%r as: %s", user_dn, user.roles)
+
+            # If the user is new, register them
+            if (not user) and user_attributes and self.auth_user_registration:
+                user = self.add_user(
+                    username=username,
+                    first_name=self.ldap_extract(user_attributes, self.auth_ldap_firstname_field, ""),
+                    last_name=self.ldap_extract(user_attributes, self.auth_ldap_lastname_field, ""),
+                    email=self.ldap_extract(
+                        user_attributes,
+                        self.auth_ldap_email_field,
+                        f"{username}@email.notfound",
+                    ),
+                    role=self._ldap_calculate_user_roles(user_attributes),
+                )
+                log.debug("New user registered: %s", user)
+
+                # If user registration failed, go away
+                if not user:
+                    log.info(LOGMSG_ERR_SEC_ADD_REGISTER_USER, username)
+                    return None
+
+            # LOGIN SUCCESS (only if user is now registered)
+            if user:
+                self._rotate_session_id()
+                self.update_user_auth_stat(user)
+                return user
+            else:
+                return None
+
+        except ldap.LDAPError as e:
+            msg = None
+            if isinstance(e, dict):
+                msg = getattr(e, "message", None)
+            if (msg is not None) and ("desc" in msg):
+                log.error(LOGMSG_ERR_SEC_AUTH_LDAP, e.message["desc"])
+                return None
+            else:
+                log.error(e)
+                return None
+
+    def auth_user_db(self, username, password):
+        """
+        Authenticate user, auth db style.
+
+        :param username:
+            The username or registered email address
+        :param password:
+            The password, will be tested against hashed password on db
+        """
+        if username is None or username == "":
+            return None
+        user = self.find_user(username=username)
+        if user is None:
+            user = self.find_user(email=username)
+        if user is None or (not user.is_active):
+            # Balance failure and success
+            check_password_hash(
+                "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
+                "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
+                "password",
+            )
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+            return None
+        elif check_password_hash(user.password, password):
+            self._rotate_session_id()
+            self.update_user_auth_stat(user, True)
+            return user
+        else:
+            self.update_user_auth_stat(user, False)
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+            return None
+
+    def oauth_user_info_getter(
+        self,
+        func: Callable[[BaseSecurityManager, str, dict[str, Any] | None], dict[str, Any]],
+    ):
+        """
+        Decorator function to be the OAuth user info getter for all the providers.
+
+        Receives provider and response return a dict with the information returned from the provider.
+        The returned user info dict should have its keys with the same name as the User Model.
+
+        Use it like this an example for GitHub ::
+
+            @appbuilder.sm.oauth_user_info_getter
+            def my_oauth_user_info(sm, provider, response=None):
+                if provider == 'github':
+                    me = sm.oauth_remotes[provider].get('user')
+                    return {'username': me.data.get('login')}
+                return {}
+        """
+
+        def wraps(provider: str, response: dict[str, Any] | None = None) -> dict[str, Any]:
+            return func(self, provider, response)
+
+        self.oauth_user_info = wraps
+        return wraps
+
+    def get_oauth_user_info(self, provider: str, resp: dict[str, Any]) -> dict[str, Any]:
+        """There are different OAuth APIs with different ways to retrieve user info.
 
         All providers have different ways to retrieve user info.
         """
@@ -972,23 +1564,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "last_name": data.get("family_name", ""),
                 "email": data.get("email", ""),
             }
-        # for Azure AD Tenant. Azure OAuth response contains
-        # JWT token which has user info.
-        # JWT token needs to be base64 decoded.
-        # https://docs.microsoft.com/en-us/azure/active-directory/develop/
-        # active-directory-protocols-oauth-code
         if provider == "azure":
-            log.debug("Azure response received : %s", resp)
-            id_token = resp["id_token"]
-            log.debug(str(id_token))
-            me = self._azure_jwt_token_parse(id_token)
-            log.debug("Parse JWT token : %s", me)
+            me = self._decode_and_validate_azure_jwt(resp["id_token"])
+            log.debug("User info from Azure: %s", me)
+            # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-token-claims-reference#payload-claims
             return {
-                "name": me.get("name", ""),
-                "email": me["upn"],
+                "email": me["email"],
                 "first_name": me.get("given_name", ""),
                 "last_name": me.get("family_name", ""),
-                "id": me["oid"],
                 "username": me["oid"],
                 "role_keys": me.get("roles", []),
             }
@@ -1032,49 +1615,417 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         log.debug("Token Get: %s", token)
         return token
 
+    def check_authorization(
+        self,
+        perms: Sequence[tuple[str, str]] | None = None,
+        dag_id: str | None = None,
+    ) -> bool:
+        """Checks that the logged in user has the specified permissions."""
+        if not perms:
+            return True
+
+        for perm in perms:
+            if perm in (
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+            ):
+                can_access_all_dags = self.has_access(*perm)
+                if not can_access_all_dags:
+                    action = perm[0]
+                    if not self.can_access_some_dags(action, dag_id):
+                        return False
+            elif not self.has_access(*perm):
+                return False
+
+        return True
+
+    def set_oauth_session(self, provider, oauth_response):
+        """Set the current session with OAuth user secrets."""
+        # Get this provider key names for token_key and token_secret
+        token_key = self.get_oauth_token_key_name(provider)
+        token_secret = self.get_oauth_token_secret_name(provider)
+        # Save users token on encrypted session cookie
+        session["oauth"] = (
+            oauth_response[token_key],
+            oauth_response.get(token_secret, ""),
+        )
+        session["oauth_provider"] = provider
+
+    def get_oauth_token_key_name(self, provider):
+        """
+        Returns the token_key name for the oauth provider.
+
+        If none is configured defaults to oauth_token
+        this is configured using OAUTH_PROVIDERS and token_key key.
+        """
+        for _provider in self.oauth_providers:
+            if _provider["name"] == provider:
+                return _provider.get("token_key", "oauth_token")
+
+    def get_oauth_token_secret_name(self, provider):
+        """Gety the ``token_secret`` name for the oauth provider.
+
+        If none is configured, defaults to ``oauth_secret``. This is configured
+        using ``OAUTH_PROVIDERS`` and ``token_secret``.
+        """
+        for _provider in self.oauth_providers:
+            if _provider["name"] == provider:
+                return _provider.get("token_secret", "oauth_token_secret")
+
+    def auth_user_oauth(self, userinfo):
+        """
+        Method for authenticating user with OAuth.
+
+        :userinfo: dict with user information
+                   (keys are the same as User model columns)
+        """
+        # extract the username from `userinfo`
+        if "username" in userinfo:
+            username = userinfo["username"]
+        elif "email" in userinfo:
+            username = userinfo["email"]
+        else:
+            log.error("OAUTH userinfo does not have username or email %s", userinfo)
+            return None
+
+        # If username is empty, go away
+        if (username is None) or username == "":
+            return None
+
+        # Search the DB for this user
+        user = self.find_user(username=username)
+
+        # If user is not active, go away
+        if user and (not user.is_active):
+            return None
+
+        # If user is not registered, and not self-registration, go away
+        if (not user) and (not self.auth_user_registration):
+            return None
+
+        # Sync the user's roles
+        if user and self.auth_roles_sync_at_login:
+            user.roles = self._oauth_calculate_user_roles(userinfo)
+            log.debug("Calculated new roles for user=%r as: %s", username, user.roles)
+
+        # If the user is new, register them
+        if (not user) and self.auth_user_registration:
+            user = self.add_user(
+                username=username,
+                first_name=userinfo.get("first_name", ""),
+                last_name=userinfo.get("last_name", ""),
+                email=userinfo.get("email", "") or f"{username}@email.notfound",
+                role=self._oauth_calculate_user_roles(userinfo),
+            )
+            log.debug("New user registered: %s", user)
+
+            # If user registration failed, go away
+            if not user:
+                log.error("Error creating a new OAuth user %s", username)
+                return None
+
+        # LOGIN SUCCESS (only if user is now registered)
+        if user:
+            self._rotate_session_id()
+            self.update_user_auth_stat(user)
+            return user
+        else:
+            return None
+
+    def auth_user_oid(self, email):
+        """
+        Openid user Authentication.
+
+        :param email: user's email to authenticate
+        """
+        user = self.find_user(email=email)
+        if user is None or (not user.is_active):
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, email)
+            return None
+        else:
+            self._rotate_session_id()
+            self.update_user_auth_stat(user)
+            return user
+
+    def auth_user_remote_user(self, username):
+        """
+        REMOTE_USER user Authentication.
+
+        :param username: user's username for remote auth
+        """
+        user = self.find_user(username=username)
+
+        # User does not exist, create one if auto user registration.
+        if user is None and self.auth_user_registration:
+            user = self.add_user(
+                # All we have is REMOTE_USER, so we set
+                # the other fields to blank.
+                username=username,
+                first_name=username,
+                last_name="-",
+                email=username + "@email.notfound",
+                role=self.find_role(self.auth_user_registration_role),
+            )
+
+        # If user does not exist on the DB and not auto user registration,
+        # or user is inactive, go away.
+        elif user is None or (not user.is_active):
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+            return None
+
+        self._rotate_session_id()
+        self.update_user_auth_stat(user)
+        return user
+
+    def _rotate_session_id(self):
+        """Rotate the session ID.
+
+        We need to do this upon successful authentication when using the
+        database session backend.
+        """
+        if conf.get("webserver", "SESSION_BACKEND") == "database":
+            session.sid = str(uuid.uuid4())
+
+    """
+    ---------------
+    Private methods
+    ---------------
+    """
+
+    def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
+        if get_auth_manager().is_logged_in():
+            return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
+        elif current_user_jwt:
+            return self._get_user_permission_resources(
+                # the current_user_jwt is a lazy proxy, so we need to ignore type checking
+                current_user_jwt,  # type: ignore[arg-type]
+                "menu_access",
+                resource_names=menu_names,
+            )
+        else:
+            return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
+
     @staticmethod
-    def _azure_parse_jwt(token):
-        """
-        Parse Azure JWT token content.
-
-        :param token: the JWT token
-
-        :meta private:
-        """
-        jwt_token_parts = r"^([^\.\s]*)\.([^\.\s]+)\.([^\.\s]*)$"
-        matches = re2.search(jwt_token_parts, token)
-        if not matches or len(matches.groups()) < 3:
-            log.error("Unable to parse token.")
-            return {}
-        return {
-            "header": matches.group(1),
-            "Payload": matches.group(2),
-            "Sig": matches.group(3),
-        }
+    def ldap_extract_list(ldap_dict: dict[str, list[bytes]], field_name: str) -> list[str]:
+        raw_list = ldap_dict.get(field_name, [])
+        # decode - removing empty strings
+        return [x.decode("utf-8") for x in raw_list if x.decode("utf-8")]
 
     @staticmethod
-    def _azure_jwt_token_parse(token):
+    def ldap_extract(ldap_dict: dict[str, list[bytes]], field_name: str, fallback: str) -> str:
+        raw_value = ldap_dict.get(field_name, [b""])
+        # decode - if empty string, default to fallback, otherwise take first element
+        return raw_value[0].decode("utf-8") or fallback
+
+    """
+    ---------------
+    Private methods
+    ---------------
+    """
+
+    def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
+        import requests
+
+        return requests.get(MICROSOFT_KEY_SET_URL).json()
+
+    def _decode_and_validate_azure_jwt(self, id_token: str) -> dict[str, str]:
+        verify_signature = self.oauth_remotes["azure"].client_kwargs.get("verify_signature", False)
+        if verify_signature:
+            from authlib.jose import JsonWebKey, jwt as authlib_jwt
+
+            keyset = JsonWebKey.import_key_set(self._get_microsoft_jwks())
+            claims = authlib_jwt.decode(id_token, keyset)
+            claims.validate()
+            return claims
+
+        return jwt.decode(id_token, options={"verify_signature": False})
+
+    def _ldap_bind_indirect(self, ldap, con) -> None:
         """
-        Parse and decode Azure JWT token.
+        Attempt to bind to LDAP using the AUTH_LDAP_BIND_USER.
 
-        :param token: the JWT token
-
-        :meta private:
+        :param ldap: The ldap module reference
+        :param con: The ldap connection
         """
-        jwt_split_token = FabAirflowSecurityManagerOverride._azure_parse_jwt(token)
-        if not jwt_split_token:
-            return
+        # always check AUTH_LDAP_BIND_USER is set before calling this method
+        assert self.auth_ldap_bind_user, "AUTH_LDAP_BIND_USER must be set"
 
-        jwt_payload = jwt_split_token["Payload"]
-        # Prepare for base64 decoding
-        payload_b64_string = jwt_payload
-        payload_b64_string += "=" * (4 - (len(jwt_payload) % 4))
-        decoded_payload = base64.urlsafe_b64decode(payload_b64_string.encode("ascii"))
+        try:
+            log.debug("LDAP bind indirect TRY with username: %r", self.auth_ldap_bind_user)
+            con.simple_bind_s(self.auth_ldap_bind_user, self.auth_ldap_bind_password)
+            log.debug("LDAP bind indirect SUCCESS with username: %r", self.auth_ldap_bind_user)
+        except ldap.INVALID_CREDENTIALS as ex:
+            log.error("AUTH_LDAP_BIND_USER and AUTH_LDAP_BIND_PASSWORD are not valid LDAP bind credentials")
+            raise ex
 
-        if not decoded_payload:
-            log.error("Payload of id_token could not be base64 url decoded.")
-            return
+    def _search_ldap(self, ldap, con, username):
+        """
+        Search LDAP for user.
 
-        jwt_decoded_payload = json.loads(decoded_payload.decode("utf-8"))
+        :param ldap: The ldap module reference
+        :param con: The ldap connection
+        :param username: username to match with AUTH_LDAP_UID_FIELD
+        :return: ldap object array
+        """
+        # always check AUTH_LDAP_SEARCH is set before calling this method
+        assert self.auth_ldap_search, "AUTH_LDAP_SEARCH must be set"
 
-        return jwt_decoded_payload
+        # build the filter string for the LDAP search
+        if self.auth_ldap_search_filter:
+            filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={username}))"
+        else:
+            filter_str = f"({self.auth_ldap_uid_field}={username})"
+
+        # build what fields to request in the LDAP search
+        request_fields = [
+            self.auth_ldap_firstname_field,
+            self.auth_ldap_lastname_field,
+            self.auth_ldap_email_field,
+        ]
+        if self.auth_roles_mapping:
+            request_fields.append(self.auth_ldap_group_field)
+
+        # perform the LDAP search
+        log.debug(
+            "LDAP search for %r with fields %s in scope %r", filter_str, request_fields, self.auth_ldap_search
+        )
+        raw_search_result = con.search_s(
+            self.auth_ldap_search, ldap.SCOPE_SUBTREE, filter_str, request_fields
+        )
+        log.debug("LDAP search returned: %s", raw_search_result)
+
+        # Remove any search referrals from results
+        search_result = [
+            (dn, attrs) for dn, attrs in raw_search_result if dn is not None and isinstance(attrs, dict)
+        ]
+
+        # only continue if 0 or 1 results were returned
+        if len(search_result) > 1:
+            log.error(
+                "LDAP search for %r in scope '%a' returned multiple results",
+                self.auth_ldap_search,
+                filter_str,
+            )
+            return None, None
+
+        try:
+            # extract the DN
+            user_dn = search_result[0][0]
+            # extract the other attributes
+            user_info = search_result[0][1]
+            # return
+            return user_dn, user_info
+        except (IndexError, NameError):
+            return None, None
+
+    @staticmethod
+    def _ldap_bind(ldap, con, dn: str, password: str) -> bool:
+        """Validates/binds the provided dn/password with the LDAP sever."""
+        try:
+            log.debug("LDAP bind TRY with username: %r", dn)
+            con.simple_bind_s(dn, password)
+            log.debug("LDAP bind SUCCESS with username: %r", dn)
+            return True
+        except ldap.INVALID_CREDENTIALS:
+            return False
+
+    def _ldap_calculate_user_roles(self, user_attributes: dict[str, list[bytes]]) -> list[str]:
+        user_role_objects = set()
+
+        # apply AUTH_ROLES_MAPPING
+        if self.auth_roles_mapping:
+            user_role_keys = self.ldap_extract_list(user_attributes, self.auth_ldap_group_field)
+            user_role_objects.update(self.get_roles_from_keys(user_role_keys))
+
+        # apply AUTH_USER_REGISTRATION
+        if self.auth_user_registration:
+            registration_role_name = self.auth_user_registration_role
+
+            # lookup registration role in flask db
+            fab_role = self.find_role(registration_role_name)
+            if fab_role:
+                user_role_objects.add(fab_role)
+            else:
+                log.warning("Can't find AUTH_USER_REGISTRATION role: %s", registration_role_name)
+
+        return list(user_role_objects)
+
+    def _oauth_calculate_user_roles(self, userinfo) -> list[str]:
+        user_role_objects = set()
+
+        # apply AUTH_ROLES_MAPPING
+        if self.auth_roles_mapping:
+            user_role_keys = userinfo.get("role_keys", [])
+            user_role_objects.update(self.get_roles_from_keys(user_role_keys))
+
+        # apply AUTH_USER_REGISTRATION_ROLE
+        if self.auth_user_registration:
+            registration_role_name = self.auth_user_registration_role
+
+            # if AUTH_USER_REGISTRATION_ROLE_JMESPATH is set,
+            # use it for the registration role
+            if self.auth_user_registration_role_jmespath:
+                import jmespath
+
+                registration_role_name = jmespath.search(self.auth_user_registration_role_jmespath, userinfo)
+
+            # lookup registration role in flask db
+            fab_role = self.find_role(registration_role_name)
+            if fab_role:
+                user_role_objects.add(fab_role)
+            else:
+                log.warning("Can't find AUTH_USER_REGISTRATION role: %s", registration_role_name)
+
+        return list(user_role_objects)
+
+    def _get_user_permission_resources(
+        self, user: User | None, action_name: str, resource_names: list[str] | None = None
+    ) -> set[str]:
+        """Get resource names with a certain action name that a user has access to.
+
+        Mainly used to fetch all menu permissions on a single db call, will also
+        check public permissions and builtin roles
+        """
+        if not resource_names:
+            resource_names = []
+
+        db_role_ids = []
+        if user is None:
+            # include public role
+            roles = [self.get_public_role()]
+        else:
+            roles = user.roles
+        # First check against builtin (statically configured) roles
+        # because no database query is needed
+        result = set()
+        for role in roles:
+            if role.name in self.builtin_roles:
+                for resource_name in resource_names:
+                    if self._has_access_builtin_roles(role, action_name, resource_name):
+                        result.add(resource_name)
+            else:
+                db_role_ids.append(role.id)
+        # Then check against database-stored roles
+        role_resource_names = [
+            perm.resource.name for perm in self.filter_roles_by_perm_with_action(action_name, db_role_ids)
+        ]
+        result.update(role_resource_names)
+        return result
+
+    def filter_roles_by_perm_with_action(self, action_name: str, role_ids: list[int]):
+        """Find roles with permission."""
+        return (
+            self.appbuilder.get_session.query(self.permission_model)
+            .join(
+                assoc_permission_role,
+                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
+            )
+            .join(self.role_model)
+            .join(self.action_model)
+            .join(self.resource_model)
+            .filter(
+                self.action_model.name == action_name,
+                self.role_model.id.in_(role_ids),
+            )
+        ).all()

@@ -31,7 +31,6 @@ import pytest
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
-from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import (
     BaseOperator,
     BaseOperatorMeta,
@@ -39,6 +38,9 @@ from airflow.models.baseoperator import (
     chain_linear,
     cross_downstream,
 )
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule

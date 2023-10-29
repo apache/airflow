@@ -132,9 +132,10 @@ except Exception as e:
         f"all necessary certs and key ({e})."
     )
 
-if re2.search("rediss?://|amqp://|rpc://", result_backend):
+match_not_recommended_backend = re2.search("rediss?://|amqp://|rpc://", result_backend)
+if match_not_recommended_backend:
     log.warning(
-        "You have configured a result_backend of %s, it is highly recommended "
-        "to use an alternative result_backend (i.e. a database).",
-        result_backend,
+        "You have configured a result_backend using the protocol `%s`,"
+        " it is highly recommended to use an alternative result_backend (i.e. a database).",
+        match_not_recommended_backend.group(0).strip("://"),
     )

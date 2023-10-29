@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreBeginTransactionOperator,
     CloudDatastoreRollbackOperator,
@@ -38,7 +38,7 @@ DAG_ID = "datastore_rollback"
 TRANSACTION_OPTIONS: dict[str, Any] = {"readWrite": {}}
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

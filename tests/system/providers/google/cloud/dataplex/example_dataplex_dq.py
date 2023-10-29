@@ -25,8 +25,8 @@ from datetime import datetime
 from google.cloud import dataplex_v1
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -144,7 +144,7 @@ EXAMPLE_DATA_SCAN_UPDATE = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule="@once",

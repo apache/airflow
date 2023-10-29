@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from time import monotonic, sleep
+import time
 from typing import Any, Dict, Sequence
 from urllib.parse import quote, urlencode, urljoin
 
@@ -91,7 +91,7 @@ class DataFusionHook(GoogleBaseHook):
     def wait_for_operation(self, operation: dict[str, Any]) -> dict[str, Any]:
         """Waits for long-lasting operation to complete."""
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
-            sleep(time_to_wait)
+            time.sleep(time_to_wait)
             operation = (
                 self.get_conn().projects().locations().operations().get(name=operation.get("name")).execute()
             )
@@ -115,9 +115,9 @@ class DataFusionHook(GoogleBaseHook):
         """Polls pipeline state and raises an exception if the state fails or times out."""
         failure_states = failure_states or FAILURE_STATES
         success_states = success_states or SUCCESS_STATES
-        start_time = monotonic()
+        start_time = time.monotonic()
         current_state = None
-        while monotonic() - start_time < timeout:
+        while time.monotonic() - start_time < timeout:
             try:
                 workflow = self.get_pipeline_workflow(
                     pipeline_name=pipeline_name,
@@ -135,7 +135,7 @@ class DataFusionHook(GoogleBaseHook):
                 raise AirflowException(
                     f"Pipeline {pipeline_name} state {current_state} is not one of {success_states}"
                 )
-            sleep(30)
+            time.sleep(30)
 
         # Time is up!
         raise AirflowException(
@@ -393,7 +393,7 @@ class DataFusionHook(GoogleBaseHook):
                 )
             except ConflictException as exc:
                 self.log.info(exc)
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
             else:
                 if response.status == 200:
                     break

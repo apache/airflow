@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.looker import JobStatus, LookerHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -50,11 +50,14 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
         self.hook: LookerHook | None = None
 
     def poke(self, context: Context) -> bool:
-
         self.hook = LookerHook(looker_conn_id=self.looker_conn_id)
 
         if not self.materialization_id:
-            raise AirflowException("Invalid `materialization_id`.")
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = "Invalid `materialization_id`."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         # materialization_id is templated var pulling output from start task
         status_dict = self.hook.pdt_build_status(materialization_id=self.materialization_id)
@@ -62,17 +65,23 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
 
         if status == JobStatus.ERROR.value:
             msg = status_dict["message"]
-            raise AirflowException(
-                f'PDT materialization job failed. Job id: {self.materialization_id}. Message:\n"{msg}"'
-            )
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f'PDT materialization job failed. Job id: {self.materialization_id}. Message:\n"{msg}"'
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         elif status == JobStatus.CANCELLED.value:
-            raise AirflowException(
-                f"PDT materialization job was cancelled. Job id: {self.materialization_id}."
-            )
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"PDT materialization job was cancelled. Job id: {self.materialization_id}."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         elif status == JobStatus.UNKNOWN.value:
-            raise AirflowException(
-                f"PDT materialization job has unknown status. Job id: {self.materialization_id}."
-            )
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = f"PDT materialization job has unknown status. Job id: {self.materialization_id}."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         elif status == JobStatus.DONE.value:
             self.log.debug(
                 "PDT materialization job completed successfully. Job id: %s.", self.materialization_id

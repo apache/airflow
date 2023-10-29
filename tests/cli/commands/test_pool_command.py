@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 from contextlib import redirect_stdout
+from io import StringIO
 
 import pytest
 
@@ -54,7 +54,7 @@ class TestCliPools:
 
     def test_pool_list(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             pool_command.pool_list(self.parser.parse_args(["pools", "list"]))
 
         assert "foo" in stdout.getvalue()

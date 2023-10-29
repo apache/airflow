@@ -29,7 +29,7 @@ from datetime import datetime
 
 from google.cloud import aiplatform
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job import (
     CreateHyperparameterTuningJobOperator,
@@ -76,7 +76,7 @@ METRIC_SPEC = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

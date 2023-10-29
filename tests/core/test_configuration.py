@@ -19,11 +19,11 @@ from __future__ import annotations
 
 import copy
 import datetime
-import io
 import os
 import re
 import textwrap
 import warnings
+from io import StringIO
 from unittest import mock
 from unittest.mock import patch
 
@@ -709,7 +709,7 @@ notacommand = OK
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
     def test_write_should_respect_env_variable(self):
         parser = AirflowConfigParser()
-        with io.StringIO() as string_file:
+        with StringIO() as string_file:
             parser.write(string_file)
             content = string_file.getvalue()
         assert "dags_folder = /tmp/test_folder" in content
@@ -717,7 +717,7 @@ notacommand = OK
     @mock.patch.dict("os.environ", {"AIRFLOW__CORE__DAGS_FOLDER": "/tmp/test_folder"})
     def test_write_with_only_defaults_should_not_respect_env_variable(self):
         parser = AirflowConfigParser()
-        with io.StringIO() as string_file:
+        with StringIO() as string_file:
             parser.write(string_file, only_defaults=True)
             content = string_file.getvalue()
         assert "dags_folder = /tmp/test_folder" not in content
@@ -759,22 +759,6 @@ notacommand = OK
             "CRITICAL, FATAL, ERROR, WARN, WARNING, INFO, DEBUG."
         )
         assert message == exception
-
-    @mock.patch.dict(
-        "os.environ",
-        {
-            "AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY": "200",
-            "AIRFLOW__CORE__PARALLELISM": "100",
-        },
-    )
-    def test_max_tis_per_query_too_high(self):
-        test_conf = AirflowConfigParser()
-
-        with pytest.warns(UserWarning) as ctx:
-            test_conf._validate_max_tis_per_query()
-
-        captured_warnings_msg = str(ctx.pop().message)
-        assert "max_tis_per_query" in captured_warnings_msg and "core.parallelism" in captured_warnings_msg
 
     def test_as_dict_works_without_sensitive_cmds(self):
         conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
@@ -1536,14 +1520,14 @@ sql_alchemy_conn=sqlite://test
 
     def test_written_defaults_are_raw_for_defaults(self):
         test_conf = AirflowConfigParser()
-        with io.StringIO() as f:
+        with StringIO() as f:
             test_conf.write(f, only_defaults=True)
             string_written = f.getvalue()
         assert "%%(asctime)s" in string_written
 
     def test_written_defaults_are_raw_for_non_defaults(self):
         test_conf = AirflowConfigParser()
-        with io.StringIO() as f:
+        with StringIO() as f:
             test_conf.write(f)
             string_written = f.getvalue()
         assert "%%(asctime)s" in string_written
@@ -1616,6 +1600,7 @@ def test_sensitive_values():
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
     exclude_list = {
         ("kubernetes_executor", "delete_option_kwargs"),
+        ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
     }
     suspected_sensitive -= exclude_list
     sensitive_values.update(suspected_sensitive)

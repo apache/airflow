@@ -43,7 +43,7 @@ Docker Desktop
 --------------
 
 - **Version**: Install the latest stable `Docker Desktop <https://docs.docker.com/get-docker/>`_
-  and add make sure it is in your PATH. ``Breeze`` detects if you are using version that is too
+  and make sure it is in your PATH. ``Breeze`` detects if you are using version that is too
   old and warns you to upgrade.
 - **Permissions**: Configure to run the ``docker`` commands directly and not only via root user.
   Your user should be in the ``docker`` group.
@@ -56,7 +56,7 @@ Docker Desktop
 - **Docker problems**: Sometimes it is not obvious that space is an issue when you run into
   a problem with Docker. If you see a weird behaviour, try ``breeze cleanup`` command.
   Also see `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
-- **Docker context**: In recent versions Docker Desktop is by default configured to use ``desktop-linux``
+- **Docker context**: Recent versions of Docker Desktop are by default configured to use ``desktop-linux``
   docker context that uses docker socket created in user home directory. Older versions (and plain docker)
   uses ``/var/run/docker.sock`` socket and ``default`` context. Breeze will attempt to detect if you have
   ``desktop-linux`` context configured and will use it if it is available, but you can force the
@@ -258,6 +258,20 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
 
     pipx install -e ./dev/breeze
 
+.. warning::
+
+  If you see below warning - it means that you hit `known issue <https://github.com/pypa/pipx/issues/1092>`_
+  with ``packaging`` version 23.2:
+  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+  to avoid having to create a new src/ directory.
+
+  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command.
+
+  .. code-block::bash
+
+     pip install "packaging<23.2"
+     pipx install -e ./dev/breeze --force
+
 
 .. note:: Note for Windows users
 
@@ -409,7 +423,7 @@ as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.8 --backend mysql --mysql-version 8
+    breeze --python 3.8 --backend mysql --mysql-version 8.0
 
 .. note:: Note for Windows WSL2 users
 
@@ -425,7 +439,7 @@ Try adding ``--builder=default`` to your command. For example:
 
 .. code-block:: bash
 
-    breeze --builder=default --python 3.8 --backend mysql --mysql-version 8
+    breeze --builder=default --python 3.8 --backend mysql --mysql-version 8.0
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -1659,8 +1673,8 @@ These are all available flags of ``version`` command:
   :alt: Breeze version
 
 
-Breeze self-upgrade
-...................
+Breeze setup self-upgrade
+.........................
 
 You can self-upgrade breeze automatically. These are all available flags of ``self-upgrade`` command:
 
@@ -2118,10 +2132,10 @@ These are all available flags of ``release-management publish-docs`` command:
   :width: 100%
   :alt: Breeze Publish documentation
 
-.. _generating_short_form_names:
+.. _generating_short_form_names_publish:
 
 Generating short form names for Providers
------------------------------------------
+.........................................
 
 Skip the ``apache-airflow-providers-`` from the usual provider full names.
 Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
@@ -2270,15 +2284,27 @@ These are all of the available flags for the ``update-sbom-information`` command
   :width: 100%
   :alt: Breeze update sbom information
 
+Build all airflow images
+.............................
+
+In order to generate providers requirements, we need docker images with all airflow versions pre-installed,
+such images are built with the ``build-all-airflow-images`` command.
+This command will build one docker image per python version, with all the airflow versions >=2.0.0 compatible.
+
+.. image:: ./images/breeze/output_sbom_build-all-airflow-images.svg.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_build-all-airflow-images.svg
+  :width: 100%
+  :alt: Breeze build all airflow images
+
 Generating Provider requirements
 .................................
 
 In order to generate SBOM information for providers, we need to generate requirements for them. This is
-done by the ``generate-provider-requirements`` command. This command generates requirements for the
+done by the ``generate-providers-requirements`` command. This command generates requirements for the
 selected provider and python version, using the airflow version specified.
 
-.. image:: ./images/breeze/output_sbom_generate-provider-requirements.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-provider-requirements.svg
+.. image:: ./images/breeze/output_sbom_generate-providers-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-providers-requirements.svg
   :width: 100%
   :alt: Breeze generate SBOM provider requirements
 
@@ -2553,9 +2579,10 @@ to add it to one of the providers, you need to add it to the ``provider.yaml`` f
 directory - but remember that this should be followed by running pre-commit that will automatically update
 the ``generated/provider_dependencies.json`` directory with the new dependencies:
 
-```
-pre-commit run update-providers-dependencies  --all-files
-```
+.. code-block:: bash
+
+    pre-commit run update-providers-dependencies  --all-files
+
 
 You can also run the pre-commit by ``breeze static-checks --type update-providers-dependencies --all-files``
 command - which provides autocomplete.
@@ -2565,17 +2592,18 @@ After you've updated the dependencies, you need to rebuild the image:
 Breeze will automatically detect when you updated dependencies and it will propose you to build image next
 time when you enter it. You can answer ``y`` during 10 seconds to get it done for you.
 
-```
-breeze ci-image build
-```
+.. code-block:: bash
+
+    breeze ci-image build
+
 
 Sometimes, when you have conflicting change in dependencies (i.e. dependencies in the old constraints
 are conflicting with the new specification, you might want to build the image with
 ``--upgrade-to-newer-dependencies`` flag:
 
-```
-breeze ci-image build --upgrade-to-newer-dependencies
-```
+.. code-block:: bash
+
+    breeze ci-image build --upgrade-to-newer-dependencies
 
 
 System (debian) dependencies
@@ -2592,9 +2620,9 @@ other scripts (for example ``install_postgres.sh`` or ``install_mysql.sh``).
 
 After you modify the dependencies in the scripts, you need to inline them by running pre-commit:
 
-```
-pre-commit run update-inlined-dockerfile-scripts --all-files
-```
+.. code-block:: bash
+
+    pre-commit run update-inlined-dockerfile-scripts --all-files
 
 You can also run the pre-commit by ``breeze static-checks --type update-inlined-dockerfile-scripts --all-files``
 command - which provides autocomplete.
@@ -2605,17 +2633,18 @@ After you've updated the dependencies, you need to rebuild the image:
 Breeze will automatically detect when you updated dependencies and it will propose you to build image next
 time when you enter it. You can answer ``y`` during 10 seconds to get it done for you.
 
-```
-breeze ci-image build
-```
+.. code-block:: bash
+
+    breeze ci-image build
 
 Sometimes, when you have conflicting change in dependencies (i.e. dependencies in the old constraints
 are conflicting with the new specification, you might want to build the image with
 ``--upgrade-to-newer-dependencies`` flag:
 
-```
-breeze ci-image build --upgrade-to-newer-dependencies
-```
+.. code-block:: bash
+
+    breeze ci-image build --upgrade-to-newer-dependencies
+
 
 Node (yarn) dependencies
 ........................
@@ -2646,3 +2675,50 @@ This will also remove breeze from the folder: ``${HOME}.local/bin/``
 .. code-block:: bash
 
     pipx uninstall apache-airflow-breeze
+
+
+Debugging/developing Breeze
+===========================
+
+Breeze can be quite easily debugged with PyCharm/VSCode or any other IDE - but it might be less discoverable
+if you never tested modules and if you do not know how to bypass version check of breeze.
+
+For testing, you can create your own virtual environment, or use the one that ``pipx`` created for you if you
+already installed breeze following the recommended ``pipx install -e ./dev/breeze`` command.
+
+For local virtualenv, you can use ``pyenv`` or any other virtualenv wrapper. For example with ``pyenv``,
+you can use ``pyenv virtualenv 3.8.6 airflow-breeze`` to create virtualenv called ``airflow-breeze``
+with Python 3.8.6. Then you can use ``pyenv activate airflow-breeze`` to activate it and install breeze
+in editable mode with ``pip install -e ./dev/breeze``.
+
+For ``pipx`` virtualenv, you can use the virtualenv that ``pipx`` created for you. You can find the name
+where ``pipx`` keeps their venvs via ``pipx list`` command. Usually it is
+``${HOME}/.local/pipx/venvs/apache-airflow-breeze`` where ``$HOME`` is your home directory.
+
+The venv can be used for running breeze tests and for debugging breeze. While running tests should
+be usually "out-of-the-box" for most IDEs, once you configure ``./dev/breeze`` project to use the venv,
+running/debugging a particular breeze command you want to debug might be a bit more tricky.
+
+When you configure your "Run/Debug configuration" to run breeze command you should
+make sure to follow these steps:
+
+* pick one of the above interpreters to use (usually you need to choose ``bin/python`` inside the venv)
+* choose ``module`` to run and set it to ``airflow_breeze.breeze`` - this is the entrypoint of breeze
+* add parameters you want to run breeze with (for example ``ci-image build`` if you want to debug
+  how breeze builds the CI image
+* set ``SKIP_UPGRADE_CHECK`` environment variable to ``true`` to bypass built-in upgrade check of breeze,
+  this will bypass the check we run in Breeze to see if there are new requirements to install for it
+
+See example configuration for PyCharm which has run/debug configuration for
+``breeze sbom generate-providers-requirements --provider-id sqlite --python 3.8``
+
+.. raw:: html
+
+    <div align="center">
+        <img src="images/pycharm_debug_breeze.png" width="640"
+             alt="Airflow Breeze - PyCharm debugger configuration">
+    </div>
+
+Then you can setup breakpoints and debug breeze as any other Python script or test.
+
+Similar configuration can be done for VSCode.

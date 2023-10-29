@@ -347,7 +347,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs._wait_for_task_ended()
         client_mock.get_waiter.assert_called_once_with("tasks_stopped")
         client_mock.get_waiter.return_value.wait.assert_called_once_with(
-            cluster="c", tasks=["arn"], WaiterConfig={"Delay": 6, "MaxAttempts": 1000000 * 365 * 24 * 60 * 10}
+            cluster="c", tasks=["arn"], WaiterConfig={"Delay": 6, "MaxAttempts": 1000000}
         )
 
     @mock.patch.object(EcsBaseOperator, "client")

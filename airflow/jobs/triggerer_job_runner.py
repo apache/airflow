@@ -30,7 +30,7 @@ from copy import copy
 from queue import SimpleQueue
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -60,7 +60,6 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models import TaskInstance
-    from airflow.serialization.pydantic.job import JobPydantic
     from airflow.triggers.base import BaseTrigger
 
 HANDLER_SUPPORTS_TRIGGERER = False
@@ -237,7 +236,7 @@ def setup_queue_listener():
         return None
 
 
-class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
+class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     """
     Run active triggers in asyncio and update their dependent tests/DAGs once their events have fired.
 
@@ -250,7 +249,7 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
 
     def __init__(
         self,
-        job: Job | JobPydantic,
+        job: Job,
         capacity=None,
     ):
         super().__init__(job)
@@ -301,7 +300,7 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
 
         This is used for the warning boxes in the UI.
         """
-        return session.query(func.count(Trigger.id)).scalar() > 0
+        return session.execute(select(func.count(Trigger.id))).scalar_one() > 0
 
     def on_kill(self):
         """
