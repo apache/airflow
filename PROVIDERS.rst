@@ -299,9 +299,12 @@ There are the following consequences (or lack of them) of removing the provider:
   longer maintained by the Apache Airflow community - linking to this page. This information should also
   find its way to the package documentation and consequently - to the description of the package in PyPI.
 * An ``[ANNOUNCE]`` thread is sent to the devlist and user list announcing removal of the provider
-* The released provider packages remain available on PyPI and in the Downloads/Archives of the Apache
-  Software Foundation, also it remains in the Index of the Apache Airflow Providers at
-  `Airflow Documentation <https://airflow.apache.org/docs/>`_ with note ``(not maintained)`` next to it.
+* The released provider packages remain available on PyPI and in the
+   `Archives <https://archive.apache.org/dist/airflow/providers/>`_ of the Apache
+   Software Foundation, while they are removed from the 
+   `Downlads <https://downloads.apache.org/airflow/providers/>`_ .
+   Also it remains in the Index of the Apache Airflow Providers documentation at
+   `Airflow Documentation <https://airflow.apache.org/docs/>`_ with note ``(not maintained)`` next to it.
 * The code of the provider is removed from ``main`` branch of the Apache Airflow repository - including
   the tests and documentation. It is no longer built in CI and dependencies of the provider no longer
   contribute to the CI image/constraints of Apache Airflow for development and future ``MINOR`` release.
