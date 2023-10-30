@@ -190,6 +190,7 @@ class TestAthenaOperator:
             MOCK_DATA["workgroup"],
         )
 
+    @pytest.mark.db_test
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")

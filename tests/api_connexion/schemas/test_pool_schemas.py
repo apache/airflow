@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_pools
+
+pytestmark = pytest.mark.db_test
 
 
 class TestPoolSchema:

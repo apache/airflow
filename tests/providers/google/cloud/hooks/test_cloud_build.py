@@ -349,6 +349,7 @@ class TestCloudBuildHook:
         )
 
 
+@pytest.mark.db_test
 class TestAsyncHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):

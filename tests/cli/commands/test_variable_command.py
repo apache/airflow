@@ -31,6 +31,8 @@ from airflow.models import Variable
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_variables
 
+pytestmark = pytest.mark.db_test
+
 
 class TestCliVariables:
     @classmethod
