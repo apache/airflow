@@ -27,6 +27,7 @@ from uuid import uuid4
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
     EmrClusterLink,
@@ -1202,14 +1203,33 @@ class EmrServerlessStartJobOperator(BaseOperator):
         can access, but expire on first click or one hour, whichever comes first.
         """
         op_extra_links = []
-        if self.enable_application_ui_links:
+
+        if isinstance(self, MappedOperator):
+            enable_application_ui_links = self.partial_kwargs.get(
+                "enable_application_ui_links"
+            ) or self.expand_input.value.get("enable_application_ui_links")
+            job_driver = self.partial_kwargs.get(
+                "job_driver"
+            ) or self.expand_input.value.get("job_driver")
+            configuration_overrides = self.partial_kwargs.get(
+                "configuration_overrides"
+            ) or self.expand_input.value.get("configuration_overrides")
+
+        else:
+            enable_application_ui_links = self.enable_application_ui_links
+            configuration_overrides = self.configuration_overrides
+            job_driver = self.job_driver
+
+
+        if enable_application_ui_links:
             op_extra_links.extend([EmrServerlessDashboardLink()])
-            if "sparkSubmit" in self.job_driver:
+            if "sparkSubmit" in job_driver:
                 op_extra_links.extend([EmrServerlessLogsLink()])
-        if self.has_monitoring_enabled("s3MonitoringConfiguration"):
+        if self.is_monitoring_in_job_override("s3MonitoringConfiguration", configuration_overrides):
             op_extra_links.extend([EmrServerlessS3LogsLink()])
-        if self.has_monitoring_enabled("cloudWatchLoggingConfiguration"):
+        if self.is_monitoring_in_job_override("cloudWatchLoggingConfiguration", configuration_overrides):
             op_extra_links.extend([EmrServerlessCloudWatchLogsLink()])
+            
 
         return tuple(op_extra_links)
 
@@ -1218,7 +1238,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         application_id: str,
         execution_role_arn: str,
         job_driver: dict,
-        configuration_overrides: dict | None,
+        configuration_overrides: dict | None = None,
         client_request_token: str = "",
         config: dict | None = None,
         wait_for_completion: bool = True,
@@ -1391,13 +1411,16 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 check_interval_seconds=self.waiter_delay,
             )
 
-    def has_monitoring_enabled(self, config_key: str) -> bool:
+    def is_monitoring_in_job_override(self, config_key: str, job_override: dict | None) -> bool:
         """
         Check if monitoring is enabled for the job.
 
+        Note: This is not compatible with application defaults:
+        https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/default-configs.html
+
         This is used to determine what extra links should be shown.
         """
-        monitoring_config = (self.configuration_overrides or {}).get("monitoringConfiguration")
+        monitoring_config = job_override.get("monitoringConfiguration")
         if monitoring_config is None or config_key not in monitoring_config:
             return False
 
@@ -1433,7 +1456,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             )
 
         # Add S3 and/or CloudWatch links if either is enabled
-        if self.has_monitoring_enabled("s3MonitoringConfiguration"):
+        if self.is_monitoring_in_job_override("s3MonitoringConfiguration", self.configuration_overrides):
             log_uri = (
                 (self.configuration_overrides or {})
                 .get("monitoringConfiguration", {})
@@ -1459,7 +1482,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             )
             self.log.info("S3 logs available at: %s", emrs_s3_url)
 
-        if self.has_monitoring_enabled("cloudWatchLoggingConfiguration"):
+        if self.is_monitoring_in_job_override("cloudWatchLoggingConfiguration", self.configuration_overrides):
             cloudwatch_config = (
                 (self.configuration_overrides or {})
                 .get("monitoringConfiguration", {})
