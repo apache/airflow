@@ -260,7 +260,6 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
                 raise AirflowDataQualityScanException(message)
         return job_status == DataScanJob.State.SUCCEEDED
 
-
 class DataplexDataProfileJobStatusSensor(BaseSensorOperator):
     """
     Check the status of the Dataplex DataProfile job.

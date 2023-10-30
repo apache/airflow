@@ -108,7 +108,6 @@ class DataplexDataQualityJobTrigger(BaseTrigger):
         """Returns a representation of a DataScanJob instance as a dict."""
         return DataScanJob.to_dict(job)
 
-
 class DataplexDataProfileJobTrigger(BaseTrigger):
     """
     DataplexDataProfileJobTrigger runs on the trigger worker and waits for the job to be `SUCCEEDED` state.
