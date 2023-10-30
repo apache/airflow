@@ -529,10 +529,8 @@ class TestCliDags:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
             dag_list = json.loads(out)
-        assert "dag_id" in dag_list[0]
-        assert "fileloc" in dag_list[0]
-        assert "owners" in dag_list[0]
-        assert "is_paused" in dag_list[0]
+        for key in ["dag_id", "fileloc", "owners", "is_paused"]:
+            assert key in dag_list[0]
         assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
     @conf_vars({("core", "load_examples"): "true"})
