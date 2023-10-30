@@ -47,6 +47,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select, true
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -148,7 +149,7 @@ class DagRun(Base, LoggingMixin):
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
-    _conf = Column(PickleType)
+    _conf = Column("conf", PickleType)
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
@@ -280,7 +281,7 @@ class DagRun(Base, LoggingMixin):
             )
         return run_id
 
-    @property
+    @hybrid_property
     def conf(self):
         return self._conf
 
