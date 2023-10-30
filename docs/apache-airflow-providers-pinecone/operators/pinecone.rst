@@ -35,5 +35,6 @@ An example using the operator in this way:
 
 .. exampleinclude:: /../../tests/system/providers/pinecone/example_dag_pinecone.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_pinecone_ingest]
     :end-before: [END howto_operator_pinecone_ingest]
