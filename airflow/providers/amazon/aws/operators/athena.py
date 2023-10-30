@@ -45,6 +45,10 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
     :param database: Database to select. (templated)
     :param catalog: Catalog to select. (templated)
     :param output_location: s3 path to write the query results into. (templated)
+        To run the query, you must specify the query results location using one of the ways:
+        either for individual queries using either this setting (client-side),
+        or in the workgroup, using WorkGroupConfiguration.
+        If none of them is set, Athena issues an error that no output location is provided
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
     :param workgroup: Athena workgroup in which query will be run. (templated)
     :param query_execution_context: Context in which query need to be run
@@ -79,7 +83,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         *,
         query: str,
         database: str,
-        output_location: str,
+        output_location: str | None = None,
         client_request_token: str | None = None,
         workgroup: str = "primary",
         query_execution_context: dict[str, str] | None = None,
@@ -114,7 +118,8 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
         """Run Trino/Presto Query on Amazon Athena."""
         self.query_execution_context["Database"] = self.database
         self.query_execution_context["Catalog"] = self.catalog
-        self.result_configuration["OutputLocation"] = self.output_location
+        if self.output_location:
+            self.result_configuration["OutputLocation"] = self.output_location
         self.query_execution_id = self.hook.run_query(
             self.query,
             self.query_execution_context,

@@ -345,7 +345,7 @@ if [[ ${UPGRADE_BOTO=} == "true" ]]; then
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    pip uninstall --root-user-action ignore aiobotocore -y || true
+    pip uninstall --root-user-action ignore aiobotocore s3fs -y || true
     pip install --root-user-action ignore --upgrade boto3 botocore
     pip check
 fi

@@ -455,10 +455,18 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_dags" -}}
-  {{- if .Values.dags.gitSync.enabled }}
-    {{- printf "%s/dags/repo/%s" .Values.airflowHome .Values.dags.gitSync.subPath }}
+  {{- if .Values.dags.mountPath }}
+    {{- if .Values.dags.gitSync.enabled }}
+      {{- printf "%s/repo/%s" .Values.dags.mountPath .Values.dags.gitSync.subPath }}
+    {{- else }}
+      {{- printf "%s" .Values.dags.mountPath }}
+    {{- end }}
   {{- else }}
-    {{- printf "%s/dags" .Values.airflowHome }}
+    {{- if .Values.dags.gitSync.enabled }}
+      {{- printf "%s/dags/repo/%s" .Values.airflowHome .Values.dags.gitSync.subPath }}
+    {{- else }}
+      {{- printf "%s/dags" .Values.airflowHome }}
+    {{- end }}
   {{- end }}
 {{- end }}
 
@@ -472,7 +480,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{- define "airflow_dags_mount" -}}
 - name: dags
+  {{- if .Values.dags.mountPath }}
+  mountPath: {{ .Values.dags.mountPath }}
+  {{- else }}
   mountPath: {{ printf "%s/dags" .Values.airflowHome }}
+  {{- end }}
   {{- if .Values.dags.persistence.subPath }}
   subPath: {{ .Values.dags.persistence.subPath }}
   {{- end }}

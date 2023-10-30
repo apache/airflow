@@ -132,6 +132,13 @@ class TestKubernetesPodOperator:
                 requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
                 limits={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
             ),
+            volume_mounts=[
+                k8s.V1VolumeMount(
+                    name="{{ dag.dag_id }}",
+                    mount_path="mount_path",
+                    sub_path="{{ dag.dag_id }}",
+                )
+            ],
             pod_template_file="{{ dag.dag_id }}",
             config_file="{{ dag.dag_id }}",
             labels="{{ dag.dag_id }}",
@@ -147,6 +154,8 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.container_resources.limits["cpu"]
         assert dag_id == rendered.container_resources.requests["memory"]
         assert dag_id == rendered.container_resources.requests["cpu"]
+        assert dag_id == rendered.volume_mounts[0].name
+        assert dag_id == rendered.volume_mounts[0].sub_path
         assert dag_id == ti.task.image
         assert dag_id == ti.task.cmds
         assert dag_id == ti.task.namespace
@@ -225,6 +234,15 @@ class TestKubernetesPodOperator:
         )
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.security_context == security_context
+
+    def test_host_aliases(self):
+        host_aliases = [k8s.V1HostAlias(ip="192.0.2.1", hostnames=["my.service.com"])]
+        k = KubernetesPodOperator(
+            host_aliases=host_aliases,
+            task_id="task",
+        )
+        pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.host_aliases == host_aliases
 
     def test_container_security_context(self):
         container_security_context = {"allowPrivilegeEscalation": False}
