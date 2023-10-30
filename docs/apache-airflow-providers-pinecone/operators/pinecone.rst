@@ -31,7 +31,7 @@ The PineconeIngestOperator requires the ``vectors`` as an input ingest into Pine
 specify the Pinecone connection to use to connect to your account. The vectors could also contain metadata referencing
 the original text corresponding to the vectors that could be ingested into the database.
 
-An example using the operator is in way:
+An example using the operator in this way:
 
 .. exampleinclude:: /../../tests/system/providers/pinecone/example_dag_pinecone.py
     :language: python
