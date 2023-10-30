@@ -268,6 +268,18 @@
       </div>
     </div>
     {%- else %}
+    <div class="form-group">
+      <label for="execution_date">Logical date</label>
+      <div class="input-group">
+        {{ form.execution_date(class_="form-control", disabled=False) }}
+      </div>
+    </div>
+    <div class="form-group row">
+      <div class="col-md-2">
+        <label for="run_id">Run id (Optional)</label>
+        <input type="text" class="form-control" placeholder="Run ID" name="run_id">
+      </div>
+    </div>
     <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
     <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
     {%- endif %}
