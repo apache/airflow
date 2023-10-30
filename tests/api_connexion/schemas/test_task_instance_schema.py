@@ -251,7 +251,7 @@ class TestSetTaskInstanceStateFormSchema:
             "task_id": "print_the_context",
         }
         assert expected_result == result
-    
+
     @pytest.mark.parametrize(
         "override_data",
         [
