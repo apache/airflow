@@ -356,10 +356,14 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
     cols = args.columns if args.columns else []
     not_valid_cols = [c for c in cols if c not in dag_schema.fields.keys()]
+    valid_cols = [c for c in cols if c in dag_schema.fields.keys()]
     if not_valid_cols:
-        raise SystemExit(
-            f"The following are not valid columns: {not_valid_cols}. "
+        from rich import print as rich_print
+
+        rich_print(
+            f"[red][bold]Error:[/bold] The following are not valid columns: {not_valid_cols}. Ignoring them "
             f"Possible columns: {list(dag_schema.fields.keys())}",
+            file=sys.stderr,
         )
     dagbag = DagBag(process_subdir(args.subdir))
     if dagbag.import_errors:
@@ -374,7 +378,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
     def get_dag_detail(dag: DAG) -> dict:
         dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         dag_detail = dag_schema.dump(dag_model)
-        return {col: dag_detail[col] for col in cols}
+        return {col: dag_detail[col] for col in valid_cols}
 
     AirflowConsole().print_as(
         data=sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id")),
