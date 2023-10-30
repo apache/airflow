@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 5.2.1
   - 5.2.0
   - 5.1.4
   - 5.1.3
@@ -52,7 +53,7 @@ versions:
 dependencies:
   - apache-airflow>=2.5.0
   - apache-airflow-providers-common-sql>=1.3.1
-  - presto-python-client>=0.8.2
+  - presto-python-client>=0.8.4
   - pandas>=0.17.1
 
 integrations:

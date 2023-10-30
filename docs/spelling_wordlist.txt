@@ -122,6 +122,7 @@ Avro
 avro
 aws
 awsbatch
+awslogs
 Azkaban
 Azri
 backcompat
@@ -509,6 +510,7 @@ Dsn
 dsn
 dttm
 dtypes
+du
 durations
 dylib
 Dynamodb
@@ -516,6 +518,7 @@ dynamodb
 dynload
 ec
 ecb
+ecs
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -1116,6 +1119,7 @@ paramiko
 Params
 params
 passwd
+pathlib
 pathType
 Paxos
 PEM
@@ -1615,6 +1619,7 @@ tzinfo
 UA
 ui
 uid
+ukey
 ulimit
 Umask
 umask
@@ -1622,6 +1627,7 @@ Un
 un
 unarchived
 unassigns
+uncomment
 uncommenting
 Undead
 undead

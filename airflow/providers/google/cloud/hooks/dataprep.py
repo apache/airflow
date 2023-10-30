@@ -72,9 +72,10 @@ class GoogleDataprepHook(BaseHook):
     conn_type = "dataprep"
     hook_name = "Google Dataprep"
 
-    def __init__(self, dataprep_conn_id: str = default_conn_name) -> None:
+    def __init__(self, dataprep_conn_id: str = default_conn_name, api_version: str = "v4") -> None:
         super().__init__()
         self.dataprep_conn_id = dataprep_conn_id
+        self.api_version = api_version
         conn = self.get_connection(self.dataprep_conn_id)
         extras = conn.extra_dejson
         self._token = _get_field(extras, "token")
@@ -95,7 +96,7 @@ class GoogleDataprepHook(BaseHook):
 
         :param job_id: The ID of the job that will be fetched
         """
-        endpoint_path = f"v4/jobGroups/{job_id}/jobs"
+        endpoint_path = f"{self.api_version}/jobGroups/{job_id}/jobs"
         url: str = urljoin(self._base_url, endpoint_path)
         response = requests.get(url, headers=self._headers)
         self._raise_for_status(response)
@@ -113,7 +114,7 @@ class GoogleDataprepHook(BaseHook):
         :param include_deleted: if set to "true", will include deleted objects
         """
         params: dict[str, Any] = {"embed": embed, "includeDeleted": include_deleted}
-        endpoint_path = f"v4/jobGroups/{job_group_id}"
+        endpoint_path = f"{self.api_version}/jobGroups/{job_group_id}"
         url: str = urljoin(self._base_url, endpoint_path)
         response = requests.get(url, headers=self._headers, params=params)
         self._raise_for_status(response)
@@ -131,8 +132,22 @@ class GoogleDataprepHook(BaseHook):
 
         :param body_request: The identifier for the recipe you would like to run.
         """
-        endpoint_path = "v4/jobGroups"
+        endpoint_path = f"{self.api_version}/jobGroups"
         url: str = urljoin(self._base_url, endpoint_path)
+        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        self._raise_for_status(response)
+        return response.json()
+
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
+    def create_flow(self, *, body_request: dict) -> dict:
+        """
+        Creates flow.
+
+        :param body_request: Body of the POST request to be sent.
+            For more details check https://clouddataprep.com/documentation/api#operation/createFlow
+        """
+        endpoint = f"/{self.api_version}/flows"
+        url: str = urljoin(self._base_url, endpoint)
         response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
         self._raise_for_status(response)
         return response.json()
@@ -149,7 +164,7 @@ class GoogleDataprepHook(BaseHook):
         :param description: Description of the copy of the flow
         :param copy_datasources: Bool value to define should copies of data inputs be made or not.
         """
-        endpoint_path = f"v4/flows/{flow_id}/copy"
+        endpoint_path = f"{self.api_version}/flows/{flow_id}/copy"
         url: str = urljoin(self._base_url, endpoint_path)
         body_request = {
             "name": name,
@@ -167,7 +182,7 @@ class GoogleDataprepHook(BaseHook):
 
         :param flow_id: ID of the flow to be copied
         """
-        endpoint_path = f"v4/flows/{flow_id}"
+        endpoint_path = f"{self.api_version}/flows/{flow_id}"
         url: str = urljoin(self._base_url, endpoint_path)
         response = requests.delete(url, headers=self._headers)
         self._raise_for_status(response)
@@ -180,7 +195,7 @@ class GoogleDataprepHook(BaseHook):
         :param flow_id: ID of the flow to be copied
         :param body_request: Body of the POST request to be sent.
         """
-        endpoint = f"v4/flows/{flow_id}/run"
+        endpoint = f"{self.api_version}/flows/{flow_id}/run"
         url: str = urljoin(self._base_url, endpoint)
         response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
         self._raise_for_status(response)
@@ -193,7 +208,7 @@ class GoogleDataprepHook(BaseHook):
 
         :param job_group_id: ID of the job group to check
         """
-        endpoint = f"/v4/jobGroups/{job_group_id}/status"
+        endpoint = f"/{self.api_version}/jobGroups/{job_group_id}/status"
         url: str = urljoin(self._base_url, endpoint)
         response = requests.get(url, headers=self._headers)
         self._raise_for_status(response)
@@ -205,3 +220,74 @@ class GoogleDataprepHook(BaseHook):
         except HTTPError:
             self.log.error(response.json().get("exception"))
             raise
+
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
+    def create_imported_dataset(self, *, body_request: dict) -> dict:
+        """
+        Creates imported dataset.
+
+        :param body_request: Body of the POST request to be sent.
+            For more details check https://clouddataprep.com/documentation/api#operation/createImportedDataset
+        """
+        endpoint = f"/{self.api_version}/importedDatasets"
+        url: str = urljoin(self._base_url, endpoint)
+        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        self._raise_for_status(response)
+        return response.json()
+
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
+    def create_wrangled_dataset(self, *, body_request: dict) -> dict:
+        """
+        Creates wrangled dataset.
+
+        :param body_request: Body of the POST request to be sent.
+            For more details check
+            https://clouddataprep.com/documentation/api#operation/createWrangledDataset
+        """
+        endpoint = f"/{self.api_version}/wrangledDatasets"
+        url: str = urljoin(self._base_url, endpoint)
+        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        self._raise_for_status(response)
+        return response.json()
+
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
+    def create_output_object(self, *, body_request: dict) -> dict:
+        """
+        Creates output.
+
+        :param body_request: Body of the POST request to be sent.
+            For more details check
+            https://clouddataprep.com/documentation/api#operation/createOutputObject
+        """
+        endpoint = f"/{self.api_version}/outputObjects"
+        url: str = urljoin(self._base_url, endpoint)
+        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        self._raise_for_status(response)
+        return response.json()
+
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
+    def create_write_settings(self, *, body_request: dict) -> dict:
+        """
+        Creates write settings.
+
+        :param body_request: Body of the POST request to be sent.
+            For more details check
+            https://clouddataprep.com/documentation/api#tag/createWriteSetting
+        """
+        endpoint = f"/{self.api_version}/writeSettings"
+        url: str = urljoin(self._base_url, endpoint)
+        response = requests.post(url, headers=self._headers, data=json.dumps(body_request))
+        self._raise_for_status(response)
+        return response.json()
+
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
+    def delete_imported_dataset(self, *, dataset_id: int) -> None:
+        """
+        Deletes imported dataset.
+
+        :param dataset_id: ID of the imported dataset for removal.
+        """
+        endpoint = f"/{self.api_version}/importedDatasets/{dataset_id}"
+        url: str = urljoin(self._base_url, endpoint)
+        response = requests.delete(url, headers=self._headers)
+        self._raise_for_status(response)

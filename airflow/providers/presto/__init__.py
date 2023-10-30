@@ -28,7 +28,7 @@ import packaging.version
 
 __all__ = ["__version__"]
 
-__version__ = "5.2.0"
+__version__ = "5.2.1"
 
 try:
     from airflow import __version__ as airflow_version
@@ -39,5 +39,5 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     "2.5.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-presto:{__version__}` requires Apache Airflow 2.5.0+"  # NOQA: E501
+        f"The package `apache-airflow-providers-presto:{__version__}` requires Apache Airflow 2.5.0+"
     )

@@ -41,6 +41,20 @@ that might often be needed if dependencies change during development.
 pipx install -e ./dev/breeze --force
 ```
 
+NOTE! If you see below warning - it means that you hit [known issue](https://github.com/pypa/pipx/issues/1092)
+with `packaging` version 23.2
+⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+to avoid having to create a new src/ directory.
+
+The workaround is to downgrade packaging to 23.1 and re-running the `pipx install` command, for example
+by running `pip install "packaging<23.2"`.
+
+```shell
+pip install "packaging<23.2"
+pipx install -e ./dev/breeze --force
+```
+
+
 You can read more about Breeze in the [documentation](https://github.com/apache/airflow/blob/main/BREEZE.rst)
 
 This README file contains automatically generated hash of the `setup.py` and `setup.cfg` files that were
@@ -52,6 +66,6 @@ PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: 20d095e80d897b7c19f3eef96e0e6ceef4a7a0c0a9b82def7089ec962da64e1bd2ee20f02532fc2ef64137d86c045c340bc8038695f53d29aa72833cafe8b153
+Package config hash: 1fe676b16075afde8bd7dd88b92b3e587b12927337a0edfcc8f751a7d400b772e300d64084f02e4c76e5bb5f2f349a23729258ec457bcb0b94f180ef19ffb154
 
 ---------------------------------------------------------------------------------------------------------

@@ -25,6 +25,7 @@ import sys
 import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
+from pathlib import Path
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Generator
@@ -832,15 +833,13 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
         if expected_state == TaskInstanceState.FAILED:
             with pytest.raises(CalledProcessError):
-                self.run_as_task(
-                    f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs if extra_kwargs else {})
-                )
+                self.run_as_task(f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs or {}))
         else:
             ti = self.run_as_task(
                 f,
                 return_ti=True,
                 op_kwargs={"exit_code": actual_exit_code},
-                **(extra_kwargs if extra_kwargs else {}),
+                **(extra_kwargs or {}),
             )
             assert ti.state == expected_state
 
@@ -999,6 +998,38 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         with TemporaryDirectory(prefix="pytest_venv_1234") as tmp_dir:
             self.run_as_task(f, venv_cache_path=tmp_dir, op_args=[4])
+
+    def test_no_side_effect_of_caching_and_termination_log(self):
+        def termination_log(a):
+            import sys
+            from pathlib import Path
+
+            assert "pytest_venv_1234" in sys.executable
+            venv_cache_dir_name = Path(sys.executable).parent.parent.name
+            raise Exception(f"Should produce termination log. Subdir = {venv_cache_dir_name}")
+
+        def no_termination_log(a):
+            import sys
+
+            assert "pytest_venv_1234" in sys.executable
+            raise SystemExit(1)
+
+        with TemporaryDirectory(prefix="pytest_venv_1234") as tmp_dir:
+            with pytest.raises(AirflowException, match="Should produce termination log") as exc:
+                self.run_as_task(termination_log, venv_cache_path=tmp_dir, op_args=[4])
+            venv_dir_cache = exc.value.args[0].split(" ")[-1]
+            termination_log_path = Path(tmp_dir) / venv_dir_cache / "termination.log"
+            assert termination_log_path.exists()
+            assert "Should produce termination log" in termination_log_path.read_text()
+            clear_db_runs()
+
+            # termination log from previous run should not produce side effects in another task
+            # Using the same cached venv
+
+            assert termination_log_path.exists()
+            with pytest.raises(CalledProcessError):
+                self.run_as_task(no_termination_log, venv_cache_path=tmp_dir, op_args=[4])
+            assert not termination_log_path.exists()
 
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).

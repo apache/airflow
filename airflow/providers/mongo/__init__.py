@@ -28,7 +28,7 @@ import packaging.version
 
 __all__ = ["__version__"]
 
-__version__ = "3.3.0"
+__version__ = "3.4.0"
 
 try:
     from airflow import __version__ as airflow_version
@@ -39,5 +39,5 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     "2.5.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-mongo:{__version__}` requires Apache Airflow 2.5.0+"  # NOQA: E501
+        f"The package `apache-airflow-providers-mongo:{__version__}` requires Apache Airflow 2.5.0+"
     )

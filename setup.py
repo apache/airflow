@@ -328,7 +328,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.6",
+    "flask-appbuilder[oauth]==4.3.9",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -385,6 +385,7 @@ mypy_dependencies = [
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
     "mypy==1.2.0",
+    "types-aiofiles",
     "types-certifi",
     "types-croniter",
     "types-Deprecated",
@@ -435,10 +436,15 @@ _devel_only_devscripts = [
     "pipdeptree",
     "pygithub",
     "rich-click>=1.7.0",
+    "restructuredtext-lint",
     "semver",
     "towncrier",
     "twine",
     "wheel",
+]
+
+_devel_only_duckdb = [
+    "duckdb>=0.9.0",
 ]
 
 _devel_only_mongo = [
@@ -482,6 +488,7 @@ devel_only = [
     *_devel_only_breeze,
     *_devel_only_debuggers,
     *_devel_only_devscripts,
+    *_devel_only_duckdb,
     *_devel_only_mongo,
     *_devel_only_sentry,
     *_devel_only_static_checks,
@@ -494,6 +501,12 @@ aiobotocore = [
     # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
     # boto3 have native aync support and we move away from aio aiobotocore
     "aiobotocore>=2.1.1",
+]
+
+s3fs = [
+    # This is required for support of S3 file system which uses aiobotocore
+    # which can have a conflict with boto3 as mentioned above
+    "s3fs>=2023.9.2",
 ]
 
 
@@ -522,6 +535,7 @@ devel = get_unique_dependency_list(
         get_provider_dependencies("mysql"),
         pandas,
         password,
+        s3fs,
     ]
 )
 
@@ -567,6 +581,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "pandas": pandas,
     "password": password,
     "rabbitmq": rabbitmq,
+    "s3fs": s3fs,
     "sentry": sentry,
     "statsd": statsd,
     "virtualenv": virtualenv,
@@ -798,6 +813,7 @@ EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
+    "common.io",
     "common.sql",
     "ftp",
     "http",

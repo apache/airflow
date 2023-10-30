@@ -815,7 +815,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
-        if not self._standalone_dag_processor:
+        if not self._standalone_dag_processor and not self.processor_agent:
             self.processor_agent = DagFileProcessorAgent(
                 dag_directory=Path(self.subdir),
                 max_runs=self.num_times_parse_dags,
@@ -1002,7 +1002,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
-                time.sleep(min(self._scheduler_idle_sleep_time, next_event if next_event else 0))
+                time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
 
             if loop_count >= self.num_runs > 0:
                 self.log.info(
@@ -1176,17 +1176,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
             if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
-                dag.create_dagrun(
-                    run_type=DagRunType.SCHEDULED,
-                    execution_date=dag_model.next_dagrun,
-                    state=DagRunState.QUEUED,
-                    data_interval=data_interval,
-                    external_trigger=False,
-                    session=session,
-                    dag_hash=dag_hash,
-                    creating_job_id=self.job.id,
-                )
-                active_runs_of_dags[dag.dag_id] += 1
+                try:
+                    dag.create_dagrun(
+                        run_type=DagRunType.SCHEDULED,
+                        execution_date=dag_model.next_dagrun,
+                        state=DagRunState.QUEUED,
+                        data_interval=data_interval,
+                        external_trigger=False,
+                        session=session,
+                        dag_hash=dag_hash,
+                        creating_job_id=self.job.id,
+                    )
+                    active_runs_of_dags[dag.dag_id] += 1
+                # Exceptions like ValueError, ParamValidationError, etc. are raised by
+                # dag.create_dagrun() when dag is misconfigured. The scheduler should not
+                # crash due to misconfigured dags. We should log any exception encountered
+                # and continue to the next dag.
+                except Exception:
+                    self.log.exception("Failed creating DagRun for %s", dag.dag_id)
+                    continue
             if self._should_update_dag_next_dagruns(
                 dag,
                 dag_model,

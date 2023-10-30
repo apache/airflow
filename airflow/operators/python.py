@@ -431,6 +431,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         string_args_path = tmp_dir / "string_args.txt"
         script_path = tmp_dir / "script.py"
         termination_log_path = tmp_dir / "termination.log"
+
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
@@ -445,7 +446,10 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             filename=os.fspath(script_path),
             render_template_as_native_obj=self.dag.render_template_as_native_obj,
         )
-
+        # For cached venv we need to make sure that the termination log does not exist
+        # Before process starts (it could be a left-over from a previous run)
+        if termination_log_path.exists():
+            termination_log_path.unlink()
         try:
             execute_in_subprocess(
                 cmd=[
@@ -729,6 +733,10 @@ class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
     these paths can't move forward. The ``skipped`` states are propagated
     downstream to allow for the DAG state to fill up and the DAG run's state
     to be inferred.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchPythonVirtualenvOperator`
     """
 
     def execute(self, context: Context) -> Any:
@@ -910,6 +918,10 @@ class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
     Extends ExternalPythonOperator, so expects to get Python:
     virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path,
     so it can run on separate virtual environment similarly to ExternalPythonOperator.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchExternalPythonOperator`
     """
 
     def execute(self, context: Context) -> Any:

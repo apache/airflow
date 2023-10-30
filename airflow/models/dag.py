@@ -471,7 +471,7 @@ class DAG(LoggingMixin):
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
 
-        self.owner_links = owner_links if owner_links else {}
+        self.owner_links = owner_links or {}
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         if default_args and not isinstance(default_args, dict):
@@ -727,7 +727,7 @@ class DAG(LoggingMixin):
                 f"inconsistent schedule: timetable {self.timetable.summary!r} "
                 f"does not match schedule_interval {self.schedule_interval!r}",
             )
-        self.params.validate()
+        self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
 
