@@ -212,7 +212,7 @@ class TestAthenaOperator:
         mock_run_query.assert_called_once_with(
             MOCK_DATA["query"],
             query_context,
-            {},  # Should be an empty since we do not provide output_location
+            {},  # Should be an empty dict since we do not provide output_location
             MOCK_DATA["client_request_token"],
             MOCK_DATA["workgroup"],
         )
