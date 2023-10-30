@@ -295,6 +295,7 @@ class TestGKEPodOperator:
 
         fetch_cluster_info_mock.assert_called_once()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("use_internal_ip", [True, False])
     @mock.patch(f"{GKE_HOOK_PATH}.get_cluster")
     def test_cluster_info(self, get_cluster_mock, use_internal_ip):
@@ -320,6 +321,7 @@ class TestGKEPodOperator:
         assert cluster_url == CLUSTER_PRIVATE_URL if use_internal_ip else CLUSTER_URL
         assert ssl_ca_cert == SSL_CA_CERT
 
+    @pytest.mark.db_test
     def test_default_gcp_conn_id(self):
         gke_op = GKEStartPodOperator(
             project_id=TEST_GCP_PROJECT_ID,

@@ -83,6 +83,8 @@ from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.mock_operators import CustomOperator
 from tests.utils.test_timezone import UTC
 
+pytestmark = pytest.mark.db_test
+
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )

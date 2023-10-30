@@ -278,6 +278,7 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
     BaseSerialization.serialize(obj, use_pydantic_models=True)  # does not raise
 
 
+@pytest.mark.db_test
 def test_serialized_mapped_operator_unmap(dag_maker):
     from airflow.serialization.serialized_objects import SerializedDAG
     from tests.test_utils.mock_operators import MockOperator

@@ -176,6 +176,7 @@ class TestFallbackToVariables:
             FixtureFallback().test_fn({"project": "TEST"}, "TEST2")
 
 
+@pytest.mark.db_test
 class TestDataflowHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
@@ -819,6 +820,7 @@ class TestDataflowHook:
         method_wait_for_done.assert_called_once_with()
 
 
+@pytest.mark.db_test
 class TestDataflowTemplateHook:
     def setup_method(self):
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")

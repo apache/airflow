@@ -42,6 +42,8 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
+pytestmark = pytest.mark.db_test
+
 
 def test_configuration_do_not_expose_config(admin_client):
     with conf_vars({("webserver", "expose_config"): "False"}):
