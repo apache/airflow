@@ -28,10 +28,10 @@ namespace = os.getenv("NAMESPACE", "example-pinecone-namespace")
 
 with DAG(
     "example_pinecone_ingest",
-    schedule_interval=None,
+    schedule=None,
     start_date=datetime(2023, 1, 1),
     catchup=False,
-) as dag:
+):
     # [START howto_operator_pinecone_ingest]
     PineconeIngestOperator(
         task_id="pinecone_vector_ingest",
