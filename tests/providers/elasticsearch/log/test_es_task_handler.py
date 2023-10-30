@@ -41,6 +41,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 from .elasticmock import elasticmock
 from .elasticmock.utilities import SearchFailedException
 
+pytestmark = pytest.mark.db_test
+
 
 def get_ti(dag_id, task_id, execution_date, create_task_instance):
     ti = create_task_instance(

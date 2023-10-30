@@ -91,6 +91,7 @@ class TestDatabricksPartitionSensor:
         mock_poke.return_value = sensor_poke_result
         assert self.partition_sensor.poke({}) == expected_poke_result
 
+    @pytest.mark.db_test
     def test_unsupported_conn_type(self):
         with pytest.raises(AirflowException):
             self.partition_sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

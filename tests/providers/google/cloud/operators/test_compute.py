@@ -486,6 +486,7 @@ class TestGceInstanceStart:
 
     # Setting all the operator's input parameters as template dag_ids
     # (could be anything else) just to test if the templating works for all fields
+    @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_start_instance_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_instance_start_with_templates"
@@ -588,6 +589,7 @@ class TestGceInstanceStop:
 
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
+    @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_instance_stop_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_instance_stop_with_templates"
@@ -679,6 +681,7 @@ class TestGceInstanceSetMachineType:
 
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all fields
+    @pytest.mark.db_test
     @mock.patch(COMPUTE_ENGINE_HOOK_PATH)
     def test_machine_type_set_with_templates(self, _, create_task_instance_of_operator):
         dag_id = "test_set_machine_type_with_templates"
@@ -808,6 +811,7 @@ class TestGceInstanceSetMachineType:
         "-577542784f769-7999ab71-94f9ec1d'} "
     )
 
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.compute.ComputeEngineHook._check_zone_operation_status"
     )

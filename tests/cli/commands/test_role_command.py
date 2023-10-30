@@ -28,6 +28,9 @@ from airflow.cli.commands import role_command
 from airflow.security import permissions
 from airflow.utils.cli_app_builder import get_application_builder
 
+pytestmark = pytest.mark.db_test
+
+
 TEST_USER1_EMAIL = "test-user1@example.com"
 TEST_USER2_EMAIL = "test-user2@example.com"
 

@@ -34,6 +34,9 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
 from airflow.utils.session import create_session
 
+pytestmark = pytest.mark.db_test
+
+
 HELLO_SERVER_CMD = """
 import socket, sys
 listener = socket.socket()

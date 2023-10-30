@@ -34,6 +34,8 @@ from tests.listeners import lifecycle_listener
 from tests.test_utils.config import conf_vars
 from tests.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
 
+pytestmark = pytest.mark.db_test
+
 
 class TestJob:
     def test_state_success(self):

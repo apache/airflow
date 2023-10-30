@@ -27,6 +27,9 @@ from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
+
 mongomock: ModuleType | None
 
 try:

@@ -18,9 +18,13 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.cli import cli_parser
 from airflow.cli.commands import kerberos_command
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 
 class TestKerberosCommand:

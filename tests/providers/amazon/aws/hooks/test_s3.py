@@ -1275,6 +1275,7 @@ class TestAwsS3Hook:
             hook.get_bucket_tagging(bucket_name="new_bucket")
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     "key_kind, has_conn, has_bucket, precedence, expected",
     [

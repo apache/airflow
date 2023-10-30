@@ -27,6 +27,8 @@ import pytest
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 
+pytestmark = pytest.mark.db_test
+
 
 class TestFileToGcsOperator:
 
@@ -80,6 +82,7 @@ class TestFileToGcsOperator:
             object_name="test/test1.csv",
         )
 
+    @pytest.mark.db_test
     def test_execute_with_empty_src(self):
         operator = LocalFilesystemToGCSOperator(
             task_id="local_to_sensor",

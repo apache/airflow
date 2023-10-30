@@ -50,6 +50,8 @@ from airflow.utils.db_cleanup import (
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(autouse=True)
 def clean_database():

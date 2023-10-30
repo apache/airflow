@@ -134,10 +134,12 @@ class TestHttpHook:
                 pass
             mock_requests.assert_called_once_with(mock.ANY, mock.ANY, headers=mock.ANY, params=data)
 
+    @pytest.mark.db_test
     def test_hook_uses_provided_header(self):
         conn = self.get_hook.get_conn(headers={"bearer": "newT0k3n"})
         assert conn.headers.get("bearer") == "newT0k3n"
 
+    @pytest.mark.db_test
     def test_hook_has_no_header_from_extra(self):
         conn = self.get_hook.get_conn()
         assert conn.headers.get("bearer") is None
@@ -180,6 +182,7 @@ class TestHttpHook:
             resp = self.post_hook.run("v1/test", extra_options={"check_response": False})
             assert resp.status_code == 418
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.http.hooks.http.requests.Session")
     def test_retry_on_conn_error(self, mocked_session):
         retry_args = dict(
@@ -466,6 +469,7 @@ class TestHttpAsyncHook:
 
         assert "[Try 3 of 3] Request to http://httpbin.org/non_existent_endpoint failed" in caplog.text
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_do_api_call_async_unknown_method(self):
         """Test api call asynchronously for unknown http method."""

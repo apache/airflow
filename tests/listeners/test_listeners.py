@@ -34,6 +34,9 @@ from tests.listeners import (
 )
 from tests.utils.test_helpers import MockJobRunner
 
+pytestmark = pytest.mark.db_test
+
+
 LISTENERS = [
     class_listener,
     full_listener,

@@ -33,6 +33,7 @@ from tests.test_utils.www import (
     client_with_login,
 )
 
+pytestmark = pytest.mark.db_test
 VARIABLE = {
     "key": "test_key",
     "val": "text_val",

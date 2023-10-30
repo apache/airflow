@@ -29,6 +29,9 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.timezone import datetime
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
 

@@ -26,6 +26,8 @@ from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.context import Context
 
+pytestmark = pytest.mark.db_test
+
 
 class MockNotifier(BaseNotifier):
     """MockNotifier class for testing"""

@@ -51,6 +51,7 @@ IMPERSONATE_CHAIN = ["impersonate", "this", "test"]
 OPERATION_NAME = "test-operation-name"
 
 
+@pytest.mark.db_test
 class TestGKEHookClient:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):

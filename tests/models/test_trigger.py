@@ -30,6 +30,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture
 def session():

@@ -18,8 +18,12 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+
+pytestmark = pytest.mark.db_test
 
 
 class TestBaseAzureHook:

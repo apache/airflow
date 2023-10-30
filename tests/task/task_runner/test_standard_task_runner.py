@@ -127,6 +127,7 @@ class TestStandardTaskRunner:
 
         assert task_runner.return_code() is not None
 
+    @pytest.mark.db_test
     def test_notifies_about_start_and_stop(self):
         path_listener_writer = "/tmp/test_notifies_about_start_and_stop"
         try:
@@ -171,6 +172,7 @@ class TestStandardTaskRunner:
             assert f.readline() == "on_task_instance_success\n"
             assert f.readline() == "before_stopping\n"
 
+    @pytest.mark.db_test
     def test_notifies_about_fail(self):
         path_listener_writer = "/tmp/test_notifies_about_fail"
         try:
@@ -295,6 +297,7 @@ class TestStandardTaskRunner:
         assert task_runner.return_code() == -9
         assert "running out of memory" in caplog.text
 
+    @pytest.mark.db_test
     def test_on_kill(self):
         """
         Test that ensures that clearing in the UI SIGTERMS
@@ -363,6 +366,7 @@ class TestStandardTaskRunner:
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
+    @pytest.mark.db_test
     def test_parsing_context(self):
         context_file = Path("/tmp/airflow_parsing_context")
         try:

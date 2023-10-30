@@ -295,6 +295,7 @@ class TestGKEPodOperator:
 
         fetch_cluster_info_mock.assert_called_once()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("use_internal_ip", [True, False])
     @mock.patch(f"{GKE_HOOK_PATH}.get_cluster")
     def test_cluster_info(self, get_cluster_mock, use_internal_ip):

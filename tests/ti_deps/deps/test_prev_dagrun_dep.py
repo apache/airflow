@@ -30,6 +30,8 @@ from airflow.utils.timezone import convert_to_utc, datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
 
 class TestPrevDagrunDep:
     def teardown_method(self):

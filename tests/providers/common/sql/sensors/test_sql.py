@@ -36,6 +36,7 @@ class TestSqlSensor:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, default_args=args)
 
+    @pytest.mark.db_test
     def test_unsupported_conn_type(self):
         op = SqlSensor(
             task_id="sql_sensor_check",
@@ -241,6 +242,7 @@ class TestSqlSensor:
             op.poke(None)
         assert "self.success is present, but not callable -> [1]" == str(ctx.value)
 
+    @pytest.mark.db_test
     def test_sql_sensor_hook_params(self):
         op = SqlSensor(
             task_id="sql_sensor_hook_params",

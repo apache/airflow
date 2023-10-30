@@ -30,6 +30,8 @@ from tests.test_utils.api_connexion_utils import (
     delete_user,
 )
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):

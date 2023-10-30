@@ -98,6 +98,7 @@ def test_use_pydantic_models():
     assert isinstance(deserialized[0][0], TaskInstancePydantic)
 
 
+@pytest.mark.db_test
 def test_serialized_mapped_operator_unmap(dag_maker):
     from airflow.serialization.serialized_objects import SerializedDAG
     from tests.test_utils.mock_operators import MockOperator

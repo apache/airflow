@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models.dataset import (
@@ -33,6 +35,8 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
+
+pytestmark = pytest.mark.db_test
 
 
 def test_serializing_pydantic_task_instance(session, create_task_instance):

@@ -29,6 +29,9 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.sensors.spark_kubernetes import SparkKubernetesSensor
 from airflow.utils import db, timezone
 
+pytestmark = pytest.mark.db_test
+
+
 TEST_COMPLETED_APPLICATION = {
     "apiVersion": "sparkoperator.k8s.io/v1beta2",
     "kind": "SparkApplication",

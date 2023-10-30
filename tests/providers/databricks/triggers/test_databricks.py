@@ -27,6 +27,9 @@ from airflow.providers.databricks.triggers.databricks import DatabricksExecution
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import provide_session
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"
 LOGIN = "login"

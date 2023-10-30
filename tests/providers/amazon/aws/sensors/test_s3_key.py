@@ -101,6 +101,7 @@ class TestS3KeySensor:
 
         mock_head_object.assert_called_once_with(parsed_key, parsed_bucket)
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
     def test_parse_bucket_key_from_jinja(self, mock_head_object):
         mock_head_object.return_value = None
@@ -126,6 +127,7 @@ class TestS3KeySensor:
 
         mock_head_object.assert_called_once_with("key", "bucket")
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
     def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object):
         mock_head_object.return_value = None

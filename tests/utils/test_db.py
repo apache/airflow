@@ -53,6 +53,8 @@ from airflow.utils.db import (
 )
 from airflow.utils.session import NEW_SESSION
 
+pytestmark = pytest.mark.db_test
+
 
 class TestDb:
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):

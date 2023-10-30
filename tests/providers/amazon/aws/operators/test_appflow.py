@@ -52,6 +52,7 @@ DUMP_COMMON_ARGS = {
 AppflowBaseOperator.UPDATE_PROPAGATION_TIME = 0  # avoid wait
 
 
+@pytest.mark.db_test
 @pytest.fixture
 def ctx(create_task_instance):
     ti = create_task_instance(
@@ -111,6 +112,7 @@ def run_assertions_base(appflow_conn, tasks):
     appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
 
 
+@pytest.mark.db_test
 def test_run(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunOperator(**DUMP_COMMON_ARGS)
     operator.execute(ctx)  # type: ignore
@@ -119,12 +121,14 @@ def test_run(appflow_conn, ctx, waiter_mock):
     appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
 
 
+@pytest.mark.db_test
 def test_run_full(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunFullOperator(**DUMP_COMMON_ARGS)
     operator.execute(ctx)  # type: ignore
     run_assertions_base(appflow_conn, [])
 
 
+@pytest.mark.db_test
 def test_run_after(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunAfterOperator(
         source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
@@ -143,6 +147,7 @@ def test_run_after(appflow_conn, ctx, waiter_mock):
     )
 
 
+@pytest.mark.db_test
 def test_run_before(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunBeforeOperator(
         source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
@@ -161,6 +166,7 @@ def test_run_before(appflow_conn, ctx, waiter_mock):
     )
 
 
+@pytest.mark.db_test
 def test_run_daily(appflow_conn, ctx, waiter_mock):
     operator = AppflowRunDailyOperator(
         source_field="col0", filter_date="2022-05-26T00:00+00:00", **DUMP_COMMON_ARGS
@@ -183,6 +189,7 @@ def test_run_daily(appflow_conn, ctx, waiter_mock):
     )
 
 
+@pytest.mark.db_test
 def test_short_circuit(appflow_conn, ctx):
     with mock.patch("airflow.models.TaskInstance.xcom_pull") as mock_xcom_pull:
         with mock.patch("airflow.models.TaskInstance.xcom_push") as mock_xcom_push:

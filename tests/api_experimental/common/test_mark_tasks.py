@@ -43,6 +43,8 @@ from tests.test_utils.mapping import expand_mapped_task
 
 DEV_NULL = "/dev/null"
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def dagbag():

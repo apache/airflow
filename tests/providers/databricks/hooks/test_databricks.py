@@ -242,6 +242,7 @@ def setup_mock_requests(mock_requests, exception, status_code=500, error_count=N
         ]
 
 
+@pytest.mark.db_test
 class TestDatabricksHook:
     """
     Tests for DatabricksHook.
@@ -831,6 +832,7 @@ class TestDatabricksHook:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookToken:
     """
     Tests for DatabricksHook when auth is done with token.
@@ -860,6 +862,7 @@ class TestDatabricksHookToken:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookTokenInPassword:
     """
     Tests for DatabricksHook.
@@ -891,6 +894,7 @@ class TestDatabricksHookTokenInPassword:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
     @provide_session
     def setup_method(self, method, session=None):
@@ -949,6 +953,7 @@ def create_aad_token_for_resource(resource: str) -> dict:
     }
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadToken:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace.
@@ -986,6 +991,7 @@ class TestDatabricksHookAadToken:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadTokenOtherClouds:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace and
@@ -1033,6 +1039,7 @@ class TestDatabricksHookAadTokenOtherClouds:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadTokenSpOutside:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP outside of workspace.
@@ -1086,6 +1093,7 @@ class TestDatabricksHookAadTokenSpOutside:
         assert kwargs["headers"]["X-Databricks-Azure-SP-Management-Token"] == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadTokenManagedIdentity:
     """
     Tests for DatabricksHook when auth is done with AAD leveraging Managed Identity authentication
@@ -1129,6 +1137,7 @@ class TestDatabricksHookAadTokenManagedIdentity:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncMethods:
     """
     Tests for async functionality of DatabricksHook.
@@ -1249,6 +1258,7 @@ class TestDatabricksHookAsyncMethods:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadToken:
     """
     Tests for DatabricksHook using async methods when
@@ -1291,6 +1301,7 @@ class TestDatabricksHookAsyncAadToken:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenOtherClouds:
     """
     Tests for DatabricksHook using async methodswhen auth is done with AAD token
@@ -1343,6 +1354,7 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenSpOutside:
     """
     Tests for DatabricksHook using async methods when auth is done with AAD token for SP outside of workspace.
@@ -1409,6 +1421,7 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenManagedIdentity:
     """
     Tests for DatabricksHook using async methods when

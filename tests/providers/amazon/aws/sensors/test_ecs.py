@@ -98,6 +98,7 @@ class TestEcsBaseSensor(EcsBaseTestCase):
         assert client is self.fake_client
 
 
+@pytest.mark.db_test
 class TestEcsClusterStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
         "return_state, expected", [("ACTIVE", True), ("PROVISIONING", False), ("DEPROVISIONING", False)]
@@ -158,6 +159,7 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(cluster_name=TEST_CLUSTER_NAME)
 
 
+@pytest.mark.db_test
 class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
         "return_state, expected", [("ACTIVE", True), ("INACTIVE", False), ("DELETE_IN_PROGRESS", False)]
@@ -190,6 +192,7 @@ class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(task_definition=TEST_TASK_DEFINITION_ARN)
 
 
+@pytest.mark.db_test
 class TestEcsTaskStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
         "return_state, expected",

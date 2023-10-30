@@ -215,6 +215,7 @@ class TestAzureDataFactoryRunPipelineOperator:
             # Checking the pipeline run status should _not_ be called when ``wait_for_termination`` is False.
             mock_get_pipeline_run.assert_not_called()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "resource_group,factory",
         [

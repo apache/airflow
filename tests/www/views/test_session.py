@@ -25,6 +25,8 @@ from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 
+pytestmark = pytest.mark.db_test
+
 
 def get_session_cookie(client):
     return next((cookie for cookie in client.cookie_jar if cookie.name == "session"), None)

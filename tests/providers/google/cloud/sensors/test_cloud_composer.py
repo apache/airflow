@@ -31,6 +31,7 @@ TEST_REGION = "region"
 
 
 class TestCloudComposerEnvironmentSensor:
+    @pytest.mark.db_test
     def test_cloud_composer_existence_sensor_async(self):
         """
         Asserts that a task is deferred and a CloudComposerExecutionTrigger will be fired

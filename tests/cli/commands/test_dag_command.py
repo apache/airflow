@@ -52,6 +52,8 @@ DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
+pytestmark = pytest.mark.db_test
+
 
 class TestCliDags:
     @classmethod

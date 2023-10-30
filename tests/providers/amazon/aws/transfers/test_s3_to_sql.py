@@ -27,6 +27,8 @@ from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.utils import db
 from airflow.utils.session import create_session
 
+pytestmark = pytest.mark.db_test
+
 
 class TestS3ToSqlTransfer:
     def setup_method(self):

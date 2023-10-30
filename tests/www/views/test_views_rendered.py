@@ -37,6 +37,8 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 DEFAULT_DATE = timezone.datetime(2020, 3, 1)
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture()
 def dag():

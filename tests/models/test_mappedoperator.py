@@ -46,6 +46,8 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
 
+pytestmark = pytest.mark.db_test
+
 
 def test_task_mapping_with_dag():
     with DAG("test-dag", start_date=DEFAULT_DATE) as dag:

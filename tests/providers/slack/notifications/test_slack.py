@@ -19,8 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.slack.notifications.slack import SlackNotifier, send_slack_notification
+
+pytestmark = pytest.mark.db_test
 
 
 class TestSlackNotifier:

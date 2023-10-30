@@ -724,6 +724,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
@@ -816,6 +817,7 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
         )
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
@@ -1167,6 +1169,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             op.execute(context=self.mock_context)
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
@@ -1324,6 +1327,7 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
@@ -1432,6 +1436,7 @@ class TestDataprocWorkflowTemplateInstantiateOperator:
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
@@ -1530,6 +1535,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_instantiate_inline_workflow_operator_extra_links(
@@ -1843,6 +1849,7 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
         self.extra_links_manager_mock.assert_has_calls(self.extra_links_expected_calls, any_order=False)
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):

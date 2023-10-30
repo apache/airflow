@@ -35,6 +35,8 @@ from tests.test_utils.providers import get_provider_min_airflow_version
 
 ADX_TEST_CONN_ID = "adx_test_connection_id"
 
+pytestmark = pytest.mark.db_test
+
 
 class TestAzureDataExplorerHook:
     def teardown_method(self):

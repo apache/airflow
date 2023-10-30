@@ -58,6 +58,9 @@ from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
 
 

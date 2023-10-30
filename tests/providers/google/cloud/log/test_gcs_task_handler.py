@@ -32,6 +32,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 
+@pytest.mark.db_test
 class TestGCSTaskHandler:
     @pytest.fixture(autouse=True)
     def task_instance(self, create_task_instance):

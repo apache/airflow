@@ -53,6 +53,8 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
 
+pytestmark = pytest.mark.db_test
+
 READ_WRITE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
 READ_ONLY = {permissions.ACTION_CAN_READ}
 

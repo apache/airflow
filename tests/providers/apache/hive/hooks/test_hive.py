@@ -62,6 +62,7 @@ class EmptyMockConnectionCursor(BaseMockConnectionCursor):
         self.iterable = []
 
 
+@pytest.mark.db_test
 class TestHiveCliHook:
     @mock.patch("tempfile.tempdir", "/tmp/")
     @mock.patch("tempfile._RandomNameSequence.__next__")
@@ -593,6 +594,7 @@ class TestHiveMetastoreHook:
         assert metastore_mock.drop_partition(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]), ret
 
 
+@pytest.mark.db_test
 class TestHiveServer2Hook:
     def _upload_dataframe(self):
         df = pd.DataFrame({"a": [1, 2], "b": [1, 2]})
@@ -875,6 +877,7 @@ class TestHiveServer2Hook:
         assert "test_dag_run_id" in output
 
 
+@pytest.mark.db_test
 @mock.patch.dict("os.environ", AIRFLOW__CORE__SECURITY="kerberos")
 class TestHiveCli:
     def setup_method(self):

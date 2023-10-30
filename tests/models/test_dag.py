@@ -85,6 +85,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs,
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
+pytestmark = pytest.mark.db_test
+
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(airflow.__file__).parent.parent

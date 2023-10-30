@@ -39,6 +39,7 @@ INTERVAL = timedelta(hours=12)
 
 
 class TestBashOperator:
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "append_env,user_defined_env,expected_airflow_home",
         [
@@ -201,6 +202,7 @@ class TestBashOperator:
         )
         op.execute(context={})
 
+    @pytest.mark.db_test
     def test_bash_operator_kill(self, dag_maker):
         import psutil
 

@@ -35,6 +35,9 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTISta
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
+pytestmark = pytest.mark.db_test
+
+
 SKIPPED = TaskInstanceState.SKIPPED
 UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
 

@@ -100,6 +100,7 @@ class TestReapProcessGroup:
                 pass
 
 
+@pytest.mark.db_test
 class TestExecuteInSubProcess:
     def test_should_print_all_messages1(self, caplog):
         execute_in_subprocess(["bash", "-c", "echo CAT; echo KITTY;"])
@@ -136,6 +137,7 @@ def my_sleep_subprocess_with_signals():
     sleep(100)
 
 
+@pytest.mark.db_test
 class TestKillChildProcessesByPids:
     def test_should_kill_process(self):
         before_num_process = subprocess.check_output(["ps", "-ax", "-o", "pid="]).decode().count("\n")

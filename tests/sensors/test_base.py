@@ -59,6 +59,8 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils import db
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
 DUMMY_OP = "dummy_op"

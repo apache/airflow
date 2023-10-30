@@ -56,6 +56,7 @@ class TestS3KeysUnchangedSensor:
                 dag=self.dag,
             )
 
+    @pytest.mark.db_test
     def test_render_template_fields(self):
         S3KeysUnchangedSensor(
             task_id="sensor_3",
