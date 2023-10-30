@@ -354,6 +354,13 @@ def dag_next_execution(args) -> None:
 @provide_session
 def dag_list_dags(args, session=NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
+    cols = args.columns if args.columns else []
+    not_valid_cols = [c for c in cols if c not in dag_schema.fields.keys()]
+    if not_valid_cols:
+        raise SystemExit(
+            f"The following are not valid columns: {not_valid_cols}. "
+            f"Possible columns: {list(dag_schema.fields.keys())}",
+        )
     dagbag = DagBag(process_subdir(args.subdir))
     if dagbag.import_errors:
         from rich import print as rich_print
@@ -367,14 +374,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
     def get_dag_detail(dag: DAG) -> dict:
         dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         dag_detail = dag_schema.dump(dag_model)
-        add_cols = args.additional_columns if args.additional_columns else []
-        return {
-            "dag_id": dag.dag_id,
-            "filepath": dag.filepath,
-            "owner": dag.owner,
-            "paused": dag_detail["is_paused"],
-            **{k: v for k, v in dag_detail.items() if k in add_cols},
-        }
+        return {k: v for k, v in dag_detail.items() if k in cols}
 
     AirflowConsole().print_as(
         data=sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id")),

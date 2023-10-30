@@ -986,8 +986,11 @@ ARG_CLEAR_ONLY = Arg(
     help="If passed, serialized DAGs will be cleared but not reserialized.",
 )
 
-ARG_DAG_LIST_ADDITIONAL_COLUMNS = Arg(
-    ("--additional-columns",), type=string_list_type, help="Additional columns to include when listing dags"
+ARG_DAG_LIST_COLUMNS = Arg(
+    ("--columns",),
+    type=string_list_type,
+    help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
+    default=("dag_id", "fileloc", "owners", "is_paused"),
 )
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
@@ -1036,7 +1039,7 @@ DAGS_COMMANDS = (
         name="list",
         help="List all the DAGs",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dags"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_ADDITIONAL_COLUMNS),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_DAG_LIST_COLUMNS),
     ),
     ActionCommand(
         name="list-import-errors",
