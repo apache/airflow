@@ -78,4 +78,4 @@ class PineconeIngestOperator(BaseOperator):
             **self.upsert_kwargs,
         )
 
-        self.log.info(f"Successfully ingested data into Pinecone index {self.index_name}.")
+        self.log.info("Successfully ingested data into Pinecone index %s.", self.index_name)
