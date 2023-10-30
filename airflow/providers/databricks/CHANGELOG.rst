@@ -23,13 +23,16 @@
 
 ``apache-airflow-providers-databricks``
 
+Changelog
+---------
+
+5.0.0
+.....
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
 The ``offset`` parameter has been deprecated from ``list_jobs`` in favor of faster pagination with ``page_token`` similarly to `Databricks API <https://docs.databricks.com/api/workspace/jobs/list>`_.
-
-Changelog
----------
 
 4.7.0
 .....
