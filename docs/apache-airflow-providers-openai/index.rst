@@ -58,7 +58,7 @@ Package apache-airflow-providers-openai
 `Open AI <https://platform.openai.com/docs/api-reference/>`__
 
 
-Release: 1.0.0
+Release: 0.0.1
 
 Provider package
 ----------------
@@ -83,7 +83,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.5.0
 PIP package          Version required
 ===================  ==================
 ``apache-airflow``    ``>=2.5.0``
-``openai[datalib]``  ``>=0.28.1``
+``openai[datalib]``  ``>=0.28.1,<1.0``
 ===================  ==================
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
