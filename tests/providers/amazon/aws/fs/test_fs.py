@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest.mock import patch
 
 import pytest
@@ -42,10 +43,15 @@ class TestFilesystem:
         assert "s3" in fs.protocol
 
     @patch("s3fs.S3FileSystem", autospec=True)
-    def test_get_s3fs_anonymous(self, s3fs):
+    def test_get_s3fs_anonymous(self, s3fs, monkeypatch):
         from airflow.providers.amazon.aws.fs.s3 import get_fs
 
-        get_fs(conn_id=TEST_CONN)
+        # remove all AWS_* env vars
+        for env_name in os.environ:
+            if env_name.startswith("AWS"):
+                monkeypatch.delenv(env_name, raising=False)
+
+        get_fs(conn_id=None)
 
         assert s3fs.call_args.kwargs["anon"] is True
 

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict
@@ -86,11 +87,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
         config_kwargs["proxies"] = {"http": proxy_uri, "https": proxy_uri}
 
     anon = False
-    if (
-        aws.conn_config.aws_access_key_id is None
-        and aws.conn_config.aws_secret_access_key is None
-        and aws.conn_config.aws_session_token is None
-    ):
+    if asyncio.run(session.get_credentials()) is None:
         anon = True
 
     fs = S3FileSystem(session=session, config_kwargs=config_kwargs, endpoint_url=endpoint_url, anon=anon)
