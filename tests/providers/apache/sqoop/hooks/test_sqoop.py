@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import json
 from io import StringIO
 from unittest import mock
@@ -30,6 +29,8 @@ from airflow.models import Connection
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSqoopHook:
     _config = {
@@ -41,9 +42,7 @@ class TestSqoopHook:
         "hcatalog_table": "hive_table",
     }
     _config_export_extra_options = {
-        "extra_options": collections.OrderedDict(
-            [("update-key", "id"), ("update-mode", "allowinsert"), ("fetch-size", 1)]
-        ),
+        "extra_options": {"update-key": "id", "update-mode": "allowinsert", "fetch-size": 1},
     }
     _config_export = {
         "table": "export_data_to",

@@ -23,8 +23,10 @@ from urllib.parse import quote_plus
 import pytest
 from markupsafe import escape
 
-from airflow.models import DAG, RenderedTaskInstanceFields, Variable
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
+from airflow.models.renderedtifields import RenderedTaskInstanceFields
+from airflow.models.variable import Variable
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -36,6 +38,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 DEFAULT_DATE = timezone.datetime(2020, 3, 1)
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture()

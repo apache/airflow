@@ -20,9 +20,14 @@ from __future__ import annotations
 import json
 from unittest.mock import patch
 
+import pytest
+
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import Connection
 from airflow.providers.datadog.sensors.datadog import DatadogSensor
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
 
 at_least_one_event = [
     {
@@ -111,3 +116,26 @@ class TestDatadogSensor:
         )
 
         assert not sensor.poke({})
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @patch("airflow.providers.datadog.hooks.datadog.api.Event.query")
+    @patch("airflow.providers.datadog.sensors.datadog.api.Event.query")
+    def test_sensor_fail_with_exception(self, api1, api2, soft_fail, expected_exception):
+        api1.return_value = zero_events
+        api2.return_value = {"status": "error"}
+
+        with pytest.raises(expected_exception):
+            sensor = DatadogSensor(
+                task_id="test_datadog",
+                datadog_conn_id="datadog_default",
+                from_seconds_ago=0,
+                up_to_seconds_from_now=0,
+                priority=None,
+                sources=None,
+                tags=None,
+                response_check=None,
+                soft_fail=soft_fail,
+            )
+            sensor.poke({})

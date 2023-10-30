@@ -40,6 +40,9 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 from airflow.triggers.base import TriggerEvent
 
+pytestmark = pytest.mark.db_test
+
+
 TEST_CONN_ID = "bq_default"
 TEST_JOB_ID = "1234"
 TEST_GCP_PROJECT_ID = "test-project"
@@ -165,7 +168,7 @@ class TestBigQueryInsertJobTrigger:
         """
         Tests the BigQueryInsertJobTrigger only fires once the query execution reaches a successful state.
         """
-        mock_job_status.return_value = "success"
+        mock_job_status.return_value = {"status": "success", "message": "Job completed"}
 
         generator = insert_job_trigger.run()
         actual = await generator.asend(None)
@@ -198,13 +201,16 @@ class TestBigQueryInsertJobTrigger:
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_bigquery_op_trigger_terminated(self, mock_job_status, caplog, insert_job_trigger):
         """Test that BigQuery Triggers fire the correct event in case of an error."""
-        # Set the status to a value other than success or pending
-
-        mock_job_status.return_value = "error"
+        mock_job_status.return_value = {
+            "status": "error",
+            "message": "The conn_id `bq_default` isn't defined",
+        }
 
         generator = insert_job_trigger.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "error"}) == actual
+        assert (
+            TriggerEvent({"status": "error", "message": "The conn_id `bq_default` isn't defined"}) == actual
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
@@ -240,7 +246,7 @@ class TestBigQueryGetDataTrigger:
 
         mock_job_client = AsyncMock(Job)
         mock_job_instance.return_value = mock_job_client
-        mock_job_instance.return_value.get_job.return_value = {"status": {"state": "RUNNING"}}
+        mock_job_instance.return_value.get_job.return_value = {"status": {"state": "running"}}
         caplog.set_level(logging.INFO)
 
         task = asyncio.create_task(get_data_trigger.run().__anext__())
@@ -260,11 +266,16 @@ class TestBigQueryGetDataTrigger:
         """Test that BigQuery Triggers fire the correct event in case of an error."""
         # Set the status to a value other than success or pending
 
-        mock_job_status.return_value = "error"
+        mock_job_status.return_value = {
+            "status": "error",
+            "message": "The conn_id `bq_default` isn't defined",
+        }
 
         generator = get_data_trigger.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "error"}) == actual
+        assert (
+            TriggerEvent({"status": "error", "message": "The conn_id `bq_default` isn't defined"}) == actual
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
@@ -285,7 +296,7 @@ class TestBigQueryGetDataTrigger:
         """
         Tests that BigQueryGetDataTrigger only fires once the query execution reaches a successful state.
         """
-        mock_job_status.return_value = "success"
+        mock_job_status.return_value = {"status": "success", "message": "Job completed"}
         mock_job_output.return_value = {
             "kind": "bigquery#tableDataList",
             "etag": "test_etag",
@@ -316,7 +327,7 @@ class TestBigQueryGetDataTrigger:
             TriggerEvent(
                 {
                     "status": "success",
-                    "message": "success",
+                    "message": "Job completed",
                     "records": [[42, "monthy python"], [42, "fishy fish"]],
                 }
             )
@@ -353,11 +364,16 @@ class TestBigQueryCheckTrigger:
         """Test that BigQuery Triggers fire the correct event in case of an error."""
         # Set the status to a value other than success or pending
 
-        mock_job_status.return_value = "error"
+        mock_job_status.return_value = {
+            "status": "error",
+            "message": "The conn_id `bq_default` isn't defined",
+        }
 
         generator = check_trigger.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "error", "message": "error"}) == actual
+        assert (
+            TriggerEvent({"status": "error", "message": "The conn_id `bq_default` isn't defined"}) == actual
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
@@ -390,7 +406,7 @@ class TestBigQueryCheckTrigger:
         """
         Test the BigQueryCheckTrigger only fires once the query execution reaches a successful state.
         """
-        mock_job_status.return_value = "success"
+        mock_job_status.return_value = {"status": "success", "message": "Job completed"}
         mock_job_output.return_value = {
             "kind": "bigquery#getQueryResultsResponse",
             "etag": "test_etag",
@@ -410,17 +426,16 @@ class TestBigQueryCheckTrigger:
         generator = check_trigger.run()
         actual = await generator.asend(None)
 
-        assert TriggerEvent({"status": "success", "records": [22]}) == actual
+        assert TriggerEvent({"status": "success", "message": "Job completed", "records": [22]}) == actual
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
     async def test_check_trigger_success_without_data(self, mock_job_output, mock_job_status, check_trigger):
         """
-        Tests that BigQueryCheckTrigger sends TriggerEvent as  { "status": "success", "records": None}
-        when no rows are available in the query result.
+        Tests that BigQueryCheckTrigger sends TriggerEvent when no rows are available in the query result.
         """
-        mock_job_status.return_value = "success"
+        mock_job_status.return_value = {"status": "success", "message": "Job completed"}
         mock_job_output.return_value = {
             "kind": "bigquery#getQueryResultsResponse",
             "etag": "test_etag",
@@ -444,7 +459,7 @@ class TestBigQueryCheckTrigger:
 
         generator = check_trigger.run()
         actual = await generator.asend(None)
-        assert TriggerEvent({"status": "success", "records": None}) == actual
+        assert TriggerEvent({"status": "success", "message": "Job completed", "records": None}) == actual
 
 
 class TestBigQueryIntervalCheckTrigger:
@@ -477,7 +492,7 @@ class TestBigQueryIntervalCheckTrigger:
         """
         Tests the BigQueryIntervalCheckTrigger only fires once the query execution reaches a successful state.
         """
-        mock_job_status.return_value = "success"
+        mock_job_status.return_value = {"status": "success", "message": "Job completed"}
         mock_get_job_output.return_value = ["0"]
 
         generator = interval_check_trigger.run()
@@ -490,7 +505,7 @@ class TestBigQueryIntervalCheckTrigger:
         """
         Tests that the BigQueryIntervalCheckTrigger do not fire while a query is still running.
         """
-        mock_job_status.return_value = "pending"
+        mock_job_status.return_value = {"status": "pending", "message": "Job pending"}
         caplog.set_level(logging.INFO)
 
         task = asyncio.create_task(interval_check_trigger.run().__anext__())
@@ -510,12 +525,20 @@ class TestBigQueryIntervalCheckTrigger:
     async def test_interval_check_trigger_terminated(self, mock_job_status, interval_check_trigger):
         """Tests the BigQueryIntervalCheckTrigger fires the correct event in case of an error."""
         # Set the status to a value other than success or pending
-        mock_job_status.return_value = "error"
+        mock_job_status.return_value = {
+            "status": "error",
+            "message": "The conn_id `bq_default` isn't defined",
+        }
 
         generator = interval_check_trigger.run()
         actual = await generator.asend(None)
 
-        assert TriggerEvent({"status": "error", "message": "error", "data": None}) == actual
+        assert (
+            TriggerEvent(
+                {"status": "error", "message": "The conn_id `bq_default` isn't defined", "data": None}
+            )
+            == actual
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
@@ -559,7 +582,7 @@ class TestBigQueryValueCheckTrigger:
         """
         Tests BigQueryValueCheckTrigger only fires once the query execution reaches a successful state.
         """
-        mock_job_status.return_value = "success"
+        mock_job_status.return_value = {"status": "success", "message": "Job completed"}
         get_job_output.return_value = {}
         get_records.return_value = [[2], [4]]
 
@@ -576,7 +599,7 @@ class TestBigQueryValueCheckTrigger:
         """
         Tests BigQueryValueCheckTrigger only fires once the query execution reaches a successful state.
         """
-        mock_job_status.return_value = "pending"
+        mock_job_status.return_value = {"status": "pending", "message": "Job pending"}
         caplog.set_level(logging.INFO)
 
         task = asyncio.create_task(value_check_trigger.run().__anext__())
@@ -598,7 +621,7 @@ class TestBigQueryValueCheckTrigger:
         """
         Tests BigQueryValueCheckTrigger only fires once the query execution reaches a successful state.
         """
-        mock_job_status.return_value = "dummy"
+        mock_job_status.return_value = {"status": "error", "message": "dummy"}
 
         generator = value_check_trigger.run()
         actual = await generator.asend(None)

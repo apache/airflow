@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.operators.analyticdb_spark import (
     AnalyticDBSparkBaseOperator,
     AnalyticDBSparkBatchOperator,
@@ -51,10 +51,10 @@ class TestAnalyticDBSparkBaseOperator:
     @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkHook"))
     def test_get_hook(self, mock_hook):
         """Test get_hook function works as expected."""
-        self.operator.get_hook()
+        self.operator.hook
         mock_hook.assert_called_once_with(adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID, region=MOCK_REGION)
 
-    @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkBaseOperator.get_hook"))
+    @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkBaseOperator.hook"))
     def test_poll_for_termination(self, mock_hook):
         """Test poll_for_termination works as expected with COMPLETED application."""
         # Given
@@ -63,7 +63,7 @@ class TestAnalyticDBSparkBaseOperator:
         # When
         self.operator.poll_for_termination(MOCK_APP_ID)
 
-    @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkBaseOperator.get_hook"))
+    @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkBaseOperator.hook"))
     def test_poll_for_termination_with_exception(self, mock_hook):
         """Test poll_for_termination raises AirflowException with FATAL application."""
         # Given
@@ -107,7 +107,7 @@ class TestAnalyticDBSparkBatchOperator:
             name=None,
         )
 
-    @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkBaseOperator.get_hook"))
+    @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkBaseOperator.hook"))
     def test_execute_with_exception(self, mock_hook):
         """Test submit AnalyticDB Spark Batch Application raises ValueError with invalid parameter."""
         # Given
@@ -155,7 +155,7 @@ class TestAnalyticDBSparklSQLOperator:
             name=None,
         )
 
-    @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkBaseOperator.get_hook"))
+    @mock.patch(ADB_SPARK_OPERATOR_STRING.format("AnalyticDBSparkBaseOperator.hook"))
     def test_execute_with_exception(self, mock_hook):
         """Test submit AnalyticDB Spark SQL Application raises ValueError with invalid parameter."""
         # Given

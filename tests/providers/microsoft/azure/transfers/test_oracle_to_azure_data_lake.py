@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import csv
 import os
-from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -29,15 +28,14 @@ from airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake impor
 
 
 class TestOracleToAzureDataLakeTransfer:
-
     mock_module_path = "airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake"
 
-    def test_write_temp_file(self):
+    def test_write_temp_file(self, tmp_path):
+        csv_path = tmp_path / "testfile.csv"
         task_id = "some_test_id"
         sql = "some_sql"
         sql_params = {":p_data": "2018-01-01"}
         oracle_conn_id = "oracle_conn_id"
-        filename = "some_filename"
         azure_data_lake_conn_id = "azure_data_lake_conn_id"
         azure_data_lake_path = "azure_data_lake_path"
         delimiter = "|"
@@ -53,7 +51,7 @@ class TestOracleToAzureDataLakeTransfer:
 
         op = OracleToAzureDataLakeOperator(
             task_id=task_id,
-            filename=filename,
+            filename=csv_path.name,
             oracle_conn_id=oracle_conn_id,
             sql=sql,
             sql_params=sql_params,
@@ -63,23 +61,17 @@ class TestOracleToAzureDataLakeTransfer:
             encoding=encoding,
         )
 
-        with TemporaryDirectory(prefix="airflow_oracle_to_azure_op_") as temp:
-            op._write_temp_file(mock_cursor, os.path.join(temp, filename))
+        op._write_temp_file(mock_cursor, os.fspath(csv_path))
+        assert csv_path.exists()
 
-            assert os.path.exists(os.path.join(temp, filename)) == 1
-
-            with open(os.path.join(temp, filename), encoding=encoding) as csvfile:
-                temp_file = csv.reader(csvfile, delimiter=delimiter)
-
-                rownum = 0
-                for row in temp_file:
-                    if rownum == 0:
-                        assert row[0] == "id"
-                        assert row[1] == "description"
-                    else:
-                        assert row[0] == str(cursor_rows[rownum - 1][0])
-                        assert row[1] == cursor_rows[rownum - 1][1]
-                    rownum = rownum + 1
+        with csv_path.open() as f:
+            csvr = csv.reader(f, delimiter=delimiter)
+            header = next(csvr)
+            assert header[0] == "id"
+            assert header[1] == "description"
+            for csv_rec, exp_rec in zip(csvr, cursor_rows):
+                assert csv_rec[0] == str(exp_rec[0])
+                assert csv_rec[1] == exp_rec[1]
 
     @mock.patch(mock_module_path + ".OracleHook", autospec=True)
     @mock.patch(mock_module_path + ".AzureDataLakeHook", autospec=True)

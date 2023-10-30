@@ -17,12 +17,13 @@
 from __future__ import annotations
 
 import json
-from typing import Generator
+from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
-from flask import Flask
 
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -32,6 +33,11 @@ from airflow.utils.state import State
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+
+pytestmark = pytest.mark.db_test
+
+if TYPE_CHECKING:
+    from flask import Flask
 
 TEST_METHOD_NAME = "test_method"
 TEST_METHOD_WITH_LOG_NAME = "test_method_with_log"
@@ -54,6 +60,10 @@ def minimal_app_for_internal_api() -> Flask:
     return factory()
 
 
+def equals(a, b) -> bool:
+    return a == b
+
+
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestRpcApiEndpoint:
     @pytest.fixture(autouse=True)
@@ -71,65 +81,53 @@ class TestRpcApiEndpoint:
             yield mock_initialize_map
 
     @pytest.mark.parametrize(
-        "input_data, method_result, method_params, expected_mock, expected_code",
+        "input_params, method_result, result_cmp_func, method_params",
         [
+            ("", None, lambda got, _: got == b"", {}),
+            ("", "test_me", equals, {}),
             (
-                {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": ""},
-                "test_me",
-                {},
-                mock_test_method,
-                200,
-            ),
-            (
-                {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": ""},
-                None,
-                {},
-                mock_test_method,
-                200,
-            ),
-            (
-                {
-                    "jsonrpc": "2.0",
-                    "method": TEST_METHOD_NAME,
-                    "params": json.dumps(BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"})),
-                },
+                json.dumps(BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"})),
                 ("dag_id_15", "fake-task", 1),
+                equals,
                 {"dag_id": 15, "task_id": "fake-task"},
-                mock_test_method,
-                200,
+            ),
+            (
+                "",
+                TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING),
+                lambda a, b: a.model_dump() == TaskInstancePydantic.model_validate(b).model_dump()
+                and isinstance(a.task, BaseOperator),
+                {},
+            ),
+            (
+                "",
+                Connection(conn_id="test_conn", conn_type="http", host="", password=""),
+                lambda a, b: a.get_uri() == b.get_uri() and a.conn_id == b.conn_id,
+                {},
             ),
         ],
     )
-    def test_method(self, input_data, method_result, method_params, expected_mock, expected_code):
-        if method_result:
-            expected_mock.return_value = method_result
+    def test_method(self, input_params, method_result, result_cmp_func, method_params):
+        mock_test_method.return_value = method_result
 
+        input_data = {
+            "jsonrpc": "2.0",
+            "method": TEST_METHOD_NAME,
+            "params": input_params,
+        }
         response = self.client.post(
             "/internal_api/v1/rpcapi",
             headers={"Content-Type": "application/json"},
             data=json.dumps(input_data),
         )
-        assert response.status_code == expected_code
-        if method_result:
-            response_data = BaseSerialization.deserialize(json.loads(response.data))
-            assert response_data == method_result
-
-        expected_mock.assert_called_once_with(**method_params)
-
-    def test_method_with_pydantic_serialized_object(self):
-        ti = TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING)
-        mock_test_method.return_value = ti
-
-        response = self.client.post(
-            "/internal_api/v1/rpcapi",
-            headers={"Content-Type": "application/json"},
-            data=json.dumps({"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": ""}),
-        )
         assert response.status_code == 200
-        print(response.data)
-        response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
-        expected_data = TaskInstancePydantic.from_orm(ti)
-        assert response_data == expected_data
+        if method_result:
+            response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
+        else:
+            response_data = response.data
+
+        assert result_cmp_func(response_data, method_result)
+
+        mock_test_method.assert_called_once_with(**method_params, session=mock.ANY)
 
     def test_method_with_exception(self):
         mock_test_method.side_effect = ValueError("Error!!!")

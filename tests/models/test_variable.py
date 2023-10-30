@@ -26,9 +26,12 @@ from cryptography.fernet import Fernet
 
 from airflow import settings
 from airflow.models import Variable, crypto, variable
+from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 
 class TestVariable:
@@ -36,6 +39,9 @@ class TestVariable:
     def setup_test_cases(self):
         crypto._fernet = None
         db.clear_db_variables()
+        SecretCache.reset()
+        with conf_vars({("secrets", "use_cache"): "true"}):
+            SecretCache.init()
         with mock.patch("airflow.models.variable.mask_secret", autospec=True) as m:
             self.mask_secret = m
             yield
@@ -84,7 +90,7 @@ class TestVariable:
             assert Fernet(key1).decrypt(test_var._val.encode()) == test_value.encode()
 
         # Test decrypt of old value with new key
-        with conf_vars({("core", "fernet_key"): ",".join([key2.decode(), key1.decode()])}):
+        with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
             crypto._fernet = None
             assert test_var.val == test_value
 
@@ -102,8 +108,13 @@ class TestVariable:
         caplog.set_level(logging.WARNING, logger=variable.log.name)
         Variable.set("key", "db-value")
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
+            # setting value while shadowed by an env variable will generate a warning
             Variable.set("key", "new-db-value")
+            # value set above is not returned because the env variable value takes priority
             assert "env-value" == Variable.get("key")
+        # invalidate the cache to re-evaluate value
+        SecretCache.invalidate_variable("key")
+        # now that env var is not here anymore, we see the value we set before.
         assert "new-db-value" == Variable.get("key")
 
         assert caplog.messages[0] == (
@@ -259,6 +270,34 @@ class TestVariable:
         finally:
             session.rollback()
 
+    @mock.patch("airflow.models.variable.ensure_secrets_loaded")
+    def test_caching_caches(self, mock_ensure_secrets: mock.Mock):
+        mock_backend = mock.Mock()
+        mock_backend.get_variable.return_value = "secret_val"
+        mock_backend.__class__.__name__ = "MockSecretsBackend"
+        mock_ensure_secrets.return_value = [mock_backend, MetastoreBackend]
+
+        key = "doesn't matter"
+        first = Variable.get(key)
+        second = Variable.get(key)
+
+        mock_backend.get_variable.assert_called_once()  # second call was not made because of cache
+        assert first == second
+
+    def test_cache_invalidation_on_set(self):
+        with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="from_env"):
+            a = Variable.get("key")  # value is saved in cache
+        with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="from_env_two"):
+            b = Variable.get("key")  # value from cache is used
+        assert a == b
+
+        # setting a new value invalidates the cache
+        Variable.set("key", "new_value")
+
+        c = Variable.get("key")  # cache should not be used
+
+        assert c != b
+
 
 @pytest.mark.parametrize(
     "variable_value, deserialize_json, expected_masked_values",
@@ -271,6 +310,8 @@ class TestVariable:
 )
 def test_masking_only_secret_values(variable_value, deserialize_json, expected_masked_values):
     from airflow.utils.log.secrets_masker import _secrets_masker
+
+    SecretCache.reset()
 
     session = settings.Session()
 

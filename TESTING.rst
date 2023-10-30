@@ -1908,12 +1908,6 @@ to test them.
 The DAGs can be run in the main version of Airflow but they also work
 with older versions.
 
-To run the tests for Airflow 1.10.* series, you need to run Breeze with
-``--use-airflow-pypi-version=<VERSION>`` to re-install a different version of Airflow.
-
-You should also consider running it with ``restart`` command when you change the installed version.
-This will clean-up the database so that you start with a clean DB and not DB installed in a previous version.
-So typically you'd run it like ``breeze --use-airflow-pypi-version=1.10.9 restart``.
 
 Tracking SQL statements
 =======================
@@ -1944,3 +1938,43 @@ On the screen you will see database queries for the given test.
 
 SQL query tracking does not work properly if your test runs subprocesses. Only queries from the main process
 are tracked.
+
+Code Coverage
+=============
+
+Airflow's CI process automatically uploads the code coverage report to codecov.io.
+
+Viewing the Coverage Report Online:
+-----------------------------------
+For the most recent coverage report of the main branch, visit: https://codecov.io/gh/apache/airflow.
+
+Generating Local Coverage Reports:
+----------------------------------
+If you wish to obtain coverage reports for specific areas of the codebase on your local machine, follow these steps:
+
+a. Initiate a breeze shell.
+
+b. Execute one of the commands below based on the desired coverage area:
+
+   - **Core:** ``python scripts/cov/core_coverage.py``
+   - **REST API:** ``python scripts/cov/restapi_coverage.py``
+   - **CLI:** ``python scripts/cov/cli_coverage.py``
+   - **Webserver:** ``python scripts/cov/www_coverage.py``
+
+c. After execution, the coverage report will be available at: http://localhost:28000/dev/coverage/index.html.
+
+ .. note::
+
+     In order to see the coverage report, you must start webserver first in breeze environment via `airflow webserver`.
+     Once you enter `breeze`, you can start `tmux`  (terminal multiplexer) and split the terminal (by pressing `ctrl-B "` for example)
+     to contiinue testing and run the webserver in one tetminal and run tests in the second one (you can switch between
+     the terminals with `ctrl-B <arrow>`).
+
+Modules Not Fully Covered:
+--------------------------
+Each coverage command provides a list of modules that aren't fully covered. If you wish to enhance coverage for a particular module:
+
+a. Work on the module to improve its coverage.
+
+b. Once coverage reaches 100%, you can safely remove the module from the list of modules that are not fully covered.
+   This list is inside each command's source code.

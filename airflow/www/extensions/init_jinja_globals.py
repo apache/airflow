@@ -69,12 +69,14 @@ def init_jinja_globals(app):
             "git_version": git_version,
             "k8s_or_k8scelery_executor": IS_K8S_OR_K8SCELERY_EXECUTOR,
             "rest_api_enabled": False,
-            "auth_manager": get_auth_manager(),
             "config_test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         }
 
+        # Extra global specific to auth manager
+        extra_globals["auth_manager"] = get_auth_manager()
+
         backends = conf.get("api", "auth_backends")
-        if len(backends) > 0 and backends[0] != "airflow.api.auth.backend.deny_all":
+        if backends and backends[0] != "airflow.api.auth.backend.deny_all":
             extra_globals["rest_api_enabled"] = True
 
         if "analytics_tool" in conf.getsection("webserver"):

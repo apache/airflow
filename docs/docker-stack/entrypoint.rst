@@ -43,9 +43,9 @@ This can be achieved in various ways - you can change USER when you extend or cu
 you can dynamically pass the user to  ``docker run`` command, by adding ``--user`` flag in one of
 those formats (See `Docker Run reference <https://docs.docker.com/engine/reference/run/#user>`_ for details):
 
-```
-[ user | user:group | uid | uid:gid | user:gid | uid:group ]
-```
+.. code-block:: text
+
+    [ user | user:group | uid | uid:gid | user:gid | uid:group ]
 
 In case of Docker Compose environment it can be changed via ``user:`` entry in the ``docker-compose.yaml``.
 See `Docker compose reference <https://docs.docker.com/compose/compose-file/compose-file-v3/#domainname-hostname-ipc-mac_address-privileged-read_only-shm_size-stdin_open-tty-user-working_dir>`_
@@ -57,7 +57,7 @@ The user can be any UID. In case UID is different than the default
 ``airflow`` (UID=50000), the user will be automatically created when entering the container.
 
 In order to accommodate a number of external libraries and projects, Airflow will automatically create
-such an arbitrary user in (`/etc/passwd`) and make it's home directory point to ``/home/airflow``.
+such an arbitrary user in (`/etc/passwd`) and make its home directory point to ``/home/airflow``.
 Many of 3rd-party libraries and packages require home directory of the user to be present, because they
 need to write some cache information there, so such a dynamic creation of a user is necessary.
 
@@ -98,7 +98,7 @@ The entrypoint is waiting for a connection to the database independent of the da
 the stability of the environment.
 
 Waiting for connection involves executing ``airflow db check`` command, which means that a ``select 1 as is_alive;`` statement
-is executed. Then it loops until the the command will be successful.
+is executed. Then it loops until the command will be successful.
 It tries :envvar:`CONNECTION_CHECK_MAX_COUNT` times and sleeps :envvar:`CONNECTION_CHECK_SLEEP_TIME` between checks
 To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 
@@ -132,7 +132,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.7.0.dev0-python3.8 bash -c "ls -la"
+  docker run -it apache/airflow:2.8.0.dev0-python3.8 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -144,7 +144,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.7.0.dev0-python3.8 python -c "print('test')"
+  > docker run -it apache/airflow:2.8.0.dev0-python3.8 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -152,13 +152,13 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.7.0.dev0-python3.8 airflow webserver
+   docker run -it apache/airflow:2.8.0.dev0-python3.8 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.7.0.dev0-python3.8 help
+  > docker run -it apache/airflow:2.8.0.dev0-python3.8 help
     usage: airflow [-h] GROUP_OR_COMMAND ...
 
     positional arguments:
@@ -206,7 +206,7 @@ propagation (See the next chapter).
 
 .. code-block:: Dockerfile
 
-    FROM airflow:2.7.0.dev0
+    FROM airflow:2.8.0.dev0
     COPY my_entrypoint.sh /
     ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
 
@@ -250,7 +250,7 @@ Similarly to custom entrypoint, it can be added to the image by extending it.
 
 .. code-block:: Dockerfile
 
-    FROM airflow:2.7.0.dev0
+    FROM airflow:2.8.0.dev0
     COPY my_after_entrypoint_script.sh /
 
 Build your image and then you can run this script by running the command:
@@ -330,7 +330,7 @@ The entrypoint can also create webserver user automatically when you enter it. y
 production, it is only useful if you would like to run a quick test with the production image.
 You need to pass at least password to create such user via ``_AIRFLOW_WWW_USER_PASSWORD`` or
 :envvar:`_AIRFLOW_WWW_USER_PASSWORD_CMD` similarly like for other ``*_CMD`` variables, the content of
-the ``*_CMD`` will be evaluated as shell command and it's output will be set as password.
+the ``*_CMD`` will be evaluated as shell command and its output will be set as password.
 
 User creation will fail if none of the ``PASSWORD`` variables are set - there is no default for
 password for security reasons.
@@ -363,7 +363,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_MIGRATE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
-      apache/airflow:2.7.0.dev0-python3.8 webserver
+      apache/airflow:2.8.0.dev0-python3.8 webserver
 
 
 .. code-block:: bash
@@ -372,7 +372,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_MIGRATE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:2.7.0.dev0-python3.8 webserver
+      apache/airflow:2.8.0.dev0-python3.8 webserver
 
 The commands above perform initialization of the SQLite database, create admin user with admin password
 and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
@@ -412,6 +412,6 @@ Example:
     --env "_AIRFLOW_DB_MIGRATE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:2.7.0.dev0-python3.8 webserver
+      apache/airflow:2.8.0.dev0-python3.8 webserver
 
 This method is only available starting from Docker image of Airflow 2.1.1 and above.

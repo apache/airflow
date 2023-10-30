@@ -28,7 +28,7 @@ from datetime import datetime
 # variable correctly.
 from fake_datetime import FakeDatetime
 
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
@@ -40,7 +40,7 @@ dag = DAG(dag_id="impersonation_with_custom_pkg", default_args=args)
 
 def print_today():
     date_time = FakeDatetime.utcnow()
-    print(f"Today is {date_time.strftime('%Y-%m-%d')}")
+    print(f"Today is {date_time:%Y-%m-%d}")
 
 
 def check_hive_conf():

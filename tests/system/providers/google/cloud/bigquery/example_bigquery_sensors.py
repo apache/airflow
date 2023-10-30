@@ -23,8 +23,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -37,18 +36,16 @@ from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
-from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "bigquery_sensors"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+DAG_ID = "example_bigquery_sensors"
 
-DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
+TABLE_NAME = f"partitioned_table_{DAG_ID}_{ENV_ID}".replace("-", "_")
 
-TABLE_NAME = "partitioned_table"
 INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
-
 PARTITION_NAME = "{{ ds_nodash }}"
 
 INSERT_ROWS_QUERY = f"INSERT {DATASET_NAME}.{TABLE_NAME} VALUES (42, '{{{{ ds }}}}')"
@@ -59,16 +56,15 @@ SCHEMA = [
 ]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "bigquery"],
+    tags=["example", "bigquery", "sensors"],
     user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME},
     default_args={"project_id": PROJECT_ID},
 ) as dag:
-
     create_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
     )
@@ -83,15 +79,16 @@ with models.DAG(
             "field": "ds",
         },
     )
+
     # [START howto_sensor_bigquery_table]
-    check_table_exists: BaseOperator = BigQueryTableExistenceSensor(
+    check_table_exists = BigQueryTableExistenceSensor(
         task_id="check_table_exists", project_id=PROJECT_ID, dataset_id=DATASET_NAME, table_id=TABLE_NAME
     )
     # [END howto_sensor_bigquery_table]
 
     # [START howto_sensor_bigquery_table_defered]
-    check_table_exists: BaseOperator = BigQueryTableExistenceSensor(
-        task_id="check_table_exists_defered",
+    check_table_exists_def = BigQueryTableExistenceSensor(
+        task_id="check_table_exists_def",
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
@@ -108,7 +105,7 @@ with models.DAG(
     )
     # [END howto_sensor_async_bigquery_table]
 
-    execute_insert_query: BaseOperator = BigQueryInsertJobOperator(
+    execute_insert_query = BigQueryInsertJobOperator(
         task_id="execute_insert_query",
         configuration={
             "query": {
@@ -119,7 +116,7 @@ with models.DAG(
     )
 
     # [START howto_sensor_bigquery_table_partition]
-    check_table_partition_exists: BaseSensorOperator = BigQueryTablePartitionExistenceSensor(
+    check_table_partition_exists = BigQueryTablePartitionExistenceSensor(
         task_id="check_table_partition_exists",
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
@@ -129,8 +126,8 @@ with models.DAG(
     # [END howto_sensor_bigquery_table_partition]
 
     # [START howto_sensor_bigquery_table_partition_defered]
-    check_table_partition_exists: BaseSensorOperator = BigQueryTablePartitionExistenceSensor(
-        task_id="check_table_partition_exists_defered",
+    check_table_partition_exists_def = BigQueryTablePartitionExistenceSensor(
+        task_id="check_table_partition_exists_def",
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
         table_id=TABLE_NAME,
@@ -140,7 +137,7 @@ with models.DAG(
     # [END howto_sensor_bigquery_table_partition_defered]
 
     # [START howto_sensor_bigquery_table_partition_async]
-    check_table_partition_exists_async: BaseSensorOperator = BigQueryTableExistencePartitionAsyncSensor(
+    check_table_partition_exists_async = BigQueryTableExistencePartitionAsyncSensor(
         task_id="check_table_partition_exists_async",
         partition_id=PARTITION_NAME,
         project_id=PROJECT_ID,
@@ -156,10 +153,18 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    create_dataset >> create_table
-    create_table >> [check_table_exists, execute_insert_query]
-    execute_insert_query >> check_table_partition_exists
-    [check_table_exists, check_table_exists_async, check_table_partition_exists] >> delete_dataset
+    (
+        create_dataset
+        >> create_table
+        >> [check_table_exists, check_table_exists_async, check_table_exists_def]
+        >> execute_insert_query
+        >> [
+            check_table_partition_exists,
+            check_table_partition_exists_async,
+            check_table_partition_exists_def,
+        ]
+        >> delete_dataset
+    )
 
     from tests.system.utils.watcher import watcher
 

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import datetime
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 
@@ -55,7 +55,7 @@ run_this >> run_this_last
 
 for i in range(3):
     task = BashOperator(
-        task_id="runme_" + str(i),
+        task_id=f"runme_{i}",
         bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
         dag=dag,
     )

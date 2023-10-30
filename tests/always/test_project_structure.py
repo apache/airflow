@@ -147,12 +147,10 @@ class ProjectStructureTest:
         module = filepath_to_module(filepath)
         results: dict = {}
         for current_node in ast.walk(doc_node):
-            if not isinstance(current_node, ast.ClassDef):
-                continue
-            name = current_node.name
-            if not any(name.endswith(suffix) for suffix in self.CLASS_SUFFIXES):
-                continue
-            results[f"{module}.{name}"] = current_node
+            if isinstance(current_node, ast.ClassDef) and current_node.name.endswith(
+                tuple(self.CLASS_SUFFIXES)
+            ):
+                results[f"{module}.{current_node.name}"] = current_node
         return results
 
 
@@ -262,6 +260,15 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineCreateModelOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineCreateVersionOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteModelOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteVersionOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineGetModelOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineListVersionsOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineSetDefaultVersionOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
+        "airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
@@ -387,8 +394,10 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
 
     BASE_CLASSES = {
+        "airflow.providers.amazon.aws.operators.base_aws.AwsBaseOperator",
         "airflow.providers.amazon.aws.operators.rds.RdsBaseOperator",
         "airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator",
+        "airflow.providers.amazon.aws.sensors.base_aws.AwsBaseSensor",
         "airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor",
         "airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor",
         "airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor",
@@ -455,14 +464,12 @@ class TestDockerProviderProjectStructure(ExampleCoverageTest):
 class TestOperatorsHooks:
     def test_no_illegal_suffixes(self):
         illegal_suffixes = ["_operator.py", "_hook.py", "_sensor.py"]
-        files = itertools.chain(
-            *(
-                glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
-                for resource_type in ["operators", "hooks", "sensors", "example_dags"]
-                for part in ["airflow", "tests"]
-            )
+        files = itertools.chain.from_iterable(
+            glob.glob(f"{ROOT_FOLDER}/{part}/providers/**/{resource_type}/*.py", recursive=True)
+            for resource_type in ["operators", "hooks", "sensors", "example_dags"]
+            for part in ["airflow", "tests"]
         )
 
-        invalid_files = [f for f in files if any(f.endswith(suffix) for suffix in illegal_suffixes)]
+        invalid_files = [f for f in files if f.endswith(tuple(illegal_suffixes))]
 
         assert [] == invalid_files

@@ -19,11 +19,11 @@ from __future__ import annotations
 import concurrent
 import concurrent.futures
 import datetime
+import itertools
 import os
 import shutil
 import sys
 import traceback
-from itertools import repeat
 from tempfile import NamedTemporaryFile
 from typing import Iterator
 
@@ -142,7 +142,7 @@ def fetch_inventories():
     with requests.Session() as session, concurrent.futures.ThreadPoolExecutor(DEFAULT_POOLSIZE) as pool:
         download_results: Iterator[tuple[str, bool]] = pool.map(
             _fetch_file,
-            repeat(session, len(to_download)),
+            itertools.repeat(session, len(to_download)),
             (pkg_name for pkg_name, _, _ in to_download),
             (url for _, url, _ in to_download),
             (path for _, _, path in to_download),

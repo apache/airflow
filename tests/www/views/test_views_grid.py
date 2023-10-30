@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pendulum
 import pytest
 from dateutil.tz import UTC
@@ -25,7 +27,6 @@ from airflow.datasets import Dataset
 from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
-from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
@@ -36,6 +37,11 @@ from airflow.www.views import dag_to_grid
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
+
+pytestmark = pytest.mark.db_test
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
 
 DAG_ID = "test"
 

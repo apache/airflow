@@ -72,7 +72,7 @@ class TestStats:
         with self.stats.timer("empty_timer") as t:
             pass
         self.statsd_client.timer.assert_called_once_with("empty_timer")
-        assert type(t.duration) == float
+        assert isinstance(t.duration, float)
 
     def test_empty_timer(self):
         with self.stats.timer():

@@ -23,6 +23,7 @@ import pytest
 from airflow.decorators import task
 from airflow.exceptions import ParamValidationError, RemovedInAirflow3Warning
 from airflow.models.param import Param, ParamsDict
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
@@ -41,14 +42,20 @@ class TestParam:
         with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             p.resolve()
         assert p.resolve(None) is None
+        assert p.dump()["value"] is None
+        assert not p.has_value
 
         p = Param(None)
         assert p.resolve() is None
         assert p.resolve(None) is None
+        assert p.dump()["value"] is None
+        assert not p.has_value
 
         p = Param(None, type="null")
         assert p.resolve() is None
         assert p.resolve(None) is None
+        assert p.dump()["value"] is None
+        assert not p.has_value
         with pytest.raises(ParamValidationError):
             p.resolve("test")
 
@@ -222,6 +229,30 @@ class TestParam:
         assert dump["description"] == "world"
         assert dump["schema"] == {"type": "string", "minLength": 2}
 
+    @pytest.mark.parametrize(
+        "param",
+        [
+            Param("my value", description="hello", schema={"type": "string"}),
+            Param("my value", description="hello"),
+            Param(None, description=None),
+            Param([True], type="array", items={"type": "boolean"}),
+            Param(),
+        ],
+    )
+    def test_param_serialization(self, param: Param):
+        """
+        Test to make sure that native Param objects can be correctly serialized
+        """
+
+        serializer = BaseSerialization()
+        serialized_param = serializer.serialize(param)
+        restored_param: Param = serializer.deserialize(serialized_param)
+
+        assert restored_param.value == param.value
+        assert isinstance(restored_param, Param)
+        assert restored_param.description == param.description
+        assert restored_param.schema == param.schema
+
 
 class TestParamsDict:
     def test_params_dict(self):
@@ -250,7 +281,7 @@ class TestParamsDict:
 
         # Validate the ParamsDict
         plain_dict = pd.validate()
-        assert type(plain_dict) == dict
+        assert isinstance(plain_dict, dict)
         pd2.validate()
         pd3.validate()
 
@@ -292,6 +323,7 @@ class TestDagParamRuntime:
     def teardown_method(self):
         self.clean_db()
 
+    @pytest.mark.db_test
     def test_dag_param_resolves(self, dag_maker):
         """Test dagparam resolves on operator execution"""
         with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
@@ -313,6 +345,7 @@ class TestDagParamRuntime:
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == self.VALUE
 
+    @pytest.mark.db_test
     def test_dag_param_overwrite(self, dag_maker):
         """Test dag param is overwritten from dagrun config"""
         with dag_maker(dag_id="test_xcom_pass_to_op") as dag:
@@ -337,6 +370,7 @@ class TestDagParamRuntime:
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == new_value
 
+    @pytest.mark.db_test
     def test_dag_param_default(self, dag_maker):
         """Test dag param is retrieved from default config"""
         with dag_maker(dag_id="test_xcom_pass_to_op", params={"value": "test"}) as dag:
@@ -355,6 +389,7 @@ class TestDagParamRuntime:
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == "test"
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "default, should_warn",
         [

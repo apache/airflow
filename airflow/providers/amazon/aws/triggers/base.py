@@ -18,11 +18,14 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.helpers import prune_dict
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class AwsBaseWaiterTrigger(BaseTrigger):
@@ -53,6 +56,11 @@ class AwsBaseWaiterTrigger(BaseTrigger):
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials. To be used to build the hook.
     :param region_name: The AWS region where the resources to watch are. To be used to build the hook.
+    :param verify: Whether or not to verify SSL certificates. To be used to build the hook.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client.
+        To be used to build the hook. For available key-values see:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     def __init__(
@@ -70,7 +78,10 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
+        super().__init__()
         # parameters that should be hardcoded in the child's implem
         self.serialized_fields = serialized_fields
 
@@ -88,6 +99,8 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         self.attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         # here we put together the "common" params,
@@ -100,9 +113,19 @@ class AwsBaseWaiterTrigger(BaseTrigger):
             },
             **self.serialized_fields,
         )
-        if self.region_name:
-            # if we serialize the None value from this, it breaks subclasses that don't have it in their ctor.
-            params["region_name"] = self.region_name
+
+        # if we serialize the None value from this, it breaks subclasses that don't have it in their ctor.
+        params.update(
+            prune_dict(
+                {
+                    # Keep previous behaviour when empty string in region_name evaluated as `None`
+                    "region_name": self.region_name or None,
+                    "verify": self.verify,
+                    "botocore_config": self.botocore_config,
+                }
+            )
+        )
+
         return (
             # remember that self is an instance of the subclass here, not of this class.
             self.__class__.__module__ + "." + self.__class__.__qualname__,
@@ -112,7 +135,6 @@ class AwsBaseWaiterTrigger(BaseTrigger):
     @abstractmethod
     def hook(self) -> AwsGenericHook:
         """Override in subclasses to return the right hook."""
-        ...
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.hook()

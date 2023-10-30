@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, joinedload, subqueryload
+from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
@@ -29,16 +31,19 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_event_collection_schema,
     dataset_schema,
 )
-from airflow.api_connexion.types import APIResponse
 from airflow.models.dataset import DatasetEvent, DatasetModel
-from airflow.security import permissions
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
+    from airflow.api_connexion.types import APIResponse
+
+
+@security.requires_access_dataset("GET")
 @provide_session
-def get_dataset(uri: str, session: Session = NEW_SESSION) -> APIResponse:
+def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset."""
     dataset = session.scalar(
         select(DatasetModel)
@@ -53,7 +58,7 @@ def get_dataset(uri: str, session: Session = NEW_SESSION) -> APIResponse:
     return dataset_schema.dump(dataset)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
+@security.requires_access_dataset("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_datasets(
@@ -80,7 +85,7 @@ def get_datasets(
     return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
+@security.requires_access_dataset("GET")
 @provide_session
 @format_parameters({"limit": check_limit})
 def get_dataset_events(

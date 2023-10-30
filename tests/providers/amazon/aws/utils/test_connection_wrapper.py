@@ -23,9 +23,12 @@ import pytest
 from botocore import UNSIGNED
 from botocore.config import Config
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper, _ConnectionMetadata
+
+pytestmark = pytest.mark.db_test
+
 
 MOCK_AWS_CONN_ID = "mock-conn-id"
 MOCK_CONN_TYPE = "aws"
@@ -529,3 +532,78 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.conn_id == conn_id
         assert wrap_conn.role_arn == role_arn
         assert wrap_conn.profile_name == profile_name
+
+    def test_get_service_config(self):
+        mock_conn = mock_connection_factory(
+            conn_id="foo-bar",
+            extra={
+                "service_config": {
+                    "sns": {"foo": "bar"},
+                    "s3": {"spam": "egg", "baz": "qux"},
+                    "dynamodb": None,
+                },
+            },
+        )
+        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        assert wrap_conn.get_service_config("sns") == {"foo": "bar"}
+        assert wrap_conn.get_service_config("s3") == {"spam": "egg", "baz": "qux"}
+        assert wrap_conn.get_service_config("ec2") == {}
+        assert wrap_conn.get_service_config("dynamodb") is None
+
+    def test_get_service_endpoint_url(self):
+        fake_conn = mock_connection_factory(
+            conn_id="foo-bar",
+            extra={
+                "endpoint_url": "https://spam.egg",
+                "service_config": {
+                    "sns": {"endpoint_url": "https://foo.bar"},
+                    "ec2": {"endpoint_url": None},  # Enforce to boto3
+                },
+            },
+        )
+        wrap_conn = AwsConnectionWrapper(conn=fake_conn)
+        assert wrap_conn.get_service_endpoint_url("sns") == "https://foo.bar"
+        assert wrap_conn.get_service_endpoint_url("sts") == "https://spam.egg"
+        assert wrap_conn.get_service_endpoint_url("ec2") is None
+
+    @pytest.mark.parametrize(
+        "global_endpoint_url, sts_service_endpoint_url, expected_endpoint_url",
+        [
+            pytest.param(None, None, None, id="not-set"),
+            pytest.param("https://global.service", None, None, id="global-only"),
+            pytest.param(None, "https://sts.service:1234", "https://sts.service:1234", id="service-only"),
+            pytest.param(
+                "https://global.service", "https://sts.service:1234", "https://sts.service:1234", id="mixin"
+            ),
+        ],
+    )
+    def test_get_service_endpoint_url_sts(
+        self, global_endpoint_url, sts_service_endpoint_url, expected_endpoint_url
+    ):
+        fake_extra = {}
+        if global_endpoint_url:
+            fake_extra["endpoint_url"] = global_endpoint_url
+        if sts_service_endpoint_url:
+            fake_extra["service_config"] = {"sts": {"endpoint_url": sts_service_endpoint_url}}
+
+        fake_conn = mock_connection_factory(conn_id="foo-bar", extra=fake_extra)
+        wrap_conn = AwsConnectionWrapper(conn=fake_conn)
+        assert wrap_conn.get_service_endpoint_url("sts", sts_connection_assume=True) == expected_endpoint_url
+        assert wrap_conn.get_service_endpoint_url("sts", sts_test_connection=True) == expected_endpoint_url
+
+    def test_get_service_endpoint_url_sts_deprecated_test_connection(self):
+        fake_conn = mock_connection_factory(
+            conn_id="foo-bar",
+            extra={"endpoint_url": "https://spam.egg", "test_endpoint_url": "https://foo.bar"},
+        )
+        wrap_conn = AwsConnectionWrapper(conn=fake_conn)
+        warning_message = r"extra\['test_endpoint_url'\] is deprecated"
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            assert wrap_conn.get_service_endpoint_url("sts", sts_test_connection=True) == "https://foo.bar"
+
+    def test_get_service_endpoint_url_sts_unsupported(self):
+        wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory())
+        with pytest.raises(AirflowException, match=r"Can't resolve STS endpoint when both"):
+            wrap_conn.get_service_endpoint_url("sts", sts_test_connection=True, sts_connection_assume=True)
+        # This check is only affects STS service endpoints
+        wrap_conn.get_service_endpoint_url("s3", sts_test_connection=True, sts_connection_assume=True)

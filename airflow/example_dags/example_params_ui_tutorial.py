@@ -26,16 +26,13 @@ import datetime
 import json
 from pathlib import Path
 
-from airflow import DAG
 from airflow.decorators import task
-from airflow.exceptions import AirflowSkipException
-from airflow.models.dagrun import DagRun
-from airflow.models.param import Param
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.param import Param, ParamsDict
 
 with DAG(
     dag_id=Path(__file__).stem,
-    description=__doc__[0 : __doc__.find(".")],
+    description=__doc__.partition(".")[0],
     doc_md=__doc__,
     schedule=None,
     start_date=datetime.datetime(2022, 3, 4),
@@ -167,9 +164,11 @@ with DAG(
         ),
         # Fields can be required or not. If the defined fields are typed they are getting required by default
         # (else they would not pass JSON schema validation) - to make typed fields optional you must
-        # permit the optional "null" type
+        # permit the optional "null" type.
+        # You can omit a default value if the DAG is triggered manually
         "required_field": Param(
-            "You can not trigger if no text is given here!",
+            # In this example we have no default value
+            # Form will enforce a value supplied by users to be able to trigger
             type="string",
             title="Required text field",
             description="This field is required. You can not submit without having text in here.",
@@ -300,13 +299,9 @@ with DAG(
     },
 ) as dag:
 
-    @task(task_id="show_params")
+    @task
     def show_params(**kwargs) -> None:
-        ti: TaskInstance = kwargs["ti"]
-        dag_run: DagRun = ti.dag_run
-        if not dag_run.conf:
-            print("Uups, no parameters supplied as DagRun.conf, was the trigger w/o form?")
-            raise AirflowSkipException("No DagRun.conf parameters supplied.")
-        print(f"This DAG was triggered with the following parameters:\n{json.dumps(dag_run.conf, indent=4)}")
+        params: ParamsDict = kwargs["params"]
+        print(f"This DAG was triggered with the following parameters:\n\n{json.dumps(params, indent=4)}\n")
 
     show_params()

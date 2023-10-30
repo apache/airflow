@@ -18,14 +18,19 @@ from __future__ import annotations
 
 import ast
 import os
+from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow import DAG
 from airflow.models import DagBag
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
+
+pytestmark = pytest.mark.db_test
+
+if TYPE_CHECKING:
+    from airflow.models.dag import DAG
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
 EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
@@ -73,7 +78,6 @@ class TestGetSource:
         return docstring
 
     def test_should_respond_200_text(self, url_safe_serializer):
-
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         first_dag: DAG = next(iter(dagbag.dags.values()))

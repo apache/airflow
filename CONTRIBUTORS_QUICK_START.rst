@@ -104,7 +104,7 @@ Colima
 ------
 If you use Colima as your container runtimes engine, please follow the next steps:
 
-1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ and follow it's instructions
+1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ and follow its instructions
 
 2. Link the Colima socket to the default socket path. Note that this may break other Docker servers.
 
@@ -248,11 +248,19 @@ Forking and cloning Project
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE <using-your-ide>`_
    chapter below.
 
+Note: For windows based machines, on cloning, the Git line endings may be different from unix based systems
+and might lead to unexpected behaviour on running breeze tooling. Manually setting a property will mitigate this issue.
+Set it to true for windows.
+
+.. code-block:: bash
+
+  $ git config core.autocrlf true
+
 Typical development tasks
 #########################
 
 For many of the development tasks you will need ``Breeze`` to be configured. ``Breeze`` is a development
-environment which uses docker and docker-compose and it's main purpose is to provide a consistent
+environment which uses docker and docker-compose and its main purpose is to provide a consistent
 and repeatable environment for all the contributors and CI. When using ``Breeze`` you avoid the "works for me"
 syndrome - because not only others can reproduce easily what you do, but also the CI of Airflow uses
 the same environment to run all tests - so you should be able to easily reproduce the same failures you
@@ -263,10 +271,25 @@ Setting up Breeze
 
 1. Install ``pipx`` - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
 
-
 2. Run ``pipx install -e ./dev/breeze`` in your checked-out repository. Make sure to follow any instructions
    printed by ``pipx`` during the installation - this is needed to make sure that ``breeze`` command is
    available in your PATH.
+
+.. warning::
+
+  If you see below warning - it means that you hit `known issue <https://github.com/pypa/pipx/issues/1092>`_
+  with ``packaging`` version 23.2:
+  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+  to avoid having to create a new src/ directory.
+
+  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
+  by running ``pip install "packaging<23.2"``.
+
+  .. code-block::bash
+
+     pip install "packaging==23.1"
+     pipx install -e ./dev/breeze --force
+
 
 3. Initialize breeze autocomplete
 
@@ -294,18 +317,27 @@ Setting up Breeze
 5. When you enter Breeze environment you should see prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command.
-   Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
+
+.. code-block:: bash
+
+  root@b76fcb399bb6:/opt/airflow# airflow db reset
+
+
+6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
    tests, however - the test database will be initialized automatically for you.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
-  root@b76fcb399bb6:/opt/airflow# airflow users create --role Admin --username admin --password admin \
-    --email admin@example.com --firstname foo --lastname bar
+        root@b76fcb399bb6:/opt/airflow# airflow users create \
+                --username admin \
+                --firstname FIRST_NAME \
+                --lastname LAST_NAME \
+                --role Admin \
+                --email admin@example.org
 
 
-6. Exiting Breeze environment. After successfully finishing above command will leave you in container,
+7. Exiting Breeze environment. After successfully finishing above command will leave you in container,
    type ``exit`` to exit the container. The database created before will remain and servers will be
    running though, until you stop breeze environment completely.
 
@@ -314,7 +346,7 @@ Setting up Breeze
   root@b76fcb399bb6:/opt/airflow#
   root@b76fcb399bb6:/opt/airflow# exit
 
-6. You can stop the environment (which means deleting the databases and database servers running in the
+8. You can stop the environment (which means deleting the databases and database servers running in the
    background) via ``breeze down`` command.
 
 .. code-block:: bash

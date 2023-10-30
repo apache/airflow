@@ -87,7 +87,7 @@ class TestCleanupPods:
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].image", docs[0]).startswith(
             "apache/airflow"
         )
-        assert {"name": "config", "configMap": {"name": "release-name-airflow-config"}} in jmespath.search(
+        assert {"name": "config", "configMap": {"name": "release-name-config"}} in jmespath.search(
             "spec.jobTemplate.spec.template.spec.volumes", docs[0]
         )
         assert {
@@ -159,6 +159,17 @@ class TestCleanupPods:
         )
         assert "dynamic-pods" == jmespath.search(
             "spec.jobTemplate.spec.template.spec.tolerations[0].key",
+            docs[0],
+        )
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"cleanup": {"enabled": True}, "schedulerName": "airflow-scheduler"},
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.schedulerName",
             docs[0],
         )
 
@@ -373,7 +384,7 @@ class TestCleanupServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "cleanup": {"enabled": True, "serviceAccount": {"automountServiceAccountToken": False}},

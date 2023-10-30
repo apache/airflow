@@ -49,6 +49,10 @@ VERTEX_AI_ENDPOINT_LINK = (
     VERTEX_AI_BASE_LINK + "/locations/{region}/endpoints/{endpoint_id}?project={project_id}"
 )
 VERTEX_AI_ENDPOINT_LIST_LINK = VERTEX_AI_BASE_LINK + "/endpoints?project={project_id}"
+VERTEX_AI_PIPELINE_JOB_LINK = (
+    VERTEX_AI_BASE_LINK + "/locations/{region}/pipelines/runs/{pipeline_id}?project={project_id}"
+)
+VERTEX_AI_PIPELINE_JOB_LIST_LINK = VERTEX_AI_BASE_LINK + "/pipelines/runs?project={project_id}"
 
 
 class VertexAIModelLink(BaseGoogleLink):
@@ -315,6 +319,51 @@ class VertexAIEndpointListLink(BaseGoogleLink):
         task_instance.xcom_push(
             context=context,
             key=VertexAIEndpointListLink.key,
+            value={
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAIPipelineJobLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI PipelineJob link."""
+
+    name = "Pipeline Job"
+    key = "pipeline_job_conf"
+    format_str = VERTEX_AI_PIPELINE_JOB_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        pipeline_id: str,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAIPipelineJobLink.key,
+            value={
+                "pipeline_id": pipeline_id,
+                "region": task_instance.region,
+                "project_id": task_instance.project_id,
+            },
+        )
+
+
+class VertexAIPipelineJobListLink(BaseGoogleLink):
+    """Helper class for constructing Vertex AI PipelineJobList link."""
+
+    name = "Pipeline Job List"
+    key = "pipeline_job_list_conf"
+    format_str = VERTEX_AI_PIPELINE_JOB_LIST_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+    ):
+        task_instance.xcom_push(
+            context=context,
+            key=VertexAIPipelineJobListLink.key,
             value={
                 "project_id": task_instance.project_id,
             },

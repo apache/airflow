@@ -22,7 +22,8 @@ import logging
 import pytest
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.models import DAG, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.state import DagRunState
@@ -30,6 +31,9 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = datetime(2019, 1, 1)
 TASK_HANDLER = "task"

@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateWorkflowTemplateOperator,
     DataprocInstantiateInlineWorkflowTemplateOperator,
@@ -34,21 +34,21 @@ DAG_ID = "dataproc_workflow_def"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 REGION = "europe-west1"
-CLUSTER_NAME = f"{ENV_ID}-{DAG_ID}".replace("_", "-")
+CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "")
 CLUSTER_CONFIG = {
     "master_config": {
         "num_instances": 1,
         "machine_type_uri": "n1-standard-4",
-        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
     "worker_config": {
         "num_instances": 2,
         "machine_type_uri": "n1-standard-4",
-        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
 }
 PIG_JOB = {"query_list": {"queries": ["define sin HiveUDF('sin');"]}}
-WORKFLOW_NAME = "airflow-dataproc-test"
+WORKFLOW_NAME = "airflow-dataproc-test-def"
 WORKFLOW_TEMPLATE = {
     "id": WORKFLOW_NAME,
     "placement": {
@@ -61,7 +61,7 @@ WORKFLOW_TEMPLATE = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

@@ -25,7 +25,8 @@ import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.datasets import Dataset
-from airflow.models import DAG, DagModel, DagRun
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
@@ -37,6 +38,8 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.www import _check_last_log
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -137,7 +140,7 @@ class TestDagRunEndpoint:
                 dags.append(DagModel(dag_id="TEST_DAG_ID", is_active=True))
             dagrun_model = DagRun(
                 dag_id="TEST_DAG_ID",
-                run_id="TEST_DAG_RUN_ID_" + str(i),
+                run_id=f"TEST_DAG_RUN_ID_{i}",
                 run_type=DagRunType.MANUAL,
                 execution_date=timezone.parse(self.default_time) + timedelta(days=i - 1),
                 start_date=timezone.parse(self.default_time),
@@ -148,11 +151,11 @@ class TestDagRunEndpoint:
 
         if extra_dag:
             for i in range(idx_start + 2, idx_start + 4):
-                dags.append(DagModel(dag_id="TEST_DAG_ID_" + str(i)))
+                dags.append(DagModel(dag_id=f"TEST_DAG_ID_{i}"))
                 dag_runs.append(
                     DagRun(
-                        dag_id="TEST_DAG_ID_" + str(i),
-                        run_id="TEST_DAG_RUN_ID_" + str(i),
+                        dag_id=f"TEST_DAG_ID_{i}",
+                        run_id=f"TEST_DAG_RUN_ID_{i}",
                         run_type=DagRunType.MANUAL,
                         execution_date=timezone.parse(self.default_time_2),
                         start_date=timezone.parse(self.default_time),
@@ -496,7 +499,7 @@ class TestGetDagRunsPagination(TestDagRunEndpoint):
         dag_runs = [
             DagRun(
                 dag_id="TEST_DAG_ID",
-                run_id="TEST_DAG_RUN_ID" + str(i),
+                run_id=f"TEST_DAG_RUN_ID{i}",
                 run_type=DagRunType.MANUAL,
                 execution_date=timezone.parse(self.default_time) + timedelta(minutes=i),
                 start_date=timezone.parse(self.default_time),
@@ -581,7 +584,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
         return [
             DagRun(
                 dag_id="TEST_DAG_ID",
-                run_id="TEST_START_EXEC_DAY_1" + str(i),
+                run_id=f"TEST_START_EXEC_DAY_1{i}",
                 run_type=DagRunType.MANUAL,
                 execution_date=timezone.parse(dates[i]),
                 start_date=timezone.parse(dates[i]),
@@ -872,7 +875,7 @@ class TestGetDagRunBatchPagination(TestDagRunEndpoint):
         dag_runs = [
             DagRun(
                 dag_id="TEST_DAG_ID",
-                run_id="TEST_DAG_RUN_ID" + str(i),
+                run_id=f"TEST_DAG_RUN_ID{i}",
                 state="running",
                 run_type=DagRunType.MANUAL,
                 execution_date=timezone.parse(self.default_time) + timedelta(minutes=i),
@@ -956,14 +959,14 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
         dag_runs = [
             DagRun(
                 dag_id="TEST_DAG_ID",
-                run_id="TEST_START_EXEC_DAY_1" + str(i),
+                run_id=f"TEST_START_EXEC_DAY_1{i}",
                 run_type=DagRunType.MANUAL,
-                execution_date=timezone.parse(dates[i]),
-                start_date=timezone.parse(dates[i]),
+                execution_date=timezone.parse(date),
+                start_date=timezone.parse(date),
                 external_trigger=True,
                 state="success",
             )
-            for i in range(len(dates))
+            for i, date in enumerate(dates)
         ]
         with create_session() as session:
             session.add_all(dag_runs)

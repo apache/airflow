@@ -35,6 +35,8 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
+pytestmark = pytest.mark.db_test
+
 
 class CustomXCom(BaseXCom):
     @classmethod
@@ -55,8 +57,6 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         ],
     )
@@ -65,8 +65,6 @@ def configured_app(minimal_app_for_api):
         username="test_granular_permissions",
         role_name="TestGranularDag",
         permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
         ],
     )
@@ -84,13 +82,16 @@ def configured_app(minimal_app_for_api):
 
 def _compare_xcom_collections(collection1: dict, collection_2: dict):
     assert collection1.get("total_entries") == collection_2.get("total_entries")
-    sort_key = lambda record: (
-        record.get("dag_id"),
-        record.get("task_id"),
-        record.get("execution_date"),
-        record.get("map_index"),
-        record.get("key"),
-    )
+
+    def sort_key(record):
+        return (
+            record.get("dag_id"),
+            record.get("task_id"),
+            record.get("execution_date"),
+            record.get("map_index"),
+            record.get("key"),
+        )
+
     assert sorted(collection1.get("xcom_entries", []), key=sort_key) == sorted(
         collection_2.get("xcom_entries", []), key=sort_key
     )

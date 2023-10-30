@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import io
 import os
 import re
 import subprocess
@@ -28,14 +27,17 @@ import sys
 import timeit
 from collections import Counter
 from importlib import reload
+from io import StringIO
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.cli import cli_config, cli_parser
-from airflow.cli.cli_config import ActionCommand, lazy_load_command
+from airflow.cli.cli_config import ActionCommand, core_commands, lazy_load_command
+from airflow.cli.utils import CliConflictError
 from airflow.configuration import AIRFLOW_HOME
+from airflow.executors.local_executor import LocalExecutor
 from tests.test_utils.config import conf_vars
 
 # Can not be `--snake_case` or contain uppercase letter
@@ -133,8 +135,31 @@ class TestCli:
                     f"short option flags {conflict_short_option}"
                 )
 
+    @pytest.mark.db_test
+    @patch.object(LocalExecutor, "get_cli_commands")
+    def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock):
+        core_commands.append(
+            ActionCommand(
+                name="test_command",
+                help="does nothing",
+                func=lambda: None,
+                args=[],
+            )
+        )
+        cli_commands_mock.return_value = [
+            ActionCommand(
+                name="test_command",
+                help="just a command that'll conflict with one defined in core",
+                func=lambda: None,
+                args=[],
+            )
+        ]
+        with pytest.raises(CliConflictError, match="test_command"):
+            # force re-evaluation of cli commands (done in top level code)
+            reload(cli_parser)
+
     def test_falsy_default_value(self):
-        arg = cli_parser.Arg(("--test",), default=0, type=int)
+        arg = cli_config.Arg(("--test",), default=0, type=int)
         parser = argparse.ArgumentParser()
         arg.add_to_parser(parser)
 
@@ -147,7 +172,7 @@ class TestCli:
     def test_commands_and_command_group_sections(self):
         parser = cli_parser.get_parser()
 
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             with pytest.raises(SystemExit):
                 parser.parse_args(["--help"])
             stdout = stdout.getvalue()
@@ -157,7 +182,7 @@ class TestCli:
     def test_dag_parser_commands_and_comamnd_group_sections(self):
         parser = cli_parser.get_parser(dag_parser=True)
 
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             with pytest.raises(SystemExit):
                 parser.parse_args(["--help"])
             stdout = stdout.getvalue()
@@ -205,84 +230,57 @@ class TestCli:
             cli_config.positive_int(allow_zero=True)("-1")
 
     @pytest.mark.parametrize(
-        "executor",
+        "command",
         [
             "celery",
             "kubernetes",
         ],
     )
-    def test_dag_parser_require_celery_executor(self, executor):
+    def test_executor_specific_commands_not_accessible(self, command):
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
-            io.StringIO()
+            StringIO()
         ) as stderr:
             reload(cli_parser)
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args([executor])
+                parser.parse_args([command])
             stderr = stderr.getvalue()
-        assert (f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{executor}'") in stderr
-
-    @pytest.mark.parametrize(
-        "executor",
-        [
-            "CeleryExecutor",
-            "CeleryKubernetesExecutor",
-            "custom_executor.CustomCeleryExecutor",
-            "custom_executor.CustomCeleryKubernetesExecutor",
-        ],
-    )
-    def test_dag_parser_celery_command_accept_celery_executor(self, executor):
-        with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
-            reload(cli_parser)
-            parser = cli_parser.get_parser()
-            with pytest.raises(SystemExit):
-                parser.parse_args(["celery"])
-            stderr = stderr.getvalue()
-        assert (
-            "airflow celery command error: the following arguments are required: COMMAND, see help above."
-        ) in stderr
+        assert (f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{command}'") in stderr
 
     @pytest.mark.parametrize(
         "executor,expected_args",
         [
             ("CeleryExecutor", ["celery"]),
             ("CeleryKubernetesExecutor", ["celery", "kubernetes"]),
-            ("custom_executor.CustomCeleryExecutor", ["celery"]),
-            ("custom_executor.CustomCeleryKubernetesExecutor", ["celery", "kubernetes"]),
             ("KubernetesExecutor", ["kubernetes"]),
-            ("custom_executor.KubernetesExecutor", ["kubernetes"]),
             ("LocalExecutor", []),
             ("LocalKubernetesExecutor", ["kubernetes"]),
-            ("custom_executor.LocalExecutor", []),
-            ("custom_executor.LocalKubernetesExecutor", ["kubernetes"]),
             ("SequentialExecutor", []),
+            # custom executors are mapped to the regular ones in `conftest.py`
+            ("custom_executor.CustomLocalExecutor", []),
+            ("custom_executor.CustomLocalKubernetesExecutor", ["kubernetes"]),
+            ("custom_executor.CustomCeleryExecutor", ["celery"]),
+            ("custom_executor.CustomCeleryKubernetesExecutor", ["celery", "kubernetes"]),
+            ("custom_executor.CustomKubernetesExecutor", ["kubernetes"]),
         ],
     )
     def test_cli_parser_executors(self, executor, expected_args):
         """Test that CLI commands for the configured executor are present"""
         for expected_arg in expected_args:
             with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(
-                io.StringIO()
+                StringIO()
             ) as stderr:
                 reload(cli_parser)
                 parser = cli_parser.get_parser()
-                with pytest.raises(SystemExit) as e:
+                with pytest.raises(SystemExit) as e:  # running the help command exits, so we prevent that
                     parser.parse_args([expected_arg, "--help"])
-                    assert e.value.code == 0
+                assert e.value.code == 0, stderr.getvalue()  # return code 0 == no problem
                 stderr = stderr.getvalue()
                 assert "airflow command error" not in stderr
 
-    def test_dag_parser_config_command_dont_required_celery_executor(self):
-        with conf_vars({("core", "executor"): "CeleryExecutor"}), contextlib.redirect_stderr(
-            io.StringIO()
-        ) as stdout:
-            parser = cli_parser.get_parser()
-            parser.parse_args(["config", "get-value", "celery", "broker-url"])
-        assert stdout is not None
-
     def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
         """Test that the error message is correct when the directory does not exist."""
-        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+        with contextlib.redirect_stderr(StringIO()) as stderr:
             with pytest.raises(SystemExit):
                 parser = cli_parser.get_parser()
                 parser.parse_args(["db", "export-archived", "--output-path", "/non/existing/directory"])
@@ -299,7 +297,7 @@ class TestCli:
         self, mock_isdir, export_format
     ):
         """Test that invalid choice raises for export-format in db export-cleaned command."""
-        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+        with contextlib.redirect_stderr(StringIO()) as stderr:
             with pytest.raises(SystemExit):
                 parser = cli_parser.get_parser()
                 parser.parse_args(
@@ -345,6 +343,7 @@ class TestCliSubprocess:
     than from provider packages which might not be installed in the test environment.
     """
 
+    @pytest.mark.quarantined
     def test_cli_run_time(self):
         setup_code = "import subprocess"
         command = [sys.executable, "-m", "airflow", "--help"]

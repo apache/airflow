@@ -23,14 +23,14 @@ import tempfile
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
-from facebook_business.adobjects.adsinsights import AdsInsights
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 
 if TYPE_CHECKING:
+    from facebook_business.adobjects.adsinsights import AdsInsights
+
     from airflow.utils.context import Context
 
 
@@ -141,11 +141,11 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
                         account_id=account_id,
                     )
                 else:
-                    self.log.warning("account_id: %s returned empty report", str(account_id))
+                    self.log.warning("account_id: %s returned empty report", account_id)
         else:
             message = (
                 "Facebook Ads Hook returned different type than expected. Expected return types should be "
-                "List or Dict. Actual return type of the Hook: " + str(type(bulk_report))
+                f"List or Dict. Actual return type of the Hook: {type(bulk_report)}"
             )
             raise AirflowException(message)
         total_row_count = self._decide_and_flush(converted_rows_with_action=converted_rows_with_action)
@@ -199,7 +199,7 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
             else:
                 message = (
                     "FlushAction not found in the data. Please check the FlushAction in "
-                    "the operator. Converted Rows with Action: " + str(converted_rows_with_action)
+                    f"the operator. Converted Rows with Action: {converted_rows_with_action}"
                 )
                 raise AirflowException(message)
         return total_data_count
@@ -226,7 +226,5 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
 
     def _transform_object_name_with_account_id(self, account_id: str):
         directory_parts = self.object_name.split("/")
-        directory_parts[len(directory_parts) - 1] = (
-            account_id + "_" + directory_parts[len(directory_parts) - 1]
-        )
+        directory_parts[-1] = f"{account_id}_{directory_parts[-1]}"
         return "/".join(directory_parts)

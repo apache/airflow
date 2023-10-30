@@ -23,13 +23,18 @@ import pytest
 import time_machine
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance as TI, XCom
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.weekday import BranchDayOfWeekOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.weekday import WeekDay
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2020, 2, 5)  # Wednesday
 INTERVAL = datetime.timedelta(hours=12)
@@ -96,7 +101,6 @@ class TestBranchDayOfWeekOperator:
     @time_machine.travel("2021-01-25")  # Monday
     def test_branch_follow_true(self, weekday):
         """Checks if BranchDayOfWeekOperator follows true branch"""
-        print(datetime.datetime.now())
         branch_op = BranchDayOfWeekOperator(
             task_id="make_choice",
             follow_task_ids_if_true=["branch_1", "branch_2"],

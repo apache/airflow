@@ -18,16 +18,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from enum import Enum
 from functools import cached_property, lru_cache
-from re import match
 from typing import Any, Dict, List, TypeVar
 
-if sys.version_info >= (3, 9):
-    from typing import Literal
-else:
-    from typing import Literal
+from typing_extensions import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -68,6 +65,7 @@ from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
+UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 
 
 class FileGroupForCi(Enum):
@@ -189,6 +187,10 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/cli",
             r"^tests/cli",
         ],
+        SelectiveUnitTestTypes.OPERATORS: [
+            r"^airflow/operators",
+            r"^tests/operators",
+        ],
         SelectiveUnitTestTypes.PROVIDERS: [
             r"^airflow/providers/",
             r"^tests/system/providers/",
@@ -274,7 +276,7 @@ def find_all_providers_affected(
             get_console().print(
                 "[info]This PR had `allow suspended provider changes` label set so it will continue"
             )
-    if len(all_providers) == 0:
+    if not all_providers:
         return None
     for provider in list(all_providers):
         all_providers.update(
@@ -355,7 +357,7 @@ class SelectiveChecks:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
             get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
-        if len(self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES)) > 0:
+        if self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES):
             get_console().print("[warning]Running everything because env files changed[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
@@ -472,10 +474,8 @@ class SelectiveChecks:
 
     def _match_files_with_regexps(self, matched_files, regexps):
         for file in self._files:
-            for regexp in regexps:
-                if match(regexp, file):
-                    matched_files.append(file)
-                    break
+            if any(re.match(regexp, file) for regexp in regexps):
+                matched_files.append(file)
 
     @lru_cache(maxsize=None)
     def _matching_files(self, match_group: T, match_dict: dict[T, list[str]]) -> list[str]:
@@ -495,7 +495,7 @@ class SelectiveChecks:
             get_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
             return True
         matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES)
-        if len(matched_files) > 0:
+        if matched_files:
             get_console().print(
                 f"[warning]{source_area} enabled because it matched {len(matched_files)} changed files[/]"
             )
@@ -589,6 +589,9 @@ class SelectiveChecks:
             self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.CLI)
         )
         matched_files.update(
+            self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.OPERATORS)
+        )
+        matched_files.update(
             self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.API)
         )
 
@@ -620,7 +623,7 @@ class SelectiveChecks:
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
-        sorted_candidate_test_types = list(sorted(candidate_test_types))
+        sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
         return sorted_candidate_test_types
@@ -674,21 +677,10 @@ class SelectiveChecks:
         self._extract_long_provider_tests(current_test_types)
 
         # this should be hard-coded as we want to have very specific sequence of tests
-        sorting_order = ["Core", "Providers[-amazon,google]", "Other", "Providers[amazon]", "WWW"]
-
-        def sort_key(t: str) -> str:
-            # Put the test types in the order we want them to run
-            if t in sorting_order:
-                return str(sorting_order.index(t))
-            else:
-                return str(len(sorting_order)) + t
-
-        return " ".join(
-            sorted(
-                current_test_types,
-                key=sort_key,
-            )
-        )
+        sorting_order = ["Operators", "Core", "Providers[-amazon,google]", "Providers[amazon]", "WWW"]
+        sort_key = {item: i for i, item in enumerate(sorting_order)}
+        # Put the test types in the order we want them to run
+        return " ".join(sorted(current_test_types, key=lambda x: (sort_key.get(x, len(sorting_order)), x)))
 
     @cached_property
     def basic_checks_only(self) -> bool:
@@ -696,17 +688,19 @@ class SelectiveChecks:
 
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
-        return len(
-            self._matching_files(FileGroupForCi.SETUP_FILES, CI_FILE_GROUP_MATCHES)
-        ) > 0 or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
+        return (
+            len(self._matching_files(FileGroupForCi.SETUP_FILES, CI_FILE_GROUP_MATCHES)) > 0
+            or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
+            or UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels
+        )
 
     @cached_property
-    def docs_filter_list_as_string(self) -> str | None:
+    def docs_list_as_string(self) -> str | None:
         _ALL_DOCS_LIST = ""
         if not self.docs_build:
             return None
         if self._default_branch != "main":
-            return "--package-filter apache-airflow --package-filter docker-stack"
+            return "apache-airflow docker-stack"
         if self.full_tests_needed:
             return _ALL_DOCS_LIST
         providers_affected = find_all_providers_affected(
@@ -722,20 +716,18 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any(
-            [file.startswith("airflow/") or file.startswith("docs/apache-airflow/") for file in self._files]
-        ):
+        if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
             packages.append("apache-airflow")
-        if any([file.startswith("docs/apache-airflow-providers/") for file in self._files]):
-            packages.append("apache-airflow-providers")
-        if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
+        if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
+            packages.append("providers-index")
+        if any(file.startswith(("chart/", "docs/helm-chart")) for file in self._files):
             packages.append("helm-chart")
-        if any([file.startswith("docs/docker-stack/") for file in self._files]):
+        if any(file.startswith("docs/docker-stack/") for file in self._files):
             packages.append("docker-stack")
         if providers_affected:
             for provider in providers_affected:
-                packages.append(f"apache-airflow-providers-{provider.replace('.', '-')}")
-        return " ".join([f"--package-filter {package}" for package in packages])
+                packages.append(provider.replace("-", "."))
+        return " ".join(packages)
 
     @cached_property
     def skip_pre_commits(self) -> str:
@@ -810,6 +802,83 @@ class SelectiveChecks:
         return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
+    def is_self_hosted_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating It should run on "self-hosted" runner.
+
+        All self-hosted runners have "self-hosted" label.
+        """
+        return "self-hosted" in json.loads(self.runs_on)
+
+    @cached_property
+    def is_airflow_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating It should run on Airflow managed runner.
+
+        All Airflow team-managed runners will have "airflow-runner" label.
+        """
+        # TODO: when we have it properly set-up with labels we should just check for
+        #       "airflow-runner" presence in runs_on
+        runs_on_array = json.loads(self.runs_on)
+        return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
+
+    @cached_property
+    def is_amd_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating AMD architecture.
+
+        Matching amd label, asf-runner, and any ubuntu that does not contain arm
+        The last case is just in case - currently there are no public runners that have ARM
+        instances, but they can add them in the future. It might be that for compatibility
+        they will just add arm in the runner name - because currently GitHub users use just
+        one label "ubuntu-*" for all their work and depend on them being AMD ones.
+        """
+        return any(
+            [
+                "amd" == label.lower()
+                or "amd64" == label.lower()
+                or "x64" == label.lower()
+                or "asf-runner" == label
+                or ("ubuntu" in label and "arm" not in label.lower())
+                for label in json.loads(self.runs_on)
+            ]
+        )
+
+    @cached_property
+    def is_arm_runner(self) -> bool:
+        """
+        True if the job has runs_on labels indicating ARM architecture.
+
+        Matches any label containing arm - including ASF-specific "asf-arm" label.
+
+        # See https://cwiki.apache.org/confluence/pages/viewpage.action?spaceKey=INFRA&title=ASF+Infra+provided+self-hosted+runners
+        """
+        return any(
+            [
+                "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
+                for label in json.loads(self.runs_on)
+            ]
+        )
+
+    @cached_property
+    def is_vm_runner(self) -> bool:
+        """Whether the runner is VM runner (managed by airflow)."""
+        # TODO: when we have it properly set-up with labels we should just check for
+        #       "airflow-runner" presence in runs_on
+        return self.is_airflow_runner
+
+    @cached_property
+    def is_k8s_runner(self) -> bool:
+        """Whether the runner is K8s runner (managed by airflow)."""
+        # TODO: when we have it properly set-up with labels we should just check for
+        #       "k8s-runner" presence in runs_on
+        return False
+
+    @cached_property
     def mssql_parallelism(self) -> int:
         # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
         return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
+
+    @cached_property
+    def has_migrations(self) -> bool:
+        return any([file.startswith("airflow/migrations/") for file in self._files])

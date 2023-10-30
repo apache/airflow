@@ -41,9 +41,7 @@ class TestKeda:
         ],
     )
     def test_keda_enabled(self, executor, is_created):
-        """ScaledObject should only be created when set to enabled and
-        executor is Celery or CeleryKubernetes.
-        """
+        """ScaledObject should only be created when enabled and executor is Celery or CeleryKubernetes."""
         docs = render_chart(
             values={
                 "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
@@ -85,7 +83,7 @@ class TestKeda:
 
     @staticmethod
     def build_query(executor, concurrency=16, queue=None):
-        """Builds the query used by KEDA autoscaler to determine how many workers there should be."""
+        """Build the query used by KEDA autoscaler to determine how many workers there should be."""
         query = (
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
             "FROM task_instance WHERE (state='running' OR state='queued')"
@@ -128,6 +126,7 @@ class TestKeda:
     def test_keda_query_kubernetes_queue(self, executor, queue, should_filter):
         """
         Verify keda sql query ignores kubernetes queue when CKE is used.
+
         Sometimes a user might want to use a different queue name for k8s executor tasks,
         and we also verify here that we use the configured queue name in that case.
         """
@@ -261,10 +260,16 @@ class TestKeda:
         assert "KEDA_DB_CONN" in worker_container_env_vars
 
         secret_data = jmespath.search("data", metadata_connection_secret)
+        connection_secret = base64.b64decode(secret_data["connection"]).decode()
+        keda_connection_secret = base64.b64decode(secret_data["kedaConnection"]).decode()
         assert "connection" in secret_data.keys()
-        assert "@release-name-pgbouncer" in base64.b64decode(secret_data["connection"]).decode()
+        assert "@release-name-pgbouncer" in connection_secret
+        assert ":6543" in connection_secret
+        assert "/release-name-metadata" in connection_secret
         assert "kedaConnection" in secret_data.keys()
-        assert "@release-name-postgresql" in base64.b64decode(secret_data["kedaConnection"]).decode()
+        assert "@release-name-postgresql" in keda_connection_secret
+        assert ":5432" in keda_connection_secret
+        assert "/postgres" in keda_connection_secret
 
         autoscaler_connection_env_var = jmespath.search(
             "spec.triggers[0].metadata.connectionFromEnv", keda_autoscaler

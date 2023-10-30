@@ -20,7 +20,6 @@
 """Exceptions used by Airflow."""
 from __future__ import annotations
 
-import datetime
 import warnings
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple, Sized
@@ -28,6 +27,8 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Sized
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
+    import datetime
+
     from airflow.models import DAG, DagRun
 
 
@@ -176,10 +177,7 @@ class AirflowClusterPolicySkipDag(AirflowException):
 
 
 class AirflowClusterPolicyError(AirflowException):
-    """
-    Raise when there is an error in Cluster Policy,
-    except AirflowClusterPolicyViolation and AirflowClusterPolicySkipDag.
-    """
+    """Raise for a Cluster Policy other than AirflowClusterPolicyViolation or AirflowClusterPolicySkipDag."""
 
 
 class AirflowTimetableInvalid(AirflowException):
@@ -389,7 +387,7 @@ class TaskDeferralError(AirflowException):
 # 2) if you have new provider, both provider and pod generator will throw the
 #    "airflow.providers.cncf.kubernetes" as it will be imported here from the provider.
 try:
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodMutationHookException
+    from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException
 except ImportError:
 
     class PodMutationHookException(AirflowException):  # type: ignore[no-redef]
@@ -397,7 +395,7 @@ except ImportError:
 
 
 try:
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
+    from airflow.providers.cncf.kubernetes.pod_generator import PodReconciliationError
 except ImportError:
 
     class PodReconciliationError(AirflowException):  # type: ignore[no-redef]

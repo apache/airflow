@@ -55,6 +55,24 @@ here so that users affected can find the reason for the changes.
 |              |                     |                                         | on 17 Jan 2022         |                                              |
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 
+Airflow 2.7
+~~~~~~~~~~~
+
+* 2.7.3
+
+  * Add experimental feature for select type of MySQL Client libraries during the build custom image via ``INSTALL_MYSQL_CLIENT_TYPE``
+    build arg. ``mysql`` for install MySQL client libraries from `Oracle APT repository <https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/>`_,
+    ``mariadb`` for install MariaDB client libraries from `MariaDB repository <https://mariadb.com/kb/en/mariadb-package-repository-setup-and-usage/#mariadb-repository>`_.
+    The selection of MySQL Client libraries only available on AMD64 (x86_64) for ARM docker image it will always install
+    MariaDB client.
+
+  * Docker CLI version in the image is bumped to 24.0.6 version.
+
+* 2.7.0
+
+  * As of now, Python 3.7 is no longer supported by the Python community. Therefore, to use Airflow 2.7.0, you must ensure your Python version is
+    either 3.8, 3.9, 3.10, or 3.11.
+
 Airflow 2.6
 ~~~~~~~~~~~~~
 

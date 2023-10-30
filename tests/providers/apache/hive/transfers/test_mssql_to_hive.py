@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from collections import OrderedDict
 from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
@@ -36,7 +35,6 @@ class TestMsSqlToHiveTransfer:
         self.kwargs = dict(sql="sql", hive_table="table", task_id="test_mssql_to_hive", dag=None)
 
     def test_type_map_binary(self):
-
         mapped_type = MsSqlToHiveOperator(**self.kwargs).type_map(pymssql.BINARY.value)
 
         assert mapped_type == "INT"
@@ -73,7 +71,7 @@ class TestMsSqlToHiveTransfer:
         mock_mssql_hook_cursor.return_value.execute.assert_called_once_with(mssql_to_hive_transfer.sql)
         mock_tmp_file.assert_called_with(mode="w", encoding="utf-8")
         mock_csv.writer.assert_called_once_with(mock_tmp_file, delimiter=mssql_to_hive_transfer.delimiter)
-        field_dict = OrderedDict()
+        field_dict = {}
         for field in mock_mssql_hook_cursor.return_value.description:
             field_dict[field[0]] = mssql_to_hive_transfer.type_map(field[1])
         mock_csv.writer.return_value.writerows.assert_called_once_with(mock_mssql_hook_cursor.return_value)
@@ -102,7 +100,7 @@ class TestMsSqlToHiveTransfer:
         mssql_to_hive_transfer = MsSqlToHiveOperator(**self.kwargs)
         mssql_to_hive_transfer.execute(context={})
 
-        field_dict = OrderedDict()
+        field_dict = {}
         for col_count, field in enumerate(mock_mssql_hook_cursor.return_value.description, start=1):
             col_position = f"Column{col_count}"
             field_dict[col_position] = mssql_to_hive_transfer.type_map(field[1])

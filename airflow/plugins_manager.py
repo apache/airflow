@@ -26,14 +26,8 @@ import logging
 import os
 import sys
 import types
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
-
-try:
-    import importlib_metadata
-except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
-
-from types import ModuleType
 
 from airflow import settings
 from airflow.utils.entry_points import entry_points_with_dist
@@ -41,6 +35,12 @@ from airflow.utils.file import find_path_from_directory
 from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
+    try:
+        import importlib_metadata
+    except ImportError:
+        from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+    from types import ModuleType
+
     from airflow.hooks.base import BaseHook
     from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable
@@ -78,14 +78,16 @@ PLUGINS_ATTRIBUTES_TO_DUMP = {
     "hooks",
     "executors",
     "macros",
+    "admin_views",
     "flask_blueprints",
+    "menu_links",
     "appbuilder_views",
     "appbuilder_menu_items",
     "global_operator_extra_links",
     "operator_extra_links",
+    "source",
     "ti_deps",
     "timetables",
-    "source",
     "listeners",
 }
 
@@ -206,6 +208,7 @@ def is_valid_plugin(plugin_obj):
 def register_plugin(plugin_instance):
     """
     Start plugin load and register it after success initialization.
+
     If plugin is already registered, do nothing.
 
     :param plugin_instance: subclass of AirflowPlugin
@@ -251,11 +254,10 @@ def load_plugins_from_plugin_directory():
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
 
     for file_path in find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore"):
-        if not os.path.isfile(file_path):
+        path = Path(file_path)
+        if not path.is_file() or path.suffix != ".py":
             continue
-        mod_name, file_ext = os.path.splitext(os.path.split(file_path)[-1])
-        if file_ext != ".py":
-            continue
+        mod_name = path.stem
 
         try:
             loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
@@ -285,13 +287,12 @@ def load_providers_plugins():
 
         try:
             plugin_instance = import_string(plugin.plugin_class)
-            if not is_valid_plugin(plugin_instance):
+            if is_valid_plugin(plugin_instance):
+                register_plugin(plugin_instance)
+            else:
                 log.warning("Plugin %s is not a valid plugin", plugin.name)
-                continue
-            register_plugin(plugin_instance)
         except ImportError:
             log.exception("Failed to load plugin %s from class name %s", plugin.name, plugin.plugin_class)
-            continue
 
 
 def make_module(name: str, objects: list[Any]):
@@ -341,9 +342,8 @@ def ensure_plugins_loaded():
         for plugin in plugins:
             registered_hooks.extend(plugin.hooks)
 
-    num_loaded = len(plugins)
-    if num_loaded > 0:
-        log.debug("Loading %d plugin(s) took %.2f seconds", num_loaded, timer.duration)
+    if plugins:
+        log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
 
 
 def initialize_web_ui_plugins():
@@ -559,8 +559,10 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
                 elif attr in ("macros", "timetables", "hooks", "executors"):
                     info[attr] = [qualname(d) for d in getattr(plugin, attr)]
                 elif attr == "listeners":
-                    # listeners are always modules
-                    info[attr] = [d.__name__ for d in getattr(plugin, attr)]
+                    # listeners may be modules or class instances
+                    info[attr] = [
+                        d.__name__ if inspect.ismodule(d) else qualname(d) for d in getattr(plugin, attr)
+                    ]
                 elif attr == "appbuilder_views":
                     info[attr] = [
                         {**d, "view": qualname(d["view"].__class__) if "view" in d else None}

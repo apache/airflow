@@ -139,7 +139,9 @@ class FTPFileTransmitOperator(BaseOperator):
 
     def get_openlineage_facets_on_start(self):
         """
-        Returns OpenLineage datasets with following naming structure:
+        Return OpenLineage datasets.
+
+        Dataset will have the following structure:
                 input: file://hostname/path
                 output file://<conn.host>:<conn.port>/path.
         """

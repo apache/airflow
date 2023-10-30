@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any
 from unittest import mock
 
+import pytest
 from attrs import Factory, define, field
 from openlineage.client.facet import BaseFacet, ParentRunFacet, SqlJobFacet
 from openlineage.client.run import Dataset
@@ -31,6 +32,9 @@ from airflow.providers.openlineage.extractors.base import (
 )
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
+
+pytestmark = pytest.mark.db_test
+
 
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]

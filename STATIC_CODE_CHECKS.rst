@@ -187,6 +187,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-for-inclusive-language                              | Check for language that we do not accept as community        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-google-re2-as-dependency                            | Check google-re2 is declared as dependency when needed       |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-hooks-apply                                         | Check if all hooks apply to the repository                   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-incorrect-use-of-LoggingMixin                       | Make sure LoggingMixin is not used alone                     |         |
@@ -262,6 +264,8 @@ require Breeze Docker image to be built locally.
 | fix-encoding-pragma                                       | Remove encoding header from Python files                     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python                 |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| generate-pypi-readme                                      | Generate PyPI README                                         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | identity                                                  | Print input to the static check hooks for troubleshooting    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -354,6 +358,8 @@ require Breeze Docker image to be built locally.
 | update-vendored-in-k8s-json-schema                        | Vendor k8s definitions into values.schema.json               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-version                                            | Update version to the latest version in the documentation    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| validate-pyproject                                        | Validate pyproject.toml                                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | yamllint                                                  | Check YAML files with yamllint                               |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -482,7 +488,7 @@ Run all checks for all changes in my branch since branched from main:
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy-core --only-my-changes
+     breeze static-checks --type mypy-core --only-my-changes
 
 More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
 

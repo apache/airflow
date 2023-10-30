@@ -77,7 +77,7 @@ def test_tooltip_derived_from_function_docstring():
     assert _.task_group_dict["tg"].tooltip == "Function docstring."
 
 
-def test_tooltip_not_overriden_by_function_docstring():
+def test_tooltip_not_overridden_by_function_docstring():
     """
     Test that the tooltip for TaskGroup is the explicitly set value even if the decorated function has a
     docstring.
@@ -189,6 +189,54 @@ def test_expand_kwargs_create_mapped():
     assert tg._expand_input == ListOfDictsExpandInput([{"b": "x"}, {"b": None}])
 
     assert saved == {"a": 1, "b": MappedArgument(input=tg._expand_input, key="b")}
+
+
+@pytest.mark.db_test
+def test_task_group_expand_kwargs_with_upstream(dag_maker, session, caplog):
+    with dag_maker() as dag:
+
+        @dag.task
+        def t1():
+            return [{"a": 1}, {"a": 2}]
+
+        @task_group("tg1")
+        def tg1(a, b):
+            @dag.task()
+            def t2():
+                return [a, b]
+
+            t2()
+
+        tg1.expand_kwargs(t1())
+
+    dr = dag_maker.create_dagrun()
+    dr.task_instance_scheduling_decisions()
+    assert "Cannot expand" not in caplog.text
+    assert "missing upstream values: ['expand_kwargs() argument']" not in caplog.text
+
+
+@pytest.mark.db_test
+def test_task_group_expand_with_upstream(dag_maker, session, caplog):
+    with dag_maker() as dag:
+
+        @dag.task
+        def t1():
+            return [1, 2, 3]
+
+        @task_group("tg1")
+        def tg1(a, b):
+            @dag.task()
+            def t2():
+                return [a, b]
+
+            t2()
+
+        tg1.partial(a=1).expand(b=t1())
+
+    dr = dag_maker.create_dagrun()
+    dr.task_instance_scheduling_decisions()
+    assert "Cannot expand" not in caplog.text
+    assert "missing upstream values: ['b']" not in caplog.text
 
 
 def test_override_dag_default_args():

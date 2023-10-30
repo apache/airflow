@@ -27,7 +27,7 @@ permissions:
   issues: write
 jobs:
   stale:
-    runs-on: ubuntu-22.04
+    runs-on: "ubuntu-22.04"
     steps:
       - uses: actions/stale@v8
         with:
@@ -40,10 +40,10 @@ jobs:
           exempt-pr-labels: 'pinned,security'
           only-issue-labels: 'pending-response'
           remove-stale-when-updated: true
-          days-before-issue-stale: 30
+          days-before-issue-stale: 14
           days-before-issue-close: 7
           stale-issue-message: >
-            This issue has been automatically marked as stale because it has been open for 30 days
+            This issue has been automatically marked as stale because it has been open for 14 days
             with no response from the author. It will be closed in next 7 days if no further
             activity occurs from the issue author.
           close-issue-message: >

@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from databricks.sql.utils import ParamEscaper
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
@@ -110,7 +110,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def _sql_sensor(self, sql):
-        """Executes the supplied SQL statement using the hook object."""
+        """Execute the supplied SQL statement using the hook object."""
         hook = self._get_hook
         sql_result = hook.run(
             sql,
@@ -121,7 +121,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
 
     @cached_property
     def _get_hook(self) -> DatabricksSqlHook:
-        """Creates and returns a DatabricksSqlHook object."""
+        """Create and return a DatabricksSqlHook object."""
         return DatabricksSqlHook(
             self.databricks_conn_id,
             self._http_path,
@@ -140,7 +140,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         if self.table_name.split(".")[0] == "delta":
             _fully_qualified_table_name = self.table_name
         else:
-            _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
+            _fully_qualified_table_name = f"{self.catalog}.{self.schema}.{self.table_name}"
         self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
         _joiner_val = " AND "
         _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
@@ -166,7 +166,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         escape_key: bool = False,
     ) -> str:
         """
-        Queries the table for available partitions.
+        Query the table for available partitions.
 
         Generates the SQL query based on the partition data types.
             * For a list, it prepares the SQL in the format:
@@ -182,9 +182,14 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         partition_columns = self._sql_sensor(f"DESCRIBE DETAIL {table_name}")[0][7]
         self.log.debug("Partition columns: %s", partition_columns)
         if len(partition_columns) < 1:
-            raise AirflowException(f"Table {table_name} does not have partitions")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = f"Table {table_name} does not have partitions"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
+
         formatted_opts = ""
-        if opts is not None and len(opts) > 0:
+        if opts:
             output_list = []
             for partition_col, partition_value in opts.items():
                 if escape_key:
@@ -202,22 +207,32 @@ class DatabricksPartitionSensor(BaseSensorOperator):
                             f"""{partition_col}{self.partition_operator}{self.escaper.escape_item(partition_value)}"""
                         )
                 else:
-                    raise AirflowException(
-                        f"Column {partition_col} not part of table partitions: {partition_columns}"
-                    )
+                    # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+                    message = f"Column {partition_col} not part of table partitions: {partition_columns}"
+                    if self.soft_fail:
+                        raise AirflowSkipException(message)
+                    raise AirflowException(message)
         else:
             # Raises exception if the table does not have any partitions.
-            raise AirflowException("No partitions specified to check with the sensor.")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = "No partitions specified to check with the sensor."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         formatted_opts = f"{prefix} {joiner_val.join(output_list)} {suffix}"
         self.log.debug("Formatted options: %s", formatted_opts)
 
         return formatted_opts.strip()
 
     def poke(self, context: Context) -> bool:
-        """Checks the table partitions and returns the results."""
+        """Check the table partitions and return the results."""
         partition_result = self._check_table_partitions()
         self.log.debug("Partition sensor result: %s", partition_result)
-        if len(partition_result) >= 1:
+        if partition_result:
             return True
         else:
-            raise AirflowException(f"Specified partition(s): {self.partitions} were not found.")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = f"Specified partition(s): {self.partitions} were not found."
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)

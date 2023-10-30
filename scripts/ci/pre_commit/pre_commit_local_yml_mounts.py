@@ -48,7 +48,7 @@ if __name__ == "__main__":
     local_mount_file_path = AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "docker-compose" / "local.yml"
     PREFIX = "      "
     volumes = []
-    for (src, dest) in VOLUMES_FOR_SELECTED_MOUNTS:
+    for src, dest in VOLUMES_FOR_SELECTED_MOUNTS:
         volumes.extend(
             [
                 PREFIX + "- type: bind\n",

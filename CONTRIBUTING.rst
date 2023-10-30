@@ -179,7 +179,7 @@ There are certain expectations from the members of the security team:
 * They are supposed to be active in assessing, discussing, fixing and releasing the
   security issues in Airflow. While it is perfectly understood that as volunteers, we might have
   periods of lower activity, prolonged lack of activity and participation will result in removal
-  from the team, pending PMC decision (the decision on removal can be taken by LAZY CONSENSUS among
+  from the team, pending PMC decision (the decision on removal can be taken by `LAZY CONSENSUS <https://community.apache.org/committers/lazyConsensus.html>`_ among
   all the PMC members on private@airflow.apache.org mailing list).
 
 * They are not supposed to reveal the information about pending and unfixed security issues to anyone
@@ -188,7 +188,7 @@ There are certain expectations from the members of the security team:
   experts that are available through Airflow stakeholders. The intent about involving 3rd parties has
   to be discussed and agreed upon at security@airflow.apache.org.
 
-* They have to have an [ICLA](https://www.apache.org/licenses/contributor-agreements.html) signed with
+* They have to have an `ICLA <https://www.apache.org/licenses/contributor-agreements.html>`_ signed with
   Apache Software Foundation.
 
 * The security team members might inform 3rd parties about fixes, for example in order to assess if the fix
@@ -212,8 +212,8 @@ There are certain expectations from the members of the security team:
   release process. This is facilitated by the security tool provided by the Apache Software Foundation.
 
 * Severity of the issue is determined based on the criteria described in the
-  [Severity Rating blog post](https://security.apache.org/blog/severityrating/)  by the Apache Software
-  Foundation Security team
+  `Severity Rating blog post <https://security.apache.org/blog/severityrating/>`_  by the Apache Software
+  Foundation Security team.
 
 Contribution Workflow
 =====================
@@ -671,15 +671,16 @@ aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, 
 apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kafka,
 apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs,
 apprise, arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups,
-cloudant, cncf.kubernetes, common.sql, crypto, dask, daskexecutor, databricks, datadog, dbt.cloud,
-deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker,
-druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
-google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
-ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
-mysql, neo4j, odbc, openfaas, openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill,
-password, pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba,
-segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd,
-tableau, tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm, zendesk
+cloudant, cncf.kubernetes, common.io, common.sql, crypto, dask, daskexecutor, databricks, datadog,
+dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc,
+doc_gen, docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github,
+github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc,
+jenkins, kerberos, kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp,
+microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas, openlineage, opensearch, opsgenie,
+oracle, otel, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, rabbitmq,
+redis, s3, s3fs, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack, smtp,
+snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv,
+webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages
@@ -1443,7 +1444,7 @@ You can join the channels via links at the `Airflow Community page <https://airf
 * The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home?src=breadcrumbs>`_ for:
    * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
    * helpful, shared resources (for example Apache Airflow logos
-   * information that can be re-used by others (for example instructions on preparing workshops)
+   * information that can be reused by others (for example instructions on preparing workshops)
 * GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs
    * not for architectural discussions (use the devlist for that)
@@ -1457,14 +1458,16 @@ We don't create new issues on JIRA anymore. The reason we still look at JIRA iss
 * The `Apache Airflow Slack <https://s.apache.org/airflow-slack>`_ for:
    * ad-hoc questions related to development (#development channel)
    * asking for review (#development channel)
-   * asking for help with PRs (#how-to-pr channel)
+   * asking for help with first contribution PRs (#development-first-pr-support channel)
    * troubleshooting (#troubleshooting channel)
    * group talks (including SIG - special interest groups) (#sig-* channels)
    * notifications (#announcements channel)
    * random queries (#random channel)
    * regional announcements (#users-* channels)
-   * newbie questions (#newbie-questions channel)
    * occasional discussions (wherever appropriate including group and 1-1 discussions)
+
+Please exercise caution against posting same questions across multiple channels. Doing so not only prevents
+redundancy but also promotes more efficient and effective communication for everyone involved.
 
 The devlist is the most important and official communication channel. Often at Apache project you can
 hear "if it is not in the devlist - it did not happen". If you discuss and agree with someone from the

@@ -18,9 +18,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import DAG
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.eventbridge import (
+    EventBridgeDisableRuleOperator,
+    EventBridgeEnableRuleOperator,
     EventBridgePutEventsOperator,
     EventBridgePutRuleOperator,
 )
@@ -35,6 +37,7 @@ ENTRIES = [
         "DetailType": "Sample Custom Event",
     }
 ]
+
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
@@ -59,10 +62,22 @@ with DAG(
         name="example_rule",
         event_pattern='{"source": ["example.myapp"]}',
         description="This rule matches events from example.myapp.",
+        state="DISABLED",
     )
     # [END howto_operator_eventbridge_put_rule]
 
-    chain(test_context, put_events, put_rule)
+    # [START howto_operator_eventbridge_enable_rule]
+    enable_rule = EventBridgeEnableRuleOperator(task_id="enable_rule_task", name="example_rule")
+    # [END howto_operator_eventbridge_enable_rule]
+
+    # [START howto_operator_eventbridge_disable_rule]
+    disable_rule = EventBridgeDisableRuleOperator(
+        task_id="disable_rule_task",
+        name="example_rule",
+    )
+    # [END howto_operator_eventbridge_disable_rule]
+
+    chain(test_context, put_events, put_rule, enable_rule, disable_rule)
 
 
 from tests.system.utils import get_test_run  # noqa: E402

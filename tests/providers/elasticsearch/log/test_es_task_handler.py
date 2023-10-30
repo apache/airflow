@@ -17,29 +17,42 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 import logging
 import os
 import re
 import shutil
+from io import StringIO
+from pathlib import Path
 from unittest import mock
 from urllib.parse import quote
 
 import elasticsearch
 import pendulum
 import pytest
-from elasticsearch.exceptions import ElasticsearchException
 
 from airflow.configuration import conf
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
-from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler, getattr_nested
+from airflow.providers.elasticsearch.log.es_task_handler import (
+    VALID_ES_CONFIG_KEYS,
+    ElasticsearchTaskHandler,
+    get_es_kwargs_from_config,
+    getattr_nested,
+)
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
+from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 from .elasticmock import elasticmock
+from .elasticmock.utilities import SearchFailedException
+
+pytestmark = pytest.mark.db_test
+
+
+AIRFLOW_SOURCES_ROOT_DIR = Path(__file__).parents[4].resolve()
+ES_PROVIDER_YAML_FILE = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "providers" / "elasticsearch" / "provider.yaml"
 
 
 def get_ti(dag_id, task_id, execution_date, create_task_instance):
@@ -94,7 +107,7 @@ class TestElasticsearchTaskHandler:
             offset_field=self.offset_field,
         )
 
-        self.es = elasticsearch.Elasticsearch(hosts=[{"host": "localhost", "port": 9200}])
+        self.es = elasticsearch.Elasticsearch("http://localhost:9200")
         self.index_name = "test_index"
         self.doc_type = "log"
         self.test_message = "some random stuff"
@@ -110,12 +123,10 @@ class TestElasticsearchTaskHandler:
         logs_by_host = self.es_task_handler._group_logs_by_host(es_response)
 
         def concat_logs(lines):
-            log_range = (
-                (len(lines) - 1) if lines[-1].message == self.es_task_handler.end_of_log_mark else len(lines)
-            )
-            return "\n".join(self.es_task_handler._format_msg(lines[i]) for i in range(log_range))
+            log_range = -1 if lines[-1].message == self.es_task_handler.end_of_log_mark else None
+            return "\n".join(self.es_task_handler._format_msg(line) for line in lines[:log_range])
 
-        for _, hosted_log in logs_by_host.items():
+        for hosted_log in logs_by_host.values():
             message = concat_logs(hosted_log)
 
         assert (
@@ -125,6 +136,26 @@ class TestElasticsearchTaskHandler:
             "on 2023-07-09 07:47:32+00:00"
         )
 
+    @pytest.mark.parametrize(
+        "host, expected",
+        [
+            ("http://localhost:9200", "http://localhost:9200"),
+            ("https://localhost:9200", "https://localhost:9200"),
+            ("localhost:9200", "http://localhost:9200"),
+            ("someurl", "http://someurl"),
+            ("https://", "ValueError"),
+        ],
+    )
+    def test_format_url(self, host, expected):
+        """
+        Test the format_url method of the ElasticsearchTaskHandler class.
+        """
+        if expected == "ValueError":
+            with pytest.raises(ValueError):
+                assert ElasticsearchTaskHandler.format_url(host) == expected
+        else:
+            assert ElasticsearchTaskHandler.format_url(host) == expected
+
     def test_client(self):
         assert isinstance(self.es_task_handler.client, elasticsearch.Elasticsearch)
         assert self.es_task_handler.index_patterns == "_all"
@@ -132,7 +163,7 @@ class TestElasticsearchTaskHandler:
     def test_client_with_config(self):
         es_conf = dict(conf.getsection("elasticsearch_configs"))
         expected_dict = {
-            "use_ssl": False,
+            "http_compress": False,
             "verify_certs": True,
         }
         assert es_conf == expected_dict
@@ -210,7 +241,7 @@ class TestElasticsearchTaskHandler:
     def test_read_with_missing_index(self, ti):
         ts = pendulum.now()
         with mock.patch.object(self.es_task_handler, "index_patterns", new="nonexistent,test_*"):
-            with pytest.raises(elasticsearch.exceptions.NotFoundError, match=r".*nonexistent.*"):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError, match=r"IndexMissingException.*"):
                 self.es_task_handler.read(
                     ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
                 )
@@ -365,7 +396,7 @@ class TestElasticsearchTaskHandler:
     def test_read_raises(self, ti):
         with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
             with mock.patch.object(self.es_task_handler.client, "search") as mock_execute:
-                mock_execute.side_effect = ElasticsearchException("Failed to read")
+                mock_execute.side_effect = SearchFailedException("Failed to read")
                 logs, metadatas = self.es_task_handler.read(ti, 1)
             assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args
@@ -574,7 +605,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.frontend = frontend
         assert self.es_task_handler.supports_external_link == expected
 
-    @mock.patch("sys.__stdout__", new_callable=io.StringIO)
+    @mock.patch("sys.__stdout__", new_callable=StringIO)
     def test_dynamic_offset(self, stdout_mock, ti, time_machine):
         # arrange
         handler = ElasticsearchTaskHandler(
@@ -607,7 +638,7 @@ class TestElasticsearchTaskHandler:
         ti.log.info("Test3")
 
         # assert
-        first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().split("\n"))
+        first_log, second_log, third_log = map(json.loads, stdout_mock.getvalue().strip().splitlines())
         assert first_log["offset"] < second_log["offset"] < third_log["offset"]
         assert first_log["asctime"] == t1.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert second_log["asctime"] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
@@ -628,3 +659,53 @@ def test_safe_attrgetter():
     assert getattr_nested(a, "aa", "heya") == "heya"  # respects non-none default
     assert getattr_nested(a, "c", "heya") is None  # respects none value
     assert getattr_nested(a, "aa", None) is None  # respects none default
+
+
+def test_retrieve_config_keys():
+    """
+    Tests that the ElasticsearchTaskHandler retrieves the correct configuration keys from the config file.
+    * old_parameters are removed
+    * parameters from config are automatically added
+    * constructor parameters missing from config are also added
+    :return:
+    """
+    with conf_vars(
+        {
+            ("elasticsearch_configs", "use_ssl"): "True",
+            ("elasticsearch_configs", "http_compress"): "False",
+            ("elasticsearch_configs", "timeout"): "10",
+        }
+    ):
+        args_from_config = get_es_kwargs_from_config().keys()
+        # use_ssl is removed from config
+        assert "use_ssl" not in args_from_config
+        # verify_certs comes from default config value
+        assert "verify_certs" in args_from_config
+        # timeout comes from config provided value
+        assert "timeout" in args_from_config
+        # http_compress comes from config value
+        assert "http_compress" in args_from_config
+        assert "self" not in args_from_config
+
+
+def test_retrieve_retry_on_timeout():
+    """
+    Test if retrieve timeout is converted to retry_on_timeout.
+    """
+    with conf_vars(
+        {
+            ("elasticsearch_configs", "retry_timeout"): "True",
+        }
+    ):
+        args_from_config = get_es_kwargs_from_config().keys()
+        # use_ssl is removed from config
+        assert "retry_timeout" not in args_from_config
+        # verify_certs comes from default config value
+        assert "retry_on_timeout" in args_from_config
+
+
+def test_self_not_valid_arg():
+    """
+    Test if self is not a valid argument.
+    """
+    assert "self" not in VALID_ES_CONFIG_KEYS

@@ -41,16 +41,17 @@ varying access and capabilities:
    model.
 
 2. **DAG Authors**: They can upload, modify, and delete DAG files. The
-   code in DAG files is executed on workers. Therefore, DAG authors can create
-   and change code executed on workers and potentially access the credentials
-   that DAG code uses to access external systems. DAG Authors have full access
+   code in DAG files is executed on workers and in the DAG File Processor. Note
+   that in the simple deployment configuration, parsing DAGs is executed as
+   a subprocess of the Scheduler process, but with Standalone DAG File Processor
+   deployment managers might separate parsing DAGs from the Scheduler process.
+   Therefore, DAG authors can create and change code executed on workers
+   and the DAG File Processor and potentially access the credentials that the DAG
+   code uses to access external systems. DAG Authors have full access
    to the metadata database and internal audit logs.
 
-3. **Authenticated UI users**: They have access to the UI and API. Admin
-   users can manage permissions and execute code on workers. Connection
-   configuration users can configure connections and execute code on
-   workers. Operations users have access to DAG execution status. Trust
-   is crucial to prevent abuse and Denial of Service attacks.
+3. **Authenticated UI users**: They have access to the UI and API. See below
+   for more details on the capabilities authenticated UI users may have.
 
 4. **Non-authenticated UI users**: Airflow doesn't support
    unauthenticated users by default. If allowed, potential vulnerabilities
@@ -60,7 +61,11 @@ Capabilities of authenticated UI users
 --------------------------------------
 
 The capabilities of **Authenticated UI users** can vary depending on
-what roles have been configured by the Deployment Manager or Admin users as well as what permissions those roles have. Permissions on roles can be scoped as tightly as a single DAG, for example, or as broad as Admin. Below are three general categories to help conceptualize some of the capabilities authenticated users may have:
+what roles have been configured by the Deployment Manager or Admin users
+as well as what permissions those roles have. Permissions on roles can be
+scoped as tightly as a single DAG, for example, or as broad as Admin.
+Below are four general categories to help conceptualize some of the
+capabilities authenticated users may have:
 
 1. **Admin users**: They manage and grant permissions to other users,
    with full access to all UI capabilities. They can potentially execute
@@ -72,7 +77,11 @@ what roles have been configured by the Deployment Manager or Admin users as well
    They also have the ability to create a Webserver Denial of Service
    situation and should be trusted not to misuse this capability.
 
-2. **Connection configuration users**: They configure connections and
+2. **Operations users**: The primary difference between an operator and admin
+   if the ability to manage and grant permissions to other users - only admins
+   are able to do this. Otherwise assume they have the same access as an admin.
+
+3. **Connection configuration users**: They configure connections and
    potentially execute code on workers during DAG execution. Trust is
    required to prevent misuse of these privileges. They have full access
    to sensitive credentials stored in connections and can modify them.
@@ -81,22 +90,32 @@ what roles have been configured by the Deployment Manager or Admin users as well
    create a Webserver Denial of Service situation and should be trusted
    not to misuse this capability.
 
-3. **Operations users**: They have access to DAG execution status via
-   the UI. Currently, Airflow lacks full protection for accessing groups
-   of DAGs' history and execution. They can perform actions such as
-   clearing, re-running, triggering DAGs, and changing parameters.
-   Depending on access restrictions, they may also have access to
-   editing variables and viewing Airflow configuration. They should not
-   have access to sensitive system-level information or connections, and
-   they should not be able to access sensitive task information unless
-   deliberately exposed in logs by DAG authors. They should be trusted
-   not to abuse their privileges, as they can potentially overload the
-   server and cause Denial of Service situations.
+4. **Audit log users**: They can view audit events for the whole Airflow installation.
+
+5. **Normal Users**: They can view and interact with the UI and API.
+   They are able to view and edit DAGs, task instances, and DAG runs, and view task logs.
+
+For more information on the capabilities of authenticated UI users, see :doc:`/security/access-control`.
 
 Responsibilities of Deployment Managers
 ---------------------------------------
 
-Deployment Managers determine access levels and must understand the potential
+Deployment Managers are responsible for deploying airflow and make it accessible to the users
+in the way that follows best practices of secure deployment applicable to the organization where
+Airflow is deployed. This includes but is not limited to:
+
+* protecting communication using TLS/VPC and whatever network security is required by the organization
+  that is deploying Airflow
+* applying rate-limiting and other forms of protections that is usually applied to web applications
+* applying authentication and authorization to the web application so that only known and authorized
+  users can have access to Airflow
+* any kind of detection of unusual activity and protection against it
+* choosing the right session backend and configuring it properly including timeouts for the session
+
+Airflow does not implement any of those feature natively, and delegates it to the deployment managers
+to deploy all the necessary infrastructure to protect the deployment - as external infrastructure components.
+
+Deployment Managers also determine access levels and must understand the potential
 damage users can cause. Some Deployment Managers may further limit
 access through fine-grained privileges for the **Authenticated UI
 users**. However, these limitations are outside the basic Airflow's

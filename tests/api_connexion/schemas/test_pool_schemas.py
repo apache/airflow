@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_pools
+
+pytestmark = pytest.mark.db_test
 
 
 class TestPoolSchema:
@@ -31,7 +35,7 @@ class TestPoolSchema:
 
     @provide_session
     def test_serialize(self, session):
-        pool_model = Pool(pool="test_pool", slots=2)
+        pool_model = Pool(pool="test_pool", slots=2, include_deferred=False)
         session.add(pool_model)
         session.commit()
         pool_instance = session.query(Pool).filter(Pool.pool == pool_model.pool).first()
@@ -43,13 +47,15 @@ class TestPoolSchema:
             "running_slots": 0,
             "queued_slots": 0,
             "scheduled_slots": 0,
+            "deferred_slots": 0,
             "open_slots": 2,
             "description": None,
+            "include_deferred": False,
         }
 
     @provide_session
     def test_deserialize(self, session):
-        pool_dict = {"name": "test_pool", "slots": 3}
+        pool_dict = {"name": "test_pool", "slots": 3, "include_deferred": True}
         deserialized_pool = pool_schema.load(pool_dict, session=session)
         assert not isinstance(deserialized_pool, Pool)  # Checks if load_instance is set to True
 
@@ -62,8 +68,8 @@ class TestPoolCollectionSchema:
         clear_db_pools()
 
     def test_serialize(self):
-        pool_model_a = Pool(pool="test_pool_a", slots=3)
-        pool_model_b = Pool(pool="test_pool_b", slots=3)
+        pool_model_a = Pool(pool="test_pool_a", slots=3, include_deferred=False)
+        pool_model_b = Pool(pool="test_pool_b", slots=3, include_deferred=True)
         instance = PoolCollection(pools=[pool_model_a, pool_model_b], total_entries=2)
         assert {
             "pools": [
@@ -74,8 +80,10 @@ class TestPoolCollectionSchema:
                     "running_slots": 0,
                     "queued_slots": 0,
                     "scheduled_slots": 0,
+                    "deferred_slots": 0,
                     "open_slots": 3,
                     "description": None,
+                    "include_deferred": False,
                 },
                 {
                     "name": "test_pool_b",
@@ -84,8 +92,10 @@ class TestPoolCollectionSchema:
                     "running_slots": 0,
                     "queued_slots": 0,
                     "scheduled_slots": 0,
+                    "deferred_slots": 0,
                     "open_slots": 3,
                     "description": None,
+                    "include_deferred": True,
                 },
             ],
             "total_entries": 2,

@@ -28,14 +28,53 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.6.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`c55fd77f76 <https://github.com/apache/airflow/commit/c55fd77f76aafc76463e3dd2a6ecaa29e56bd967>`_  2023-09-18   ``fix(providers/http): respect soft_fail argument when exception is raised (#34391)``
+=================================================================================================  ===========  =====================================================================================
+
+4.5.2
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+`b1f2a1693c <https://github.com/apache/airflow/commit/b1f2a1693ce17a68681322edfe75306b71fcf9a5>`_  2023-08-26   ``Convert hard-coded allowlist error code to be argument of HttpSensor (#33717)``
+=================================================================================================  ===========  ===================================================================================================
+
+4.5.1
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`a91ee7ac2f <https://github.com/apache/airflow/commit/a91ee7ac2fe29f460a4e4b0d8c1346f40672be43>`_  2023-08-20   ``Refactor: Simplify code in smaller providers (#33234)``
+=================================================================================================  ===========  ============================================================
+
 4.5.0
 .....
 
-Latest change: 2023-07-09
+Latest change: 2023-07-12
 
 =================================================================================================  ===========  =================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================
+`e7f59a913e <https://github.com/apache/airflow/commit/e7f59a913e1fcf9052e69f62af9fe23901f1a358>`_  2023-07-12   ``Prepare docs for July 2023 2nd wave of Providers (#32566)``
 `17e9434dee <https://github.com/apache/airflow/commit/17e9434dee7de5848058a64f30b832fc8f3c0400>`_  2023-07-09   ``Add deferrable mode to SimpleHttpOperator (#32448)``
 `358e6e8fa1 <https://github.com/apache/airflow/commit/358e6e8fa18166084fc17b23e75c6c29a37f245f>`_  2023-07-06   ``Fix headers passed into HttpAsyncHook (#32409)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``

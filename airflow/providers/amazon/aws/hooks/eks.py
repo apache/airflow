@@ -102,7 +102,7 @@ class EksHook(AwsBaseHook):
         **kwargs,
     ) -> dict:
         """
-        Creates an Amazon EKS control plane.
+        Create an Amazon EKS control plane.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.create_cluster`
@@ -111,7 +111,6 @@ class EksHook(AwsBaseHook):
         :param roleArn: The Amazon Resource Name (ARN) of the IAM role that provides permissions
           for the Kubernetes control plane to make calls to AWS API operations on your behalf.
         :param resourcesVpcConfig: The VPC configuration used by the cluster control plane.
-
         :return: Returns descriptive information about the created EKS Cluster.
         """
         eks_client = self.conn
@@ -134,7 +133,7 @@ class EksHook(AwsBaseHook):
         **kwargs,
     ) -> dict:
         """
-        Creates an Amazon EKS managed node group for an Amazon EKS Cluster.
+        Create an Amazon EKS managed node group for an Amazon EKS Cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.create_nodegroup`
@@ -144,7 +143,6 @@ class EksHook(AwsBaseHook):
         :param subnets: The subnets to use for the Auto Scaling group that is created for your nodegroup.
         :param nodeRole: The Amazon Resource Name (ARN) of the IAM role to associate with your nodegroup.
         :param tags: Optional tags to apply to your nodegroup.
-
         :return: Returns descriptive information about the created EKS Managed Nodegroup.
         """
         eks_client = self.conn
@@ -182,7 +180,7 @@ class EksHook(AwsBaseHook):
         **kwargs,
     ) -> dict:
         """
-        Creates an AWS Fargate profile for an Amazon EKS cluster.
+        Create an AWS Fargate profile for an Amazon EKS cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.create_fargate_profile`
@@ -192,7 +190,6 @@ class EksHook(AwsBaseHook):
         :param podExecutionRoleArn: The Amazon Resource Name (ARN) of the pod execution role to
             use for pods that match the selectors in the Fargate profile.
         :param selectors: The selectors to match for pods to use this Fargate profile.
-
         :return: Returns descriptive information about the created Fargate profile.
         """
         eks_client = self.conn
@@ -214,13 +211,12 @@ class EksHook(AwsBaseHook):
 
     def delete_cluster(self, name: str) -> dict:
         """
-        Deletes the Amazon EKS Cluster control plane.
+        Delete the Amazon EKS Cluster control plane.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.delete_cluster`
 
         :param name: The name of the cluster to delete.
-
         :return: Returns descriptive information about the deleted EKS Cluster.
         """
         eks_client = self.conn
@@ -232,14 +228,13 @@ class EksHook(AwsBaseHook):
 
     def delete_nodegroup(self, clusterName: str, nodegroupName: str) -> dict:
         """
-        Deletes an Amazon EKS managed node group from a specified cluster.
+        Delete an Amazon EKS managed node group from a specified cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.delete_nodegroup`
 
         :param clusterName: The name of the Amazon EKS Cluster that is associated with your nodegroup.
         :param nodegroupName: The name of the nodegroup to delete.
-
         :return: Returns descriptive information about the deleted EKS Managed Nodegroup.
         """
         eks_client = self.conn
@@ -255,14 +250,13 @@ class EksHook(AwsBaseHook):
 
     def delete_fargate_profile(self, clusterName: str, fargateProfileName: str) -> dict:
         """
-        Deletes an AWS Fargate profile from a specified Amazon EKS cluster.
+        Delete an AWS Fargate profile from a specified Amazon EKS cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.delete_fargate_profile`
 
         :param clusterName: The name of the Amazon EKS cluster associated with the Fargate profile to delete.
         :param fargateProfileName: The name of the Fargate profile to delete.
-
         :return: Returns descriptive information about the deleted Fargate profile.
         """
         eks_client = self.conn
@@ -280,14 +274,13 @@ class EksHook(AwsBaseHook):
 
     def describe_cluster(self, name: str, verbose: bool = False) -> dict:
         """
-        Returns descriptive information about an Amazon EKS Cluster.
+        Return descriptive information about an Amazon EKS Cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.describe_cluster`
 
         :param name: The name of the cluster to describe.
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-
         :return: Returns descriptive information about a specific EKS Cluster.
         """
         eks_client = self.conn
@@ -304,7 +297,7 @@ class EksHook(AwsBaseHook):
 
     def describe_nodegroup(self, clusterName: str, nodegroupName: str, verbose: bool = False) -> dict:
         """
-        Returns descriptive information about an Amazon EKS managed node group.
+        Return descriptive information about an Amazon EKS managed node group.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.describe_nodegroup`
@@ -312,7 +305,6 @@ class EksHook(AwsBaseHook):
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
         :param nodegroupName: The name of the nodegroup to describe.
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-
         :return: Returns descriptive information about a specific EKS Nodegroup.
         """
         eks_client = self.conn
@@ -336,7 +328,7 @@ class EksHook(AwsBaseHook):
         self, clusterName: str, fargateProfileName: str, verbose: bool = False
     ) -> dict:
         """
-        Returns descriptive information about an AWS Fargate profile.
+        Return descriptive information about an AWS Fargate profile.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.describe_fargate_profile`
@@ -344,7 +336,6 @@ class EksHook(AwsBaseHook):
         :param clusterName: The name of the Amazon EKS Cluster associated with the Fargate profile.
         :param fargateProfileName: The name of the Fargate profile to describe.
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-
         :return: Returns descriptive information about an AWS Fargate profile.
         """
         eks_client = self.conn
@@ -367,13 +358,12 @@ class EksHook(AwsBaseHook):
 
     def get_cluster_state(self, clusterName: str) -> ClusterStates:
         """
-        Returns the current status of a given Amazon EKS Cluster.
+        Return the current status of a given Amazon EKS Cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.describe_cluster`
 
         :param clusterName: The name of the cluster to check.
-
         :return: Returns the current status of a given Amazon EKS Cluster.
         """
         eks_client = self.conn
@@ -387,14 +377,13 @@ class EksHook(AwsBaseHook):
 
     def get_fargate_profile_state(self, clusterName: str, fargateProfileName: str) -> FargateProfileStates:
         """
-        Returns the current status of a given AWS Fargate profile.
+        Return the current status of a given AWS Fargate profile.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.describe_fargate_profile`
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the Fargate profile.
         :param fargateProfileName: The name of the Fargate profile to check.
-
         :return: Returns the current status of a given AWS Fargate profile.
         """
         eks_client = self.conn
@@ -414,14 +403,13 @@ class EksHook(AwsBaseHook):
 
     def get_nodegroup_state(self, clusterName: str, nodegroupName: str) -> NodegroupStates:
         """
-        Returns the current status of a given Amazon EKS managed node group.
+        Return the current status of a given Amazon EKS managed node group.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.describe_nodegroup`
 
         :param clusterName: The name of the Amazon EKS Cluster associated with the nodegroup.
         :param nodegroupName: The name of the nodegroup to check.
-
         :return: Returns the current status of a given Amazon EKS Nodegroup.
         """
         eks_client = self.conn
@@ -442,13 +430,12 @@ class EksHook(AwsBaseHook):
         verbose: bool = False,
     ) -> list:
         """
-        Lists all Amazon EKS Clusters in your AWS account.
+        List all Amazon EKS Clusters in your AWS account.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.list_clusters`
 
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-
         :return: A List containing the cluster names.
         """
         eks_client = self.conn
@@ -462,14 +449,13 @@ class EksHook(AwsBaseHook):
         verbose: bool = False,
     ) -> list:
         """
-        Lists all Amazon EKS managed node groups associated with the specified cluster.
+        List all Amazon EKS managed node groups associated with the specified cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.list_nodegroups`
 
         :param clusterName: The name of the Amazon EKS Cluster containing nodegroups to list.
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-
         :return: A List of nodegroup names within the given cluster.
         """
         eks_client = self.conn
@@ -483,14 +469,13 @@ class EksHook(AwsBaseHook):
         verbose: bool = False,
     ) -> list:
         """
-        Lists all AWS Fargate profiles associated with the specified cluster.
+        List all AWS Fargate profiles associated with the specified cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`EKS.Client.list_fargate_profiles`
 
         :param clusterName: The name of the Amazon EKS Cluster containing Fargate profiles to list.
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-
         :return: A list of Fargate profile names within a given cluster.
         """
         eks_client = self.conn
@@ -502,12 +487,11 @@ class EksHook(AwsBaseHook):
 
     def _list_all(self, api_call: Callable, response_key: str, verbose: bool) -> list:
         """
-        Repeatedly calls a provided boto3 API Callable and collates the responses into a List.
+        Repeatedly call a provided boto3 API Callable and collates the responses into a List.
 
         :param api_call: The api command to execute.
         :param response_key: Which dict key to collect into the final list.
         :param verbose: Provides additional logging if set to True.  Defaults to False.
-
         :return: A List of the combined results of the provided API call.
         """
         name_collection: list = []
@@ -532,7 +516,7 @@ class EksHook(AwsBaseHook):
         pod_namespace: str | None,
     ) -> Generator[str, None, None]:
         """
-        Writes the kubeconfig file given an EKS Cluster.
+        Write the kubeconfig file given an EKS Cluster.
 
         :param eks_cluster_name: The name of the cluster to generate kubeconfig file for.
         :param pod_namespace: The namespace to run within kubernetes.

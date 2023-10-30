@@ -26,6 +26,8 @@ from airflow.cli.commands import dag_processor_command
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestDagProcessorCommand:
     """

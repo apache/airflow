@@ -24,7 +24,7 @@ def max_partition(
     table, schema="default", field=None, filter_map=None, metastore_conn_id="metastore_default"
 ):
     """
-    Gets the max partition for a table.
+    Get the max partition for a table.
 
     :param schema: The hive schema the table lives in
     :param table: The hive table you are interested in, supports the dot
@@ -52,7 +52,7 @@ def max_partition(
 
 def _closest_date(target_dt, date_list, before_target=None) -> datetime.date | None:
     """
-    This function finds the date in a list closest to the target date.
+    Find the date in a list closest to the target date.
 
     An optional parameter can be given to get the closest before or after.
 
@@ -61,9 +61,16 @@ def _closest_date(target_dt, date_list, before_target=None) -> datetime.date | N
     :param before_target: closest before or after the target
     :returns: The closest date
     """
-    time_before = lambda d: target_dt - d if d <= target_dt else datetime.timedelta.max
-    time_after = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
-    any_time = lambda d: target_dt - d if d < target_dt else d - target_dt
+
+    def time_before(d):
+        return target_dt - d if d <= target_dt else datetime.timedelta.max
+
+    def time_after(d):
+        return d - target_dt if d >= target_dt else datetime.timedelta.max
+
+    def any_time(d):
+        return target_dt - d if d < target_dt else d - target_dt
+
     if before_target is None:
         return min(date_list, key=any_time).date()
     if before_target:
@@ -76,7 +83,7 @@ def closest_ds_partition(
     table, ds, before=True, schema="default", metastore_conn_id="metastore_default"
 ) -> str | None:
     """
-    This function finds the date in a list closest to the target date.
+    Find the date in a list closest to the target date.
 
     An optional parameter can be given to get the closest before or after.
 
@@ -99,7 +106,7 @@ def closest_ds_partition(
     partitions = hive_hook.get_partitions(schema=schema, table_name=table)
     if not partitions:
         return None
-    part_vals = [list(p.values())[0] for p in partitions]
+    part_vals = [next(iter(p.values())) for p in partitions]
     if ds in part_vals:
         return ds
     else:

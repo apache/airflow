@@ -26,6 +26,8 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 from tests.test_utils.www import client_with_login
 
+pytestmark = pytest.mark.db_test
+
 
 class BaseTestAuth:
     @pytest.fixture(autouse=True)
@@ -78,8 +80,10 @@ class TestBasicAuth(BaseTestAuth):
                     "running_slots": 0,
                     "queued_slots": 0,
                     "scheduled_slots": 0,
+                    "deferred_slots": 0,
                     "open_slots": 128,
                     "description": "Default pool",
+                    "include_deferred": False,
                 },
             ],
             "total_entries": 1,
@@ -153,8 +157,10 @@ class TestSessionAuth(BaseTestAuth):
                     "running_slots": 0,
                     "queued_slots": 0,
                     "scheduled_slots": 0,
+                    "deferred_slots": 0,
                     "open_slots": 128,
                     "description": "Default pool",
+                    "include_deferred": False,
                 },
             ],
             "total_entries": 1,

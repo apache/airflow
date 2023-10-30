@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import os
+from io import StringIO
 from unittest.mock import call, patch
 
 import pytest
@@ -28,9 +28,10 @@ from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSparkSubmitHook:
-
     _spark_job_file = "test_application.py"
     _config = {
         "conf": {"parquet.compression": "SNAPPY"},
@@ -62,15 +63,15 @@ class TestSparkSubmitHook:
             "args should keep embedded spaces",
             "baz",
         ],
+        "use_krb5ccache": True,
     }
 
     @staticmethod
     def cmd_args_to_dict(list_cmd):
         return_dict = {}
-        for arg in list_cmd:
-            if arg.startswith("--"):
-                pos = list_cmd.index(arg)
-                return_dict[arg] = list_cmd[pos + 1]
+        for arg1, arg2 in zip(list_cmd, list_cmd[1:]):
+            if arg1.startswith("--"):
+                return_dict[arg1] = arg2
         return return_dict
 
     def setup_method(self):
@@ -143,7 +144,10 @@ class TestSparkSubmitHook:
             )
         )
 
-    def test_build_spark_submit_command(self):
+    @patch(
+        "airflow.providers.apache.spark.hooks.spark_submit.os.getenv", return_value="/tmp/airflow_krb5_ccache"
+    )
+    def test_build_spark_submit_command(self, mock_get_env):
         # Given
         hook = SparkSubmitHook(**self._config)
 
@@ -185,6 +189,8 @@ class TestSparkSubmitHook:
             "privileged_user.keytab",
             "--principal",
             "user/spark@airflow.org",
+            "--conf",
+            "spark.kerberos.renewal.credentials=ccache",
             "--proxy-user",
             "sample_user",
             "--name",
@@ -202,6 +208,25 @@ class TestSparkSubmitHook:
             "baz",
         ]
         assert expected_build_cmd == cmd
+        mock_get_env.assert_called_with("KRB5CCNAME")
+
+    @patch("airflow.configuration.conf.get_mandatory_value")
+    def test_resolve_spark_submit_env_vars_use_krb5ccache_missing_principal(self, mock_get_madantory_value):
+        mock_principle = "airflow"
+        mock_get_madantory_value.return_value = mock_principle
+        hook = SparkSubmitHook(conn_id="spark_yarn_cluster", principal=None, use_krb5ccache=True)
+        mock_get_madantory_value.assert_called_with("kerberos", "principal")
+        assert hook._principal == mock_principle
+
+    def test_resolve_spark_submit_env_vars_use_krb5ccache_missing_KRB5CCNAME_env(self):
+        hook = SparkSubmitHook(
+            conn_id="spark_yarn_cluster", principal="user/spark@airflow.org", use_krb5ccache=True
+        )
+        with pytest.raises(
+            AirflowException,
+            match="KRB5CCNAME environment variable required to use ticket ccache is missing.",
+        ):
+            hook._build_spark_submit_command(self._spark_job_file)
 
     def test_build_track_driver_status_command(self):
         # note this function is only relevant for spark setup matching below condition
@@ -242,8 +267,8 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_spark_process_runcmd(self, mock_popen):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.wait.return_value = 0
 
         # When
@@ -695,8 +720,8 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_yarn_process_on_kill(self, mock_popen, mock_renew_from_kt):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.poll.return_value = None
         mock_popen.return_value.wait.return_value = 0
         log_lines = [
@@ -777,8 +802,8 @@ class TestSparkSubmitHook:
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
     def test_k8s_process_on_kill(self, mock_popen, mock_client_method):
         # Given
-        mock_popen.return_value.stdout = io.StringIO("stdout")
-        mock_popen.return_value.stderr = io.StringIO("stderr")
+        mock_popen.return_value.stdout = StringIO("stdout")
+        mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.poll.return_value = None
         mock_popen.return_value.wait.return_value = 0
         client = mock_client_method.return_value

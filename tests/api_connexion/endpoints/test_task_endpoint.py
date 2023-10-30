@@ -22,14 +22,16 @@ from datetime import datetime
 
 import pytest
 
-from airflow import DAG
 from airflow.models import DagBag
+from airflow.models.dag import DAG
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -177,7 +179,6 @@ class TestGetTask(TestTaskEndpoint):
         assert response.json == expected
 
     def test_should_respond_200_serialized(self):
-
         # Get the dag out of the dagbag before we patch it to an empty one
         SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
 

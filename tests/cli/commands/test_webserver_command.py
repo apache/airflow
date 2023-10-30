@@ -19,9 +19,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-import tempfile
 import time
-from pathlib import Path
 from unittest import mock
 
 import psutil
@@ -131,20 +129,15 @@ class TestGunicornMonitor:
 
 
 class TestGunicornMonitorGeneratePluginState:
-    @staticmethod
-    def _prepare_test_file(filepath: str, size: int):
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        with open(filepath, "w") as file:
-            file.write("A" * size)
-            file.flush()
-
-    def test_should_detect_changes_in_directory(self):
-        with tempfile.TemporaryDirectory() as tempdir, mock.patch(
-            "airflow.cli.commands.webserver_command.settings.PLUGINS_FOLDER", tempdir
+    def test_should_detect_changes_in_directory(self, tmp_path):
+        with mock.patch(
+            "airflow.cli.commands.webserver_command.settings.PLUGINS_FOLDER", os.fspath(tmp_path)
         ):
-            self._prepare_test_file(f"{tempdir}/file1.txt", 100)
-            self._prepare_test_file(f"{tempdir}/nested/nested/nested/nested/file2.txt", 200)
-            self._prepare_test_file(f"{tempdir}/file3.txt", 300)
+            (tmp_path / "file1.txt").write_text("A" * 100)
+            path2 = tmp_path / "nested/nested/nested/nested/file2.txt"
+            path2.parent.mkdir(parents=True)
+            path2.write_text("A" * 200)
+            (tmp_path / "file3.txt").write_text("A" * 300)
 
             monitor = GunicornMonitor(
                 gunicorn_master_pid=1,
@@ -163,7 +156,7 @@ class TestGunicornMonitorGeneratePluginState:
             assert 3 == len(state_a)
 
             # Should detect new file
-            self._prepare_test_file(f"{tempdir}/file4.txt", 400)
+            (tmp_path / "file4.txt").write_text("A" * 400)
 
             state_c = monitor._generate_plugin_state()
 
@@ -171,7 +164,7 @@ class TestGunicornMonitorGeneratePluginState:
             assert 4 == len(state_c)
 
             # Should detect changes in files
-            self._prepare_test_file(f"{tempdir}/file4.txt", 450)
+            (tmp_path / "file4.txt").write_text("A" * 450)
 
             state_d = monitor._generate_plugin_state()
 
@@ -179,7 +172,7 @@ class TestGunicornMonitorGeneratePluginState:
             assert 4 == len(state_d)
 
             # Should support large files
-            self._prepare_test_file(f"{tempdir}/file4.txt", 4000000)
+            (tmp_path / "file4.txt").write_text("A" * 4_000_000)
 
             state_d = monitor._generate_plugin_state()
 
@@ -233,23 +226,23 @@ class TestCLIGetNumReadyWorkersRunning:
             assert self.monitor._get_num_ready_workers_running() == 0
 
 
+@pytest.mark.db_test
 class TestCliWebServer(_ComonCLIGunicornTestClass):
-
     main_process_regexp = r"airflow webserver"
 
     @pytest.mark.execution_timeout(210)
-    def test_cli_webserver_background(self):
-        with tempfile.TemporaryDirectory(prefix="gunicorn") as tmpdir, mock.patch.dict(
+    def test_cli_webserver_background(self, tmp_path):
+        with mock.patch.dict(
             "os.environ",
             AIRFLOW__CORE__DAGS_FOLDER="/dev/null",
             AIRFLOW__CORE__LOAD_EXAMPLES="False",
             AIRFLOW__WEBSERVER__WORKERS="1",
         ):
-            pidfile_webserver = f"{tmpdir}/pidflow-webserver.pid"
-            pidfile_monitor = f"{tmpdir}/pidflow-webserver-monitor.pid"
-            stdout = f"{tmpdir}/airflow-webserver.out"
-            stderr = f"{tmpdir}/airflow-webserver.err"
-            logfile = f"{tmpdir}/airflow-webserver.log"
+            pidfile_webserver = tmp_path / "pidflow-webserver.pid"
+            pidfile_monitor = tmp_path / "pidflow-webserver-monitor.pid"
+            stdout = tmp_path / "airflow-webserver.out"
+            stderr = tmp_path / "airflow-webserver.err"
+            logfile = tmp_path / "airflow-webserver.log"
             try:
                 # Run webserver as daemon in background. Note that the wait method is not called.
 
@@ -259,13 +252,13 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
                         "webserver",
                         "--daemon",
                         "--pid",
-                        pidfile_webserver,
+                        os.fspath(pidfile_webserver),
                         "--stdout",
-                        stdout,
+                        os.fspath(stdout),
                         "--stderr",
-                        stderr,
+                        os.fspath(stderr),
                         "--log-file",
-                        logfile,
+                        os.fspath(logfile),
                     ]
                 )
                 assert proc.poll() is None
@@ -299,7 +292,7 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
             except Exception:
                 console.print("[red]Exception occurred. Dumping all logs.")
                 # Dump all logs
-                for file in Path(tmpdir).glob("*"):
+                for file in tmp_path.glob("*"):
                     console.print(f"Dumping {file} (size: {file.stat().st_size})")
                     console.print(file.read_text())
                 raise

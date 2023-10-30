@@ -55,6 +55,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
 index = 0
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     "return_last, split_statements, sql, cursor_calls,"
     "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
@@ -156,7 +157,7 @@ index = 0
             ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
             [[("id2",), ("value2",)]],
             [[3, 4], [13, 14]],
-            id="The return_last set set on multiple queries in list",
+            id="The return_last set on multiple queries in list",
         ),
         pytest.param(
             False,
@@ -210,6 +211,7 @@ def test_query(
     dbapi_hook.get_conn.return_value.cursor.return_value.close.assert_called()
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     "empty_statement",
     [

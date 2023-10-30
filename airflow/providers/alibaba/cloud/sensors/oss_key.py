@@ -21,7 +21,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlsplit
 
-from airflow.exceptions import AirflowException
+from deprecated.classic import deprecated
+
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -59,7 +61,6 @@ class OSSKeySensor(BaseSensorOperator):
         self.bucket_key = bucket_key
         self.region = region
         self.oss_conn_id = oss_conn_id
-        self.hook: OSSHook | None = None
 
     def poke(self, context: Context):
         """
@@ -69,29 +70,38 @@ class OSSKeySensor(BaseSensorOperator):
         :param context: the context of the object
         :returns: True if the object exists, False otherwise
         """
+        parsed_url = urlsplit(self.bucket_key)
         if self.bucket_name is None:
-            parsed_url = urlsplit(self.bucket_key)
             if parsed_url.netloc == "":
-                raise AirflowException("If key is a relative path from root, please provide a bucket_name")
+                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+                message = "If key is a relative path from root, please provide a bucket_name"
+                if self.soft_fail:
+                    raise AirflowSkipException(message)
+                raise AirflowException(message)
             self.bucket_name = parsed_url.netloc
             self.bucket_key = parsed_url.path.lstrip("/")
         else:
-            parsed_url = urlsplit(self.bucket_key)
             if parsed_url.scheme != "" or parsed_url.netloc != "":
-                raise AirflowException(
+                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+                message = (
                     "If bucket_name is provided, bucket_key"
                     " should be relative path from root"
                     " level, rather than a full oss:// url"
                 )
+                if self.soft_fail:
+                    raise AirflowSkipException(message)
+                raise AirflowException(message)
 
         self.log.info("Poking for key : oss://%s/%s", self.bucket_name, self.bucket_key)
-        return self.get_hook.object_exists(key=self.bucket_key, bucket_name=self.bucket_name)
+        return self.hook.object_exists(key=self.bucket_key, bucket_name=self.bucket_name)
 
-    @cached_property
+    @property
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> OSSHook:
         """Create and return an OSSHook."""
-        if self.hook:
-            return self.hook
-
-        self.hook = OSSHook(oss_conn_id=self.oss_conn_id, region=self.region)
         return self.hook
+
+    @cached_property
+    def hook(self) -> OSSHook:
+        """Create and return an OSSHook."""
+        return OSSHook(oss_conn_id=self.oss_conn_id, region=self.region)

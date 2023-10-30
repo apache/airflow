@@ -18,15 +18,12 @@
 """Marks tasks APIs."""
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Collection, Iterable, Iterator, NamedTuple
 
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session as SASession, lazyload
+from sqlalchemy.orm import lazyload
 
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.operator import Operator
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils import timezone
@@ -34,6 +31,14 @@ from airflow.utils.helpers import exactly_one
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Session as SASession
+
+    from airflow.models.dag import DAG
+    from airflow.models.operator import Operator
 
 
 class _DagRunInfo(NamedTuple):
@@ -62,16 +67,15 @@ def _create_dagruns(
     }
 
     for info in infos:
-        if info.logical_date in dag_runs:
-            continue
-        dag_runs[info.logical_date] = dag.create_dagrun(
-            execution_date=info.logical_date,
-            data_interval=info.data_interval,
-            start_date=timezone.utcnow(),
-            external_trigger=False,
-            state=state,
-            run_type=run_type,
-        )
+        if info.logical_date not in dag_runs:
+            dag_runs[info.logical_date] = dag.create_dagrun(
+                execution_date=info.logical_date,
+                data_interval=info.data_interval,
+                start_date=timezone.utcnow(),
+                external_trigger=False,
+                state=state,
+                run_type=run_type,
+            )
     return dag_runs.values()
 
 
@@ -488,10 +492,9 @@ def set_dag_run_state_to_failed(
 
     tasks = []
     for task in dag.tasks:
-        if task.task_id not in task_ids_of_running_tis:
-            continue
-        task.dag = dag
-        tasks.append(task)
+        if task.task_id in task_ids_of_running_tis:
+            task.dag = dag
+            tasks.append(task)
 
     # Mark non-finished tasks as SKIPPED.
     tis = session.scalars(
@@ -538,14 +541,13 @@ def __set_dag_run_state_to_running_or_queued(
     """
     res: list[TaskInstance] = []
 
-    if not (execution_date is None) ^ (run_id is None):
+    if not exactly_one(execution_date, run_id):
         return res
 
     if not dag:
         return res
 
     if execution_date:
-
         if not timezone.is_localized(execution_date):
             raise ValueError(f"Received non-localized date {execution_date}")
         dag_run = dag.get_dagrun(execution_date=execution_date)

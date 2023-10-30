@@ -106,10 +106,35 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
 
   const dagRun = dagRuns.find((dr) => dr.runId === runId);
 
-  const startDate = dagRun?.startDate;
+  let startDate = dagRun?.queuedAt || dagRun?.startDate;
+  let endDate = dagRun?.endDate;
+
+  // Check if any task instance dates are outside the bounds of the dag run dates and update our min start and max end
+  groups.children?.forEach((task) => {
+    const taskInstance = task.instances.find((ti) => ti.runId === runId);
+    if (
+      taskInstance?.queuedDttm &&
+      (!startDate ||
+        Date.parse(taskInstance.queuedDttm) < Date.parse(startDate))
+    ) {
+      startDate = taskInstance.queuedDttm;
+    } else if (
+      taskInstance?.startDate &&
+      (!startDate || Date.parse(taskInstance.startDate) < Date.parse(startDate))
+    ) {
+      startDate = taskInstance.startDate;
+    }
+
+    if (
+      taskInstance?.endDate &&
+      (!endDate || Date.parse(taskInstance.endDate) > Date.parse(endDate))
+    ) {
+      endDate = taskInstance.endDate;
+    }
+  });
 
   const numBars = Math.round(width / 100);
-  const runDuration = getDuration(dagRun?.startDate, dagRun?.endDate);
+  const runDuration = getDuration(startDate, endDate);
   const intervals = runDuration / numBars;
 
   return (
@@ -166,8 +191,9 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
               <Row
                 ganttWidth={width}
                 openGroupIds={openGroupIds}
-                dagRun={dagRun}
                 task={c}
+                ganttStartDate={startDate}
+                ganttEndDate={endDate}
                 key={`gantt-${c.id}`}
               />
             ))}

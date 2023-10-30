@@ -17,9 +17,13 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
+
+MODULE = "airflow.providers.microsoft.azure.utils"
 
 
 def test_get_field_warns_on_dupe():
@@ -56,3 +60,39 @@ def test_get_field_non_prefixed(input, expected):
         field_name="this_param",
     )
     assert value == expected
+
+
+class TestAzureIdentityCredentialAdapter:
+    @mock.patch(f"{MODULE}.PipelineRequest")
+    @mock.patch(f"{MODULE}.BearerTokenCredentialPolicy")
+    @mock.patch(f"{MODULE}.DefaultAzureCredential")
+    def test_signed_session(self, mock_default_azure_credential, mock_policy, mock_request):
+        mock_request.return_value.http_request.headers = {"Authorization": "Bearer token"}
+
+        adapter = AzureIdentityCredentialAdapter()
+        mock_default_azure_credential.assert_called_once()
+        mock_policy.assert_called_once()
+
+        adapter.signed_session()
+        assert adapter.token == {"access_token": "token"}
+
+    @mock.patch(f"{MODULE}.PipelineRequest")
+    @mock.patch(f"{MODULE}.BearerTokenCredentialPolicy")
+    @mock.patch(f"{MODULE}.DefaultAzureCredential")
+    def test_init_with_identity(self, mock_default_azure_credential, mock_policy, mock_request):
+        mock_request.return_value.http_request.headers = {"Authorization": "Bearer token"}
+
+        adapter = AzureIdentityCredentialAdapter(
+            managed_identity_client_id="managed_identity_client_id",
+            workload_identity_tenant_id="workload_identity_tenant_id",
+            additionally_allowed_tenants=["workload_identity_tenant_id"],
+        )
+        mock_default_azure_credential.assert_called_once_with(
+            managed_identity_client_id="managed_identity_client_id",
+            workload_identity_tenant_id="workload_identity_tenant_id",
+            additionally_allowed_tenants=["workload_identity_tenant_id"],
+        )
+        mock_policy.assert_called_once()
+
+        adapter.signed_session()
+        assert adapter.token == {"access_token": "token"}

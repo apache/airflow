@@ -24,9 +24,12 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
+from airflow.providers.apache.livy.hooks.livy import BatchState
 from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.utils import db, timezone
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 BATCH_ID = 100
@@ -63,7 +66,6 @@ class TestLivyOperator:
         mock_livy.side_effect = side_effect
 
         task = LivyOperator(file="sparkapp", polling_interval=1, dag=self.dag, task_id="livy_example")
-        task._livy_hook = task.get_hook()
         task.poll_for_termination(BATCH_ID)
 
         mock_livy.assert_called_with(BATCH_ID, retry_args=None)
@@ -87,7 +89,6 @@ class TestLivyOperator:
         mock_livy.side_effect = side_effect
 
         task = LivyOperator(file="sparkapp", polling_interval=1, dag=self.dag, task_id="livy_example")
-        task._livy_hook = task.get_hook()
 
         with pytest.raises(AirflowException):
             task.poll_for_termination(BATCH_ID)
@@ -147,14 +148,6 @@ class TestLivyOperator:
 
         mock_delete.assert_called_once_with(BATCH_ID)
 
-    def test_injected_hook(self):
-        def_hook = LivyHook(livy_conn_id="livyunittest")
-
-        task = LivyOperator(file="sparkapp", dag=self.dag, task_id="livy_example")
-        task._livy_hook = def_hook
-
-        assert task.get_hook() == def_hook
-
     @patch(
         "airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_state",
         return_value=BatchState.SUCCESS,
@@ -171,7 +164,7 @@ class TestLivyOperator:
             polling_interval=1,
         )
         caplog.clear()
-        with caplog.at_level(level=logging.INFO, logger=task.get_hook().log.name):
+        with caplog.at_level(level=logging.INFO, logger=task.hook.log.name):
             task.execute(context=self.mock_context)
 
         assert "first_line" in caplog.messages
@@ -200,7 +193,6 @@ class TestLivyOperator:
         task = LivyOperator(
             file="sparkapp", polling_interval=1, dag=self.dag, task_id="livy_example", deferrable=True
         )
-        task._livy_hook = task.get_hook()
         task.poll_for_termination(BATCH_ID)
 
         mock_livy.assert_called_with(BATCH_ID, retry_args=None)
@@ -226,7 +218,6 @@ class TestLivyOperator:
         task = LivyOperator(
             file="sparkapp", polling_interval=1, dag=self.dag, task_id="livy_example", deferrable=True
         )
-        task._livy_hook = task.get_hook()
 
         with pytest.raises(AirflowException):
             task.poll_for_termination(BATCH_ID)
@@ -287,7 +278,7 @@ class TestLivyOperator:
         )
 
         task.execute(context=self.mock_context)
-        assert task.get_hook().extra_options == extra_options
+        assert task.hook.extra_options == extra_options
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
@@ -315,14 +306,6 @@ class TestLivyOperator:
 
         mock_delete.assert_called_once_with(BATCH_ID)
 
-    def test_injected_hook_deferrable(self):
-        def_hook = LivyHook(livy_conn_id="livyunittest")
-
-        task = LivyOperator(file="sparkapp", dag=self.dag, task_id="livy_example", deferrable=True)
-        task._livy_hook = def_hook
-
-        assert task.get_hook() == def_hook
-
     @patch(
         "airflow.providers.apache.livy.operators.livy.LivyHook.get_batch_state",
         return_value=BatchState.SUCCESS,
@@ -341,7 +324,7 @@ class TestLivyOperator:
         )
         caplog.clear()
 
-        with caplog.at_level(level=logging.INFO, logger=task.get_hook().log.name):
+        with caplog.at_level(level=logging.INFO, logger=task.hook.log.name):
             task.execute(context=self.mock_context)
 
             assert "first_line" in caplog.messages

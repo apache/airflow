@@ -21,7 +21,7 @@ import os
 import re
 import sys
 from datetime import datetime
-from os.path import dirname, join, realpath
+from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlsplit
 
@@ -63,7 +63,7 @@ status_map: dict[str, bool] = {
     ":x:": False,
 }
 
-reverse_status_map: dict[bool, str] = {status_map[key]: key for key in status_map.keys()}
+reverse_status_map: dict[bool, str] = {val: key for key, val in status_map.items()}
 
 
 def get_url(result: TestResult) -> str:
@@ -112,16 +112,16 @@ def parse_body(body: str) -> dict[str, TestHistory]:
     for line in body.splitlines(keepends=False):
         if line.startswith("|-"):
             parse = True
-            continue
-        if parse:
+        elif parse:
             if not line.startswith("|"):
                 break
             try:
                 status = parse_test_history(line)
             except Exception:
                 continue
-            if status:
-                test_history_map[status.test_id] = status
+            else:
+                if status:
+                    test_history_map[status.test_id] = status
     return test_history_map
 
 
@@ -152,7 +152,7 @@ def get_history_status(history: TestHistory):
         return "Stable"
     if all(history.states[0 : num_runs - 1]):
         return "Just one more"
-    if all(history.states[0 : int(num_runs / 2)]):
+    if all(history.states[0 : num_runs // 2]):
         return "Almost there"
     return "Flaky"
 
@@ -160,8 +160,7 @@ def get_history_status(history: TestHistory):
 def get_table(history_map: dict[str, TestHistory]) -> str:
     headers = ["Test", "Last run", f"Last {num_runs} runs", "Status", "Comment"]
     the_table: list[list[str]] = []
-    for ordered_key in sorted(history_map.keys()):
-        history = history_map[ordered_key]
+    for _, history in sorted(history_map.items()):
         the_table.append(
             [
                 history.url,
@@ -185,19 +184,19 @@ if __name__ == "__main__":
     res = y.testsuites.testsuite.findAll("testcase")
     for test in res:
         print("Parsing: " + test["classname"] + "::" + test["name"])
-        if len(test.contents) > 0 and test.contents[0].name == "skipped":
+        if test.contents and test.contents[0].name == "skipped":
             print(f"skipping {test['name']}")
-            continue
-        test_results.append(
-            TestResult(
-                test_id=test["classname"] + "::" + test["name"],
-                file=test["file"],
-                line=test["line"],
-                name=test["name"],
-                classname=test["classname"],
-                result=len(test.contents) == 0,
+        else:
+            test_results.append(
+                TestResult(
+                    test_id=test["classname"] + "::" + test["name"],
+                    file=test["file"],
+                    line=test["line"],
+                    name=test["name"],
+                    classname=test["classname"],
+                    result=not test.contents,
+                )
             )
-        )
 
     token = os.environ.get("GITHUB_TOKEN")
     print(f"Token: {token}")
@@ -235,10 +234,10 @@ if __name__ == "__main__":
     print()
     print(table)
     print()
-    with open(join(dirname(realpath(__file__)), "quarantine_issue_header.md")) as f:
+    with Path(__file__).resolve().with_name("quarantine_issue_header.md").open() as f:
         header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).render(
             DATE_UTC_NOW=datetime.utcnow()
         )
     quarantined_issue.edit(
-        title=None, body=header + "\n\n" + str(table), state="open" if len(test_results) > 0 else "closed"
+        title=None, body=f"{header}\n\n{table}", state="open" if test_results else "closed"
     )

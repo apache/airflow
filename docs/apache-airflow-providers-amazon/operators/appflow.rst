@@ -35,16 +35,21 @@ Prerequisite Tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Generic Parameters
+------------------
+
+.. include:: ../_partials/generic_parameters.rst
+
 Operators
 ---------
 
 Run Flow
 ========
 
-To run an AppFlow flow keeping all filters as is, use:
+To run an AppFlow flow keeping as is, use:
 :class:`~airflow.providers.amazon.aws.operators.appflow.AppflowRunOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_appflow.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_appflow_run.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_appflow_run]

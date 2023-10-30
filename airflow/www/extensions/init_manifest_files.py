@@ -24,7 +24,7 @@ from flask import url_for
 
 
 def configure_manifest_files(app):
-    """Loads the manifest file and register the `url_for_asset_` template tag.
+    """Load the manifest file and register the `url_for_asset_` template tag.
 
     :param app:
     """
@@ -56,4 +56,4 @@ def configure_manifest_files(app):
         static/dist folder. This template tag reads the asset name in
         ``manifest.json`` and returns the appropriate file.
         """
-        return dict(url_for_asset=get_asset_url)
+        return {"url_for_asset": get_asset_url}

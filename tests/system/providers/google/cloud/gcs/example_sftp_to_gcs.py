@@ -24,8 +24,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sftp_to_gcs import SFTPToGCSOperator
@@ -51,13 +51,12 @@ FILE_LOCAL_PATH = str(Path(LOCAL_PATH) / TMP_PATH / DIR)
 FILE_NAME = "tmp.tar.gz"
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
     unzip_file = BashOperator(

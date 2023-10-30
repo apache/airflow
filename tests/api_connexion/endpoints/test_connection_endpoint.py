@@ -30,6 +30,8 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections
 from tests.test_utils.www import _check_last_log
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
@@ -351,7 +353,7 @@ class TestGetConnectionsPagination(TestConnectionEndpoint):
 
     def _create_connections(self, count):
         return [
-            Connection(conn_id="TEST_CONN_ID" + str(i), conn_type="TEST_CONN_TYPE" + str(i))
+            Connection(conn_id=f"TEST_CONN_ID{i}", conn_type=f"TEST_CONN_TYPE{i}")
             for i in range(1, count + 1)
         ]
 

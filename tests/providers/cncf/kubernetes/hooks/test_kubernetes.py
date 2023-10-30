@@ -29,8 +29,7 @@ import pytest
 from kubernetes.config import ConfigException
 from sqlalchemy.orm import make_transient
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
@@ -38,6 +37,9 @@ from airflow.utils import db
 from airflow.utils.db import merge_conn
 from tests.test_utils.db import clear_db_connections
 from tests.test_utils.providers import get_provider_min_airflow_version
+
+pytestmark = pytest.mark.db_test
+
 
 KUBE_CONFIG_PATH = os.getenv("KUBECONFIG", "~/.kube/config")
 HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"

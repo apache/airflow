@@ -95,8 +95,6 @@ The full provider's list can be found here:
 There are also convenience packages released as "apache-airflow-providers"separately in PyPI.
 [PyPI query for providers](https://pypi.org/search/?q=apache-airflow-providers)
 
-We also have legacy backport providers available for Airflow 1.10.* series:
-[Official Apache Download for backport-providers](https://downloads.apache.org/airflow/backport-providers/)
 
 And available in PyPI:
 [PyPI query for backport providers](https://pypi.org/search/?q=apache-airflow-backport-providers).
@@ -186,7 +184,6 @@ chmod 600 ~/.pypirc
 pip install twine
 ```
 
-(more details [here](https://peterdowns.com/posts/first-time-with-pypi.html).)
 
 - Set proper permissions for the pypirc file:
 `$ chmod 600 ~/.pypirc`

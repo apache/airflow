@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 4.2.0
+  - 4.1.2
   - 4.1.1
   - 4.1.0
   - 4.0.0
@@ -36,7 +38,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
 
 integrations:
   - integration-name: Apache Pig

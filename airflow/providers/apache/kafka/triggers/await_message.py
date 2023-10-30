@@ -22,7 +22,7 @@ from typing import Any, Sequence
 
 from asgiref.sync import sync_to_async
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.module_loading import import_string
@@ -49,7 +49,7 @@ class AwaitMessageTrigger(BaseTrigger):
         defaults to None
     :param poll_timeout: How long the Kafka client should wait before returning from a poll request to
         Kafka (seconds), defaults to 1
-    :param poll_interval: How long the the trigger should sleep after reaching the end of the Kafka log
+    :param poll_interval: How long the trigger should sleep after reaching the end of the Kafka log
         (seconds), defaults to 5
 
     """
@@ -64,7 +64,6 @@ class AwaitMessageTrigger(BaseTrigger):
         poll_timeout: float = 1,
         poll_interval: float = 5,
     ) -> None:
-
         self.topics = topics
         self.apply_function = apply_function
         self.apply_function_args = apply_function_args or ()
@@ -100,7 +99,6 @@ class AwaitMessageTrigger(BaseTrigger):
         processing_call = partial(processing_call, *self.apply_function_args, **self.apply_function_kwargs)
         async_message_process = sync_to_async(processing_call)
         while True:
-
             message = await async_poll(self.poll_timeout)
 
             if message is None:
@@ -108,7 +106,6 @@ class AwaitMessageTrigger(BaseTrigger):
             elif message.error():
                 raise AirflowException(f"Error: {message.error()}")
             else:
-
                 rv = await async_message_process(message)
                 if rv:
                     await async_commit(asynchronous=False)

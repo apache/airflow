@@ -170,9 +170,9 @@ def import_all_classes(
         return f"{prefix}{provider_id}"
 
     if provider_ids:
-        provider_prefixes = [mk_prefix(provider_id) for provider_id in provider_ids]
+        provider_prefixes = tuple(mk_prefix(provider_id) for provider_id in provider_ids)
     else:
-        provider_prefixes = [prefix]
+        provider_prefixes = (prefix,)
 
     def onerror(_):
         nonlocal tracebacks
@@ -187,12 +187,12 @@ def import_all_classes(
 
     for path, prefix in walkable_paths_and_prefixes.items():
         for modinfo in pkgutil.walk_packages(path=[path], prefix=prefix, onerror=onerror):
-            if not any(modinfo.name.startswith(provider_prefix) for provider_prefix in provider_prefixes):
+            if not modinfo.name.startswith(provider_prefixes):
                 if print_skips:
                     console.print(f"Skipping module: {modinfo.name}")
                 continue
             if print_imports:
-                package_to_print = ".".join(modinfo.name.split(".")[:-1])
+                package_to_print = modinfo.name.rpartition(".")[0]
                 if package_to_print not in printed_packages:
                     printed_packages.add(package_to_print)
                     console.print(f"Importing package: {package_to_print}")
@@ -247,7 +247,7 @@ def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
     :param imported_name: name of the imported class
     :return: true if the class was imported from another module
     """
-    return ".".join(imported_name.split(".")[:-1]) == the_class.__module__
+    return imported_name.rpartition(":")[0] == the_class.__module__
 
 
 def is_example_dag(imported_name: str) -> bool:
@@ -332,8 +332,7 @@ def get_details_about_classes(
     :param wrong_entities: wrong entities found for that type
     :param full_package_name: full package name
     """
-    all_entities = list(entities)
-    all_entities.sort()
+    all_entities = sorted(entities)
     TOTALS[entity_type] += len(all_entities)
     return EntityTypeSummary(
         entities=all_entities,
@@ -361,7 +360,7 @@ def convert_class_name_to_url(base_url: str, class_name) -> str:
     :param class_name: name of the class
     :return: URL to the class
     """
-    return base_url + os.path.sep.join(class_name.split(".")[:-1]) + ".py"
+    return base_url + class_name.rpartition(".")[0].replace(".", "/") + ".py"
 
 
 def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str:
@@ -427,7 +426,6 @@ def find_all_entities(
             and not inherits_from(the_class=the_class, expected_ancestor=exclude_class_type)
             and package_name_matches(the_class=the_class, expected_pattern=sub_package_pattern_match)
         ):
-
             if not false_positive_class_names or class_name not in false_positive_class_names:
                 if not re.match(expected_class_name_pattern, class_name):
                     wrong_entities.append(
@@ -448,7 +446,6 @@ def find_all_entities(
                                     f"It should not match {unexpected_class_name_pattern}",
                                 )
                             )
-                        continue
             found_entities.add(imported_name)
     return VerifiedEntities(all_entities=found_entities, wrong_entities=wrong_entities)
 
@@ -577,7 +574,7 @@ def is_camel_case_with_acronyms(s: str):
         s = s[1:]
     if not s:
         return True
-    return s != s.lower() and s != s.upper() and "_" not in s and s[0].upper() == s[0]
+    return s[0].isupper() and not (s.islower() or s.isupper() or "_" in s)
 
 
 def check_if_classes_are_properly_named(
@@ -717,7 +714,7 @@ def verify_provider_classes() -> tuple[list[str], list[str]]:
     if not summarise_total_vs_bad(total, bad):
         sys.exit(1)
 
-    if len(imported_classes) == 0:
+    if not imported_classes:
         console.print("[red]Something is seriously wrong - no classes imported[/]")
         sys.exit(1)
     console.print()

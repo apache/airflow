@@ -56,7 +56,7 @@ Package apache-airflow-providers-daskexecutor
 `Dask <https://www.dask.org/>`__
 
 
-Release: 1.0.0
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -74,12 +74,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
 
 ==================  ==================================
 PIP package         Version required
 ==================  ==================================
-``apache-airflow``  ``>=2.4.0``
+``apache-airflow``  ``>=2.5.0``
 ``cloudpickle``     ``>=1.4.1``
 ``dask``            ``>=2.9.0,!=2022.10.1,!=2023.5.0``
 ``distributed``     ``>=2.11.1,!=2023.5.0``

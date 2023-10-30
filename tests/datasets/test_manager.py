@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 from unittest import mock
 
 import pytest
@@ -25,6 +26,8 @@ from airflow.datasets import Dataset
 from airflow.datasets.manager import DatasetManager
 from airflow.models.dag import DagModel
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture()
@@ -38,11 +41,9 @@ def mock_task_instance():
 
 
 def create_mock_dag():
-    n = 1
-    while True:
+    for dag_id in itertools.count(1):
         mock_dag = mock.Mock()
-        mock_dag.dag_id = n
-        n += 1
+        mock_dag.dag_id = dag_id
         yield mock_dag
 
 
@@ -54,7 +55,7 @@ class TestDatasetManager:
 
         mock_session = mock.Mock()
         # Gotta mock up the query results
-        mock_session.query.return_value.filter.return_value.one_or_none.return_value = None
+        mock_session.scalar.return_value = None
 
         dsem.register_dataset_change(task_instance=mock_task_instance, dataset=dataset, session=mock_session)
 

@@ -81,6 +81,26 @@ elif [[ ${AIRFLOW_CONSTRAINTS_MODE} == "constraints" ]]; then
 # We also use those constraints after "apache-airflow" is released and the constraints are tagged with
 # "constraints-X.Y.Z" tag to build the production image for that version.
 #
+# This constraints file is meant to be used only in the "apache-airflow" installation command and not
+# in all subsequent pip commands. By using a constraints.txt file, we ensure that solely the Airflow
+# installation step is reproducible. Subsequent pip commands may install packages that would have
+# been incompatible with the constraints used in Airflow reproducible installation step. Finally, pip
+# commands that might change the installed version of apache-airflow should include "apache-airflow==X.Y.Z"
+# in the list of install targets to prevent Airflow accidental upgrade or downgrade.
+#
+# Typical installation process of airflow for Python 3.8 is (with random selection of extras and custom
+# dependencies added), usually consists of two steps:
+#
+# 1. Reproducible installation of airflow with selected providers (note constraints are used):
+#
+# pip install "apache-airflow[celery,cncf.kubernetes,google,amazon,snowflake]==X.Y.Z" \\
+#     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-X.Y.Z/constraints-3.8.txt"
+#
+# 2. Installing own dependencies that are potentially not matching the constraints (note constraints are not
+#    used, and apache-airflow==X.Y.Z is used to make sure there is no accidental airflow upgrade/downgrade.
+#
+# pip install "apache-airflow==X.Y.Z" "snowflake-connector-python[pandas]==2.9.0"
+#
 EOF
 else
     echo
@@ -132,5 +152,6 @@ echo
 echo "Constraints error markdown generated in ${CONSTRAINTS_MARKDOWN_DIFF}"
 echo
 
+ls "${CONSTRAINTS_MARKDOWN_DIFF}"
 
 exit 0

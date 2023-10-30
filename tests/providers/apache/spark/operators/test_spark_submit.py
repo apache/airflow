@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
@@ -28,7 +30,6 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class TestSparkSubmitOperator:
-
     _config = {
         "conf": {"parquet.compression": "SNAPPY"},
         "files": "hive-site.xml",
@@ -71,7 +72,6 @@ class TestSparkSubmitOperator:
         self.dag = DAG("test_dag_id", default_args=args)
 
     def test_execute(self):
-
         # Given / When
         conn_id = "spark_default"
         operator = SparkSubmitOperator(
@@ -143,6 +143,7 @@ class TestSparkSubmitOperator:
         assert expected_dict["application_args"] == operator._application_args
         assert expected_dict["spark_binary"] == operator._spark_binary
 
+    @pytest.mark.db_test
     def test_render_template(self):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from unittest import mock
 
 import flask
@@ -32,6 +31,8 @@ from airflow.www.views import FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
 from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+
+pytestmark = pytest.mark.db_test
 
 
 def clean_db():
@@ -57,7 +58,7 @@ def test_home(capture_templates, admin_client):
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
             '"scheduled": "tan", '
-            '"shutdown": "blue", "skipped": "hotpink", '
+            '"skipped": "hotpink", '
             '"success": "green", "up_for_reschedule": "turquoise", '
             '"up_for_retry": "gold", "upstream_failed": "orange"};'
         )
@@ -68,6 +69,25 @@ def test_home(capture_templates, admin_client):
     state_color_mapping = State.state_color.copy()
     state_color_mapping["null"] = state_color_mapping.pop(None)
     assert templates[0].local_context["state_color"] == state_color_mapping
+
+
+@mock.patch("airflow.www.views.AirflowBaseView.render_template")
+def test_home_dags_count(render_template_mock, admin_client, working_dags, session):
+    from sqlalchemy import update
+
+    from airflow.models.dag import DagModel
+
+    def call_kwargs():
+        return render_template_mock.call_args.kwargs
+
+    admin_client.get("home", follow_redirects=True)
+    assert call_kwargs()["status_count_all"] == 4
+
+    update_stmt = update(DagModel).where(DagModel.dag_id == "filter_test_1").values(is_active=False)
+    session.execute(update_stmt)
+
+    admin_client.get("home", follow_redirects=True)
+    assert call_kwargs()["status_count_all"] == 3
 
 
 def test_home_status_filter_cookie(admin_client):
@@ -150,73 +170,66 @@ def _process_file(file_path, session):
 
 
 @pytest.fixture()
-def working_dags(tmpdir):
+def working_dags(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
 
     with create_session() as session:
-        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
-            filename = os.path.join(tmpdir, f"{dag_id}.py")
-            with open(filename, "w") as f:
-                f.writelines(dag_contents_template.format(dag_id, tag))
-            _process_file(filename, session)
+        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+            path = tmp_path / f"{dag_id}.py"
+            path.write_text(dag_contents_template.format(dag_id, tag))
+            _process_file(path, session)
 
 
 @pytest.fixture()
-def working_dags_with_read_perm(tmpdir):
+def working_dags_with_read_perm(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
     dag_contents_template_with_read_perm = (
         "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
         "access_control={{'role_single_dag':{{'can_read'}}}}) "
     )
     with create_session() as session:
-        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
-            filename = os.path.join(tmpdir, f"{dag_id}.py")
+        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+            path = tmp_path / f"{dag_id}.py"
             if dag_id == "filter_test_1":
-                with open(filename, "w") as f:
-                    f.writelines(dag_contents_template_with_read_perm.format(dag_id, tag))
+                path.write_text(dag_contents_template_with_read_perm.format(dag_id, tag))
             else:
-                with open(filename, "w") as f:
-                    f.writelines(dag_contents_template.format(dag_id, tag))
-            _process_file(filename, session)
+                path.write_text(dag_contents_template.format(dag_id, tag))
+            _process_file(path, session)
 
 
 @pytest.fixture()
-def working_dags_with_edit_perm(tmpdir):
+def working_dags_with_edit_perm(tmp_path):
     dag_contents_template = "from airflow import DAG\ndag = DAG('{}', tags=['{}'])"
     dag_contents_template_with_read_perm = (
         "from airflow import DAG\ndag = DAG('{}', tags=['{}'], "
         "access_control={{'role_single_dag':{{'can_edit'}}}}) "
     )
     with create_session() as session:
-        for dag_id, tag in list(zip(TEST_FILTER_DAG_IDS, TEST_TAGS)):
-            filename = os.path.join(tmpdir, f"{dag_id}.py")
+        for dag_id, tag in zip(TEST_FILTER_DAG_IDS, TEST_TAGS):
+            path = tmp_path / f"{dag_id}.py"
             if dag_id == "filter_test_1":
-                with open(filename, "w") as f:
-                    f.writelines(dag_contents_template_with_read_perm.format(dag_id, tag))
+                path.write_text(dag_contents_template_with_read_perm.format(dag_id, tag))
             else:
-                with open(filename, "w") as f:
-                    f.writelines(dag_contents_template.format(dag_id, tag))
-            _process_file(filename, session)
+                path.write_text(dag_contents_template.format(dag_id, tag))
+            _process_file(path, session)
 
 
 @pytest.fixture()
-def broken_dags(tmpdir, working_dags):
+def broken_dags(tmp_path, working_dags):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
-            filename = os.path.join(tmpdir, f"{dag_id}.py")
-            with open(filename, "w") as f:
-                f.writelines("airflow DAG")
-            _process_file(filename, session)
+            path = tmp_path / f"{dag_id}.py"
+            path.write_text("airflow DAG")
+            _process_file(path, session)
 
 
 @pytest.fixture()
-def broken_dags_with_read_perm(tmpdir, working_dags_with_read_perm):
+def broken_dags_with_read_perm(tmp_path, working_dags_with_read_perm):
     with create_session() as session:
         for dag_id in TEST_FILTER_DAG_IDS:
-            filename = os.path.join(tmpdir, f"{dag_id}.py")
-            with open(filename, "w") as f:
-                f.writelines("airflow DAG")
-            _process_file(filename, session)
+            path = tmp_path / f"{dag_id}.py"
+            path.write_text("airflow DAG")
+            _process_file(path, session)
 
 
 def test_home_filter_tags(working_dags, admin_client):

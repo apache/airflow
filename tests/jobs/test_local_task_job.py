@@ -33,12 +33,13 @@ from unittest.mock import patch
 import psutil
 import pytest
 
-from airflow import DAG, settings
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import SIGSEGV_MESSAGE, LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
@@ -55,6 +56,8 @@ from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_executor import MockExecutor
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
@@ -287,7 +290,6 @@ class TestLocalTaskJob:
         dag_id = "test_heartbeat_failed_fast"
         task_id = "test_heartbeat_failed_fast_op"
         with create_session() as session:
-
             dag_id = "test_heartbeat_failed_fast"
             task_id = "test_heartbeat_failed_fast_op"
             dag = self.dagbag.get_dag(dag_id)
@@ -315,9 +317,7 @@ class TestLocalTaskJob:
             job_runner.heartbeat_callback = lambda session: heartbeat_records.append(job.latest_heartbeat)
             run_job(job=job, execute_callable=job_runner._execute)
             assert len(heartbeat_records) > 2
-            for i in range(1, len(heartbeat_records)):
-                time1 = heartbeat_records[i - 1]
-                time2 = heartbeat_records[i]
+            for time1, time2 in zip(heartbeat_records, heartbeat_records[1:]):
                 # Assert that difference small enough
                 delta = (time2 - time1).total_seconds()
                 assert abs(delta - job.heartrate) < 0.8
@@ -351,7 +351,6 @@ class TestLocalTaskJob:
         )
 
     def test_localtaskjob_double_trigger(self):
-
         dag = self.dagbag.dags.get("test_localtaskjob_double_trigger")
         task = dag.get_task("test_localtaskjob_double_trigger_task")
 
@@ -390,7 +389,6 @@ class TestLocalTaskJob:
     @patch.object(StandardTaskRunner, "return_code")
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr", autospec=True)
     def test_local_task_return_code_metric(self, mock_stats_incr, mock_return_code, create_dummy_dag):
-
         _, task = create_dummy_dag("test_localtaskjob_code")
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
@@ -421,7 +419,6 @@ class TestLocalTaskJob:
 
     @patch.object(StandardTaskRunner, "return_code")
     def test_localtaskjob_maintain_heart_rate(self, mock_return_code, caplog, create_dummy_dag):
-
         _, task = create_dummy_dag("test_localtaskjob_double_trigger")
 
         ti_run = TaskInstance(task=task, execution_date=DEFAULT_DATE)
@@ -711,7 +708,6 @@ class TestLocalTaskJob:
         get_test_dag,
     ):
         with conf_vars(conf):
-
             dag = get_test_dag(
                 "test_dagrun_fast_follow",
             )
@@ -864,15 +860,20 @@ class TestSigtermOnRunner:
         "daemon", [pytest.param(True, id="daemon"), pytest.param(False, id="non-daemon")]
     )
     @pytest.mark.parametrize(
-        "mp_method",
+        "mp_method, wait_timeout",
         [
             pytest.param(
-                "fork", marks=pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
+                "fork",
+                10,
+                marks=pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available"),
+                id="fork",
             ),
-            pytest.param("spawn"),
+            pytest.param("spawn", 30, id="spawn"),
         ],
     )
-    def test_process_sigterm_works_with_retries(self, mp_method, daemon, clear_db, request, capfd):
+    def test_process_sigterm_works_with_retries(
+        self, mp_method, wait_timeout, daemon, clear_db, request, capfd
+    ):
         """Test that ensures that task runner sets tasks to retry when task runner receive SIGTERM."""
         mp_context = mp.get_context(mp_method)
 
@@ -896,12 +897,12 @@ class TestSigtermOnRunner:
         proc.start()
 
         try:
-            with timeout(10, "Timeout during waiting start LocalTaskJob"):
+            with timeout(wait_timeout, "Timeout during waiting start LocalTaskJob"):
                 while task_started.value == 0:
                     time.sleep(0.2)
             os.kill(proc.pid, signal.SIGTERM)
 
-            with timeout(10, "Timeout during waiting callback"):
+            with timeout(wait_timeout, "Timeout during waiting callback"):
                 while retry_callback_called.value == 0:
                     time.sleep(0.2)
         finally:
@@ -954,7 +955,7 @@ class TestSigtermOnRunner:
                 is_started.value = 1
 
             while True:
-                time.sleep(0.1)
+                time.sleep(0.25)
 
         with DAG(dag_id=dag_id, schedule=None, start_date=execution_date) as dag:
             task = PythonOperator(

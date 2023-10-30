@@ -19,14 +19,17 @@
 from __future__ import annotations
 
 from functools import cached_property
+from typing import TYPE_CHECKING
 
 import yaml
-from kubernetes.client import ApiClient
 from kubernetes.utils import create_from_yaml
 
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
+
+if TYPE_CHECKING:
+    from kubernetes.client import ApiClient
 
 __all__ = ["KubernetesCreateResourceOperator", "KubernetesDeleteResourceOperator"]
 

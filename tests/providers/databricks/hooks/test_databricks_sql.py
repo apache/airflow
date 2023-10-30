@@ -28,6 +28,8 @@ from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.utils.session import provide_session
 
+pytestmark = pytest.mark.db_test
+
 TASK_ID = "databricks-sql-operator"
 DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"
@@ -156,7 +158,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             ([[1, 2], [11, 12]], [[3, 4], [13, 14]]),
             [[("id2",), ("value2",)]],
             [[3, 4], [13, 14]],
-            id="The return_last set set on multiple queries in list",
+            id="The return_last set on multiple queries in list",
         ),
         pytest.param(
             False,

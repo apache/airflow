@@ -17,10 +17,9 @@
 from __future__ import annotations
 
 import time
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud.dataform_v1beta1 import DataformClient
 from google.cloud.dataform_v1beta1.types import (
     CompilationResult,
@@ -31,8 +30,11 @@ from google.cloud.dataform_v1beta1.types import (
     WriteFileResponse,
 )
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class DataformHook(GoogleBaseHook):

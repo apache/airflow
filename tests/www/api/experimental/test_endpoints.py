@@ -39,6 +39,8 @@ ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir, os.pardir)
 )
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_session():
@@ -369,7 +371,6 @@ class TestLineageApiExperimental(TestBase):
 
 
 class TestPoolApiExperimental(TestBase):
-
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 
@@ -383,6 +384,7 @@ class TestPoolApiExperimental(TestBase):
                 pool=name,
                 slots=i,
                 description=name,
+                include_deferred=False,
             )
             self.session.add(pool)
             self.pools.append(pool)
@@ -434,6 +436,7 @@ class TestPoolApiExperimental(TestBase):
         assert pool["pool"] == "foo"
         assert pool["slots"] == 1
         assert pool["description"] == ""
+        assert pool["include_deferred"] is False
         assert self._get_pool_count() == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_with_bad_name(self):

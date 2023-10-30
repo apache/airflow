@@ -23,6 +23,10 @@ description: |
 
 suspended: false
 versions:
+  - 5.3.0
+  - 5.2.3
+  - 5.2.2
+  - 5.2.1
   - 5.2.0
   - 5.1.1
   - 5.1.0
@@ -44,7 +48,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - apache-beam>=2.47.0
 
 integrations:

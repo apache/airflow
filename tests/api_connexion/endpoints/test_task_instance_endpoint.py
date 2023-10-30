@@ -24,6 +24,7 @@ import pendulum
 import pytest
 from sqlalchemy.orm import contains_eager
 
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, SlaMiss, TaskInstance, Trigger
@@ -36,6 +37,8 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -56,6 +59,7 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
         ],
@@ -82,6 +86,25 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ],
     )
+    create_user(
+        app,  # type: ignore
+        username="test_read_only_one_dag",
+        role_name="TestReadOnlyOneDag",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        ],
+    )
+    # For some reason, "DAG:example_python_operator" is not synced when in the above list of perms,
+    # so do it manually here:
+    app.appbuilder.sm.bulk_sync_roles(
+        [
+            {
+                "role": "TestReadOnlyOneDag",
+                "perms": [(permissions.ACTION_CAN_READ, "DAG:example_python_operator")],
+            }
+        ]
+    )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
 
     yield app
@@ -90,6 +113,7 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_dag_read_only")  # type: ignore
     delete_user(app, username="test_task_read_only")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test_read_only_one_dag")  # type: ignore
     delete_roles(app)
 
 
@@ -626,13 +650,58 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         ],
     )
     def test_should_respond_200(self, task_instances, update_extras, url, expected_ti, session):
-
         self.create_task_instances(
             session,
             update_extras=update_extras,
             task_instances=task_instances,
         )
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+        assert response.status_code == 200
+        assert response.json["total_entries"] == expected_ti
+        assert len(response.json["task_instances"]) == expected_ti
+
+    @pytest.mark.parametrize(
+        "task_instances, user, expected_ti",
+        [
+            pytest.param(
+                {
+                    "example_python_operator": 2,
+                    "example_skip_dag": 1,
+                },
+                "test_read_only_one_dag",
+                2,
+            ),
+            pytest.param(
+                {
+                    "example_python_operator": 1,
+                    "example_skip_dag": 2,
+                },
+                "test_read_only_one_dag",
+                1,
+            ),
+            pytest.param(
+                {
+                    "example_python_operator": 1,
+                    "example_skip_dag": 2,
+                },
+                "test",
+                3,
+            ),
+        ],
+    )
+    def test_return_TI_only_from_readable_dags(self, task_instances, user, expected_ti, session):
+        for dag_id in task_instances:
+            self.create_task_instances(
+                session,
+                task_instances=[
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=i)}
+                    for i in range(task_instances[dag_id])
+                ],
+                dag_id=dag_id,
+            )
+        response = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances", environ_overrides={"REMOTE_USER": user}
+        )
         assert response.status_code == 200
         assert response.json["total_entries"] == expected_ti
         assert len(response.json["task_instances"]) == expected_ti
@@ -904,6 +973,24 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             json={"dag_ids": ["example_python_operator", "example_skip_dag"]},
         )
         assert response.status_code == 403
+
+    def test_returns_403_forbidden_when_user_has_access_to_only_some_dags(self, session):
+        self.create_task_instances(session=session)
+        self.create_task_instances(session=session, dag_id="example_skip_dag")
+        payload = {"dag_ids": ["example_python_operator", "example_skip_dag"]}
+
+        response = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test_read_only_one_dag"},
+            json=payload,
+        )
+        assert response.status_code == 403
+        assert response.json == {
+            "detail": "User not allowed to access these DAGs: ['example_skip_dag']",
+            "status": 403,
+            "title": "Forbidden",
+            "type": EXCEPTIONS_LINK_MAP[403],
+        }
 
     def test_should_raise_400_for_no_json(self):
         response = self.client.post(
@@ -1721,6 +1808,27 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": False,
+                "new_state": NEW_STATE,
+            },
+        )
+
+        response2 = self.client.get(
+            self.ENDPOINT_URL,
+            environ_overrides={"REMOTE_USER": "test"},
+            json={},
+        )
+        assert response2.status_code == 200
+        assert response2.json["state"] == NEW_STATE
+
+    def test_should_update_task_instance_state_default_dry_run_to_true(self, session):
+        self.create_task_instances(session)
+
+        NEW_STATE = "running"
+
+        self.client.patch(
+            self.ENDPOINT_URL,
+            environ_overrides={"REMOTE_USER": "test"},
+            json={
                 "new_state": NEW_STATE,
             },
         )

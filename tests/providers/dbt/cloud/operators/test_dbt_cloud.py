@@ -32,6 +32,8 @@ from airflow.providers.dbt.cloud.operators.dbt import (
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.utils import db, timezone
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 TASK_ID = "run_job_op"
 ACCOUNT_ID_CONN = "account_id_conn"
@@ -61,6 +63,12 @@ EXPLICIT_ACCOUNT_JOB_RUN_RESPONSE = {
         ),
     }
 }
+
+
+def mock_response_json(response: dict):
+    run_response = MagicMock(**response)
+    run_response.json.return_value = response
+    return run_response
 
 
 def setup_module():
@@ -125,7 +133,10 @@ class TestDbtCloudRunJobOperator:
     )
     @patch("airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperator.defer")
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
-    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run")
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run",
+        return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
+    )
     def test_execute_failed_before_getting_deferred(
         self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_job_run_status
     ):
@@ -154,7 +165,10 @@ class TestDbtCloudRunJobOperator:
         "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
     )
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
-    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run")
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run",
+        return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
+    )
     def test_dbt_run_job_op_async(self, mock_trigger_job_run, mock_dbt_hook, mock_job_run_status, status):
         """
         Asserts that a task is deferred and an DbtCloudRunJobTrigger will be fired
@@ -174,7 +188,9 @@ class TestDbtCloudRunJobOperator:
             dbt_op.execute(MagicMock())
         assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
 
-    @patch.object(DbtCloudHook, "trigger_job_run", return_value=MagicMock(**DEFAULT_ACCOUNT_JOB_RUN_RESPONSE))
+    @patch.object(
+        DbtCloudHook, "trigger_job_run", return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE)
+    )
     @pytest.mark.parametrize(
         "job_run_status, expected_output",
         [
@@ -353,7 +369,7 @@ class TestDbtCloudRunJobOperator:
 
         assert url == (
             EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
-                account_id=account_id if account_id else DEFAULT_ACCOUNT_ID,
+                account_id=account_id or DEFAULT_ACCOUNT_ID,
                 project_id=PROJECT_ID,
                 run_id=_run_response["data"]["id"],
             )

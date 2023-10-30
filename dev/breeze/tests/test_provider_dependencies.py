@@ -25,7 +25,7 @@ def test_get_downstream_only():
     related_providers = get_related_providers(
         "trino", upstream_dependencies=False, downstream_dependencies=True
     )
-    assert {"google", "common.sql"} == related_providers
+    assert {"openlineage", "google", "common.sql"} == related_providers
 
 
 def test_get_upstream_only():
@@ -39,7 +39,7 @@ def test_both():
     related_providers = get_related_providers(
         "trino", upstream_dependencies=True, downstream_dependencies=True
     )
-    assert {"google", "mysql", "common.sql"} == related_providers
+    assert {"openlineage", "google", "mysql", "common.sql"} == related_providers
 
 
 def test_none():

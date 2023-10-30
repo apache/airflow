@@ -27,10 +27,13 @@ from kubernetes.client import V1ObjectMeta, V1Pod, V1PodList
 from kubernetes.client.rest import ApiException
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import Connection
 from airflow.providers.apache.flink.sensors.flink_kubernetes import FlinkKubernetesSensor
 from airflow.utils import db, timezone
+
+pytestmark = pytest.mark.db_test
+
 
 TEST_NO_STATE_CLUSTER = {
     "apiVersion": "flink.apache.org/v1beta1",
@@ -531,7 +534,7 @@ TEST_ERROR_CLUSTER = {
             "state": "RECONCILING",
         },
         "reconciliationStatus": {
-            "lastReconciledSpec": '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":0,"initialSavepointPath":null,"upgradeMode":"stateless","allowNonRestoredState":null},"restartNonce":null,"flinkConfiguration":{"high-availability":"org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory","high-availability.storageDir":"file:///flink-data/ha","state.checkpoints.dir":"file:///flink-data/checkpoints","state.savepoints.dir":"file:///flink-data/savepoints","taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.15","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_15","ingress":{"template":"{{name}}.{{namespace}}.flink.k8s.io","className":null,"annotations":null},"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":null,"podTemplate":null},"logConfiguration":null},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2}}}',  # noqa: E501
+            "lastReconciledSpec": '{"spec":{"job":{"jarURI":"local:///opt/flink/examples/streaming/StateMachineExample.jar","parallelism":2,"entryClass":null,"args":[],"state":"running","savepointTriggerNonce":0,"initialSavepointPath":null,"upgradeMode":"stateless","allowNonRestoredState":null},"restartNonce":null,"flinkConfiguration":{"high-availability":"org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory","high-availability.storageDir":"file:///flink-data/ha","state.checkpoints.dir":"file:///flink-data/checkpoints","state.savepoints.dir":"file:///flink-data/savepoints","taskmanager.numberOfTaskSlots":"2"},"image":"flink:1.15","imagePullPolicy":null,"serviceAccount":"flink","flinkVersion":"v1_15","ingress":{"template":"{{name}}.{{namespace}}.flink.k8s.io","className":null,"annotations":null},"podTemplate":null,"jobManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":1,"podTemplate":null},"taskManager":{"resource":{"cpu":1.0,"memory":"2048m"},"replicas":null,"podTemplate":null},"logConfiguration":null},"resource_metadata":{"apiVersion":"flink.apache.org/v1beta1","metadata":{"generation":2}}}',
             "reconciliationTimestamp": 1664124030853,
             "state": "DEPLOYED",
         },
@@ -900,15 +903,20 @@ class TestFlinkKubernetesSensor:
             version="v1beta1",
         )
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_ERROR_CLUSTER,
     )
-    def test_cluster_error_state(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+    def test_cluster_error_state(
+        self, mock_get_namespaced_crd, mock_kubernetes_hook, soft_fail, expected_exception
+    ):
         sensor = FlinkKubernetesSensor(
-            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id"
+            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id", soft_fail=soft_fail
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(

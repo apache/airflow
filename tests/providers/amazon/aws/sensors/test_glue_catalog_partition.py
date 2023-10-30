@@ -19,14 +19,15 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from moto import mock_glue
 
+from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
 
 
 class TestGlueCatalogPartitionSensor:
-
     task_id = "test_glue_catalog_partition_sensor"
 
     @mock_glue
@@ -93,3 +94,31 @@ class TestGlueCatalogPartitionSensor:
         op.poke({})
 
         mock_check_for_partition.assert_called_once_with("my_db", "my_tbl", "ds='{{ ds }}'")
+
+    def test_deferrable_mode_raises_task_deferred(self):
+        op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
+        with pytest.raises(TaskDeferred):
+            op.execute({})
+
+    def test_execute_complete_fails_if_status_is_not_success(self):
+        op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
+        event = {"status": "FAILED"}
+        with pytest.raises(AirflowException):
+            op.execute_complete(context={}, event=event)
+
+    def test_execute_complete_succeeds_if_status_is_success(self, caplog):
+        op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
+        event = {"status": "success"}
+        op.execute_complete(context={}, event=event)
+        assert "Partition exists in the Glue Catalog" in caplog.messages
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_fail_execute_complete(self, soft_fail, expected_exception):
+        op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
+        op.soft_fail = soft_fail
+        event = {"status": "Failed"}
+        message = f"Trigger error: event is {event}"
+        with pytest.raises(expected_exception, match=message):
+            op.execute_complete(context={}, event=event)

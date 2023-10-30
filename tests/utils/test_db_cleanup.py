@@ -27,11 +27,11 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from pytest import param
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
 from airflow.utils.db_cleanup import (
@@ -41,6 +41,7 @@ from airflow.utils.db_cleanup import (
     _cleanup_table,
     _confirm_drop_archives,
     _dump_table_to_file,
+    _get_archived_table_names,
     config_dict,
     drop_archived_tables,
     export_archived_records,
@@ -48,6 +49,8 @@ from airflow.utils.db_cleanup import (
 )
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -70,9 +73,9 @@ class TestDBCleanup:
     @pytest.mark.parametrize(
         "kwargs, called",
         [
-            param(dict(confirm=True), True, id="true"),
-            param(dict(), True, id="not supplied"),
-            param(dict(confirm=False), False, id="false"),
+            pytest.param(dict(confirm=True), True, id="true"),
+            pytest.param(dict(), True, id="not supplied"),
+            pytest.param(dict(confirm=False), False, id="false"),
         ],
     )
     @patch("airflow.utils.db_cleanup._cleanup_table", new=MagicMock())
@@ -94,9 +97,9 @@ class TestDBCleanup:
     @pytest.mark.parametrize(
         "kwargs, should_skip",
         [
-            param(dict(skip_archive=True), True, id="true"),
-            param(dict(), False, id="not supplied"),
-            param(dict(skip_archive=False), False, id="false"),
+            pytest.param(dict(skip_archive=True), True, id="true"),
+            pytest.param(dict(), False, id="not supplied"),
+            pytest.param(dict(skip_archive=False), False, id="false"),
         ],
     )
     @patch("airflow.utils.db_cleanup._cleanup_table")
@@ -176,12 +179,12 @@ class TestDBCleanup:
     @pytest.mark.parametrize(
         "table_name, date_add_kwargs, expected_to_delete, external_trigger",
         [
-            param("task_instance", dict(days=0), 0, False, id="beginning"),
-            param("task_instance", dict(days=4), 4, False, id="middle"),
-            param("task_instance", dict(days=9), 9, False, id="end_exactly"),
-            param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
-            param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
-            param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
+            pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
+            pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
+            pytest.param("task_instance", dict(days=9), 9, False, id="end_exactly"),
+            pytest.param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
+            pytest.param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
+            pytest.param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
         ],
     )
     def test__build_query(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
@@ -211,19 +214,19 @@ class TestDBCleanup:
             )
             stmt = CreateTableAs(target_table_name, query.selectable)
             session.execute(stmt)
-            res = session.execute(f"SELECT COUNT(1) FROM {target_table_name}")
+            res = session.execute(text(f"SELECT COUNT(1) FROM {target_table_name}"))
             for row in res:
                 assert row[0] == expected_to_delete
 
     @pytest.mark.parametrize(
         "table_name, date_add_kwargs, expected_to_delete, external_trigger",
         [
-            param("task_instance", dict(days=0), 0, False, id="beginning"),
-            param("task_instance", dict(days=4), 4, False, id="middle"),
-            param("task_instance", dict(days=9), 9, False, id="end_exactly"),
-            param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
-            param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
-            param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
+            pytest.param("task_instance", dict(days=0), 0, False, id="beginning"),
+            pytest.param("task_instance", dict(days=4), 4, False, id="middle"),
+            pytest.param("task_instance", dict(days=9), 9, False, id="end_exactly"),
+            pytest.param("task_instance", dict(days=9, microseconds=1), 10, False, id="beyond_end"),
+            pytest.param("dag_run", dict(days=9, microseconds=1), 9, False, id="beyond_end_dr"),
+            pytest.param("dag_run", dict(days=9, microseconds=1), 10, True, id="beyond_end_dr_external"),
         ],
     )
     def test__cleanup_table(self, table_name, date_add_kwargs, expected_to_delete, external_trigger):
@@ -231,7 +234,7 @@ class TestDBCleanup:
         Verify that _cleanup_table actually deletes the rows it should.
 
         TaskInstance represents the "normal" case.  DagRun is the odd case where we want
-        to keep the last non-externally-triggered DagRun record even if if it should be
+        to keep the last non-externally-triggered DagRun record even if it should be
         deleted according to the provided timestamp.
 
         We also verify that the "on delete cascade" behavior is as expected.  Some tables
@@ -266,6 +269,34 @@ class TestDBCleanup:
             else:
                 raise Exception("unexpected")
 
+    @pytest.mark.parametrize(
+        "skip_archive, expected_archives",
+        [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
+    )
+    def test__skip_archive(self, skip_archive, expected_archives):
+        """
+        Verify that running cleanup_table with drops the archives when requested.
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        num_tis = 10
+        create_tis(
+            base_date=base_date,
+            num_tis=num_tis,
+        )
+        with create_session() as session:
+            clean_before_date = base_date.add(days=5)
+            _cleanup_table(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                session=session,
+                table_names=["dag_run"],
+                skip_archive=skip_archive,
+            )
+            model = config_dict["dag_run"].orm_model
+            assert len(session.query(model).all()) == 5
+            assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
+
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
@@ -284,7 +315,7 @@ class TestDBCleanup:
         for mod_name in mods:
             mod = import_module(mod_name)
 
-            for table_name, class_ in mod.__dict__.items():
+            for class_ in mod.__dict__.values():
                 if isinstance(class_, DeclarativeMeta):
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})
@@ -292,7 +323,6 @@ class TestDBCleanup:
             "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
-            "trigger",  # self-maintaining
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness

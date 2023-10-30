@@ -26,7 +26,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 from airflow.providers.microsoft.azure.operators.batch import AzureBatchOperator
-from airflow.utils import db
 
 TASK_ID = "MyDag"
 BATCH_POOL_ID = "MyPool"
@@ -40,11 +39,20 @@ FORMULA = """$curTime = time();
              $TargetDedicated = $isWorkingWeekdayHour ? 20:10;"""
 
 
+@pytest.fixture
+def mocked_batch_service_client():
+    with mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient") as m:
+        yield m
+
+
 class TestAzureBatchOperator:
     # set up the test environment
-    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
-    def setup_method(self, method, mock_batch, mock_hook):
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, mocked_batch_service_client, create_mock_connections):
+        # set up mocked Azure Batch client
+        self.batch_client = mock.MagicMock(name="FakeBatchServiceClient")
+        mocked_batch_service_client.return_value = self.batch_client
+
         # set up the test variable
         self.test_vm_conn_id = "test_azure_batch_vm2"
         self.test_cloud_conn_id = "test_azure_batch_cloud2"
@@ -59,22 +67,21 @@ class TestAzureBatchOperator:
         self.test_cloud_os_version = "test-version"
         self.test_node_agent_sku = "test-node-agent-sku"
 
-        # connect with vm configuration
-        db.merge_conn(
+        create_mock_connections(
+            # connect with vm configuration
             Connection(
                 conn_id=self.test_vm_conn_id,
                 conn_type="azure_batch",
                 extra=json.dumps({"account_url": self.test_account_url}),
-            )
-        )
-        # connect with cloud service
-        db.merge_conn(
+            ),
+            # connect with cloud service
             Connection(
                 conn_id=self.test_cloud_conn_id,
                 conn_type="azure_batch",
                 extra=json.dumps({"account_url": self.test_account_url}),
-            )
+            ),
         )
+
         self.operator = AzureBatchOperator(
             task_id=TASK_ID,
             batch_pool_id=BATCH_POOL_ID,
@@ -159,9 +166,6 @@ class TestAzureBatchOperator:
             target_dedicated_nodes=1,
             timeout=2,
         )
-        self.batch_client = mock_batch.return_value
-        self.mock_instance = mock_hook.return_value
-        assert self.batch_client == self.operator.hook.connection
 
     @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
     def test_execute_without_failures(self, wait_mock):
