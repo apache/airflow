@@ -25,9 +25,7 @@ import pinecone
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from pinecone.core.client.models import (
-        UpsertResponse,
-    )
+    from pinecone.core.client.models import UpsertResponse
 
 
 class PineconeHook(BaseHook):
