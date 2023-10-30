@@ -169,6 +169,13 @@
                 ]
             }
         },
+        "filesystems": {
+            "type": "array",
+            "description": "Filesystem module names",
+            "items": {
+                "type": "string"
+            }
+        },
         "transfers": {
             "type": "array",
             "items": {

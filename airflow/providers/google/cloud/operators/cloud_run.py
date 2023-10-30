@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.cloud.run_v2 import Job
 
@@ -248,6 +248,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
     :param job_name: Required. The name of the job to update.
     :param job: Required. The job descriptor containing the new configuration of the job to update.
         The name field will be replaced by job_name
+    :param overrides: Optional map of override values.
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param polling_period_seconds: Optional: Control the rate of the poll for the result of deferrable run.
         By default, the trigger will poll every 10 seconds.
@@ -270,6 +271,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         project_id: str,
         region: str,
         job_name: str,
+        overrides: dict[str, Any] | None = None,
         polling_period_seconds: float = 10,
         timeout_seconds: float | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -281,6 +283,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.region = region
         self.job_name = job_name
+        self.overrides = overrides
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.polling_period_seconds = polling_period_seconds
@@ -293,7 +296,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
         self.operation = hook.execute_job(
-            region=self.region, project_id=self.project_id, job_name=self.job_name
+            region=self.region, project_id=self.project_id, job_name=self.job_name, overrides=self.overrides
         )
 
         if not self.deferrable:
