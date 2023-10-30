@@ -374,7 +374,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
     def get_dag_detail(dag: DAG) -> dict:
         dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
         dag_detail = dag_schema.dump(dag_model)
-        return {k: v for k, v in dag_detail.items() if k in cols}
+        return {col: dag_detail[col] for col in cols}
 
     AirflowConsole().print_as(
         data=sorted(dagbag.dags.values(), key=operator.attrgetter("dag_id")),
