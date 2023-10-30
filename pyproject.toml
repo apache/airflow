@@ -183,5 +183,5 @@ exclude_also = [
     "if __name__ == .__main__.:",
     "@(abc\\.)?abstractmethod",
     "@(typing(_extensions)?\\.)?overload",
-    "if TYPE_CHECKING:"
+    "if (typing(_extensions)?\\.)?TYPE_CHECKING:"
 ]
