@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 import responses
 from botocore.awsrequest import AWSRequest
@@ -38,6 +40,14 @@ class TestFilesystem:
         fs = get_fs(conn_id=TEST_CONN)
 
         assert "s3" in fs.protocol
+
+    @patch("s3fs.S3FileSystem", autospec=True)
+    def test_get_s3fs_anonymous(self, s3fs):
+        from airflow.providers.amazon.aws.fs.s3 import get_fs
+
+        get_fs(conn_id=TEST_CONN)
+
+        assert s3fs.call_args.kwargs["anon"] is True
 
     @responses.activate
     def test_signer(self):
