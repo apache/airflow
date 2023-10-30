@@ -542,16 +542,18 @@ class TestCliDags:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
             dag_list = json.loads(out)
-        assert "dag_id" in dag_list[0]
-        assert "last_parsed_time" in dag_list[0]
-        assert "is_paused" not in dag_list[0]
+        for key in ["dag_id", "last_parsed_time"]:
+            assert key in dag_list[0]
+        for key in ["fileloc", "owners", "is_paused"]:
+            assert key not in dag_list[0]
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags_invalid_cols(self):
         args = self.parser.parse_args(["dags", "list", "--output", "json", "--columns", "dag_id,invalid_col"])
-        with pytest.raises(SystemExit) as e:
+        with contextlib.redirect_stderr(StringIO()) as temp_stderr:
             dag_command.dag_list_dags(args)
-        assert "The following are not valid columns: ['invalid_col']" in e.value.args[0]
+            out = temp_stderr.getvalue()
+        assert "The following are not valid columns: ['invalid_col']" in out
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_dags_prints_import_errors(self):

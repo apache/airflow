@@ -361,7 +361,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
         from rich import print as rich_print
 
         rich_print(
-            f"[red][bold]Error:[/bold] The following are not valid columns: {not_valid_cols}. Ignoring them "
+            f"[red][bold]Error:[/bold] Ignoring the following invalid columns: {not_valid_cols}.  "
             f"Possible columns: {list(dag_schema.fields.keys())}",
             file=sys.stderr,
         )
