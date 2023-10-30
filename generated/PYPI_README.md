@@ -164,8 +164,10 @@ Official Docker (container) images for Apache Airflow are described in [IMAGES.r
 
 ## Who uses Apache Airflow?
 
-More than 400 organizations are using Apache Airflow
+We know about around 500 organizations that are using Apache Airflow (but there are likely many more)
 [in the wild](https://github.com/apache/airflow/blob/main/INTHEWILD.md).
+
+If you use Airflow - feel free to make a PR to add your organisation to the list.
 
 
 ## Who maintains Apache Airflow?
