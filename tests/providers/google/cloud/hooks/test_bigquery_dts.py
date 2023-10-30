@@ -153,6 +153,7 @@ class TestAsyncBiqQueryDataTransferServiceHook:
     def hook(self):
         return AsyncBiqQueryDataTransferServiceHook()
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_get_transfer_run(self, mock_client, hook):
         await hook.get_transfer_run(

@@ -284,6 +284,14 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "need_serialized_dag: mark tests that require dags in serialized form to be present"
     )
+    config.addinivalue_line(
+        "markers",
+        "db_test: mark tests that require database to be present",
+    )
+    config.addinivalue_line(
+        "markers",
+        "non_db_test_override: you can mark individual tests with this marker to override the db_test marker",
+    )
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
 
 

@@ -314,6 +314,7 @@ def async_get_operation_result():
     return func
 
 
+@pytest.mark.db_test
 class TestGKEOperationTrigger:
     def test_serialize(self, operation_trigger):
         classpath, trigger_init_kwargs = operation_trigger.serialize()

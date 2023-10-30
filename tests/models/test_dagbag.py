@@ -50,6 +50,8 @@ from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 example_dags_folder = pathlib.Path(airflow.example_dags.__path__[0])  # type: ignore[attr-defined]
 
 
@@ -284,9 +286,14 @@ class TestDagBag:
 
     def test_process_file_invalid_param_check(self, tmp_path):
         """
-        test if an invalid param in the dag param can be identified
+        test if an invalid param in the dags can be identified
         """
-        invalid_dag_files = ["test_invalid_param.py"]
+        invalid_dag_files = [
+            "test_invalid_param.py",
+            "test_invalid_param2.py",
+            "test_invalid_param3.py",
+            "test_invalid_param4.py",
+        ]
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
 
         assert len(dagbag.import_errors) == 0
@@ -294,6 +301,22 @@ class TestDagBag:
             dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
         assert len(dagbag.import_errors) == len(invalid_dag_files)
         assert len(dagbag.dags) == 0
+
+    def test_process_file_valid_param_check(self, tmp_path):
+        """
+        test if valid params in the dags param can be validated (positive test)
+        """
+        valid_dag_files = [
+            "test_valid_param.py",
+            "test_valid_param2.py",
+        ]
+        dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
+
+        assert len(dagbag.import_errors) == 0
+        for file in valid_dag_files:
+            dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, file))
+        assert len(dagbag.import_errors) == 0
+        assert len(dagbag.dags) == len(valid_dag_files)
 
     @patch.object(DagModel, "get_current")
     def test_get_dag_without_refresh(self, mock_dagmodel):

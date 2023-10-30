@@ -56,6 +56,9 @@ from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
 TEST_TASK_ID = "time_sensor_check"

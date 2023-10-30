@@ -33,6 +33,8 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
+pytestmark = pytest.mark.db_test
+
 
 class PluginHook(BaseHook):
     ...

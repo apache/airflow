@@ -33,6 +33,8 @@ from tests.test_utils.api_connexion_utils import create_test_client
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="function", autouse=True)
 def initialize_one_dag():

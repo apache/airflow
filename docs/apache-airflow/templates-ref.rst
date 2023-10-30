@@ -148,6 +148,7 @@ Just like with ``var`` it's possible to fetch a connection by string  (e.g. ``{{
 
 Additionally, the ``extras`` field of a connection can be fetched as a Python Dictionary with the ``extra_dejson`` field, e.g.
 ``conn.my_aws_conn_id.extra_dejson.region_name`` would fetch ``region_name`` out of ``extras``.
+This way, defaults in ``extras`` can be provided as well (e.g. ``{{ conn.my_aws_conn_id.extra_dejson.get('region_name', 'Europe (Frankfurt)') }}``).
 
 Filters
 -------

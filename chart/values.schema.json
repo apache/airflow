@@ -2020,6 +2020,40 @@
                         ],
                         "additionalProperties": false
                     }
+                },
+                "volumeClaimTemplates": {
+                    "description": "Specify additional volume claim template for workers.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.PersistentVolumeClaimTemplate"
+                    },
+                    "examples": [
+                        {
+                            "name": "data-volume-1",
+                            "storageClassName": "storage-class-1",
+                            "accessModes": [
+                                "ReadWriteOnce"
+                            ],
+                            "resources": {
+                                "requests": {
+                                    "storage": "10Gi"
+                                }
+                            }
+                        },
+                        {
+                            "name": "data-volume-2",
+                            "storageClassName": "storage-class-2",
+                            "accessModes": [
+                                "ReadWriteOnce"
+                            ],
+                            "resources": {
+                                "requests": {
+                                    "storage": "20Gi"
+                                }
+                            }
+                        }
+                    ]
                 }
             }
         },
@@ -6241,6 +6275,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for redis pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -6931,6 +6973,14 @@
             "x-docsSection": "Airflow",
             "additionalProperties": false,
             "properties": {
+                "mountPath": {
+                    "description": "Where dags volume will be mounted. Works for both `persistence` and `gitSync`. If not specified, dags mount path will be set to `$AIRFLOW_HOME/dags`",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",

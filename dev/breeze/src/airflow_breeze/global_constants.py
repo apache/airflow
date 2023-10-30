@@ -68,7 +68,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
@@ -93,7 +93,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
 # - Innovations: Shot living releases with short support cycle - only until next Innovation/LTS release.
 # See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
 MYSQL_LTS_RELEASES: list[str] = []
-MYSQL_OLD_RELEASES = ["5.7", "8.0"]
+MYSQL_OLD_RELEASES = ["8.0"]
 MYSQL_INNOVATION_RELEASE = "8.1"
 ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
@@ -101,7 +101,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.3"
+PIP_VERSION = "23.3.1"
 
 # key used for generating providers index
 PROVIDERS_INDEX_KEY = "providers-index"
@@ -224,6 +224,44 @@ else:
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
 CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
+
+
+AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
+    "2.0.0": ["3.6", "3.7", "3.8"],
+    "2.0.1": ["3.6", "3.7", "3.8"],
+    "2.0.2": ["3.6", "3.7", "3.8"],
+    "2.1.0": ["3.6", "3.7", "3.8"],
+    "2.1.1": ["3.6", "3.7", "3.8"],
+    "2.1.2": ["3.6", "3.7", "3.8", "3.9"],
+    "2.1.3": ["3.6", "3.7", "3.8", "3.9"],
+    "2.1.4": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.0": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.1": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.2": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.3": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.4": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.5": ["3.6", "3.7", "3.8", "3.9"],
+    "2.3.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.4": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.2": ["3.7", "3.8", "3.9", "3.10", "3.11"],
+    "2.6.3": ["3.7", "3.8", "3.9", "3.10", "3.11"],
+    "2.7.0": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.1": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.2": ["3.8", "3.9", "3.10", "3.11"],
+}
 
 DB_RESET = False
 START_AIRFLOW = "false"

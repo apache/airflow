@@ -20,6 +20,8 @@ from __future__ import annotations
 from io import StringIO
 from unittest import mock
 
+import pytest
+
 from airflow.providers.ftp.hooks import ftp as fh
 
 
@@ -139,6 +141,7 @@ class TestFTPHook:
             assert msg == "Test"
 
 
+@pytest.mark.db_test
 class TestIntegrationFTPHook:
     def setup_method(self):
         from airflow.models import Connection

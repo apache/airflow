@@ -47,15 +47,15 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)           | Stable version (2.7.1) |
-|-------------|------------------------------|------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11   |
-| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
-| Kubernetes  | 1.24, 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27 |
-| PostgreSQL  | 11, 12, 13, 14, 15, 16       | 11, 12, 13, 14, 15     |
-| MySQL       | 5.7, 8.0, 8.1                | 5.7, 8.0               |
-| SQLite      | 3.15.0+                      | 3.15.0+                |
-| MSSQL       | 2017(\*\*), 2019(\*\*)       | 2017(\*\*), 2019(\*\*) |
+|             | Main version (dev)     | Stable version (2.7.1) |
+|-------------|------------------------|------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11   |
+| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
+| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27 |
+| PostgreSQL  | 11, 12, 13, 14, 15, 16 | 11, 12, 13, 14, 15     |
+| MySQL       | 8.0, 8.1               | 5.7, 8.0               |
+| SQLite      | 3.15.0+                | 3.15.0+                |
+| MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*) |
 
 \* Experimental
 
@@ -154,16 +154,21 @@ and our official source code releases:
 Following the ASF rules, the source packages released must be sufficient for a user to build and test the
 release provided they have access to the appropriate platform and tools.
 
+
 ## Contributing
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
 
 Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
 
+
 ## Who uses Apache Airflow?
 
-More than 400 organizations are using Apache Airflow
+We know about around 500 organizations that are using Apache Airflow (but there are likely many more)
 [in the wild](https://github.com/apache/airflow/blob/main/INTHEWILD.md).
+
+If you use Airflow - feel free to make a PR to add your organisation to the list.
+
 
 ## Who maintains Apache Airflow?
 

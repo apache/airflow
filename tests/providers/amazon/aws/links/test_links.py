@@ -86,6 +86,7 @@ AWS_LINKS = [
 ]
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 class TestAwsLinks:
     @pytest.mark.parametrize("extra_link_class", map(itemgetter(0), AWS_LINKS), ids=_full_qualname)

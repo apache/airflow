@@ -23,6 +23,8 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
+pytestmark = pytest.mark.db_test
+
 
 class TestBaseAzureHook:
     @pytest.mark.parametrize(

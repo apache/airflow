@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
+
+pytestmark = pytest.mark.db_test
+
 
 MOCK_SEARCH_RETURN = {"status": "test"}
 

@@ -16,6 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-amazon
 ------------------------------------------------------
@@ -28,14 +29,38 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.10.0
+......
+
+Latest change: 2023-10-28
+
+=================================================================================================  ===========  =============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`04e2fbd92b <https://github.com/apache/airflow/commit/04e2fbd92bb6cb2b5abf6f16786b9800a0d49808>`_  2023-10-27   ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+`86640d166c <https://github.com/apache/airflow/commit/86640d166c8d5b3c840bf98e5c6db0d91392fde3>`_  2023-10-26   ``Add Http to s3 operator (#35176)``
+`5f4d2b5dee <https://github.com/apache/airflow/commit/5f4d2b5dee2e98a05124865c6fa855bc26d0af26>`_  2023-10-25   ``Add AWS ECS Executor (#34381)``
+`95980a9bc5 <https://github.com/apache/airflow/commit/95980a9bc50c1accd34166ba608bbe2b4ebd6d52>`_  2023-10-25   ``Enable encryption in S3 download_files() hook. (#35037)``
+`3721c9a441 <https://github.com/apache/airflow/commit/3721c9a4413d3f5002b46589beeff490827cd9cb>`_  2023-10-24   ``Use base aws classes in Amazon S3 Glacier Operators/Sensors (#35108)``
+`da456065df <https://github.com/apache/airflow/commit/da456065dff1c55a1cce61299cbfdb91d3583eed>`_  2023-10-24   ``Use base aws classes in Amazon Athena Operators/Sensors/Triggers (#35133)``
+`bc4a22c6bd <https://github.com/apache/airflow/commit/bc4a22c6bd8096e7b62147031035cb14896fe934>`_  2023-10-23   ``Use base aws classes in Amazon AppFlow Operators (#35082)``
+`78187ca863 <https://github.com/apache/airflow/commit/78187ca86361b96a7c9565da130d9b9b42e93509>`_  2023-10-23   ``Expose catalog parameter in 'AthenaOpeartor' (#35103)``
+`f816237196 <https://github.com/apache/airflow/commit/f816237196f69b70a9b628858148dcde91febf5b>`_  2023-10-20   ``Refactor string splitting (#34185)``
+`a66437222b <https://github.com/apache/airflow/commit/a66437222b5f8250fd9dfd26925c8ba9017eebb2>`_  2023-10-20   ``Use base classes for AWS Lambda Operators/Sensors (#34890)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+=================================================================================================  ===========  =============================================================================
+
 8.9.0
 .....
 
-Latest change: 2023-10-16
+Latest change: 2023-10-18
 
 =================================================================================================  ===========  ===========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================
+`39e611b43b <https://github.com/apache/airflow/commit/39e611b43b06df0582f0c69de824c4657c3423eb>`_  2023-10-18   ``Prepare docs 2nd wave of Providers in October 2023 (#35020)``
 `4a37777567 <https://github.com/apache/airflow/commit/4a377775672b7148e8935e20844e7a0ba491bdd8>`_  2023-10-16   ``Glue 'DataBrew' operator (#34807)``
 `b392f66c42 <https://github.com/apache/airflow/commit/b392f66c424fc3b8cbc957e02c67847409551cab>`_  2023-10-16   ``Set 'EcsRunTaskOperator' default waiter duration to 70 days (#34928)``
 `b1196460db <https://github.com/apache/airflow/commit/b1196460db1a21b2c6c3ef2e841fc6d0c22afe97>`_  2023-10-16   ``Add 'check_interval' and 'max_attempts' as parameter of 'DynamoDBToS3Operator' (#34972)``

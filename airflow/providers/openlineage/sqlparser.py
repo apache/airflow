@@ -20,7 +20,15 @@ from typing import TYPE_CHECKING, Callable
 
 import sqlparse
 from attrs import define
-from openlineage.client.facet import BaseFacet, ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
+from openlineage.client.facet import (
+    BaseFacet,
+    ColumnLineageDatasetFacet,
+    ColumnLineageDatasetFacetFieldsAdditional,
+    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
+    ExtractionError,
+    ExtractionErrorRunFacet,
+    SqlJobFacet,
+)
 from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -143,6 +151,47 @@ class SQLParser:
             else None,
         )
 
+    def attach_column_lineage(
+        self, datasets: list[Dataset], database: str | None, parse_result: SqlMeta
+    ) -> None:
+        """
+        Attaches column lineage facet to the list of datasets.
+
+        Note that currently each dataset has the same column lineage information set.
+        This would be a matter of change after OpenLineage SQL Parser improvements.
+        """
+        if not len(parse_result.column_lineage):
+            return
+        for dataset in datasets:
+            dataset.facets["columnLineage"] = ColumnLineageDatasetFacet(
+                fields={
+                    column_lineage.descendant.name: ColumnLineageDatasetFacetFieldsAdditional(
+                        inputFields=[
+                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                                namespace=dataset.namespace,
+                                name=".".join(
+                                    filter(
+                                        None,
+                                        (
+                                            column_meta.origin.database or database,
+                                            column_meta.origin.schema or self.default_schema,
+                                            column_meta.origin.name,
+                                        ),
+                                    )
+                                )
+                                if column_meta.origin
+                                else "",
+                                field=column_meta.name,
+                            )
+                            for column_meta in column_lineage.lineage
+                        ],
+                        transformationType="",
+                        transformationDescription="",
+                    )
+                    for column_lineage in parse_result.column_lineage
+                }
+            )
+
     def generate_openlineage_metadata_from_sql(
         self,
         sql: list[str] | str,
@@ -197,6 +246,8 @@ class SQLParser:
             database_info=database_info,
             sqlalchemy_engine=sqlalchemy_engine,
         )
+
+        self.attach_column_lineage(outputs, database or database_info.database, parse_result)
 
         return OperatorLineage(
             inputs=inputs,

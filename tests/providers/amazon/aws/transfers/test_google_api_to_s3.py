@@ -27,6 +27,8 @@ from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestGoogleApiToS3:
     def setup_method(self):
