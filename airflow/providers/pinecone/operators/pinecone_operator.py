@@ -66,9 +66,7 @@ class PineconeIngestOperator(BaseOperator):
     @cached_property
     def hook(self) -> PineconeHook:
         """Return an instance of the PineconeHook."""
-        return PineconeHook(
-            conn_id=self.conn_id,
-        )
+        return PineconeHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> None:
         """Ingest data into Pinecone using the PineconeHook."""
