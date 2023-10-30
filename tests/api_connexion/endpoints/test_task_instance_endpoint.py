@@ -2093,7 +2093,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 200
-        print(response.status_code)
         assert response.json == {
             "dag_id": "example_python_operator",
             "dag_run_id": "TEST_DAG_RUN_ID",
@@ -2193,6 +2192,47 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == code
         assert response.json["detail"] == error
+
+    def test_should_raise_400_for_unknown_fields(self, session):
+        self.create_task_instances(session)
+        response = self.client.patch(
+            self.ENDPOINT_URL,
+            environ_overrides={"REMOTE_USER": "test"},
+            json={
+                "dryrun": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 400
+        assert response.json["detail"] == "{'dryrun': ['Unknown field.']}"
+
+    def test_should_raise_404_for_non_existent_dag(self):
+        response = self.client.patch(
+            "/api/v1/dags/non-existent-dag/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={
+                "dry_run": False,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 404
+        assert response.json["title"] == "DAG not found"
+        assert response.json["detail"] == "DAG 'non-existent-dag' not found"
+
+    def test_should_raise_404_for_non_existent_task_in_dag(self):
+        response = self.client.patch(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/non_existent_task",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={
+                "dry_run": False,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 404
+        assert response.json["title"] == "Task not found"
+        assert (
+            response.json["detail"] == "Task 'non_existent_task' not found in DAG 'example_python_operator'"
+        )
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.patch(
@@ -2372,6 +2412,33 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
             }
+
+    def test_should_respond_200_when_note_is_empty(self, session):
+        tis = self.create_task_instances(session)
+        for ti in tis:
+            ti.task_instance_note = None
+            session.add(ti)
+        session.commit()
+        new_note_value = "My super cool TaskInstance note."
+        response = self.client.patch(
+            "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+            "print_the_context/setNote",
+            json={"note": new_note_value},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json["note"] == new_note_value
+
+    def test_should_raise_400_for_unknown_fields(self, session):
+        self.create_task_instances(session)
+        response = self.client.patch(
+            "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+            "print_the_context/setNote",
+            json={"note": "a valid field", "not": "an unknown field"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json["detail"] == "{'not': ['Unknown field.']}"
 
     def test_should_raises_401_unauthenticated(self):
         for map_index in ["", "/0"]:
