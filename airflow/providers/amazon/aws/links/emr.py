@@ -149,9 +149,9 @@ class EmrServerlessS3LogsLink(BaseAwsLink):
 
     name = "S3 Logs"
     key = "emr_serverless_s3_logs"
-    format_str = (
-        BASE_AWS_CONSOLE_LINK
-        + "/s3/buckets/{bucket_name}?region={region_name}&prefix={prefix}/applications/{application_id}/jobs/{job_run_id}/"  # noqa: E501
+    format_str = BASE_AWS_CONSOLE_LINK + (
+        "/s3/buckets/{bucket_name}?region={region_name}"
+        "&prefix={prefix}/applications/{application_id}/jobs/{job_run_id}/"
     )
 
     def format_link(self, **kwargs) -> str:
