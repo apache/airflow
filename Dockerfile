@@ -1389,9 +1389,11 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
 # an incorrect architecture.
 ARG TARGETARCH
+# Value to be able to easily change cache id and therefore use a bare new cache
+ARG PIP_CACHE_EPOCH
 
 # hadolint ignore=SC2086, SC2010
-RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$TARGETARCH,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
+RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
   if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
@@ -1410,7 +1412,7 @@ RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$TARGETARCH,target=$AIRFLOW_USER_HO
 # In case there is a requirements.txt file in "docker-context-files" it will be installed
 # during the build additionally to whatever has been installed so far. It is recommended that
 # the requirements.txt contains only dependencies with == version specification
-RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$TARGETARCH,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
+RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
     if [[ -f /docker-context-files/requirements.txt ]]; then \
         pip install --cache-dir $AIRFLOW_USER_HOME_DIR/.cache/pip --user -r /docker-context-files/requirements.txt; \
     fi
