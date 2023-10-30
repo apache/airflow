@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 class PineconeIngestOperator(BaseOperator):
     """
-    Airflow Operator to ingest vector embeddings into Pinecone.
+    Ingest vector embeddings into Pinecone.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
