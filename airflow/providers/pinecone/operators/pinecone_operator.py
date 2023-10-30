@@ -43,7 +43,7 @@ class PineconeIngestOperator(BaseOperator):
     :param batch_size: The number of vectors to upsert in each batch.
     """
 
-    template_fields: Sequence[str] = ("input_vectors",)
+    template_fields: Sequence[str] = ("index_name", "input_vectors", "namespace")
 
     def __init__(
         self,
