@@ -26,6 +26,8 @@ from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models.baseoperator import BaseOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.mark.parametrize(["impersonation"], (("nobody",), (None,)))
 @mock.patch("subprocess.check_call")

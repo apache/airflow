@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import collections.abc
 import copy
 import functools
@@ -226,7 +225,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
         return CronDataIntervalTimetable(interval, timezone)
-    raise ValueError(f"{interval!r} is not a valid schedule_interval.")
+    raise ValueError(f"{interval!r} is not a valid interval.")
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -471,7 +470,7 @@ class DAG(LoggingMixin):
         if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
             raise AirflowException(f"tag cannot be longer than {TAG_MAX_LEN} characters")
 
-        self.owner_links = owner_links if owner_links else {}
+        self.owner_links = owner_links or {}
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         if default_args and not isinstance(default_args, dict):
@@ -727,7 +726,7 @@ class DAG(LoggingMixin):
                 f"inconsistent schedule: timetable {self.timetable.summary!r} "
                 f"does not match schedule_interval {self.schedule_interval!r}",
             )
-        self.params.validate()
+        self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
 

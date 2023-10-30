@@ -54,7 +54,6 @@ def delete_from_dict(k8s_client, data, body, namespace, verbose=False, **kwargs)
             except client.rest.ApiException as api_exception:
                 api_exceptions.append(api_exception)
     else:
-
         try:
             _delete_from_yaml_single_item(
                 k8s_client=k8s_client,
@@ -138,7 +137,7 @@ def _delete_from_yaml_single_item(
     else:
         resp = getattr(k8s_api, f"delete_{kind}")(name=name, body=body, **kwargs)
     if verbose:
-        print(f"{kind} deleted. status='{str(resp.status)}'")
+        print(f"{kind} deleted. status='{resp.status}'")
     return resp
 
 

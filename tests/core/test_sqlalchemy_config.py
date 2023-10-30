@@ -28,6 +28,8 @@ from tests.test_utils.config import conf_vars
 
 SQL_ALCHEMY_CONNECT_ARGS = {"test": 43503, "dict": {"is": 1, "supported": "too"}}
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSqlAlchemySettings:
     def setup_method(self):

@@ -14,6 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains Azure Key Vault Backend.
+
+.. spelling:word-list::
+
+    Entra
+"""
+
 from __future__ import annotations
 
 import logging
@@ -23,7 +31,7 @@ import warnings
 from functools import cached_property
 
 from azure.core.exceptions import ResourceNotFoundError
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -72,6 +80,15 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         If set to None (null), requests for configurations will not be sent to Azure Key Vault
     :param vault_url: The URL of an Azure Key Vault to use
     :param sep: separator used to concatenate secret_prefix and secret_id. Default: "-"
+    :param tenant_id: The tenant id of an Azure Key Vault to use.
+        If not given, it falls back to ``DefaultAzureCredential``
+    :param client_id: The client id of an Azure Key Vault to use.
+        If not given, it falls back to ``DefaultAzureCredential``
+    :param managed_identity_client_id: The client ID of a user-assigned managed identity.
+        If provided with `workload_identity_tenant_id`, they'll pass to ``DefaultAzureCredential``.
+    :param workload_identity_tenant_id: ID of the application's Microsoft Entra tenant.
+        Also called its "directory" ID.
+        If provided with `managed_identity_client_id`, they'll pass to ``DefaultAzureCredential``.
     """
 
     def __init__(
@@ -81,6 +98,12 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         config_prefix: str = "airflow-config",
         vault_url: str = "",
         sep: str = "-",
+        *,
+        tenant_id: str = "",
+        client_id: str = "",
+        client_secret: str = "",
+        managed_identity_client_id: str = "",
+        workload_identity_tenant_id: str = "",
         **kwargs,
     ) -> None:
         super().__init__()
@@ -105,12 +128,28 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
             logger.setLevel(logging.WARNING)
 
         self.sep = sep
+        self.tenant_id = tenant_id
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.managed_identity_client_id = managed_identity_client_id
+        self.workload_identity_tenant_id = workload_identity_tenant_id
         self.kwargs = kwargs
 
     @cached_property
     def client(self) -> SecretClient:
         """Create a Azure Key Vault client."""
-        credential = DefaultAzureCredential()
+        credential: ClientSecretCredential | DefaultAzureCredential
+        if all([self.tenant_id, self.client_id, self.client_secret]):
+            credential = ClientSecretCredential(self.tenant_id, self.client_id, self.client_secret)
+        else:
+            if self.managed_identity_client_id and self.workload_identity_tenant_id:
+                credential = DefaultAzureCredential(
+                    managed_identity_client_id=self.managed_identity_client_id,
+                    workload_identity_tenant_id=self.workload_identity_tenant_id,
+                    additionally_allowed_tenants=[self.workload_identity_tenant_id],
+                )
+            else:
+                credential = DefaultAzureCredential()
         client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
         return client
 

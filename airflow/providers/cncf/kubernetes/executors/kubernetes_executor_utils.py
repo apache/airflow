@@ -101,7 +101,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.kube_config = kube_config
 
     def run(self) -> None:
-        """Performs watching."""
+        """Perform watching."""
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
@@ -302,7 +302,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.kube_watchers = self._make_kube_watchers()
 
     def run_pod_async(self, pod: k8s.V1Pod, **kwargs):
-        """Runs POD asynchronously."""
+        """Run POD asynchronously."""
         sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
@@ -407,7 +407,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.log.debug("Kubernetes Job created!")
 
     def delete_pod(self, pod_name: str, namespace: str) -> None:
-        """Deletes Pod from a namespace. Does not raise if it does not exist."""
+        """Delete Pod from a namespace; does not raise if it does not exist."""
         try:
             self.log.debug("Deleting pod %s in namespace %s", pod_name, namespace)
             self.kube_client.delete_namespaced_pod(
@@ -435,7 +435,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def sync(self) -> None:
         """
-        Checks the status of all currently running kubernetes jobs.
+        Check the status of all currently running kubernetes jobs.
 
         If a job is completed, its status is placed in the result queue to be sent back to the scheduler.
         """

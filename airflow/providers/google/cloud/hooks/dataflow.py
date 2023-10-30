@@ -202,7 +202,6 @@ class _DataflowJobsController(LoggingMixin):
         wait_until_finished: bool | None = None,
         expected_terminal_state: str | None = None,
     ) -> None:
-
         super().__init__()
         self._dataflow = dataflow
         self._project_number = project_number
@@ -426,7 +425,7 @@ class _DataflowJobsController(LoggingMixin):
         if current_state in DataflowJobStatus.AWAITING_STATES:
             return self._wait_until_finished is False
 
-        self.log.debug("Current job: %s", str(job))
+        self.log.debug("Current job: %s", job)
         raise Exception(
             f"Google Cloud Dataflow job {job['name']} is in an unexpected terminal state: {current_state}, "
             f"expected terminal state: {self._expected_terminal_state}"
@@ -896,7 +895,7 @@ class DataflowHook(GoogleBaseHook):
             )
 
         if append_job_name:
-            safe_job_name = base_job_name + "-" + str(uuid.uuid4())[:8]
+            safe_job_name = f"{base_job_name}-{uuid.uuid4()!s:.8}"
         else:
             safe_job_name = base_job_name
 

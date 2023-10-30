@@ -54,7 +54,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)
 
     delete_dataset = BigQueryDeleteDatasetOperator(

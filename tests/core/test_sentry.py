@@ -56,7 +56,7 @@ TASK_DATA = {
     "duration": None,
 }
 
-CRUMB_DATE = datetime.datetime(2019, 5, 15)
+CRUMB_DATE = datetime.datetime(2019, 5, 15, tzinfo=datetime.timezone.utc)
 CRUMB = {
     "timestamp": CRUMB_DATE,
     "type": "default",
@@ -141,6 +141,7 @@ class TestSentryHook:
 
         importlib.reload(sentry)
 
+    @pytest.mark.db_test
     def test_add_tagging(self, sentry, task_instance):
         """
         Test adding tags.
@@ -150,6 +151,7 @@ class TestSentryHook:
             for key, value in scope._tags.items():
                 assert TEST_SCOPE[key] == value
 
+    @pytest.mark.db_test
     @time_machine.travel(CRUMB_DATE)
     def test_add_breadcrumbs(self, sentry, task_instance):
         """

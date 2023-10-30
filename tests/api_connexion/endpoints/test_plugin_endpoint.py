@@ -16,13 +16,92 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+import inspect
 
+import pytest
+from flask import Blueprint
+from flask_appbuilder import BaseView
+
+from airflow.hooks.base import BaseHook
+from airflow.models.baseoperator import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
 from airflow.security import permissions
+from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.timetables.base import Timetable
+from airflow.utils.module_loading import qualname
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
+
+pytestmark = pytest.mark.db_test
+
+
+class PluginHook(BaseHook):
+    ...
+
+
+def plugin_macro():
+    ...
+
+
+class MockOperatorLink(BaseOperatorLink):
+    name = "mock_operator_link"
+
+    def get_link(self, operator, *, ti_key) -> str:
+        return "mock_operator_link"
+
+
+bp = Blueprint("mock_blueprint", __name__, url_prefix="/mock_blueprint")
+
+
+class MockView(BaseView):
+    ...
+
+
+mockview = MockView()
+
+appbuilder_menu_items = {
+    "name": "mock_plugin",
+    "href": "https://example.com",
+}
+
+
+class CustomTIDep(BaseTIDep):
+    pass
+
+
+ti_dep = CustomTIDep()
+
+
+class CustomTimetable(Timetable):
+    def infer_manual_data_interval(self, *, run_after):
+        pass
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval,
+        restriction,
+    ):
+        pass
+
+
+class MyCustomListener:
+    pass
+
+
+class MockPlugin(AirflowPlugin):
+    name = "mock_plugin"
+    flask_blueprints = [bp]
+    appbuilder_views = [{"view": mockview}]
+    appbuilder_menu_items = [appbuilder_menu_items]
+    global_operator_extra_links = [MockOperatorLink()]
+    operator_extra_links = [MockOperatorLink()]
+    hooks = [PluginHook]
+    macros = [plugin_macro]
+    ti_deps = [ti_dep]
+    timetables = [CustomTimetable]
+    listeners = [pytest, MyCustomListener()]  # using pytest here because we need a module(just for test)
 
 
 @pytest.fixture(scope="module")
@@ -54,7 +133,7 @@ class TestPluginsEndpoint:
 
 class TestGetPlugins(TestPluginsEndpoint):
     def test_get_plugins_return_200(self):
-        mock_plugin = AirflowPlugin()
+        mock_plugin = MockPlugin()
         mock_plugin.name = "test_plugin"
         with mock_plugin_manager(plugins=[mock_plugin]):
             response = self.client.get("api/v1/plugins", environ_overrides={"REMOTE_USER": "test"})
@@ -62,16 +141,24 @@ class TestGetPlugins(TestPluginsEndpoint):
         assert response.json == {
             "plugins": [
                 {
-                    "appbuilder_menu_items": [],
-                    "appbuilder_views": [],
+                    "appbuilder_menu_items": [appbuilder_menu_items],
+                    "appbuilder_views": [{"view": qualname(MockView)}],
                     "executors": [],
-                    "flask_blueprints": [],
-                    "global_operator_extra_links": [],
-                    "hooks": [],
-                    "macros": [],
-                    "operator_extra_links": [],
+                    "flask_blueprints": [
+                        f"<{qualname(bp.__class__)}: name={bp.name!r} import_name={bp.import_name!r}>"
+                    ],
+                    "global_operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
+                    "hooks": [qualname(PluginHook)],
+                    "macros": [qualname(plugin_macro)],
+                    "operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
                     "source": None,
                     "name": "test_plugin",
+                    "timetables": [qualname(CustomTimetable)],
+                    "ti_deps": [str(ti_dep)],
+                    "listeners": [
+                        d.__name__ if inspect.ismodule(d) else qualname(d)
+                        for d in [pytest, MyCustomListener()]
+                    ],
                 }
             ],
             "total_entries": 1,

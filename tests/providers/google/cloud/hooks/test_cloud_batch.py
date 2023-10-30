@@ -27,6 +27,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchAsyncHook, CloudBatchHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
+pytestmark = pytest.mark.db_test
+
 
 class TestCloudBathHook:
     def dummy_get_credentials(self):
@@ -120,7 +122,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
     def test_list_jobs(self, mock_batch_service_client, cloud_batch_hook):
-
         number_of_jobs = 3
         region = "us-central1"
         project_id = "test_project_id"
@@ -147,7 +148,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
     def test_list_jobs_with_limit(self, mock_batch_service_client, cloud_batch_hook):
-
         number_of_jobs = 3
         limit = 2
         region = "us-central1"
@@ -171,7 +171,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
     def test_list_jobs_with_limit_zero(self, mock_batch_service_client, cloud_batch_hook):
-
         number_of_jobs = 3
         limit = 0
         region = "us-central1"
@@ -193,7 +192,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
     def test_list_jobs_with_limit_greater_then_range(self, mock_batch_service_client, cloud_batch_hook):
-
         number_of_jobs = 3
         limit = 5
         region = "us-central1"
@@ -217,7 +215,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
     def test_list_jobs_with_limit_less_than_zero(self, mock_batch_service_client, cloud_batch_hook):
-
         number_of_jobs = 3
         limit = -1
         region = "us-central1"
@@ -236,7 +233,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
     def test_list_tasks_with_limit(self, mock_batch_service_client, cloud_batch_hook):
-
         number_of_tasks = 3
         limit = 2
         region = "us-central1"
@@ -261,7 +257,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
     def test_list_tasks_with_limit_greater_then_range(self, mock_batch_service_client, cloud_batch_hook):
-
         number_of_tasks = 3
         limit = 5
         region = "us-central1"
@@ -286,7 +281,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_batch.BatchServiceClient")
     def test_list_tasks_with_limit_less_than_zero(self, mock_batch_service_client, cloud_batch_hook):
-
         number_of_tasks = 3
         limit = -1
         region = "us-central1"

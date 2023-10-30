@@ -41,6 +41,7 @@ pytest.PROJECT_ID = "test-project"
 pytest.JOB_ID = "test-job-id"
 
 
+@pytest.mark.db_test
 class TestMLEngineHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
@@ -1060,7 +1061,7 @@ async def test_async_get_job_status_should_execute_successfully(mocked_get):
         timer=TimerNoop(),
         traces=[],
         loop=mock.Mock(),
-        session=session,
+        session=None,
     )
     mocked_get.return_value._headers = {"Content-Type": "application/json;charset=cp1251"}
     mocked_get.return_value._body = b'{"state": "SUCCEEDED"}'
@@ -1083,7 +1084,7 @@ async def test_async_get_job_status_still_running_should_execute_successfully(mo
         timer=TimerNoop(),
         traces=[],
         loop=mock.Mock(),
-        session=session,
+        session=None,
     )
     mocked_get.return_value._headers = {"Content-Type": "application/json;charset=cp1251"}
     mocked_get.return_value._body = b'{"state": "RUNNING"}'

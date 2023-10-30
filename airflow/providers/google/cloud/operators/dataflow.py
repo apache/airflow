@@ -899,7 +899,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         job_body = self.body.get("launch_parameter") or self.body.get("launchParameter")
         job_name = job_body.get("jobName")
         if job_name:
-            job_name += f"-{str(uuid.uuid4())[:8]}"
+            job_name += f"-{uuid.uuid4()!s:.8}"
             job_body["jobName"] = job_name
             self.log.info("Job name was changed to %s", job_name)
 

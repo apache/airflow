@@ -39,6 +39,8 @@ ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir, os.pardir)
 )
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_session():
@@ -369,7 +371,6 @@ class TestLineageApiExperimental(TestBase):
 
 
 class TestPoolApiExperimental(TestBase):
-
     USER_POOL_COUNT = 2
     TOTAL_POOL_COUNT = USER_POOL_COUNT + 1  # including default_pool
 

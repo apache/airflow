@@ -61,7 +61,7 @@ class TestWorker:
             values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     def test_should_add_extra_containers(self):
@@ -456,22 +456,29 @@ class TestWorker:
         assert livenessprobe is None
 
     @pytest.mark.parametrize(
-        "log_persistence_values, expected_volume",
+        "log_values, expected_volume",
         [
-            ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
+            ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
+            ),
+            (
+                {"persistence": {"enabled": True}},
+                {"persistentVolumeClaim": {"claimName": "release-name-logs"}},
+            ),
+            (
+                {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
         ],
     )
-    def test_logs_persistence_changes_volume(self, log_persistence_values, expected_volume):
+    def test_logs_persistence_changes_volume(self, log_values, expected_volume):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
                 "workers": {"persistence": {"enabled": False}},
-                "logs": {"persistence": log_persistence_values},
+                "logs": log_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -644,6 +651,71 @@ class TestWorker:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    @pytest.mark.parametrize(
+        "evictionStr, evictionBool",
+        [("true", True), ("false", False)],
+    )
+    def test_safetoevict_annotations(self, evictionStr, evictionBool):
+        docs = render_chart(
+            values={"workers": {"safeToEvict": evictionBool}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert (
+            jmespath.search("spec.template.metadata.annotations", docs[0])[
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == evictionStr
+        )
+
+    def test_should_add_extra_volume_claim_templates(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "test-volume-airflow-1"},
+                            "spec": {
+                                "storageClassName": "storage-class-1",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "10Gi"}},
+                            },
+                        },
+                        {
+                            "metadata": {"name": "test-volume-airflow-2"},
+                            "spec": {
+                                "storageClassName": "storage-class-2",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "20Gi"}},
+                            },
+                        },
+                    ]
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "test-volume-airflow-1" == jmespath.search(
+            "spec.volumeClaimTemplates[1].metadata.name", docs[0]
+        )
+        assert "test-volume-airflow-2" == jmespath.search(
+            "spec.volumeClaimTemplates[2].metadata.name", docs[0]
+        )
+        assert "storage-class-1" == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.storageClassName", docs[0]
+        )
+        assert "storage-class-2" == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.storageClassName", docs[0]
+        )
+        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[1].spec.accessModes", docs[0])
+        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[2].spec.accessModes", docs[0])
+        assert "10Gi" == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.resources.requests.storage", docs[0]
+        )
+        assert "20Gi" == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]
+        )
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
@@ -716,7 +788,6 @@ class TestWorkerKedaAutoScaler:
         ],
     )
     def test_should_use_keda_query(self, query, executor, expected_query):
-
         docs = render_chart(
             values={
                 "executor": executor,
@@ -825,7 +896,7 @@ class TestWorkerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "workers": {

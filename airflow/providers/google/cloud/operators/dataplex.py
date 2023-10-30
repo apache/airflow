@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
@@ -165,7 +165,7 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
                 )
                 if task["state"] != "CREATING":
                     break
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
 
         return Task.to_dict(task)
 
@@ -534,7 +534,7 @@ class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
                 )
                 if lake["state"] != "CREATING":
                     break
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
         DataplexLakeLink.persist(
             context=context,
             task_instance=self,
@@ -583,7 +583,6 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -833,7 +832,6 @@ class DataplexDeleteDataQualityScanOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -925,7 +923,6 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -1053,10 +1050,10 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
     :param fail_on_dq_failure: If set to true and not all Data Quality scan rules have been passed,
         an exception is thrown. If set to false and not all Data Quality scan rules have been passed,
         execution will finish with success.
-    :param wait_for_result: Flag indicating whether to wait for the result of a job execution
+    :param wait_for_results: Flag indicating whether to wait for the result of a job execution
         or to return the job in its current state.
     :param result_timeout: Value in seconds for which operator will wait for the Data Quality scan result
-        when the flag `wait_for_result = True`.
+        when the flag `wait_for_results = True`.
         Throws exception if there is no result found after specified amount of seconds.
     :param polling_interval_seconds: time in seconds between polling for job completion.
         The value is considered only when running in deferrable mode. Must be greater than 0.

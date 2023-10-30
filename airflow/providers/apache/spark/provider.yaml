@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 4.3.0
+  - 4.2.0
   - 4.1.5
   - 4.1.4
   - 4.1.3
@@ -46,7 +48,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - pyspark
 
 integrations:

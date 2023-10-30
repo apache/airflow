@@ -11,6 +11,7 @@ actionCard
 Acyclic
 acyclic
 AddressesType
+adf
 adhoc
 adls
 adobjects
@@ -21,6 +22,7 @@ AgentKey
 aio
 aiobotocore
 AioSession
+aiplatform
 Airbnb
 airbnb
 Airbyte
@@ -86,6 +88,7 @@ asia
 assertEqualIgnoreMultipleSpaces
 assigment
 ast
+astroid
 Async
 async
 AsyncResult
@@ -94,6 +97,7 @@ Atlassian
 atlassian
 attr
 attrs
+au
 Auth
 auth
 authenticator
@@ -118,6 +122,7 @@ Avro
 avro
 aws
 awsbatch
+awslogs
 Azkaban
 Azri
 backcompat
@@ -194,6 +199,7 @@ burstable
 bytestring
 cacert
 callables
+camelCase
 Cancelled
 cancelled
 carbonite
@@ -262,6 +268,7 @@ cnt
 codebase
 Codecov
 codecov
+codepoints
 Colour
 colour
 colours
@@ -503,6 +510,7 @@ Dsn
 dsn
 dttm
 dtypes
+du
 durations
 dylib
 Dynamodb
@@ -510,6 +518,7 @@ dynamodb
 dynload
 ec
 ecb
+ecs
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -580,6 +589,7 @@ Fernet
 fernet
 fetchmany
 fetchone
+FieldMask
 Filebeat
 filehandle
 fileloc
@@ -610,6 +620,7 @@ fmt
 fn
 fo
 followsa
+forecasted
 formatter
 formatters
 Formaturas
@@ -625,6 +636,7 @@ Fundera
 ga
 Gantt
 gantt
+gapic
 gbq
 gcc
 gcloud
@@ -789,6 +801,7 @@ Investorise
 io
 ip
 iPython
+irreproducible
 IRSA
 isfile
 ish
@@ -810,6 +823,7 @@ jdbc
 jdk
 jenkins
 JenkinsRequest
+Jetson
 Jiajie
 Jinja
 jinja
@@ -833,6 +847,7 @@ JPype
 js
 Json
 json
+jsonl
 jthomas
 Jupyter
 jupyter
@@ -855,6 +870,7 @@ KeyManagementServiceClient
 keyring
 keyspace
 keytab
+kfp
 Kibana
 killMode
 Kinesis
@@ -923,6 +939,7 @@ Lyft
 machineTypes
 macOS
 macosx
+mae
 mailto
 makedirs
 makedsn
@@ -946,6 +963,7 @@ mesos
 MessageAttributes
 metaclass
 metadatabase
+metadataStores
 metarouter
 Metastore
 metastore
@@ -958,6 +976,7 @@ microsoft
 middleware
 Midnights
 midnights
+milli
 milton
 minicluster
 minikube
@@ -990,6 +1009,7 @@ mysql
 mysqlclient
 mysqldb
 mytaxi
+myVPC
 Namenode
 namenode
 Namespace
@@ -1053,12 +1073,15 @@ Oozie
 openapi
 openfaas
 openlineage
+OpenSearch
+opensearch
 oper
 OperatorLineage
 Opsgenie
 opsgenie
 Optimise
 optimise
+optimizationObjective
 optionality
 ora
 oracledb
@@ -1096,6 +1119,7 @@ paramiko
 Params
 params
 passwd
+pathlib
 pathType
 Paxos
 PEM
@@ -1133,12 +1157,12 @@ POSIX
 postfix
 Postgres
 postgres
-Postgresql
 postgresql
 postMessage
 Potiuk
 powershell
 pql
+prc
 Pre
 pre
 precheck
@@ -1171,6 +1195,7 @@ productionalize
 ProductSearchClient
 profiler
 programmatically
+proj
 projectId
 projectid
 proto
@@ -1217,6 +1242,9 @@ pywinrm
 qds
 Qingping
 Qplum
+quantile
+Quantiles
+quantiles
 Quantopian
 Qubole
 qubole
@@ -1286,8 +1314,12 @@ retransmits
 rfc
 ricard
 rideable
+rmse
+rmsle
+rmspe
 Roadmap
 Robinhood
+roc
 RoleBinding
 romeoandjuliet
 rootcss
@@ -1345,6 +1377,7 @@ seekable
 segmentGranularity
 Sendgrid
 sendgrid
+sentimentMax
 serde
 serialise
 serializable
@@ -1436,6 +1469,7 @@ str
 StrictUndefined
 Stringified
 stringified
+Struct
 subchart
 subclassed
 Subclasses
@@ -1498,6 +1532,7 @@ tableId
 Tabular
 tagKey
 tagValue
+targetColumn
 task_group
 TaskDecorator
 Taskfail
@@ -1526,6 +1561,7 @@ templating
 templatize
 templatized
 tenantId
+Tensorboard
 tensorflow
 Teradata
 Terraform
@@ -1559,6 +1595,7 @@ tooltip
 tooltips
 traceback
 tracebacks
+TrainingPipeline
 travis
 triage
 triaging
@@ -1582,16 +1619,22 @@ tzinfo
 UA
 ui
 uid
+ukey
 ulimit
 Umask
 umask
 Un
 un
 unarchived
+unassigns
+uncomment
 uncommenting
 Undead
 undead
 Undeads
+undeploy
+undeployed
+Undeploys
 ungenerated
 unicode
 unicodecsv
@@ -1667,6 +1710,7 @@ VolumeMount
 volumeMounts
 vpc
 WaiterModel
+wape
 warmup
 Wasb
 wasb

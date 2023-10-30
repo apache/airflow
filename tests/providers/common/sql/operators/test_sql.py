@@ -43,6 +43,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
+pytestmark = pytest.mark.db_test
+
 
 class MockHook:
     def get_records(self):
@@ -96,7 +98,6 @@ class TestSQLExecuteQueryOperator:
 
 
 class TestColumnCheckOperator:
-
     valid_column_mapping = {
         "X": {
             "null_check": {"equal_to": 0},
@@ -254,6 +255,7 @@ class TestColumnCheckOperator:
             == self.correct_generate_sql_query_with_partition.lstrip()
         )
 
+    @pytest.mark.db_test
     def test_generate_sql_query_with_templated_partitions(self, monkeypatch):
         checks = self.short_valid_column_mapping["X"]
         operator = self._construct_operator(monkeypatch, self.short_valid_column_mapping, ())
@@ -285,6 +287,7 @@ class TestColumnCheckOperator:
         )
         del self.short_valid_column_mapping["X"]["distinct_check"]["partition_clause"]
 
+    @pytest.mark.db_test
     @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
     def test_generated_sql_respects_templated_partitions(self, mock_get_db_hook):
         records = [
@@ -310,6 +313,7 @@ class TestColumnCheckOperator:
             self._full_check_sql(self.correct_generate_sql_query_with_partition),
         )
 
+    @pytest.mark.db_test
     @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
     def test_generated_sql_respects_templated_table(self, mock_get_db_hook):
         records = [
@@ -336,7 +340,6 @@ class TestColumnCheckOperator:
 
 
 class TestTableCheckOperator:
-
     count_check = "COUNT(*) == 1000"
     sum_check = "col_a + col_b < col_c"
     checks = {
@@ -497,6 +500,7 @@ class TestTableCheckOperator:
             operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
         )
 
+    @pytest.mark.db_test
     def test_generate_sql_query_with_templated_partitions(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.partition_clause = "{{ params.col }} > 10"
@@ -505,6 +509,7 @@ class TestTableCheckOperator:
             operator._generate_sql_query().lstrip() == self.correct_generate_sql_query_with_partition.lstrip()
         )
 
+    @pytest.mark.db_test
     def test_generate_sql_query_with_templated_table(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.checks, ())
         operator.table = "{{ params.table }}"
@@ -647,6 +652,7 @@ class TestValueCheckOperator:
             tolerance=tolerance,
         )
 
+    @pytest.mark.db_test
     def test_pass_value_template_string(self):
         pass_value_str = "2018-03-22"
         operator = self._construct_operator("select date from tab1;", "{{ ds }}")
@@ -656,6 +662,7 @@ class TestValueCheckOperator:
         assert operator.task_id == self.task_id
         assert operator.pass_value == pass_value_str
 
+    @pytest.mark.db_test
     def test_pass_value_template_string_float(self):
         pass_value_float = 4.0
         operator = self._construct_operator("select date from tab1;", pass_value_float)
@@ -893,6 +900,7 @@ class TestThresholdCheckOperator:
             operator.execute(context=MagicMock())
 
 
+@pytest.mark.db_test
 class TestSqlBranch:
     """
     Test for SQL Branch Operator
@@ -921,6 +929,7 @@ class TestSqlBranch:
             session.query(TI).delete()
             session.query(XCom).delete()
 
+    @pytest.mark.db_test
     def test_unsupported_conn_type(self):
         """Check if BranchSQLOperator throws an exception for unsupported connection type"""
         op = BranchSQLOperator(
@@ -1277,7 +1286,6 @@ class TestSqlBranch:
 
 
 class TestBaseSQLOperatorSubClass:
-
     from airflow.providers.common.sql.operators.sql import BaseSQLOperator
 
     class NewStyleBaseSQLOperatorSubClass(BaseSQLOperator):

@@ -25,6 +25,9 @@ from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 
@@ -129,7 +132,7 @@ class TestDockerDecorator:
         ],
     )
     def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
-        @task.docker(image="python:3.9-slim", auto_remove="force", **(extra_kwargs if extra_kwargs else {}))
+        @task.docker(image="python:3.9-slim", auto_remove="force", **(extra_kwargs or {}))
         def f(exit_code):
             raise SystemExit(exit_code)
 

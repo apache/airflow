@@ -34,6 +34,7 @@ from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import (
     GET_RUN_ENDPOINT,
     SUBMIT_RUN_ENDPOINT,
+    ClusterState,
     DatabricksHook,
     RunState,
 )
@@ -78,6 +79,9 @@ GET_RUN_RESPONSE = {
     "state": {"life_cycle_state": LIFE_CYCLE_STATE, "state_message": STATE_MESSAGE},
 }
 GET_RUN_OUTPUT_RESPONSE = {"metadata": {}, "error": ERROR_MESSAGE, "notebook_output": {}}
+CLUSTER_STATE = "TERMINATED"
+CLUSTER_STATE_MESSAGE = "Inactive cluster terminated (inactive for 120 minutes)."
+GET_CLUSTER_RESPONSE = {"state": CLUSTER_STATE, "state_message": CLUSTER_STATE_MESSAGE}
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RESULT_STATE = ""
@@ -101,6 +105,20 @@ LIST_SPARK_VERSIONS_RESPONSE = {
         {"key": "8.2.x-scala2.12", "name": "8.2 (includes Apache Spark 3.1.1, Scala 2.12)"},
     ]
 }
+
+
+def create_endpoint(host):
+    """
+    Utility function to generate the create endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/create"
+
+
+def reset_endpoint(host):
+    """
+    Utility function to generate the reset endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/reset"
 
 
 def run_now_endpoint(host):
@@ -157,6 +175,13 @@ def repair_run_endpoint(host):
     Utility function to generate delete run endpoint given the host.
     """
     return f"https://{host}/api/2.1/jobs/runs/repair"
+
+
+def get_cluster_endpoint(host):
+    """
+    Utility function to generate the get run endpoint given the host.
+    """
+    return f"https://{host}/api/2.0/clusters/get"
 
 
 def start_cluster_endpoint(host):
@@ -243,6 +268,7 @@ def setup_mock_requests(mock_requests, exception, status_code=500, error_count=N
         ]
 
 
+@pytest.mark.db_test
 class TestDatabricksHook:
     """
     Tests for DatabricksHook.
@@ -370,6 +396,43 @@ class TestDatabricksHook:
         mock_requests.patch.assert_called_once_with(
             submit_run_endpoint(HOST),
             json={"cluster_name": "new_name"},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_create(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {"job_id": JOB_ID}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {"name": "test"}
+        job_id = self.hook.create_job(json)
+
+        assert job_id == JOB_ID
+
+        mock_requests.post.assert_called_once_with(
+            create_endpoint(HOST),
+            json={"name": "test"},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_reset(self, mock_requests):
+        mock_requests.codes.ok = 200
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {"name": "test"}
+        self.hook.reset_job(JOB_ID, json)
+
+        mock_requests.post.assert_called_once_with(
+            reset_endpoint(HOST),
+            json={"job_id": JOB_ID, "new_settings": {"name": "test"}},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
@@ -593,6 +656,26 @@ class TestDatabricksHook:
             repair_run_endpoint(HOST),
             json=json,
             params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_get_cluster_state(self, mock_requests):
+        """
+        Response example from https://docs.databricks.com/api/workspace/clusters/get
+        """
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = GET_CLUSTER_RESPONSE
+
+        cluster_state = self.hook.get_cluster_state(CLUSTER_ID)
+
+        assert cluster_state == ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        mock_requests.get.assert_called_once_with(
+            get_cluster_endpoint(HOST),
+            json=None,
+            params={"cluster_id": CLUSTER_ID},
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,
             timeout=self.hook.timeout_seconds,
@@ -867,6 +950,7 @@ class TestDatabricksHook:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookToken:
     """
     Tests for DatabricksHook when auth is done with token.
@@ -896,6 +980,7 @@ class TestDatabricksHookToken:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookTokenInPassword:
     """
     Tests for DatabricksHook.
@@ -927,6 +1012,7 @@ class TestDatabricksHookTokenInPassword:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookTokenWhenNoHostIsProvidedInExtra(TestDatabricksHookToken):
     @provide_session
     def setup_method(self, method, session=None):
@@ -952,8 +1038,8 @@ class TestRunState:
             assert not run_state.is_terminal
 
     def test_is_terminal_with_nonexistent_life_cycle_state(self):
-        run_state = RunState("blah", "", "")
         with pytest.raises(AirflowException):
+            run_state = RunState("blah", "", "")
             assert run_state.is_terminal
 
     def test_is_successful(self):
@@ -973,6 +1059,41 @@ class TestRunState:
         assert expected == RunState.from_json(json.dumps(state))
 
 
+class TestClusterState:
+    def test_is_terminal_true(self):
+        terminal_states = ["TERMINATING", "TERMINATED", "ERROR", "UNKNOWN"]
+        for state in terminal_states:
+            cluster_state = ClusterState(state, "")
+            assert cluster_state.is_terminal
+
+    def test_is_terminal_false(self):
+        non_terminal_states = ["PENDING", "RUNNING", "RESTARTING", "RESIZING"]
+        for state in non_terminal_states:
+            cluster_state = ClusterState(state, "")
+            assert not cluster_state.is_terminal
+
+    def test_is_terminal_with_nonexistent_life_cycle_state(self):
+        with pytest.raises(AirflowException):
+            cluster_state = ClusterState("blah", "")
+            assert cluster_state.is_terminal
+
+    def test_is_running(self):
+        running_states = ["RUNNING", "RESIZING"]
+        for state in running_states:
+            cluster_state = ClusterState(state, "")
+            assert cluster_state.is_running
+
+    def test_to_json(self):
+        cluster_state = ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        expected = json.dumps(GET_CLUSTER_RESPONSE)
+        assert expected == cluster_state.to_json()
+
+    def test_from_json(self):
+        state = GET_CLUSTER_RESPONSE
+        expected = ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        assert expected == ClusterState.from_json(json.dumps(state))
+
+
 def create_aad_token_for_resource(resource: str) -> dict:
     return {
         "token_type": "Bearer",
@@ -985,6 +1106,7 @@ def create_aad_token_for_resource(resource: str) -> dict:
     }
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadToken:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace.
@@ -1022,6 +1144,7 @@ class TestDatabricksHookAadToken:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadTokenOtherClouds:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP as user inside workspace and
@@ -1069,6 +1192,7 @@ class TestDatabricksHookAadTokenOtherClouds:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadTokenSpOutside:
     """
     Tests for DatabricksHook when auth is done with AAD token for SP outside of workspace.
@@ -1122,6 +1246,7 @@ class TestDatabricksHookAadTokenSpOutside:
         assert kwargs["headers"]["X-Databricks-Azure-SP-Management-Token"] == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAadTokenManagedIdentity:
     """
     Tests for DatabricksHook when auth is done with AAD leveraging Managed Identity authentication
@@ -1165,6 +1290,7 @@ class TestDatabricksHookAadTokenManagedIdentity:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncMethods:
     """
     Tests for async functionality of DatabricksHook.
@@ -1284,7 +1410,25 @@ class TestDatabricksHookAsyncMethods:
             timeout=self.hook.timeout_seconds,
         )
 
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
+    async def test_get_cluster_state(self, mock_get):
+        mock_get.return_value.__aenter__.return_value.json = AsyncMock(return_value=GET_CLUSTER_RESPONSE)
 
+        async with self.hook:
+            cluster_state = await self.hook.a_get_cluster_state(CLUSTER_ID)
+
+        assert cluster_state == ClusterState(CLUSTER_STATE, CLUSTER_STATE_MESSAGE)
+        mock_get.assert_called_once_with(
+            get_cluster_endpoint(HOST),
+            json={"cluster_id": CLUSTER_ID},
+            auth=aiohttp.BasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadToken:
     """
     Tests for DatabricksHook using async methods when
@@ -1327,6 +1471,7 @@ class TestDatabricksHookAsyncAadToken:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenOtherClouds:
     """
     Tests for DatabricksHook using async methodswhen auth is done with AAD token
@@ -1379,6 +1524,7 @@ class TestDatabricksHookAsyncAadTokenOtherClouds:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenSpOutside:
     """
     Tests for DatabricksHook using async methods when auth is done with AAD token for SP outside of workspace.
@@ -1445,6 +1591,7 @@ class TestDatabricksHookAsyncAadTokenSpOutside:
         )
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncAadTokenManagedIdentity:
     """
     Tests for DatabricksHook using async methods when
@@ -1494,6 +1641,7 @@ def create_sp_token_for_resource() -> dict:
     }
 
 
+@pytest.mark.db_test
 class TestDatabricksHookSpToken:
     """
     Tests for DatabricksHook when auth is done with Service Principal Oauth token.
@@ -1530,6 +1678,7 @@ class TestDatabricksHookSpToken:
         assert kwargs["auth"].token == TOKEN
 
 
+@pytest.mark.db_test
 class TestDatabricksHookAsyncSpToken:
     """
     Tests for DatabricksHook using async methods when auth is done with Service

@@ -110,7 +110,6 @@ class ADLSToGCSOperator(ADLSListOperator):
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(path=src_adls, azure_data_lake_conn_id=azure_data_lake_conn_id, **kwargs)
 
         self.src_adls = src_adls

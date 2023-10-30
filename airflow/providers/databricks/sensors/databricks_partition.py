@@ -110,7 +110,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def _sql_sensor(self, sql):
-        """Executes the supplied SQL statement using the hook object."""
+        """Execute the supplied SQL statement using the hook object."""
         hook = self._get_hook
         sql_result = hook.run(
             sql,
@@ -121,7 +121,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
 
     @cached_property
     def _get_hook(self) -> DatabricksSqlHook:
-        """Creates and returns a DatabricksSqlHook object."""
+        """Create and return a DatabricksSqlHook object."""
         return DatabricksSqlHook(
             self.databricks_conn_id,
             self._http_path,
@@ -140,7 +140,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         if self.table_name.split(".")[0] == "delta":
             _fully_qualified_table_name = self.table_name
         else:
-            _fully_qualified_table_name = str(self.catalog + "." + self.schema + "." + self.table_name)
+            _fully_qualified_table_name = f"{self.catalog}.{self.schema}.{self.table_name}"
         self.log.debug("Table name generated from arguments: %s", _fully_qualified_table_name)
         _joiner_val = " AND "
         _prefix = f"SELECT 1 FROM {_fully_qualified_table_name} WHERE"
@@ -166,7 +166,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         escape_key: bool = False,
     ) -> str:
         """
-        Queries the table for available partitions.
+        Query the table for available partitions.
 
         Generates the SQL query based on the partition data types.
             * For a list, it prepares the SQL in the format:
@@ -225,7 +225,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         return formatted_opts.strip()
 
     def poke(self, context: Context) -> bool:
-        """Checks the table partitions and returns the results."""
+        """Check the table partitions and return the results."""
         partition_result = self._check_table_partitions()
         self.log.debug("Partition sensor result: %s", partition_result)
         if partition_result:

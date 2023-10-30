@@ -120,12 +120,13 @@ Another way to access your param is via a task's ``context`` kwarg.
 .. code-block::
    :emphasize-lines: 1,2
 
-    def print_x(**context):
+    def print_my_int_param(**context):
         print(context["params"]["my_int_param"])
 
     PythonOperator(
         task_id="print_my_int_param",
         python_callable=print_my_int_param,
+        params={"my_int_param": 12345},
     )
 
 JSON Schema Validation
@@ -158,6 +159,12 @@ JSON Schema Validation
             ),
         },
     ):
+
+.. note::
+    If ``schedule`` is defined for a DAG, params with defaults must be valid. This is validated during DAG parsing.
+    If ``schedule=None`` then params are not validated during DAG parsing but before triggering a DAG.
+    This is useful in cases where the DAG author does not want to provide defaults but wants to force users provide valid parameters
+    at time of trigger.
 
 .. note::
     As of now, for security reasons, one can not use :class:`~airflow.models.param.Param` objects derived out of custom classes. We are
@@ -255,11 +262,11 @@ The following features are supported in the Trigger UI Form:
           - | Generates a HTML multi line text field,
             | every line edited will be made into a
             | string array as value.
-          - * | If you add the attribute ``example``
+          - * | If you add the attribute ``examples``
               | with a list, a multi-value select option
               | will be generated instead of a free text field.
             * | ``values_display={"a": "Alpha", "b": "Beta"}``:
-              | For multi-value selects ``example`` you can add
+              | For multi-value selects ``examples`` you can add
               | the attribute ``values_display`` with a dict and
               | map data values to display labels.
             * | If you add the attribute ``items``, a JSON entry
@@ -297,7 +304,6 @@ The following features are supported in the Trigger UI Form:
           -
           - ``Param(None, type=["null", "string"])``
 
-
 - If a form field is left empty, it is passed as ``None`` value to the params dict.
 - Form fields are rendered in the order of definition of ``params`` in the DAG.
 - If you want to add sections to the Form, add the attribute ``section`` to each field. The text will be used as section label.
@@ -308,6 +314,10 @@ The following features are supported in the Trigger UI Form:
 - On the bottom of the form the generated JSON configuration can be expanded.
   If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
 - If you want to render custom HTML as form on top of the provided features, you can use the ``custom_html_form`` attribute.
+
+.. note::
+    If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
+    ``schedule=None`` the parameter value validation is made at time of trigger.
 
 For examples also please take a look to two example DAGs provided: ``example_params_trigger_ui`` and ``example_params_ui_tutorial``.
 
