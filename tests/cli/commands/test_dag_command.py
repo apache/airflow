@@ -524,31 +524,36 @@ class TestCliDags:
 
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags(self):
-        args = self.parser.parse_args(["dags", "list", "--output", "yaml"])
+        args = self.parser.parse_args(["dags", "list", "--output", "json"])
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
-        assert "owner" in out
-        assert "airflow" in out
-        assert "paused" in out
-        assert "airflow/example_dags/example_complex.py" in out
-        assert "- dag_id:" in out
+            dag_list = json.loads(out)
+        assert "dag_id" in dag_list[0]
+        assert "fileloc" in dag_list[0]
+        assert "owners" in dag_list[0]
+        assert "is_paused" in dag_list[0]
+        assert any("airflow/example_dags/example_complex.py" in d["fileloc"] for d in dag_list)
 
     @conf_vars({("core", "load_examples"): "true"})
-    def test_cli_list_dags_additional_comments(self):
+    def test_cli_list_dags_custom_cols(self):
         args = self.parser.parse_args(
-            ["dags", "list", "--additional-columns", "last_parsed_time,is_subdag", "--output", "yaml"]
+            ["dags", "list", "--output", "json", "--columns", "dag_id,last_parsed_time"]
         )
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
-        assert "owner" in out
-        assert "airflow" in out
-        assert "paused" in out
-        assert "last_parsed_time" in out
-        assert "is_subdag" in out
-        assert "airflow/example_dags/example_complex.py" in out
-        assert "- dag_id:" in out
+            dag_list = json.loads(out)
+        assert "dag_id" in dag_list[0]
+        assert "last_parsed_time" in dag_list[0]
+        assert "is_paused" not in dag_list[0]
+
+    @conf_vars({("core", "load_examples"): "true"})
+    def test_cli_list_dags_invalid_cols(self):
+        args = self.parser.parse_args(["dags", "list", "--output", "json", "--columns", "dag_id,invalid_col"])
+        with pytest.raises(SystemExit) as e:
+            dag_command.dag_list_dags(args)
+        assert "The following are not valid columns: ['invalid_col']" in e.value.args[0]
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_dags_prints_import_errors(self):
