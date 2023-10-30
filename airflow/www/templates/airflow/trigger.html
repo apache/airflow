@@ -163,18 +163,6 @@
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="dag_id" value="{{ dag_id }}">
     <input type="hidden" name="origin" value="{{ origin }}">
-    <div class="form-group">
-      <label for="execution_date">Logical date</label>
-      <div class="input-group">
-        {{ form.execution_date(class_="form-control", disabled=False) }}
-      </div>
-    </div>
-    <div class="form-group row">
-      <div class="col-md-2">
-        <label for="run_id">Run id (Optional)</label>
-        <input type="text" class="form-control" placeholder="Run ID" name="run_id">
-      </div>
-    </div>
     {% if recent_confs|length > 0 %}
     <div class="form-group row">
       <div class="col-md-2">
@@ -243,10 +231,22 @@
           <div class="panel panel-default">
             <div class="panel-heading">
               <h4 class="panel-title">
-                <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion_json_conf" href="#accordion_json_conf_href" data-original-title="" title="" id="generated_json_toggle">Generated Configuration JSON<span class="caret"></span></a>
+                <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion_json_conf" href="#accordion_json_conf_href" data-original-title="" title="" id="generated_json_toggle">Generated Configuration JSON and Dagrun Options<span class="caret"></span></a>
               </h4>
             </div>
             <div id="accordion_json_conf_href" class="panel-collapse collapse">
+              <div class="form-group">
+                <label for="execution_date">Logical date</label>
+                <div class="input-group">
+                  {{ form.execution_date(class_="form-control", disabled=False) }}
+                </div>
+              </div>
+              <div class="form-group row">
+                <div class="col-md-2">
+                  <label for="run_id">Run id (Optional)</label>
+                  <input type="text" class="form-control" placeholder="Run ID" name="run_id">
+                </div>
+              </div>
               <div class="panel-body">
                 <textarea name="conf" id="json">{{ conf }}</textarea>
               </div>
