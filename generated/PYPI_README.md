@@ -154,16 +154,19 @@ and our official source code releases:
 Following the ASF rules, the source packages released must be sufficient for a user to build and test the
 release provided they have access to the appropriate platform and tools.
 
+
 ## Contributing
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
 
 Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
 
+
 ## Who uses Apache Airflow?
 
 More than 400 organizations are using Apache Airflow
 [in the wild](https://github.com/apache/airflow/blob/main/INTHEWILD.md).
+
 
 ## Who maintains Apache Airflow?
 
