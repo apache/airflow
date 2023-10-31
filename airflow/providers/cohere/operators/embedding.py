@@ -43,7 +43,7 @@ class CohereEmbeddingOperator(BaseOperator):
     :param input_callable_args: The list of arguments to be passed to ``input_callable``.
     :param input_callable_kwargs: The kwargs to be passed to ``input_callable``.
     :param timeout: Timeout in seconds for Cohere API.
-    :param max_retries: No. of times to retry before failing.
+    :param max_retries: Number of times to retry before failing.
     """
 
     template_fields: Sequence[str] = ("input_text",)
