@@ -37,7 +37,7 @@ integrations:
 
 dependencies:
   - apache-airflow>=2.5.0
-  - pinecone-client>=4.27
+  - pinecone-client>=2.2.4
 
 hooks:
   - integration-name: Pinecone
@@ -51,4 +51,4 @@ connection-types:
 operators:
   - integration-name: Pinecone
     python-modules:
-      - airflow.providers.pinecone.operators.pinecone_operator
+      - airflow.providers.pinecone.operators.pinecone

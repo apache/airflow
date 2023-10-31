@@ -37,7 +37,7 @@ class PineconeIngestOperator(BaseOperator):
 
     :param conn_id: pinecone_conn_id: The connection id to use when connecting to Pinecone.
     :param index_name: Name of the Pinecone index.
-    :param vectors: Data to be ingested, in the form of a list of tuples where each tuple
+    :param input_vectors: Data to be ingested, in the form of a list of tuples where each tuple
         contains (id, vector_embedding, metadata).
     :param namespace: The namespace to write to. If not specified, the default namespace is used.
     :param batch_size: The number of vectors to upsert in each batch.
@@ -50,7 +50,7 @@ class PineconeIngestOperator(BaseOperator):
         *,
         conn_id: str = PineconeHook.default_conn_name,
         index_name: str,
-        input_vectors: list[Any],
+        input_vectors: list[tuple],
         namespace: str = "",
         batch_size: int | None = None,
         **kwargs: Any,

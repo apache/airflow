@@ -22,7 +22,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from airflow.models import DAG
-from airflow.providers.pinecone.operators.pinecone_operator import PineconeIngestOperator
+from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator
 
 
 class MockPineconeHook:
@@ -58,7 +58,7 @@ class TestPineconeVectorIngestOperator:
         )
 
         with patch(
-            "airflow.providers.pinecone.operators.pinecone_operator.PineconeIngestOperator.hook",
+            "airflow.providers.pinecone.operators.pinecone.PineconeIngestOperator.hook",
             new_callable=MockPineconeHook,
         ) as mock_hook_instance:
             mock_hook_instance.upsert = Mock()
@@ -88,7 +88,7 @@ class TestPineconeVectorIngestOperator:
         )
 
         with patch(
-            "airflow.providers.pinecone.operators.pinecone_operator.PineconeIngestOperator.hook",
+            "airflow.providers.pinecone.operators.pinecone.PineconeIngestOperator.hook",
             new_callable=MockPineconeHook,
         ) as mock_hook_instance:
             mock_hook_instance.upsert = Mock()

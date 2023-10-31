@@ -20,7 +20,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.pinecone.operators.pinecone_operator import PineconeIngestOperator
+from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator
 
 index_name = os.getenv("INDEX_NAME", "test")
 namespace = os.getenv("NAMESPACE", "example-pinecone-namespace")
