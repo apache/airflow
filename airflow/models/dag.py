@@ -227,7 +227,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
-        default_timetable = conf.get("scheduler", "default_cron_timetable")
+        default_timetable = airflow_conf.get("scheduler", "default_cron_timetable")
         if default_timetable == "CronDataIntervalTimetable":
             return CronDataIntervalTimetable(interval, timezone)
         elif default_timetable == "CronTriggerTimetable":
