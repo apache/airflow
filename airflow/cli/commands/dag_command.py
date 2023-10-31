@@ -356,7 +356,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
     """Display dags with or without stats at the command line."""
     cols = args.columns if args.columns else []
     invalid_cols = [c for c in cols if c not in dag_schema.fields]
-    valid_cols = [c for c in cols if c in dag_schema.fields.keys()]
+    valid_cols = [c for c in cols if c in dag_schema.fields]
     if invalid_cols:
         from rich import print as rich_print
 
