@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -19,12 +18,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from azure.identity import DefaultAzureCredential
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 from azure.mgmt.storage import StorageManagementClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
 
 
 class AzureContainerVolumeHook(BaseHook):
@@ -72,6 +70,12 @@ class AzureContainerVolumeHook(BaseHook):
                 lazy_gettext("Resource group name (optional)"),
                 widget=BS3TextFieldWidget(),
             ),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -89,6 +93,8 @@ class AzureContainerVolumeHook(BaseHook):
                 "connection_string": "connection string auth",
                 "subscription_id": "Subscription id (required for Azure AD authentication)",
                 "resource_group": "Resource group name (required for Azure AD authentication)",
+                "managed_identity_client_id": "Managed Identity Client ID",
+                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -106,7 +112,11 @@ class AzureContainerVolumeHook(BaseHook):
         subscription_id = self._get_field(extras, "subscription_id")
         resource_group = self._get_field(extras, "resource_group")
         if subscription_id and storage_account_name and resource_group:
-            credentials = DefaultAzureCredential()
+            managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+            credentials = get_default_azure_credential(
+                managed_identity_client_id, workload_identity_tenant_id
+            )
             storage_client = StorageManagementClient(credentials, subscription_id)
             storage_account_list_keys_result = storage_client.storage_accounts.list_keys(
                 resource_group, storage_account_name
