@@ -226,16 +226,12 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
-    if isinstance(interval, str):
-        default_timetable = airflow_conf.get("scheduler", "default_cron_timetable")
-        if default_timetable == "CronDataIntervalTimetable":
+    if isinstance(interval, bool):
+        legacy_cron_data_intervals = airflow_conf.get("scheduler", "legacy_cron_data_intervals")
+        if legacy_cron_data_intervals:
             return CronDataIntervalTimetable(interval, timezone)
-        elif default_timetable == "CronTriggerTimetable":
-            return CronTriggerTimetable(interval, timezone=timezone)
         else:
-            raise ValueError("Invalid value for configuration parameter "
-                             "scheduler.default_cron_timetable. The valid values are"
-                             "CronDataIntervalTimetable and CronTriggerTimetable.")
+            return CronTriggerTimetable(interval, timezone=timezone)
     raise ValueError(f"{interval!r} is not a valid schedule_interval.")
 
 
