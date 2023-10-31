@@ -23,11 +23,11 @@ from dataclasses import MISSING, InitVar, dataclass, field, fields
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from botocore import UNSIGNED
 from botocore.config import Config
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils.boto import deserialize_botocore_config_params
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -96,6 +96,7 @@ class AwsConnectionWrapper(LoggingMixin):
     region_name: str | None = field(default=None)
     # boto3 client/resource configs
     botocore_config: Config | None = field(default=None)
+    config_kwargs: dict[str, Any] | None = field(default=None)
     verify: bool | str | None = field(default=None)
 
     # Reference to Airflow Connection attributes
@@ -271,13 +272,14 @@ class AwsConnectionWrapper(LoggingMixin):
                 stacklevel=2,
             )
 
-        config_kwargs = extra.get("config_kwargs")
-        if not self.botocore_config and config_kwargs:
+        if config_kwargs := extra.get("config_kwargs"):
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
-            self.log.debug("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
-            if config_kwargs.get("signature_version") == "unsigned":
-                config_kwargs["signature_version"] = UNSIGNED
-            self.botocore_config = Config(**config_kwargs)
+            self.config_kwargs = deserialize_botocore_config_params(**config_kwargs)
+            if not self.botocore_config:
+                self.log.debug(
+                    "Retrieving botocore config=%s from %s extra.", self.config_kwargs, self.conn_repr
+                )
+                self.botocore_config = Config(**self.config_kwargs)
 
         if conn.host:
             warnings.warn(

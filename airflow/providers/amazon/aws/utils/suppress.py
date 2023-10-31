@@ -22,7 +22,7 @@ Module for suppress errors in Amazon Provider.
     Only for internal usage, this module might be changed or removed in the future
     without any further notice.
 
-:meta: private
+:meta private:
 """
 
 from __future__ import annotations

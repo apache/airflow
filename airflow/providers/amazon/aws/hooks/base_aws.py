@@ -53,6 +53,7 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
+from airflow.providers.amazon.aws.utils.boto import build_botocore_config
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
@@ -472,7 +473,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         self._region_name = region_name
         if isinstance(config, dict):
-            config = Config(**config)
+            config = build_botocore_config(**config)
         self._config = config
         self._verify = verify
 

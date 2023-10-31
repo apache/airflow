@@ -22,7 +22,7 @@ This module contains different mixin classes for internal use within the Amazon 
     Only for internal usage, this module and all classes might be changed, renamed or removed in the future
     without any further notice.
 
-:meta: private
+:meta private:
 """
 
 from __future__ import annotations
@@ -36,6 +36,7 @@ from typing_extensions import final
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from airflow.providers.amazon.aws.utils.boto import serialize_botocore_config_params
 
 AwsHookType = TypeVar("AwsHookType", bound=AwsGenericHook)
 REGION_MSG = "`region` is deprecated and will be removed in the future. Please use `region_name` instead."
@@ -115,7 +116,7 @@ class AwsBaseHookMixin(Generic[AwsHookType]):
     aws_conn_id: str | None
     region_name: str | None
     verify: bool | str | None
-    botocore_config: dict[str, Any] | None
+    _botocore_config: dict[str, Any] | None
 
     def validate_attributes(self):
         """Validate class attributes."""
@@ -131,6 +132,22 @@ class AwsBaseHookMixin(Generic[AwsHookType]):
                 ) from None
         else:
             raise AttributeError(f"Class attribute '{type(self).__name__}.aws_hook_class' should be set.")
+
+    @property
+    def botocore_config(self):
+        """
+        Configuration dictionary (key-values) for botocore client.
+
+        .. seealso::
+            - https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
+        """
+        if self._botocore_config:
+            return serialize_botocore_config_params(**self._botocore_config)
+        return self._botocore_config
+
+    @botocore_config.setter
+    def botocore_config(self, value: dict[str, Any] | None):
+        self._botocore_config = value
 
     @property
     def _hook_parameters(self) -> dict[str, Any]:

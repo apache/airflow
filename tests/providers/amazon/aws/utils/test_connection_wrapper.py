@@ -516,6 +516,18 @@ class TestAwsConnectionWrapper:
 
             assert str(record[0].message) == expected_deprecation_message
 
+    @pytest.mark.parametrize("variant", ["unsigned", "UNSIGNED", "uNsIgNeD"])
+    def test_unsigned_signature_version(self, variant):
+        wrap_conn = AwsConnectionWrapper(
+            conn=mock_connection_factory(
+                extra={
+                    "config_kwargs": {"signature_version": variant},
+                },
+            ),
+        )
+        assert wrap_conn.botocore_config.signature_version is UNSIGNED
+        assert wrap_conn.config_kwargs == {"signature_version": UNSIGNED}
+
     @pytest.mark.parametrize("conn_id", [None, "mock-conn-id"])
     @pytest.mark.parametrize("profile_name", [None, "mock-profile"])
     @pytest.mark.parametrize("role_arn", [None, MOCK_ROLE_ARN])

@@ -978,7 +978,7 @@ class TestAwsBaseHook:
         [
             pytest.param(None, id="empty-botocore-config"),
             pytest.param(Config(s3={"us_east_1_regional_endpoint": "regional"}), id="botocore-config"),
-            pytest.param({"s3": {"us_east_1_regional_endpoint": "regional"}}, id="botocore-config-as-dict"),
+            pytest.param({"signature_version": "unsigned"}, id="botocore-config-as-dict"),
         ],
     )
     @pytest.mark.parametrize("method_region_name", [None, "cn-north-1"])

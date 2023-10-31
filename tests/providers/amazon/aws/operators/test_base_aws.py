@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import pytest
+from botocore import UNSIGNED
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -75,13 +76,17 @@ class TestAwsBaseOperator:
             aws_conn_id=TEST_CONN,
             region_name="eu-central-1",
             verify=False,
-            botocore_config={"read_timeout": 777, "connect_timeout": 42},
+            botocore_config={"read_timeout": 777, "connect_timeout": 42, "signature_version": UNSIGNED},
         )
 
         assert op.aws_conn_id == TEST_CONN
         assert op.region_name == "eu-central-1"
         assert op.verify is False
-        assert op.botocore_config == {"read_timeout": 777, "connect_timeout": 42}
+        assert op.botocore_config == {
+            "read_timeout": 777,
+            "connect_timeout": 42,
+            "signature_version": "unsigned",
+        }
 
         hook = op.hook
         assert isinstance(hook, FakeS3Hook)
@@ -90,6 +95,7 @@ class TestAwsBaseOperator:
         assert hook._verify == op.verify
         assert hook._config.read_timeout == 777
         assert hook._config.connect_timeout == 42
+        assert hook._config.signature_version is UNSIGNED
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
