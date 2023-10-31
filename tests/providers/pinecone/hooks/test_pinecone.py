@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
-from airflow.providers.pinecone.hooks.pinecone_hook import PineconeHook
+from airflow.providers.pinecone.hooks.pinecone import PineconeHook
 
 
 class TestPineconeHook:
@@ -34,7 +34,7 @@ class TestPineconeHook:
             self.pinecone_hook = PineconeHook()
             self.index_name = "test_index"
 
-    @patch("airflow.providers.pinecone.hooks.pinecone_hook.pinecone.Index")
+    @patch("airflow.providers.pinecone.hooks.pinecone.pinecone.Index")
     def test_upsert(self, mock_index):
         """Test the upsert_data_async method of PineconeHook for correct data insertion asynchronously."""
         data = [("id1", [1.0, 2.0, 3.0], {"meta": "data"})]

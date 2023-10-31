@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.pinecone.hooks.pinecone_hook import PineconeHook
+from airflow.providers.pinecone.hooks.pinecone import PineconeHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

@@ -42,10 +42,10 @@ dependencies:
 hooks:
   - integration-name: Pinecone
     python-modules:
-      - airflow.providers.pinecone.hooks.pinecone_hook
+      - airflow.providers.pinecone.hooks.pinecone
 
 connection-types:
-  - hook-class-name: airflow.providers.pinecone.hooks.pinecone_hook.PineconeHook
+  - hook-class-name: airflow.providers.pinecone.hooks.pinecone.PineconeHook
     connection-type: pinecone
 
 operators:
