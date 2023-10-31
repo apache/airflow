@@ -729,6 +729,31 @@ workers:
 
   env: []
 
+  volumeClaimTemplates: []
+  # Additional volumeClaimTemplates needed.
+  # Comment out the above and uncomment the section below to enable it.
+  # Add more as needed
+  # Make sure to mount it under extraVolumeMounts.
+  # volumeClaimTemplates:
+  #   - metadata:
+  #       name: data-volume-1
+  #     spec:
+  #       storageClassName: "storage-class-1"
+  #       accessModes:
+  #         - "ReadWriteOnce"
+  #       resources:
+  #         requests:
+  #           storage: "10Gi"
+  #   - metadata:
+  #       name: data-volume-2
+  #     spec:
+  #       storageClassName: "storage-class-2"
+  #       accessModes:
+  #         - "ReadWriteOnce"
+  #       resources:
+  #         requests:
+  #           storage: "20Gi"
+
 # Airflow scheduler settings
 scheduler:
   #  hostAliases for the scheduler pod
@@ -2096,6 +2121,7 @@ redis:
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
+  priorityClassName: ~
 
   # Set to 0 for backwards-compatiblity
   uid: 0

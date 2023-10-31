@@ -28,6 +28,9 @@ from airflow.models.dag import DAG
 from airflow.sensors.filesystem import FileSensor
 from airflow.utils.timezone import datetime
 
+pytestmark = pytest.mark.db_test
+
+
 TEST_DAG_ID = "unit_tests_file_sensor"
 DEFAULT_DATE = datetime(2015, 1, 1)
 

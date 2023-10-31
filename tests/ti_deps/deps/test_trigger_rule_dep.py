@@ -33,6 +33,9 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTISta
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
+pytestmark = pytest.mark.db_test
+
+
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 

@@ -830,6 +830,7 @@ jobs:
           # pip download --no-deps --dest dist apache-airflow-providers-<PROVIDER>==3.1.0
           #
           rm -vf dist/apache_airflow_providers_openlineage*.whl
+          rm -rf dist/apache_airflow_providers_common_io*.whl
       - name: "Get all provider extras as AIRFLOW_EXTRAS env variable"
         # Extras might be different on S3 so rather than relying on "all" we should get the list of
         # packages to be installed from the current provider_dependencies.json file
@@ -1638,7 +1639,7 @@ jobs:
   tests-kubernetes:
     timeout-minutes: 240
     name: "\
-      Helm: ${{matrix.executor}} - ${{matrix.use-standard-naming}} - \
+      K8S System:${{matrix.executor}} - ${{matrix.use-standard-naming}} - \
       ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}"
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-prod-images]

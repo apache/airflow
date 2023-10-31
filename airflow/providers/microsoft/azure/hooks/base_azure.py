@@ -54,6 +54,12 @@ class AzureBaseHook(BaseHook):
         return {
             "tenantId": StringField(lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()),
             "subscriptionId": StringField(lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -79,6 +85,8 @@ class AzureBaseHook(BaseHook):
                 "password": "secret (token credentials auth)",
                 "tenantId": "tenantId (token credentials auth)",
                 "subscriptionId": "subscriptionId (token credentials auth)",
+                "managed_identity_client_id": "Managed Identity Client ID",
+                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

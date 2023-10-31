@@ -651,6 +651,71 @@ class TestWorker:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    @pytest.mark.parametrize(
+        "evictionStr, evictionBool",
+        [("true", True), ("false", False)],
+    )
+    def test_safetoevict_annotations(self, evictionStr, evictionBool):
+        docs = render_chart(
+            values={"workers": {"safeToEvict": evictionBool}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert (
+            jmespath.search("spec.template.metadata.annotations", docs[0])[
+                "cluster-autoscaler.kubernetes.io/safe-to-evict"
+            ]
+            == evictionStr
+        )
+
+    def test_should_add_extra_volume_claim_templates(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "test-volume-airflow-1"},
+                            "spec": {
+                                "storageClassName": "storage-class-1",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "10Gi"}},
+                            },
+                        },
+                        {
+                            "metadata": {"name": "test-volume-airflow-2"},
+                            "spec": {
+                                "storageClassName": "storage-class-2",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "20Gi"}},
+                            },
+                        },
+                    ]
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "test-volume-airflow-1" == jmespath.search(
+            "spec.volumeClaimTemplates[1].metadata.name", docs[0]
+        )
+        assert "test-volume-airflow-2" == jmespath.search(
+            "spec.volumeClaimTemplates[2].metadata.name", docs[0]
+        )
+        assert "storage-class-1" == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.storageClassName", docs[0]
+        )
+        assert "storage-class-2" == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.storageClassName", docs[0]
+        )
+        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[1].spec.accessModes", docs[0])
+        assert ["ReadWriteOnce"] == jmespath.search("spec.volumeClaimTemplates[2].spec.accessModes", docs[0])
+        assert "10Gi" == jmespath.search(
+            "spec.volumeClaimTemplates[1].spec.resources.requests.storage", docs[0]
+        )
+        assert "20Gi" == jmespath.search(
+            "spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]
+        )
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""

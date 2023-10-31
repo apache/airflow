@@ -45,6 +45,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests.test_utils.www import client_with_login
 
+pytestmark = pytest.mark.db_test
+
 DAG_ID = "dag_for_testing_log_view"
 DAG_ID_REMOVED = "removed_dag_for_testing_log_view"
 TASK_ID = "task_for_testing_log_view"
