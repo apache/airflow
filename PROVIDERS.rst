@@ -158,7 +158,7 @@ might want to maintain their own providers - as they can decide to support older
 Providers, can (and it is recommended for 3rd-party services) also be maintained and released by 3rd parties,
 but for multiple reasons we might decide to keep those providers as community managed providers - mostly
 due to prevalence and popularity of the 3rd-party services and use cases they serve among our community. There
-are however certain condition and expectations we have in order
+are however certain conditions and expectations we have in order.
 
 There is no difference between the community and 3rd party providers - they have all the same capabilities
 and limitations. The consensus in the Airflow community is that usually it is better for the community and
