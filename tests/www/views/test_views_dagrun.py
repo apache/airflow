@@ -31,6 +31,8 @@ from tests.test_utils.api_connexion_utils import create_user, delete_roles, dele
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def client_dr_without_dag_edit(app):

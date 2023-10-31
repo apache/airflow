@@ -16,19 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
-    from mypy_boto3_appflow.client import AppflowClient
+    from mypy_boto3_appflow.client import AppflowClient  # noqa
 
 
-class AppflowHook(AwsBaseHook):
+class AppflowHook(AwsGenericHook["AppflowClient"]):
     """
-    Interact with Amazon Appflow.
+    Interact with Amazon AppFlow.
 
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("appflow") <Appflow.Client>`.
 
@@ -43,11 +42,6 @@ class AppflowHook(AwsBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "appflow"
         super().__init__(*args, **kwargs)
-
-    @cached_property
-    def conn(self) -> AppflowClient:
-        """Get the underlying boto3 Appflow client (cached)."""
-        return super().conn
 
     def run_flow(
         self,

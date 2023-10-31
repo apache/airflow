@@ -28,8 +28,12 @@ from pathlib import Path
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
 
-RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
-RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
+RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
+# we should get more sophisticated logic here in the future, but for now we just check if
+# we use self airflow, vm-based, amd hosted runner as a default
+# TODO: when we have it properly set-up with labels we should change it to
+# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
+RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
 SELF_HOSTED_RUNNERS_CPU_COUNT = 8
 
 ANSWER = ""
@@ -40,7 +44,9 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
+# Database Backends used when starting Breeze. The "none" value means that invalid configuration
+# Is set and no database started - access to a database will fail.
+ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
@@ -64,7 +70,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
@@ -89,7 +95,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
 # - Innovations: Shot living releases with short support cycle - only until next Innovation/LTS release.
 # See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
 MYSQL_LTS_RELEASES: list[str] = []
-MYSQL_OLD_RELEASES = ["5.7", "8.0"]
+MYSQL_OLD_RELEASES = ["8.0"]
 MYSQL_INNOVATION_RELEASE = "8.1"
 ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
@@ -97,7 +103,7 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.3"
+PIP_VERSION = "23.3.1"
 
 # key used for generating providers index
 PROVIDERS_INDEX_KEY = "providers-index"
@@ -118,21 +124,31 @@ def all_selective_test_types() -> tuple[str, ...]:
 class SelectiveUnitTestTypes(Enum):
     ALWAYS = "Always"
     API = "API"
+    BRANCH_PYTHON_VENV = "BranchPythonVenv"
+    EXTERNAL_PYTHON = "ExternalPython"
+    EXTERNAL_BRANCH_PYTHON = "BranchExternalPython"
     CLI = "CLI"
     CORE = "Core"
+    SERIALIZATION = "Serialization"
     OTHER = "Other"
     OPERATORS = "Operators"
+    PLAIN_ASSERTS = "PlainAsserts"
     PROVIDERS = "Providers"
+    PYTHON_VENV = "PythonVenv"
     WWW = "WWW"
 
 
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
+    "Default",
     *all_selective_test_types(),
-    "PlainAsserts",
-    "Postgres",
-    "MySQL",
-    "Quarantine",
+    "All-Postgres",
+    "All-MySQL",
+    "All-Quarantined",
+]
+
+ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
+    *all_selective_test_types(),
 ]
 
 
@@ -220,6 +236,44 @@ else:
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
 CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
+
+
+AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
+    "2.0.0": ["3.6", "3.7", "3.8"],
+    "2.0.1": ["3.6", "3.7", "3.8"],
+    "2.0.2": ["3.6", "3.7", "3.8"],
+    "2.1.0": ["3.6", "3.7", "3.8"],
+    "2.1.1": ["3.6", "3.7", "3.8"],
+    "2.1.2": ["3.6", "3.7", "3.8", "3.9"],
+    "2.1.3": ["3.6", "3.7", "3.8", "3.9"],
+    "2.1.4": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.0": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.1": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.2": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.3": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.4": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.5": ["3.6", "3.7", "3.8", "3.9"],
+    "2.3.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.4": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.2": ["3.7", "3.8", "3.9", "3.10", "3.11"],
+    "2.6.3": ["3.7", "3.8", "3.9", "3.10", "3.11"],
+    "2.7.0": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.1": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.2": ["3.8", "3.9", "3.10", "3.11"],
+}
 
 DB_RESET = False
 START_AIRFLOW = "false"

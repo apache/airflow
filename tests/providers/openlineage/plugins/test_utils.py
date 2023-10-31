@@ -23,6 +23,7 @@ import uuid
 from json import JSONEncoder
 from typing import Any
 
+import pytest
 from attrs import define
 from openlineage.client.utils import RedactMixin
 from pendulum.tz.timezone import Timezone
@@ -73,6 +74,7 @@ def test_url_to_https_no_url():
     assert url_to_https("") is None
 
 
+@pytest.mark.db_test
 def test_get_dagrun_start_end():
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)

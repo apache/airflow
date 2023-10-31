@@ -19,7 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.google.cloud.hooks.datapipeline import DataPipelineHook
+
+pytestmark = pytest.mark.db_test
+
 
 TASK_ID = "test-datapipeline-operators"
 TEST_NAME = "projects/test-project-id/locations/test-location"

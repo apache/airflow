@@ -1133,7 +1133,6 @@ sql_alchemy_conn=sqlite://test
 
     def test_deprecated_funcs(self):
         for func in [
-            "load_test_config",
             "get",
             "getboolean",
             "getfloat",
@@ -1600,6 +1599,7 @@ def test_sensitive_values():
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
     exclude_list = {
         ("kubernetes_executor", "delete_option_kwargs"),
+        ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
     }
     suspected_sensitive -= exclude_list
     sensitive_values.update(suspected_sensitive)

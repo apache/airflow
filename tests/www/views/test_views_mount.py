@@ -24,6 +24,8 @@ import werkzeug.wrappers
 from airflow.www.app import create_app
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def app():

@@ -17,22 +17,22 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AthenaOperator(BaseOperator):
+class AthenaOperator(AwsBaseOperator[AthenaHook]):
     """
-    An operator that submits a presto query to athena.
+    An operator that submits a Trino/Presto query to Amazon Athena.
 
     .. note:: if the task is killed while it runs, it'll cancel the athena query that was launched,
         EXCEPT if running in deferrable mode.
@@ -41,10 +41,14 @@ class AthenaOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AthenaOperator`
 
-    :param query: Presto to be run on athena. (templated)
+    :param query: Trino/Presto query to be run on Amazon Athena. (templated)
     :param database: Database to select. (templated)
+    :param catalog: Catalog to select. (templated)
     :param output_location: s3 path to write the query results into. (templated)
-    :param aws_conn_id: aws connection to use
+        To run the query, you must specify the query results location using one of the ways:
+        either for individual queries using either this setting (client-side),
+        or in the workgroup, using WorkGroupConfiguration.
+        If none of them is set, Athena issues an error that no output location is provided
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
     :param workgroup: Athena workgroup in which query will be run. (templated)
     :param query_execution_context: Context in which query need to be run
@@ -54,10 +58,23 @@ class AthenaOperator(BaseOperator):
         To limit task execution time, use execution_timeout.
     :param log_query: Whether to log athena query and other execution params when it's executed.
         Defaults to *True*.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
+    aws_hook_class = AthenaHook
     ui_color = "#44b5e2"
-    template_fields: Sequence[str] = ("query", "database", "output_location", "workgroup")
+    template_fields: Sequence[str] = aws_template_fields(
+        "query", "database", "output_location", "workgroup", "catalog"
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
 
@@ -66,8 +83,7 @@ class AthenaOperator(BaseOperator):
         *,
         query: str,
         database: str,
-        output_location: str,
-        aws_conn_id: str = "aws_default",
+        output_location: str | None = None,
         client_request_token: str | None = None,
         workgroup: str = "primary",
         query_execution_context: dict[str, str] | None = None,
@@ -76,13 +92,13 @@ class AthenaOperator(BaseOperator):
         max_polling_attempts: int | None = None,
         log_query: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        catalog: str = "AwsDataCatalog",
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self.query = query
         self.database = database
         self.output_location = output_location
-        self.aws_conn_id = aws_conn_id
         self.client_request_token = client_request_token
         self.workgroup = workgroup
         self.query_execution_context = query_execution_context or {}
@@ -92,16 +108,18 @@ class AthenaOperator(BaseOperator):
         self.query_execution_id: str | None = None
         self.log_query: bool = log_query
         self.deferrable = deferrable
+        self.catalog: str = catalog
 
-    @cached_property
-    def hook(self) -> AthenaHook:
-        """Create and return an AthenaHook."""
-        return AthenaHook(self.aws_conn_id, log_query=self.log_query)
+    @property
+    def _hook_parameters(self) -> dict[str, Any]:
+        return {**super()._hook_parameters, "log_query": self.log_query}
 
     def execute(self, context: Context) -> str | None:
-        """Run Presto Query on Athena."""
+        """Run Trino/Presto Query on Amazon Athena."""
         self.query_execution_context["Database"] = self.database
-        self.result_configuration["OutputLocation"] = self.output_location
+        self.query_execution_context["Catalog"] = self.catalog
+        if self.output_location:
+            self.result_configuration["OutputLocation"] = self.output_location
         self.query_execution_id = self.hook.run_query(
             self.query,
             self.query_execution_context,
@@ -113,7 +131,13 @@ class AthenaOperator(BaseOperator):
         if self.deferrable:
             self.defer(
                 trigger=AthenaTrigger(
-                    self.query_execution_id, self.sleep_time, self.max_polling_attempts, self.aws_conn_id
+                    query_execution_id=self.query_execution_id,
+                    waiter_delay=self.sleep_time,
+                    waiter_max_attempts=self.max_polling_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -144,7 +168,7 @@ class AthenaOperator(BaseOperator):
         return event["value"]
 
     def on_kill(self) -> None:
-        """Cancel the submitted athena query."""
+        """Cancel the submitted Amazon Athena query."""
         if self.query_execution_id:
             self.log.info("Received a kill signal.")
             response = self.hook.stop_query(self.query_execution_id)

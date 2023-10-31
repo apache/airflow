@@ -32,6 +32,9 @@ from airflow.utils import db
 from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
+
 smtplib_string = "airflow.providers.smtp.hooks.smtp.smtplib"
 
 TEST_EMAILS = ["test1@example.com", "test2@example.com"]

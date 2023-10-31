@@ -25,6 +25,8 @@ from airflow.models import Pool
 from airflow.utils.session import create_session
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
+pytestmark = pytest.mark.db_test
+
 POOL = {
     "pool": "test-pool",
     "slots": 777,
