@@ -3151,7 +3151,7 @@ class TestSchedulerJob:
 
     @pytest.mark.parametrize(
         "adoptable_state",
-        State.adoptable_states,
+        list(sorted(State.adoptable_states)),
     )
     def test_adopt_or_reset_resettable_tasks(self, dag_maker, adoptable_state):
         dag_id = "test_adopt_or_reset_adoptable_tasks_" + adoptable_state.name

@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import yaml
-
 from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, AIRFLOW_SOURCES_ROOT
 
 
@@ -26,6 +24,8 @@ def get_suspended_providers_folders() -> list[str]:
     Returns a list of suspended providers folders that should be
     skipped when running tests (without any prefix - for example apache/beam, yandex, google etc.).
     """
+    import yaml
+
     suspended_providers = []
     for provider_path in AIRFLOW_PROVIDERS_ROOT.rglob("provider.yaml"):
         provider_yaml = yaml.safe_load(provider_path.read_text())
@@ -42,6 +42,8 @@ def get_suspended_provider_ids() -> list[str]:
     """
     Yields the ids of suspended providers.
     """
+    import yaml
+
     suspended_provider_ids = []
     for provider_path in AIRFLOW_PROVIDERS_ROOT.rglob("provider.yaml"):
         provider_yaml = yaml.safe_load(provider_path.read_text())
