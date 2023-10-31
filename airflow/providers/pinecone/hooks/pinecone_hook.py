@@ -108,7 +108,7 @@ class PineconeHook(BaseHook):
         :param namespace: The namespace to write to. If not specified, the default namespace - "" is used.
         :param batch_size: The number of vectors to upsert in each batch.
         :param show_progress: Whether to show a progress bar using tqdm. Applied only
-         if batch_size is provided.
+            if batch_size is provided.
         """
         index = pinecone.Index(index_name)
         return index.upsert(
