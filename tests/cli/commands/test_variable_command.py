@@ -22,12 +22,16 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest
+from sqlalchemy import select
 
 from airflow import models
 from airflow.cli import cli_parser
 from airflow.cli.commands import variable_command
 from airflow.models import Variable
+from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_variables
+
+pytestmark = pytest.mark.db_test
 
 
 class TestCliVariables:
@@ -46,6 +50,22 @@ class TestCliVariables:
         """Test variable_set command"""
         variable_command.variables_set(self.parser.parse_args(["variables", "set", "foo", "bar"]))
         assert Variable.get("foo") is not None
+        with pytest.raises(KeyError):
+            Variable.get("foo1")
+
+    def test_variables_set_with_description(self):
+        """Test variable_set command with optional description argument"""
+        expected_var_desc = "foo_bar_description"
+        var_key = "foo"
+        variable_command.variables_set(
+            self.parser.parse_args(["variables", "set", var_key, "bar", "--description", expected_var_desc])
+        )
+
+        assert Variable.get(var_key) == "bar"
+        with create_session() as session:
+            actual_var_desc = session.scalar(select(Variable.description).where(Variable.key == var_key))
+            assert actual_var_desc == expected_var_desc
+
         with pytest.raises(KeyError):
             Variable.get("foo1")
 

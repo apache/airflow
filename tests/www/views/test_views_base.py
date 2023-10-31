@@ -31,6 +31,8 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
+pytestmark = pytest.mark.db_test
+
 
 def test_index_redirect(admin_client):
     resp = admin_client.get("/")

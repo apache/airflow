@@ -79,6 +79,7 @@ class TestCliUtil:
     def test_process_subdir_path_with_placeholder(self):
         assert os.path.join(settings.DAGS_FOLDER, "abc") == cli.process_subdir("DAGS_FOLDER/abc")
 
+    @pytest.mark.db_test
     def test_get_dags(self):
         dags = cli.get_dags(None, "example_subdag_operator")
         assert len(dags) == 1
@@ -89,6 +90,7 @@ class TestCliUtil:
         with pytest.raises(AirflowException):
             cli.get_dags(None, "foobar", True)
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ["given_command", "expected_masked_command"],
         [

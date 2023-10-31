@@ -34,6 +34,9 @@ from airflow.utils.timezone import datetime
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = datetime(2018, 1, 1)
 EXECUTION_DATE = datetime(2019, 1, 1)
 
