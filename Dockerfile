@@ -553,9 +553,9 @@ function common::install_pip_version() {
     echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
     echo
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
-        pip install --disable-pip-version-check --cache-dir "/tmp/.cache/pip" "pip @ ${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
     else
-        pip install --disable-pip-version-check --cache-dir "/tmp/.cache/pip" "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     fi
     mkdir -p "${HOME}/.local/bin"
 }
@@ -1123,7 +1123,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         the container starts, so it is only useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
-    pip install --root-user-action ignore --cache-dir "/tmp/.cache/pip" ${_PIP_ADDITIONAL_REQUIREMENTS}
+    pip install --root-user-action ignore ${_PIP_ADDITIONAL_REQUIREMENTS}
 fi
 
 
@@ -1201,7 +1201,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
+    PIP_CACHE_DIR=/tmp/.cache/pip
 
 ARG DEV_APT_DEPS=""
 ARG ADDITIONAL_DEV_APT_DEPS=""
@@ -1415,7 +1416,7 @@ RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$P
 # hadolint ignore=DL3042
 RUN --mount=type=cache,id=additional-requirements-$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
     if [[ -f /docker-context-files/requirements.txt ]]; then \
-        pip install --cache-dir /tmp/.cache/pip --user -r /docker-context-files/requirements.txt; \
+        pip install --user -r /docker-context-files/requirements.txt; \
     fi
 
 ##############################################################################################
