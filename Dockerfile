@@ -553,9 +553,9 @@ function common::install_pip_version() {
     echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
     echo
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
-        pip install --disable-pip-version-check --cache-dir "$AIRFLOW_USER_HOME_DIR/.cache/pip" "pip @ ${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check --cache-dir "/tmp/.cache/pip" "pip @ ${AIRFLOW_PIP_VERSION}"
     else
-        pip install --disable-pip-version-check --cache-dir "$AIRFLOW_USER_HOME_DIR/.cache/pip" "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check --cache-dir "/tmp/.cache/pip" "pip==${AIRFLOW_PIP_VERSION}"
     fi
     mkdir -p "${HOME}/.local/bin"
 }
@@ -1123,7 +1123,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         the container starts, so it is only useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
-    pip install --root-user-action ignore --cache-dir "$AIRFLOW_USER_HOME_DIR/.cache/pip" ${_PIP_ADDITIONAL_REQUIREMENTS}
+    pip install --root-user-action ignore --cache-dir "/tmp/.cache/pip" ${_PIP_ADDITIONAL_REQUIREMENTS}
 fi
 
 
@@ -1393,7 +1393,7 @@ ARG TARGETARCH
 ARG PIP_CACHE_EPOCH="0"
 
 # hadolint ignore=SC2086, SC2010, DL3042
-RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
+RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
   if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
@@ -1413,9 +1413,9 @@ RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$P
 # during the build additionally to whatever has been installed so far. It is recommended that
 # the requirements.txt contains only dependencies with == version specification
 # hadolint ignore=DL3042
-RUN --mount=type=cache,id=additional-requirements-$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=$AIRFLOW_USER_HOME_DIR/.cache/pip,uid=${AIRFLOW_UID} \
+RUN --mount=type=cache,id=additional-requirements-$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
     if [[ -f /docker-context-files/requirements.txt ]]; then \
-        pip install --cache-dir $AIRFLOW_USER_HOME_DIR/.cache/pip --user -r /docker-context-files/requirements.txt; \
+        pip install --cache-dir /tmp/.cache/pip --user -r /docker-context-files/requirements.txt; \
     fi
 
 ##############################################################################################
