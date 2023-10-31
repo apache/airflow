@@ -68,7 +68,7 @@ def heartbeat_healthy():
         state="running",
         latest_heartbeat=last_heartbeat,
     )
-    SchedulerJobRunner(job=job),
+    SchedulerJobRunner(job=job)
     with create_session() as session:
         session.add(job)
     yield "healthy", last_heartbeat.isoformat()
@@ -88,7 +88,7 @@ def heartbeat_too_slow():
         state="running",
         latest_heartbeat=last_heartbeat,
     )
-    SchedulerJobRunner(job=job),
+    SchedulerJobRunner(job=job)
     with create_session() as session:
         session.query(Job).filter(
             Job.job_type == "SchedulerJob",
