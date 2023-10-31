@@ -553,7 +553,7 @@ class TestCliDags:
         with contextlib.redirect_stderr(StringIO()) as temp_stderr:
             dag_command.dag_list_dags(args)
             out = temp_stderr.getvalue()
-        assert "The following are not valid columns: ['invalid_col']" in out
+        assert "Ignoring the following invalid columns:: ['invalid_col']" in out
 
     @conf_vars({("core", "load_examples"): "false"})
     def test_cli_list_dags_prints_import_errors(self):

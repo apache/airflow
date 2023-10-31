@@ -362,7 +362,7 @@ def dag_list_dags(args, session=NEW_SESSION) -> None:
 
         rich_print(
             f"[red][bold]Error:[/bold] Ignoring the following invalid columns: {not_valid_cols}.  "
-            f"Possible columns: {list(dag_schema.fields.keys())}",
+            f"List of valid columns: {list(dag_schema.fields.keys())}",
             file=sys.stderr,
         )
     dagbag = DagBag(process_subdir(args.subdir))
