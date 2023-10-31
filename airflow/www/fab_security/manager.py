@@ -76,15 +76,6 @@ def __getattr__(name: str):
     if not path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-    import warnings
-
-    warnings.warn(
-        f"Importing {name!r} directly from {__name__!r} is deprecated and "
-        f"will be removed in the future. Please import it from '{path}.{name}'.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-
     from airflow.utils.module_loading import import_string
 
     val = import_string(f"{path}.{name}")
