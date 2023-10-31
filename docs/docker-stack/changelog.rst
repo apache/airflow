@@ -68,6 +68,8 @@ Airflow 2.7
 
   * Docker CLI version in the image is bumped to 24.0.6 version.
 
+  * PIP caching for local builds has been enabled to speed up local custom image building
+
 * 2.7.0
 
   * As of now, Python 3.7 is no longer supported by the Python community. Therefore, to use Airflow 2.7.0 and above, you must ensure your Python version is

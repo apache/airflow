@@ -972,3 +972,15 @@ The architecture of the images
 
 You can read more details about the images - the context, their parameters and internal structure in the
 `IMAGES.rst <https://github.com/apache/airflow/blob/main/IMAGES.rst>`_ document.
+
+
+Pip packages caching
+....................
+
+To enable faster iteration when building the image locally (especially if you are testing different combination of
+python packages), pip caching has been enabled. The caching id is based on four different parameters:
+
+1. ``PYTHON_BASE_IMAGE``: Avoid sharing same cache based on python version and target os
+2. ``AIRFLOW_PIP_VERSION``
+3. ``TARGETARCH``: Avoid sharing architecture specific cached package
+4. ``PIP_CACHE_EPOCH``: Enable changing cache id by passing ``PIP_CACHE_EPOCH`` as ``--build-arg``
