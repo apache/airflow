@@ -24,7 +24,9 @@ from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.utils`.", RemovedInAirflow3Warning, stacklevel=2
+    "This module is deprecated. Please use `airflow.utils`.",
+    RemovedInAirflow3Warning,
+    stacklevel=2
 )
 
 __deprecated_classes = {

@@ -184,7 +184,7 @@ repos:
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff-format
         name: ruff-format
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.16.0
     hooks:
