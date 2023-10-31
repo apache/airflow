@@ -42,5 +42,6 @@ def get_task_instance(dag_id: str, task_id: str, execution_date: datetime) -> Ta
     if not task_instance:
         error_message = f"Task {task_id} instance for date {execution_date} not found"
         raise TaskInstanceNotFound(error_message)
-
+    # API methods has access to the database.
+    assert isinstance(task_instance, TaskInstance)
     return task_instance
