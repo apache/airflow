@@ -152,6 +152,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         check_existence: bool = False,
         poll_interval: float = 2.0,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        deferrable_timeout: int | float | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -221,6 +222,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self._has_checked_existence = False
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.deferrable_timeout =deferrable_timeout
 
     def _get_dttm_filter(self, context):
         if self.execution_delta:
@@ -341,7 +343,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     states=self.allowed_states,
                     trigger_start_time=utcnow(),
                     poll_interval=self.poll_interval,
-                    timeout=self.timeout,
+                    timeout=self.deferrable_timeout,
                 ),
                 method_name="execute_complete",
             )
@@ -352,7 +354,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             self.log.info("External task %s has executed successfully.", self.external_task_id)
             return None
         elif event["status"] == "timeout":
-            raise AirflowException(f"Dag was not started within {self.timeout}, assuming fail.")
+            raise AirflowException(f"Dag was not started within {self.deferrable_timeout}, assuming fail.")
         else:
             raise AirflowException(
                 "Error occurred while trying to retrieve task status. Please, check the "
