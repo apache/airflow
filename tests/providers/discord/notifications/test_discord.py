@@ -25,6 +25,8 @@ from airflow.models import Connection
 from airflow.providers.discord.notifications.discord import DiscordNotifier
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(autouse=True)
 def setup():

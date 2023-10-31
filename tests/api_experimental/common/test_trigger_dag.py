@@ -28,6 +28,8 @@ from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from tests.test_utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestTriggerDag:
     def setup_method(self) -> None:

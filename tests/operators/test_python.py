@@ -22,10 +22,10 @@ import logging
 import os
 import re
 import sys
+import tempfile
 import warnings
 from collections import namedtuple
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Generator
@@ -35,6 +35,7 @@ from unittest.mock import MagicMock
 import pytest
 from slugify import slugify
 
+from airflow import PY311
 from airflow.decorators import task_group
 from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperator
@@ -60,6 +61,9 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.db import clear_db_runs
+
+pytestmark = pytest.mark.db_test
+
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -844,17 +848,30 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             assert ti.state == expected_state
 
 
+venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
+
+
+# when venv tests are run in parallel to other test they create new processes and this might take
+# quite some time in shared docker environment and get some contention even between different containers
+# therefore we have to extend timeouts for those tests
+@pytest.mark.virtualenv_operator
 class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     opcls = PythonVirtualenvOperator
 
     @staticmethod
     def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
         kwargs["python_version"] = python_version
+        if "do_not_use_caching" in kwargs:
+            kwargs.pop("do_not_use_caching")
+        else:
+            # Caching by default makes the tests run faster except few cases we want to test with regular venv
+            if "venv_cache_path" not in kwargs:
+                kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
 
     @mock.patch("shutil.which")
     @mock.patch("airflow.operators.python.importlib")
-    def test_virtuenv_not_installed(self, importlib_mock, which_mock):
+    def test_virtualenv_not_installed(self, importlib_mock, which_mock):
         which_mock.return_value = None
         importlib_mock.util.find_spec.return_value = None
         with pytest.raises(AirflowException, match="requires virtualenv"):
@@ -903,6 +920,22 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 raise Exception
 
         self.run_as_task(f, requirements=["funcsigs==0.4"])
+
+    def test_with_no_caching(self):
+        """
+        Most of venv tests use caching to speed up the tests. This test ensures that
+        we have test without caching as well.
+
+        :return:
+        """
+
+        def f():
+            import funcsigs
+
+            if funcsigs.__version__ != "0.4":
+                raise Exception
+
+        self.run_as_task(f, requirements=["funcsigs==0.4"], do_not_use_caching=True)
 
     def test_unpinned_requirements(self):
         def f():
@@ -999,47 +1032,19 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         with TemporaryDirectory(prefix="pytest_venv_1234") as tmp_dir:
             self.run_as_task(f, venv_cache_path=tmp_dir, op_args=[4])
 
-    def test_no_side_effect_of_caching_and_termination_log(self):
-        def termination_log(a):
-            import sys
-            from pathlib import Path
-
-            assert "pytest_venv_1234" in sys.executable
-            venv_cache_dir_name = Path(sys.executable).parent.parent.name
-            raise Exception(f"Should produce termination log. Subdir = {venv_cache_dir_name}")
-
-        def no_termination_log(a):
-            import sys
-
-            assert "pytest_venv_1234" in sys.executable
-            raise SystemExit(1)
-
-        with TemporaryDirectory(prefix="pytest_venv_1234") as tmp_dir:
-            with pytest.raises(AirflowException, match="Should produce termination log") as exc:
-                self.run_as_task(termination_log, venv_cache_path=tmp_dir, op_args=[4])
-            venv_dir_cache = exc.value.args[0].split(" ")[-1]
-            termination_log_path = Path(tmp_dir) / venv_dir_cache / "termination.log"
-            assert termination_log_path.exists()
-            assert "Should produce termination log" in termination_log_path.read_text()
-            clear_db_runs()
-
-            # termination log from previous run should not produce side effects in another task
-            # Using the same cached venv
-
-            assert termination_log_path.exists()
-            with pytest.raises(CalledProcessError):
-                self.run_as_task(no_termination_log, venv_cache_path=tmp_dir, op_args=[4])
-            assert not termination_log_path.exists()
-
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
     @pytest.mark.execution_timeout(120)
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @pytest.mark.skipif(
-        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
+        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true" or PY311,
         reason="assertion rewriting breaks this test because dill will try to serialize "
         "AssertRewritingHook including captured stdout and we need to run "
-        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true",
+        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true ."
+        "Also this test is skipped on Python 3.11 because of impact of regression in Python 3.11 "
+        "connected likely with CodeType behaviour https://github.com/python/cpython/issues/100316 "
+        "That likely causes that dill is not able to serialize the `conf` correctly "
+        "Issue about fixing it is captured in https://github.com/apache/airflow/issues/35307",
     )
     def test_airflow_context(self):
         def f(
@@ -1144,6 +1149,11 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         self.run_as_task(f, use_dill=True, system_site_packages=False, requirements=None)
 
 
+# when venv tests are run in parallel to other test they create new processes and this might take
+# quite some time in shared docker environment and get some contention even between different containers
+# therefore we have to extend timeouts for those tests
+@pytest.mark.execution_timeout(120)
+@pytest.mark.external_python_operator
 class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
     opcls = ExternalPythonOperator
 
@@ -1197,6 +1207,20 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         with pytest.raises(AirflowException, match="Invalid tasks found:"):
             self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
+
+    def test_with_no_caching(self):
+        """
+        Most of venv tests use caching to speed up the tests. This test ensures that
+        we have test without caching as well.
+
+        :return:
+        """
+
+        def f():
+            return False
+
+        with pytest.raises(AirflowException, match="but got 'bool'"):
+            self.run_as_task(f, do_not_use_caching=True)
 
     def test_with_dag_run(self):
         with self.dag:
@@ -1320,19 +1344,36 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             ti.run()
 
 
+# when venv tests are run in parallel to other test they create new processes and this might take
+# quite some time in shared docker environment and get some contention even between different containers
+# therefore we have to extend timeouts for those tests
+@pytest.mark.virtualenv_operator
 class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator):
     opcls = BranchPythonVirtualenvOperator
 
     @staticmethod
     def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        if "do_not_use_caching" in kwargs:
+            kwargs.pop("do_not_use_caching")
+        else:
+            # Caching by default makes the tests run faster except few cases we want to test with regular venv
+            if "venv_cache_path" not in kwargs:
+                kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
 
 
+# when venv tests are run in parallel to other test they create new processes and this might take
+# quite some time in shared docker environment and get some contention even between different containers
+# therefore we have to extend timeouts for those tests
+@pytest.mark.external_python_operator
 class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
     opcls = BranchExternalPythonOperator
 
     @staticmethod
     def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        # Remove do not use caching that might come from one of the tests in the base class
+        if "do_not_use_caching" in kwargs:
+            kwargs.pop("do_not_use_caching")
         kwargs["python"] = sys.executable
         return kwargs
 

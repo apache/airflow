@@ -92,14 +92,11 @@ def patch_pool(
     """Update a pool."""
     request_dict = get_json_request_dict()
     # Only slots and include_deferred can be modified in 'default_pool'
-    try:
-        if pool_name == Pool.DEFAULT_POOL_NAME and request_dict["name"] != Pool.DEFAULT_POOL_NAME:
-            if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
-                pass
-            else:
-                raise BadRequest(detail="Default Pool's name can't be modified")
-    except KeyError:
-        pass
+    if pool_name == Pool.DEFAULT_POOL_NAME and request_dict.get("name", None) != Pool.DEFAULT_POOL_NAME:
+        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
+            pass
+        else:
+            raise BadRequest(detail="Default Pool's name can't be modified")
 
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
     if not pool:

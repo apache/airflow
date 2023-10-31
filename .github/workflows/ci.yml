@@ -46,7 +46,6 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
@@ -956,11 +955,11 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PARALLEL_TEST_TYPES: "Helm"
-      BACKEND: ""
+      BACKEND: "none"
       DB_RESET: "false"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       JOB_ID: "helm-tests"
-      COVERAGE: "false"  # We do not need to run coverage on Helm tests
+      USE_XDIST: "true"
     if: >
       needs.build-info.outputs.needs-helm-tests == 'true' &&
       (github.repository == 'apache/airflow' || github.event_name != 'schedule') &&
@@ -989,7 +988,7 @@ jobs:
   tests-postgres:
     timeout-minutes: 130
     name: >
-      Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
+      DB:Postgres${{matrix.postgres-version}},Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -1010,7 +1009,7 @@ jobs:
       POSTGRES_VERSION: "${{matrix.postgres-version}}"
       BACKEND_VERSION: "${{matrix.postgres-version}}"
       JOB_ID: "postgres-${{matrix.postgres-version}}-${{matrix.python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -1028,9 +1027,11 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: "Tests ARM Pytest collection: ${{matrix.python-version}}"
-        run: breeze testing tests --run-in-parallel --collect-only --remove-arm-packages
+        run: breeze testing db-tests --collect-only --remove-arm-packages
         if: matrix.postgres-version == needs.build-info.outputs.default-postgres-version
       - name: >
           Post Tests success: Postgres"
@@ -1044,7 +1045,7 @@ jobs:
   tests-postgres-boto:
     timeout-minutes: 130
     name: >
-      LatestBotoPostgres${{needs.build-info.outputs.default-postgres-version}},
+      DB:LatestBoto${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
@@ -1056,6 +1057,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1064,7 +1066,6 @@ jobs:
       JOB_ID: >
         postgres-boto-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -1078,9 +1079,10 @@ jobs:
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
         uses: ./.github/actions/post_tests_success
@@ -1093,7 +1095,7 @@ jobs:
   tests-postgres-min-sqlalchemy:
     timeout-minutes: 130
     name: >
-      MinSQLAlchemy${{needs.build-info.outputs.default-postgres-version}},
+      DB:MinSQLAlchemy${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
@@ -1105,6 +1107,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1113,7 +1116,6 @@ jobs:
       JOB_ID: >
         postgres-min-sqlalchemy-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -1127,9 +1129,10 @@ jobs:
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: ${{needs.build-info.outputs.default-python-version}}:Boto"
         uses: ./.github/actions/post_tests_success
@@ -1142,7 +1145,7 @@ jobs:
   tests-postgres-in-progress-features-disabled:
     timeout-minutes: 130
     name: >
-      InProgressDisabledPostgres${{needs.build-info.outputs.default-postgres-version}},
+      DB:InProgressDisabledPostgres${{needs.build-info.outputs.default-postgres-version}},
       Py${{needs.build-info.outputs.default-python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
@@ -1154,6 +1157,7 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       PYTHON_VERSION: "${needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
@@ -1162,7 +1166,6 @@ jobs:
       JOB_ID: >
         postgres-in-progress-disabled-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.run-amazon-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -1176,9 +1179,10 @@ jobs:
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Tests: ${{needs.build-info.outputs.default-python-version}}:
-          ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+          Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: ${{needs.build-info.outputs.default-python-version}}:FeaturesDisabled"
         uses: ./.github/actions/post_tests_success
@@ -1191,7 +1195,7 @@ jobs:
   tests-mysql:
     timeout-minutes: 130
     name: >
-      MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}:
+      DB:MySQL${{matrix.mysql-version}}, Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -1208,11 +1212,11 @@ jobs:
       PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mysql"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       MYSQL_VERSION: "${{matrix.mysql-version}}"
       BACKEND_VERSION: "${{matrix.mysql-version}}"
       JOB_ID: "mysql-${{matrix.mysql-version}}-${{matrix.python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
       - name: Cleanup repo
@@ -1230,7 +1234,9 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: MySQL"
         uses: ./.github/actions/post_tests_success
@@ -1244,7 +1250,7 @@ jobs:
   tests-mssql:
     timeout-minutes: 130
     name: >
-      MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}:
+      DB:MSSQL${{matrix.mssql-version}}, Py${{matrix.python-version}}:
       ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
@@ -1261,11 +1267,11 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mssql"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{matrix.python-version}}"
       MSSQL_VERSION: "${{matrix.mssql-version}}"
       BACKEND_VERSION: "${{matrix.mssql-version}}"
       JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       # The below (and corresponding selective checks code) can be removed once
       # https://github.com/apache/airflow/issues/31575 is fixed.
       # This is a temporary workaround for flaky tests that occur in MSSQL tests for public runners
@@ -1292,7 +1298,9 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: MsSQL"
         uses: ./.github/actions/post_tests_success
@@ -1305,7 +1313,7 @@ jobs:
   tests-sqlite:
     timeout-minutes: 130
     name: >
-      Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
+      DB:Sqlite Py${{matrix.python-version}}: ${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
@@ -1322,9 +1330,9 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "sqlite"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       BACKEND_VERSION: ""
       JOB_ID: "sqlite-${{matrix.python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1341,7 +1349,9 @@ jobs:
         uses: ./.github/actions/migration_tests
       - name: >
           Tests: ${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
-        run: breeze testing tests --run-in-parallel
+        run: >
+          breeze testing db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: >
           Post Tests success: Sqlite"
         uses: ./.github/actions/post_tests_success
@@ -1363,11 +1373,11 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "postgres"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       JOB_ID: "integration"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1435,11 +1445,11 @@ jobs:
       FULL_TESTS_NEEDED: "${{needs.build-info.outputs.full-tests-needed}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       BACKEND: "mysql"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       MYSQL_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-mysql-version}}"
       JOB_ID: "integration"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
       SKIP_PROVIDER_TESTS: "${{needs.build-info.outputs.skip-provider-tests}}"
     if: needs.build-info.outputs.run-tests == 'true'
     steps:
@@ -1476,12 +1486,12 @@ jobs:
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
-      TEST_TYPE: "Quarantined"
+      TEST_TYPE: "All-Quarantined"
       PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
       JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
-      COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
     if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.is-airflow-runner == 'true'
     steps:
       - name: Cleanup repo
@@ -1531,6 +1541,44 @@ jobs:
         uses: ./.github/actions/post_tests_failure
         if: failure()
 
+  tests-no-db:
+    timeout-minutes: 60
+    name: "Non-DB"
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, wait-for-ci-images]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJson(needs.build-info.outputs.python-versions) }}
+    env:
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      PR_LABELS: "${{needs.build-info.outputs.pull-request-labels}}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      DEBUG_RESOURCES: "${{needs.build-info.outputs.debug-resources}}"
+      JOB_ID: "quarantined-${{needs.build-info.outputs.default-python-version}}"
+      ENABLE_COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+    if: needs.build-info.outputs.run-tests == 'true'
+    steps:
+      - name: Cleanup repo
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - name: >
+          Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Tests: ${{matrix.python-version}}:NoDB"
+        run: >
+          breeze testing non-db-tests
+          --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
+      - name: "Post Tests success: NoDB"
+        uses: ./.github/actions/post_tests_success
+        if: success()
+      - name: "Post Tests failure: NoDB"
+        uses: ./.github/actions/post_tests_failure
+        if: failure()
 
   summarize-warnings:
     timeout-minutes: 15
@@ -1544,6 +1592,7 @@ jobs:
       - tests-quarantined
       - tests-integration-postgres
       - tests-integration-mysql
+      - tests-no-db
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
     steps:
@@ -1684,7 +1733,6 @@ jobs:
           KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
           EXECUTOR: ${{matrix.executor}}
           USE_STANDARD_NAMING: ${{matrix.use-standard-naming}}
-          VERBOSE: true
       - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()
@@ -1723,6 +1771,7 @@ jobs:
       - tests-sqlite
       - tests-mysql
       - tests-postgres
+      - tests-no-db
       - tests-integration-postgres
       - tests-integration-mysql
       # Skip when generate constraints fails
@@ -1881,6 +1930,7 @@ jobs:
       - tests-sqlite
       - tests-mysql
       - tests-postgres
+      - tests-no-db
       - tests-integration-postgres
       - tests-integration-mysql
     env:

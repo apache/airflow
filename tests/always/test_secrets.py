@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.configuration import ensure_secrets_loaded, initialize_secrets_backends
 from airflow.models import Connection, Variable
 from airflow.secrets.cache import SecretCache
@@ -115,6 +117,7 @@ class TestConnectionsFromSecrets:
         assert "mysql://airflow:airflow@host:5432/airflow" == conn.get_uri()
 
 
+@pytest.mark.db_test
 class TestVariableFromSecrets:
     def setup_method(self) -> None:
         clear_db_variables()

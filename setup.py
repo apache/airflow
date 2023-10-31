@@ -363,7 +363,9 @@ rabbitmq = [
 ]
 sentry = [
     "blinker>=1.1",
-    "sentry-sdk>=1.32.0",
+    # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
+    # See https://github.com/getsentry/sentry-python/issues/2473
+    "sentry-sdk>=1.32.0,!=1.33.0",
 ]
 statsd = [
     "statsd>=3.3.0",
@@ -469,7 +471,6 @@ _devel_only_tests = [
     "coverage>=7.2",
     "pytest",
     "pytest-asyncio",
-    "pytest-capture-warnings",
     "pytest-cov",
     "pytest-httpx",
     "pytest-instafail",

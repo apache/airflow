@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from unittest import mock
 from urllib.parse import quote_plus
 
@@ -34,10 +35,13 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
+from tests.conftest import initial_db_init
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 DEFAULT_DATE = timezone.datetime(2020, 3, 1)
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture()
@@ -248,6 +252,13 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     check_content_not_in_response("secret_unlikely_to_happen_accidentally", resp)
     ti.refresh_from_task(task_secret)
     assert ti.state == TaskInstanceState.QUEUED
+
+
+if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    # Handle collection of the test by non-db case
+    Variable = mock.MagicMock()  # type: ignore[misc] # noqa: F811
+else:
+    initial_db_init()
 
 
 @pytest.mark.parametrize(

@@ -600,7 +600,9 @@ class WasbAsyncHook(WasbHook):
                 tenant, app_id, app_secret, **client_secret_auth_config
             )
             self.blob_service_client = AsyncBlobServiceClient(
-                account_url=account_url, credential=token_credential, **extra  # type:ignore[arg-type]
+                account_url=account_url,
+                credential=token_credential,
+                **extra,  # type:ignore[arg-type]
             )
             return self.blob_service_client
 

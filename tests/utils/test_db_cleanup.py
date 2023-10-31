@@ -50,6 +50,8 @@ from airflow.utils.db_cleanup import (
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(autouse=True)
 def clean_database():
@@ -321,7 +323,6 @@ class TestDBCleanup:
             "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
-            "trigger",  # self-maintaining
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness

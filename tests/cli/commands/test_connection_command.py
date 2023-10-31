@@ -35,6 +35,8 @@ from airflow.utils.db import merge_conn
 from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module", autouse=True)
 def clear_connections():

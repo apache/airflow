@@ -28,6 +28,9 @@ from airflow.providers.apache.livy.hooks.livy import BatchState
 from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.utils import db, timezone
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 BATCH_ID = 100
 APP_ID = "application_1433865536131_34483"
