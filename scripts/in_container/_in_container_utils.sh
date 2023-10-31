@@ -301,16 +301,11 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     local res
     for provider_package in ${ALL_PROVIDERS_PACKAGES}
     do
-        # Until we release "yandex" provider with protobuf support we need to remove it from the list of providers
-        # to install, because it is impossible to find common requirements for already released yandex provider
-        # and current airflow
-        if [[ ${provider_package} == "apache-airflow-providers-yandex" ]]; then
-            continue
-        fi
-        # Until we release latest `hive` provider with pure-sasl support, we need to remove it from the
-        # list of providers to install for Python 3.11 because we cannot build sasl it for Python 3.11
-        if [[ ${provider_package} == "apache-airflow-providers-apache-hive" \
-            && ${PYTHON_MAJOR_MINOR_VERSION} == "3.11" ]]; then
+        # Remove common.io provider in main branch until we cut-off v2-8-test branch and change
+        # version in main to 2.9.0 - otherwise we won't be able to generate PyPI constraints as
+        # released common-io provider has apache-airflow>2.8.0 as dependency and we cannot install
+        # the provider from PyPI
+        if [[ ${provider_package} == "apache-airflow-providers-common-io" ]]; then
             continue
         fi
         echo -n "Checking if ${provider_package} is available in PyPI: "
