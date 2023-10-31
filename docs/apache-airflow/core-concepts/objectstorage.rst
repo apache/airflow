@@ -278,3 +278,22 @@ The intended behavior is the same as specified by
 `fsspec <https://filesystem-spec.readthedocs.io/en/latest/copying.html>`_. For cross object store directory copying,
 Airflow needs to walk the directory tree and copy each file individually. This is done by streaming each file from the
 source to the target.
+
+
+External Integrations
+---------------------
+
+Many other projects, like DuckDB, Apache Iceberg etc, can make use of the object storage abstraction. Often this is
+done by passing the underlying ``fsspec`` implementation. For this this purpose ``ObjectStoragePath`` exposes
+the ``fs`` property. For example, the following works with ``duckdb`` so that the connection details from Airflow
+are used to connect to s3 and a parquet file, indicated by a ``ObjectStoragePath``, is read:
+
+.. code-block:: python
+
+    import duckdb
+    from airflow.io.store.path import ObjectStoragePath
+
+    path = ObjectStoragePath("s3://my-bucket/my-table.parquet", conn_id="aws_default")
+    conn = duckdb.connect(database=":memory:")
+    conn.register_filesystem(path.fs)
+    conn.execute(f"CREATE OR REPLACE TABLE my_table AS SELECT * FROM read_parquet('{path}")
