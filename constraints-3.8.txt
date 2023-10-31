@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-29T07:25:00Z
+# This constraints file was automatically generated on 2023-10-31T06:08:38Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -38,7 +38,7 @@ Flask-Bcrypt==1.0.1
 Flask-Caching==2.1.0
 Flask-JWT-Extended==4.5.3
 Flask-Limiter==3.5.0
-Flask-Login==0.6.2
+Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.2.1
@@ -59,7 +59,7 @@ PyYAML==6.0.1
 Pygments==2.16.1
 SQLAlchemy-JSONField==1.0.1.post0
 SQLAlchemy-Utils==0.41.1
-SQLAlchemy==1.4.49
+SQLAlchemy==1.4.50
 SecretStorage==3.3.3
 Sphinx==5.3.0
 WTForms==3.1.0
@@ -233,12 +233,12 @@ celery==5.3.4
 certifi==2023.7.22
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.83.0
+cfn-lint==0.83.1
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.1
 checksumdir==1.2.0
-ciso8601==2.3.0
+ciso8601==2.3.1
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
@@ -272,21 +272,21 @@ docopt==0.6.2
 docutils==0.20.1
 duckdb==0.9.1
 ecdsa==0.18.0
-elastic-transport==8.4.1
+elastic-transport==8.10.0
 elasticsearch==8.10.1
 email-validator==1.3.1
 entrypoints==0.4
-eralchemy2==1.3.7
+eralchemy2==1.3.8
 et-xmlfile==1.1.0
 eventlet==0.33.3
 exceptiongroup==1.1.3
 execnet==2.0.2
-executing==2.0.0
+executing==2.0.1
 facebook-business==18.0.3
 fastavro==1.9.0
 fasteners==0.19
 fastjsonschema==2.18.1
-filelock==3.13.0
+filelock==3.13.1
 flower==2.0.1
 frozenlist==1.4.0
 fsspec==2023.10.0
@@ -311,7 +311,7 @@ google-cloud-automl==2.11.3
 google-cloud-batch==0.17.2
 google-cloud-bigquery-datatransfer==3.12.1
 google-cloud-bigquery-storage==2.22.0
-google-cloud-bigquery==3.12.0
+google-cloud-bigquery==3.13.0
 google-cloud-bigtable==2.21.0
 google-cloud-build==3.20.1
 google-cloud-compute==1.14.1
@@ -330,7 +330,7 @@ google-cloud-logging==3.8.0
 google-cloud-memcache==1.7.3
 google-cloud-monitoring==2.16.0
 google-cloud-orchestration-airflow==1.9.2
-google-cloud-os-login==2.10.0
+google-cloud-os-login==2.11.0
 google-cloud-pubsub==2.18.4
 google-cloud-redis==2.13.2
 google-cloud-resource-manager==1.10.4
@@ -355,8 +355,8 @@ graphviz==0.20.1
 greenlet==3.0.1
 grpc-google-iam-v1==0.12.6
 grpcio-gcp==0.2.2
-grpcio-status==1.59.0
-grpcio==1.59.0
+grpcio-status==1.59.2
+grpcio==1.59.2
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
@@ -395,10 +395,10 @@ jsonpickle==3.0.2
 jsonpointer==2.4
 jsonschema-path==0.3.1
 jsonschema-specifications==2023.7.1
-jsonschema==4.19.1
+jsonschema==4.19.2
 junit-xml==1.9
 jupyter_client==8.5.0
-jupyter_core==5.4.0
+jupyter_core==5.5.0
 keyring==24.2.0
 kombu==5.3.2
 krb5==0.5.1
@@ -434,7 +434,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.28.42
-mypy-boto3-rds==1.28.66
+mypy-boto3-rds==1.28.74
 mypy-boto3-redshift-data==1.28.36
 mypy-boto3-s3==1.28.55
 mypy-extensions==1.0.0
@@ -471,7 +471,7 @@ oracledb==1.4.2
 ordered-set==4.1.0
 orjson==3.9.10
 oscrypto==1.3.0
-oss2==2.18.2
+oss2==2.18.3
 packaging==23.2
 pandas-gbq==0.19.2
 pandas==2.0.3
@@ -499,7 +499,7 @@ portalocker==2.8.2
 pre-commit==3.5.0
 presto-python-client==0.8.4
 prison==0.2.1
-prometheus-client==0.17.1
+prometheus-client==0.18.0
 prompt-toolkit==3.0.39
 proto-plus==1.22.3
 protobuf==4.24.4
@@ -649,7 +649,7 @@ toolz==0.12.0
 tornado==6.3.3
 towncrier==23.10.0
 tqdm==4.66.1
-traitlets==5.12.0
+traitlets==5.13.0
 trino==0.327.0
 twine==4.0.2
 types-Deprecated==1.2.9.3
@@ -662,7 +662,7 @@ types-croniter==2.0.0.0
 types-docutils==0.20.0.3
 types-paramiko==3.3.0.0
 types-protobuf==4.24.0.4
-types-pyOpenSSL==23.2.0.2
+types-pyOpenSSL==23.3.0.0
 types-python-dateutil==2.8.19.14
 types-python-slugify==8.0.0.3
 types-pytz==2023.3.1.1
@@ -685,12 +685,12 @@ vertica-python==1.3.6
 vine==5.0.0
 virtualenv==20.24.6
 watchtower==3.0.1
-wcwidth==0.2.8
+wcwidth==0.2.9
 websocket-client==1.6.4
 wrapt==1.15.0
 xmltodict==0.13.0
 yamllint==1.32.0
-yandexcloud==0.240.0
+yandexcloud==0.241.0
 yarl==1.9.2
 zeep==4.2.1
 zenpy==2.0.41
