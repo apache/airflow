@@ -82,6 +82,7 @@ class TestCLIGetNumReadyWorkersRunning:
             assert self.monitor._get_num_ready_workers_running() == 0
 
 
+@pytest.mark.db_test
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 class TestCliInternalAPI(_ComonCLIGunicornTestClass):
     main_process_regexp = r"airflow internal-api"

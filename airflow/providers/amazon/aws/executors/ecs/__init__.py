@@ -112,7 +112,7 @@ class AwsEcsExecutor(BaseExecutor):
         """Checks and update state on all running tasks."""
         all_task_arns = self.active_workers.get_all_arns()
         if not all_task_arns:
-            self.log.debug("No active tasks, skipping sync")
+            self.log.debug("No active Airflow tasks, skipping sync.")
             return
 
         describe_tasks_response = self.__describe_tasks(all_task_arns)
@@ -139,7 +139,12 @@ class AwsEcsExecutor(BaseExecutor):
         elif task_state == State.REMOVED:
             self.__handle_failed_task(task.task_arn, task.stopped_reason)
         if task_state in (State.FAILED, State.SUCCESS):
-            self.log.debug("Task %s marked as %s after running on %s", task_key, task_state, task.task_arn)
+            self.log.debug(
+                "Airflow task %s marked as %s after running on %s",
+                task_key,
+                task_state,
+                task.task_arn,
+            )
             self.active_workers.pop_by_key(task_key)
 
     def __describe_tasks(self, task_arns):
@@ -165,7 +170,7 @@ class AwsEcsExecutor(BaseExecutor):
         failure_count = self.active_workers.failure_count_by_key(task_key)
         if int(failure_count) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
             self.log.warning(
-                "Task %s has failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
+                "Airflow task %s failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
                 task_key,
                 reason,
                 failure_count,
@@ -178,7 +183,9 @@ class AwsEcsExecutor(BaseExecutor):
             )
         else:
             self.log.error(
-                "Task %s has failed a maximum of %s times. Marking as failed", task_key, failure_count
+                "Airflow task %s has failed a maximum of %s times. Marking as failed",
+                task_key,
+                failure_count,
             )
             self.active_workers.pop_by_key(task_key)
             self.fail(task_key)
@@ -227,7 +234,7 @@ class AwsEcsExecutor(BaseExecutor):
                     self.pending_tasks.appendleft(ecs_task)
                 else:
                     self.log.error(
-                        "Task %s has failed a maximum of %s times. Marking as failed",
+                        "ECS task %s has failed a maximum of %s times. Marking as failed",
                         task_key,
                         attempt_number,
                     )
@@ -235,14 +242,14 @@ class AwsEcsExecutor(BaseExecutor):
             elif not run_task_response["tasks"]:
                 self.log.error("ECS RunTask Response: %s", run_task_response)
                 raise EcsExecutorException(
-                    "No failures and no tasks provided in response. This should never happen."
+                    "No failures and no ECS tasks provided in response. This should never happen."
                 )
             else:
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
         if failure_reasons:
             self.log.error(
-                "Pending tasks failed to launch for the following reasons: %s. Will retry later.",
+                "Pending ECS tasks failed to launch for the following reasons: %s. Retrying later.",
                 dict(failure_reasons),
             )
 

@@ -64,7 +64,7 @@ class BaseAzureServiceBusHook(BaseHook):
                     "<Resource group>.servicebus.windows.net (for Azure AD authenticaltion)"
                 ),
                 "credential": "credential",
-                "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",  # noqa
+                "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",
             },
         }
 

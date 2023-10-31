@@ -16,6 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-microsoft-azure
 ------------------------------------------------------
@@ -28,6 +29,20 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.1.0
+.....
+
+Latest change: 2023-10-28
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`04e2fbd92b <https://github.com/apache/airflow/commit/04e2fbd92bb6cb2b5abf6f16786b9800a0d49808>`_  2023-10-27   ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+=================================================================================================  ===========  =============================================================
+
 8.0.0
 .....
 
@@ -36,6 +51,7 @@ Latest change: 2023-10-13
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
 `8e383e87e1 <https://github.com/apache/airflow/commit/8e383e87e1e4d6076f92fd3bce298e32607d43c5>`_  2023-10-13   ``Fix hardcoded container name in remote logging option for Azure Blob Storage (#32779)``
 `546c850a43 <https://github.com/apache/airflow/commit/546c850a43d8b00fafc11e02e63fa5caa56b4c07>`_  2023-10-13   ``Error handling for when Azure container log cannot be read in properly. (#34627)``
 `434f571915 <https://github.com/apache/airflow/commit/434f5719153a9202c3de7555c96e185a17415d80>`_  2023-10-10   ``Add subnet_ids param in AzureContainerInstancesOperator (#34850)``

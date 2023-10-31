@@ -24,7 +24,6 @@ from __future__ import annotations
 
 PRE_COMMIT_LIST = [
     "all",
-    "black",
     "blacken-docs",
     "check-aiobotocore-optional",
     "check-airflow-k8s-not-used",
@@ -106,6 +105,7 @@ PRE_COMMIT_LIST = [
     "replace-bad-characters",
     "rst-backticks",
     "ruff",
+    "ruff-format",
     "shellcheck",
     "trailing-whitespace",
     "ts-compile-format-lint-www",

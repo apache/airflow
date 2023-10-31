@@ -32,6 +32,8 @@ from airflow.providers.openlineage.extractors.python import PythonExtractor
 from airflow.providers.openlineage.utils.utils import is_source_enabled
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 dag = DAG(
     dag_id="test_dummy_dag",
     description="Test dummy DAG",

@@ -37,6 +37,8 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 from tests.test_utils.mock_operators import MockOperator
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
 DEFAULT_DATETIME_STR_2 = "2020-01-02T00:00:00+00:00"
@@ -351,6 +353,18 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert list(range(5)) + list(range(25, 110)) + list(range(5, 15)) == [
             ti["map_index"] for ti in response.json["task_instances"]
         ]
+        # State ascending
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped"
+            "?order_by=state",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 110
+        assert len(response.json["task_instances"]) == 100
+        assert list(range(5, 25)) + list(range(90, 110)) + list(range(25, 85)) == [
+            ti["map_index"] for ti in response.json["task_instances"]
+        ]
 
     @provide_session
     def test_mapped_task_instances_invalid_order(self, one_task_with_many_mapped_tis, session):
@@ -446,3 +460,11 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json["total_entries"] == 0
         assert response.json["task_instances"] == []
+
+    def test_should_raise_404_not_found_for_nonexistent_task(self):
+        response = self.client.get(
+            "/api/v1/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/nonexistent_task/listMapped",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert response.json["title"] == "Task id nonexistent_task not found"

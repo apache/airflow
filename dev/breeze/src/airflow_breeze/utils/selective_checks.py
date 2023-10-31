@@ -24,8 +24,6 @@ from enum import Enum
 from functools import cached_property, lru_cache
 from typing import Any, Dict, List, TypeVar
 
-from typing_extensions import Literal
-
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -66,6 +64,13 @@ FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
+
+ALL_CI_SELECTIVE_TEST_TYPES = (
+    "API Always BranchExternalPython BranchPythonVenv "
+    "CLI Core ExternalPython Operators Other PlainAsserts "
+    "Providers[-amazon,google] Providers[amazon] Providers[google] "
+    "PythonVenv Serialization WWW"
+)
 
 
 class FileGroupForCi(Enum):
@@ -196,6 +201,12 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/system/providers/",
             r"^tests/providers/",
         ],
+        SelectiveUnitTestTypes.PYTHON_VENV: [
+            r"^tests/operators/test_python.py",
+        ],
+        SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: [
+            r"^tests/operators/test_python.py",
+        ],
         SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
@@ -233,7 +244,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
 
 def find_all_providers_affected(
     changed_files: tuple[str, ...], include_docs: bool, fail_if_suspended_providers_affected: bool
-) -> list[str] | Literal["ALL_PROVIDERS"] | None:
+) -> list[str] | str | None:
     all_providers: set[str] = set()
 
     all_providers_affected = False
@@ -623,6 +634,7 @@ class SelectiveChecks:
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
+        # sort according to predefined order
         sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
@@ -675,12 +687,7 @@ class SelectiveChecks:
             current_test_types = current_test_types - test_types_to_remove
 
         self._extract_long_provider_tests(current_test_types)
-
-        # this should be hard-coded as we want to have very specific sequence of tests
-        sorting_order = ["Operators", "Core", "Providers[-amazon,google]", "Providers[amazon]", "WWW"]
-        sort_key = {item: i for i, item in enumerate(sorting_order)}
-        # Put the test types in the order we want them to run
-        return " ".join(sorted(current_test_types, key=lambda x: (sort_key.get(x, len(sorting_order)), x)))
+        return " ".join(sorted(current_test_types))
 
     @cached_property
     def basic_checks_only(self) -> bool:

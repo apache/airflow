@@ -192,6 +192,7 @@ class TestPostgresOpenLineage:
         assert "schema" in lineage_on_complete.outputs[0].facets
 
 
+@pytest.mark.db_test
 def test_parameters_are_templatized(create_task_instance_of_operator):
     """Test that PostgreSQL operator could template the same fields as SQLExecuteQueryOperator"""
     ti = create_task_instance_of_operator(

@@ -31,6 +31,8 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_operators import AirflowLink, Dummy2TestOperator, Dummy3TestOperator
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = timezone.datetime(2017, 1, 1, tzinfo=timezone.utc)
 STR_DEFAULT_DATE = urllib.parse.quote(DEFAULT_DATE.strftime("%Y-%m-%dT%H:%M:%S.%f%z"))
 
