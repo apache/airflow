@@ -22,7 +22,6 @@ from airflow.decorators import setup, task, teardown
 from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
-from airflow.providers.docker.decorators.docker import _DockerDecoratedOperator
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
@@ -195,6 +194,8 @@ class TestDockerDecorator:
     @pytest.mark.parametrize("use_dill", [True, False])
     def test_deepcopy_with_python_operator(self, dag_maker, use_dill):
         import copy
+
+        from airflow.providers.docker.decorators.docker import _DockerDecoratedOperator
 
         @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=use_dill)
         def f():
