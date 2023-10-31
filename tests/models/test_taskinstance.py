@@ -2940,12 +2940,10 @@ class TestTaskInstance:
             def foo(arg):
                 print(arg)
 
-            (
-                PythonOperator(
-                    task_id="context_inside_template",
-                    python_callable=foo,
-                    op_kwargs={"arg": "{{ user_defined_macro() }}"},
-                ),
+            PythonOperator(
+                task_id="context_inside_template",
+                python_callable=foo,
+                op_kwargs={"arg": "{{ user_defined_macro() }}"},
             )
         dagrun = dag_maker.create_dagrun()
         tis = dagrun.get_task_instances()
