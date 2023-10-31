@@ -155,7 +155,7 @@ might want to maintain their own providers - as they can decide to support older
 3rd-parties relation to community providers
 -------------------------------------------
 
-Providers, can (and it is recommended for 3rd-party services) also be maintained and releases by 3rd parties,
+Providers, can (and it is recommended for 3rd-party services) also be maintained and released by 3rd parties,
 but for multiple reasons we might decide to keep those providers as community managed providers - mostly
 due to prevalence and popularity of the 3rd-party services and use cases they serve among our community. There
 are however certain condition and expectations we have in order
