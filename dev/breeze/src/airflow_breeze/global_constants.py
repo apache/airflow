@@ -44,7 +44,9 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
+# Database Backends used when starting Breeze. The "none" value means that invalid configuration
+# Is set and no database started - access to a database will fail.
+ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
@@ -110,21 +112,30 @@ def all_selective_test_types() -> tuple[str, ...]:
 class SelectiveUnitTestTypes(Enum):
     ALWAYS = "Always"
     API = "API"
+    EXTERNAL_PYTHON = "ExternalPython"
+    EXTERNAL_BRANCH_PYTHON = "BranchExternalPython"
     CLI = "CLI"
     CORE = "Core"
+    SERIALIZATION = "Serialization"
     OTHER = "Other"
     OPERATORS = "Operators"
+    PLAIN_ASSERTS = "PlainAsserts"
     PROVIDERS = "Providers"
+    PYTHON_VENV = "PythonVenv"
     WWW = "WWW"
 
 
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
+    "Default",
     *all_selective_test_types(),
-    "PlainAsserts",
-    "Postgres",
-    "MySQL",
-    "Quarantine",
+    "All-Postgres",
+    "All-MySQL",
+    "All-Quarantined",
+]
+
+ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
+    *all_selective_test_types(),
 ]
 
 

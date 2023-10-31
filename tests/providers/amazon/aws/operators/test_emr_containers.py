@@ -21,7 +21,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
@@ -40,8 +39,6 @@ GENERATED_UUID = "800647a9-adda-4237-94e6-f542c85fa55b"
 
 class TestEmrContainerOperator:
     def setup_method(self):
-        conf.load_test_config()
-
         self.emr_container = EmrContainerOperator(
             task_id="start_job",
             name="test_emr_job",
@@ -162,8 +159,6 @@ class TestEmrContainerOperator:
 
 class TestEmrEksCreateClusterOperator:
     def setup_method(self):
-        conf.load_test_config()
-
         self.emr_container = EmrEksCreateClusterOperator(
             task_id="start_cluster",
             virtual_cluster_name="test_virtual_cluster",

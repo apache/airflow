@@ -170,7 +170,7 @@ def check_for_python_emulation():
 
 
 def check_for_rosetta_environment():
-    if sys.platform != "darwin" or platform.processor() == "i386":
+    if platform != "darwin" or platform.processor() == "i386":
         return
 
     from inputimeout import TimeoutOccurred, inputimeout
@@ -280,7 +280,7 @@ def cleanup(all: bool):
         )
     elif given_answer == Answer.QUIT:
         sys.exit(0)
-    get_console().print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
+    get_console().print(f"Removing build cache dir {BUILD_CACHE_DIR}")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         if not get_dry_run():

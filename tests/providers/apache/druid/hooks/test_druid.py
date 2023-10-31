@@ -26,7 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook
 
 
-class TestDruidHook:
+@pytest.mark.db_test
+class TestDruidSubmitHook:
     def setup_method(self):
         import requests_mock
 
@@ -137,6 +138,15 @@ class TestDruidHook:
         assert task_post.called_once
         assert status_check.called
         assert shutdown_post.called_once
+
+
+class TestDruidHook:
+    def setup_method(self):
+        import requests_mock
+
+        session = requests.Session()
+        adapter = requests_mock.Adapter()
+        session.mount("mock", adapter)
 
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
     def test_get_conn_url(self, mock_get_connection):

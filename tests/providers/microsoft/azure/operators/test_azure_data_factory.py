@@ -334,7 +334,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
         assert not mock_defer.called
 
-    @pytest.mark.parametrize("status", AzureDataFactoryPipelineRunStatus.FAILURE_STATES)
+    @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.FAILURE_STATES))
     @mock.patch(
         "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
         ".defer"
@@ -358,7 +358,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
         assert not mock_defer.called
 
-    @pytest.mark.parametrize("status", AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES)
+    @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES))
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
     )

@@ -18,16 +18,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 from enum import Enum
 from functools import cached_property, lru_cache
-from re import match
 from typing import Any, Dict, List, TypeVar
-
-if sys.version_info >= (3, 9):
-    from typing import Literal
-else:
-    from typing import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -69,6 +64,13 @@ FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
+
+ALL_CI_SELECTIVE_TEST_TYPES = (
+    "API Always BranchExternalPython "
+    "CLI Core ExternalPython Operators Other PlainAsserts "
+    "Providers[-amazon,google] Providers[amazon] Providers[google] "
+    "PythonVenv Serialization WWW"
+)
 
 
 class FileGroupForCi(Enum):
@@ -199,6 +201,9 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/system/providers/",
             r"^tests/providers/",
         ],
+        SelectiveUnitTestTypes.PYTHON_VENV: [
+            r"^tests/operators/test_python.py",
+        ],
         SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
@@ -236,7 +241,7 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
 
 def find_all_providers_affected(
     changed_files: tuple[str, ...], include_docs: bool, fail_if_suspended_providers_affected: bool
-) -> list[str] | Literal["ALL_PROVIDERS"] | None:
+) -> list[str] | str | None:
     all_providers: set[str] = set()
 
     all_providers_affected = False
@@ -477,10 +482,8 @@ class SelectiveChecks:
 
     def _match_files_with_regexps(self, matched_files, regexps):
         for file in self._files:
-            for regexp in regexps:
-                if match(regexp, file):
-                    matched_files.append(file)
-                    break
+            if any(re.match(regexp, file) for regexp in regexps):
+                matched_files.append(file)
 
     @lru_cache(maxsize=None)
     def _matching_files(self, match_group: T, match_dict: dict[T, list[str]]) -> list[str]:
@@ -628,6 +631,7 @@ class SelectiveChecks:
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
+        # sort according to predefined order
         sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
@@ -680,12 +684,7 @@ class SelectiveChecks:
             current_test_types = current_test_types - test_types_to_remove
 
         self._extract_long_provider_tests(current_test_types)
-
-        # this should be hard-coded as we want to have very specific sequence of tests
-        sorting_order = ["Operators", "Core", "Providers[-amazon,google]", "Providers[amazon]", "WWW"]
-        sort_key = {item: i for i, item in enumerate(sorting_order)}
-        # Put the test types in the order we want them to run
-        return " ".join(sorted(current_test_types, key=lambda x: (sort_key.get(x, len(sorting_order)), x)))
+        return " ".join(sorted(current_test_types))
 
     @cached_property
     def basic_checks_only(self) -> bool:
