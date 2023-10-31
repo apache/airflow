@@ -1208,9 +1208,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             enable_application_ui_links = self.partial_kwargs.get(
                 "enable_application_ui_links"
             ) or self.expand_input.value.get("enable_application_ui_links")
-            job_driver = self.partial_kwargs.get(
-                "job_driver"
-            ) or self.expand_input.value.get("job_driver")
+            job_driver = self.partial_kwargs.get("job_driver") or self.expand_input.value.get("job_driver")
             configuration_overrides = self.partial_kwargs.get(
                 "configuration_overrides"
             ) or self.expand_input.value.get("configuration_overrides")
@@ -1220,7 +1218,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
             configuration_overrides = self.configuration_overrides
             job_driver = self.job_driver
 
-
         if enable_application_ui_links:
             op_extra_links.extend([EmrServerlessDashboardLink()])
             if "sparkSubmit" in job_driver:
@@ -1229,7 +1226,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
             op_extra_links.extend([EmrServerlessS3LogsLink()])
         if self.is_monitoring_in_job_override("cloudWatchLoggingConfiguration", configuration_overrides):
             op_extra_links.extend([EmrServerlessCloudWatchLogsLink()])
-            
 
         return tuple(op_extra_links)
 
@@ -1420,7 +1416,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
         This is used to determine what extra links should be shown.
         """
-        monitoring_config = job_override.get("monitoringConfiguration")
+        monitoring_config = (job_override or {}).get("monitoringConfiguration")
         if monitoring_config is None or config_key not in monitoring_config:
             return False
 
