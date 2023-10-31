@@ -26,6 +26,8 @@ from airflow.providers.mysql.transfers.s3_to_mysql import S3ToMySqlOperator
 from airflow.utils import db
 from airflow.utils.session import create_session
 
+pytestmark = pytest.mark.db_test
+
 
 class TestS3ToMySqlTransfer:
     def setup_method(self):

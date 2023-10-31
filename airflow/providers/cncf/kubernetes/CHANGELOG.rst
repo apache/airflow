@@ -47,6 +47,7 @@ Bug Fixes
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
    * ``Upgrade pre-commits (#35033)``
    * ``D401 Support - A thru Common (Inclusive) (#34934)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 
 7.7.0
 .....

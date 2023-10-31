@@ -36,6 +36,8 @@ Features
 ~~~~~~~~
 
 * ``Add AWS ECS Executor (#34381)``
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+* ``Add Http to s3 operator (#35176)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -56,6 +58,7 @@ Misc
    * ``Refactor string splitting (#34185)``
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
    * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 
 8.9.0
 .....

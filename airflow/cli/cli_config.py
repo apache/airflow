@@ -543,6 +543,12 @@ ARG_VAR_VALUE = Arg(("value",), metavar="VALUE", help="Variable value")
 ARG_DEFAULT = Arg(
     ("-d", "--default"), metavar="VAL", default=None, help="Default value returned if variable does not exist"
 )
+ARG_VAR_DESCRIPTION = Arg(
+    ("--description",),
+    default=None,
+    required=False,
+    help="Variable description, optional when setting a variable",
+)
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
 ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
@@ -1445,7 +1451,7 @@ VARIABLES_COMMANDS = (
         name="set",
         help="Set variable",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_set"),
-        args=(ARG_VAR, ARG_VAR_VALUE, ARG_SERIALIZE_JSON, ARG_VERBOSE),
+        args=(ARG_VAR, ARG_VAR_VALUE, ARG_VAR_DESCRIPTION, ARG_SERIALIZE_JSON, ARG_VERBOSE),
     ),
     ActionCommand(
         name="delete",

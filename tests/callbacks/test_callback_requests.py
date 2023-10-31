@@ -32,6 +32,7 @@ from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 
+pytestmark = pytest.mark.db_test
 TI = TaskInstance(
     task=BashOperator(task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()),
     run_id="fake_run",

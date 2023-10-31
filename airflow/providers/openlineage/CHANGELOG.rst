@@ -39,6 +39,9 @@ Features
 
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
 1.1.1
 .....
 

@@ -19,10 +19,14 @@ from __future__ import annotations
 
 from unittest.mock import call, patch
 
+import pytest
+
 from airflow import models
 from airflow.configuration import conf
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
 
 
 class TestGoogleDiscoveryApiHook:

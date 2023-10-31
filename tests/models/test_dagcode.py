@@ -32,6 +32,8 @@ from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dag_code
 
+pytestmark = pytest.mark.db_test
+
 
 def make_example_dags(module):
     """Loads DAGs from a module for test."""

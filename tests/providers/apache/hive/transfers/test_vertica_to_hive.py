@@ -20,8 +20,12 @@ from __future__ import annotations
 import datetime
 from unittest import mock
 
+import pytest
+
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.transfers.vertica_to_hive import VerticaToHiveOperator
+
+pytestmark = pytest.mark.db_test
 
 
 def mock_get_conn():
