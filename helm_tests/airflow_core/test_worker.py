@@ -691,22 +691,22 @@ class TestWorker:
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                {"podAnnotations": {}, "safeToEvict": True},
+                {"safeToEvict": True},
                 "true",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                {"podAnnotations": {}, "safeToEvict": False},
+                {"safeToEvict": False},
                 "false",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                {"podAnnotations": {}, "safeToEvict": True},
+                {"safeToEvict": True},
                 "true",
             ),
             (
                 {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                {"podAnnotations": {}, "safeToEvict": False},
+                {"safeToEvict": False},
                 "false",
             ),
             (
