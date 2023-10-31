@@ -123,7 +123,7 @@ Community providers release process
 The community providers are released regularly (usually every 2 weeks) in batches consisting of any providers
 that need to be released because they changed since last release. The release manager decides which providers
 to include and whether some or all providers should be released (see the next chapter about upgrading the
-minimum version of Airflow for example of case where we release all active, not suspended providers,
+minimum version of Airflow for example the case where we release all active meaning non-suspended providers,
 together in a single batch). Also Release Manager decides on the version bump of the provider (depending on
 classification, whether there are breaking changes, new features or just bugs comparing to previous version).
 
