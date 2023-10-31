@@ -88,6 +88,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
 
     anon = False
     if asyncio.run(session.get_credentials()) is None:
+        log.info("No credentials found, using anonymous access")
         anon = True
 
     fs = S3FileSystem(session=session, config_kwargs=config_kwargs, endpoint_url=endpoint_url, anon=anon)
