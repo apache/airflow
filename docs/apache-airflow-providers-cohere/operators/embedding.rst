@@ -27,7 +27,7 @@ interact with Cohere APIs to create embeddings for a given text.
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-The CohereEmbeddingOperator requires the ``texts`` as an input to embedding API. Use the ``cohere_conn_id`` parameter to specify the Cohere connection to use to
+The CohereEmbeddingOperator requires the ``input_text`` as an input to embedding API. Use the ``cohere_conn_id`` parameter to specify the Cohere connection to use to
 connect to your account.
 
 An example using the operator is in way:
