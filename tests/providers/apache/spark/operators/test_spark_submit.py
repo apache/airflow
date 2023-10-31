@@ -63,6 +63,7 @@ class TestSparkSubmitOperator:
             "--with-spaces",
             "args should keep embedded spaces",
         ],
+        "use_krb5ccache": True,
     }
 
     def setup_method(self):
@@ -77,7 +78,6 @@ class TestSparkSubmitOperator:
             spark_binary="sparky",
             dag=self.dag,
             **self._config,
-            use_krb5ccache=True,
         )
 
         # Then expected results
