@@ -505,9 +505,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             deferrable=self.deferrable,
         )
         self.query_ids = self._hook.execute_query(
-            self.sql,
+            self.sql,  # type: ignore[arg-type]
             statement_count=self.statement_count,
-            bindings=self.bindings,  # type: ignore[arg-type]
+            bindings=self.bindings,
         )
         self.log.info("List of query ids %s", self.query_ids)
 
