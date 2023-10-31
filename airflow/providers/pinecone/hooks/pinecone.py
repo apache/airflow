@@ -45,23 +45,23 @@ class PineconeHook(BaseHook):
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import StringField
+        from wtforms import StringField, validators
 
         return {
-            "log_level": StringField(lazy_gettext("Log Level"), widget=BS3TextFieldWidget()),
-            "project_name": StringField(lazy_gettext("Project Name"), widget=BS3TextFieldWidget()),
+            "log_level": StringField(lazy_gettext("Log Level"), widget=BS3TextFieldWidget(), default=None),
+            "project_name": StringField(
+                lazy_gettext("Project Name"),
+                widget=BS3TextFieldWidget(),
+                validators=[validators.InputRequired()],
+            ),
         }
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
-            "hidden_fields": ["port"],
-            "relabeling": {
-                "login": "Pinecone Environment",
-                "password": "Pinecone API key",
-                "schema": "Project ID",
-            },
+            "hidden_fields": ["port", "schema"],
+            "relabeling": {"login": "Pinecone Environment", "password": "Pinecone API key"},
         }
 
     def __init__(self, conn_id: str = default_conn_name) -> None:
@@ -73,8 +73,9 @@ class PineconeHook(BaseHook):
         api_key = pinecone_connection.password
         pinecone_environment = pinecone_connection.login
         pinecone_host = pinecone_connection.host
-        log_level = pinecone_connection.log_level
-        pinecone_project_name = pinecone_connection.project_name
+        extras = pinecone_connection.extra_dejson
+        pinecone_project_name = extras.get("project_name")
+        log_level = extras.get("log_level", None)
         pinecone.init(
             api_key=api_key,
             environment=pinecone_environment,
