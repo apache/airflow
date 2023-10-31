@@ -44,6 +44,9 @@ from airflow.utils.state import State
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
+
 FAKE_EXCEPTION_MSG = "Fake Exception"
 
 

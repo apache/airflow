@@ -31,6 +31,8 @@ from airflow.providers.daskexecutor.executors.dask_executor import DaskExecutor
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 try:
     # utility functions imported from the dask testing suite to instantiate a test
     # cluster for tls tests

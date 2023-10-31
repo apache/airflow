@@ -27,6 +27,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
+pytestmark = pytest.mark.db_test
+
+
 # connection_string has a format
 CONN_STRING = (
     "DefaultEndpointsProtocol=https;AccountName=testname;AccountKey=wK7BOz;EndpointSuffix=core.windows.net"

@@ -19,10 +19,15 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.sensors.time_delta import TimeDeltaSensor
 from airflow.utils.timezone import datetime
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEV_NULL = "/dev/null"

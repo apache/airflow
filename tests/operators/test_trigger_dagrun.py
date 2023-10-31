@@ -38,6 +38,8 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 TEST_DAG_ID = "testdag"
 TRIGGERED_DAG_ID = "triggerdag"

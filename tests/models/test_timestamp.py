@@ -27,6 +27,8 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(autouse=True)
 def clear_db():

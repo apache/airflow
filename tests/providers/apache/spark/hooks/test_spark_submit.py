@@ -28,6 +28,8 @@ from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSparkSubmitHook:
     _spark_job_file = "test_application.py"
