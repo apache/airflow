@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from sqlalchemy import or_
 
-from airflow import configuration, models
+from airflow import models
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.utils import db
@@ -32,8 +32,6 @@ pytestmark = pytest.mark.db_test
 
 class TestS3ToSqlTransfer:
     def setup_method(self):
-        configuration.conf.load_test_config()
-
         db.merge_conn(
             models.Connection(
                 conn_id="s3_test",
