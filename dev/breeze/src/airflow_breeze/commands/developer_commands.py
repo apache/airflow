@@ -72,6 +72,8 @@ from airflow_breeze.utils.common_options import (
     option_platform_single,
     option_postgres_version,
     option_python,
+    option_run_db_tests_only,
+    option_skip_db_tests,
     option_standalone_dag_processor,
     option_upgrade_boto,
     option_use_airflow_version,
@@ -168,6 +170,8 @@ class TimerThread(threading.Thread):
 @option_include_mypy_volume
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_run_db_tests_only
+@option_skip_db_tests
 @option_verbose
 @option_dry_run
 @option_github_repository
@@ -207,6 +211,8 @@ def shell(
     extra_args: tuple,
     upgrade_boto: bool,
     downgrade_sqlalchemy: bool,
+    run_db_tests_only: bool,
+    skip_db_tests: bool,
     standalone_dag_processor: bool,
     database_isolation: bool,
 ):
@@ -250,6 +256,8 @@ def shell(
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         standalone_dag_processor=standalone_dag_processor,
         database_isolation=database_isolation,
+        run_db_tests_only=run_db_tests_only,
+        skip_db_tests=skip_db_tests,
     )
     sys.exit(result.returncode)
 
