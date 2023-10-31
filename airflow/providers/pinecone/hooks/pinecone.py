@@ -49,12 +49,7 @@ class PineconeHook(BaseHook):
                 "login": "Pinecone Environment",
                 "password": "Pinecone API key",
                 "schema": "Project ID",
-            },
-            "placeholders": {
-                "login": "Pinecone Environment",
-                "password": "Pinecone API key",
-                "schema": "Project ID",
-            },
+            }
         }
 
     def __init__(self, conn_id: str = default_conn_name) -> None:
