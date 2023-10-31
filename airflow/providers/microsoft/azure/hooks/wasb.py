@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
-from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.identity import ClientSecretCredential
 from azure.identity.aio import (
     ClientSecretCredential as AsyncClientSecretCredential,
     DefaultAzureCredential as AsyncDefaultAzureCredential,
@@ -47,6 +47,7 @@ from azure.storage.blob.aio import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential
 
 if TYPE_CHECKING:
     from azure.storage.blob._models import BlobProperties
@@ -94,6 +95,12 @@ class WasbHook(BaseHook):
                 lazy_gettext("Tenant Id (Active Directory Auth)"), widget=BS3TextFieldWidget()
             ),
             "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -115,6 +122,8 @@ class WasbHook(BaseHook):
                 "shared_access_key": "shared access key",
                 "sas_token": "account url or token",
                 "extra": "additional options for use with ClientSecretCredential or DefaultAzureCredential",
+                "managed_identity_client_id": "Managed Identity Client ID",
+                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -207,7 +216,10 @@ class WasbHook(BaseHook):
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
-            credential = DefaultAzureCredential()
+            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
+
             self.log.info("Using DefaultAzureCredential as credential")
         return BlobServiceClient(
             account_url=account_url,
