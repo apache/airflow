@@ -112,10 +112,32 @@ function startairflow_if_requested() {
         echo
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
-        . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
+        if [ -z "${FILES_DIR+x}" ]; then
+            export FILES_DIR="/files"
+        fi
+        if [ -z "${AIRFLOW_BREEZE_CONFIG_DIR+x}" ]; then
+            export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
+        fi
 
-        if airflow db migrate
-        then
+        if [ -z "${INIT_SCRIPT_FILE=}" ]; then
+            export INIT_SCRIPT_FILE="init.sh"
+        fi
+
+        if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${INIT_SCRIPT_FILE}" ]]; then
+            pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
+            echo
+            echo "Sourcing the initialization script from ${INIT_SCRIPT_FILE} in ${AIRFLOW_BREEZE_CONFIG_DIR}"
+            echo
+            # shellcheck disable=1090
+            source "${INIT_SCRIPT_FILE}"
+            popd >/dev/null 2>&1 || exit 1
+        fi
+
+        if [[ "${BREEZE_INIT_COMMAND=}" != "" ]]; then
+            eval "${BREEZE_INIT_COMMAND}"
+        fi
+
+        if airflow db migrate; then
             if [[ ${LOAD_DEFAULT_CONNECTIONS=} == "true" || ${LOAD_DEFAULT_CONNECTIONS=} == "True" ]]; then
                 echo
                 echo "${COLOR_BLUE}Creating default connections${COLOR_RESET}"
@@ -131,12 +153,10 @@ function startairflow_if_requested() {
             AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS} airflow db init
         fi
         airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain
-
-        . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
-
     fi
     return $?
 }
+
 
 echo
 echo "${COLOR_BLUE}Checking backend and integrations.${COLOR_RESET}"
