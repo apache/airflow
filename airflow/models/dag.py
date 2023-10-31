@@ -226,7 +226,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
-    if isinstance(interval, bool):
+    if isinstance(interval, str):
         legacy_cron_data_intervals = airflow_conf.get("scheduler", "legacy_cron_data_intervals")
         if legacy_cron_data_intervals:
             return CronDataIntervalTimetable(interval, timezone)
