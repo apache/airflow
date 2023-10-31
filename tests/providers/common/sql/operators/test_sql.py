@@ -131,7 +131,7 @@ class TestColumnCheckOperator:
     UNION ALL
         SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
         FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table WHERE Y > 1) AS sq
-    """  # noqa 501
+    """  # 501
 
     correct_generate_sql_query_with_partition_and_where = """
         SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result
@@ -139,7 +139,7 @@ class TestColumnCheckOperator:
     UNION ALL
         SELECT 'X' AS col_name, 'distinct_check' AS check_type, X_distinct_check AS check_result
         FROM (SELECT COUNT(DISTINCT(X)) AS X_distinct_check FROM test_table WHERE Y > 1) AS sq
-    """  # noqa 501
+    """  # 501
 
     correct_generate_sql_query_with_where = """
         SELECT 'X' AS col_name, 'null_check' AS check_type, X_null_check AS check_result

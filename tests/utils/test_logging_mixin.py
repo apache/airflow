@@ -52,7 +52,7 @@ def parent_child_handlers(child_logger):
     logger = child_logger.parent
     logger.addHandler(parent_handler)
 
-    child_logger.addHandler(child_handler),
+    (child_logger.addHandler(child_handler),)
     child_logger.propagate = True
 
     yield parent_handler, child_handler
@@ -74,7 +74,7 @@ class TestLoggingMixin:
         parent.propagate = False
         parent.addHandler(handler1)
         log = parent.getChild("child")
-        log.addHandler(handler2),
+        (log.addHandler(handler2),)
         log.propagate = True
 
         value = "test"

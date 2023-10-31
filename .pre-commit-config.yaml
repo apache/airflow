@@ -155,13 +155,6 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  - repo: https://github.com/psf/black
-    rev: 23.10.0
-    hooks:
-      - id: black
-        name: Run black (Python formatter)
-        args: [--config=./pyproject.toml]
-        exclude: ^.*/.*_vendor/|^airflow/contrib/
   - repo: local
     hooks:
       - id: update-common-sql-api-stubs
@@ -181,13 +174,16 @@ repos:
         pass_filenames: false
         require_serial: true
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.0.292
+    rev: v0.1.3
     hooks:
       # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
       # host CPU to it's fullest
+      - id: ruff-format
+        name: ruff-format
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
       - id: ruff
-        name: ruff
-        args: [ --fix ]
+        name: ruff-lint
+        args: [--fix]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.16.0
@@ -200,7 +196,7 @@ repos:
           - --target-version=py38
           - --target-version=py39
           - --target-version=py310
-        alias: black
+        alias: blacken-docs
         additional_dependencies: [black==23.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
