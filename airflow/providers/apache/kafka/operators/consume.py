@@ -137,7 +137,9 @@ class ConsumeFromTopicOperator(BaseOperator):
 
         if self.apply_function:
             apply_callable = partial(
-                self.apply_function, *self.apply_function_args, **self.apply_function_kwargs  # type: ignore
+                self.apply_function,  # type: ignore
+                *self.apply_function_args,
+                **self.apply_function_kwargs,
             )
 
         if self.apply_function_batch:

@@ -408,9 +408,7 @@ class TestHttpHook:
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ), mock.patch(
             "requests_toolbelt.adapters.socket_options.TCPKeepAliveAdapter.send"
-        ) as tcp_keep_alive_send, mock.patch(
-            "requests.adapters.HTTPAdapter.send"
-        ) as http_send:
+        ) as tcp_keep_alive_send, mock.patch("requests.adapters.HTTPAdapter.send") as http_send:
             hook = HttpHook(method="GET")
             response = Response()
             response.status_code = HTTPStatus.OK
@@ -425,9 +423,7 @@ class TestHttpHook:
             "airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection_with_port
         ), mock.patch(
             "requests_toolbelt.adapters.socket_options.TCPKeepAliveAdapter.send"
-        ) as tcp_keep_alive_send, mock.patch(
-            "requests.adapters.HTTPAdapter.send"
-        ) as http_send:
+        ) as tcp_keep_alive_send, mock.patch("requests.adapters.HTTPAdapter.send") as http_send:
             hook = HttpHook(method="GET", tcp_keep_alive=False)
             response = Response()
             response.status_code = HTTPStatus.OK

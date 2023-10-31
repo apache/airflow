@@ -274,7 +274,8 @@ class TestEksHooks:
 
         with pytest.raises(ClientError) as raised_exception:
             eks_hook.create_cluster(
-                name=generated_test_data.existing_cluster_name, **dict(ClusterInputs.REQUIRED)  # type: ignore
+                name=generated_test_data.existing_cluster_name,
+                **dict(ClusterInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(

@@ -152,7 +152,7 @@ class ClusterGenerator:
         ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa
     :param enable_component_gateway: Provides access to the web interfaces of default and selected optional
         components on the cluster.
-    """  # noqa: E501
+    """
 
     def __init__(
         self,

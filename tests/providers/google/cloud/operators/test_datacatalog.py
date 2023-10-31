@@ -81,12 +81,12 @@ TEST_ENTRY_PATH: str = (
     f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}"
     f"/entryGroups/{TEST_ENTRY_GROUP_ID}/entries/{TEST_ENTRY_ID}"
 )
-TEST_ENTRY_GROUP_PATH: str = (
-    f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}"
-)
-TEST_TAG_TEMPLATE_PATH: str = (
-    f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/tagTemplates/{TEST_TAG_TEMPLATE_ID}"
-)
+TEST_ENTRY_GROUP_PATH: (
+    str
+) = f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}"
+TEST_TAG_TEMPLATE_PATH: (
+    str
+) = f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/tagTemplates/{TEST_TAG_TEMPLATE_ID}"
 TEST_TAG_PATH: str = (
     f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/entryGroups/"
     f"{TEST_ENTRY_GROUP_ID}/entries/{TEST_ENTRY_ID}/tags/{TEST_TAG_ID}"
