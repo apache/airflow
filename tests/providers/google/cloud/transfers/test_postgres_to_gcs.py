@@ -34,7 +34,7 @@ BUCKET = "gs://test"
 FILENAME = "test_{}.ndjson"
 
 NDJSON_LINES = [
-    b'{"some_json": {"firtname": "John", "lastname": "Smith", "nested_dict": {"a": null, "b": "something"}}, "some_num": 42, "some_str": "mock_row_content_1"}\n',  # noqa
+    b'{"some_json": {"firtname": "John", "lastname": "Smith", "nested_dict": {"a": null, "b": "something"}}, "some_num": 42, "some_str": "mock_row_content_1"}\n',
     b'{"some_json": {}, "some_num": 43, "some_str": "mock_row_content_2"}\n',
     b'{"some_json": {}, "some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
