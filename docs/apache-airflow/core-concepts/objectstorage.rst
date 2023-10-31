@@ -275,7 +275,7 @@ Copying and Moving
 This documents the expected behavior of the ``copy`` and ``move`` operations, particularly for cross object store (e.g.
 file -> s3) behavior. Each method copies or moves files or directories from a ``source`` to a ``target`` location.
 The intended behavior is the same as specified by
-`fsspec <https://filesystem-spec.readthedocs.io/en/latest/copying.html>`_. For cross object store directory copying,
+``fsspec``. For cross object store directory copying,
 Airflow needs to walk the directory tree and copy each file individually. This is done by streaming each file from the
 source to the target.
 
