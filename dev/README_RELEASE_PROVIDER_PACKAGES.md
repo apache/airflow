@@ -971,15 +971,16 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 ## Update providers metadata
 
 ```shell script
+cd ${AIRFLOW_REPO_ROOT}
 branch="update-providers-metadata-$(date '+%Y-%m-%d%n')
 git checkout -b "${branch}"
 breeze release-management generate-providers-metadata
 git add -p .
-git commit -m "Update providers metadata $(date ${branch})"
+git commit -m "Update providers metadata $(date '+%Y-%m-%d%n')"
 git push --set-upstream origin "${branch}"
 ```
 
-Create PR ang get it merged
+Create PR and get it merged
 
 ## Notify developers of release
 
