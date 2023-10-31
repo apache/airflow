@@ -929,7 +929,7 @@ class Airflow(AirflowBaseView):
             dagtags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
             tags = [
                 {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
-                for name in dagtags
+                for (name,) in dagtags
             ]
 
             owner_links_dict = DagOwnerAttributes.get_all(session)
@@ -2447,7 +2447,7 @@ class Airflow(AirflowBaseView):
                 )
             )
 
-            completed_tis_ids = [task_id for task_id in existing_tis]
+            completed_tis_ids = [task_id for (task_id,) in existing_tis]
             tasks_with_no_state = list(set(all_task_ids) - set(completed_tis_ids))
             details = [str(t) for t in tasks_with_no_state]
 
