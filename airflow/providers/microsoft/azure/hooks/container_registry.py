@@ -21,12 +21,11 @@ from __future__ import annotations
 from functools import cached_property
 from typing import Any
 
-from azure.identity import DefaultAzureCredential
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 from azure.mgmt.containerregistry import ContainerRegistryManagementClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
 
 
 class AzureContainerRegistryHook(BaseHook):
@@ -59,6 +58,12 @@ class AzureContainerRegistryHook(BaseHook):
                 lazy_gettext("Resource group name (optional)"),
                 widget=BS3TextFieldWidget(),
             ),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -77,6 +82,8 @@ class AzureContainerRegistryHook(BaseHook):
                 "host": "docker image registry server",
                 "subscription_id": "Subscription id (required for Azure AD authentication)",
                 "resource_group": "Resource group name (required for Azure AD authentication)",
+                "managed_identity_client_id": "Managed Identity Client ID",
+                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -103,8 +110,13 @@ class AzureContainerRegistryHook(BaseHook):
             extras = conn.extra_dejson
             subscription_id = self._get_field(extras, "subscription_id")
             resource_group = self._get_field(extras, "resource_group")
+            managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
             client = ContainerRegistryManagementClient(
-                credential=DefaultAzureCredential(), subscription_id=subscription_id
+                credential=get_default_azure_credential(
+                    managed_identity_client_id, workload_identity_tenant_id
+                ),
+                subscription_id=subscription_id,
             )
             credentials = client.registries.list_credentials(resource_group, conn.login).as_dict()
             password = credentials["passwords"][0]["value"]
