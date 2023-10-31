@@ -41,6 +41,7 @@ Features
    appropriate section above if needed. Do not delete the lines(!):
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
    * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 
 4.2.0
 .....

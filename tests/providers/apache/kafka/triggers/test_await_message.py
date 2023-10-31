@@ -26,6 +26,8 @@ from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 def apply_function_false(message):
     return False

@@ -50,6 +50,7 @@ class TestSalesforceHook:
 
         assert self.salesforce_hook.conn.return_value is not None
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_password_auth(self, mock_salesforce):
         """
@@ -97,6 +98,7 @@ class TestSalesforceHook:
             privatekey=None,
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_direct_session_access(self, mock_salesforce):
         """
@@ -148,6 +150,7 @@ class TestSalesforceHook:
             privatekey=None,
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_jwt_auth(self, mock_salesforce):
         """
@@ -196,6 +199,7 @@ class TestSalesforceHook:
             privatekey=extras["private_key"],
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_ip_filtering_auth(self, mock_salesforce):
         """
@@ -240,6 +244,7 @@ class TestSalesforceHook:
             privatekey=None,
         )
 
+    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
     def test_get_conn_default_to_none(self, mock_salesforce):
         """

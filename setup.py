@@ -436,10 +436,15 @@ _devel_only_devscripts = [
     "pipdeptree",
     "pygithub",
     "rich-click>=1.7.0",
+    "restructuredtext-lint",
     "semver",
     "towncrier",
     "twine",
     "wheel",
+]
+
+_devel_only_duckdb = [
+    "duckdb>=0.9.0",
 ]
 
 _devel_only_mongo = [
@@ -483,6 +488,7 @@ devel_only = [
     *_devel_only_breeze,
     *_devel_only_debuggers,
     *_devel_only_devscripts,
+    *_devel_only_duckdb,
     *_devel_only_mongo,
     *_devel_only_sentry,
     *_devel_only_static_checks,

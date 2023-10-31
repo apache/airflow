@@ -22,6 +22,8 @@ import pytest
 from airflow.decorators import task
 from airflow.utils.state import State
 
+pytestmark = pytest.mark.db_test
+
 
 class Test_BranchPythonDecoratedOperator:
     @pytest.mark.parametrize("branch_task_name", ["task_1", "task_2"])

@@ -98,6 +98,7 @@ class TestPapermillOperator:
             report_mode=True,
         )
 
+    @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):
         """Test rendering fields."""
         ti = create_task_instance_of_operator(

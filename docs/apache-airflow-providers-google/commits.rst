@@ -36,14 +36,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-10.10.2
+10.11.0
 .......
 
-Latest change: 2023-10-25
+Latest change: 2023-10-28
 
 =================================================================================================  ===========  ======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`04e2fbd92b <https://github.com/apache/airflow/commit/04e2fbd92bb6cb2b5abf6f16786b9800a0d49808>`_  2023-10-27   ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+`acff4c79dc <https://github.com/apache/airflow/commit/acff4c79dcbb7926923d86adb4c5115e02cf28e6>`_  2023-10-26   ``Make Dataprep system test self-sufficient (#34880)``
 `0bb56315e6 <https://github.com/apache/airflow/commit/0bb56315e664875cd764486bb2090e0a2ef747d8>`_  2023-10-25   ``Added 'overrides' parameter to CloudRunExecuteJobOperator (#34874)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
 `63f3712d2e <https://github.com/apache/airflow/commit/63f3712d2e5874ced8b3bf3e79eeaf6eaf059df5>`_  2023-10-18   ``Update gcs.py Create and List comment Examples (#35028)``

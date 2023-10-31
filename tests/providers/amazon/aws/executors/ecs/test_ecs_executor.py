@@ -47,6 +47,8 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
 
+pytestmark = pytest.mark.db_test
+
 ARN1 = "arn1"
 ARN2 = "arn2"
 ARN3 = "arn3"

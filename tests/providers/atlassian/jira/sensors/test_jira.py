@@ -19,10 +19,14 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.atlassian.jira.sensors.jira import JiraTicketSensor
 from airflow.utils import db, timezone
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 jira_client_mock = Mock(name="jira_client_for_test")

@@ -32,11 +32,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.3.0
 .....
 
-Latest change: 2023-10-21
+Latest change: 2023-10-28
 
 =================================================================================================  ===========  =============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `645d52f129 <https://github.com/apache/airflow/commit/645d52f1298c49b2111d058971e1a9f159f1e257>`_  2023-10-21   ``Add 'use_krb5ccache' option to 'SparkSubmitHook' (#34386)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
 `b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
