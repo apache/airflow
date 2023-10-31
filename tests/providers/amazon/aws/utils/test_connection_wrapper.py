@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 from dataclasses import fields
 from unittest import mock
 
@@ -37,7 +38,9 @@ MOCK_ROLE_ARN = "arn:aws:iam::222222222222:role/awesome-role"
 
 def mock_connection_factory(
     conn_id: str | None = MOCK_AWS_CONN_ID, conn_type: str | None = MOCK_CONN_TYPE, **kwargs
-) -> Connection:
+) -> Connection | None:
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+        return None
     return Connection(conn_id=conn_id, conn_type=conn_type, **kwargs)
 
 

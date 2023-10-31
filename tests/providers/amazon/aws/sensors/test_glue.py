@@ -21,16 +21,12 @@ from unittest.mock import ANY
 
 import pytest
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 
 
 class TestGlueJobSensor:
-    def setup_method(self):
-        conf.load_test_config()
-
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(GlueJobHook, "get_job_state")

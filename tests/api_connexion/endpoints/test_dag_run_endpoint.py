@@ -620,15 +620,17 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
     @pytest.mark.parametrize(
         "url, expected_dag_run_ids",
         [
-            (
+            pytest.param(
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
                 [],
+                id="end_date_gte",
             ),
-            (
+            pytest.param(
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
                 ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
+                id="end_date_lte",
             ),
         ],
     )

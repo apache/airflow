@@ -22,7 +22,6 @@ from unittest.mock import call, patch
 import pytest
 
 from airflow import models
-from airflow.configuration import conf
 from airflow.providers.google.common.hooks.discovery_api import GoogleDiscoveryApiHook
 from airflow.utils import db
 
@@ -31,8 +30,6 @@ pytestmark = pytest.mark.db_test
 
 class TestGoogleDiscoveryApiHook:
     def setup_method(self):
-        conf.load_test_config()
-
         db.merge_conn(
             models.Connection(
                 conn_id="google_test",

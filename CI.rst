@@ -394,7 +394,9 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Tests airflow release commands  | Tests if airflow release command works                   | -        | Yes      | Yes       | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Tests (Backend/Python matrix)   | Run the Pytest unit tests (Backend/Python matrix)        | Yes      | Yes      | Yes       | Yes (8)           |
+| Tests (Backend/Python matrix)   | Run the Pytest unit DB tests (Backend/Python matrix)     | Yes      | Yes      | Yes       | Yes (8)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| No DB tests                     | Run the Pytest unit Non-DB tests (with pytest-xdist)     | Yes      | Yes      | Yes       | Yes (8)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Integration tests               | Runs integration tests (Postgres/Mysql)                  | Yes      | Yes      | Yes       | Yes (9)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
