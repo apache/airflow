@@ -2518,6 +2518,14 @@ my_postgres_conn:
                 "continuous", start_date=DEFAULT_DATE, schedule_interval="@continuous", max_active_runs=25
             )
 
+    def test_validate_tasks_not_empty(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now(), schedule=None, catchup=False) as dag:
+            EmptyOperator(task_id="hello")
+            # Not sure how the task_dict ends up empty in the wild, but this forces the issue
+            dag.task_dict = {}
+            with pytest.raises(Exception, match="Somehow this DAG contains no tasks."):
+                dag._validate_tasks_not_empty()
+
 
 class TestDagModel:
     def _clean(self):

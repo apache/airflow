@@ -729,6 +729,7 @@ class DAG(LoggingMixin):
         self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
+        self._validate_tasks_not_empty()
 
     def validate_setup_teardown(self):
         """
@@ -745,6 +746,17 @@ class DAG(LoggingMixin):
                         # when clearing an indirect setup
                         raise ValueError("Setup tasks must be followed with trigger rule ALL_SUCCESS.")
             FailStopDagInvalidTriggerRule.check(dag=self, trigger_rule=task.trigger_rule)
+
+    def _validate_tasks_not_empty(self):
+        """
+        Validate that this DAG has something in `tasks`.
+
+        Somehow in the wild we've encountered a state where the root taskgroup shows a task,
+        but the `tasks` property doesn't. This shouldn't be possible, but when it does happen,
+        the scheduler crashes.
+        """
+        if self.task_group.children and not self.tasks:
+            raise AirflowException("Somehow this DAG contains no tasks.")
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
