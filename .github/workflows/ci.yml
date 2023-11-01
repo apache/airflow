@@ -1543,7 +1543,8 @@ jobs:
 
   tests-no-db:
     timeout-minutes: 60
-    name: "Non-DB"
+    name: >
+      Non-DB: Py${{matrix.python-version}}:${{needs.build-info.outputs.parallel-test-types-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, wait-for-ci-images]
     strategy:
@@ -1569,14 +1570,14 @@ jobs:
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Tests: ${{matrix.python-version}}:NoDB"
+      - name: "Tests: ${{matrix.python-version}}:Non-DB"
         run: >
           breeze testing non-db-tests
           --parallel-test-types "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
-      - name: "Post Tests success: NoDB"
+      - name: "Post Tests success: Non-DB"
         uses: ./.github/actions/post_tests_success
         if: success()
-      - name: "Post Tests failure: NoDB"
+      - name: "Post Tests failure: Non-DB"
         uses: ./.github/actions/post_tests_failure
         if: failure()
 
