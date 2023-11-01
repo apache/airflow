@@ -189,12 +189,12 @@ class PageCount:
     LARGE: int = 10
 
 
-FARGATE_PROFILE_UUID_PATTERN: (
-    str
-) = r"(?P<fargate_uuid>[-0-9a-z]{8}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{12})"
-NODEGROUP_UUID_PATTERN: (
-    str
-) = r"(?P<nodegroup_uuid>[-0-9a-z]{8}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{12})"
+FARGATE_PROFILE_UUID_PATTERN: str = (
+    r"(?P<fargate_uuid>[-0-9a-z]{8}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{12})"
+)
+NODEGROUP_UUID_PATTERN: str = (
+    r"(?P<nodegroup_uuid>[-0-9a-z]{8}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{4}-[-0-9a-z]{12})"
+)
 
 
 class RegExTemplates:

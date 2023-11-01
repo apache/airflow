@@ -48,6 +48,7 @@ from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataF
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential
 
 if TYPE_CHECKING:
     from azure.core.polling import LROPoller
@@ -165,6 +166,12 @@ class AzureDataFactoryHook(BaseHook):
                 lazy_gettext("Resource Group Name"), widget=BS3TextFieldWidget()
             ),
             "factory_name": StringField(lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -175,6 +182,8 @@ class AzureDataFactoryHook(BaseHook):
             "relabeling": {
                 "login": "Client ID",
                 "password": "Secret",
+                "managed_identity_client_id": "Managed Identity Client ID",
+                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -205,7 +214,9 @@ class AzureDataFactoryHook(BaseHook):
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
         else:
-            credential = DefaultAzureCredential()
+            managed_identity_client_id = get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = get_field(extras, "workload_identity_tenant_id")
+            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
         self._conn = self._create_client(credential, subscription_id)
 
         return self._conn
