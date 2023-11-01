@@ -356,7 +356,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
         rocketchat_API \
         typeform" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="msodbcsql17 unixodbc-dev g++" \
-    --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
+    --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
     --build-arg ADDITIONAL_DEV_ENV_VARS="ACCEPT_EULA=Y"
     --tag my-image:0.0.1
 
