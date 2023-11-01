@@ -27,7 +27,7 @@ The Microsoft Azure Blob Storage connection type enables the Azure Blob Storage 
 Authenticating to Azure Blob Storage
 ------------------------------------
 
-There are five ways to connect to Azure Blob Storage using Airflow.
+There are six ways to connect to Azure Blob Storage using Airflow.
 
 1. Use `token credentials`_
    i.e. add specific credentials (client_id, secret, tenant) and subscription id to the Airflow connection.
@@ -37,7 +37,8 @@ There are five ways to connect to Azure Blob Storage using Airflow.
    i.e. add a key config to ``sas_token`` in the Airflow connection.
 4. Use a `Connection String`_
    i.e. add connection string to ``connection_string`` in the Airflow connection.
-5. Fallback on DefaultAzureCredential_.
+5. Use managed identity by setting ``managed_identity_client_id``, ``workload_identity_tenant_id`` (under the hook, it uses DefaultAzureCredential_ with these arguments)
+6. Fallback on DefaultAzureCredential_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI, etc.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
@@ -84,6 +85,8 @@ Extra (optional)
     The following parameters are all optional:
 
     * ``client_secret_auth_config``: Extra config to pass while authenticating as a service principal using `ClientSecretCredential`_ It can be left out to fall back on DefaultAzureCredential_.
+    * ``managed_identity_client_id``:  The client ID of a user-assigned managed identity. If provided with `workload_identity_tenant_id`, they'll pass to ``DefaultAzureCredential``.
+    * ``workload_identity_tenant_id``: ID of the application's Microsoft Entra tenant. Also called its "directory" ID. If provided with `managed_identity_client_id`, they'll pass to ``DefaultAzureCredential``.
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -96,9 +99,14 @@ For example connect with token credentials:
 
    export AIRFLOW_CONN_WASB_DEFAULT='wasb://blob%20username:blob%20password@myblob.com?tenant_id=tenant+id'
 
+
 .. _token credentials: https://docs.microsoft.com/en-us/azure/developer/python/azure-sdk-authenticate?tabs=cmd#authenticate-with-token-credentials
 .. _Azure Shared Key Credential: https://docs.microsoft.com/en-us/rest/api/storageservices/authorize-with-shared-key
 .. _SAS Token: https://docs.microsoft.com/en-us/rest/api/storageservices/create-account-sas
 .. _Connection String: https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/storage
 .. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential
 .. _ClientSecretCredential: https://learn.microsoft.com/en-in/python/api/azure-identity/azure.identity.clientsecretcredential?view=azure-python
+
+.. spelling:word-list::
+
+    Entra
