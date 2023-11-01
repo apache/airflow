@@ -28,7 +28,6 @@ from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHoo
 
 if TYPE_CHECKING:
     from databricks.sql.client import Connection
-    from databricks.sql.types import Row
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
@@ -242,12 +241,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             return results
 
     @staticmethod
-    def _make_serializable(result: list[Any]) -> list[list]:
-        """Transform the databricks.sql.types.Row objects returned from an SQL command into
-        JSON-serializable list of rows.
-        """
-        # return result
-        return [list(row) for row in result]
+    def _make_serializable(result):
+        """Transform the databricks Row objects into a JSON-serializable list of rows."""
+        if result is not None:
+            return [list(row) for row in result]
+        return result
 
     def bulk_dump(self, table, tmp_file):
         raise NotImplementedError()

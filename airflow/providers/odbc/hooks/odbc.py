@@ -213,8 +213,10 @@ class OdbcHook(DbApiHook):
         return cnx
 
     @staticmethod
-    def _make_serializable(result: list[pyodbc.Row]) -> list[NamedTuple]:
+    def _make_serializable(result: list[pyodbc.Row] | None) -> list[NamedTuple] | None:
         """Transform the pyodbc.Row objects returned from an SQL command into JSON-serializable NamedTuple."""
-        columns: dict[str, type] = dict(col[:2] for col in result[0].cursor_description)
-        row_object = NamedTuple("Row", **columns)
-        return [row_object(*row) for row in result]
+        if result is not None:
+            columns: dict[str, type] = dict(col[:2] for col in result[0].cursor_description)
+            row_object = NamedTuple("Row", **columns)
+            return [row_object(*row) for row in result]
+        return result
