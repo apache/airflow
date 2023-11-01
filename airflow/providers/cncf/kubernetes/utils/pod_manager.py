@@ -719,7 +719,7 @@ class PodManager(LoggingMixin):
         ) as resp:
             result = self._exec_pod_command(
                 resp,
-                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi",  # noqa
+                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi",
             )
             if result and result.rstrip() != "__airflow_xcom_result_empty__":
                 # Note: result string is parsed to check if its valid json.

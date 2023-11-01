@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-import fileinput
-import sys
-
-suppress = False
-
-for line in fileinput.input():
-    if line.startswith("warnings summary:"):
-        suppress = True
-    if line.startswith("All Warning errors can be found in"):
-        suppress = False
-    if not suppress:
-        print(line, end="")
-        sys.stdout.flush()
+---
+services:
+  airflow:
+    environment:
+      - BACKEND=none
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=none-backend://
+    volumes:
+      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source

@@ -21,7 +21,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import or_
 
-from airflow import configuration, models
+from airflow import models
 from airflow.providers.mysql.transfers.s3_to_mysql import S3ToMySqlOperator
 from airflow.utils import db
 from airflow.utils.session import create_session
@@ -31,8 +31,6 @@ pytestmark = pytest.mark.db_test
 
 class TestS3ToMySqlTransfer:
     def setup_method(self):
-        configuration.conf.load_test_config()
-
         db.merge_conn(
             models.Connection(
                 conn_id="s3_test",
