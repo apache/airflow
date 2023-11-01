@@ -1455,10 +1455,6 @@ class TaskInstance(Base, LoggingMixin):
         """@property: use a more friendly display name for the operator, if set."""
         return self.custom_operator_name or self.operator
 
-    # @property
-    # def priority_weight_total(self) -> int:
-    #     return get_priority_weight_strategy(self.priority_weight_strategy).get_weight(self)
-
     def command_as_list(
         self,
         mark_success=False,

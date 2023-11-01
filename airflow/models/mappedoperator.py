@@ -331,7 +331,7 @@ class MappedOperator(AbstractOperator):
                 f"{self.task_id!r}."
             )
         # validate the priority weight strategy
-        get_priority_weight_strategy(str(self.weight_rule))
+        get_priority_weight_strategy(self.priority_weight_strategy)
 
     @classmethod
     @cache
@@ -474,14 +474,15 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
     @property
-    def weight_rule(self) -> str:  # type: ignore[override]
-        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+    def weight_rule(self) -> str | None:  # type: ignore[override]
+        return self.partial_kwargs.get("weight_rule") or DEFAULT_WEIGHT_RULE
 
     @property
     def priority_weight_strategy(self) -> str:  # type: ignore[override]
         return (
-            self.partial_kwargs.get("priority_weight_strategy", DEFAULT_PRIORITY_WEIGHT_STRATEGY)
-            or self.weight_rule
+            self.weight_rule  # for backward compatibility
+            or self.partial_kwargs.get("priority_weight_strategy")
+            or DEFAULT_PRIORITY_WEIGHT_STRATEGY
         )
 
     @property

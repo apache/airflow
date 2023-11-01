@@ -70,11 +70,14 @@ DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
 )
 MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
-DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
-    conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
+DEFAULT_WEIGHT_RULE: WeightRule | None = (
+    WeightRule(conf.get("core", "default_task_weight_rule", fallback=None))
+    if conf.get("core", "default_task_weight_rule", fallback=None)
+    else None
 )
-DEFAULT_PRIORITY_WEIGHT_STRATEGY: str | None = conf.get(
-    "core", "default_task_priority_weight_strategy", fallback=None
+
+DEFAULT_PRIORITY_WEIGHT_STRATEGY: str = conf.get(
+    "core", "default_task_priority_weight_strategy", fallback=WeightRule.DOWNSTREAM
 )
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
@@ -101,7 +104,7 @@ class AbstractOperator(Templater, DAGNode):
 
     operator_class: type[BaseOperator] | dict[str, Any]
 
-    weight_rule: str
+    weight_rule: str | None
     priority_weight_strategy: str
     priority_weight: int
 

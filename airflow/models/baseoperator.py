@@ -212,7 +212,7 @@ _PARTIAL_DEFAULTS = {
     "retry_exponential_backoff": False,
     "priority_weight": DEFAULT_PRIORITY_WEIGHT,
     "weight_rule": DEFAULT_WEIGHT_RULE,
-    "weight_strategy": DEFAULT_PRIORITY_WEIGHT_STRATEGY,
+    "priority_weight_strategy": DEFAULT_PRIORITY_WEIGHT_STRATEGY,
     "inlets": [],
     "outlets": [],
 }
@@ -550,9 +550,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher
         number for more important tasks.
-    :param weight_rule: weighting method used for the effective total
-        priority weight of the task. Options are:
-        ``{ downstream | upstream | absolute }`` default is ``downstream``
+    :param weight_rule: Deprecated field, please use ``priority_weight_strategy`` instead.
+        weighting method used for the effective total priority weight of the task. Options are:
+        ``{ downstream | upstream | absolute }`` default is ``None``
         When set to ``downstream`` the effective weight of the task is the
         aggregate sum of all downstream descendants. As a result, upstream
         tasks will have higher weight and will be scheduled more aggressively
@@ -572,7 +572,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         significantly speeding up the task creation process as for very large
         DAGs. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``
-    :param priority_weight_strategy: TODO: add description
+    :param priority_weight_strategy: weighting method used for the effective total priority weight
+        of the task. You can provide one of the following options:
+        ``{ downstream | upstream | absolute }`` or the path to a custom
+        strategy class that extends ``airflow.task.priority_strategy.PriorityWeightStrategy``.
+        Default is ``downstream``.
     :param queue: which queue to target when running this job. Not
         all executors implement queue management, the CeleryExecutor
         does support targeting specific queues.
@@ -758,8 +762,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
-        weight_rule: str = DEFAULT_WEIGHT_RULE,
-        priority_weight_strategy: str | None = DEFAULT_PRIORITY_WEIGHT_STRATEGY,
+        weight_rule: str | None = DEFAULT_WEIGHT_RULE,
+        priority_weight_strategy: str = DEFAULT_PRIORITY_WEIGHT_STRATEGY,
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
@@ -906,16 +910,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
         self.priority_weight = priority_weight
         self.weight_rule = weight_rule
-        self.priority_weight_strategy: str
-        if not priority_weight_strategy:
+        self.priority_weight_strategy = priority_weight_strategy
+        if weight_rule:
             warnings.warn(
                 "weight_rule is deprecated. Please use `priority_weight_strategy` instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
             self.priority_weight_strategy = weight_rule
-        else:
-            self.priority_weight_strategy = priority_weight_strategy
         # validate the priority weight strategy
         get_priority_weight_strategy(self.priority_weight_strategy)
         self.resources = coerce_resources(resources)

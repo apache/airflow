@@ -23,7 +23,11 @@ from airflow.compat.functools import cache
 
 
 class WeightRule(str, Enum):
-    """Weight rules."""
+    """
+    Weight rules.
+
+    This class is deprecated and will be removed in Airflow 3
+    """
 
     DOWNSTREAM = "downstream"
     UPSTREAM = "upstream"
