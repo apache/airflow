@@ -52,7 +52,7 @@ class CohereHook(BaseHook):
         self.max_retries = max_retries
 
     @cached_property
-    def cohere_client(self) -> cohere.Client:
+    def get_conn(self) -> cohere.Client:
         conn = self.get_connection(self.conn_id)
         return cohere.Client(
             api_key=conn.password, timeout=self.timeout, max_retries=self.max_retries, api_url=conn.host
