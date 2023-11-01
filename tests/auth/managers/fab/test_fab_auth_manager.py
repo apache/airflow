@@ -62,6 +62,7 @@ def auth_manager():
     return FabAuthManager(flask_app, appbuilder)
 
 
+@pytest.mark.db_test
 class TestFabAuthManager:
     @pytest.mark.parametrize(
         "id,first_name,last_name,username,email,expected",
