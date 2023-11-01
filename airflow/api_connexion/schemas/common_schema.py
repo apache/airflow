@@ -48,8 +48,6 @@ class TimeDeltaSchema(Schema):
     @marshmallow.post_load
     def make_time_delta(self, data, **kwargs):
         """Create time delta based on data."""
-        if "objectType" in data:
-            del data["objectType"]
         return datetime.timedelta(**data)
 
 
@@ -76,9 +74,6 @@ class RelativeDeltaSchema(Schema):
     @marshmallow.post_load
     def make_relative_delta(self, data, **kwargs):
         """Create relative delta based on data."""
-        if "objectType" in data:
-            del data["objectType"]
-
         return relativedelta.relativedelta(**data)
 
 
