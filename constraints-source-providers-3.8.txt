@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-01T06:54:45Z
+# This constraints file was automatically generated on 2023-11-01T22:33:41Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -42,7 +42,7 @@ SQLAlchemy-Utils==0.41.1
 SQLAlchemy==1.4.50
 SecretStorage==3.3.3
 Sphinx==5.3.0
-WTForms==3.1.0
+WTForms==3.1.1
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2023.10.0
@@ -74,7 +74,7 @@ anyio==4.0.0
 apache-beam==2.51.0
 apispec==6.3.0
 apprise==1.6.0
-argcomplete==3.1.2
+argcomplete==3.1.3
 arrow==1.3.0
 asana==3.2.2
 asgiref==3.7.2
@@ -119,7 +119,7 @@ beautifulsoup4==4.12.2
 billiard==4.1.0
 bitarray==2.8.2
 black==23.10.1
-blinker==1.6.3
+blinker==1.7.0
 boto3==1.28.64
 botocore==1.31.64
 cachelib==0.9.0
@@ -332,7 +332,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.28.42
-mypy-boto3-rds==1.28.74
+mypy-boto3-rds==1.28.76
 mypy-boto3-redshift-data==1.28.36
 mypy-boto3-s3==1.28.55
 mypy-extensions==1.0.0
@@ -427,7 +427,7 @@ pyexasol==0.25.2
 pygraphviz==1.11
 pyjsparser==2.7.1
 pykerberos==1.2.4
-pymongo==4.5.0
+pymongo==4.6.0
 pymssql==2.2.10
 pyodbc==5.0.1
 pyparsing==3.1.1
@@ -597,4 +597,4 @@ zict==3.0.0
 zipp==3.17.0
 zope.event==5.0
 zope.interface==6.1
-zstandard==0.21.0
+zstandard==0.22.0
