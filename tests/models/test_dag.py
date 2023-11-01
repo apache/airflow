@@ -98,6 +98,8 @@ from tests.test_utils.timetables import cron_timetable, delta_timetable
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
+pytestmark = pytest.mark.db_test
+
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(__file__).parents[2]

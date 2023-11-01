@@ -18,9 +18,14 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceToS3Operator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+
+pytestmark = pytest.mark.db_test
+
 
 TASK_ID = "test-task-id"
 QUERY = "SELECT id, company FROM Lead WHERE company = 'Hello World Inc'"

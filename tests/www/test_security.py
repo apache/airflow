@@ -55,6 +55,8 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
 
+pytestmark = pytest.mark.db_test
+
 READ_WRITE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
 READ_ONLY = {permissions.ACTION_CAN_READ}
 
@@ -890,7 +892,9 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     dagbag_class_mock.return_value = dagbag_mock
     import airflow.www.security
 
-    monkeypatch.setitem(airflow.www.security_manager.__dict__, "DagBag", dagbag_class_mock)
+    monkeypatch.setitem(
+        airflow.auth.managers.fab.security_manager.override.__dict__, "DagBag", dagbag_class_mock
+    )
     security_manager._sync_dag_view_permissions = mock.Mock()
 
     for dag in sample_dags:

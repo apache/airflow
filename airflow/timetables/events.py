@@ -83,7 +83,8 @@ class EventsTimetable(Timetable):
             next_event = self.event_dates[0]
         else:
             future_dates = itertools.dropwhile(
-                lambda when: when <= last_automated_data_interval.end, self.event_dates  # type: ignore
+                lambda when: when <= last_automated_data_interval.end,  # type: ignore
+                self.event_dates,
             )
             next_event = next(future_dates, None)  # type: ignore
             if next_event is None:

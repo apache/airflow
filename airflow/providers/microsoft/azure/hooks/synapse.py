@@ -24,7 +24,7 @@ from azure.synapse.spark import SparkClient
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
 
 if TYPE_CHECKING:
     from azure.synapse.spark.models import SparkBatchJobOptions
@@ -72,6 +72,12 @@ class AzureSynapseHook(BaseHook):
         return {
             "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
             "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -79,7 +85,13 @@ class AzureSynapseHook(BaseHook):
         """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
-            "relabeling": {"login": "Client ID", "password": "Secret", "host": "Synapse Workspace URL"},
+            "relabeling": {
+                "login": "Client ID",
+                "password": "Secret",
+                "host": "Synapse Workspace URL",
+                "managed_identity_client_id": "Managed Identity Client ID",
+                "workload_identity_tenant_id": "Workload Identity Tenant ID",
+            },
         }
 
     def __init__(self, azure_synapse_conn_id: str = default_conn_name, spark_pool: str = ""):
@@ -120,7 +132,9 @@ class AzureSynapseHook(BaseHook):
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
             )
         else:
-            credential = DefaultAzureCredential()
+            managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
 
         self._conn = self._create_client(credential, conn.host, spark_pool, livy_api_version, subscription_id)
 

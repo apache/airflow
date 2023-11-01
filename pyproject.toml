@@ -48,8 +48,6 @@ extend-select = [
     "UP", # Pyupgrade
     "RUF100", # Unused noqa (auto-fixable)
 
-    # implicit single-line string concatenation
-    "ISC001",
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
     "D106",
@@ -183,5 +181,5 @@ exclude_also = [
     "if __name__ == .__main__.:",
     "@(abc\\.)?abstractmethod",
     "@(typing(_extensions)?\\.)?overload",
-    "if TYPE_CHECKING:"
+    "if (typing(_extensions)?\\.)?TYPE_CHECKING:"
 ]

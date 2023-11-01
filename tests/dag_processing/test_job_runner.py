@@ -63,6 +63,9 @@ from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
+pytestmark = pytest.mark.db_test
+
+
 TEST_DAG_FOLDER = pathlib.Path(__file__).parents[1].resolve() / "dags"
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

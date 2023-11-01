@@ -25,6 +25,9 @@ from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
+
 MOCK_CONF = {
     "core": {
         "parallelism": "1024",

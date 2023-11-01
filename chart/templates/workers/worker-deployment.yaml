@@ -37,6 +37,8 @@
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
+{{- $podAnnotations := mergeOverwrite .Values.airflowPodAnnotations $safeToEvict .Values.workers.podAnnotations }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
@@ -92,12 +94,8 @@ spec:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
-        cluster-autoscaler.kubernetes.io/safe-to-evict: {{ .Values.workers.safeToEvict | quote }}
-        {{- if .Values.airflowPodAnnotations }}
-          {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
-        {{- end }}
-        {{- if .Values.workers.podAnnotations }}
-          {{- toYaml .Values.workers.podAnnotations | nindent 8 }}
+        {{- if $podAnnotations }}
+          {{- toYaml $podAnnotations | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.workers.runtimeClassName }}
@@ -398,5 +396,8 @@ spec:
         resources:
           requests:
             storage: {{ .Values.workers.persistence.size }}
+    {{- with .Values.workers.volumeClaimTemplates }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- end }}
 {{- end }}

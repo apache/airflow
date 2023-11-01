@@ -26,6 +26,8 @@ from airflow.settings import json
 from tests.test_utils.api_connexion_utils import create_user_scope
 from tests.www.test_security import SomeBaseView, SomeModelView
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def app_builder(app):
