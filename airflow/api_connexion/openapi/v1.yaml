@@ -3744,6 +3744,8 @@ components:
           readOnly: true
         weight_rule:
           $ref: '#/components/schemas/WeightRule'
+        priority_weight_strategy:
+          $ref: '#/components/schemas/PriorityWeightStrategy'
         ui_color:
           $ref: '#/components/schemas/Color'
         ui_fgcolor:
@@ -4784,10 +4786,15 @@ components:
     WeightRule:
       description: Weight rule.
       type: string
+      nullable: true
       enum:
         - downstream
         - upstream
         - absolute
+
+    PriorityWeightStrategy:
+      description: Priority weight strategy.
+      type: string
 
     HealthStatus:
       description: Health status
