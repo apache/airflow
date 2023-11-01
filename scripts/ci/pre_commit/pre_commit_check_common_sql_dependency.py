@@ -91,7 +91,7 @@ def do_version_satisfies_constraints(
     return not specifier_set.contains(max_incompatible_version)
 
 
-def check_and_update_dependency():
+def check_sql_providers_dependency():
     error_count: int = 0
     for path in sys.argv[1:]:
         if not path.startswith("airflow/providers/"):
@@ -121,4 +121,4 @@ def check_and_update_dependency():
 
 
 if __name__ == "__main__":
-    sys.exit(check_and_update_dependency())
+    sys.exit(check_sql_providers_dependency())

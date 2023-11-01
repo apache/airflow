@@ -138,6 +138,11 @@ class DbApiHook(BaseForDbApiHook):
     """
     Abstract base class for sql hooks.
 
+    When subclassing, maintainers can override the `_make_serializable` method:
+    This method transforms the result of the handler method (typically `cursor.fetchall()`) into
+    JSON-serializable objects. Most of the time, the underlying SQL library already returns tuples from
+    its cursor, and the `_make_serializable` method can be ignored.
+
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
         should be done before calling the ``DBApiHook.__init__()``.
