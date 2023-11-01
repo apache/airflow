@@ -25,7 +25,7 @@ import jmespath
 import pytest
 
 from helm_tests.airflow_aux.test_container_lifecycle import CONTAINER_LIFECYCLE_PARAMETERS
-from tests.charts.helm_template_generator import render_chart
+from tests.charts.helm_template_generator import get_chart_and_airflow_version, render_chart
 
 
 @pytest.fixture(scope="class", autouse=True)
@@ -677,6 +677,7 @@ class TestPodTemplateFile:
         } == jmespath.search("spec.containers[-1]", docs[0])
 
     def test_should_add_pod_labels(self):
+        chart_version, airflow_version = get_chart_and_airflow_version()
         docs = render_chart(
             values={"labels": {"label1": "value1", "label2": "value2"}},
             show_only=["templates/pod-template-file.yaml"],
@@ -689,6 +690,11 @@ class TestPodTemplateFile:
             "release": "release-name",
             "component": "worker",
             "tier": "airflow",
+            "app.kubernetes.io/instance": "release-name",
+            "app.kubernetes.io/managed-by": "Helm",
+            "app.kubernetes.io/part-of": "airflow",
+            "app.kubernetes.io/version": airflow_version,
+            "helm.sh/chart": f"airflow-{chart_version}",
         } == jmespath.search("metadata.labels", docs[0])
 
     def test_should_add_extraEnvs(self):
