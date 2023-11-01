@@ -26,7 +26,7 @@ from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
-from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
+from airflow.utils.timezone import convert_to_utc, is_localized, make_aware, make_naive
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -52,25 +52,38 @@ def _is_schedule_fixed(expression: str) -> bool:
 class CronMixin:
     """Mixin to provide interface to work with croniter."""
 
-    def __init__(self, cron: str, timezone: str | Timezone) -> None:
-        self._expression = cron_presets.get(cron, cron)
-
+    def __init__(self, crons: str | list[str], timezone: str | Timezone) -> None:
+        """
+        :param crons: One or more cron expressions
+        :param timezone:
+        """
         if isinstance(timezone, str):
             timezone = Timezone(timezone)
         self._timezone = timezone
 
-        try:
+        if isinstance(crons, str):
+            crons = [crons]
+
+        self._expressions = {cron_presets.get(cron, cron) for cron in crons}
+        cron_descriptions = set()
+
+        for cron_expression in self._expressions:
             descriptor = ExpressionDescriptor(
-                expression=self._expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+                expression=cron_expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
             )
-            # checking for more than 5 parameters in Cron and avoiding evaluation for now,
-            # as Croniter has inconsistent evaluation with other libraries
-            if len(croniter(self._expression).expanded) > 5:
-                raise FormatException()
-            interval_description: str = descriptor.get_description()
-        except (CroniterBadCronError, FormatException, MissingFieldException):
-            interval_description = ""
-        self.description: str = interval_description
+
+            try:
+                # checking for more than 5 parameters in Cron and avoiding evaluation for now,
+                # as Croniter has inconsistent evaluation with other libraries
+                if len(croniter(cron_expression).expanded) > 5:
+                    raise FormatException()
+                interval_description: str = descriptor.get_description()
+            except (CroniterBadCronError, FormatException, MissingFieldException):
+                interval_description = ""
+
+            cron_descriptions.add(interval_description)
+
+        self.description: str = " and ".join(cron_descriptions)
 
     def __eq__(self, other: Any) -> bool:
         """Both expression and timezone should match.
@@ -79,15 +92,16 @@ class CronMixin:
         """
         if not isinstance(other, type(self)):
             return NotImplemented
-        return self._expression == other._expression and self._timezone == other._timezone
+        return self._expressions == other._expressions and self._timezone == other._timezone
 
     @property
     def summary(self) -> str:
-        return self._expression
+        return ", ".join(self._expressions)
 
     def validate(self) -> None:
         try:
-            croniter(self._expression)
+            for cron_expression in self._expressions:
+                croniter(cron_expression)
         except (CroniterBadCronError, CroniterBadDateError) as e:
             raise AirflowTimetableInvalid(str(e))
 
@@ -95,26 +109,30 @@ class CronMixin:
     def _should_fix_dst(self) -> bool:
         # This is lazy so instantiating a schedule does not immediately raise
         # an exception. Validity is checked with validate() during DAG-bagging.
-        return not _is_schedule_fixed(self._expression)
+        return not all(_is_schedule_fixed(c) for c in self._expressions)
 
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the first schedule after specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
-        cron = croniter(self._expression, start_time=naive)
-        scheduled = cron.get_next(datetime.datetime)
+        crons = {croniter(expression, start_time=naive) for expression in self._expressions}
+        earliest_datetime = min(cron.get_next(datetime.datetime, current) for cron in crons)
+        if is_localized(earliest_datetime):
+            earliest_datetime = make_naive(earliest_datetime)
         if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = scheduled - naive
+            return convert_to_utc(make_aware(earliest_datetime, self._timezone))
+        delta = earliest_datetime - naive
         return convert_to_utc(current.in_timezone(self._timezone) + delta)
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule before specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
-        cron = croniter(self._expression, start_time=naive)
-        scheduled = cron.get_prev(datetime.datetime)
+        crons = {croniter(expression, start_time=current) for expression in self._expressions}
+        latest_datetime = max(cron.get_prev(datetime.datetime) for cron in crons)
+        if is_localized(latest_datetime):
+            latest_datetime = make_naive(latest_datetime)
         if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = naive - scheduled
+            return convert_to_utc(make_aware(latest_datetime, self._timezone))
+        delta = naive - latest_datetime
         return convert_to_utc(current.in_timezone(self._timezone) - delta)
 
     def _align_to_next(self, current: DateTime) -> DateTime:

@@ -42,7 +42,7 @@ def date_range(
     start_date: datetime,
     end_date: datetime | None = None,
     num: int | None = None,
-    delta: str | timedelta | relativedelta | None = None,
+    delta: str | list[str] | timedelta | relativedelta | None = None,
 ) -> list[datetime]:
     """Get a list of dates in the specified range, separated by delta.
 
@@ -90,10 +90,13 @@ def date_range(
 
     abs_delta: timedelta | relativedelta
     if isinstance(delta, str):
+        delta = [delta]
+
+    if isinstance(delta, list) and all(isinstance(elem, str) for elem in delta):
         delta_iscron = True
         if timezone.is_localized(start_date):
             start_date = timezone.make_naive(start_date, time_zone)
-        cron = croniter(cron_presets.get(delta, delta), start_date)
+        crons = {croniter(cron_presets.get(c, c), start_date) for c in delta}
     elif isinstance(delta, timedelta):
         abs_delta = abs(delta)
     elif isinstance(delta, relativedelta):
@@ -112,7 +115,7 @@ def date_range(
                 dates.append(start_date)
 
             if delta_iscron:
-                start_date = cron.get_next(datetime)
+                start_date = min(c.get_next(datetime) for c in crons)
             else:
                 start_date += abs_delta
     else:
@@ -124,9 +127,9 @@ def date_range(
                 dates.append(start_date)
 
             if delta_iscron and num_entries > 0:
-                start_date = cron.get_next(datetime)
+                start_date = min(c.get_next(datetime) for c in crons)
             elif delta_iscron:
-                start_date = cron.get_prev(datetime)
+                start_date = max(c.get_prev(datetime) for c in crons)
             elif num_entries > 0:
                 start_date += abs_delta
             else:

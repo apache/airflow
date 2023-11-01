@@ -44,7 +44,7 @@ import lazy_object_proxy
 import nvd3
 import re2
 import sqlalchemy as sqla
-from croniter import croniter
+from croniter import croniter_range
 from flask import (
     Response,
     abort,
@@ -2902,19 +2902,25 @@ class Airflow(AirflowBaseView):
 
             if isinstance(dag.timetable, CronMixin):
                 # Optimized calendar generation for timetables based on a cron expression.
-                dates_iter: Iterator[datetime.datetime | None] = croniter(
-                    dag.timetable._expression,
-                    start_time=last_automated_data_interval.end,
-                    ret_type=datetime.datetime,
+                tzinfo = last_automated_data_interval.end.tzinfo
+                till_date = datetime.datetime.max.replace(year=year, tzinfo=tzinfo)
+                if dag.end_date and dag.end_date < till_date:
+                    till_date = dag.end_date
+
+                dates.update(
+                    sorted(
+                        [
+                            dt.date()
+                            for cron in dag.timetable._expressions
+                            for dt in croniter_range(
+                                start=last_automated_data_interval.end,
+                                stop=till_date,
+                                expr_format=cron
+                            )
+                        ]
+                    )
                 )
-                for dt in dates_iter:
-                    if dt is None:
-                        break
-                    if dt.year != year:
-                        break
-                    if dag.end_date and dt > dag.end_date:
-                        break
-                    dates[dt.date()] += 1
+
             else:
                 prev_logical_date = DateTime.min
                 while True:

@@ -195,6 +195,11 @@ The ``schedule`` argument takes any value that is a valid `Crontab <https://en.w
     with DAG("my_daily_dag", schedule="0 0 * * *"):
         ...
 
+You can also specify a list of Crontab values for complex schedules::
+
+    with DAG("multicron_dag", schedule=["*/20 3 5 * *", "0 12 * * MON,TUE"]):
+        ...
+
 .. tip::
 
     For more information on ``schedule`` values, see :doc:`DAG Run <dag-run>`.

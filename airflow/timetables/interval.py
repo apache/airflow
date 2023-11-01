@@ -129,12 +129,12 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
         from airflow.serialization.serialized_objects import decode_timezone
 
-        return cls(data["expression"], decode_timezone(data["timezone"]))
+        return cls(data["expressions"], decode_timezone(data["timezone"]))
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_timezone
 
-        return {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
+        return {"expressions": self._expressions, "timezone": encode_timezone(self._timezone)}
 
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """Bound the earliest time a run can be scheduled.

@@ -115,7 +115,15 @@
             { "type": "null" },
             { "type": "string" },
             { "$ref": "#/definitions/typed_timedelta" },
-            { "$ref": "#/definitions/typed_relativedelta" }
+            { "$ref": "#/definitions/typed_relativedelta" },
+            {
+              "description": "List of cron expressions (string)",
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
           ]
         },
         "dataset_triggers": {

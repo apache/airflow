@@ -158,7 +158,7 @@ ORIENTATION_PRESETS = ["LR", "TB", "RL", "BT"]
 TAG_MAX_LEN = 100
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = Union[None, str, List[str], timedelta, relativedelta]
 
 # FIXME: Ideally this should be Union[Literal[NOTSET], ScheduleInterval],
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
@@ -211,6 +211,13 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
+def _is_list_of_strings(obj):
+    """Returns whether the object is a non-empty `List[str]`."""
+    if obj and isinstance(obj, list):
+        return all(isinstance(elem, str) for elem in obj)
+    return False
+
+
 def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timetable:
     """Create a Timetable instance from a ``schedule_interval`` argument."""
     if interval is NOTSET:
@@ -223,7 +230,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return ContinuousTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
-    if isinstance(interval, str):
+    if isinstance(interval, str) or _is_list_of_strings(interval):
         return CronDataIntervalTimetable(interval, timezone)
     raise ValueError(f"{interval!r} is not a valid interval.")
 
@@ -568,7 +575,11 @@ class DAG(LoggingMixin):
         self.schedule_interval: ScheduleInterval
         self.dataset_triggers: Collection[Dataset] = []
 
-        if isinstance(schedule, Collection) and not isinstance(schedule, str):
+        if (
+            isinstance(schedule, Collection)
+            and not isinstance(schedule, str)
+            and not _is_list_of_strings(schedule)
+        ):
             from airflow.datasets import Dataset
 
             if not all(isinstance(x, Dataset) for x in schedule):

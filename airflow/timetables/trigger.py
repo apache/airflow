@@ -32,11 +32,11 @@ if TYPE_CHECKING:
 
 
 class CronTriggerTimetable(CronMixin, Timetable):
-    """Timetable that triggers DAG runs according to a cron expression.
+    """Timetable that triggers DAG runs according to a cron expressions.
 
     This is different from ``CronDataIntervalTimetable``, where the cron
-    expression specifies the *data interval* of a DAG run. With this timetable,
-    the data intervals are specified independently from the cron expression.
+    expressions specifies the *data interval* of a DAG run. With this timetable,
+    the data intervals are specified independently from the cron expressions.
     Also for the same reason, this timetable kicks off a DAG run immediately at
     the start of the period (similar to POSIX cron), instead of needing to wait
     for one data interval to pass.
@@ -46,7 +46,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
 
     def __init__(
         self,
-        cron: str,
+        cron: str | list[str],
         *,
         timezone: str | Timezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
@@ -63,7 +63,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
             interval = decode_relativedelta(data["interval"])
         else:
             interval = datetime.timedelta(seconds=data["interval"])
-        return cls(data["expression"], timezone=decode_timezone(data["timezone"]), interval=interval)
+        return cls(data["expressions"], timezone=decode_timezone(data["timezone"]), interval=interval)
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_relativedelta, encode_timezone
@@ -74,7 +74,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
         else:
             interval = encode_relativedelta(self._interval)
         timezone = encode_timezone(self._timezone)
-        return {"expression": self._expression, "timezone": timezone, "interval": interval}
+        return {"expressions": self._expressions, "timezone": timezone, "interval": interval}
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval(run_after - self._interval, run_after)

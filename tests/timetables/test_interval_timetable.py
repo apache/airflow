@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import datetime
 
 import dateutil.relativedelta
@@ -46,6 +47,10 @@ HOURLY_RELATIVEDELTA_TIMETABLE = DeltaDataIntervalTimetable(dateutil.relativedel
 
 CRON_TIMETABLE = CronDataIntervalTimetable("30 16 * * *", TIMEZONE)
 DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
+
+# */20 3 5 * *    = At every 20th minute past hour 3 on day-of-month 5
+# 0 0 * * MON,TUE = at 00:00 on Monday and Tuesday
+MULTI_CRON_TIMETABLE = CronDataIntervalTimetable(["*/20 3 5 * *", "0 0 * * MON,TUE"], TIMEZONE)
 
 
 @pytest.mark.parametrize(
@@ -120,6 +125,7 @@ def test_no_catchup_next_info_starts_at_current_time(
         pytest.param(HOURLY_CRON_TIMETABLE, id="cron"),
         pytest.param(HOURLY_TIMEDELTA_TIMETABLE, id="timedelta"),
         pytest.param(HOURLY_RELATIVEDELTA_TIMETABLE, id="relativedelta"),
+        pytest.param(MULTI_CRON_TIMETABLE, id="multicron"),
     ],
 )
 def test_catchup_next_info_starts_at_previous_interval_end(timetable: Timetable) -> None:
@@ -253,3 +259,39 @@ def test_cron_next_dagrun_info_alignment(last_data_interval: DataInterval, expec
         restriction=TimeRestriction(None, None, True),
     )
     assert info == expected_info
+
+
+@pytest.mark.parametrize(
+    "timetable",
+    [
+        pytest.param(CRON_TIMETABLE, id="cron"),
+        pytest.param(HOURLY_TIMEDELTA_TIMETABLE, id="deltadata"),
+        pytest.param(MULTI_CRON_TIMETABLE, id="multicron"),
+    ],
+)
+def test_serialize_deserialize(timetable):
+    """Verify if serialization & deserialization results in the same Timetable."""
+    timetable_copy = copy.deepcopy(timetable)
+    assert timetable == timetable.__class__.deserialize(data=timetable_copy.serialize())
+
+
+def test_multicron_timetable():
+    """
+    Verify if the first 5 results of CronDataIntervalTimetable with multiple cron expressions returns the
+    expected datetimes.
+    """
+    next_five = []
+    current_datetime = START_DATE
+    for _ in range(5):
+        current_datetime = MULTI_CRON_TIMETABLE._get_next(current=current_datetime)
+        next_five.append(current_datetime)
+
+    expected_next_five = [
+        pendulum.DateTime(2021, 9, 5, 3, 0, 0, tzinfo=TIMEZONE),
+        pendulum.DateTime(2021, 9, 5, 3, 20, 0, tzinfo=TIMEZONE),
+        pendulum.DateTime(2021, 9, 5, 3, 40, 0, tzinfo=TIMEZONE),
+        pendulum.DateTime(2021, 9, 6, 0, 0, 0, tzinfo=TIMEZONE),
+        pendulum.DateTime(2021, 9, 7, 0, 0, 0, tzinfo=TIMEZONE),
+    ]
+
+    assert expected_next_five == next_five

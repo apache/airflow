@@ -228,6 +228,6 @@ def test_serialization(timetable: CronTriggerTimetable, data: dict[str, typing.A
 
     tt = CronTriggerTimetable.deserialize(data)
     assert isinstance(tt, CronTriggerTimetable)
-    assert tt._expression == timetable._expression
+    assert tt._expressions == timetable._expressions
     assert tt._timezone == timetable._timezone
     assert tt._interval == timetable._interval
