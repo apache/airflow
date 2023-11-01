@@ -169,7 +169,7 @@ const Grid = ({
         mt={8}
         overscrollBehavior="contain"
       >
-        <Table pr="10px">
+        <Table pr="10px" borderRightWidth="14px" borderColor="transparent">
           <Thead>
             <DagRuns
               groups={groups}
