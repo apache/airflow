@@ -141,7 +141,12 @@ class AzureBaseHook(BaseHook):
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
-            credentials = AzureIdentityCredentialAdapter()
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            credentials = AzureIdentityCredentialAdapter(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
 
         return self.sdk_client(
             credentials=credentials,
