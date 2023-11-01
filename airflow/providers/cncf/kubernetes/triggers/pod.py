@@ -83,6 +83,7 @@ class KubernetesPodTrigger(BaseTrigger):
         in_cluster: bool | None = None,
         get_logs: bool = True,
         startup_timeout: int = 120,
+        startup_check_interval: int = 1,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
     ):
@@ -98,6 +99,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.in_cluster = in_cluster
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
+        self.startup_check_interval = startup_check_interval
 
         if should_delete_pod is not None:
             warnings.warn(
@@ -183,9 +185,12 @@ class KubernetesPodTrigger(BaseTrigger):
                                 }
                             )
                             return
-
-                    self.log.info("Sleeping for %s seconds.", self.poll_interval)
-                    await asyncio.sleep(self.poll_interval)
+                        else:
+                            self.log.info("Sleeping for %s seconds.", self.startup_check_interval)
+                            await asyncio.sleep(self.startup_check_interval)
+                    else:
+                        self.log.info("Sleeping for %s seconds.", self.poll_interval)
+                        await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent(
                         {
