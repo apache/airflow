@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-01T02:29:06Z
+# This constraints file was automatically generated on 2023-11-01T07:02:56Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -234,7 +234,7 @@ cfgv==3.4.0
 cfn-lint==0.83.1
 cgroupspy==0.2.2
 chardet==5.2.0
-charset-normalizer==3.3.1
+charset-normalizer==3.3.2
 checksumdir==1.2.0
 ciso8601==2.3.1
 click-didyoumean==0.3.0
@@ -696,4 +696,4 @@ zict==3.0.0
 zipp==3.17.0
 zope.event==5.0
 zope.interface==6.1
-zstandard==0.21.0
+zstandard==0.22.0
