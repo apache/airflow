@@ -352,6 +352,7 @@ class TestProvideGcpCredentialFileAsContext:
         assert CREDENTIALS not in os.environ
 
 
+@pytest.mark.db_test
 class TestGoogleBaseHook:
     def setup_method(self):
         self.instance = hook.GoogleBaseHook()
@@ -824,6 +825,7 @@ class TestProvideAuthorizedGcloud:
 
 
 class TestNumRetry:
+    @pytest.mark.db_test
     def test_should_return_int_when_set_int_via_connection(self):
         instance = hook.GoogleBaseHook(gcp_conn_id="google_cloud_default")
         instance.extras = {

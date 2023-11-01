@@ -29,6 +29,8 @@ from airflow.auth.managers.fab.cli_commands import user_command
 from airflow.cli import cli_parser
 from tests.test_utils.api_connexion_utils import delete_users
 
+pytestmark = pytest.mark.db_test
+
 TEST_USER1_EMAIL = "test-user1@example.com"
 TEST_USER2_EMAIL = "test-user2@example.com"
 TEST_USER3_EMAIL = "test-user3@example.com"

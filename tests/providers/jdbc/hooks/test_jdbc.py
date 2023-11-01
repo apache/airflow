@@ -22,9 +22,14 @@ import logging
 from unittest import mock
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
 from airflow.utils import db
+
+pytestmark = pytest.mark.db_test
+
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
 

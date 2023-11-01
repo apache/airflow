@@ -242,6 +242,7 @@ class SalesforceHook(BaseHook):
         # between 0 and 10 are turned into timestamps
         # if the column cannot be converted,
         # just return the original column untouched
+        import numpy as np
         import pandas as pd
 
         try:
@@ -259,7 +260,7 @@ class SalesforceHook(BaseHook):
             try:
                 converted.append(value.timestamp())
             except (ValueError, AttributeError):
-                converted.append(pd.np.NaN)
+                converted.append(np.NaN)
 
         return pd.Series(converted, index=column.index)
 

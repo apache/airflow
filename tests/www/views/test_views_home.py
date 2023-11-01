@@ -32,6 +32,8 @@ from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
+pytestmark = pytest.mark.db_test
+
 
 def clean_db():
     clear_db_dags()

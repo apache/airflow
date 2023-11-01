@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import fileinput
-import sys
+from datetime import datetime
 
-suppress = False
+from airflow import DAG
+from airflow.models.param import Param
+from airflow.operators.python import PythonOperator
 
-for line in fileinput.input():
-    if line.startswith("warnings summary:"):
-        suppress = True
-    if line.startswith("All Warning errors can be found in"):
-        suppress = False
-    if not suppress:
-        print(line, end="")
-        sys.stdout.flush()
+with DAG(
+    "test_invalid_param3",
+    start_date=datetime(2021, 1, 1),
+    schedule="0 0 * * *",
+    params={
+        # a mandatory number param but pass a string as default value
+        "int_param": Param(default="banana", type="integer"),
+    },
+) as the_dag:
+
+    def print_these(*params):
+        for param in params:
+            print(param)
+
+    PythonOperator(
+        task_id="ref_params",
+        python_callable=print_these,
+        op_args=[
+            "{{ params.int_param }}",
+        ],
+    )

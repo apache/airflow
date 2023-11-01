@@ -278,3 +278,6 @@ Docker context files.
 |                                          |                                          | This allows to optimize iterations for   |
 |                                          |                                          | Image builds and speeds up CI builds.    |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``PIP_CACHE_EPOCH``                      | ``"0"``                                  | Allow to invalidate cache by passing a   |
+|                                          |                                          | new argument.                            |
++------------------------------------------+------------------------------------------+------------------------------------------+

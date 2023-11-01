@@ -53,6 +53,9 @@ from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
+
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
 

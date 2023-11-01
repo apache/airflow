@@ -50,6 +50,8 @@ from tests.test_utils.db import (
 )
 from tests.test_utils.mock_executor import MockExecutor
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 # Include the words "airflow" and "dag" in the file contents,

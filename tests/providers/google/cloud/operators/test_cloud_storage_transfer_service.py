@@ -323,6 +323,7 @@ class TestGcpStorageTransferJobCreateOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -369,6 +370,7 @@ class TestGcpStorageTransferJobUpdateOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -410,6 +412,7 @@ class TestGcpStorageTransferJobDeleteOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -463,6 +466,7 @@ class TestGpcStorageTransferOperationsGetOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -512,6 +516,7 @@ class TestGcpStorageTransferOperationListOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -551,6 +556,7 @@ class TestGcpStorageTransferOperationsPauseOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -605,6 +611,7 @@ class TestGcpStorageTransferOperationsResumeOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -659,6 +666,7 @@ class TestGcpStorageTransferOperationsCancelOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -710,6 +718,7 @@ class TestS3ToGoogleCloudStorageTransferOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
@@ -862,6 +871,7 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
     # Setting all the operator's input parameters as templated dag_ids
     # (could be anything else) just to test if the templating works for all
     # fields
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
