@@ -783,8 +783,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         This does iterate through ALL the DAGs, which can be slow. See `sync_perm_for_dag`
         if you only need to sync a single DAG.
-
-        :return: None.
         """
         perms = self.get_all_permissions()
         dagbag = DagBag(read_dags_from_db=True)
@@ -808,8 +806,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         1. Init the default role(Admin, Viewer, User, Op, public)
            with related permissions.
         2. Init the custom role(dag-user) with related permissions.
-
-        :return: None.
         """
         # Create global all-dag permissions
         self.create_perm_vm_for_all_dag()
@@ -829,11 +825,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self._merge_perm(action_name, resource_name)
 
     def add_homepage_access_to_custom_roles(self) -> None:
-        """
-        Add Website.can_read access to all custom roles.
-
-        :return: None.
-        """
+        """Add Website.can_read access to all custom roles."""
         website_permission = self.create_permission(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
         custom_roles = [role for role in self.get_all_roles() if role.name not in EXISTING_ROLES]
         for role in custom_roles:
@@ -848,8 +840,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Admin should get all the permissions, except the dag permissions
         because Admin already has Dags permission.
         Add the missing ones to the table for admin.
-
-        :return: None.
         """
         session = self.appbuilder.get_session
         dag_resources = session.scalars(
@@ -893,7 +883,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param role_name:
         :param perms:
-        :return:
         """
         warnings.warn(
             "`init_role` has been deprecated. Please use `bulk_sync_roles` instead.",
@@ -1002,7 +991,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         - we use AUTH_ROLES_MAPPING to map from keys, to FAB role names
 
         :param role_keys: the list of FAB role keys
-        :return: a list of Role
         """
         _roles = set()
         _role_keys = set(role_keys)
@@ -1190,7 +1178,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Gets an existing action record.
 
         :param name: name
-        :return: Action record, if it exists
         """
         return self.get_session.query(self.action_model).filter_by(name=name).one_or_none()
 
@@ -1260,7 +1247,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Create a resource with the given name.
 
         :param name: The name of the resource to create created.
-        :return: The FAB resource created.
         """
         resource = self.get_resource(name)
         if resource is None:
@@ -1276,11 +1262,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return resource
 
     def get_all_resources(self) -> list[Resource]:
-        """
-        Gets all existing resource records.
-
-        :return: List of all resources
-        """
+        """Gets all existing resource records."""
         return self.get_session.query(self.resource_model).all()
 
     def delete_resource(self, name: str) -> bool:
@@ -1327,7 +1309,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param action_name: Name of action
         :param resource_name: Name of resource
-        :return: The existing permission
         """
         action = self.get_action(action_name)
         resource = self.get_resource(resource_name)
@@ -1344,7 +1325,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Retrieve permission pairs associated with a specific resource object.
 
         :param resource: Object representing a single resource.
-        :return: Action objects representing resource->action pair
         """
         return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
@@ -1384,7 +1364,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource
-        :return: None
         """
         if not (action_name and resource_name):
             return
@@ -1415,7 +1394,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param role: The role about to get a new permission.
         :param permission: The permission pair to add to a role.
-        :return: None
         """
         if permission and permission not in role.permissions:
             try:
@@ -2190,7 +2168,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param action_name: Name of the action
         :param resource_name: Name of the resource
-        :return:
         """
         action = self.get_action(action_name)
         resource = self.get_resource(resource_name)
