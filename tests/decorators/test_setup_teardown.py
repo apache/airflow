@@ -24,6 +24,8 @@ from airflow.decorators.setup_teardown import context_wrapper
 from airflow.exceptions import AirflowException
 from airflow.operators.bash import BashOperator
 
+pytestmark = pytest.mark.db_test
+
 
 def make_task(name, type_, setup_=False, teardown_=False):
     if type_ == "classic" and setup_:

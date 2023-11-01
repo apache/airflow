@@ -27,6 +27,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
+pytestmark = pytest.mark.db_test
+
+
 # connection_string has a format
 CONN_STRING = (
     "DefaultEndpointsProtocol=https;AccountName=testname;AccountKey=wK7BOz;EndpointSuffix=core.windows.net"
@@ -44,7 +47,7 @@ def mocked_blob_service_client():
 
 @pytest.fixture
 def mocked_default_azure_credential():
-    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.DefaultAzureCredential") as m:
+    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.get_default_azure_credential") as m:
         yield m
 
 

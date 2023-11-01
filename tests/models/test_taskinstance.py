@@ -97,6 +97,8 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture
 def test_pool():
@@ -2942,7 +2944,7 @@ class TestTaskInstance:
                 task_id="context_inside_template",
                 python_callable=foo,
                 op_kwargs={"arg": "{{ user_defined_macro() }}"},
-            ),
+            )
         dagrun = dag_maker.create_dagrun()
         tis = dagrun.get_task_instances()
         ti: TaskInstance = next(x for x in tis if x.task_id == "context_inside_template")
@@ -3605,11 +3607,11 @@ class TestTaskInstanceRecordTaskMapXComPush:
             ("taskflow", 1, None),
         ]
 
-        ti = tis[((downstream, 0, None))]
+        ti = tis[(downstream, 0, None)]
         ti.run()
         ti.xcom_pull(task_ids=downstream, map_indexes=0, session=session) == ["a", "d"]
 
-        ti = tis[((downstream, 1, None))]
+        ti = tis[(downstream, 1, None)]
         if strict:
             with pytest.raises(TypeError) as ctx:
                 ti.run()

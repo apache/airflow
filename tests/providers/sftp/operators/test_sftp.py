@@ -37,6 +37,9 @@ from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = datetime(2017, 1, 1)
 TEST_CONN_ID = "conn_id_for_testing"
 

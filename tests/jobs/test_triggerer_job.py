@@ -48,6 +48,8 @@ from airflow.utils.types import DagRunType
 from tests.core.test_logging_config import reset_logging
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
 
 class TimeDeltaTrigger_(TimeDeltaTrigger):
     def __init__(self, delta, filename):
@@ -110,6 +112,9 @@ def create_trigger_in_db(session, trigger, operator=None):
     return dag_model, run, trigger_orm, task_instance
 
 
+# Quarantined because this test is failing the first time it is run. The second time succeeds
+# Seems to be connected with SOME race condition and needs to be investigated
+@pytest.mark.quarantined
 def test_trigger_logging_sensitive_info(session, capsys):
     """
     Checks that when a trigger fires, it doesn't log any sensitive

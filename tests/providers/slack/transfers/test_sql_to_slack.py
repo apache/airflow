@@ -106,6 +106,7 @@ class TestBaseSqlToSlackOperator:
         assert df is test_df
 
 
+@pytest.mark.db_test
 class TestSqlToSlackOperator:
     def setup_method(self):
         self.example_dag = DAG(TEST_DAG_ID, start_date=DEFAULT_DATE)

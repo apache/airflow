@@ -58,6 +58,10 @@ here so that users affected can find the reason for the changes.
 Airflow 2.7
 ~~~~~~~~~~~
 
+* 2.7.4
+
+  * PIP caching for local builds has been enabled to speed up local custom image building
+
 * 2.7.3
 
   * Add experimental feature for select type of MySQL Client libraries during the build custom image via ``INSTALL_MYSQL_CLIENT_TYPE``

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
 import time_machine
 
 from airflow.api_connexion.schemas.dataset_schema import (
@@ -30,6 +31,8 @@ from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
+
+pytestmark = pytest.mark.db_test
 
 
 class TestDatasetSchemaBase:
