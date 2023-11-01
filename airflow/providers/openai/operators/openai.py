@@ -43,6 +43,8 @@ class OpenAIEmbeddingOperator(BaseOperator):
     :param input_callable_args: The list of arguments to be passed to ``input_callable``
     :param input_callable_kwargs: The kwargs to be passed to ``input_callable``
     :param model: The OpenAI model to be used for generating the embeddings.
+    :param embedding_kwargs: For possible option check
+        .. seealso:: https://platform.openai.com/docs/api-reference/embeddings/create
     """
 
     template_fields: Sequence[str] = ("input_text",)
@@ -52,10 +54,10 @@ class OpenAIEmbeddingOperator(BaseOperator):
         conn_id: str,
         input_text: str | list[Any],
         model: str = "text-embedding-ada-002",
+        embedding_kwargs: dict | None = None,
         **kwargs: Any,
     ):
-        self.embedding_params = kwargs.pop("embedding_params", {})
-        self.hook_params = kwargs.pop("hook_params", {})
+        self.embedding_kwargs = embedding_kwargs or {}
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.input_text = input_text
@@ -64,10 +66,10 @@ class OpenAIEmbeddingOperator(BaseOperator):
     @cached_property
     def hook(self) -> OpenAIHook:
         """Return an instance of the OpenAIHook."""
-        return OpenAIHook(conn_id=self.conn_id, **self.hook_params)
+        return OpenAIHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> list[float]:
         self.log.info("Input text: %s", self.input_text)
-        embeddings = self.hook.create_embeddings(self.input_text, model=self.model, **self.embedding_params)
+        embeddings = self.hook.create_embeddings(self.input_text, model=self.model, **self.embedding_kwargs)
         self.log.info("Embeddings: %s", embeddings)
         return embeddings
