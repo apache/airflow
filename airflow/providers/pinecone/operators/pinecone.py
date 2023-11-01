@@ -35,12 +35,13 @@ class PineconeIngestOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:PineconeIngestOperator`
 
-    :param conn_id: pinecone_conn_id: The connection id to use when connecting to Pinecone.
+    :param conn_id: The connection id to use when connecting to Pinecone.
     :param index_name: Name of the Pinecone index.
     :param input_vectors: Data to be ingested, in the form of a list of tuples where each tuple
         contains (id, vector_embedding, metadata).
     :param namespace: The namespace to write to. If not specified, the default namespace is used.
     :param batch_size: The number of vectors to upsert in each batch.
+    :param upsert_kwargs: .. seealso:: https://docs.pinecone.io/reference/upsert
     """
 
     template_fields: Sequence[str] = ("index_name", "input_vectors", "namespace")
@@ -53,9 +54,10 @@ class PineconeIngestOperator(BaseOperator):
         input_vectors: list[tuple],
         namespace: str = "",
         batch_size: int | None = None,
+        upsert_kwargs: dict | None = None,
         **kwargs: Any,
     ) -> None:
-        self.upsert_kwargs = kwargs.pop("upsert_kwargs", {})
+        self.upsert_kwargs = upsert_kwargs or {}
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.index_name = index_name
