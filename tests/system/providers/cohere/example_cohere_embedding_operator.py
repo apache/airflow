@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 
 with DAG("example_cohere_embedding", schedule=None, start_date=datetime(2023, 1, 1), catchup=False) as dag:
@@ -30,16 +29,8 @@ with DAG("example_cohere_embedding", schedule=None, start_date=datetime(2023, 1,
         " problems, then combine the solutions of these with message passing algorithms.",
     ]
 
-    @task
-    def task_to_get_text():
-        return texts
-
-    def get_task():
-        return texts
-
     CohereEmbeddingOperator(input_text=texts, task_id="embedding_via_text")
-    CohereEmbeddingOperator(input_text=task_to_get_text(), task_id="embedding_via_task")
-    CohereEmbeddingOperator(input_text=get_task(), task_id="embedding_via_callable")
+    CohereEmbeddingOperator(input_text=texts[0], task_id="embedding_via_task")
     # [END howto_operator_cohere_embedding]
 
 

@@ -32,6 +32,8 @@ class CohereHook(BaseHook):
     .. seealso:: https://docs.cohere.com/docs
 
     :param conn_id: :ref:`Cohere connection id <howto/connection:cohere>`
+    :param timeout: Request timeout in seconds.
+    :param max_retries: Maximal number of retries for requests.
     """
 
     conn_name_attr = "conn_id"
@@ -63,7 +65,7 @@ class CohereHook(BaseHook):
     ) -> list[list[float]]:
         response = self.cohere_client.embed(texts=texts, model=model)
         embeddings = response.embeddings
-        return embeddings  # type:ignore[no-any-return]
+        return embeddings
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:

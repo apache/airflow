@@ -38,10 +38,6 @@ class CohereEmbeddingOperator(BaseOperator):
         information for Cohere. Defaults to "cohere_default".
     :param input_text: list of text items that need to be embedded. Only one of input_text or input_callable
         should be provided.
-    :param input_callable: The callable that provides the input texts to generate embeddings for.
-        Only one of input_text or input_callable should be provided.
-    :param input_callable_args: The list of arguments to be passed to ``input_callable``.
-    :param input_callable_kwargs: The kwargs to be passed to ``input_callable``.
     :param timeout: Timeout in seconds for Cohere API.
     :param max_retries: Number of times to retry before failing.
     """
@@ -50,13 +46,15 @@ class CohereEmbeddingOperator(BaseOperator):
 
     def __init__(
         self,
-        input_text: list[str],
+        input_text: list[str] | str,
         conn_id: str = CohereHook.default_conn_name,
         timeout: int | None = None,
         max_retries: int | None = None,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
+        if isinstance(input_text, str):
+            input_text = [input_text]
         self.conn_id = conn_id
         self.input_text = input_text
         self.timeout = timeout
