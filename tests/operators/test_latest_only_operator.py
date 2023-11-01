@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 
+import pytest
 import time_machine
 
 from airflow import settings
@@ -31,6 +32,9 @@ from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)

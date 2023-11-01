@@ -30,6 +30,9 @@ import pytest
 from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
 INTERVAL = timedelta(hours=12)

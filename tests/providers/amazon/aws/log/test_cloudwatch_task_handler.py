@@ -51,6 +51,7 @@ def logmock():
         yield
 
 
+@pytest.mark.db_test
 class TestCloudwatchTaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)

@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 
 import attr
+import pytest
 
 from airflow.lineage import AUTO, apply_lineage, get_backend, prepare_lineage
 from airflow.lineage.backend import LineageBackend
@@ -30,6 +31,9 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 

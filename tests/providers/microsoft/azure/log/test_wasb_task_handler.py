@@ -32,6 +32,9 @@ from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = datetime(2020, 8, 10)
 
 

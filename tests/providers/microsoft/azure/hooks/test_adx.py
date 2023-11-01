@@ -29,6 +29,8 @@ from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
 ADX_TEST_CONN_ID = "adx_test_connection_id"
 
+pytestmark = pytest.mark.db_test
+
 
 class TestAzureDataExplorerHook:
     @pytest.mark.parametrize(

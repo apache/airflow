@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+import pytest
+
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
@@ -147,6 +149,7 @@ class TestSparkSubmitOperator:
         assert expected_dict["spark_binary"] == operator._spark_binary
         assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
 
+    @pytest.mark.db_test
     def test_render_template(self):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)

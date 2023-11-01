@@ -19,6 +19,7 @@ from __future__ import annotations
 import os
 from unittest import mock
 
+import pytest
 from sqlalchemy.orm import make_transient
 
 from airflow.configuration import TEST_DAGS_FOLDER
@@ -27,6 +28,8 @@ from airflow.operators.bash import BashOperator
 from airflow.utils.session import create_session
 from airflow.version import version
 from tests.models import DEFAULT_DATE
+
+pytestmark = pytest.mark.db_test
 
 
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})

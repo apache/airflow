@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock, patch
 
+import pytest
+
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.asana.operators.asana_tasks import (
@@ -27,6 +29,9 @@ from airflow.providers.asana.operators.asana_tasks import (
     AsanaUpdateTaskOperator,
 )
 from airflow.utils import db, timezone
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"

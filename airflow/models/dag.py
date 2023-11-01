@@ -726,7 +726,7 @@ class DAG(LoggingMixin):
                 f"inconsistent schedule: timetable {self.timetable.summary!r} "
                 f"does not match schedule_interval {self.schedule_interval!r}",
             )
-        self.params.validate()
+        self.validate_schedule_and_params()
         self.timetable.validate()
         self.validate_setup_teardown()
 
@@ -3618,7 +3618,7 @@ class DagModel(Base):
             .where(DagModel.dag_id.in_(dag_ids))
         )
 
-        paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
+        paused_dag_ids = {paused_dag_id for (paused_dag_id,) in paused_dag_ids}
         return paused_dag_ids
 
     def get_default_view(self) -> str:

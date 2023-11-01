@@ -356,7 +356,8 @@ class OpenLineageRedactor(SecretsMasker):
                 if attrs.has(type(item)):
                     # TODO: fixme when mypy gets compatible with new attrs
                     for dict_key, subval in attrs.asdict(
-                        item, recurse=False  # type: ignore[arg-type]
+                        item,  # type: ignore[arg-type]
+                        recurse=False,
                     ).items():
                         if _is_name_redactable(dict_key, item):
                             setattr(

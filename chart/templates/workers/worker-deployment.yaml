@@ -398,5 +398,8 @@ spec:
         resources:
           requests:
             storage: {{ .Values.workers.persistence.size }}
+    {{- with .Values.workers.volumeClaimTemplates }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
   {{- end }}
 {{- end }}

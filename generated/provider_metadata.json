@@ -260,6 +260,10 @@
             "associated_airflow_version": "2.6.2",
             "date_released": "2023-05-23T14:20:24Z"
         },
+        "8.10.0": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:29Z"
+        },
         "8.2.0": {
             "associated_airflow_version": "2.6.3",
             "date_released": "2023-06-23T15:38:45Z"
@@ -1267,6 +1271,10 @@
         "4.2.0": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:16Z"
+        },
+        "4.3.0": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:29Z"
         }
     },
     "apache.sqoop": {
@@ -1771,6 +1779,16 @@
         "7.7.0": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:16Z"
+        },
+        "7.8.0": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:29Z"
+        }
+    },
+    "common.io": {
+        "1.0.0": {
+            "associated_airflow_version": "2.0.0",
+            "date_released": "2023-10-31T20:27:29Z"
         }
     },
     "common.sql": {
@@ -1977,6 +1995,10 @@
         "4.6.0": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:16Z"
+        },
+        "4.7.0": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:29Z"
         }
     },
     "datadog": {
@@ -2791,6 +2813,10 @@
         "10.10.1": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-21T20:02:16Z"
+        },
+        "10.11.0": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:29Z"
         },
         "10.2.0": {
             "associated_airflow_version": "2.6.3",
@@ -3639,6 +3665,10 @@
         "8.0.0": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:16Z"
+        },
+        "8.1.0": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:29Z"
         }
     },
     "microsoft.mssql": {
@@ -3915,6 +3945,10 @@
         "3.3.0": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:16Z"
+        },
+        "3.4.0": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:29Z"
         }
     },
     "mysql": {
@@ -4241,6 +4275,10 @@
         "1.1.1": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:17Z"
+        },
+        "1.2.0": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:29Z"
         }
     },
     "opensearch": {
@@ -4797,6 +4835,10 @@
         "5.2.0": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:17Z"
+        },
+        "5.2.1": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:30Z"
         }
     },
     "redis": {
@@ -5389,6 +5431,10 @@
         "8.2.0": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:17Z"
+        },
+        "8.3.0": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:30Z"
         }
     },
     "smtp": {
@@ -5423,6 +5469,10 @@
         "1.4.0": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:17Z"
+        },
+        "1.4.1": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:30Z"
         }
     },
     "snowflake": {
@@ -5765,6 +5815,10 @@
         "3.8.0": {
             "associated_airflow_version": "2.7.2",
             "date_released": "2023-10-17T07:49:17Z"
+        },
+        "3.8.1": {
+            "associated_airflow_version": "2.7.2",
+            "date_released": "2023-10-31T20:27:30Z"
         }
     },
     "tableau": {
