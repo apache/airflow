@@ -280,8 +280,8 @@ def initial_db_init():
 
     from airflow.configuration import conf
     from airflow.utils import db
-    from airflow.www.app import sync_appbuilder_roles
     from airflow.www.extensions.init_appbuilder import init_appbuilder
+    from airflow.www.extensions.init_auth_manager import get_auth_manager
 
     db.resetdb()
     db.bootstrap_dagbag()
@@ -289,7 +289,7 @@ def initial_db_init():
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     init_appbuilder(flask_app)
-    sync_appbuilder_roles(flask_app)
+    get_auth_manager().init()
 
 
 @pytest.fixture(autouse=True, scope="session")

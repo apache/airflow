@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
@@ -85,6 +86,7 @@ from airflow.utils.yaml import safe_load
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
 if TYPE_CHECKING:
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import (
         CLICommand,
@@ -187,6 +189,10 @@ class FabAuthManager(BaseAuthManager):
     def get_user_id(self) -> str:
         """Return the user ID associated to the user in session."""
         return str(self.get_user().get_id())
+
+    def init(self) -> None:
+        """Run operations when Airflow is initializing."""
+        self._sync_appbuilder_roles()
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
@@ -339,8 +345,9 @@ class FabAuthManager(BaseAuthManager):
             for dag in session.execute(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))
         }
 
-    def get_security_manager_override_class(self) -> type:
-        """Return the security manager override."""
+    @cached_property
+    def security_manager(self) -> FabAirflowSecurityManagerOverride:
+        """Return the security manager specific to FAB."""
         from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
         from airflow.www.security import AirflowSecurityManager
 
@@ -357,9 +364,9 @@ class FabAuthManager(BaseAuthManager):
                     "FabAirflowSecurityManagerOverride instead of AirflowSecurityManager.",
                     DeprecationWarning,
                 )
-            return sm_from_config
+            return sm_from_config(self.appbuilder)
 
-        return FabAirflowSecurityManagerOverride  # default choice
+        return FabAirflowSecurityManagerOverride(self.appbuilder)
 
     def get_url_login(self, **kwargs) -> str:
         """Return the login page url."""
@@ -501,7 +508,20 @@ class FabAuthManager(BaseAuthManager):
         :meta private:
         """
         if "." in dag_id:
-            return self.security_manager.appbuilder.get_session.scalar(
+            return self.appbuilder.get_session.scalar(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
             )
         return dag_id
+
+    def _sync_appbuilder_roles(self):
+        """
+        Sync appbuilder roles to DB.
+
+        :meta private:
+        """
+        # Garbage collect old permissions/views after they have been modified.
+        # Otherwise, when the name of a view or menu is changed, the framework
+        # will add the new Views and Menus names to the backend, but will not
+        # delete the old ones.
+        if conf.getboolean("webserver", "UPDATE_FAB_PERMS"):
+            self.security_manager.sync_roles()

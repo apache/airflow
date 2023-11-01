@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import Mock
 
 import pytest
+from flask import Flask
 
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User
@@ -48,7 +49,7 @@ from airflow.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
-from airflow.www.security_appless import ApplessAirflowSecurityManager
+from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
@@ -61,13 +62,17 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
 
 @pytest.fixture
 def auth_manager():
-    app_mock = Mock(name="flask_app")
-    app_mock.config.get.return_value = None  # this is called to get the security manager override (if any)
-    auth_manager = FabAuthManager(app_mock)
-    auth_manager.security_manager = ApplessAirflowSecurityManager()
-    return auth_manager
+    return FabAuthManager(None, None)
 
 
+@pytest.fixture
+def auth_manager_with_appbuilder():
+    flask_app = Flask(__name__)
+    appbuilder = init_appbuilder(flask_app)
+    return FabAuthManager(flask_app, appbuilder)
+
+
+@pytest.mark.db_test
 class TestFabAuthManager:
     @pytest.mark.parametrize(
         "id,first_name,last_name,username,email,expected",
@@ -389,47 +394,55 @@ class TestFabAuthManager:
         result = auth_manager.is_authorized_view(access_view=access_view, user=user)
         assert result == expected_result
 
-    def test_get_security_manager_override_class_return_fab_security_manager_override(self, auth_manager):
-        assert auth_manager.get_security_manager_override_class() is FabAirflowSecurityManagerOverride
+    @pytest.mark.db_test
+    def test_security_manager_return_fab_security_manager_override(self, auth_manager_with_appbuilder):
+        assert isinstance(auth_manager_with_appbuilder.security_manager, FabAirflowSecurityManagerOverride)
 
-    def test_get_url_login_when_auth_view_not_defined(self, auth_manager):
+    @pytest.mark.db_test
+    def test_get_url_login_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
         with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
-            auth_manager.get_url_login()
+            auth_manager_with_appbuilder.get_url_login()
 
+    @pytest.mark.db_test
     @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
-    def test_get_url_login(self, mock_url_for, auth_manager):
-        auth_manager.security_manager.auth_view = Mock()
-        auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
-        auth_manager.get_url_login()
+    def test_get_url_login(self, mock_url_for, auth_manager_with_appbuilder):
+        auth_manager_with_appbuilder.security_manager.auth_view = Mock()
+        auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
+        auth_manager_with_appbuilder.get_url_login()
         mock_url_for.assert_called_once_with("test_endpoint.login")
 
+    @pytest.mark.db_test
     @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
-    def test_get_url_login_with_next(self, mock_url_for, auth_manager):
-        auth_manager.security_manager.auth_view = Mock()
-        auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
-        auth_manager.get_url_login(next_url="next_url")
+    def test_get_url_login_with_next(self, mock_url_for, auth_manager_with_appbuilder):
+        auth_manager_with_appbuilder.security_manager.auth_view = Mock()
+        auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
+        auth_manager_with_appbuilder.get_url_login(next_url="next_url")
         mock_url_for.assert_called_once_with("test_endpoint.login", next="next_url")
 
-    def test_get_url_logout_when_auth_view_not_defined(self, auth_manager):
+    @pytest.mark.db_test
+    def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
         with pytest.raises(AirflowException, match="`auth_view` not defined in the security manager."):
-            auth_manager.get_url_logout()
+            auth_manager_with_appbuilder.get_url_logout()
 
+    @pytest.mark.db_test
     @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
-    def test_get_url_logout(self, mock_url_for, auth_manager):
-        auth_manager.security_manager.auth_view = Mock()
-        auth_manager.security_manager.auth_view.endpoint = "test_endpoint"
-        auth_manager.get_url_logout()
+    def test_get_url_logout(self, mock_url_for, auth_manager_with_appbuilder):
+        auth_manager_with_appbuilder.security_manager.auth_view = Mock()
+        auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
+        auth_manager_with_appbuilder.get_url_logout()
         mock_url_for.assert_called_once_with("test_endpoint.logout")
 
-    def test_get_url_user_profile_when_auth_view_not_defined(self, auth_manager):
-        assert auth_manager.get_url_user_profile() is None
+    @pytest.mark.db_test
+    def test_get_url_user_profile_when_auth_view_not_defined(self, auth_manager_with_appbuilder):
+        assert auth_manager_with_appbuilder.get_url_user_profile() is None
 
+    @pytest.mark.db_test
     @mock.patch("airflow.auth.managers.fab.fab_auth_manager.url_for")
-    def test_get_url_user_profile(self, mock_url_for, auth_manager):
+    def test_get_url_user_profile(self, mock_url_for, auth_manager_with_appbuilder):
         expected_url = "test_url"
         mock_url_for.return_value = expected_url
-        auth_manager.security_manager.user_view = Mock()
-        auth_manager.security_manager.user_view.endpoint = "test_endpoint"
-        actual_url = auth_manager.get_url_user_profile()
+        auth_manager_with_appbuilder.security_manager.user_view = Mock()
+        auth_manager_with_appbuilder.security_manager.user_view.endpoint = "test_endpoint"
+        actual_url = auth_manager_with_appbuilder.get_url_user_profile()
         mock_url_for.assert_called_once_with("test_endpoint.userinfo")
         assert actual_url == expected_url
