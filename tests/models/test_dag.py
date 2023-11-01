@@ -827,6 +827,15 @@ class TestDag:
         when = dag.following_schedule(start)
         assert when.isoformat() == "2018-03-25T03:00:00+00:00"
 
+    def test_create_dagrun_when_schedule_is_none_and_empty_start_date(self):
+        # Check that we don't get an AttributeError 'start_date' for self.start_date when schedule is empty
+        dag = DAG("dag_without_start_date")
+        dag.add_task(BaseOperator(task_id="task_without_start_date"))
+        dagrun = dag.create_dagrun(
+            state=State.RUNNING, run_type=DagRunType.SCHEDULED, execution_date=DEFAULT_DATE
+        )
+        assert dagrun is not None
+
     def test_following_schedule_datetime_timezone_utc0530(self):
         # Check that we don't get an AttributeError 'name' for self.timezone
         class UTC0530(datetime.tzinfo):
