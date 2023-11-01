@@ -237,6 +237,14 @@ class TestGetTask(TestTaskEndpoint):
         )
         assert response.status_code == 404
 
+    def test_should_respond_404_when_dag_not_found(self):
+        dag_id = "xxxx_not_existing"
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 404
+        assert response.json["title"] == "DAG not found"
+
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")
 

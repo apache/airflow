@@ -890,24 +890,26 @@ class TestAwsS3Hook:
             assert mock_hook.delete_bucket(bucket_name=s3_bucket, force_delete=True)
         assert ctx.value.response["Error"]["Code"] == "NoSuchBucket"
 
-    @mock.patch.object(
-        S3Hook,
-        "get_connection",
-        return_value=Connection(extra={"service_config": {"s3": {"bucket_name": "bucket_name"}}}),
-    )
-    def test_provide_bucket_name(self, mock_get_connection):
-        class FakeS3Hook(S3Hook):
-            @provide_bucket_name
-            def test_function(self, bucket_name=None):
-                return bucket_name
+    @pytest.mark.db_test
+    def test_provide_bucket_name(self):
+        with mock.patch.object(
+            S3Hook,
+            "get_connection",
+            return_value=Connection(extra={"service_config": {"s3": {"bucket_name": "bucket_name"}}}),
+        ):
 
-        fake_s3_hook = FakeS3Hook()
+            class FakeS3Hook(S3Hook):
+                @provide_bucket_name
+                def test_function(self, bucket_name=None):
+                    return bucket_name
 
-        test_bucket_name = fake_s3_hook.test_function()
-        assert test_bucket_name == "bucket_name"
+            fake_s3_hook = FakeS3Hook()
 
-        test_bucket_name = fake_s3_hook.test_function(bucket_name="bucket")
-        assert test_bucket_name == "bucket"
+            test_bucket_name = fake_s3_hook.test_function()
+            assert test_bucket_name == "bucket_name"
+
+            test_bucket_name = fake_s3_hook.test_function(bucket_name="bucket")
+            assert test_bucket_name == "bucket"
 
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.

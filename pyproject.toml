@@ -48,8 +48,6 @@ extend-select = [
     "UP", # Pyupgrade
     "RUF100", # Unused noqa (auto-fixable)
 
-    # implicit single-line string concatenation
-    "ISC001",
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
     "D101",
     "D106",

@@ -93,17 +93,6 @@ def _requires_access(*, is_authorized_callback: Callable[[], bool], func: Callab
     raise PermissionDenied()
 
 
-def requires_authentication(func: T):
-    """Decorator for functions that require authentication."""
-
-    @wraps(func)
-    def decorated(*args, **kwargs):
-        check_authentication()
-        return func(*args, **kwargs)
-
-    return cast(T, decorated)
-
-
 def requires_access_configuration(method: ResourceMethod) -> Callable[[T], T]:
     def requires_access_decorator(func: T):
         @wraps(func)
