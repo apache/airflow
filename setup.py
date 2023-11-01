@@ -473,6 +473,7 @@ _devel_only_tests = [
     "pytest-asyncio",
     "pytest-cov",
     "pytest-httpx",
+    "pytest-icdiff",
     "pytest-instafail",
     "pytest-mock",
     "pytest-rerunfailures",
