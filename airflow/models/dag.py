@@ -73,6 +73,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.sql import Select, expression
+from typing_extensions import final
 
 import airflow.templates
 from airflow import settings, utils
@@ -292,6 +293,7 @@ class _StopDagTest(Exception):
     """
 
 
+@final
 @functools.total_ordering
 class DAG(LoggingMixin):
     """
