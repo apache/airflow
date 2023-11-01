@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-31T18:52:26Z
+# This constraints file was automatically generated on 2023-11-01T21:32:05Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -24,7 +24,7 @@ Flask-WTF==1.2.1
 Flask==2.2.5
 Jinja2==3.1.2
 Mako==1.2.4
-Markdown==3.5
+Markdown==3.5.1
 MarkupSafe==2.1.3
 PyJWT==2.8.0
 PyYAML==6.0.1
@@ -43,7 +43,7 @@ amqp==5.1.1
 annotated-types==0.6.0
 anyio==4.0.0
 apispec==6.3.0
-argcomplete==3.1.2
+argcomplete==3.1.3
 asgiref==3.7.2
 async-timeout==4.0.3
 attrs==23.1.0
@@ -59,7 +59,7 @@ celery==5.3.4
 certifi==2023.7.22
 cffi==1.16.0
 cgroupspy==0.2.2
-charset-normalizer==3.3.1
+charset-normalizer==3.3.2
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
@@ -87,7 +87,7 @@ flower==2.0.1
 frozenlist==1.4.0
 fsspec==2023.10.0
 gevent==23.9.1
-google-auth==2.23.3
+google-auth==2.23.4
 google-re2==1.1
 googleapis-common-protos==1.61.0
 graphviz==0.20.1
@@ -152,7 +152,7 @@ prompt-toolkit==3.0.39
 protobuf==4.24.4
 psutil==5.9.6
 pure-sasl==0.6.2
-pyarrow==13.0.0
+pyarrow==14.0.0
 pyasn1-modules==0.3.0
 pyasn1==0.5.0
 pycparser==2.21

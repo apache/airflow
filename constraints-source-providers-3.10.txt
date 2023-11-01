@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-10-31T18:47:15Z
+# This constraints file was automatically generated on 2023-11-01T21:27:19Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-7-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -29,7 +29,7 @@ JayDeBeApi==1.2.3
 Jinja2==3.1.2
 Js2Py==0.74
 Mako==1.2.4
-Markdown==3.5
+Markdown==3.5.1
 MarkupSafe==2.1.3
 PyGithub==2.1.1
 PyHive==0.7.0
@@ -73,7 +73,7 @@ anyio==4.0.0
 apache-beam==2.51.0
 apispec==6.3.0
 apprise==1.6.0
-argcomplete==3.1.2
+argcomplete==3.1.3
 arrow==1.3.0
 asana==3.2.2
 asgiref==3.7.2
@@ -129,7 +129,7 @@ cfgv==3.4.0
 cfn-lint==0.83.1
 cgroupspy==0.2.2
 chardet==5.2.0
-charset-normalizer==3.3.1
+charset-normalizer==3.3.2
 checksumdir==1.2.0
 ciso8601==2.3.1
 click-didyoumean==0.3.0
@@ -196,8 +196,8 @@ google-api-core==2.12.0
 google-api-python-client==2.106.0
 google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.1.0
-google-auth==2.23.3
-google-cloud-aiplatform==1.35.0
+google-auth==2.23.4
+google-cloud-aiplatform==1.36.0
 google-cloud-appengine-logging==1.3.2
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.3
@@ -325,7 +325,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.28.42
-mypy-boto3-rds==1.28.74
+mypy-boto3-rds==1.28.76
 mypy-boto3-redshift-data==1.28.36
 mypy-boto3-s3==1.28.55
 mypy-extensions==1.0.0
@@ -424,7 +424,6 @@ pypsrp==0.8.1
 pyspark==3.5.0
 pyspnego==0.10.2
 pytest-asyncio==0.21.1
-pytest-capture-warnings==0.0.4
 pytest-cov==4.1.0
 pytest-httpx==0.21.3
 pytest-instafail==0.5.0
@@ -465,7 +464,7 @@ responses==0.23.3
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-argparse==1.4.0
-rich-click==1.7.0
+rich-click==1.7.1
 rich==13.6.0
 rpds-py==0.10.6
 rsa==4.9
@@ -582,4 +581,4 @@ zict==3.0.0
 zipp==3.17.0
 zope.event==5.0
 zope.interface==6.1
-zstandard==0.21.0
+zstandard==0.22.0
