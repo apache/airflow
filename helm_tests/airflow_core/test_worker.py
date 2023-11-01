@@ -681,139 +681,19 @@ class TestWorker:
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
     @pytest.mark.parametrize(
-        "globalScope, localScope, precedence",
-        [
-            ({}, {}, "true"),
-            ({}, {"safeToEvict": True}, "true"),
-            ({}, {"safeToEvict": False}, "false"),
-            (
-                {},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "safeToEvict": True,
-                },
-                "true",
-            ),
-            (
-                {},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "safeToEvict": False,
-                },
-                "true",
-            ),
-            (
-                {},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "safeToEvict": True,
-                },
-                "false",
-            ),
-            (
-                {},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "safeToEvict": False,
-                },
-                "false",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                {"safeToEvict": True},
-                "true",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                {"safeToEvict": False},
-                "false",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                {"safeToEvict": True},
-                "true",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                {"safeToEvict": False},
-                "false",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "safeToEvict": False,
-                },
-                "true",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "safeToEvict": False,
-                },
-                "false",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "safeToEvict": False,
-                },
-                "true",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "safeToEvict": False,
-                },
-                "false",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "safeToEvict": True,
-                },
-                "true",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "safeToEvict": True,
-                },
-                "false",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "true"},
-                    "safeToEvict": True,
-                },
-                "true",
-            ),
-            (
-                {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                {
-                    "podAnnotations": {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"},
-                    "safeToEvict": True,
-                },
-                "false",
-            ),
-        ],
+        "evictionStr, evictionBool",
+        [("true", True), ("false", False)],
     )
-    def test_safetoevict_annotations(self, globalScope, localScope, precedence):
+    def test_safetoevict_annotations(self, evictionStr, evictionBool):
         docs = render_chart(
-            values={"airflowPodAnnotations": globalScope, "workers": localScope},
+            values={"workers": {"safeToEvict": evictionBool}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert (
             jmespath.search("spec.template.metadata.annotations", docs[0])[
                 "cluster-autoscaler.kubernetes.io/safe-to-evict"
             ]
-            == precedence
+            == evictionStr
         )
 
     def test_should_add_extra_volume_claim_templates(self):
@@ -864,6 +744,25 @@ class TestWorker:
         assert "20Gi" == jmespath.search(
             "spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]
         )
+
+    @pytest.mark.parametrize(
+        "globalScope, localScope, precedence",
+        [
+            ({"scope": "global"}, {"podAnnotations": {}}, "global"),
+            ({}, {"podAnnotations": {"scope": "local"}}, "local"),
+            ({"scope": "global"}, {"podAnnotations": {"scope": "local"}}, "local"),
+            ({}, {}, None),
+        ],
+    )
+    def test_podannotations_precedence(self, globalScope, localScope, precedence):
+        docs = render_chart(
+            values={"airflowPodAnnotations": globalScope, "workers": localScope},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        if precedence:
+            assert jmespath.search("spec.template.metadata.annotations", docs[0])["scope"] == precedence
+        else:
+            assert jmespath.search("spec.template.metadata.annotations.scope", docs[0]) is None
 
     def test_worker_template_storage_class_name(self):
         docs = render_chart(
