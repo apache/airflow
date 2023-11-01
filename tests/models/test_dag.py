@@ -832,7 +832,7 @@ class TestDag:
         dag = DAG("dag_without_start_date")
         dag.add_task(BaseOperator(task_id="task_without_start_date"))
         dagrun = dag.create_dagrun(
-            state=State.RUNNING, run_type=DagRunType.SCHEDULED, execution_date=DEFAULT_DATE
+            state=State.RUNNING, run_type=DagRunType.MANUAL, execution_date=DEFAULT_DATE
         )
         assert dagrun is not None
 
