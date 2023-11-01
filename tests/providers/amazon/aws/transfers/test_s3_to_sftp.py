@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import boto3
+import pytest
 from moto import mock_s3
 
 from airflow.models import DAG
@@ -27,6 +28,9 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
+
 
 TASK_ID = "test_s3_to_sftp"
 BUCKET = "test-s3-bucket"
@@ -44,7 +48,6 @@ DEFAULT_DATE = datetime(2018, 1, 1)
 
 class TestS3ToSFTPOperator:
     def setup_method(self):
-
         hook = SSHHook(ssh_conn_id="ssh_default")
         hook.no_host_key_check = True
         dag = DAG(

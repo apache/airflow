@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -111,17 +111,25 @@ class TestAzureDataFactoryPipelineRunStatusSensor:
             self.defered_sensor.execute_complete(context={}, event={"status": "success", "message": msg})
         mock_log_info.assert_called_with(msg)
 
-    def test_adf_pipeline_status_sensor_execute_complete_failure(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_adf_pipeline_status_sensor_execute_complete_failure(self, soft_fail, expected_exception):
         """Assert execute_complete method fail"""
 
-        with pytest.raises(AirflowException):
+        self.defered_sensor.soft_fail = soft_fail
+        with pytest.raises(expected_exception):
             self.defered_sensor.execute_complete(context={}, event={"status": "error", "message": ""})
 
 
 class TestAzureDataFactoryPipelineRunStatusSensorWithAsync:
     RUN_ID = "7f8c6c72-c093-11ec-a83d-0242ac120007"
     SENSOR = AzureDataFactoryPipelineRunStatusSensor(
-        task_id="pipeline_run_sensor_async", run_id=RUN_ID, deferrable=True
+        task_id="pipeline_run_sensor_async",
+        run_id=RUN_ID,
+        resource_group_name="resource-group-name",
+        factory_name="factory-name",
+        deferrable=True,
     )
 
     @mock.patch("airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryHook")
@@ -142,8 +150,12 @@ class TestAzureDataFactoryPipelineRunStatusSensorWithAsync:
             self.SENSOR.execute_complete(context={}, event={"status": "success", "message": msg})
         mock_log_info.assert_called_with(msg)
 
-    def test_adf_pipeline_status_sensor_execute_complete_failure(self):
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_adf_pipeline_status_sensor_execute_complete_failure(self, soft_fail, expected_exception):
         """Assert execute_complete method fail"""
 
-        with pytest.raises(AirflowException):
+        self.SENSOR.soft_fail = soft_fail
+        with pytest.raises(expected_exception):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})

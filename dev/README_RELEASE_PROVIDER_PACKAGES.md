@@ -44,6 +44,7 @@
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
+  - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
@@ -311,6 +312,11 @@ twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
+Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
+
 ```shell script
 ./dev/provider_packages/tag_providers.sh
 ```
@@ -377,7 +383,7 @@ breeze build-docs providers-index cncf.kubernetes sftp --clean-build
 If you have providers as list of provider ids because you just released them, you can build them with
 
 ```shell script
-./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
+breeze build-docs --clean-build amazon apache.beam google ....
 ```
 
 - Now you can preview the documentation.
@@ -410,6 +416,16 @@ export PYTHONPATH=.:${PYTHONPATH}
 ```
 
 If you have providers as list of provider ids because you just released them you can build them with
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
+breeze release-management publish-docs providers-index amazon cncf.kubernetes --override-versioned --run-in-parallel
+
+breeze release-management add-back-references amazon cncf.kubernetes
+```
+
+or with
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
@@ -943,9 +959,28 @@ If you decided to remove some packages from the release make sure to do amend th
 Assume that your remote for apache repository is called `apache` you should now
 set tags for the providers in the repo.
 
+Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created
+and lead to annoying errors. The default behaviour would be to clean such local tags up.
+
+If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
+
 ```shell script
 ./dev/provider_packages/tag_providers.sh
 ```
+
+## Update providers metadata
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT}
+branch="update-providers-metadata-$(date '+%Y-%m-%d%n')
+git checkout -b "${branch}"
+breeze release-management generate-providers-metadata
+git add -p .
+git commit -m "Update providers metadata $(date '+%Y-%m-%d%n')"
+git push --set-upstream origin "${branch}"
+```
+
+Create PR and get it merged
 
 ## Notify developers of release
 
@@ -1014,7 +1049,7 @@ If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------
 
-Normally we do not announce on providers in social media other than a new provider added which doesn't happen often.
+As a rule we announce only new providers that were added.
 If you believe there is a reason to announce in social media for another case consult with PMCs about it.
 Example for special case: an exciting new capability that the community waited for and should have big impact.
 

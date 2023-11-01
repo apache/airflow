@@ -38,11 +38,8 @@ from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
     AirflowConfigException,
+    AirflowException,
     RemovedInAirflow3Warning,
-)
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import (
-    PodMutationHookException,
-    PodReconciliationError,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
@@ -61,6 +58,14 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 MAX_LABEL_LEN = 63
+
+
+class PodMutationHookException(AirflowException):
+    """Raised when exception happens during Pod Mutation Hook execution."""
+
+
+class PodReconciliationError(AirflowException):
+    """Raised when an error is encountered while trying to merge pod configs."""
 
 
 def make_safe_label_value(string: str) -> str:
@@ -147,7 +152,7 @@ class PodGenerator:
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
-        """Generates pod."""
+        """Generate pod."""
         warnings.warn("This function is deprecated. ", RemovedInAirflow3Warning)
         result = self.ud_pod
 
@@ -160,7 +165,7 @@ class PodGenerator:
 
     @staticmethod
     def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Adds sidecar."""
+        """Add sidecar."""
         warnings.warn(
             "This function is deprecated. "
             "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
@@ -176,7 +181,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> dict | k8s.V1Pod | None:
-        """Converts to pod from obj."""
+        """Convert to pod from obj."""
         if obj is None:
             return None
 
@@ -210,7 +215,7 @@ class PodGenerator:
 
     @staticmethod
     def from_legacy_obj(obj) -> k8s.V1Pod | None:
-        """Converts to pod from obj."""
+        """Convert to pod from obj."""
         if obj is None:
             return None
 

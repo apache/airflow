@@ -25,7 +25,7 @@ from deprecated import deprecated
 from typing_extensions import Literal
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
 from airflow.providers.amazon.aws.utils.sqs import process_response
@@ -145,7 +145,11 @@ class SqsSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: dict | None = None) -> None:
         if event is None or event["status"] != "success":
-            raise AirflowException(f"Trigger error: event is {event}")
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            message = f"Trigger error: event is {event}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         context["ti"].xcom_push(key="messages", value=event["message_batch"])
 
     def poll_sqs(self, sqs_conn: BaseAwsConnection) -> Collection:
@@ -193,7 +197,6 @@ class SqsSensor(BaseSensorOperator):
             message_batch.extend(messages)
 
             if self.delete_message_on_reception:
-
                 self.log.info("Deleting %d messages", len(messages))
 
                 entries = [
@@ -203,14 +206,18 @@ class SqsSensor(BaseSensorOperator):
                 response = self.hook.conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
 
                 if "Successful" not in response:
-                    raise AirflowException(f"Delete SQS Messages failed {response} for messages {messages}")
+                    # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+                    error_message = f"Delete SQS Messages failed {response} for messages {messages}"
+                    if self.soft_fail:
+                        raise AirflowSkipException(error_message)
+                    raise AirflowException(error_message)
         if message_batch:
             context["ti"].xcom_push(key="messages", value=message_batch)
             return True
         else:
             return False
 
-    @deprecated(reason="use `hook` property instead.")
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
     def get_hook(self) -> SqsHook:
         """Create and return an SqsHook."""
         return self.hook

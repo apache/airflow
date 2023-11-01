@@ -29,8 +29,8 @@ import pytest
 
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowSkipException
-from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
@@ -45,6 +45,8 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
+
+pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -467,7 +469,6 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
 
 def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session):
-
     with set_current_task_instance_session(session=session):
 
         class MyOperator(BaseOperator):

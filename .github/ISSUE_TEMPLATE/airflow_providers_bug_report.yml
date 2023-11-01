@@ -48,6 +48,7 @@ body:
         - celery
         - cloudant
         - cncf-kubernetes
+        - common-io
         - common-sql
         - daskexecutor
         - databricks
@@ -80,6 +81,7 @@ body:
         - odbc
         - openfaas
         - openlineage
+        - opensearch
         - opsgenie
         - oracle
         - pagerduty

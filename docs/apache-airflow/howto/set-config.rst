@@ -66,7 +66,7 @@ For example consider the pretend section ``providers.some_provider``:
 
 .. code-block:: ini
 
-    [providers.some_provider>]
+    [providers.some_provider]
     this_param = true
 
 .. code-block:: bash

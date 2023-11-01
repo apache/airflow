@@ -34,6 +34,8 @@ from tests.listeners import lifecycle_listener
 from tests.test_utils.config import conf_vars
 from tests.utils.test_helpers import MockJobRunner, SchedulerJobRunner, TriggererJobRunner
 
+pytestmark = pytest.mark.db_test
+
 
 class TestJob:
     def test_state_success(self):
@@ -55,7 +57,6 @@ class TestJob:
         assert job.end_date is not None
 
     def test_base_job_respects_plugin_hooks(self):
-
         import sys
 
         job = Job()
@@ -203,21 +204,16 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    @patch("airflow.jobs.job.create_session")
-    def test_heartbeat_failed(self, mock_create_session):
+    def test_heartbeat_failed(self):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
-        with create_session() as session:
-            mock_session = Mock(spec_set=session, name="MockSession")
-            mock_create_session.return_value.__enter__.return_value = mock_session
+        mock_session = Mock(name="MockSession")
+        mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
+        job = Job(heartrate=10, state=State.RUNNING)
+        job.latest_heartbeat = when
 
-            job = Job(heartrate=10, state=State.RUNNING)
-            job.latest_heartbeat = when
+        job.heartbeat(heartbeat_callback=lambda: None, session=mock_session)
 
-            mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
-
-            job.heartbeat(heartbeat_callback=lambda: None)
-
-            assert job.latest_heartbeat == when, "attribute not updated when heartbeat fails"
+        assert job.latest_heartbeat == when, "attribute not updated when heartbeat fails"
 
     @conf_vars(
         {

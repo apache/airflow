@@ -51,6 +51,7 @@ IMPERSONATE_CHAIN = ["impersonate", "this", "test"]
 OPERATION_NAME = "test-operation-name"
 
 
+@pytest.mark.db_test
 class TestGKEHookClient:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
@@ -62,7 +63,6 @@ class TestGKEHookClient:
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
     def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
-
         result = self.gke_hook.get_conn()
         mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result

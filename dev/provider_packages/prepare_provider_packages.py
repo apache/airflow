@@ -20,7 +20,6 @@
 """Setup.py for the Provider packages of Airflow project."""
 from __future__ import annotations
 
-import collections
 import difflib
 import glob
 import json
@@ -33,6 +32,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+from collections import namedtuple
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -54,11 +54,7 @@ from yaml import safe_load
 
 ALL_PYTHON_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 
-MIN_AIRFLOW_VERSION = "2.4.0"
-# In case you have some providers that you want to have different min-airflow version for,
-# Add them as exceptions here. Make sure to remove it once the min-airflow version is bumped
-# to the same version that is required by the exceptional provider
-MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.7.0"}
+MIN_AIRFLOW_VERSION = "2.5.0"
 
 INITIAL_CHANGELOG_CONTENT = """
  .. Licensed to the Apache Software Foundation (ASF) under one
@@ -605,7 +601,7 @@ LICENCE_RST = """
 """
 Keeps information about historical releases.
 """
-ReleaseInfo = collections.namedtuple(
+ReleaseInfo = namedtuple(
     "ReleaseInfo", "release_version release_version_no_leading_zeros last_commit_hash content file_name"
 )
 
@@ -1122,8 +1118,11 @@ def get_provider_jinja_context(
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"
     min_airflow_version = MIN_AIRFLOW_VERSION
-    if MIN_AIRFLOW_VERSION_EXCEPTIONS.get(provider_details.provider_package_id):
-        min_airflow_version = MIN_AIRFLOW_VERSION_EXCEPTIONS[provider_details.provider_package_id]
+    for dependency in provider_info["dependencies"]:
+        if dependency.startswith("apache-airflow>="):
+            current_min_airflow_version = dependency.split(">=")[1]
+            if Version(current_min_airflow_version) > Version(min_airflow_version):
+                min_airflow_version = current_min_airflow_version
     context: dict[str, Any] = {
         "ENTITY_TYPES": list(EntityType),
         "README_FILE": "README.rst",
@@ -1335,25 +1334,32 @@ def update_release_notes(
     )
     jinja_context["DETAILED_CHANGES_RST"] = changes
     jinja_context["DETAILED_CHANGES_PRESENT"] = bool(changes)
-    update_changelog_rst(
+    errors = False
+    if not update_changelog_rst(
         jinja_context,
         provider_package_id,
         provider_details.documentation_provider_package_path,
         regenerate_missing_docs,
-    )
-    update_security_rst(
+    ):
+        errors = True
+    if not update_security_rst(
         jinja_context,
         provider_package_id,
         provider_details.documentation_provider_package_path,
         regenerate_missing_docs,
-    )
+    ):
+        errors = True
     if not force:
-        update_commits_rst(
+        if not update_commits_rst(
             jinja_context,
             provider_package_id,
             provider_details.documentation_provider_package_path,
             regenerate_missing_docs,
-        )
+        ):
+            errors = True
+    if errors:
+        console.print("[red]There were errors when generating documentation[/]")
+        sys.exit(1)
     return True
 
 
@@ -1453,6 +1459,11 @@ def update_index_rst(
     replace_content(index_file_path, old_text, new_text, provider_package_id)
 
 
+# Taken from pygrep hooks we are using in pre-commit
+# https://github.com/pre-commit/pygrep-hooks/blob/main/.pre-commit-hooks.yaml
+BACKTICKS_CHECK = re.compile(r"^(?!    ).*(^| )`[^`]+`([^_]|$)", re.MULTILINE)
+
+
 def _update_file(
     context: dict[str, Any],
     template_name: str,
@@ -1461,10 +1472,10 @@ def _update_file(
     provider_package_id: str,
     target_path: Path,
     regenerate_missing_docs: bool,
-):
+) -> bool:
     file_path = target_path / file_name
     if regenerate_missing_docs and file_path.exists():
-        return
+        return True
     new_text = render_template(
         template_name=template_name, context=context, extension=extension, keep_trailing_newline=True
     )
@@ -1474,6 +1485,53 @@ def _update_file(
         with open(file_path) as readme_file_read:
             old_text = readme_file_read.read()
     replace_content(file_path, old_text, new_text, provider_package_id)
+    index_path = target_path / "index.rst"
+    if not index_path.exists():
+        console.print(f"[red]ERROR! The index must exist for the provider docs: {index_path}")
+        sys.exit(1)
+
+    expected_link_in_index = f"<{file_name.split('.')[0]}>"
+    if expected_link_in_index not in index_path.read_text():
+        console.print(
+            f"\n[red]ERROR! The {index_path} must contain "
+            f"link to the generated documentation:[/]\n\n"
+            f"[yellow]{expected_link_in_index}[/]\n\n"
+            f"[bright_blue]Please make sure to add it to {index_path}.\n"
+        )
+
+    console.print(f"Checking for backticks correctly generated in: {file_path}")
+    match = BACKTICKS_CHECK.search(file_path.read_text())
+    if match:
+        console.print(
+            f"\n[red]ERROR: Single backticks (`) found in {file_path}:[/]\n\n"
+            f"[yellow]{match.group(0)}[/]\n\n"
+            f"[bright_blue]Please fix them by replacing with double backticks (``).[/]\n"
+        )
+        return False
+
+    # TODO: uncomment me. Linting revealed that our already generated provider docs have duplicate links
+    #       in the generated files, we should fix those and uncomment linting as separate step - so that
+    #       we do not hold current release for fixing the docs.
+    # console.print(f"Linting: {file_path}")
+    # errors = restructuredtext_lint.lint_file(file_path)
+    # real_errors = False
+    # if errors:
+    #     for error in errors:
+    #         # Skip known issue: linter with doc role similar to https://github.com/OCA/pylint-odoo/issues/38
+    #         if (
+    #             'No role entry for "doc"' in error.message
+    #             or 'Unknown interpreted text role "doc"' in error.message
+    #         ):
+    #             continue
+    #         real_errors = True
+    #         console.print(f"* [red] {error.message}")
+    #     if real_errors:
+    #         console.print(f"\n[red] Errors found in {file_path}")
+    #         return False
+
+    console.print(f"[green]Generated {file_path} for {provider_package_id} is OK[/]")
+
+    return True
 
 
 def update_changelog_rst(
@@ -1481,8 +1539,8 @@ def update_changelog_rst(
     provider_package_id: str,
     target_path: Path,
     regenerate_missing_docs: bool,
-):
-    _update_file(
+) -> bool:
+    return _update_file(
         context=context,
         template_name="PROVIDER_CHANGELOG",
         extension=".rst",
@@ -1498,8 +1556,8 @@ def update_security_rst(
     provider_package_id: str,
     target_path: Path,
     regenerate_missing_docs: bool,
-):
-    _update_file(
+) -> bool:
+    return _update_file(
         context=context,
         template_name="PROVIDER_SECURITY",
         extension=".rst",
@@ -1515,8 +1573,8 @@ def update_commits_rst(
     provider_package_id: str,
     target_path: Path,
     regenerate_missing_docs: bool,
-):
-    _update_file(
+) -> bool:
+    return _update_file(
         context=context,
         template_name="PROVIDER_COMMITS",
         extension=".rst",

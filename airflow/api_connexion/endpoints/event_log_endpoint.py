@@ -28,8 +28,9 @@ from airflow.api_connexion.schemas.event_log_schema import (
     event_log_collection_schema,
     event_log_schema,
 )
+from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import Log
-from airflow.security import permissions
+from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
+@security.requires_access_dag("GET", DagAccessEntity.AUDIT_LOG)
 @provide_session
 def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get a log entry."""
@@ -48,11 +49,17 @@ def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIRe
     return event_log_schema.dump(event_log)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
+@security.requires_access_dag("GET", DagAccessEntity.AUDIT_LOG)
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_event_logs(
     *,
+    dag_id: str | None = None,
+    task_id: str | None = None,
+    owner: str | None = None,
+    event: str | None = None,
+    before: str | None = None,
+    after: str | None = None,
     limit: int,
     offset: int | None = None,
     order_by: str = "event_log_id",
@@ -72,6 +79,20 @@ def get_event_logs(
     ]
     total_entries = session.scalars(func.count(Log.id)).one()
     query = select(Log)
+
+    if dag_id:
+        query = query.where(Log.dag_id == dag_id)
+    if task_id:
+        query = query.where(Log.task_id == task_id)
+    if owner:
+        query = query.where(Log.owner == owner)
+    if event:
+        query = query.where(Log.event == event)
+    if before:
+        query = query.where(Log.dttm < timezone.parse(before))
+    if after:
+        query = query.where(Log.dttm > timezone.parse(after))
+
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
     event_logs = session.scalars(query.offset(offset).limit(limit)).all()
     return event_log_collection_schema.dump(

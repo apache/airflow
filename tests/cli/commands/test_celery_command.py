@@ -31,6 +31,8 @@ from airflow.cli.commands import celery_command
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestWorkerPrecheck:
     @mock.patch("airflow.settings.validate_session")
@@ -266,9 +268,9 @@ class TestFlowerCommand:
             ]
         )
 
-    @mock.patch("airflow.cli.commands.celery_command.TimeoutPIDLockFile")
-    @mock.patch("airflow.cli.commands.celery_command.setup_locations")
-    @mock.patch("airflow.cli.commands.celery_command.daemon")
+    @mock.patch("airflow.cli.commands.daemon_utils.TimeoutPIDLockFile")
+    @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
+    @mock.patch("airflow.cli.commands.daemon_utils.daemon")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
     def test_run_command_daemon(self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file):
         mock_setup_locations.return_value = (
@@ -305,7 +307,7 @@ class TestFlowerCommand:
             ]
         )
         mock_open = mock.mock_open()
-        with mock.patch("airflow.cli.commands.celery_command.open", mock_open):
+        with mock.patch("airflow.cli.commands.daemon_utils.open", mock_open):
             celery_command.flower(args)
 
         mock_celery_app.start.assert_called_once_with(
@@ -320,11 +322,12 @@ class TestFlowerCommand:
                 "--conf=flower_config",
             ]
         )
-        assert mock_daemon.mock_calls == [
+        assert mock_daemon.mock_calls[:3] == [
             mock.call.DaemonContext(
                 pidfile=mock_pid_file.return_value,
-                stderr=mock_open.return_value,
+                files_preserve=None,
                 stdout=mock_open.return_value,
+                stderr=mock_open.return_value,
                 umask=0o077,
             ),
             mock.call.DaemonContext().__enter__(),
@@ -333,11 +336,10 @@ class TestFlowerCommand:
 
         assert mock_setup_locations.mock_calls == [
             mock.call(
-                log="/tmp/flower.log",
-                pid="/tmp/flower.pid",
                 process="flower",
-                stderr="/tmp/flower-stderr.log",
                 stdout="/tmp/flower-stdout.log",
+                stderr="/tmp/flower-stderr.log",
+                log="/tmp/flower.log",
             )
         ]
         mock_pid_file.assert_has_calls([mock.call(mock_setup_locations.return_value[0], -1)])

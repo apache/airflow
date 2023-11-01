@@ -20,7 +20,6 @@ import os
 import uuid
 from typing import TYPE_CHECKING
 
-import requests.exceptions
 import yaml
 from openlineage.client import OpenLineageClient, set_producer
 from openlineage.client.facet import (
@@ -115,8 +114,9 @@ class OpenLineageAdapter(LoggingMixin):
         redacted_event: RunEvent = self._redacter.redact(event, max_depth=20)  # type: ignore[assignment]
         try:
             return self._client.emit(redacted_event)
-        except requests.exceptions.RequestException:
-            self.log.exception(f"Failed to emit OpenLineage event of id {event.run.runId}")
+        except Exception as e:
+            self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
+            self.log.debug("OpenLineage emission failure: %s", e)
 
     def start_task(
         self,

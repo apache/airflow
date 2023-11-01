@@ -48,7 +48,7 @@ def convert_job_id(job_id: str | list[str], project_id: str, location: str | Non
     :param job_id: Required. The ID of the job.
     :return: str or list[str] of project_id:location:job_id.
     """
-    location = location if location else "US"
+    location = location or "US"
     if isinstance(job_id, list):
         return [f"{project_id}:{location}:{i}" for i in job_id]
     else:

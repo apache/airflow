@@ -42,7 +42,7 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
-    argument_packages_plus_all_providers_for_shorthand,
+    argument_short_doc_packages_with_providers_index,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -50,6 +50,7 @@ from airflow_breeze.utils.common_options import (
     option_builder,
     option_celery_broker,
     option_celery_flower,
+    option_database_isolation,
     option_db_reset,
     option_downgrade_sqlalchemy,
     option_dry_run,
@@ -71,6 +72,9 @@ from airflow_breeze.utils.common_options import (
     option_platform_single,
     option_postgres_version,
     option_python,
+    option_run_db_tests_only,
+    option_skip_db_tests,
+    option_standalone_dag_processor,
     option_upgrade_boto,
     option_use_airflow_version,
     option_use_packages_from_dist,
@@ -84,6 +88,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
+from airflow_breeze.utils.general_utils import expand_all_providers
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     cleanup_python_generated_files,
@@ -165,6 +170,8 @@ class TimerThread(threading.Thread):
 @option_include_mypy_volume
 @option_upgrade_boto
 @option_downgrade_sqlalchemy
+@option_run_db_tests_only
+@option_skip_db_tests
 @option_verbose
 @option_dry_run
 @option_github_repository
@@ -172,12 +179,14 @@ class TimerThread(threading.Thread):
 @option_executor
 @option_celery_broker
 @option_celery_flower
+@option_standalone_dag_processor
+@option_database_isolation
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 def shell(
     python: str,
     backend: str,
     builder: str,
-    integration: tuple[str],
+    integration: tuple[str, ...],
     postgres_version: str,
     mysql_version: str,
     mssql_version: str,
@@ -202,6 +211,10 @@ def shell(
     extra_args: tuple,
     upgrade_boto: bool,
     downgrade_sqlalchemy: bool,
+    run_db_tests_only: bool,
+    skip_db_tests: bool,
+    standalone_dag_processor: bool,
+    database_isolation: bool,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
     if get_verbose() or get_dry_run():
@@ -241,6 +254,10 @@ def shell(
         celery_flower=celery_flower,
         upgrade_boto=upgrade_boto,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
+        standalone_dag_processor=standalone_dag_processor,
+        database_isolation=database_isolation,
+        run_db_tests_only=run_db_tests_only,
+        skip_db_tests=skip_db_tests,
     )
     sys.exit(result.returncode)
 
@@ -286,11 +303,13 @@ def shell(
 @option_executor
 @option_celery_broker
 @option_celery_flower
+@option_standalone_dag_processor
+@option_database_isolation
 def start_airflow(
     python: str,
     backend: str,
     builder: str,
-    integration: tuple[str],
+    integration: tuple[str, ...],
     postgres_version: str,
     load_example_dags: bool,
     load_default_connections: bool,
@@ -314,6 +333,8 @@ def start_airflow(
     executor: str,
     celery_broker: str,
     celery_flower: bool,
+    standalone_dag_processor: bool,
+    database_isolation: bool,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -358,6 +379,8 @@ def start_airflow(
         executor=executor,
         celery_broker=celery_broker,
         celery_flower=celery_flower,
+        standalone_dag_processor=standalone_dag_processor,
+        database_isolation=database_isolation,
     )
     sys.exit(result.returncode)
 
@@ -365,7 +388,7 @@ def start_airflow(
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
-@argument_packages_plus_all_providers_for_shorthand
+@argument_short_doc_packages_with_providers_index
 @option_builder
 @click.option(
     "--package-filter",
@@ -390,13 +413,13 @@ def start_airflow(
 @option_verbose
 @option_dry_run
 def build_docs(
-    packages_plus_all_providers: tuple[str],
+    short_doc_packages: tuple[str, ...],
     docs_only: bool,
     spellcheck_only: bool,
     builder: str,
     clean_build: bool,
     one_pass_only: bool,
-    package_filter: tuple[str],
+    package_filter: tuple[str, ...],
     github_repository: str,
 ):
     """
@@ -421,7 +444,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         skip_environment_initialization=True,
-        packages_plus_all_providers=packages_plus_all_providers,
+        short_doc_packages=expand_all_providers(short_doc_packages),
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = get_env_variables_for_docker_commands(params)
@@ -757,17 +780,19 @@ def enter_shell(**kwargs) -> RunCommandResult:
         cmd.extend(["-c", cmd_added])
     if "arm64" in DOCKER_DEFAULT_PLATFORM:
         if shell_params.backend == "mysql":
-            if not shell_params.mysql_version.startswith("5"):
-                get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
-            else:
-                get_console().print(
-                    f"\n[error]Only MySQL 8.x is supported on ARM architecture, "
-                    f"but got {shell_params.mysql_version}[/]\n"
-                )
-                sys.exit(1)
-        if shell_params.backend == "mssql":
+            get_console().print("\n[warn]MySQL use MariaDB client binaries on ARM architecture.[/]\n")
+        elif shell_params.backend == "mssql":
             get_console().print("\n[error]MSSQL is not supported on ARM architecture[/]\n")
             sys.exit(1)
+
+    if "openlineage" in shell_params.integration or "all" in shell_params.integration:
+        if shell_params.backend != "postgres" or shell_params.postgres_version not in ["12", "13", "14"]:
+            get_console().print(
+                "\n[error]Only PostgreSQL 12, 13, and 14 are supported "
+                "as a backend with OpenLineage integration via Breeze[/]\n"
+            )
+            sys.exit(1)
+
     command_result = run_command(
         cmd, env=env_variables, text=True, check=False, output_outside_the_group=True
     )

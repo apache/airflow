@@ -95,7 +95,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
         source_bucket: str,
         source_object: str,
         destination_object: str | None = None,
-        destination_folder_id: str | None = None,
+        destination_folder_id: str = "root",
         move_object: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -114,7 +114,6 @@ class GCSToGoogleDriveOperator(BaseOperator):
         self.gdrive_hook: GoogleDriveHook | None = None
 
     def execute(self, context: Context):
-
         self.gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

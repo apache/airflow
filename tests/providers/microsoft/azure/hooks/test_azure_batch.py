@@ -79,7 +79,10 @@ class TestAzureBatchHook:
         hook = AzureBatchHook(azure_batch_conn_id=self.test_vm_conn_id)
         assert isinstance(hook.get_conn(), BatchServiceClient)
         mock_azure_identity_credential_adapter.assert_called_with(
-            None, resource_id="https://batch.core.windows.net/.default"
+            None,
+            resource_id="https://batch.core.windows.net/.default",
+            managed_identity_client_id=None,
+            workload_identity_tenant_id=None,
         )
         assert not mock_shared_key_credentials.auth.called
 

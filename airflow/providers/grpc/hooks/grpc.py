@@ -76,14 +76,14 @@ class GrpcHook(BaseHook):
         self.grpc_conn_id = grpc_conn_id
         self.conn = self.get_connection(self.grpc_conn_id)
         self.extras = self.conn.extra_dejson
-        self.interceptors = interceptors if interceptors else []
+        self.interceptors = interceptors or []
         self.custom_connection_func = custom_connection_func
 
     def get_conn(self) -> grpc.Channel:
         base_url = self.conn.host
 
         if self.conn.port:
-            base_url = base_url + ":" + str(self.conn.port)
+            base_url += f":{self.conn.port}"
 
         auth_type = self._get_field("auth_type")
 

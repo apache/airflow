@@ -16,6 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-cncf-kubernetes
 ------------------------------------------------------
@@ -28,14 +29,69 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.8.0
+.....
+
+Latest change: 2023-10-28
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`85f0ef35b8 <https://github.com/apache/airflow/commit/85f0ef35b831db61a4a6ac83f370cfff5323b842>`_  2023-10-27   ``Added to the rendering of KubernetesOperator V1VolumeMount, sub_path (#35129)``
+`d4002261b5 <https://github.com/apache/airflow/commit/d4002261b57236ffdca9a5790097f295794965cf>`_  2023-10-26   ``Replace blocking IO with async IO in AsyncKubernetesHook (#35162)``
+`4767f48a3b <https://github.com/apache/airflow/commit/4767f48a3b4537092e62fc2f91ec832dd560db72>`_  2023-10-25   ``feat: add hostAliases to pod spec in KubernetesPodOperator (#35063)``
+`4c8c85ccc2 <https://github.com/apache/airflow/commit/4c8c85ccc2e52436276f692964abff4a3dc8495d>`_  2023-10-23   ``Consolidate the warning stacklevel in KubernetesPodTrigger (#35079)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+`f23170c9dd <https://github.com/apache/airflow/commit/f23170c9dd23556a40bd07b5d24f06220eec15c4>`_  2023-10-16   ``D401 Support - A thru Common (Inclusive) (#34934)``
+=================================================================================================  ===========  =================================================================================
+
+7.7.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`4234d8db7e <https://github.com/apache/airflow/commit/4234d8db7e4a51683f8236270c87375cf80ba3f4>`_  2023-10-04   ``Fix parsing KubernetesPodOperator multiline logs (#34412)``
+`cbb04e5133 <https://github.com/apache/airflow/commit/cbb04e513352e237baf6075ff8c6a59cc88d1122>`_  2023-10-01   ``Remove duplicated logs by reusing PodLogsConsumer (#34127)``
+`bd512007e5 <https://github.com/apache/airflow/commit/bd512007e531bb58e86f8c1b8f84ac20e8e92d7c>`_  2023-09-28   ``Fix KubernetesPodTrigger startup timeout (#34579)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`fb92ff8486 <https://github.com/apache/airflow/commit/fb92ff8486f21b61a840ddc4414429c3a9adfc88>`_  2023-09-27   ``Fix Pod not being removed after istio-sidecar is removed  (#34500)``
+`a169cf2c25 <https://github.com/apache/airflow/commit/a169cf2c2532a8423196c8d98eede86029a9de9a>`_  2023-09-26   ``Update CHANGELOG.rst (#34625)``
+`08729eddbd <https://github.com/apache/airflow/commit/08729eddbd7414b932a654763bf62c6221a0e397>`_  2023-09-22   ``warn level for deprecated set to stacklevel 2 (#34530)``
+`659d94f0ae <https://github.com/apache/airflow/commit/659d94f0ae89f47a7d4b95d6c19ab7f87bd3a60f>`_  2023-09-21   ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+`8ecd576de1 <https://github.com/apache/airflow/commit/8ecd576de1043dbea40e5e16b5dc34859cc41725>`_  2023-09-14   ``Refactor shorter defaults in providers (#34347)``
+=================================================================================================  ===========  ======================================================================
+
+7.6.0
+.....
+
+Latest change: 2023-09-14
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`7574e16e75 <https://github.com/apache/airflow/commit/7574e16e751e37cc012139da1a0e39874bab2918>`_  2023-09-14   ``Prepare docs for Sep 2023 2nd wave of Providers (#34360)``
+`de92a81f00 <https://github.com/apache/airflow/commit/de92a81f002e6c1b3e74ad9d074438b65acb87b6>`_  2023-09-13   ``Move definition of Pod*Exceptions to pod_generator (#34346)``
+`b435b8edef <https://github.com/apache/airflow/commit/b435b8edefd181fa85e6cc6b2b822d113f562e27>`_  2023-09-09   ``Push to xcom before 'KubernetesPodOperator' deferral (#34209)``
+`b5057e0e1f <https://github.com/apache/airflow/commit/b5057e0e1fc6b7a47e38037a97cac862706747f0>`_  2023-09-09   ``Add 'progress_callback' parameter to 'KubernetesPodOperator' (#34153)``
+`c5016f754d <https://github.com/apache/airflow/commit/c5016f754df1b62046b9c1fce09574a69d8edebc>`_  2023-09-08   ``Refactor: Consolidate import textwrap in providers (#34220)``
+=================================================================================================  ===========  =========================================================================
+
 7.5.1
 .....
 
-Latest change: 2023-09-07
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  =================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `6e1de4f9b9 <https://github.com/apache/airflow/commit/6e1de4f9b97bcfc089cd9db67b6ce8b1be3e8142>`_  2023-09-07   ``fix(providers/spark-kubernetes): respect soft_fail argument when exception is raised (#34167)``
 `1005501365 <https://github.com/apache/airflow/commit/10055013652be3e76c964cbc844b075bb688f088>`_  2023-09-06   ``Used cached property for hook in SparkKubernetesOperator (#34130)``
 `7731255975 <https://github.com/apache/airflow/commit/7731255975b9ac1c8cf7b2e363aaa8b9cbba80b8>`_  2023-09-06   ``Refactor: Consolidate import datetime (#34110)``

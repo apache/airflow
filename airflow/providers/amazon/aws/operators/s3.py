@@ -455,7 +455,6 @@ class S3DeleteObjectsOperator(BaseOperator):
         verify: str | bool | None = None,
         **kwargs,
     ):
-
         super().__init__(**kwargs)
         self.bucket = bucket
         self.keys = keys
@@ -470,7 +469,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         if not exactly_one(self.keys is None, self.prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
 
-        if isinstance(self.keys, (list, str)) and not bool(self.keys):
+        if isinstance(self.keys, (list, str)) and not self.keys:
             return
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
@@ -543,7 +542,6 @@ class S3FileTransformOperator(BaseOperator):
         replace: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id

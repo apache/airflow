@@ -20,8 +20,9 @@ import asyncio
 
 import pytest
 
-from airflow import DAG
-from airflow.models import DagRun, TaskInstance
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.triggers.external_task import DagStateTrigger, TaskStateTrigger
 from airflow.utils import timezone
@@ -35,6 +36,7 @@ class TestTaskStateTrigger:
     RUN_ID = "external_task_run_id"
     STATES = ["success", "fail"]
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_task_state_trigger(self, session):
         """
@@ -112,6 +114,7 @@ class TestDagStateTrigger:
     RUN_ID = "external_task_run_id"
     STATES = ["success", "fail"]
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_dag_state_trigger(self, session):
         """

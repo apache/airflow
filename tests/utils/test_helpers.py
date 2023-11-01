@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
@@ -41,7 +41,6 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 if TYPE_CHECKING:
     from airflow.jobs.job import Job
-    from airflow.serialization.pydantic.job import JobPydantic
 
 
 @pytest.fixture()
@@ -54,6 +53,7 @@ def clear_db():
 
 
 class TestHelpers:
+    @pytest.mark.db_test
     @pytest.mark.usefixtures("clear_db")
     def test_render_log_filename(self, create_task_instance):
         try_number = 1
@@ -160,6 +160,7 @@ class TestHelpers:
         merged = merge_dicts(dict1, dict2)
         assert merged == {"a": 1, "r": {"b": 0, "c": 3}}
 
+    @pytest.mark.db_test
     @conf_vars(
         {
             ("webserver", "dag_default_view"): "graph",
@@ -336,7 +337,7 @@ class TestHelpers:
 class MockJobRunner(BaseJobRunner):
     job_type = "MockJob"
 
-    def __init__(self, job: Job | JobPydantic, func=None):
+    def __init__(self, job: Job, func=None):
         super().__init__(job)
         self.job = job
         self.job.job_type = self.job_type

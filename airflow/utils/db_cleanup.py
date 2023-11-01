@@ -35,9 +35,9 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
 from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
-from airflow import AirflowException
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.utils import timezone
 from airflow.utils.db import reflect_tables
 from airflow.utils.helpers import ask_yesno
@@ -118,6 +118,7 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
+    _TableConfig(table_name="trigger", recency_column_name="created_date"),
 ]
 
 if conf.get("webserver", "session_backend") == "database":

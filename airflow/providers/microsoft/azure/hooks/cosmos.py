@@ -31,12 +31,11 @@ from urllib.parse import urlparse
 
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
-from azure.identity import DefaultAzureCredential
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
 from airflow.exceptions import AirflowBadRequest, AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_field
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -78,6 +77,12 @@ class AzureCosmosDBHook(BaseHook):
                 lazy_gettext("Resource Group Name (optional)"),
                 widget=BS3TextFieldWidget(),
             ),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
@@ -96,6 +101,8 @@ class AzureCosmosDBHook(BaseHook):
                 "collection_name": "collection name",
                 "subscription_id": "Subscription ID (required for Azure AD authentication)",
                 "resource_group_name": "Resource Group Name (required for Azure AD authentication)",
+                "managed_identity_client_id": "Managed Identity Client ID",
+                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -126,9 +133,14 @@ class AzureCosmosDBHook(BaseHook):
             if conn.password:
                 master_key = conn.password
             elif resource_group_name:
+                managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+                workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+                subscritption_id = self._get_field(extras, "subscription_id")
                 management_client = CosmosDBManagementClient(
-                    credential=DefaultAzureCredential(),
-                    subscription_id=self._get_field(extras, "subscription_id"),
+                    credential=get_default_azure_credential(
+                        managed_identity_client_id, workload_identity_tenant_id
+                    ),
+                    subscription_id=subscritption_id,
                 )
 
                 database_account = urlparse(conn.login).netloc.split(".")[0]
@@ -281,10 +293,7 @@ class AzureCosmosDBHook(BaseHook):
             raise AirflowBadRequest("You cannot insert a None document")
 
         # Add document id if isn't found
-        if "id" in document:
-            if document["id"] is None:
-                document["id"] = document_id
-        else:
+        if document.get("id") is None:
             document["id"] = document_id
 
         created_document = (

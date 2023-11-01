@@ -33,6 +33,9 @@ from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunAsyncSensor, D
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
+
 ACCOUNT_ID = 11111
 RUN_ID = 5555
 TOKEN = "token"
@@ -174,7 +177,7 @@ class TestDbtCloudJobRunSensor:
             )
 
 
-class TestDbtCloudJobRunSensorAsync:
+class TestDbtCloudJobRunAsyncSensor:
     TASK_ID = "dbt_cloud_run_job"
     CONN_ID = "dbt_cloud_default"
     DBT_RUN_ID = 1234
@@ -186,7 +189,7 @@ class TestDbtCloudJobRunSensorAsync:
     )
 
     @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudHook")
-    def test_dbt_job_run_sensor_async(self, mock_hook):
+    def test_dbt_job_run_async_sensor(self, mock_hook):
         """Assert execute method defer for Dbt cloud job run status sensors"""
 
         with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
@@ -201,7 +204,7 @@ class TestDbtCloudJobRunSensorAsync:
             task.execute({})
         assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
 
-    def test_dbt_job_run_sensor_async_execute_complete_success(self):
+    def test_dbt_job_run_async_sensor_execute_complete_success(self):
         """Assert execute_complete log success message when trigger fire with target status"""
         with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = DbtCloudJobRunAsyncSensor(
@@ -225,7 +228,7 @@ class TestDbtCloudJobRunSensorAsync:
             ("error", "Job run 1234 has failed."),
         ],
     )
-    def test_dbt_job_run_sensor_async_execute_complete_failure(self, mock_status, mock_message):
+    def test_dbt_job_run_async_sensor_execute_complete_failure(self, mock_status, mock_message):
         """Assert execute_complete method to raise exception on the cancelled and error status"""
         with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = DbtCloudJobRunAsyncSensor(

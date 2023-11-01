@@ -55,9 +55,12 @@ from airflow.providers.cncf.kubernetes.executors.local_kubernetes_executor impor
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils import db
+
+pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -67,6 +70,15 @@ TEST_DAG_ID = "unit_test_dag"
 DUMMY_OP = "dummy_op"
 SENSOR_OP = "sensor_op"
 DEV_NULL = "dev/null"
+
+
+@pytest.fixture
+def task_reschedules_for_ti():
+    def wrapper(ti):
+        with create_session() as session:
+            return session.scalars(TaskReschedule.stmt_for_task_instance(ti=ti, descending=False)).all()
+
+    return wrapper
 
 
 class DummySensor(BaseSensorOperator):
@@ -216,7 +228,7 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
-    def test_ok_with_reschedule(self, make_sensor, time_machine):
+    def test_ok_with_reschedule(self, make_sensor, time_machine, task_reschedules_for_ti):
         sensor, dr = make_sensor(return_value=None, poke_interval=10, timeout=25, mode="reschedule")
         sensor.poke = Mock(side_effect=[False, False, True])
 
@@ -233,7 +245,7 @@ class TestBaseSensor:
                 # verify task start date is the initial one
                 assert ti.start_date == date1
                 # verify one row in task_reschedule table
-                task_reschedules = TaskReschedule.find_for_task_instance(ti)
+                task_reschedules = task_reschedules_for_ti(ti)
                 assert len(task_reschedules) == 1
                 assert task_reschedules[0].start_date == date1
                 assert task_reschedules[0].reschedule_date == date1 + timedelta(seconds=sensor.poke_interval)
@@ -253,7 +265,7 @@ class TestBaseSensor:
                 # verify task start date is the initial one
                 assert ti.start_date == date1
                 # verify two rows in task_reschedule table
-                task_reschedules = TaskReschedule.find_for_task_instance(ti)
+                task_reschedules = task_reschedules_for_ti(ti)
                 assert len(task_reschedules) == 2
                 assert task_reschedules[1].start_date == date2
                 assert task_reschedules[1].reschedule_date == date2 + timedelta(seconds=sensor.poke_interval)
@@ -328,7 +340,7 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
-    def test_ok_with_reschedule_and_retry(self, make_sensor, time_machine):
+    def test_ok_with_reschedule_and_retry(self, make_sensor, time_machine, task_reschedules_for_ti):
         sensor, dr = make_sensor(
             return_value=None,
             poke_interval=10,
@@ -349,7 +361,7 @@ class TestBaseSensor:
             if ti.task_id == SENSOR_OP:
                 assert ti.state == State.UP_FOR_RESCHEDULE
                 # verify one row in task_reschedule table
-                task_reschedules = TaskReschedule.find_for_task_instance(ti)
+                task_reschedules = task_reschedules_for_ti(ti)
                 assert len(task_reschedules) == 1
                 assert task_reschedules[0].start_date == date1
                 assert task_reschedules[0].reschedule_date == date1 + timedelta(seconds=sensor.poke_interval)
@@ -382,7 +394,7 @@ class TestBaseSensor:
             if ti.task_id == SENSOR_OP:
                 assert ti.state == State.UP_FOR_RESCHEDULE
                 # verify one row in task_reschedule table
-                task_reschedules = TaskReschedule.find_for_task_instance(ti)
+                task_reschedules = task_reschedules_for_ti(ti)
                 assert len(task_reschedules) == 1
                 assert task_reschedules[0].start_date == date3
                 assert task_reschedules[0].reschedule_date == date3 + timedelta(seconds=sensor.poke_interval)
@@ -413,7 +425,7 @@ class TestBaseSensor:
         with pytest.raises(AirflowException):
             DummySensor(task_id="a", mode="foo")
 
-    def test_ok_with_custom_reschedule_exception(self, make_sensor):
+    def test_ok_with_custom_reschedule_exception(self, make_sensor, task_reschedules_for_ti):
         sensor, dr = make_sensor(return_value=None, mode="reschedule")
         date1 = timezone.utcnow()
         date2 = date1 + timedelta(seconds=60)
@@ -432,7 +444,7 @@ class TestBaseSensor:
                 # verify task is re-scheduled, i.e. state set to NONE
                 assert ti.state == State.UP_FOR_RESCHEDULE
                 # verify one row in task_reschedule table
-                task_reschedules = TaskReschedule.find_for_task_instance(ti)
+                task_reschedules = task_reschedules_for_ti(ti)
                 assert len(task_reschedules) == 1
                 assert task_reschedules[0].start_date == date1
                 assert task_reschedules[0].reschedule_date == date2
@@ -449,7 +461,7 @@ class TestBaseSensor:
                 # verify task is re-scheduled, i.e. state set to NONE
                 assert ti.state == State.UP_FOR_RESCHEDULE
                 # verify two rows in task_reschedule table
-                task_reschedules = TaskReschedule.find_for_task_instance(ti)
+                task_reschedules = task_reschedules_for_ti(ti)
                 assert len(task_reschedules) == 2
                 assert task_reschedules[1].start_date == date2
                 assert task_reschedules[1].reschedule_date == date3
@@ -467,7 +479,7 @@ class TestBaseSensor:
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE
 
-    def test_reschedule_with_test_mode(self, make_sensor):
+    def test_reschedule_with_test_mode(self, make_sensor, task_reschedules_for_ti):
         sensor, dr = make_sensor(return_value=None, poke_interval=10, timeout=25, mode="reschedule")
         sensor.poke = Mock(side_effect=[False])
 
@@ -482,7 +494,7 @@ class TestBaseSensor:
                 # in test mode state is not modified
                 assert ti.state == State.NONE
                 # in test mode no reschedule request is recorded
-                task_reschedules = TaskReschedule.find_for_task_instance(ti)
+                task_reschedules = task_reschedules_for_ti(ti)
                 assert len(task_reschedules) == 0
             if ti.task_id == DUMMY_OP:
                 assert ti.state == State.NONE

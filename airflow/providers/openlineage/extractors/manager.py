@@ -101,7 +101,7 @@ class ExtractorManager(LoggingMixin):
                     return task_metadata
 
             except Exception as e:
-                self.log.exception(
+                self.log.warning(
                     "Failed to extract metadata using found extractor %s - %s %s", extractor, e, task_info
                 )
         else:
@@ -157,7 +157,8 @@ class ExtractorManager(LoggingMixin):
         inlets: list,
         outlets: list,
     ):
-        self.log.debug("Manually extracting lineage metadata from inlets and outlets")
+        if inlets or outlets:
+            self.log.debug("Manually extracting lineage metadata from inlets and outlets")
         for i in inlets:
             d = self.convert_to_ol_dataset(i)
             if d:
@@ -193,5 +194,5 @@ class ExtractorManager(LoggingMixin):
                 job_facets=task_metadata.job_facets,
             )
         except AttributeError:
-            self.log.error("Extractor returns non-valid metadata: %s", task_metadata)
+            self.log.warning("Extractor returns non-valid metadata: %s", task_metadata)
             return None

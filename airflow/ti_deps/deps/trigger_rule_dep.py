@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import collections.abc
 import functools
+from collections import Counter
 from typing import TYPE_CHECKING, Iterator, KeysView, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
@@ -64,8 +64,8 @@ class _UpstreamTIStates(NamedTuple):
         :param ti: the ti that we want to calculate deps for
         :param finished_tis: all the finished tasks of the dag_run
         """
-        counter: dict[str, int] = collections.Counter()
-        setup_counter: dict[str, int] = collections.Counter()
+        counter: dict[str, int] = Counter()
+        setup_counter: dict[str, int] = Counter()
         for ti in finished_upstreams:
             curr_state = {ti.state: 1}
             counter.update(curr_state)
@@ -194,7 +194,7 @@ class TriggerRuleDep(BaseTIDep):
                 return
             # Otherwise we need to figure out which map indexes are depended on
             # for each upstream by the current task instance.
-            for upstream_id in relevant_tasks.keys():
+            for upstream_id in relevant_tasks:
                 map_indexes = _get_relevant_upstream_map_indexes(upstream_id)
                 if map_indexes is None:  # All tis of this upstream are dependencies.
                     yield (TaskInstance.task_id == upstream_id)
@@ -275,9 +275,12 @@ class TriggerRuleDep(BaseTIDep):
                         task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
                     )
                     if not past_depends_met:
-                        yield self._failing_status(
-                            reason="Task should be skipped but the past depends are not met"
-                        ), changed
+                        yield (
+                            self._failing_status(
+                                reason="Task should be skipped but the past depends are not met"
+                            ),
+                            changed,
+                        )
                         return
                 changed = ti.set_state(new_state, session)
 
@@ -288,13 +291,16 @@ class TriggerRuleDep(BaseTIDep):
             if ti.map_index > -1:
                 non_successes -= removed
             if non_successes > 0:
-                yield self._failing_status(
-                    reason=(
-                        f"All setup tasks must complete successfully. Relevant setups: {relevant_setups}: "
-                        f"upstream_states={upstream_states}, "
-                        f"upstream_task_ids={task.upstream_task_ids}"
+                yield (
+                    self._failing_status(
+                        reason=(
+                            f"All setup tasks must complete successfully. Relevant setups: {relevant_setups}: "
+                            f"upstream_states={upstream_states}, "
+                            f"upstream_task_ids={task.upstream_task_ids}"
+                        ),
                     ),
-                ), changed
+                    changed,
+                )
 
         def _evaluate_direct_relatives() -> Iterator[TIDepStatus]:
             """Evaluate whether ``ti``'s trigger rule was met.
@@ -379,7 +385,7 @@ class TriggerRuleDep(BaseTIDep):
                     if skipped:
                         new_state = TaskInstanceState.SKIPPED
                 elif trigger_rule == TR.ALL_SKIPPED:
-                    if success or failed:
+                    if success or failed or upstream_failed:
                         new_state = TaskInstanceState.SKIPPED
                 elif trigger_rule == TR.ALL_DONE_SETUP_SUCCESS:
                     if upstream_done and upstream_setup and skipped_setup >= upstream_setup:

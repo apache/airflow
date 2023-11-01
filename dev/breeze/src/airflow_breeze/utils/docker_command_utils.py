@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import os
 import random
 import re
@@ -123,7 +124,7 @@ def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False
     if mount_sources == MOUNT_ALL:
         extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT},dst=/opt/airflow/"])
     elif mount_sources == MOUNT_SELECTED:
-        for (src, dst) in VOLUMES_FOR_SELECTED_MOUNTS:
+        for src, dst in VOLUMES_FOR_SELECTED_MOUNTS:
             if (AIRFLOW_SOURCES_ROOT / src).exists():
                 extra_docker_flags.extend(
                     ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}"]
@@ -143,6 +144,16 @@ def get_extra_docker_flags(mount_sources: str, include_mypy_volume: bool = False
         ["--env-file", f"{AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci' / 'docker-compose' / '_docker.env' }"]
     )
     return extra_docker_flags
+
+
+def is_docker_rootless():
+    response = run_command(
+        ["docker", "info", "-f", "{{println .SecurityOptions}}"], capture_output=True, check=True, text=True
+    )
+    if "rootless" in response.stdout.strip():
+        get_console().print("[info]Docker is running in rootless mode.[/]\n")
+        return True
+    return False
 
 
 def check_docker_resources(airflow_image_name: str) -> RunCommandResult:
@@ -557,7 +568,8 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
     set_value_to_default_if_not_set(env, "AIRFLOW_ENABLE_AIP_44", "true")
-    set_value_to_default_if_not_set(env, "ANSWER", answer if answer is not None else "")
+    set_value_to_default_if_not_set(env, "AIRFLOW_ENV", "development")
+    set_value_to_default_if_not_set(env, "ANSWER", answer or "")
     set_value_to_default_if_not_set(env, "BASE_BRANCH", "main")
     set_value_to_default_if_not_set(env, "BREEZE", "true")
     set_value_to_default_if_not_set(env, "BREEZE_INIT_COMMAND", "")
@@ -571,8 +583,8 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "COLLECT_ONLY", "false")
     set_value_to_default_if_not_set(env, "DB_RESET", "false")
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
+    set_value_to_default_if_not_set(env, "DOCKER_IS_ROOTLESS", "false")
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
-    set_value_to_default_if_not_set(env, "ENABLE_TEST_COVERAGE", "false")
     set_value_to_default_if_not_set(env, "HELM_TEST_PACKAGE", "")
     set_value_to_default_if_not_set(env, "HOST_GROUP_ID", get_host_group_id())
     set_value_to_default_if_not_set(env, "HOST_OS", get_host_os())
@@ -590,11 +602,9 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_ENVIRONMENT_INITIALIZATION", "false")
-    set_value_to_default_if_not_set(env, "SKIP_PROVIDER_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
     set_value_to_default_if_not_set(env, "SUSPENDED_PROVIDERS_FOLDERS", "")
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
-    set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
     set_value_to_default_if_not_set(env, "UPGRADE_BOTO", "false")
     set_value_to_default_if_not_set(env, "DOWNGRADE_SQLALCHEMY", "false")
     set_value_to_default_if_not_set(env, "UPGRADE_TO_NEWER_DEPENDENCIES", "false")
@@ -606,6 +616,8 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
 
 
 DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
+    "_AIRFLOW_RUN_DB_TESTS_ONLY": "run_db_tests_only",
+    "_AIRFLOW_SKIP_DB_TESTS": "skip_db_tests",
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
     "AIRFLOW_CONSTRAINTS_MODE": "airflow_constraints_mode",
@@ -619,6 +631,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "BACKEND": "backend",
     "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",
+    "DATABASE_ISOLATION": "database_isolation",
     "DB_RESET": "db_reset",
     "DEV_MODE": "dev_mode",
     "DEFAULT_CONSTRAINTS_BRANCH": "default_constraints_branch",
@@ -634,22 +647,24 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
     "ONLY_MIN_VERSION_UPDATE": "only_min_version_update",
-    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "PACKAGE_FORMAT": "package_format",
     "POSTGRES_VERSION": "postgres_version",
     "PYTHON_MAJOR_MINOR_VERSION": "python",
+    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
-    "SKIP_PROVIDER_TESTS": "skip_provider_tests",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
     "UPGRADE_BOTO": "upgrade_boto",
+    "USE_XDIST": "use_xdist",
     "DOWNGRADE_SQLALCHEMY": "downgrade_sqlalchemy",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
     "CELERY_FLOWER": "celery_flower",
+    "STANDALONE_DAG_PROCESSOR": "standalone_dag_processor",
 }
+
 
 DOCKER_VARIABLE_CONSTANTS = {
     "FLOWER_HOST_PORT": FLOWER_HOST_PORT,
@@ -706,6 +721,8 @@ def prepare_broker_url(params, env_variables):
 def perform_environment_checks():
     check_docker_is_running()
     check_docker_version()
+    if is_docker_rootless():
+        os.environ["DOCKER_IS_ROOTLESS"] = "true"
     check_docker_compose_version()
 
 
@@ -805,23 +822,36 @@ def autodetect_docker_context():
 
     :return: name of the docker context to use
     """
-    output = run_command(["docker", "context", "ls", "-q"], capture_output=True, check=False, text=True)
-    if output.returncode != 0:
+    result = run_command(
+        ["docker", "context", "ls", "--format=json"],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if result.returncode != 0:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    context_list = output.stdout.splitlines()
-    if not context_list:
+    try:
+        context_dicts = json.loads(result.stdout)
+        if isinstance(context_dicts, dict):
+            context_dicts = [context_dicts]
+    except json.decoder.JSONDecodeError:
+        context_dicts = (json.loads(line) for line in result.stdout.splitlines() if line.strip())
+    known_contexts = {info["Name"]: info for info in context_dicts}
+    if not known_contexts:
         get_console().print("[warning]Could not detect docker builder. Using default.[/]")
         return "default"
-    elif len(context_list) == 1:
-        get_console().print(f"[info]Using {context_list[0]} as context.[/]")
-        return context_list[0]
-    else:
-        for preferred_context in PREFERRED_CONTEXTS:
-            if preferred_context in context_list:
-                get_console().print(f"[info]Using {preferred_context} as context.[/]")
-                return preferred_context
-    fallback_context = context_list[0]
+    for preferred_context_name in PREFERRED_CONTEXTS:
+        try:
+            context = known_contexts[preferred_context_name]
+        except KeyError:
+            continue
+        # On Windows, some contexts are used for WSL2. We don't want to use those.
+        if context["DockerEndpoint"] == "npipe:////./pipe/dockerDesktopLinuxEngine":
+            continue
+        get_console().print(f"[info]Using {preferred_context_name} as context.[/]")
+        return preferred_context_name
+    fallback_context = next(iter(known_contexts))
     get_console().print(
         f"[warning]Could not use any of the preferred docker contexts {PREFERRED_CONTEXTS}.\n"
         f"Using {fallback_context} as context.[/]"

@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 
+import io
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Collection
 
 if TYPE_CHECKING:
-    import io
+    from io import IOBase
 
 
 class CliConflictError(Exception):
@@ -30,7 +31,7 @@ class CliConflictError(Exception):
     pass
 
 
-def is_stdout(fileio: io.IOBase) -> bool:
+def is_stdout(fileio: IOBase) -> bool:
     """Check whether a file IO is stdout.
 
     The intended use case for this helper is to check whether an argument parsed
@@ -40,3 +41,10 @@ def is_stdout(fileio: io.IOBase) -> bool:
     .. warning:: *fileio* must be open for this check to be successful.
     """
     return fileio.fileno() == sys.stdout.fileno()
+
+
+def print_export_output(command_type: str, exported_items: Collection, file: io.TextIOWrapper):
+    if not file.closed and is_stdout(file):
+        print(f"\n{len(exported_items)} {command_type} successfully exported.", file=sys.stderr)
+    else:
+        print(f"{len(exported_items)} {command_type} successfully exported to {file.name}.")

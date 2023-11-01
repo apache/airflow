@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
@@ -101,6 +101,7 @@ class TestS3KeySensor:
 
         mock_head_object.assert_called_once_with(parsed_key, parsed_bucket)
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
     def test_parse_bucket_key_from_jinja(self, mock_head_object):
         mock_head_object.return_value = None
@@ -126,6 +127,7 @@ class TestS3KeySensor:
 
         mock_head_object.assert_called_once_with("key", "bucket")
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object")
     def test_parse_list_of_bucket_keys_from_jinja(self, mock_head_object):
         mock_head_object.return_value = None
@@ -245,3 +247,17 @@ class TestS3KeySensor:
         assert (
             sensor.execute_complete(context={}, event={"status": "running", "files": [{"Size": 10}]}) is None
         )
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_fail_execute_complete(self, soft_fail, expected_exception):
+        op = S3KeySensor(
+            task_id="s3_key_sensor",
+            bucket_key=["s3://test_bucket/file*", "s3://test_bucket/*.zip"],
+            wildcard_match=True,
+        )
+        op.soft_fail = soft_fail
+        message = "error"
+        with pytest.raises(expected_exception, match=message):
+            op.execute_complete(context={}, event={"status": "error", "message": message})

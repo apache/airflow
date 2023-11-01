@@ -27,6 +27,106 @@
 Changelog
 ---------
 
+10.11.0
+.......
+
+Features
+~~~~~~~~
+
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+* ``Improve Dataprep hook (#34880)``
+
+Misc
+~~~~
+
+* ``Added 'overrides' parameter to CloudRunExecuteJobOperator (#34874)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Update gcs.py Create and List comment Examples (#35028)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
+10.10.1
+.......
+
+Misc
+~~~~
+
+* ``Add links between documentation related to Google Cloud Storage (#34994)``
+* ``Migrate legacy version of AI Platform Prediction to VertexAI (#34922)``
+* ``Cancel workflow in on_kill in DataprocInstantiate{Inline}WorkflowTemplateOperator (#34957)``
+
+10.10.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``improvement: introduce project_id in BigQueryIntervalCheckOperator (#34573)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``respect soft_fail argument when exception is raised for google sensors (#34501)``
+* ``Fix GCSToGoogleDriveOperator and gdrive system tests (#34545)``
+* ``Fix LookerHook serialize missing 1 argument error (#34678)``
+* ``Fix Dataform system tests (#34329)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Refactor DataFusionInstanceLink usage (#34514)``
+* ``Use 'airflow.models.dag.DAG' in Google Provider examples (#34614)``
+* ``Deprecate Life Sciences Operator and Hook (#34549)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor: consolidate import time in providers (#34402)``
+   * ``Refactor usage of str() in providers (#34320)``
+   * ``Refactor dedent nested loops (#34409)``
+   * ``Refactor multiple equals to contains in providers (#34441)``
+   * ``Refactor: reduce some conditions in providers (#34440)``
+   * ``Refactor shorter defaults in providers (#34347)``
+   * ``Update Vertex AI system tests (#34364)``
+   * ``Fix typo in DataplexGetDataQualityScanResultOperator (#34681)``
+
+10.9.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add explicit support of stream (realtime) pipelines for CloudDataFusionStartPipelineOperator (#34271)``
+* ``Add 'expected_terminal_state' parameter to Dataflow operators (#34217)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'ComputeEngineInsertInstanceOperator' doesn't respect jinja-templated instance name when given in body argument (#34171)``
+* ``fix: BigQuery job error message (#34208)``
+* ``GKEPodHook ignores gcp_conn_id parameter. (#34194)``
+
+Misc
+~~~~
+
+* ``Bump min common-sql provider version for Google provider (#34257)``
+* ``Remove unnecessary call to keys() method on dictionaries (#34260)``
+* ``Refactor: Think positively in providers (#34279)``
+* ``Refactor: Simplify code in providers/google (#33229)``
+* ``Refactor: Simplify comparisons (#34181)``
+* ``Deprecate AutoMLTrainModelOperator for NL (#34212)``
+* ``Simplify  to bool(...) (#34258)``
+* ``Make Google Dataform operators templated_fields more consistent (#34187)``
+
 10.8.0
 ......
 

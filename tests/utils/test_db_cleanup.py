@@ -31,7 +31,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
 from airflow.utils.db_cleanup import (
@@ -49,6 +49,8 @@ from airflow.utils.db_cleanup import (
 )
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -321,7 +323,6 @@ class TestDBCleanup:
             "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
-            "trigger",  # self-maintaining
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness

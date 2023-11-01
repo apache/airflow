@@ -66,6 +66,13 @@ as ``root`` will fail with an appropriate error message.
    downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
    to match the new version of airflow.
 
+.. note::
+   Creating custom images means that you need to maintain also a level of automation as you need to re-create the images
+   when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
+   Also keep in mind, that in cases when you run pure Python tasks, you can use the
+   `Python Virtualenv functions <https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html#pythonvirtualenvoperator>`_
+   which will dynamically source and install python dependencies during runtime. With Airflow 2.8.0 Virtualenvs can also be cached.
+
 .. exampleinclude:: docker-examples/extending/add-pypi-packages/Dockerfile
     :language: Dockerfile
     :start-after: [START Dockerfile]
@@ -533,7 +540,7 @@ Before attempting to customize the image, you need to download flexible and cust
 You can extract the officially released version of the Dockerfile from the
 `released sources <https://airflow.apache.org/docs/apache-airflow/stable/installation/installing-from-sources.html>`_.
 You can also conveniently download the latest released version
-`from GitHub <https://raw.githubusercontent.com/apache/airflow/|version|/Dockerfile>`_. You can save it
+`from GitHub <https://raw.githubusercontent.com/apache/airflow/|airflow-version|/Dockerfile>`_. You can save it
 in any directory - there is no need for any other files to be present there. If you wish to use your own
 files (for example custom configuration of ``pip`` or your own ``requirements`` or custom dependencies,
 you need to use ``DOCKER_CONTEXT_FILES`` build arg and place the files in the directory pointed at by
@@ -972,3 +979,15 @@ The architecture of the images
 
 You can read more details about the images - the context, their parameters and internal structure in the
 `IMAGES.rst <https://github.com/apache/airflow/blob/main/IMAGES.rst>`_ document.
+
+
+Pip packages caching
+....................
+
+To enable faster iteration when building the image locally (especially if you are testing different combination of
+python packages), pip caching has been enabled. The caching id is based on four different parameters:
+
+1. ``PYTHON_BASE_IMAGE``: Avoid sharing same cache based on python version and target os
+2. ``AIRFLOW_PIP_VERSION``
+3. ``TARGETARCH``: Avoid sharing architecture specific cached package
+4. ``PIP_CACHE_EPOCH``: Enable changing cache id by passing ``PIP_CACHE_EPOCH`` as ``--build-arg``

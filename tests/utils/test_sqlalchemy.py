@@ -29,7 +29,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
-from airflow.models import DAG
+from airflow.models.dag import DAG
 from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
@@ -43,6 +43,9 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
+
+pytestmark = pytest.mark.db_test
+
 
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
 

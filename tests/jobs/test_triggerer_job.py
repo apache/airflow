@@ -27,13 +27,13 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 
-from airflow import DAG
 from airflow.config_templates import airflow_local_settings
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner, TriggerRunner, setup_queue_listener
 from airflow.logging_config import configure_logging
 from airflow.models import DagModel, DagRun, TaskInstance, Trigger
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.triggers.base import TriggerEvent
@@ -47,6 +47,8 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.core.test_logging_config import reset_logging
 from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+pytestmark = pytest.mark.db_test
 
 
 class TimeDeltaTrigger_(TimeDeltaTrigger):
@@ -110,6 +112,9 @@ def create_trigger_in_db(session, trigger, operator=None):
     return dag_model, run, trigger_orm, task_instance
 
 
+# Quarantined because this test is failing the first time it is run. The second time succeeds
+# Seems to be connected with SOME race condition and needs to be investigated
+@pytest.mark.quarantined
 def test_trigger_logging_sensitive_info(session, capsys):
     """
     Checks that when a trigger fires, it doesn't log any sensitive

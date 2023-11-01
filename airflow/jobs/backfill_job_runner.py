@@ -62,7 +62,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 
 
-class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
+class BackfillJobRunner(BaseJobRunner, LoggingMixin):
     """
     A backfill job runner consists of a dag or subdag for a specific time range.
 

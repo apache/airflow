@@ -43,6 +43,7 @@ def s3mock():
         yield
 
 
+@pytest.mark.db_test
 class TestS3TaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
@@ -143,7 +144,7 @@ class TestS3TaskHandler:
         assert 1 == len(log)
         assert len(log) == len(metadata)
         actual = log[0][0][-1]
-        expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"  # noqa: E501
+        expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"
         assert actual == expected
         assert {"end_of_log": True, "log_pos": 0} == metadata[0]
 

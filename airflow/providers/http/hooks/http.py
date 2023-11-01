@@ -103,10 +103,10 @@ class HttpHook(BaseHook):
                 # schema defaults to HTTP
                 schema = conn.schema if conn.schema else "http"
                 host = conn.host if conn.host else ""
-                self.base_url = schema + "://" + host
+                self.base_url = f"{schema}://{host}"
 
             if conn.port:
-                self.base_url = self.base_url + ":" + str(conn.port)
+                self.base_url += f":{conn.port}"
             if conn.login:
                 session.auth = self.auth_type(conn.login, conn.password)
             elif self._auth_type:
@@ -329,7 +329,7 @@ class HttpAsyncHook(BaseHook):
                 self.base_url = schema + "://" + host
 
             if conn.port:
-                self.base_url = self.base_url + ":" + str(conn.port)
+                self.base_url += f":{conn.port}"
             if conn.login:
                 auth = self.auth_type(conn.login, conn.password)
             if conn.extra:

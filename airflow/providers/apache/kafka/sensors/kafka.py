@@ -78,7 +78,6 @@ class AwaitMessageSensor(BaseOperator):
         xcom_push_key=None,
         **kwargs: Any,
     ) -> None:
-
         super().__init__(**kwargs)
 
         self.topics = topics
@@ -91,7 +90,6 @@ class AwaitMessageSensor(BaseOperator):
         self.xcom_push_key = xcom_push_key
 
     def execute(self, context) -> Any:
-
         self.defer(
             trigger=AwaitMessageTrigger(
                 topics=self.topics,
@@ -164,7 +162,6 @@ class AwaitMessageTriggerFunctionSensor(BaseOperator):
         poll_interval: float = 5,
         **kwargs: Any,
     ) -> None:
-
         super().__init__(**kwargs)
 
         self.topics = topics
@@ -183,7 +180,6 @@ class AwaitMessageTriggerFunctionSensor(BaseOperator):
             )
 
     def execute(self, context, event=None) -> Any:
-
         self.defer(
             trigger=AwaitMessageTrigger(
                 topics=self.topics,
@@ -200,7 +196,6 @@ class AwaitMessageTriggerFunctionSensor(BaseOperator):
         return event
 
     def execute_complete(self, context, event=None):
-
         self.event_triggered_function(event, **context)
 
         self.defer(

@@ -33,6 +33,9 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTISta
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
+pytestmark = pytest.mark.db_test
+
+
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 
@@ -796,6 +799,30 @@ class TestTriggerRuleDep:
             failed=0,
             removed=0,
             upstream_failed=0,
+            done=1,
+            normal_tasks=["FakeTaskID"],
+        )
+        dep_statuses = tuple(
+            TriggerRuleDep()._evaluate_trigger_rule(
+                ti=ti,
+                dep_context=DepContext(flag_upstream_failed=False),
+                session=session,
+            )
+        )
+        assert len(dep_statuses) == 1
+        assert not dep_statuses[0].passed
+
+    def test_all_skipped_tr_failure_upstream_failed(self, session, get_task_instance):
+        """
+        All-skipped trigger rule failure if an upstream task is in a `upstream_failed` state
+        """
+        ti = get_task_instance(
+            TriggerRule.ALL_SKIPPED,
+            success=0,
+            skipped=0,
+            failed=0,
+            removed=0,
+            upstream_failed=1,
             done=1,
             normal_tasks=["FakeTaskID"],
         )

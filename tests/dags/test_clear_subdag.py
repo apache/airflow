@@ -19,11 +19,13 @@ from __future__ import annotations
 import datetime
 import warnings
 
-from airflow.models import DAG
+import pytest
+
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.subdag import SubDagOperator
 
-#
+pytestmark = pytest.mark.db_test
 
 
 def create_subdag_opt(main_dag):

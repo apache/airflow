@@ -22,6 +22,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
@@ -32,6 +33,8 @@ from airflow.utils.state import State
 from airflow.www import app
 from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
+
+pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -91,7 +94,8 @@ class TestRpcApiEndpoint:
             (
                 "",
                 TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING),
-                lambda a, b: a == TaskInstancePydantic.from_orm(b),
+                lambda a, b: a.model_dump() == TaskInstancePydantic.model_validate(b).model_dump()
+                and isinstance(a.task, BaseOperator),
                 {},
             ),
             (

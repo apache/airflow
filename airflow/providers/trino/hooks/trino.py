@@ -25,8 +25,8 @@ import trino
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
 
@@ -177,9 +177,7 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(
-        self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
-    ):  # type: ignore[override]
+    def get_pandas_df(self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):  # type: ignore[override]
         import pandas as pd
 
         cursor = self.get_cursor()

@@ -304,6 +304,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -496,6 +497,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -594,6 +596,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -764,6 +767,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:
@@ -858,6 +862,7 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    @pytest.mark.db_test
     def test_return_value(self, mock_get_conn):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         # ### Set up mocks:

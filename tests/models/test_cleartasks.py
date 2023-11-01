@@ -23,8 +23,10 @@ import random
 import pytest
 
 from airflow import settings
-from airflow.models import DAG, TaskInstance as TI, TaskReschedule, clear_task_instances
+from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.python import PythonSensor
 from airflow.utils.session import create_session
@@ -32,6 +34,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
+
+pytestmark = pytest.mark.db_test
 
 
 class TestClearTasks:

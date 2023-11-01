@@ -150,6 +150,7 @@ class TestMsSqlHook:
         hook = MsSqlHook()
         assert hook.sqlalchemy_scheme == hook.DEFAULT_SQLALCHEMY_SCHEME
 
+    @pytest.mark.db_test
     def test_sqlalchemy_scheme_is_from_hook(self):
         hook = MsSqlHook(sqlalchemy_scheme="mssql+mytestdriver")
         assert hook.sqlalchemy_scheme == "mssql+mytestdriver"

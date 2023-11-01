@@ -26,9 +26,10 @@ from airflow.models import Connection
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestDiscordWebhookHook:
-
     _config = {
         "http_conn_id": "default-discord-webhook",
         "webhook_endpoint": "webhooks/11111/some-discord-token_111",

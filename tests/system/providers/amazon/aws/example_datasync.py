@@ -20,9 +20,9 @@ from datetime import datetime
 
 import boto3
 
-from airflow import models
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -116,7 +116,7 @@ def delete_locations(locations):
         )
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

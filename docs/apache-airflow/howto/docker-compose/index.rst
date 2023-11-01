@@ -294,6 +294,13 @@ to rebuild the images on-the-fly when you run other ``docker compose`` commands.
 Examples of how you can extend the image with custom providers, python packages,
 apt packages and more can be found in :doc:`Building the image <docker-stack:build>`.
 
+.. note::
+   Creating custom images means that you need to maintain also a level of automation as you need to re-create the images
+   when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
+   Also keep in mind, that in cases when you run pure Python tasks, you can use the
+   `Python Virtualenv functions <_howto/operator:PythonVirtualenvOperator>`_ which will
+   dynamically source and install python dependencies during runtime. With Airflow 2.8.0 Virtualenvs can also be cached.
+
 Special case - adding dependencies via requirements.txt file
 ============================================================
 
@@ -310,18 +317,18 @@ you should do those steps:
    ``docker-compose.yaml`` file. The relevant part of the docker-compose file of yours should look similar
    to (use correct image tag):
 
-```
-#image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.1}
-build: .
-```
+.. code-block:: docker
+
+    #image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.1}
+    build: .
 
 2) Create ``Dockerfile`` in the same folder your ``docker-compose.yaml`` file is with content similar to:
 
-```
-FROM apache/airflow:2.6.1
-ADD requirements.txt .
-RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
-```
+.. code-block:: docker
+
+    FROM apache/airflow:2.6.1
+    ADD requirements.txt .
+    RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
 
 It is the best practice to install apache-airflow in the same version as the one that comes from the
 original image. This way you can be sure that ``pip`` will not try to downgrade or upgrade apache

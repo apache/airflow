@@ -24,8 +24,8 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.datastore import (
     CloudDatastoreAllocateIdsOperator,
     CloudDatastoreBeginTransactionOperator,
@@ -57,7 +57,7 @@ TRANSACTION_OPTIONS: dict[str, Any] = {"readWrite": {}}
 # [END how_to_transaction_def]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

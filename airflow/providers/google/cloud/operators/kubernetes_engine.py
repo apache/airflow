@@ -164,7 +164,7 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
         status = event["status"]
         message = event["message"]
 
-        if status == "failed" or status == "error":
+        if status in ("failed", "error"):
             self.log.exception("Trigger ended with one of the failed statuses.")
             raise AirflowException(message)
 
@@ -371,7 +371,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         status = event["status"]
         message = event["message"]
 
-        if status == "failed" or status == "error":
+        if status in ("failed", "error"):
             self.log.exception("Trigger ended with one of the failed statuses.")
             raise AirflowException(message)
 

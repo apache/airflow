@@ -24,7 +24,7 @@ import pytest
 from aiohttp.helpers import TimerNoop
 from yarl import URL
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -580,7 +580,7 @@ class TestDataFusionHookAsynch:
             timer=TimerNoop(),
             traces=[],
             loop=mock.Mock(),
-            session=session,
+            session=None,
         )
         response.status = 200
         mocked_get.return_value = response
@@ -618,7 +618,7 @@ class TestDataFusionHookAsynch:
             timer=TimerNoop(),
             traces=[],
             loop=mock.Mock(),
-            session=session,
+            session=None,
         )
         response.status = 200
         mocked_get.return_value = response

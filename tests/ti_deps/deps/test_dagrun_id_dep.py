@@ -19,9 +19,13 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
+import pytest
+
 from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_backfill_dep import DagRunNotBackfillDep
 from airflow.utils.types import DagRunType
+
+pytestmark = pytest.mark.db_test
 
 
 class TestDagrunRunningDep:
