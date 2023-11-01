@@ -18,11 +18,14 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING, Container, Literal
 
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowException
+from airflow.auth.managers.models.resource_details import (
+    DagDetails,
+)
 from airflow.models import DagModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -37,12 +40,12 @@ if TYPE_CHECKING:
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
-        DagDetails,
         DatasetDetails,
         PoolDetails,
         VariableDetails,
     )
     from airflow.cli.cli_config import CLICommand
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
     from airflow.www.security_manager import AirflowSecurityManagerV2
 
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
@@ -55,9 +58,10 @@ class BaseAuthManager(LoggingMixin):
     Auth managers are responsible for any user management related operation such as login, logout, authz, ...
     """
 
-    def __init__(self, app: Flask) -> None:
-        self._security_manager: AirflowSecurityManagerV2 | None = None
+    def __init__(self, app: Flask, appbuilder: AirflowAppBuilder) -> None:
+        super().__init__()
         self.app = app
+        self.appbuilder = appbuilder
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -86,6 +90,13 @@ class BaseAuthManager(LoggingMixin):
     @abstractmethod
     def get_user_id(self) -> str:
         """Return the user ID associated to the user in session."""
+
+    def init(self) -> None:
+        """
+        Run operations when Airflow is initializing.
+
+        By default, do nothing.
+        """
 
     @abstractmethod
     def is_logged_in(self) -> bool:
@@ -267,32 +278,17 @@ class BaseAuthManager(LoggingMixin):
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
 
-    def get_security_manager_override_class(self) -> type:
+    @cached_property
+    def security_manager(self) -> AirflowSecurityManagerV2:
         """
-        Return the security manager override class.
+        Return the security manager.
 
-        The security manager override class is responsible for overriding the default security manager
-        class airflow.www.security_manager.AirflowSecurityManagerV2 with a custom implementation.
-        This class is essentially inherited from airflow.www.security_manager.AirflowSecurityManagerV2.
+        By default, Airflow comes with the default security manager
+        airflow.www.security_manager.AirflowSecurityManagerV2. The auth manager might need to extend this
+        default security manager for its own purposes.
 
-        By default, return the generic AirflowSecurityManagerV2.
+        By default, return the default AirflowSecurityManagerV2.
         """
         from airflow.www.security_manager import AirflowSecurityManagerV2
 
-        return AirflowSecurityManagerV2
-
-    @property
-    def security_manager(self) -> AirflowSecurityManagerV2:
-        """Get the security manager."""
-        if not self._security_manager:
-            raise AirflowException("Security manager not defined.")
-        return self._security_manager
-
-    @security_manager.setter
-    def security_manager(self, security_manager: AirflowSecurityManagerV2):
-        """
-        Set the security manager.
-
-        :param security_manager: the security manager
-        """
-        self._security_manager = security_manager
+        return AirflowSecurityManagerV2(self.appbuilder)
