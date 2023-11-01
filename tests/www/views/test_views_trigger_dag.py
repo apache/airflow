@@ -31,7 +31,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_test_client
 from tests.test_utils.config import conf_vars
-from tests.test_utils.www import check_content_in_response
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 pytestmark = pytest.mark.db_test
 
@@ -234,6 +234,48 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
         f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
         resp,
     )
+
+
+@pytest.mark.parametrize(
+    "trust, expect_escape",
+    [
+        ["None", True],
+        ["FullTrust", False],
+    ],
+)
+def test_trigger_dag_html_trust(admin_client, dag_maker, session, app, monkeypatch, trust, expect_escape):
+    """
+    Test that HTML is masked per default in description.
+    """
+    from markupsafe import escape
+
+    with conf_vars({("webserver", "trigger_form_param_html_trust_level"): trust}):
+        DAG_ID = "params_dag"
+        HTML_DESCRIPTION = "HTML <code>raw code</code>."
+        param1 = Param(
+            42,
+            description_html=HTML_DESCRIPTION,
+            type="integer",
+            minimum=1,
+            maximum=100,
+        )
+        with monkeypatch.context() as m:
+            with dag_maker(dag_id=DAG_ID, serialized=True, session=session, params={"param1": param1}):
+                EmptyOperator(task_id="task1")
+
+            m.setattr(app, "dag_bag", dag_maker.dagbag)
+            resp = admin_client.get(f"dags/{DAG_ID}/trigger")
+
+        if expect_escape:
+            check_content_in_response(escape(HTML_DESCRIPTION), resp)
+            check_content_in_response(
+                "At least one field in trigger form uses custom HTML form definition.", resp
+            )
+        else:
+            check_content_in_response(HTML_DESCRIPTION, resp)
+            check_content_not_in_response(
+                "At least one field in trigger form uses custom HTML form definition.", resp
+            )
 
 
 def test_trigger_endpoint_uses_existing_dagbag(admin_client):
