@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.utils import db, timezone
@@ -36,6 +38,7 @@ class TestPysparkDecorator:
             )
         )
 
+    @pytest.mark.db_test
     @mock.patch("pyspark.SparkConf.setAppName")
     @mock.patch("pyspark.sql.SparkSession")
     def test_pyspark_decorator_with_connection(self, spark_mock, conf_mock, dag_maker):
@@ -56,6 +59,7 @@ class TestPysparkDecorator:
         conf_mock().setMaster.assert_called_once_with("spark://none")
         spark_mock.builder.config.assert_called_once_with(conf=conf_mock())
 
+    @pytest.mark.db_test
     @mock.patch("pyspark.SparkConf.setAppName")
     @mock.patch("pyspark.sql.SparkSession")
     def test_simple_pyspark_decorator(self, spark_mock, conf_mock, dag_maker):
