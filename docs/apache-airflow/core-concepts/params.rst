@@ -173,6 +173,8 @@ JSON Schema Validation
 Use Params to Provide a Trigger UI Form
 ---------------------------------------
 
+.. versionadded:: 2.6.0
+
 :class:`~airflow.models.dag.DAG` level params are used to render a user friendly trigger form.
 This form is provided when a user clicks on the "Trigger DAG" button.
 
@@ -190,7 +192,8 @@ The following features are supported in the Trigger UI Form:
     If no ``title`` is defined the parameter name/key is used instead.
   - The :class:`~airflow.models.param.Param` attribute ``description`` is rendered below an entry field as help text in gray color.
     If you want to provide HTML tags for special formatting or links you need to use the Param attribute
-    ``description_html``, see tutorial DAG ``example_params_ui_tutorial`` for an example.
+    ``description_html`` and adjust the webserver configuration ``trigger_form_param_html_trust_level`` allowing raw HTML,
+    see tutorial DAG ``example_params_ui_tutorial`` for an example.
   - The :class:`~airflow.models.param.Param` attribute ``type`` influences how a field is rendered. The following types are supported:
 
       .. list-table::
@@ -313,7 +316,8 @@ The following features are supported in the Trigger UI Form:
   The ``const`` value must match the default value to pass `JSON Schema validation <https://json-schema.org/understanding-json-schema/reference/generic.html#constant-values>`_.
 - On the bottom of the form the generated JSON configuration can be expanded.
   If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
-- If you want to render custom HTML as form on top of the provided features, you can use the ``custom_html_form`` attribute.
+- If you want to render custom HTML as form on top of the provided features, you can use the ``custom_html_form`` attribute it the
+  webserver configuration ``trigger_form_param_html_trust_level`` allowing raw HTML.
 
 .. note::
     If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
@@ -327,6 +331,13 @@ For examples also please take a look to two example DAGs provided: ``example_par
 
 The trigger form can also be forced to be displayed also if no params are defined using the configuration switch
 ``webserver.show_trigger_form_if_no_params``.
+
+.. versionadded:: 2.8.0
+
+Per default custom HTML is not allowed to prevent injection of scripts or other maliceus HTML code. If you trust your DAG authors
+you can change the trust level of parameter descriptions to allow raw HTML by setting the configuration entry
+``webserver.trigger_form_param_html_trust_level`` to ``FullTrust``. With the default of ``None`` all HTML will be displayed as
+plain text. In future maybe more HTML filtering options might be added.
 
 Disabling Runtime Param Modification
 ------------------------------------

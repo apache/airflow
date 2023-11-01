@@ -1821,6 +1821,18 @@ webserver:
       type: boolean
       example: ~
       default: "False"
+    trigger_form_param_html_trust_level:
+      description: |
+        Level of trust which is given to DAG authors for raw HTML that is passed from trigger form
+        descriptions and custom HTML forms. As a DAG author is able to provide any HTML also
+        including potentially unsafe javascript in params description, displaying the trigger form
+        might provide potential to inject code into clients browsers.
+        Current version provides two options, "FullTrust" allows unfiltered HTML to be used, "None"
+        will block HTML code in descriptions.
+      version_added: 2.8.0
+      type: string
+      example: FullTrust
+      default: None
 email:
   description: |
     Configuration email backend and whether to
