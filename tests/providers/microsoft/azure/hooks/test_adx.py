@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 from azure.kusto.data import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
+from packaging.version import Version
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -142,12 +143,24 @@ class TestAzureDataExplorerHook:
         monkeypatch.setenv("AZURE_CLIENT_SECRET", "secret")
 
         assert hook.connection._kcsb.data_source == "https://help.kusto.windows.net"
-        mock1.assert_called_once_with(
-            tenant_id="tenant",
-            client_id="client",
-            client_secret="secret",
-            authority="https://login.microsoftonline.com",
-        )
+        import azure.identity
+
+        azure_identity_version = Version(azure.identity.__version__)
+        if azure_identity_version >= Version("1.15.0"):
+            mock1.assert_called_once_with(
+                tenant_id="tenant",
+                client_id="client",
+                client_secret="secret",
+                authority="https://login.microsoftonline.com",
+                _within_dac=True,
+            )
+        else:
+            mock1.assert_called_once_with(
+                tenant_id="tenant",
+                client_id="client",
+                client_secret="secret",
+                authority="https://login.microsoftonline.com",
+            )
 
     @pytest.mark.parametrize(
         "mocked_connection",

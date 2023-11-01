@@ -303,6 +303,32 @@ class TestMongoHook:
         results = self.hook.aggregate(collection, aggregate_query)
         assert len(list(results)) == 2
 
+    def test_distinct(self):
+        collection = mongomock.MongoClient().db.collection
+        objs = [
+            {"test_id": "1", "test_status": "success"},
+            {"test_id": "2", "test_status": "failure"},
+            {"test_id": "3", "test_status": "success"},
+        ]
+
+        collection.insert_many(objs)
+
+        results = self.hook.distinct(collection, "test_status")
+        assert len(results) == 2
+
+    def test_distinct_with_filter(self):
+        collection = mongomock.MongoClient().db.collection
+        objs = [
+            {"test_id": "1", "test_status": "success"},
+            {"test_id": "2", "test_status": "failure"},
+            {"test_id": "3", "test_status": "success"},
+        ]
+
+        collection.insert_many(objs)
+
+        results = self.hook.distinct(collection, "test_id", {"test_status": "failure"})
+        assert len(results) == 1
+
 
 def test_context_manager():
     with MongoHook(conn_id="mongo_default", mongo_db="default") as ctx_hook:

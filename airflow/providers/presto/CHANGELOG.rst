@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+5.2.1
+.....
+
+Misc
+~~~~
+
+* ``Bump min version of presto client to bring better dbapi compatibility (#35132)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
 5.2.0
 .....
 

@@ -490,7 +490,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         return manager.providers[hook.package_name].version
 
     @staticmethod
-    def _find_class_name(target_function_name: str) -> str:
+    def _find_operator_class_name(target_function_name: str) -> str | None:
         """Given a frame off the stack, return the name of the class that made the call.
 
         This method may raise a ValueError or an IndexError. The caller is
@@ -499,7 +499,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         stack = inspect.stack()
         # Find the index of the most recent frame which called the provided function name
         # and pull that frame off the stack.
-        target_frame = next(frame for frame in stack if frame.function == target_function_name)[0]
+        target_frames = [frame for frame in stack if frame.function == target_function_name]
+        if target_frames:
+            target_frame = target_frames[0][0]
+        else:
+            return None
         # Get the local variables for that frame.
         frame_variables = target_frame.f_locals["self"]
         # Get the class object for that frame.
@@ -507,14 +511,32 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # Return the name of the class object.
         return frame_class_object.__name__
 
+    @staticmethod
+    def _find_executor_class_name() -> str | None:
+        """Inspect the call stack looking for any executor classes and returning the first found."""
+        stack = inspect.stack()
+        # Fetch class objects on all frames, looking for one containing an executor (since it
+        # will inherit from BaseExecutor)
+        for frame in stack:
+            classes = []
+            for name, obj in frame[0].f_globals.items():
+                if inspect.isclass(obj):
+                    classes.append(name)
+            if "BaseExecutor" in classes:
+                return classes[-1]
+        return None
+
     @return_on_error("Unknown")
     def _get_caller(self, target_function_name: str = "execute") -> str:
-        """Given a function name, walk the stack and return the name of the class which called it last."""
-        caller = self._find_class_name(target_function_name)
+        """Try to determine the caller of this hook. Whether that be an AWS Operator, Sensor or Executor."""
+        caller = self._find_operator_class_name(target_function_name)
         if caller == "BaseSensorOperator":
             # If the result is a BaseSensorOperator, then look for whatever last called "poke".
-            return self._get_caller("poke")
-        return caller
+            caller = self._find_operator_class_name("poke")
+        if not caller:
+            # Check if we can find an executor
+            caller = self._find_executor_class_name()
+        return caller if caller else "Unknown"
 
     @staticmethod
     @return_on_error("00000000-0000-0000-0000-000000000000")

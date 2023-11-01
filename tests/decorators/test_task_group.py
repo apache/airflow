@@ -77,7 +77,7 @@ def test_tooltip_derived_from_function_docstring():
     assert _.task_group_dict["tg"].tooltip == "Function docstring."
 
 
-def test_tooltip_not_overriden_by_function_docstring():
+def test_tooltip_not_overridden_by_function_docstring():
     """
     Test that the tooltip for TaskGroup is the explicitly set value even if the decorated function has a
     docstring.

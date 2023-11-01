@@ -200,6 +200,7 @@ class KubernetesPodOperator(BaseOperator):
         comma separated list: secret_a,secret_b
     :param service_account_name: Name of the service account
     :param hostnetwork: If True enable host networking on the pod.
+    :param host_aliases: A list of host aliases to apply to the containers in the pod.
     :param tolerations: A list of kubernetes tolerations.
     :param security_context: security options the pod should run with (PodSecurityContext).
     :param container_security_context: security options the container should run with.
@@ -303,6 +304,7 @@ class KubernetesPodOperator(BaseOperator):
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
         hostnetwork: bool = False,
+        host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
         security_context: k8s.V1PodSecurityContext | dict | None = None,
         container_security_context: k8s.V1SecurityContext | dict | None = None,
@@ -381,6 +383,7 @@ class KubernetesPodOperator(BaseOperator):
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.hostnetwork = hostnetwork
+        self.host_aliases = host_aliases
         self.tolerations = (
             [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
         )
@@ -456,7 +459,7 @@ class KubernetesPodOperator(BaseOperator):
             elif isinstance(content, k8s.V1Volume):
                 template_fields = ("name", "persistent_volume_claim")
             elif isinstance(content, k8s.V1VolumeMount):
-                template_fields = ("name",)
+                template_fields = ("name", "sub_path")
             elif isinstance(content, k8s.V1PersistentVolumeClaimVolumeSource):
                 template_fields = ("claim_name",)
             else:
@@ -897,6 +900,7 @@ class KubernetesPodOperator(BaseOperator):
                 affinity=self.affinity,
                 tolerations=self.tolerations,
                 init_containers=self.init_containers,
+                host_aliases=self.host_aliases,
                 containers=[
                     k8s.V1Container(
                         image=self.image,
