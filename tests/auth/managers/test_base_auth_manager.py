@@ -116,6 +116,11 @@ class EmptyAuthManager(BaseAuthManager):
 
 @pytest.fixture
 def auth_manager():
+    return EmptyAuthManager(None, None)
+
+
+@pytest.fixture
+def auth_manager_with_appbuilder():
     flask_app = Flask(__name__)
     appbuilder = init_appbuilder(flask_app)
     return EmptyAuthManager(flask_app, appbuilder)
@@ -128,8 +133,9 @@ class TestBaseAuthManager:
     def test_get_api_endpoints_return_none(self, auth_manager):
         assert auth_manager.get_api_endpoints() is None
 
-    def test_security_manager_return_default_security_manager(self, auth_manager):
-        assert isinstance(auth_manager.security_manager, AirflowSecurityManagerV2)
+    @pytest.mark.db_test
+    def test_security_manager_return_default_security_manager(self, auth_manager_with_appbuilder):
+        assert isinstance(auth_manager_with_appbuilder.security_manager, AirflowSecurityManagerV2)
 
     @pytest.mark.parametrize(
         "access_all, access_per_dag, dag_ids, expected",
