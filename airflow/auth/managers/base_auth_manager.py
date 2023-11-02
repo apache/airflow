@@ -23,10 +23,10 @@ from typing import TYPE_CHECKING, Container, Literal
 
 from sqlalchemy import select
 
-from airflow import AirflowException
 from airflow.auth.managers.models.resource_details import (
     DagDetails,
 )
+from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
