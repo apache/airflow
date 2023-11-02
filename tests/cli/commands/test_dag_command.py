@@ -22,7 +22,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from io import StringIO
-from unittest import mock
+from unittest import TestCase, mock
 from unittest.mock import MagicMock
 
 import pendulum
@@ -550,6 +550,22 @@ class TestCliDags:
             out = temp_stdout.getvalue()
         assert "[0 100 * * *] is not acceptable, out of range" in out
         assert dag_path in out
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_import_errors_exit_code_1(self):
+        dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--output", "yaml", "--subdir", dag_path, "--strict"]
+        )
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with TestCase.assertRaises(TestCase(), SystemExit) as context:
+                dag_command.dag_list_import_errors(args)
+
+            out = temp_stdout.getvalue()
+
+        assert "[0 100 * * *] is not acceptable, out of range" in out
+        assert dag_path in out
+        assert context.exception.code == 1
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
