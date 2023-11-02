@@ -2169,6 +2169,14 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
+    ignore_first_catchup:
+      description: |
+        Setting this to True will make the scheduler ignore the catchup
+        configuration on the first DAG run.
+      version_added: 2.8.0
+      type: boolean
+      example: ~
+      default: "False"
     max_tis_per_query:
       description: |
         This changes the batch size of queries in the scheduling main loop.

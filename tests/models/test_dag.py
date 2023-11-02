@@ -2295,6 +2295,36 @@ my_postgres_conn:
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
 
+    @time_machine.travel(timezone.datetime(2020, 5, 4))
+    def test_next_dagrun_info_timedelta_schedule_and_catchup_true_and_ignore_first_catchup_true(self):
+        """
+        Test that the dag file processor creates multiple dagruns
+        if a dag is scheduled with 'timedelta' and catchup=True and ignore_first_depends_on_past=True
+        """
+        dag = DAG(
+            "test_scheduler_dagrun_once_with_timedelta_and_catchup_true",
+            start_date=timezone.datetime(2020, 5, 1),
+            schedule=timedelta(days=1),
+            catchup=True,
+            ignore_first_catchup=True,
+        )
+
+        next_info = dag.next_dagrun_info(None)
+        # # if it is the first dagrun, the scheduling should be the same as catchup=False
+        # for the first dagrun, the dagrun date is the nearest data interval to current time (<= current time)
+        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 3)
+
+        next_info = dag.next_dagrun_info(timezone.datetime(2020, 5, 1))
+        # if it is not the first dagrun, the scheduling should be the same as catchup=True
+        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 2)
+
+        next_info = dag.next_dagrun_info(next_info.data_interval)
+        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 3)
+
+        # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
+        next_info = dag.next_dagrun_info(next_info.data_interval)
+        assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
+
     def test_next_dagrun_info_timetable_exception(self, caplog):
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 

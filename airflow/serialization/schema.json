@@ -131,6 +131,7 @@
           }
         },
         "catchup": { "type": "boolean" },
+        "ignore_first_catchup": { "type": "boolean" },
         "is_subdag": { "type": "boolean" },
         "fileloc": { "type" : "string"},
         "_processor_dags_folder": {

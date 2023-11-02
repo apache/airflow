@@ -85,7 +85,10 @@ class CronTriggerTimetable(CronMixin, Timetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        if restriction.catchup:
+        should_catchup = restriction.catchup and (
+            not restriction.ignore_first_catchup or last_automated_data_interval is not None
+        )
+        if should_catchup:
             if last_automated_data_interval is not None:
                 next_start_time = self._get_next(last_automated_data_interval.end)
             elif restriction.earliest is None:

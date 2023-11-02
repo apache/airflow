@@ -48,10 +48,13 @@ class TimeRestriction(NamedTuple):
 
     Specifically, the run must not be earlier than ``earliest``, nor later than
     ``latest``. If ``catchup`` is *False*, the run must also not be earlier than
-    the current time, i.e. "missed" schedules are not backfilled.
+    the current time, i.e. "missed" schedules are not backfilled. If
+    ``ignore_first_catchup`` is *True*, the run must also not be earlier than the
+    first DAG run's ``execution_date`` if there is any, and not earlier than the
+    current time otherwise.
 
     These values are generally set on the DAG or task's ``start_date``,
-    ``end_date``, and ``catchup`` arguments.
+    ``end_date``, ``catchup`` and ``ignore_first_catchup`` arguments.
 
     Both ``earliest`` and ``latest``, if not *None*, are inclusive; a DAG run
     can happen exactly at either point of time. They are guaranteed to be aware
@@ -62,6 +65,7 @@ class TimeRestriction(NamedTuple):
     earliest: DateTime | None
     latest: DateTime | None
     catchup: bool
+    ignore_first_catchup: bool = False
 
 
 class DagRunInfo(NamedTuple):

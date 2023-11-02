@@ -366,6 +366,8 @@ class DAG(LoggingMixin):
                                                    gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
+    :param ignore_first_catchup: Whether to ignore the catchup for the first DAG run
+        if catchup is set to True.
     :param on_failure_callback: A function or list of functions to be called when a DagRun of this dag fails.
         A context dictionary is passed as a single parameter to this function.
     :param on_success_callback: Much like the ``on_failure_callback`` except
@@ -452,6 +454,7 @@ class DAG(LoggingMixin):
         default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
         orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
         catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
+        ignore_first_catchup: bool = airflow_conf.getboolean("scheduler", "ignore_first_catchup"),
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
@@ -628,6 +631,7 @@ class DAG(LoggingMixin):
                 f"{ORIENTATION_PRESETS}, but get {orientation}"
             )
         self.catchup: bool = catchup
+        self.ignore_first_catchup: bool = ignore_first_catchup
 
         self.partial: bool = False
         self.on_success_callback = on_success_callback
@@ -999,7 +1003,9 @@ class DAG(LoggingMixin):
         if restricted:
             restriction = self._time_restriction
         else:
-            restriction = TimeRestriction(earliest=None, latest=None, catchup=True)
+            restriction = TimeRestriction(
+                earliest=None, latest=None, catchup=True, ignore_first_catchup=False
+            )
         try:
             info = self.timetable.next_dagrun_info(
                 last_automated_data_interval=data_interval,
@@ -1044,7 +1050,7 @@ class DAG(LoggingMixin):
                 end_dates.append(self.end_date)
             if end_dates:
                 latest = timezone.coerce_datetime(max(end_dates))
-        return TimeRestriction(earliest, latest, self.catchup)
+        return TimeRestriction(earliest, latest, self.catchup, self.ignore_first_catchup)
 
     def iter_dagrun_infos_between(
         self,
@@ -1076,7 +1082,7 @@ class DAG(LoggingMixin):
         earliest = timezone.coerce_datetime(earliest)
         latest = timezone.coerce_datetime(latest)
 
-        restriction = TimeRestriction(earliest, latest, catchup=True)
+        restriction = TimeRestriction(earliest, latest, catchup=True, ignore_first_catchup=False)
 
         # HACK: Sub-DAGs are currently scheduled differently. For example, say
         # the schedule is @daily and start is 2021-06-03 22:16:00, a top-level
@@ -3828,6 +3834,7 @@ def dag(
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
     catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
+    ignore_first_catchup: bool = airflow_conf.getboolean("scheduler", "ignore_first_catchup"),
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,
@@ -3882,6 +3889,7 @@ def dag(
                 default_view=default_view,
                 orientation=orientation,
                 catchup=catchup,
+                ignore_first_catchup=ignore_first_catchup,
                 on_success_callback=on_success_callback,
                 on_failure_callback=on_failure_callback,
                 doc_md=doc_md,

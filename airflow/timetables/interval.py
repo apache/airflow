@@ -85,8 +85,11 @@ class _DataIntervalTimetable(Timetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
+        should_catchup = restriction.catchup and (
+            not restriction.ignore_first_catchup or last_automated_data_interval is not None
+        )
         earliest = restriction.earliest
-        if not restriction.catchup:
+        if not should_catchup:
             earliest = self._skip_to_latest(earliest)
         elif earliest is not None:
             earliest = self._align_to_next(earliest)

@@ -3581,6 +3581,9 @@ components:
             catchup:
               type: boolean
               readOnly: true
+            ignore_first_catchup:
+              type: boolean
+              readOnly: true
             orientation:
               type: string
               readOnly: true

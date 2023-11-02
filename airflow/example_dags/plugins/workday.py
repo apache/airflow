@@ -71,6 +71,9 @@ class AfterWorkdayTimetable(Timetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
+        should_catchup = restriction.catchup and (
+            not restriction.ignore_first_catchup or last_automated_data_interval is not None
+        )
         if last_automated_data_interval is not None:  # There was a previous run on the regular schedule.
             last_start = last_automated_data_interval.start
             next_start = DateTime.combine((last_start + timedelta(days=1)).date(), Time.min).replace(
@@ -80,8 +83,9 @@ class AfterWorkdayTimetable(Timetable):
             next_start = restriction.earliest
             if next_start is None:  # No start_date. Don't schedule.
                 return None
-            if not restriction.catchup:
-                # If the DAG has catchup=False, today is the earliest to consider.
+            if not should_catchup:
+                # If the DAG has catchup=False, or it doesn't have any run and has ignore_first_dag=True,
+                # today is the earliest to consider.
                 next_start = max(next_start, DateTime.combine(Date.today(), Time.min).replace(tzinfo=UTC))
             elif next_start.time() != Time.min:
                 # If earliest does not fall on midnight, skip to the next day.

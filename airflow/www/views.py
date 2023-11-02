@@ -2897,7 +2897,7 @@ class Airflow(AirflowBaseView):
             )
 
             year = last_automated_data_interval.end.year
-            restriction = TimeRestriction(dag.start_date, dag.end_date, False)
+            restriction = TimeRestriction(dag.start_date, dag.end_date, False, False)
             dates: dict[datetime.date, int] = collections.Counter()
 
             if isinstance(dag.timetable, CronMixin):
