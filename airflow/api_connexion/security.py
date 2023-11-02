@@ -247,7 +247,3 @@ def requires_access_website() -> Callable[[T], T]:
 
 def get_readable_dags() -> list[str]:
     return get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
-
-
-def can_read_dag(dag_id: str) -> bool:
-    return get_airflow_app().appbuilder.sm.can_read_dag(dag_id, g.user)
