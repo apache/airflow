@@ -63,7 +63,7 @@ class CohereHook(BaseHook):
     def create_embeddings(
         self, texts: list[str], model: str = "embed-multilingual-v2.0"
     ) -> list[list[float]]:
-        response = self.cohere_client.embed(texts=texts, model=model)
+        response = self.get_conn.embed(texts=texts, model=model)
         embeddings = response.embeddings
         return embeddings
 
@@ -78,7 +78,7 @@ class CohereHook(BaseHook):
 
     def test_connection(self) -> tuple[bool, str]:
         try:
-            self.cohere_client.generate("Test", max_tokens=10)
+            self.get_conn.generate("Test", max_tokens=10)
             return True, "Connection established"
         except Exception as e:
             return False, str(e)

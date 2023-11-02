@@ -40,7 +40,7 @@ class TestCohereHook:
             return_value=Connection(conn_type="cohere", password=api_key, host=api_url),
         ), patch("cohere.Client") as client:
             hook = CohereHook(timeout=timeout, max_retries=max_retries)
-            _ = hook.cohere_client
+            _ = hook.get_conn
             client.assert_called_once_with(
                 api_key=api_key, timeout=timeout, max_retries=max_retries, api_url=api_url
             )
