@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Collection, Sequence
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Callable, Collection, Sequence
 
 from flask import g
 from sqlalchemy import select
@@ -42,10 +43,42 @@ from airflow.auth.managers.fab.views.user_edit import (
     CustomUserInfoEditView,
 )
 from airflow.auth.managers.fab.views.user_stats import CustomUserStatsChartView
+from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity
+from airflow.auth.managers.utils.fab import (
+    get_method_from_fab_action_map,
+)
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagModel
 from airflow.security import permissions
+from airflow.security.permissions import (
+    ACTION_CAN_ACCESS_MENU,
+    ACTION_CAN_READ,
+    RESOURCE_ADMIN_MENU,
+    RESOURCE_AUDIT_LOG,
+    RESOURCE_BROWSE_MENU,
+    RESOURCE_CLUSTER_ACTIVITY,
+    RESOURCE_CONFIG,
+    RESOURCE_CONNECTION,
+    RESOURCE_DAG,
+    RESOURCE_DAG_CODE,
+    RESOURCE_DAG_DEPENDENCIES,
+    RESOURCE_DAG_RUN,
+    RESOURCE_DATASET,
+    RESOURCE_DOCS,
+    RESOURCE_DOCS_MENU,
+    RESOURCE_JOB,
+    RESOURCE_PLUGIN,
+    RESOURCE_POOL,
+    RESOURCE_PROVIDER,
+    RESOURCE_SLA_MISS,
+    RESOURCE_TASK_INSTANCE,
+    RESOURCE_TASK_RESCHEDULE,
+    RESOURCE_TRIGGER,
+    RESOURCE_VARIABLE,
+    RESOURCE_XCOM,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.utils import CustomSQLAInterface
 
@@ -53,8 +86,7 @@ EXISTING_ROLES = FAB_EXISTING_ROLES
 
 if TYPE_CHECKING:
     from airflow.auth.managers.fab.models import Permission, Resource
-
-    pass
+    from airflow.auth.managers.models.base_user import BaseUser
 
 
 class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
@@ -250,23 +282,36 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
 
         Example actions might include can_read, can_write, can_delete, etc.
 
+        This function is called by FAB when accessing a view. See
+        https://github.com/dpgaspar/Flask-AppBuilder/blob/c6fecdc551629e15467fde5d06b4437379d90592/flask_appbuilder/security/decorators.py#L134
+
+        The resource ID (e.g. the connection ID) is not passed to this function (see above link). Therefore,
+        it is not possible to perform fine-grained access authorization with the resource ID yet. In other
+        words, we can only verify the user has access to all connections and not to a specific connection.
+        To make it happen, we either need to:
+         - Override all views in 'airflow/www/views.py' inheriting from `AirflowModelView` and use a custom
+         `has_access` decorator.
+         - Wait for the new Airflow UI to come.
+
         :param action_name: action_name on resource (e.g can_read, can_edit).
         :param resource_name: name of view-menu or resource.
-        :param user: user name
+        :param user: user
         :return: Whether user could perform certain action on the resource.
         :rtype bool
         """
         if not user:
             user = g.user
-        if (action_name, resource_name) in user.perms:
-            return True
 
-        if self.is_dag_resource(resource_name):
-            if (action_name, permissions.RESOURCE_DAG) in user.perms:
-                return True
-            return (action_name, resource_name) in user.perms
-
-        return False
+        is_authorized_method = self._get_auth_manager_is_authorized_method(resource_name)
+        if is_authorized_method:
+            return is_authorized_method(action_name, user)
+        else:
+            # This means the page the user is trying to access is specific to the auth manager used
+            # Example: the user list view in FabAuthManager
+            action_name = ACTION_CAN_READ if action_name == ACTION_CAN_ACCESS_MENU else action_name
+            return get_auth_manager().is_authorized_custom_view(
+                fab_action_name=action_name, fab_resource_name=resource_name, user=user
+            )
 
     def create_admin_standalone(self) -> tuple[str | None, str | None]:
         """Perform the required steps when initializing airflow for standalone mode.
@@ -370,4 +415,121 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
     ) -> bool:
         raise NotImplementedError(
             "The method 'check_authorization' is only available with the auth manager FabAuthManager"
+        )
+
+    @cached_property
+    def _auth_manager_is_authorized_map(self) -> dict[str, Callable[[str, BaseUser | None], bool]]:
+        """
+        Return the map associating a FAB resource name to the corresponding auth manager is_authorized_ API.
+
+        The function returned takes the FAB action name and the user as parameter.
+        """
+        auth_manager = get_auth_manager()
+        methods = get_method_from_fab_action_map()
+
+        return {
+            RESOURCE_AUDIT_LOG: lambda action, user: auth_manager.is_authorized_dag(
+                method=methods[action],
+                access_entity=DagAccessEntity.AUDIT_LOG,
+                user=user,
+            ),
+            RESOURCE_CLUSTER_ACTIVITY: lambda action, user: auth_manager.is_authorized_view(
+                access_view=AccessView.CLUSTER_ACTIVITY,
+                user=user,
+            ),
+            RESOURCE_CONFIG: lambda action, user: auth_manager.is_authorized_configuration(
+                method=methods[action],
+                user=user,
+            ),
+            RESOURCE_CONNECTION: lambda action, user: auth_manager.is_authorized_connection(
+                method=methods[action],
+                user=user,
+            ),
+            RESOURCE_DAG: lambda action, user: auth_manager.is_authorized_dag(
+                method=methods[action],
+                user=user,
+            ),
+            RESOURCE_DAG_CODE: lambda action, user: auth_manager.is_authorized_dag(
+                method=methods[action],
+                access_entity=DagAccessEntity.CODE,
+                user=user,
+            ),
+            RESOURCE_DAG_DEPENDENCIES: lambda action, user: auth_manager.is_authorized_dag(
+                method=methods[action],
+                access_entity=DagAccessEntity.DEPENDENCIES,
+                user=user,
+            ),
+            RESOURCE_DAG_RUN: lambda action, user: auth_manager.is_authorized_dag(
+                method=methods[action],
+                access_entity=DagAccessEntity.RUN,
+                user=user,
+            ),
+            RESOURCE_DATASET: lambda action, user: auth_manager.is_authorized_dataset(
+                method=methods[action],
+                user=user,
+            ),
+            RESOURCE_DOCS: lambda action, user: auth_manager.is_authorized_view(
+                access_view=AccessView.DOCS,
+                user=user,
+            ),
+            RESOURCE_PLUGIN: lambda action, user: auth_manager.is_authorized_view(
+                access_view=AccessView.PLUGINS,
+                user=user,
+            ),
+            RESOURCE_JOB: lambda action, user: auth_manager.is_authorized_view(
+                access_view=AccessView.JOBS,
+                user=user,
+            ),
+            RESOURCE_POOL: lambda action, user: auth_manager.is_authorized_pool(
+                method=methods[action],
+                user=user,
+            ),
+            RESOURCE_PROVIDER: lambda action, user: auth_manager.is_authorized_view(
+                access_view=AccessView.PROVIDERS,
+                user=user,
+            ),
+            RESOURCE_SLA_MISS: lambda action, user: auth_manager.is_authorized_view(
+                access_view=AccessView.SLA,
+                user=user,
+            ),
+            RESOURCE_TASK_INSTANCE: lambda action, user: auth_manager.is_authorized_dag(
+                method=methods[action],
+                access_entity=DagAccessEntity.TASK_INSTANCE,
+                user=user,
+            ),
+            RESOURCE_TASK_RESCHEDULE: lambda action, user: auth_manager.is_authorized_dag(
+                method=methods[action],
+                access_entity=DagAccessEntity.TASK_RESCHEDULE,
+                user=user,
+            ),
+            RESOURCE_TRIGGER: lambda action, user: auth_manager.is_authorized_view(
+                access_view=AccessView.TRIGGERS,
+                user=user,
+            ),
+            RESOURCE_VARIABLE: lambda action, user: auth_manager.is_authorized_variable(
+                method=methods[action],
+                user=user,
+            ),
+            RESOURCE_XCOM: lambda action, user: auth_manager.is_authorized_dag(
+                method=methods[action],
+                access_entity=DagAccessEntity.XCOM,
+                user=user,
+            ),
+        }
+
+    def _get_auth_manager_is_authorized_method(self, fab_resource_name: str) -> Callable | None:
+        is_authorized_method = self._auth_manager_is_authorized_map.get(fab_resource_name)
+        if is_authorized_method:
+            return is_authorized_method
+        elif fab_resource_name in [RESOURCE_DOCS_MENU, RESOURCE_ADMIN_MENU, RESOURCE_BROWSE_MENU]:
+            # Display the "Browse", "Admin" and "Docs" dropdowns in the menu if the user has access to at
+            # least one dropdown child
+            return self._is_authorized_category_menu(fab_resource_name)
+        else:
+            return None
+
+    def _is_authorized_category_menu(self, category: str) -> Callable:
+        items = {item.name for item in self.appbuilder.menu.find(category).childs}
+        return lambda action, user: any(
+            self._get_auth_manager_is_authorized_method(fab_resource_name=item) for item in items
         )

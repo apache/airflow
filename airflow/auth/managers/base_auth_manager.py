@@ -26,6 +26,7 @@ from sqlalchemy import select
 from airflow.auth.managers.models.resource_details import (
     DagDetails,
 )
+from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
 
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
+        AccessView,
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
@@ -216,18 +218,37 @@ class BaseAuthManager(LoggingMixin):
         """
 
     @abstractmethod
-    def is_authorized_website(
+    def is_authorized_view(
         self,
         *,
+        access_view: AccessView,
         user: BaseUser | None = None,
     ) -> bool:
         """
-        Return whether the user is authorized to access the read-only state of the installation.
+        Return whether the user is authorized to access a read-only state of the installation.
 
-        This includes the homepage, the list of installed plugins, the list of providers and list of triggers.
-
+        :param access_view: the specific read-only view/state the authorization request is about.
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
+
+    def is_authorized_custom_view(
+        self, *, fab_action_name: str, fab_resource_name: str, user: BaseUser | None = None
+    ):
+        """
+        Return whether the user is authorized to perform a given action on a custom view.
+
+        A custom view is a view defined as part of the auth manager. This view is then only available when
+        the auth manager is used as part of the environment.
+
+        By default, it throws an exception because auth managers do not define custom views by default.
+        If an auth manager defines some custom views, it needs to override this method.
+
+        :param fab_action_name: the name of the FAB action defined in the view in ``base_permissions``
+        :param fab_resource_name: the name of the FAB resource defined in the view in
+            ``class_permission_name``
+        :param user: the user to perform the action on. If not provided (or None), it uses the current user
+        """
+        raise AirflowException(f"The resource `{fab_resource_name}` does not exist in the environment.")
 
     @provide_session
     def get_permitted_dag_ids(
