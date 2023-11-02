@@ -602,7 +602,6 @@ class DagFileProcessorManager(LoggingMixin):
             now = timezone.utcnow()
             elapsed_time_since_refresh = (now - self.last_dag_dir_refresh_time).total_seconds()
             if elapsed_time_since_refresh > self.dag_dir_list_interval:
-                Stats.gauge('dag_processing.file_path_queue_length', len(self._file_path_queue))
                 self._refresh_dag_dir()
                 self.prepare_file_path_queue()
 
@@ -764,6 +763,11 @@ class DagFileProcessorManager(LoggingMixin):
         if 0 < self.print_stats_interval < time.monotonic() - self.last_stat_print_time:
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
+
+            # Lyft-specific patch
+            # https://jira.lyft.net/browse/DATAOR-1099
+            Stats.gauge('dag_processing.file_path_queue_length', len(self._file_path_queue))
+
             self.last_stat_print_time = time.monotonic()
 
     @provide_session
