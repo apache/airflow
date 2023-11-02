@@ -228,6 +228,16 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     def _align_to_prev(self, current: DateTime) -> DateTime:
         return current
 
+    def _round(self, dt: DateTime) -> DateTime:
+        """Round the given time to the nearest interval."""
+        if isinstance(self._delta, datetime.timedelta):
+            delta_in_seconds = self._delta.total_seconds()
+        else:
+            delta_in_seconds = self._delta.seconds
+        dt_in_seconds = dt.timestamp()
+        rounded_dt = dt_in_seconds - (dt_in_seconds % delta_in_seconds)
+        return DateTime.fromtimestamp(rounded_dt, tz=dt.tzinfo)
+
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
@@ -236,7 +246,8 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
 
         This is slightly different from the cron version at terminal values.
         """
-        new_start = self._get_prev(DateTime.utcnow())
+        round_current_time = self._round(DateTime.utcnow())
+        new_start = self._get_prev(round_current_time)
         if earliest is None:
             return new_start
         return max(new_start, earliest)
