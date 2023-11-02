@@ -855,6 +855,33 @@ class TestWorker:
         else:
             assert jmespath.search("spec.template.metadata.annotations.scope", docs[0]) is None
 
+    @pytest.mark.parametrize(
+        "strategyType, strategyUpdate",
+        [
+            ("Recreate", {"maxSurge": 1, "maxUnavailable": 0}),
+            ("Recreate", None),
+            ("RollingUpdate", {"maxSurge": 1, "maxUnavailable": 0}),
+            ("RollingUpdate", None),
+        ],
+    )
+    def test_deployment_strategy(self, strategyType, strategyUpdate):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "strategy": {"type": strategyType, "rollingUpdate": strategyUpdate},
+                    "persistence": {"enabled": False},
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert strategyType == jmespath.search("spec.strategy.type", docs[0])
+
+        if strategyType == "RollingUpdate":
+            assert strategyUpdate == jmespath.search("spec.strategy.rollingUpdate", docs[0])
+        else:
+            assert jmespath.search("spec.strategy.rollingUpdate", docs[0]) is None
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""

@@ -71,7 +71,7 @@ spec:
   updateStrategy: {{- toYaml .Values.triggerer.updateStrategy | nindent 4 }}
   {{- end }}
   {{- if and (not $persistence) (.Values.triggerer.strategy) }}
-  strategy: {{- toYaml .Values.triggerer.strategy | nindent 4 }}
+  strategy: {{- include "deployment_strategy" .Values.triggerer | nindent 4 }}
   {{- end }}
   template:
     metadata:

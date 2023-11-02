@@ -995,3 +995,11 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{- define "deployment_strategy" }}
+  {{- if and .strategy.type (eq .strategy.type "Recreate") }}
+    {{- unset .strategy "rollingUpdate" | toYaml }}
+  {{- else }}
+    {{- toYaml .strategy }}
+  {{- end }}
+{{- end }}

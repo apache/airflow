@@ -74,7 +74,7 @@ spec:
   updateStrategy: {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
   {{- end }}
   {{- if and (not $persistence) (.Values.workers.strategy) }}
-  strategy: {{- toYaml .Values.workers.strategy | nindent 4 }}
+  strategy: {{- include "deployment_strategy" .Values.workers | nindent 4 }}
   {{- end }}
   template:
     metadata:

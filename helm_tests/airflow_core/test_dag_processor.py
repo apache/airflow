@@ -636,6 +636,33 @@ class TestDagProcessor:
             assert expected_volume not in created_volumes
             assert expected_volume_mount not in created_volume_mounts
 
+    @pytest.mark.parametrize(
+        "strategyType, strategyUpdate",
+        [
+            ("Recreate", {"maxSurge": 1, "maxUnavailable": 0}),
+            ("Recreate", None),
+            ("RollingUpdate", {"maxSurge": 1, "maxUnavailable": 0}),
+            ("RollingUpdate", None),
+        ],
+    )
+    def test_deployment_strategy(self, strategyType, strategyUpdate):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "strategy": {"type": strategyType, "rollingUpdate": strategyUpdate},
+                    "enabled": True,
+                }
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert strategyType == jmespath.search("spec.strategy.type", docs[0])
+
+        if strategyType == "RollingUpdate":
+            assert strategyUpdate == jmespath.search("spec.strategy.rollingUpdate", docs[0])
+        else:
+            assert jmespath.search("spec.strategy.rollingUpdate", docs[0]) is None
+
 
 class TestDagProcessorLogGroomer(LogGroomerTestBase):
     """DAG processor log groomer."""

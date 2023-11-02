@@ -57,7 +57,7 @@ spec:
       component: dag-processor
       release: {{ .Release.Name }}
   {{- if .Values.dagProcessor.strategy }}
-  strategy: {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
+  strategy: {{- include "deployment_strategy" .Values.dagProcessor | nindent 4 }}
   {{- end }}
   template:
     metadata:
