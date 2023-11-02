@@ -911,7 +911,9 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         select(
             log_template_table.c.filename,
             log_template_table.c.elasticsearch_id,
-        ).order_by(log_template_table.c.id.desc()),
+        )
+        .order_by(log_template_table.c.id.desc())
+        .limit(1)
     ).first()
 
     # If we have an empty table, and the default values exist, we will seed the
@@ -946,6 +948,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
                 )
             )
             .order_by(log_template_table.c.id.desc())
+            .limit(1)
         ).first()
         if not row:
             session.add(
