@@ -23,12 +23,15 @@ import pytest
 from flask import Flask
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.exceptions import AirflowException
+from airflow.security import permissions
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.security_manager import AirflowSecurityManagerV2
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
+        AccessView,
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
@@ -98,7 +101,7 @@ class EmptyAuthManager(BaseAuthManager):
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_website(self, *, user: BaseUser | None = None) -> bool:
+    def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
         raise NotImplementedError()
 
     def is_logged_in(self) -> bool:
@@ -132,6 +135,13 @@ class TestBaseAuthManager:
 
     def test_get_api_endpoints_return_none(self, auth_manager):
         assert auth_manager.get_api_endpoints() is None
+
+    def test_is_authorized_custom_view_throws_exception(self, auth_manager):
+        with pytest.raises(AirflowException, match="The resource `.*` does not exist in the environment."):
+            auth_manager.is_authorized_custom_view(
+                fab_action_name=permissions.ACTION_CAN_READ,
+                fab_resource_name=permissions.RESOURCE_MY_PASSWORD,
+            )
 
     @pytest.mark.db_test
     def test_security_manager_return_default_security_manager(self, auth_manager_with_appbuilder):

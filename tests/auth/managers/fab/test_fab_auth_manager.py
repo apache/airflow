@@ -26,7 +26,7 @@ from flask import Flask
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User
 from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
-from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.exceptions import AirflowException
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
@@ -40,7 +40,12 @@ from airflow.security.permissions import (
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
     RESOURCE_DATASET,
+    RESOURCE_JOB,
+    RESOURCE_PLUGIN,
+    RESOURCE_PROVIDER,
+    RESOURCE_SLA_MISS,
     RESOURCE_TASK_INSTANCE,
+    RESOURCE_TRIGGER,
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
@@ -331,24 +336,62 @@ class TestFabAuthManager:
         assert result == expected_result
 
     @pytest.mark.parametrize(
-        "user_permissions, expected_result",
+        "access_view, user_permissions, expected_result",
         [
-            # With permission
+            # With permission (jobs)
             (
+                AccessView.JOBS,
+                [(ACTION_CAN_READ, RESOURCE_JOB)],
+                True,
+            ),
+            # With permission (plugins)
+            (
+                AccessView.PLUGINS,
+                [(ACTION_CAN_READ, RESOURCE_PLUGIN)],
+                True,
+            ),
+            # With permission (providers)
+            (
+                AccessView.PROVIDERS,
+                [(ACTION_CAN_READ, RESOURCE_PROVIDER)],
+                True,
+            ),
+            # With permission (triggers)
+            (
+                AccessView.TRIGGERS,
+                [(ACTION_CAN_READ, RESOURCE_TRIGGER)],
+                True,
+            ),
+            # With permission (SLA)
+            (
+                AccessView.SLA,
+                [(ACTION_CAN_READ, RESOURCE_SLA_MISS)],
+                True,
+            ),
+            # With permission (website)
+            (
+                AccessView.WEBSITE,
                 [(ACTION_CAN_READ, RESOURCE_WEBSITE)],
                 True,
             ),
             # Without permission
             (
+                AccessView.WEBSITE,
                 [(ACTION_CAN_READ, "resource_test"), (ACTION_CAN_CREATE, RESOURCE_WEBSITE)],
+                False,
+            ),
+            # Without permission
+            (
+                AccessView.WEBSITE,
+                [(ACTION_CAN_READ, RESOURCE_TRIGGER)],
                 False,
             ),
         ],
     )
-    def test_is_authorized_website(self, user_permissions, expected_result, auth_manager):
+    def test_is_authorized_view(self, access_view, user_permissions, expected_result, auth_manager):
         user = Mock()
         user.perms = user_permissions
-        result = auth_manager.is_authorized_website(user=user)
+        result = auth_manager.is_authorized_view(access_view=access_view, user=user)
         assert result == expected_result
 
     @pytest.mark.db_test

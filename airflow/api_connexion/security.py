@@ -24,6 +24,7 @@ from flask import Response, g
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 from airflow.auth.managers.models.resource_details import (
+    AccessView,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -229,12 +230,12 @@ def requires_access_variable(method: ResourceMethod) -> Callable[[T], T]:
     return requires_access_decorator
 
 
-def requires_access_website() -> Callable[[T], T]:
+def requires_access_view(access_view: AccessView) -> Callable[[T], T]:
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
             return _requires_access(
-                is_authorized_callback=lambda: get_auth_manager().is_authorized_website(),
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_view(access_view=access_view),
                 func=func,
                 args=args,
                 kwargs=kwargs,
