@@ -43,9 +43,6 @@ class WeaviateIngestOperator(BaseOperator):
     :param input_json: The JSON representing Weaviate data objects to generate embeddings on (or provides
         custom vectors) and store them in the Weaviate class. Either input_json or input_callable should be
         provided.
-    :param input_callable: The callable that provides the input json to generate embeddings on
-        (or provides custom vectors) and store them in the Weaviate class. Either input_text or
-        input_callable should be provided.
     """
 
     template_fields: Sequence[str] = ("input_json",)
