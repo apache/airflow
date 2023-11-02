@@ -42,23 +42,6 @@ class AzureFileShareHook(BaseHook):
     conn_type = "azure_fileshare"
     hook_name = "Azure FileShare"
 
-    def __init__(
-        self,
-        share_name: str | None = None,
-        file_path: str | None = None,
-        directory_path: str | None = None,
-        azure_fileshare_conn_id: str = "azure_fileshare_default",
-    ) -> None:
-        super().__init__()
-        self._conn_id = azure_fileshare_conn_id
-        self.share_name = share_name
-        self.file_path = file_path
-        self.directory_path = directory_path
-        self._account_url: str | None = None
-        self._connection_string: str | None = None
-        self._account_access_key: str | None = None
-        self._sas_token: str | None = None
-
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
@@ -94,6 +77,23 @@ class AzureFileShareHook(BaseHook):
             },
         }
 
+    def __init__(
+        self,
+        share_name: str | None = None,
+        file_path: str | None = None,
+        directory_path: str | None = None,
+        azure_fileshare_conn_id: str = "azure_fileshare_default",
+    ) -> None:
+        super().__init__()
+        self._conn_id = azure_fileshare_conn_id
+        self.share_name = share_name
+        self.file_path = file_path
+        self.directory_path = directory_path
+        self._account_url: str | None = None
+        self._connection_string: str | None = None
+        self._account_access_key: str | None = None
+        self._sas_token: str | None = None
+
     def get_conn(self) -> None:
         conn = self.get_connection(self._conn_id)
         extras = conn.extra_dejson
@@ -114,9 +114,7 @@ class AzureFileShareHook(BaseHook):
         extras = conn.extra_dejson
         managed_identity_client_id = extras.get("managed_identity_client_id")
         workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
-        return get_default_azure_credential(
-            managed_identity_client_id, workload_identity_tenant_id
-        )
+        return get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
 
     @property
     def share_service_client(self):

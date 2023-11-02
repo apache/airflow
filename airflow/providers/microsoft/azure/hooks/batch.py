@@ -52,14 +52,6 @@ class AzureBatchHook(BaseHook):
     conn_type = "azure_batch"
     hook_name = "Azure Batch Service"
 
-    def _get_field(self, extras, name):
-        return get_field(
-            conn_id=self.conn_id,
-            conn_type=self.conn_type,
-            extras=extras,
-            field_name=name,
-        )
-
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
@@ -87,6 +79,14 @@ class AzureBatchHook(BaseHook):
     def __init__(self, azure_batch_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_batch_conn_id
+
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
 
     @cached_property
     def connection(self) -> BatchServiceClient:

@@ -43,18 +43,6 @@ class AzureContainerVolumeHook(BaseHook):
     conn_type = "azure_container_volume"
     hook_name = "Azure Container Volume"
 
-    def __init__(self, azure_container_volume_conn_id: str = "azure_container_volume_default") -> None:
-        super().__init__()
-        self.conn_id = azure_container_volume_conn_id
-
-    def _get_field(self, extras, name):
-        return get_field(
-            conn_id=self.conn_id,
-            conn_type=self.conn_type,
-            extras=extras,
-            field_name=name,
-        )
-
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
@@ -97,6 +85,18 @@ class AzureContainerVolumeHook(BaseHook):
                 "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
+
+    def __init__(self, azure_container_volume_conn_id: str = "azure_container_volume_default") -> None:
+        super().__init__()
+        self.conn_id = azure_container_volume_conn_id
+
+    def _get_field(self, extras, name):
+        return get_field(
+            conn_id=self.conn_id,
+            conn_type=self.conn_type,
+            extras=extras,
+            field_name=name,
+        )
 
     def get_storagekey(self, *, storage_account_name: str | None = None) -> str:
         """Get Azure File Volume storage key."""
