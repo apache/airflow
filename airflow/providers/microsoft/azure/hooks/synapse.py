@@ -24,7 +24,11 @@ from azure.synapse.spark import SparkClient
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_default_azure_credential,
+    get_field,
+)
 
 if TYPE_CHECKING:
     from azure.synapse.spark.models import SparkBatchJobOptions
@@ -63,6 +67,7 @@ class AzureSynapseHook(BaseHook):
     hook_name: str = "Azure Synapse"
 
     @staticmethod
+    @add_managed_identity_connection_widgets 
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -72,12 +77,7 @@ class AzureSynapseHook(BaseHook):
         return {
             "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
             "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
-            "managed_identity_client_id": StringField(
-                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-            ),
-            "workload_identity_tenant_id": StringField(
-                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
-            ),
+
         }
 
     @staticmethod

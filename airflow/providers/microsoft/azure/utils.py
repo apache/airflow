@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from functools import wraps
 
 from azure.core.pipeline import PipelineContext, PipelineRequest
 from azure.core.pipeline.policies import BearerTokenCredentialPolicy
@@ -67,6 +68,29 @@ def get_default_azure_credential(
         )
     else:
         return DefaultAzureCredential()
+
+
+def add_managed_identity_connection_widgets(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        widgets = func(*args, **kwargs)
+        widgets.update(
+            {
+                "managed_identity_client_id": StringField(
+                    lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+                ),
+                "workload_identity_tenant_id": StringField(
+                    lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+                ),
+            }
+        )
+        return widgets
+
+    return wrapper
 
 
 class AzureIdentityCredentialAdapter(BasicTokenAuthentication):

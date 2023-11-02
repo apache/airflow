@@ -48,7 +48,10 @@ from azure.mgmt.datafactory.aio import DataFactoryManagementClient as AsyncDataF
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_default_azure_credential
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_default_azure_credential,
+)
 
 if TYPE_CHECKING:
     from azure.core.polling import LROPoller
@@ -153,6 +156,7 @@ class AzureDataFactoryHook(BaseHook):
     hook_name: str = "Azure Data Factory"
 
     @staticmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -166,12 +170,7 @@ class AzureDataFactoryHook(BaseHook):
                 lazy_gettext("Resource Group Name"), widget=BS3TextFieldWidget()
             ),
             "factory_name": StringField(lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()),
-            "managed_identity_client_id": StringField(
-                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-            ),
-            "workload_identity_tenant_id": StringField(
-                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
-            ),
+
         }
 
     @staticmethod
