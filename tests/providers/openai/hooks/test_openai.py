@@ -20,9 +20,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow.providers.openai.hooks.openai import (
-    OpenAIHook,
-)
+from airflow.providers.openai.hooks.openai import OpenAIHook
 
 
 @pytest.fixture
