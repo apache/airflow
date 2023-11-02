@@ -144,9 +144,9 @@ class WeaviateHook(BaseHook):
         Query weaviate database with near vectors.
 
         This method uses a vector search using a Get query. we are using a with_near_vector to provide
-         weaviate with a query with vector itself. This is needed for query a  Weaviate class with a custom,
-          external vectorizer. Weaviate then converts this into a vector through the inference API
-           (OpenAI in this particular example) and uses that vector as the basis for a vector search.
+        weaviate with a query with vector itself. This is needed for query a  Weaviate class with a custom,
+        external vectorizer. Weaviate then converts this into a vector through the inference API
+        (OpenAI in this particular example) and uses that vector as the basis for a vector search.
         """
         client = self.get_client()
         results: dict[str, dict[Any, Any]] = (
