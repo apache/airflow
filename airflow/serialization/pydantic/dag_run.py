@@ -24,13 +24,13 @@ from typing_extensions import Annotated
 
 from airflow import DAG
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.jobs.scheduler_job_runner import TI
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.state import TaskInstanceState
 
 

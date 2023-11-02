@@ -213,8 +213,7 @@ def _run_task_by_selected_method(
     - as raw task
     - by executor
     """
-    # Remove the running task is supported with Internal API.
-    assert isinstance(ti, TaskInstance)
+    assert isinstance(ti, TaskInstance), "Wait for AIP-44 implementation to complete"
     if args.local:
         return _run_task_by_local_task_job(args, ti)
     if args.raw:
@@ -468,7 +467,8 @@ def task_failed_deps(args) -> None:
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
     # tasks_failed-deps is executed with access to the database.
-    assert isinstance(ti, TaskInstance)
+    if not isinstance(ti, TaskInstance):
+        raise ValueError("not a TaskInstance")
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
     # TODO, Do we want to print or log this
@@ -494,7 +494,8 @@ def task_state(args) -> None:
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
     # task_state is executed with access to the database.
-    assert isinstance(ti, TaskInstance)
+    if not isinstance(ti, TaskInstance):
+        raise ValueError("not a TaskInstance")
     print(ti.current_state())
 
 
@@ -626,7 +627,8 @@ def task_test(args, dag: DAG | None = None) -> None:
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="db"
     )
     # task_test is executed with access to the database.
-    assert isinstance(ti, TaskInstance)
+    if not isinstance(ti, TaskInstance):
+        raise ValueError("not a TaskInstance")
     try:
         with redirect_stdout(RedactedIO()):
             if args.dry_run:
@@ -661,7 +663,8 @@ def task_render(args, dag: DAG | None = None) -> None:
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
     )
     # task_render is executed with access to the database.
-    assert isinstance(ti, TaskInstance)
+    if not isinstance(ti, TaskInstance):
+        raise ValueError("not a TaskInstance")
     with create_session() as session, set_current_task_instance_session(session=session):
         ti.render_templates()
     for attr in task.template_fields:

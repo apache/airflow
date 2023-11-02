@@ -1542,8 +1542,9 @@ class Airflow(AirflowBaseView):
             raise AirflowException(f"Task instance {task.task_id} not found.")
 
         pod_spec = None
+        if not isinstance(ti, TaskInstance):
+            raise ValueError("not a TaskInstance")
         try:
-            assert isinstance(ti, TaskInstance)
             pod_spec = get_rendered_k8s_spec(ti, session=session)
         except AirflowException as e:
             if not e.__cause__:
