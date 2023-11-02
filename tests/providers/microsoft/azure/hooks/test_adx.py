@@ -226,6 +226,35 @@ class TestAzureDataExplorerHook:
                 conn_id=ADX_TEST_CONN_ID,
                 conn_type="azure_data_explorer",
                 host="https://help.kusto.windows.net",
+                extra={
+                    "auth_method": "AZURE_TOKEN_CRED",
+                    "managed_identity_client_id": "test_id",
+                    "workload_identity_tenant_id": "test_tenant_id",
+                },
+            )
+        ],
+        indirect=True,
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.adx.get_default_azure_credential")
+    @mock.patch.object(KustoClient, "__init__")
+    def test_conn_method_azure_token_cred(self, mock_init, mock_default_azure_credential, mocked_connection):
+        mock_init.return_value = None
+        AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id).get_conn()
+        assert mock_default_azure_credential.called_with("test_id", "test_tenant_id")
+        assert mock_init.called_with(
+            KustoConnectionStringBuilder.with_azure_token_credential(
+                connection_string="https://help.kusto.windows.net",
+                credential=mock_default_azure_credential,
+            )
+        )
+
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id=ADX_TEST_CONN_ID,
+                conn_type="azure_data_explorer",
+                host="https://help.kusto.windows.net",
                 extra={"auth_method": "AAD_DEVICE"},
             )
         ],
