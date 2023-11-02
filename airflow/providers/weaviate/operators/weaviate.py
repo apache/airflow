@@ -39,7 +39,7 @@ class WeaviateIngestOperator(BaseOperator):
     and store them in the Weaviate class.
 
     :param conn_id: The Weaviate connection.
-    :param class: The Weaviate class to be used for storing the data objects into.
+    :param class_name: The Weaviate class to be used for storing the data objects into.
     :param input_json: The JSON representing Weaviate data objects to generate embeddings on (or provides
         custom vectors) and store them in the Weaviate class. Either input_json or input_callable should be
         provided.
