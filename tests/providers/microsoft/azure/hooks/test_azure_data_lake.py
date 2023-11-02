@@ -96,7 +96,7 @@ class TestAzureDataLakeHook:
         assert hook._conn is None
         assert hook.conn_id == "adl_test_key_without_tenant"
         assert isinstance(hook.get_conn(), core.AzureDLFileSystem)
-        assert mock_azure_identity_credential_adapter.called
+        assert mock_azure_identity_credential_adapter.called_with(None, None)
         assert not mock_datalake_store_lib.auth.called
 
     @pytest.mark.usefixtures("connection")
