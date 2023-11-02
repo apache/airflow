@@ -56,6 +56,34 @@ class TestAzureCosmosDbHook:
             )
         )
 
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id="azure_cosmos_test_default_credential",
+                conn_type="azure_cosmos",
+                login="https://test_endpoint:443",
+                extra={
+                    "resource_group_name": "resource-group-name",
+                    "subscription_id": "subscription_id",
+                    "managed_identity_client_id": "test_client_id",
+                    "workload_identity_tenant_id": "test_tenant_id",
+                },
+            )
+        ],
+        indirect=True,
+    )
+    @mock.patch(f"{MODULE}.get_default_azure_credential")
+    @mock.patch(f"{MODULE}.CosmosDBManagementClient")
+    @mock.patch(f"{MODULE}.CosmosClient")
+    def test_get_conn(self, mock_cosmos, mock_cosmos_db, mock_default_azure_credential, mocked_connection):
+        mock_cosmos_db.return_value.database_accounts.list_keys.return_value.primary_master_key = "master-key"
+
+        hook = AzureCosmosDBHook(azure_cosmos_conn_id="azure_cosmos_test_default_credential")
+        hook.get_conn()
+
+        assert mock_default_azure_credential.called_with("test_client_id", "test_tenant_id")
+
     @mock.patch(f"{MODULE}.CosmosClient", autospec=True)
     def test_client(self, mock_cosmos):
         hook = AzureCosmosDBHook(azure_cosmos_conn_id="azure_cosmos_test_key_id")
