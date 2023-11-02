@@ -109,6 +109,15 @@ class AzureFileShareHook(BaseHook):
             return f"https://{account_url}.file.core.windows.net"
         return account_url
 
+    def _get_default_azure_credential(self):
+        conn = self.get_connection(self._conn_id)
+        extras = conn.extra_dejson
+        managed_identity_client_id = extras.get("managed_identity_client_id")
+        workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
+        return get_default_azure_credential(
+            managed_identity_client_id, workload_identity_tenant_id
+        )
+
     @property
     def share_service_client(self):
         self.get_conn()
@@ -120,15 +129,9 @@ class AzureFileShareHook(BaseHook):
             credential = self._sas_token or self._account_access_key
             return ShareServiceClient(account_url=self._account_url, credential=credential)
         else:
-            conn = self.get_connection(self._conn_id)
-            extras = conn.extra_dejson
-            managed_identity_client_id = extras.get("managed_identity_client_id")
-            workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
             return ShareServiceClient(
                 account_url=self._account_url,
-                credential=get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
-                ),
+                credential=self._get_default_azure_credential(),
                 token_intent="backup",
             )
 
@@ -149,17 +152,11 @@ class AzureFileShareHook(BaseHook):
                 credential=credential,
             )
         else:
-            conn = self.get_connection(self._conn_id)
-            extras = conn.extra_dejson
-            managed_identity_client_id = extras.get("managed_identity_client_id")
-            workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
             return ShareDirectoryClient(
                 account_url=self._account_url,
                 share_name=self.share_name,
                 directory_path=self.directory_path,
-                credential=get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
-                ),
+                credential=self._get_default_azure_credential(),
                 token_intent="backup",
             )
 
@@ -180,17 +177,11 @@ class AzureFileShareHook(BaseHook):
                 credential=credential,
             )
         else:
-            conn = self.get_connection(self._conn_id)
-            extras = conn.extra_dejson
-            managed_identity_client_id = extras.get("managed_identity_client_id")
-            workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
             return ShareFileClient(
                 account_url=self._account_url,
                 share_name=self.share_name,
                 file_path=self.file_path,
-                credential=get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
-                ),
+                credential=self._get_default_azure_credential(),
                 token_intent="backup",
             )
 
