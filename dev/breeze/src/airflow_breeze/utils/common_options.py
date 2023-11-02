@@ -30,6 +30,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MSSQL_VERSIONS,
@@ -131,6 +132,14 @@ option_python = click.option(
     show_default=True,
     help="Python major/minor version used in Airflow image for images.",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
+)
+option_debian_version = click.option(
+    "--debian-version",
+    type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
+    default=ALLOWED_DEBIAN_VERSIONS[0],
+    show_default=True,
+    help="Debian version used in Airflow image as base for building images.",
+    envvar="DEBIAN_VERSION",
 )
 option_backend = click.option(
     "-b",

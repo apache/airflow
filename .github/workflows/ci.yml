@@ -431,6 +431,45 @@ jobs:
           PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
           DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
 
+  build-prod-images-bullseye:
+    timeout-minutes: 80
+    name: >
+      ${{needs.build-info.outputs.build-job-description}} PROD images
+      ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
+    needs: [build-info, build-ci-images, generate-constraints]
+    if: needs.build-info.outputs.canary-run == 'true'
+    env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      BACKEND: sqlite
+      DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+      VERSION_SUFFIX_FOR_PYPI: "dev0"
+      DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+      - name: >
+          Build PROD Images Bullseye
+          ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
+        uses: ./.github/actions/build-prod-images
+        with:
+          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
+          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
+          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+          DEBIAN_VERSION: "bullseye"
+
   run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
