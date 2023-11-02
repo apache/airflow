@@ -38,10 +38,6 @@ class OpenAIEmbeddingOperator(BaseOperator):
     :param conn_id: The OpenAI connection.
     :param input_text: The text to generate OpenAI embeddings on. Either input_text or input_callable
         should be provided.
-    :param input_callable: The callable that provides the input text to generate OpenAI embeddings.
-        Either input_text or input_callable should be provided.
-    :param input_callable_args: The list of arguments to be passed to ``input_callable``
-    :param input_callable_kwargs: The kwargs to be passed to ``input_callable``
     :param model: The OpenAI model to be used for generating the embeddings.
     :param embedding_kwargs: For possible option check
         .. seealso:: https://platform.openai.com/docs/api-reference/embeddings/create
