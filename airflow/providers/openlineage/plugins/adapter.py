@@ -38,6 +38,7 @@ from openlineage.client.run import Job, Run, RunEvent, RunState
 from airflow.configuration import conf
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
 from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
+from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -113,8 +114,10 @@ class OpenLineageAdapter(LoggingMixin):
             self._client = self.get_or_create_openlineage_client()
         redacted_event: RunEvent = self._redacter.redact(event, max_depth=20)  # type: ignore[assignment]
         try:
-            return self._client.emit(redacted_event)
+            with Stats.timer("ol.emit.attempts"):
+                return self._client.emit(redacted_event)
         except Exception as e:
+            Stats.incr("ol.emit.failed")
             self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
             self.log.debug("OpenLineage emission failure: %s", e)
 
