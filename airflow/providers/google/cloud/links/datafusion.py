@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Compute Engine links."""
+"""This module contains Google Data Fusion links."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
@@ -30,8 +30,8 @@ if TYPE_CHECKING:
 
 BASE_LINK = "https://console.cloud.google.com/data-fusion"
 DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
-DATAFUSION_PIPELINES_LINK = "{uri}/cdap/ns/default/pipelines"
-DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/default/view/{pipeline_name}"
+DATAFUSION_PIPELINES_LINK = "{uri}/cdap/ns/{namespace}/pipelines"
+DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/{namespace}/view/{pipeline_name}"
 
 
 class BaseGoogleLink(BaseOperatorLink):
@@ -98,6 +98,7 @@ class DataFusionPipelineLink(BaseGoogleLink):
         task_instance: BaseOperator,
         uri: str,
         pipeline_name: str,
+        namespace: str,
     ):
         task_instance.xcom_push(
             context=context,
@@ -105,6 +106,7 @@ class DataFusionPipelineLink(BaseGoogleLink):
             value={
                 "uri": uri,
                 "pipeline_name": pipeline_name,
+                "namespace": namespace,
             },
         )
 
@@ -121,11 +123,13 @@ class DataFusionPipelinesLink(BaseGoogleLink):
         context: Context,
         task_instance: BaseOperator,
         uri: str,
+        namespace: str,
     ):
         task_instance.xcom_push(
             context=context,
             key=DataFusionPipelinesLink.key,
             value={
                 "uri": uri,
+                "namespace": namespace,
             },
         )
