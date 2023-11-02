@@ -90,3 +90,41 @@ class TestBaseAzureHook:
             subscription_id=mocked_connection.extra_dejson["subscriptionId"],
         )
         assert auth_sdk_client == "spam-egg"
+
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id="azure_default",
+                extra={
+                    "managed_identity_client_id": "test_client_id",
+                    "workload_identity_tenant_id": "test_tenant_id",
+                    "subscriptionId": "subscription_id",
+                },
+            )
+        ],
+        indirect=True,
+    )
+    @patch("azure.common.credentials.ServicePrincipalCredentials")
+    @patch("airflow.providers.microsoft.azure.hooks.base_azure.AzureIdentityCredentialAdapter")
+    def test_get_conn_fallback_to_azure_identity_credential_adapter(
+        self,
+        mock_credential_adapter,
+        mock_service_pricipal_credential,
+        mocked_connection,
+    ):
+        mock_credential = Mock()
+        mock_credential_adapter.return_value = mock_credential
+
+        mock_sdk_client = Mock()
+        AzureBaseHook(mock_sdk_client).get_conn()
+
+        mock_credential_adapter.assert_called_with(
+            managed_identity_client_id="test_client_id",
+            workload_identity_tenant_id="test_tenant_id",
+        )
+        assert not mock_service_pricipal_credential.called
+        mock_sdk_client.assert_called_once_with(
+            credentials=mock_credential,
+            subscription_id="subscription_id",
+        )
