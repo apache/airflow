@@ -28,7 +28,10 @@ from collections import defaultdict, deque
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
+from botocore.exceptions import ClientError
+
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
@@ -112,9 +115,11 @@ class AwsEcsExecutor(BaseExecutor):
 
         The last one is considered a success state for the purposes of this test.
         """
-        self.log.debug("Starting ECS Executor and testing connectivity...")
+        self.log.info("Starting ECS Executor and testing connectivity...")
 
-        status = ""
+        success_status = "succeeded."
+        status = success_status
+
         try:
             invalid_task_id = "a" * 32
             self.ecs.stop_task(cluster=self.cluster, task=invalid_task_id)
@@ -127,15 +132,22 @@ class AwsEcsExecutor(BaseExecutor):
             error_code = ex.response["Error"]["Code"]
             error_message = ex.response["Error"]["Message"]
 
-            if "AccessDeniedException" in error_code:
-                status = f"failed due to permissions issues with the following details: {ex}"
-            elif "ClusterNotFoundException" in error_code:
-                status = f"failed due to a cluster issue with the following details: {ex}"
-            elif ("InvalidParameterException" in error_code) and ("task was not found" in error_message):
-                status = "succeeded."
+            if ("InvalidParameterException" in error_code) and ("task was not found" in error_message):
+                # This failure is expected, and means we're successfully
+                pass
+            else:
+                # Catch all for unexpected failures
+                status = f"failed because: {error_message}. "
         finally:
-            log_level = self.log.debug if status == "succeeded." else self.log.exception
-            log_level("ECS Executor connectivity test has %s", status)
+            msg_prefix = "ECS Executor connectivity test has %s"
+            if status == success_status:
+                self.log.info(msg_prefix, status)
+            else:
+                msg_error_suffix = (
+                    "The ECS executor will not be able to run Airflow tasks until the issue is addressed. "
+                    "Stopping the Airflow Scheduler from starting until the issue is resolved."
+                )
+                raise AirflowException(msg_prefix % status + msg_error_suffix)
 
     def sync(self):
         try:
