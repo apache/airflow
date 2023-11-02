@@ -60,7 +60,6 @@ class AzureBatchHook(BaseHook):
 
         return {
             "account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()),
-
         }
 
     @classmethod
@@ -71,8 +70,6 @@ class AzureBatchHook(BaseHook):
             "relabeling": {
                 "login": "Batch Account Name",
                 "password": "Batch Account Access Key",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

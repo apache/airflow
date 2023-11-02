@@ -63,7 +63,6 @@ class AzureContainerRegistryHook(BaseHook):
                 lazy_gettext("Resource group name (optional)"),
                 widget=BS3TextFieldWidget(),
             ),
-
         }
 
     @classmethod
@@ -82,8 +81,6 @@ class AzureContainerRegistryHook(BaseHook):
                 "host": "docker image registry server",
                 "subscription_id": "Subscription id (required for Azure AD authentication)",
                 "resource_group": "Resource group name (required for Azure AD authentication)",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

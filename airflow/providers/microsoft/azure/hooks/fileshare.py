@@ -43,7 +43,7 @@ class AzureFileShareHook(BaseHook):
     hook_name = "Azure FileShare"
 
     @staticmethod
-    @add_managed_identity_connection_widgets 
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
@@ -55,7 +55,6 @@ class AzureFileShareHook(BaseHook):
             "connection_string": StringField(
                 lazy_gettext("Connection String (optional)"), widget=BS3TextFieldWidget()
             ),
-
         }
 
     @staticmethod
@@ -72,8 +71,6 @@ class AzureFileShareHook(BaseHook):
                 "password": "secret",
                 "sas_token": "account url or token (optional)",
                 "connection_string": "account url or token (optional)",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

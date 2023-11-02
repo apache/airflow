@@ -170,7 +170,6 @@ class AzureDataFactoryHook(BaseHook):
                 lazy_gettext("Resource Group Name"), widget=BS3TextFieldWidget()
             ),
             "factory_name": StringField(lazy_gettext("Factory Name"), widget=BS3TextFieldWidget()),
-
         }
 
     @staticmethod
@@ -181,8 +180,6 @@ class AzureDataFactoryHook(BaseHook):
             "relabeling": {
                 "login": "Client ID",
                 "password": "Secret",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

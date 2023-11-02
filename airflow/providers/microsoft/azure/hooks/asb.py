@@ -58,7 +58,6 @@ class BaseAzureServiceBusHook(BaseHook):
                 lazy_gettext("Fully Qualified Namespace"), widget=BS3TextFieldWidget()
             ),
             "credential": PasswordField(lazy_gettext("Credential"), widget=BS3TextFieldWidget()),
-
         }
 
     @staticmethod
@@ -73,8 +72,6 @@ class BaseAzureServiceBusHook(BaseHook):
                 ),
                 "credential": "credential",
                 "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

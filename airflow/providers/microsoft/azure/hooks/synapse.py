@@ -67,7 +67,7 @@ class AzureSynapseHook(BaseHook):
     hook_name: str = "Azure Synapse"
 
     @staticmethod
-    @add_managed_identity_connection_widgets 
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -77,7 +77,6 @@ class AzureSynapseHook(BaseHook):
         return {
             "tenantId": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
             "subscriptionId": StringField(lazy_gettext("Subscription ID"), widget=BS3TextFieldWidget()),
-
         }
 
     @staticmethod
@@ -89,8 +88,6 @@ class AzureSynapseHook(BaseHook):
                 "login": "Client ID",
                 "password": "Secret",
                 "host": "Synapse Workspace URL",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

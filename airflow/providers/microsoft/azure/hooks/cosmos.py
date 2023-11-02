@@ -82,7 +82,6 @@ class AzureCosmosDBHook(BaseHook):
                 lazy_gettext("Resource Group Name (optional)"),
                 widget=BS3TextFieldWidget(),
             ),
-
         }
 
     @staticmethod
@@ -101,8 +100,6 @@ class AzureCosmosDBHook(BaseHook):
                 "collection_name": "collection name",
                 "subscription_id": "Subscription ID (required for Azure AD authentication)",
                 "resource_group_name": "Resource Group Name (required for Azure AD authentication)",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

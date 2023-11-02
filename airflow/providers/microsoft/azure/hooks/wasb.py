@@ -99,7 +99,6 @@ class WasbHook(BaseHook):
                 lazy_gettext("Tenant Id (Active Directory Auth)"), widget=BS3TextFieldWidget()
             ),
             "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
-
         }
 
     @staticmethod
@@ -121,8 +120,6 @@ class WasbHook(BaseHook):
                 "shared_access_key": "shared access key",
                 "sas_token": "account url or token",
                 "extra": "additional options for use with ClientSecretCredential or DefaultAzureCredential",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

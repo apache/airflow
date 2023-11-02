@@ -99,7 +99,6 @@ class AzureDataExplorerHook(BaseHook):
             "thumbprint": PasswordField(
                 lazy_gettext("Application Certificate Thumbprint"), widget=BS3PasswordFieldWidget()
             ),
-
         }
 
     @classmethod
@@ -118,8 +117,6 @@ class AzureDataExplorerHook(BaseHook):
                 "tenant": "Used with AAD_APP/AAD_APP_CERT/AAD_CREDS",
                 "certificate": "Used with AAD_APP_CERT",
                 "thumbprint": "Used with AAD_APP_CERT",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
