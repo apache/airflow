@@ -112,7 +112,7 @@ def process_package_filters(
         return available_packages
 
     expanded_short_form_packages = get_provider_name_from_short_hand(packages_short_form)
-    package_filters = package_filters + expanded_short_form_packages
+    package_filters = [*package_filters, *expanded_short_form_packages]
 
     invalid_filters = [
         f for f in package_filters if not any(fnmatch.fnmatch(p, f) for p in available_packages)
