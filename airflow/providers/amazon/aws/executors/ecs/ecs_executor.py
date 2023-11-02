@@ -104,18 +104,25 @@ class AwsEcsExecutor(BaseExecutor):
 
     def start(self):
         """
-        Make a test API call to verify connectivity and permissions, and that the cluster exists.
+        Make a test API call to check the health of the ECS Executor.
 
-        Deliberately use an invalid taskID so there are four potential outcomes, in this order:
+        Deliberately use an invalid taskID, some potential outcomes in order:
           1. "AccessDeniedException" is raised if there are insufficient permissions.
           2. "ClusterNotFoundException" is raised if permissions exist but the cluster does not.
           3. The API responds with a failure message if the cluster is found and there
              are permissions, but the cluster itself has issues.
           4. "InvalidParameterException" is raised if the permissions and cluster exist but the task does not.
 
-        The last one is considered a success state for the purposes of this test.
+        The last one is considered a success state for the purposes of this check.
         """
-        self.log.info("Starting ECS Executor and testing connectivity...")
+        check_health = conf.getboolean(
+            CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
+        )
+
+        if not check_health:
+            return
+
+        self.log.info("Starting ECS Executor and determining health...")
 
         success_status = "succeeded."
         status = success_status
@@ -133,13 +140,13 @@ class AwsEcsExecutor(BaseExecutor):
             error_message = ex.response["Error"]["Message"]
 
             if ("InvalidParameterException" in error_code) and ("task was not found" in error_message):
-                # This failure is expected, and means we're successfully
+                # This failure is expected, and means we're healthy
                 pass
             else:
                 # Catch all for unexpected failures
                 status = f"failed because: {error_message}. "
         finally:
-            msg_prefix = "ECS Executor connectivity test has %s"
+            msg_prefix = "ECS Executor health check has %s"
             if status == success_status:
                 self.log.info(msg_prefix, status)
             else:

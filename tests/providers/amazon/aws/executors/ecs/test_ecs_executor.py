@@ -31,6 +31,7 @@ import yaml
 from botocore.exceptions import ClientError
 from inflection import camelize
 
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
@@ -794,9 +795,13 @@ class TestEcsExecutorConfig:
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
         for expected_key, expected_value in CONFIG_DEFAULTS.items():
-            # "conn_id" and max_run_task_attempts are used by the executor, but are not expected to appear
-            # in the task_kwargs.
-            if expected_key in [AllEcsConfigKeys.AWS_CONN_ID, AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS]:
+            # conn_id, max_run_task_attempts, and check_health_on_startup are used by the executor,
+            # but are not expected to appear in the task_kwargs.
+            if expected_key in [
+                AllEcsConfigKeys.AWS_CONN_ID,
+                AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
+                AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP,
+            ]:
                 assert expected_key not in found_keys.keys()
             else:
                 assert expected_key in found_keys.keys()
@@ -941,12 +946,9 @@ class TestEcsExecutorConfig:
 
         executor.ecs = ecs_mock
 
-        caplog.set_level(logging.ERROR)
-
-        executor.start()
-
-        assert "failed" in caplog.text
-        assert "permissions" in caplog.text
+        with pytest.raises(AirflowException) as raised:
+            executor.start()
+        raised.match(mock_resp["Error"]["Message"])
 
     def test_start_failure_with_invalid_cluster_name(self, set_env_vars, caplog):
         executor = AwsEcsExecutor()
@@ -958,12 +960,9 @@ class TestEcsExecutorConfig:
 
         executor.ecs = ecs_mock
 
-        caplog.set_level(logging.ERROR)
-
-        executor.start()
-
-        assert "failed" in caplog.text
-        assert "Cluster not found." in caplog.text
+        with pytest.raises(AirflowException) as raised:
+            executor.start()
+        raised.match(mock_resp["Error"]["Message"])
 
     def test_start_success(self, set_env_vars, caplog):
         executor = AwsEcsExecutor()
@@ -982,3 +981,23 @@ class TestEcsExecutorConfig:
         executor.start()
 
         assert "succeeded" in caplog.text
+
+    def test_start_health_check_config(self, set_env_vars, caplog):
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {
+            "Error": {"Code": "InvalidParameterException", "Message": "The referenced task was not found."}
+        }
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+
+        executor.ecs = ecs_mock
+
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()
+        ] = "False"
+
+        executor.start()
+
+        ecs_mock.stop_task.assert_not_called()
