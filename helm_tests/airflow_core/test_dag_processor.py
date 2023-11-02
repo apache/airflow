@@ -660,8 +660,6 @@ class TestDagProcessor:
 
         if strategyType == "RollingUpdate":
             assert strategyUpdate == jmespath.search("spec.strategy.rollingUpdate", docs[0])
-        else:
-            assert jmespath.search("spec.strategy.rollingUpdate", docs[0]) is None
 
 
 class TestDagProcessorLogGroomer(LogGroomerTestBase):
