@@ -34,65 +34,46 @@ pytestmark = pytest.mark.db_test
 
 class TestAzureDataExplorerHook:
     @pytest.mark.parametrize(
-        "mocked_connection",
+        "mocked_connection, error_pattern",
         [
-            Connection(
-                conn_id="missing_method",
-                conn_type="azure_data_explorer",
-                login="client_id",
-                password="client secret",
-                host="https://help.kusto.windows.net",
-                extra={},
-            )
-        ],
-        indirect=True,
-    )
-    def test_conn_missing_method(self, mocked_connection):
-        hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
-        error_pattern = "is missing: `auth_method`"
-        with pytest.raises(AirflowException, match=error_pattern):
-            assert hook.get_conn()
-        with pytest.raises(AirflowException, match=error_pattern):
-            assert hook.connection
-
-    @pytest.mark.parametrize(
-        "mocked_connection",
-        [
-            Connection(
-                conn_id="unknown_method",
-                conn_type="azure_data_explorer",
-                login="client_id",
-                password="client secret",
-                host="https://help.kusto.windows.net",
-                extra={"auth_method": "AAD_OTHER"},
+            (
+                Connection(
+                    conn_id="missing_method",
+                    conn_type="azure_data_explorer",
+                    login="client_id",
+                    password="client secret",
+                    host="https://help.kusto.windows.net",
+                    extra={},
+                ),
+                "is missing: `auth_method`",
+            ),
+            (
+                Connection(
+                    conn_id="unknown_method",
+                    conn_type="azure_data_explorer",
+                    login="client_id",
+                    password="client secret",
+                    host="https://help.kusto.windows.net",
+                    extra={"auth_method": "AAD_OTHER"},
+                ),
+                "Unknown authentication method: AAD_OTHER",
+            ),
+            (
+                Connection(
+                    conn_id="missing_cluster",
+                    conn_type="azure_data_explorer",
+                    login="client_id",
+                    password="client secret",
+                    extra={},
+                ),
+                "Host connection option is required"
             ),
         ],
-        indirect=True,
+        indirect=["mocked_connection"q],
+        ids=["missing_method", "unknown_method", "missing_cluster"],
     )
-    def test_conn_unknown_method(self, mocked_connection):
+    def test_conn_errors(self, mocked_connection, error_pattern):
         hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
-        error_pattern = "Unknown authentication method: AAD_OTHER"
-        with pytest.raises(AirflowException, match=error_pattern):
-            assert hook.get_conn()
-        with pytest.raises(AirflowException, match=error_pattern):
-            assert hook.connection
-
-    @pytest.mark.parametrize(
-        "mocked_connection",
-        [
-            Connection(
-                conn_id="missing_cluster",
-                conn_type="azure_data_explorer",
-                login="client_id",
-                password="client secret",
-                extra={},
-            ),
-        ],
-        indirect=True,
-    )
-    def test_conn_missing_cluster(self, mocked_connection):
-        hook = AzureDataExplorerHook(azure_data_explorer_conn_id=mocked_connection.conn_id)
-        error_pattern = "Host connection option is required"
         with pytest.raises(AirflowException, match=error_pattern):
             assert hook.get_conn()
         with pytest.raises(AirflowException, match=error_pattern):
