@@ -472,7 +472,7 @@ class DagFileProcessor(LoggingMixin):
             sla_misses = []
             next_info = dag.next_dagrun_info(dag.get_run_data_interval(ti.dag_run), restricted=False)
             while next_info and next_info.logical_date < ts:
-		ti_logical_date = next_info.logical_date
+                ti_logical_date = next_info.logical_date
                 next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
 
                 if next_info is None:
