@@ -107,6 +107,46 @@ class TestDagFileProcessor:
 
         dag_file_processor.process_file(file_path, [], False, session)
 
+
+    @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
+    def test_dag_file_processor_sla_miss_execution_date(self, mock_get_dagbag, create_dummy_dag, get_test_dag):
+        """
+        Test that the inserted sla_miss record has the correct execution_date
+        """
+        session = settings.Session()
+        sla_callback = MagicMock()
+
+        # Create dag with a start of 3 day ago, and an associated task with sla of 12 hours.
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=3)
+        dag, task = create_dummy_dag(
+            dag_id="test_sla_miss",
+            task_id="dummy",
+            sla_miss_callback=sla_callback,
+            default_args={"start_date": test_start_date, "sla": datetime.timedelta(hours=12)},
+        )
+
+        session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
+        session.commit()
+
+        mock_dagbag = mock.Mock()
+        mock_dagbag.get_dag.return_value = dag
+        mock_get_dagbag.return_value = mock_dagbag
+
+        DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
+
+        sla_miss_count = (
+            session.query(SlaMiss)
+            .filter(
+                SlaMiss.dag_id == dag.dag_id,
+                SlaMiss.task_id == task.task_id,
+                SlaMiss.execution_date == test_start_date + datetime.timedelta(days=1)
+            )
+            .count()
+        )
+
+        assert sla_miss_count == 1
+
+
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_callback(self, mock_get_dagbag, create_dummy_dag, get_test_dag):
         """

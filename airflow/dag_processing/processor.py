@@ -472,17 +472,18 @@ class DagFileProcessor(LoggingMixin):
             sla_misses = []
             next_info = dag.next_dagrun_info(dag.get_run_data_interval(ti.dag_run), restricted=False)
             while next_info and next_info.logical_date < ts:
+		ti_logical_date = next_info.logical_date
                 next_info = dag.next_dagrun_info(next_info.data_interval, restricted=False)
 
                 if next_info is None:
                     break
-                if (ti.dag_id, ti.task_id, next_info.logical_date) in recorded_slas_query:
+                if (ti.dag_id, ti.task_id, ti_logical_date) in recorded_slas_query:
                     continue
                 if next_info.logical_date + task.sla < ts:
                     sla_miss = SlaMiss(
                         task_id=ti.task_id,
                         dag_id=ti.dag_id,
-                        execution_date=next_info.logical_date,
+                        execution_date=ti_logical_date,
                         timestamp=ts,
                     )
                     sla_misses.append(sla_miss)
