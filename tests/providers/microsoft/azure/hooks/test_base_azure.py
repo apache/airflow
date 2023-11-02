@@ -25,6 +25,8 @@ from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
 
 pytestmark = pytest.mark.db_test
 
+MODULE = "airflow.providers.microsoft.azure.hooks.base_azure"
+
 
 class TestBaseAzureHook:
     @pytest.mark.parametrize(
@@ -32,7 +34,7 @@ class TestBaseAzureHook:
         [Connection(conn_id="azure_default", extra={"key_path": "key_file.json"})],
         indirect=True,
     )
-    @patch("airflow.providers.microsoft.azure.hooks.base_azure.get_client_from_auth_file")
+    @patch(f"{MODULE}.get_client_from_auth_file")
     def test_get_conn_with_key_path(self, mock_get_client_from_auth_file, mocked_connection):
         mock_get_client_from_auth_file.return_value = "foo-bar"
         mock_sdk_client = Mock()
@@ -49,7 +51,7 @@ class TestBaseAzureHook:
         [Connection(conn_id="azure_default", extra={"key_json": {"test": "test"}})],
         indirect=True,
     )
-    @patch("airflow.providers.microsoft.azure.hooks.base_azure.get_client_from_json_dict")
+    @patch(f"{MODULE}.get_client_from_json_dict")
     def test_get_conn_with_key_json(self, mock_get_client_from_json_dict, mocked_connection):
         mock_sdk_client = Mock()
         mock_get_client_from_json_dict.return_value = "foo-bar"
@@ -60,7 +62,7 @@ class TestBaseAzureHook:
         )
         assert auth_sdk_client == "foo-bar"
 
-    @patch("airflow.providers.microsoft.azure.hooks.base_azure.ServicePrincipalCredentials")
+    @patch(f"{MODULE}.ServicePrincipalCredentials")
     @pytest.mark.parametrize(
         "mocked_connection",
         [

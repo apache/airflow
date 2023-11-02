@@ -55,6 +55,8 @@ MODEL = object()
 NAME = "testName"
 ID = "testId"
 
+MODULE = "airflow.providers.microsoft.azure.hooks.data_factory"
+
 
 @pytest.fixture(autouse=True)
 def setup_connections(create_mock_connections):
@@ -520,7 +522,7 @@ def test_connection_failure_missing_tenant_id():
         pytest.param("a://?resource_group_name=abc&factory_name=abc", id="no-prefix"),
     ],
 )
-@patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_conn")
+@patch(f"{MODULE}.AzureDataFactoryHook.get_conn")
 def test_provide_targeted_factory_backcompat_prefix_works(mock_connect, uri):
     with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
         hook = AzureDataFactoryHook("my_conn")
@@ -539,8 +541,8 @@ def test_provide_targeted_factory_backcompat_prefix_works(mock_connect, uri):
         pytest.param("a://hi:yo@?tenantId=ten&subscriptionId=sub", id="no-prefix"),
     ],
 )
-@patch("airflow.providers.microsoft.azure.hooks.data_factory.ClientSecretCredential")
-@patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook._create_client")
+@patch(f"{MODULE}.ClientSecretCredential")
+@patch(f"{MODULE}.AzureDataFactoryHook._create_client")
 def test_get_conn_backcompat_prefix_works(mock_create, mock_cred, uri):
     with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
         hook = AzureDataFactoryHook("my_conn")
@@ -549,7 +551,7 @@ def test_get_conn_backcompat_prefix_works(mock_create, mock_cred, uri):
         mock_create.assert_called_with(mock_cred.return_value, "sub")
 
 
-@patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_conn")
+@patch(f"{MODULE}.AzureDataFactoryHook.get_conn")
 def test_backcompat_prefix_both_prefers_short(mock_connect):
     with patch.dict(
         os.environ,
@@ -573,8 +575,8 @@ def test_refresh_conn(hook):
 
 class TestAzureDataFactoryAsyncHook:
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_queued(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Queued"
@@ -584,8 +586,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_inprogress(
         self,
         mock_get_pipeline_run,
@@ -599,8 +601,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_success(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Succeeded"
@@ -610,8 +612,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_failed(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Failed"
@@ -621,8 +623,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_cancelled(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Cancelled"
@@ -633,8 +635,8 @@ class TestAzureDataFactoryAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch("azure.mgmt.datafactory.models._models_py3.PipelineRun")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_connection")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
     async def test_get_pipeline_run_exception_without_resource(
         self, mock_conn, mock_get_connection, mock_pipeline_run
     ):
@@ -786,7 +788,7 @@ class TestAzureDataFactoryAsyncHook:
             get_field(extras, "non-existent-field", strict=True)
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
     async def test_refresh_conn(self, mock_get_async_conn):
         """Test refresh_conn method _conn is reset and get_async_conn is called"""
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)

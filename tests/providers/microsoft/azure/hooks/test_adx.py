@@ -66,10 +66,10 @@ class TestAzureDataExplorerHook:
                     password="client secret",
                     extra={},
                 ),
-                "Host connection option is required"
+                "Host connection option is required",
             ),
         ],
-        indirect=["mocked_connection"q],
+        indirect=["mocked_connection"],
         ids=["missing_method", "unknown_method", "missing_cluster"],
     )
     def test_conn_errors(self, mocked_connection, error_pattern):
@@ -160,7 +160,7 @@ class TestAzureDataExplorerHook:
                 },
             )
         ],
-        indirect=True,
+        indirect=["mocked_connection"],
     )
     @mock.patch.object(KustoClient, "__init__")
     def test_conn_method_aad_app(self, mock_init, mocked_connection):
