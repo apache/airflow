@@ -222,7 +222,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self._has_checked_existence = False
         self.deferrable = deferrable
         self.poll_interval = poll_interval
-        self.deferrable_timeout =deferrable_timeout
+        self.deferrable_timeout = deferrable_timeout
 
     def _get_dttm_filter(self, context):
         if self.execution_delta:
