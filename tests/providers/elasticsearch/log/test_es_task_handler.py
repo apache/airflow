@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 import logging
 import os
 import re
 import shutil
+from io import StringIO
 from pathlib import Path
 from unittest import mock
 from urllib.parse import quote
@@ -47,6 +47,9 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 
 from .elasticmock import elasticmock
 from .elasticmock.utilities import SearchFailedException
+
+pytestmark = pytest.mark.db_test
+
 
 AIRFLOW_SOURCES_ROOT_DIR = Path(__file__).parents[4].resolve()
 ES_PROVIDER_YAML_FILE = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "providers" / "elasticsearch" / "provider.yaml"
@@ -602,7 +605,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.frontend = frontend
         assert self.es_task_handler.supports_external_link == expected
 
-    @mock.patch("sys.__stdout__", new_callable=io.StringIO)
+    @mock.patch("sys.__stdout__", new_callable=StringIO)
     def test_dynamic_offset(self, stdout_mock, ti, time_machine):
         # arrange
         handler = ElasticsearchTaskHandler(

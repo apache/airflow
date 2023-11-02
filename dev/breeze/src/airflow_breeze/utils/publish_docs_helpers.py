@@ -26,7 +26,7 @@ from typing import Any
 
 import yaml
 
-from airflow_breeze.utils.general_utils import get_provider_name_from_short_hand
+from airflow_breeze.utils.general_utils import get_docs_filter_name_from_short_hand
 
 CONSOLE_WIDTH = 180
 
@@ -113,6 +113,7 @@ def process_package_filters(
 
     expanded_short_form_packages = get_provider_name_from_short_hand(packages_short_form)
     package_filters = [*package_filters, *expanded_short_form_packages]
+
 
     invalid_filters = [
         f for f in package_filters if not any(fnmatch.fnmatch(p, f) for p in available_packages)

@@ -52,7 +52,6 @@ class EventsTimetable(Timetable):
         presorted: bool = False,
         description: str | None = None,
     ):
-
         self.event_dates = list(event_dates)  # Must be reversible and indexable
         if not presorted:
             # For long lists this could take a while, so only want to do it once
@@ -84,7 +83,8 @@ class EventsTimetable(Timetable):
             next_event = self.event_dates[0]
         else:
             future_dates = itertools.dropwhile(
-                lambda when: when <= last_automated_data_interval.end, self.event_dates  # type: ignore
+                lambda when: when <= last_automated_data_interval.end,  # type: ignore
+                self.event_dates,
             )
             next_event = next(future_dates, None)  # type: ignore
             if next_event is None:

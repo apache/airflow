@@ -195,19 +195,49 @@ def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
     )
 
 
+def _fake_ctx_output(*names: str) -> str:
+    return "\n".join(json.dumps({"Name": name, "DockerEndpoint": f"unix://{name}"}) for name in names)
+
+
 @pytest.mark.parametrize(
     "context_output, selected_context, console_output",
     [
         (
-            "default",
+            _fake_ctx_output("default"),
             "default",
             "[info]Using default as context",
         ),
-        ("", "default", "[warning]Could not detect docker builder"),
-        ("a\nb", "a", "[warning]Could not use any of the preferred docker contexts"),
-        ("a\ndesktop-linux", "desktop-linux", "[info]Using desktop-linux as context"),
-        ("a\ndefault", "default", "[info]Using default as context"),
-        ("a\ndefault\ndesktop-linux", "desktop-linux", "[info]Using desktop-linux as context"),
+        ("\n", "default", "[warning]Could not detect docker builder"),
+        (
+            _fake_ctx_output("a", "b"),
+            "a",
+            "[warning]Could not use any of the preferred docker contexts",
+        ),
+        (
+            _fake_ctx_output("a", "desktop-linux"),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
+        (
+            _fake_ctx_output("a", "default"),
+            "default",
+            "[info]Using default as context",
+        ),
+        (
+            _fake_ctx_output("a", "default", "desktop-linux"),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
+        (
+            _fake_ctx_output("a", "default", "desktop-linux"),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
+        (
+            '[{"Name": "desktop-linux", "DockerEndpoint": "unix://desktop-linux"}]',
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
     ],
 )
 def test_autodetect_docker_context(context_output: str, selected_context: str, console_output: str):

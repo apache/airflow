@@ -54,7 +54,6 @@ class TestYandexHook:
 
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_get_credentials_raise_exception(self, get_connection_mock):
-
         """tests 'get_credentials' method raising exception if none of the required fields are passed."""
 
         # Inputs to constructor

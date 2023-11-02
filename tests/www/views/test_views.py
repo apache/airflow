@@ -42,6 +42,8 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
+pytestmark = pytest.mark.db_test
+
 
 def test_configuration_do_not_expose_config(admin_client):
     with conf_vars({("webserver", "expose_config"): "False"}):
@@ -242,7 +244,9 @@ def test_mark_task_instance_state(test_app):
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
-    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+    from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
@@ -331,7 +335,9 @@ def test_mark_task_group_state(test_app):
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
     - Set DagRun to QUEUED.
     """
-    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+    from airflow.models.taskinstance import TaskInstance
     from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State

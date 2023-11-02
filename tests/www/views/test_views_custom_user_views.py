@@ -30,6 +30,8 @@ from airflow.www import app as application
 from tests.test_utils.api_connexion_utils import create_user, delete_role
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
+pytestmark = pytest.mark.db_test
+
 PERMISSIONS_TESTS_PARAMS = [
     (
         "/resetpassword/form?pk={user.id}",
@@ -98,7 +100,6 @@ class TestSecurity:
 
     @pytest.mark.parametrize("url, permission, expected_text", PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_without_access(self, url, permission, expected_text):
-
         user_with_access = create_user(
             self.app,
             username="has_access",
@@ -115,7 +116,6 @@ class TestSecurity:
         check_content_in_response(expected_text, response)
 
     def test_user_model_view_without_delete_access(self):
-
         user_to_delete = create_user(
             self.app,
             username="user_to_delete",
@@ -143,7 +143,6 @@ class TestSecurity:
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is True
 
     def test_user_model_view_with_delete_access(self):
-
         user_to_delete = create_user(
             self.app,
             username="user_to_delete",
@@ -227,7 +226,6 @@ class TestResetUserSessions:
         ],
     )
     def test_reset_user_sessions_delete(self, time_delta: timedelta, user_sessions_deleted: bool):
-
         self.create_user_db_session("session_id_1", time_delta, self.user_1.id)
         self.create_user_db_session("session_id_2", time_delta, self.user_2.id)
         self.db.session.commit()

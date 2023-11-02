@@ -30,7 +30,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 ## Requirements
 
-- Kubernetes 1.24+ cluster
+- Kubernetes 1.25+ cluster
 - Helm 3.0+
 - PV provisioner support in the underlying infrastructure (optionally)
 
@@ -38,9 +38,9 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 * Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
 * Supported Airflow version: ``1.10+``, ``2.0+``
-* Supported database backend: ``PostgresSQL``, ``MySQL``
+* Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
-* PostgreSQL and PgBouncer with a battle-tested configuration
+* ``PostgreSQL`` and ``PgBouncer`` with a battle-tested configuration
 * Monitoring:
    * StatsD/Prometheus metrics for Airflow
    * Prometheus metrics for PgBouncer
@@ -54,7 +54,7 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 Full documentation for Helm Chart (latest **stable** release) lives [on the website](https://airflow.apache.org/docs/helm-chart/).
 
-> Note: If you're looking for documentation for main branch (latest development branch): you can find it on [s.apache.org/airflow-docs/](http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/helm-chart/latest/index.html).
+> Note: If you're looking for documentation for main branch (latest development branch): you can find it on [s.apache.org/airflow-docs/](http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/helm-chart/stable/index.html).
 > Source code for documentation is in [../docs/helm-chart](https://github.com/apache/airflow/tree/main/docs/helm-chart)
 >
 

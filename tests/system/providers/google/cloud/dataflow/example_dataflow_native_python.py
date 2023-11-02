@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.operators.dataflow import DataflowStopJobOperator
@@ -53,7 +53,7 @@ default_args = {
     }
 }
 
-with models.DAG(
+with DAG(
     DAG_ID,
     default_args=default_args,
     schedule="@once",

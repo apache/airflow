@@ -86,6 +86,16 @@ References for the modules used in DAGs are here:
   _api/airflow/models/dagbag/index
   _api/airflow/models/param/index
 
+Properties of a :class:`~airflow.models.dagrun.DagRun` can also be referenced in things like :ref:`Templates <templates-ref>`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/dagrun/index
+
+
 Operators
 ---------
 
@@ -318,11 +328,11 @@ Executors
 
 Executors are the mechanism by which task instances get run. All executors are
 derived from :class:`~airflow.executors.base_executor.BaseExecutor`. There are several
-executor implementations built-in Airflow, each with its own unique characteristics and capabilities.
+executor implementations built-in Airflow, each with their own unique characteristics and capabilities.
 
-The executor interface itself (the BaseExecutor class) is public, but the built-in executors are not (i.e. KubernetesExecutor, LocalExecutor, etc).  This means that, to use KubernetesExecutor as an example, we may make changes to KubernetesExecutor in minor or patch Airflow releases which could break an executor that subclasses KubernetesExecutor.  This is necessary to allow Airflow developers sufficient freedom to continue to improve the executors we offer.  Accordingly if you want to modify or extend a built-in executor, you should incorporate the full executor code into your project so that such changes will not break your derivative executor.
+The executor interface itself (the BaseExecutor class) is public, but the built-in executors are not (i.e. KubernetesExecutor, LocalExecutor, etc).  This means that, to use KubernetesExecutor as an example, we may make changes to KubernetesExecutor in minor or patch Airflow releases which could break an executor that subclasses KubernetesExecutor.  This is necessary to allow Airflow developers sufficient freedom to continue to improve the executors we offer.  Accordingly, if you want to modify or extend a built-in executor, you should incorporate the full executor code into your project so that such changes will not break your derivative executor.
 
-You can read more about executors in :doc:`core-concepts/executor/index`.
+You can read more about executors and how to write your own in :doc:`core-concepts/executor/index`.
 
 .. versionadded:: 2.6
 

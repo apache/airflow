@@ -31,7 +31,7 @@ from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -79,7 +79,7 @@ REPLICA_COUNT = 1
 LOCAL_TRAINING_SCRIPT_PATH = "california_housing_training_script.py"
 
 
-with models.DAG(
+with DAG(
     f"{DAG_ID}_custom",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -134,7 +134,28 @@ with models.DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
+    model_id_v1 = create_custom_training_job.output["model_id"]
     # [END how_to_cloud_vertex_ai_create_custom_training_job_operator]
+
+    # [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
+    create_custom_training_job_v2 = CreateCustomTrainingJobOperator(
+        task_id="custom_task_v2",
+        staging_bucket=f"gs://{CUSTOM_GCS_BUCKET_NAME}",
+        display_name=CUSTOM_DISPLAY_NAME,
+        script_path=LOCAL_TRAINING_SCRIPT_PATH,
+        container_uri=CONTAINER_URI,
+        requirements=["gcsfs==0.7.1"],
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        parent_model=model_id_v1,
+        # run params
+        dataset_id=tabular_dataset_id,
+        replica_count=REPLICA_COUNT,
+        model_display_name=MODEL_DISPLAY_NAME,
+        sync=False,
+        region=REGION,
+        project_id=PROJECT_ID,
+    )
+    # [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
 
     # [START how_to_cloud_vertex_ai_delete_custom_training_job_operator]
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
@@ -168,6 +189,7 @@ with models.DAG(
         >> create_tabular_dataset
         # TEST BODY
         >> create_custom_training_job
+        >> create_custom_training_job_v2
         # TEST TEARDOWN
         >> delete_custom_training_job
         >> delete_tabular_dataset

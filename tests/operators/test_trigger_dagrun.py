@@ -25,14 +25,20 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException, DagRunAlreadyExists
-from airflow.models import DAG, DagBag, DagModel, DagRun, Log, TaskInstance
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
+from airflow.models.log import Log
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 TEST_DAG_ID = "testdag"

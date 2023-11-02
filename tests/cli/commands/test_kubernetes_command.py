@@ -22,11 +22,14 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import kubernetes
+import pytest
 from dateutil.parser import parse
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import kubernetes_command
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
 
 
 class TestGenerateDagYamlCommand:
@@ -58,7 +61,6 @@ class TestGenerateDagYamlCommand:
 
 
 class TestCleanUpPodsCommand:
-
     label_selector = "dag_id,task_id,try_number,airflow_version"
 
     @classmethod

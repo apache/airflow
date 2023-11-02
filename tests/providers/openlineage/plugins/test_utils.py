@@ -23,6 +23,7 @@ import uuid
 from json import JSONEncoder
 from typing import Any
 
+import pytest
 from attrs import define
 from openlineage.client.utils import RedactMixin
 from pendulum.tz.timezone import Timezone
@@ -43,7 +44,7 @@ from airflow.utils.state import State
 
 AIRFLOW_CONN_ID = "test_db"
 AIRFLOW_CONN_URI = "postgres://localhost:5432/testdb"
-SNOWFLAKE_CONN_URI = "snowflake://12345.us-east-1.snowflakecomputing.com/MyTestRole?extra__snowflake__account=12345&extra__snowflake__database=TEST_DB&extra__snowflake__insecure_mode=false&extra__snowflake__region=us-east-1&extra__snowflake__role=MyTestRole&extra__snowflake__warehouse=TEST_WH&extra__snowflake__aws_access_key_id=123456&extra__snowflake__aws_secret_access_key=abcdefg"  # NOQA
+SNOWFLAKE_CONN_URI = "snowflake://12345.us-east-1.snowflakecomputing.com/MyTestRole?extra__snowflake__account=12345&extra__snowflake__database=TEST_DB&extra__snowflake__insecure_mode=false&extra__snowflake__region=us-east-1&extra__snowflake__role=MyTestRole&extra__snowflake__warehouse=TEST_WH&extra__snowflake__aws_access_key_id=123456&extra__snowflake__aws_secret_access_key=abcdefg"
 
 
 class SafeStrDict(dict):
@@ -73,6 +74,7 @@ def test_url_to_https_no_url():
     assert url_to_https("") is None
 
 
+@pytest.mark.db_test
 def test_get_dagrun_start_end():
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)

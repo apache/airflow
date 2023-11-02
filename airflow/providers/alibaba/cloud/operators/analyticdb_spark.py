@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from functools import cached_property
-from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated.classic import deprecated
@@ -78,7 +78,7 @@ class AnalyticDBSparkBaseOperator(BaseOperator):
         state = self.hook.get_spark_state(app_id)
         while AppState(state) not in AnalyticDBSparkHook.TERMINAL_STATES:
             self.log.debug("Application with id %s is in state: %s", app_id, state)
-            sleep(self.polling_interval)
+            time.sleep(self.polling_interval)
             state = self.hook.get_spark_state(app_id)
         self.log.info("Application with id %s terminated with state: %s", app_id, state)
         self.log.info(

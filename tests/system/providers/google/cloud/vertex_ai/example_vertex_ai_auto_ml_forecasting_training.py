@@ -31,7 +31,7 @@ from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
@@ -83,14 +83,13 @@ COLUMN_SPECS = {
 }
 
 
-with models.DAG(
+with DAG(
     f"{DAG_ID}_forecasting_training_job",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "vertex_ai", "auto_ml"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=FORECAST_GCS_BUCKET_NAME,

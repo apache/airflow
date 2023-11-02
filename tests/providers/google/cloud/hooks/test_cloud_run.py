@@ -34,7 +34,8 @@ from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook, Cl
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 
-class TestCloudBathHook:
+@pytest.mark.db_test
+class TestCloudRunHook:
     def dummy_get_credentials(self):
         pass
 
@@ -111,9 +112,18 @@ class TestCloudBathHook:
         job_name = "job1"
         region = "region1"
         project_id = "projectid"
-        run_job_request = RunJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        overrides = {
+            "container_overrides": [{"args": ["python", "main.py"]}],
+            "task_count": 1,
+            "timeout": "60s",
+        }
+        run_job_request = RunJobRequest(
+            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides
+        )
 
-        cloud_run_hook.execute_job(job_name=job_name, region=region, project_id=project_id)
+        cloud_run_hook.execute_job(
+            job_name=job_name, region=region, project_id=project_id, overrides=overrides
+        )
         cloud_run_hook._client.run_job.assert_called_once_with(request=run_job_request)
 
     @mock.patch(
@@ -122,7 +132,6 @@ class TestCloudBathHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
     def test_list_jobs(self, mock_batch_service_client, cloud_run_hook):
-
         number_of_jobs = 3
         region = "us-central1"
         project_id = "test_project_id"
@@ -255,19 +264,21 @@ class TestCloudRunAsyncHook:
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsAsyncClient")
     async def test_get_operation(self, mock_client):
         expected_operation = {"name": "somename"}
-
-        async def _get_operation(name):
-            return expected_operation
-
         operation_name = "operationname"
         mock_client.return_value = mock.MagicMock()
-        mock_client.return_value.get_operation = _get_operation
+        mock_client.return_value.get_operation = self.mock_get_operation(expected_operation)
         hook = CloudRunAsyncHook()
         hook.get_credentials = self._dummy_get_credentials
 
         returned_operation = await hook.get_operation(operation_name=operation_name)
 
+        mock_client.return_value.get_operation.assert_called_once_with(mock.ANY, timeout=120)
         assert returned_operation == expected_operation
+
+    def mock_get_operation(self, expected_operation):
+        get_operation_mock = mock.AsyncMock()
+        get_operation_mock.return_value = expected_operation
+        return get_operation_mock
 
     def _dummy_get_credentials(self):
         pass

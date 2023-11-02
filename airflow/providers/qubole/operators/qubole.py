@@ -32,7 +32,6 @@ from airflow.providers.qubole.hooks.qubole import (
 )
 
 if TYPE_CHECKING:
-
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -55,8 +54,7 @@ class QDSLink(BaseOperatorLink):
         :return: url link
         """
         conn = BaseHook.get_connection(
-            getattr(operator, "qubole_conn_id", None)
-            or operator.kwargs["qubole_conn_id"]  # type: ignore[attr-defined]
+            getattr(operator, "qubole_conn_id", None) or operator.kwargs["qubole_conn_id"]  # type: ignore[attr-defined]
         )
         if conn and conn.host:
             host = re.sub(r"api$", "v2/analyze?command_id=", conn.host)

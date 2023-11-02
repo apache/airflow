@@ -26,7 +26,7 @@ import os
 from datetime import datetime
 from urllib.parse import urlsplit
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCloneInstanceOperator,
@@ -146,7 +146,7 @@ db_create_body = {"instance": INSTANCE_NAME, "name": DB_NAME, "project": PROJECT
 db_patch_body = {"charset": "utf16", "collation": "utf16_general_ci"}
 # [END howto_operator_cloudsql_db_patch_body]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

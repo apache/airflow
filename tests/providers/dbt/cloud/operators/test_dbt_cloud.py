@@ -32,6 +32,8 @@ from airflow.providers.dbt.cloud.operators.dbt import (
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.utils import db, timezone
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 TASK_ID = "run_job_op"
 ACCOUNT_ID_CONN = "account_id_conn"
@@ -367,7 +369,7 @@ class TestDbtCloudRunJobOperator:
 
         assert url == (
             EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
-                account_id=account_id if account_id else DEFAULT_ACCOUNT_ID,
+                account_id=account_id or DEFAULT_ACCOUNT_ID,
                 project_id=PROJECT_ID,
                 run_id=_run_response["data"]["id"],
             )

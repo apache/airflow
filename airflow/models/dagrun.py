@@ -48,6 +48,7 @@ from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, val
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
@@ -75,6 +76,7 @@ if TYPE_CHECKING:
 
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
 
@@ -140,6 +142,9 @@ class DagRun(Base, LoggingMixin):
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    # Keeps track of the number of times the dagrun had been cleared.
+    # This number is incremented only when the DagRun is re-Queued,
+    # when the DagRun is cleared.
     clear_number = Column(Integer, default=0, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
@@ -455,9 +460,13 @@ class DagRun(Base, LoggingMixin):
         # _Ensure_ run_type is a DagRunType, not just a string from user code
         return DagRunType(run_type).generate_run_id(execution_date)
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def get_task_instances(
-        self,
+    def fetch_task_instances(
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        dag: DAG | None = None,
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
@@ -466,8 +475,8 @@ class DagRun(Base, LoggingMixin):
             select(TI)
             .options(joinedload(TI.dag_run))
             .where(
-                TI.dag_id == self.dag_id,
-                TI.run_id == self.run_id,
+                TI.dag_id == dag_id,
+                TI.run_id == run_id,
             )
         )
 
@@ -485,9 +494,25 @@ class DagRun(Base, LoggingMixin):
                 else:
                     tis = tis.where(TI.state.in_(state))
 
-        if self.dag and self.dag.partial:
-            tis = tis.where(TI.task_id.in_(self.dag.task_ids))
+        if dag and dag.partial:
+            tis = tis.where(TI.task_id.in_(dag.task_ids))
         return session.scalars(tis).all()
+
+    @provide_session
+    def get_task_instances(
+        self,
+        state: Iterable[TaskInstanceState | None] | None = None,
+        session: Session = NEW_SESSION,
+    ) -> list[TI]:
+        """
+        Returns the task instances for this dag run.
+
+        Redirect to DagRun.fetch_task_instances method.
+        Keep this method because it is widely used across the code.
+        """
+        return DagRun.fetch_task_instances(
+            dag_id=self.dag_id, run_id=self.run_id, dag=self.dag, state=state, session=session
+        )
 
     @provide_session
     def get_task_instance(
@@ -503,8 +528,34 @@ class DagRun(Base, LoggingMixin):
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
+        return DagRun.fetch_task_instance(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=task_id,
+            session=session,
+            map_index=map_index,
+        )
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def fetch_task_instance(
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        session: Session = NEW_SESSION,
+        map_index: int = -1,
+    ) -> TI | None:
+        """
+        Returns the task instance specified by task_id for this dag run.
+
+        :param dag_id: the DAG id
+        :param dag_run_id: the DAG run id
+        :param task_id: the task id
+        :param session: Sqlalchemy ORM Session
+        """
         return session.scalars(
-            select(TI).filter_by(dag_id=self.dag_id, run_id=self.run_id, task_id=task_id, map_index=map_index)
+            select(TI).filter_by(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
         ).one_or_none()
 
     def get_dag(self) -> DAG:
@@ -518,27 +569,46 @@ class DagRun(Base, LoggingMixin):
 
         return self.dag
 
+    @staticmethod
+    @internal_api_call
     @provide_session
     def get_previous_dagrun(
-        self, state: DagRunState | None = None, session: Session = NEW_SESSION
+        dag_run: DagRun | DagRunPydantic, state: DagRunState | None = None, session: Session = NEW_SESSION
     ) -> DagRun | None:
-        """Return the previous DagRun, if there is one."""
+        """
+        Return the previous DagRun, if there is one.
+
+        :param dag_run: the dag run
+        :param session: SQLAlchemy ORM Session
+        :param state: the dag run state
+        """
         filters = [
-            DagRun.dag_id == self.dag_id,
-            DagRun.execution_date < self.execution_date,
+            DagRun.dag_id == dag_run.dag_id,
+            DagRun.execution_date < dag_run.execution_date,
         ]
         if state is not None:
             filters.append(DagRun.state == state)
         return session.scalar(select(DagRun).where(*filters).order_by(DagRun.execution_date.desc()).limit(1))
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
-        """Return the previous SCHEDULED DagRun, if there is one."""
+    def get_previous_scheduled_dagrun(
+        dag_run_id: int,
+        session: Session = NEW_SESSION,
+    ) -> DagRun | None:
+        """
+        Return the previous SCHEDULED DagRun, if there is one.
+
+        :param dag_run_id: the DAG run ID
+        :param session: SQLAlchemy ORM Session
+        """
+        dag_run = session.get(DagRun, dag_run_id)
         return session.scalar(
             select(DagRun)
             .where(
-                DagRun.dag_id == self.dag_id,
-                DagRun.execution_date < self.execution_date,
+                DagRun.dag_id == dag_run.dag_id,
+                DagRun.execution_date < dag_run.execution_date,
                 DagRun.run_type != DagRunType.MANUAL,
             )
             .order_by(DagRun.execution_date.desc())
@@ -1417,8 +1487,8 @@ class DagRunNote(Base):
 
     user_id = Column(
         Integer,
+        ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
         nullable=True,
-        foreign_key=ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
     )
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))

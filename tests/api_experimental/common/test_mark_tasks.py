@@ -43,6 +43,8 @@ from tests.test_utils.mapping import expand_mapped_task
 
 DEV_NULL = "/dev/null"
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def dagbag():
@@ -72,7 +74,6 @@ class TestMarkTasks:
 
     @pytest.fixture(autouse=True)
     def setup_tests(self):
-
         clear_db_runs()
         drs = _create_dagruns(
             self.dag1,

@@ -26,9 +26,10 @@ from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestChimeWebhookHook:
-
     _config = {
         "chime_conn_id": "default-chime-webhook",
         "webhook_endpoint": "incomingwebhooks/abcd-1134-ZeDA?token=somechimetoken-111",

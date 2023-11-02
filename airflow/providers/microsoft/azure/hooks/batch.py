@@ -63,6 +63,12 @@ class AzureBatchHook(BaseHook):
 
         return {
             "account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @classmethod
@@ -73,6 +79,8 @@ class AzureBatchHook(BaseHook):
             "relabeling": {
                 "login": "Batch Account Name",
                 "password": "Batch Account Access Key",
+                "managed_identity_client_id": "Managed Identity Client ID",
+                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -101,8 +109,13 @@ class AzureBatchHook(BaseHook):
         if all([conn.login, conn.password]):
             credentials = batch_auth.SharedKeyCredentials(conn.login, conn.password)
         else:
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
             credentials = AzureIdentityCredentialAdapter(
-                None, resource_id="https://batch.core.windows.net/.default"
+                None,
+                resource_id="https://batch.core.windows.net/.default",
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
             )
 
         batch_client = BatchServiceClient(credentials, batch_url=batch_account_url)

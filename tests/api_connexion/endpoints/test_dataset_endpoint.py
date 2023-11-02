@@ -32,6 +32,8 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
@@ -53,7 +55,6 @@ def configured_app(minimal_app_for_api):
 
 
 class TestDatasetEndpoint:
-
     default_time = "2020-06-11T18:00:00+00:00"
 
     @pytest.fixture(autouse=True)

@@ -179,7 +179,6 @@ class BaseSQLToGCSOperator(BaseOperator):
         total_files = 0
         self.log.info("Writing local data files")
         for file_to_upload in self._write_local_data_files(cursor):
-
             # Flush file before uploading
             file_to_upload["file_handle"].flush()
 
@@ -222,8 +221,8 @@ class BaseSQLToGCSOperator(BaseOperator):
     def _write_rows_to_parquet(parquet_writer: pq.ParquetWriter, rows):
         rows_pydic: dict[str, list[Any]] = {col: [] for col in parquet_writer.schema.names}
         for row in rows:
-            for ind, col in enumerate(parquet_writer.schema.names):
-                rows_pydic[col].append(row[ind])
+            for cell, col in zip(row, parquet_writer.schema.names):
+                rows_pydic[col].append(cell)
         tbl = pa.Table.from_pydict(rows_pydic, parquet_writer.schema)
         parquet_writer.write_table(tbl)
 

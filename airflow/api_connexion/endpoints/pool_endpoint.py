@@ -30,7 +30,6 @@ from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
-from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -39,7 +38,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse, UpdateMask
 
 
-@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL)])
+@security.requires_access_pool("DELETE")
 @provide_session
 def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a pool."""
@@ -52,7 +51,7 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
     return Response(status=HTTPStatus.NO_CONTENT)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])
+@security.requires_access_pool("GET")
 @provide_session
 def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a pool."""
@@ -62,7 +61,7 @@ def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     return pool_schema.dump(obj)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])
+@security.requires_access_pool("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_pools(
@@ -82,7 +81,7 @@ def get_pools(
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL)])
+@security.requires_access_pool("PUT")
 @provide_session
 def patch_pool(
     *,
@@ -93,14 +92,11 @@ def patch_pool(
     """Update a pool."""
     request_dict = get_json_request_dict()
     # Only slots and include_deferred can be modified in 'default_pool'
-    try:
-        if pool_name == Pool.DEFAULT_POOL_NAME and request_dict["name"] != Pool.DEFAULT_POOL_NAME:
-            if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
-                pass
-            else:
-                raise BadRequest(detail="Default Pool's name can't be modified")
-    except KeyError:
-        pass
+    if pool_name == Pool.DEFAULT_POOL_NAME and request_dict.get("name", None) != Pool.DEFAULT_POOL_NAME:
+        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
+            pass
+        else:
+            raise BadRequest(detail="Default Pool's name can't be modified")
 
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
     if not pool:
@@ -138,7 +134,7 @@ def patch_pool(
     return pool_schema.dump(pool)
 
 
-@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL)])
+@security.requires_access_pool("POST")
 @provide_session
 def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
     """Create a pool."""
