@@ -28,9 +28,7 @@ from airflow.www import app as application
 
 @pytest.fixture(scope="module")
 def app():
-    _app = application.create_app(testing=True)
-    _app.config["WTF_CSRF_ENABLED"] = False
-    return _app
+    return application.create_app(testing=True)
 
 
 @pytest.fixture
@@ -116,6 +114,7 @@ class TestFabAuthManagerDecorators:
         mock_sm.check_authorization.assert_called_once()
         mock_call.assert_called_once()
 
+    @pytest.mark.db_test
     @patch("airflow.auth.managers.fab.decorators.auth._has_access")
     def test_has_access_fab_with_no_dags(self, mock_has_access, mock_sm, mock_appbuilder, app):
         app.appbuilder = mock_appbuilder
@@ -125,6 +124,7 @@ class TestFabAuthManagerDecorators:
         mock_sm.check_authorization.assert_called_once_with(permissions, None)
         mock_has_access.assert_called_once()
 
+    @pytest.mark.db_test
     @patch("airflow.auth.managers.fab.decorators.auth.render_template")
     @patch("airflow.auth.managers.fab.decorators.auth._has_access")
     def test_has_access_fab_with_multiple_dags_render_error(
