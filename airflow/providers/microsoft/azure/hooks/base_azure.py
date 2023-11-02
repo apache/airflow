@@ -24,7 +24,10 @@ from azure.common.credentials import ServicePrincipalCredentials
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_fields,
+)
 
 
 class AzureBaseHook(BaseHook):
@@ -51,16 +54,12 @@ class AzureBaseHook(BaseHook):
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
-        return {
+        fields = {
             "tenantId": StringField(lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()),
             "subscriptionId": StringField(lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()),
-            "managed_identity_client_id": StringField(
-                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-            ),
-            "workload_identity_tenant_id": StringField(
-                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
-            ),
         }
+        add_managed_identity_fields(fields)
+        return fields
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:

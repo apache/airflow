@@ -35,7 +35,11 @@ from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
 from airflow.exceptions import AirflowBadRequest, AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_fields,
+    get_default_azure_credential,
+    get_field,
+)
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -62,7 +66,7 @@ class AzureCosmosDBHook(BaseHook):
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
-        return {
+        fields = {
             "database_name": StringField(
                 lazy_gettext("Cosmos Database Name (optional)"), widget=BS3TextFieldWidget()
             ),
@@ -77,13 +81,9 @@ class AzureCosmosDBHook(BaseHook):
                 lazy_gettext("Resource Group Name (optional)"),
                 widget=BS3TextFieldWidget(),
             ),
-            "managed_identity_client_id": StringField(
-                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-            ),
-            "workload_identity_tenant_id": StringField(
-                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
-            ),
         }
+        add_managed_identity_fields(fields)
+        return fields
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
