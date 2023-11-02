@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Container, Literal
 
 from sqlalchemy import select
 
+from airflow import AirflowException
 from airflow.auth.managers.models.resource_details import (
     DagDetails,
 )
