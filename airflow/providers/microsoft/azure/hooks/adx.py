@@ -34,10 +34,7 @@ from azure.kusto.data.exceptions import KustoServiceError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    add_managed_identity_fields,
-    get_default_azure_credential,
-)
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential
 
 if TYPE_CHECKING:
     from azure.kusto.data.response import KustoResponseDataSetV2
@@ -89,7 +86,7 @@ class AzureDataExplorerHook(BaseHook):
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
 
-        fields = {
+        return {
             "tenant": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
             "auth_method": StringField(lazy_gettext("Authentication Method"), widget=BS3TextFieldWidget()),
             "certificate": PasswordField(
@@ -98,9 +95,13 @@ class AzureDataExplorerHook(BaseHook):
             "thumbprint": PasswordField(
                 lazy_gettext("Application Certificate Thumbprint"), widget=BS3PasswordFieldWidget()
             ),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
-        add_managed_identity_fields(fields)
-        return fields
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:

@@ -1,8 +1,6 @@
 #
 # Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license ag5eements.  See the NOTICE file
-# TODO: This license is not consistent with license used in the project.
-#       Delete the inconsistent license and above line and rerun pre-commit to insert a good license.
+# or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
 # regarding copyright ownership.  The ASF licenses this file
 # to you under the Apache License, Version 2.0 (the
@@ -28,11 +26,7 @@ from azure.batch import BatchServiceClient, batch_auth, models as batch_models
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    AzureIdentityCredentialAdapter,
-    add_managed_identity_fields,
-    get_field,
-)
+from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -59,9 +53,15 @@ class AzureBatchHook(BaseHook):
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
-        fields = {"account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget())}
-        add_managed_identity_fields(fields)
-        return fields
+        return {
+            "account_url": StringField(lazy_gettext("Batch Account URL"), widget=BS3TextFieldWidget()),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
+        }
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:

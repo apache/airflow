@@ -25,11 +25,7 @@ from azure.mgmt.containerinstance.models import ImageRegistryCredential
 from azure.mgmt.containerregistry import ContainerRegistryManagementClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    add_managed_identity_fields,
-    get_default_azure_credential,
-    get_field,
-)
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
 
 
 class AzureContainerRegistryHook(BaseHook):
@@ -53,7 +49,7 @@ class AzureContainerRegistryHook(BaseHook):
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
-        fields = {
+        return {
             "subscription_id": StringField(
                 lazy_gettext("Subscription ID (optional)"),
                 widget=BS3TextFieldWidget(),
@@ -62,9 +58,13 @@ class AzureContainerRegistryHook(BaseHook):
                 lazy_gettext("Resource group name (optional)"),
                 widget=BS3TextFieldWidget(),
             ),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
-        add_managed_identity_fields(fields)
-        return fields
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:

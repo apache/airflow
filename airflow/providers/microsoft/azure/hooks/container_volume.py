@@ -22,11 +22,7 @@ from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 from azure.mgmt.storage import StorageManagementClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    add_managed_identity_fields,
-    get_default_azure_credential,
-    get_field,
-)
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
 
 
 class AzureContainerVolumeHook(BaseHook):
@@ -50,7 +46,7 @@ class AzureContainerVolumeHook(BaseHook):
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
 
-        fields = {
+        return {
             "connection_string": PasswordField(
                 lazy_gettext("Blob Storage Connection String (optional)"), widget=BS3PasswordFieldWidget()
             ),
@@ -62,9 +58,13 @@ class AzureContainerVolumeHook(BaseHook):
                 lazy_gettext("Resource group name (optional)"),
                 widget=BS3TextFieldWidget(),
             ),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
-        add_managed_identity_fields(fields)
-        return fields
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:

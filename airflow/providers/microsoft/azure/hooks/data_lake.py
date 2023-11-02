@@ -34,11 +34,7 @@ from azure.storage.filedatalake import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    AzureIdentityCredentialAdapter,
-    add_managed_identity_fields,
-    get_field,
-)
+from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
 
 Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter]
 
@@ -72,14 +68,12 @@ class AzureDataLakeHook(BaseHook):
         from flask_babel import lazy_gettext
         from wtforms import StringField
 
-        fields = {
+        return {
             "tenant": StringField(lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()),
             "account_name": StringField(
                 lazy_gettext("Azure DataLake Store Name"), widget=BS3TextFieldWidget()
             ),
         }
-        add_managed_identity_fields(fields)
-        return fields
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
@@ -95,8 +89,6 @@ class AzureDataLakeHook(BaseHook):
                 "password": "secret",
                 "tenant": "tenant id",
                 "account_name": "datalake store",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 

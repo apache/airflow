@@ -47,10 +47,7 @@ from azure.storage.blob.aio import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import (
-    add_managed_identity_fields,
-    get_default_azure_credential,
-)
+from airflow.providers.microsoft.azure.utils import get_default_azure_credential
 
 if TYPE_CHECKING:
     from azure.storage.blob._models import BlobProperties
@@ -87,7 +84,7 @@ class WasbHook(BaseHook):
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
 
-        fields = {
+        return {
             "connection_string": PasswordField(
                 lazy_gettext("Blob Storage Connection String (optional)"), widget=BS3PasswordFieldWidget()
             ),
@@ -98,9 +95,13 @@ class WasbHook(BaseHook):
                 lazy_gettext("Tenant Id (Active Directory Auth)"), widget=BS3TextFieldWidget()
             ),
             "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
+            "managed_identity_client_id": StringField(
+                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+            ),
+            "workload_identity_tenant_id": StringField(
+                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+            ),
         }
-        add_managed_identity_fields(fields)
-        return fields
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
