@@ -409,7 +409,7 @@ def dag_list_import_errors(args) -> None:
         data=data,
         output=args.output,
     )
-    if args.strict and data:
+    if data:
         sys.exit(1)
 
 

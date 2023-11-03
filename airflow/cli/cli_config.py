@@ -259,11 +259,6 @@ ARG_JOB_STATE = Arg(
     choices=job_states,
 )
 
-# list_import_errors
-ARG_EXIT_CODE = Arg(
-    ("--strict",), help="Return exit code '1' if there are import errors", action="store_true"
-)
-
 # next_execution
 ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
@@ -1043,7 +1038,7 @@ DAGS_COMMANDS = (
         name="list-import-errors",
         help="List all the DAGs that have import errors",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_import_errors"),
-        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE, ARG_EXIT_CODE),
+        args=(ARG_SUBDIR, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="report",
