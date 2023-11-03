@@ -557,7 +557,7 @@ To configure Airflow to utilize the ECS Executor and leverage the resources we'v
 
 .. code-block:: bash
 
-   export AIRFLOW**CORE**EXECUTOR='airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor'
+   export AIRFLOW**CORE**EXECUTOR='airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor'
 
    export AIRFLOW**DATABASE**SQL*ALCHEMY*CONN=<postgres-connection-string>
 
