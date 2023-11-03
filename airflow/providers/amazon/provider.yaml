@@ -894,3 +894,6 @@ config:
         type: boolean
         example: "True"
         default: "True"
+
+executors:
+  - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor

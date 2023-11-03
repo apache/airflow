@@ -61,6 +61,7 @@ PRE_COMMIT_LIST = [
     "check-persist-credentials-disabled-in-github-workflows",
     "check-pre-commit-information-consistent",
     "check-provide-create-sessions-imports",
+    "check-provider-docs-valid",
     "check-provider-yaml-valid",
     "check-providers-init-file-missing",
     "check-providers-subpackages-init-file-exist",
