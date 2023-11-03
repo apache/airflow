@@ -108,7 +108,7 @@ jobs:
       # we checkout the target commit and its parent to be able to compare them
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
           persist-credentials: false
@@ -147,7 +147,7 @@ jobs:
           print(output, file=sys.stderr)
           EOF
       - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: "target-airflow"
           ref: ${{ github.base_ref }}
@@ -204,13 +204,13 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
       - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: "target-airflow"
           ref: ${{ github.base_ref }}
@@ -277,13 +277,13 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
       - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: "target-airflow"
           ref: ${{ github.base_ref }}
@@ -338,13 +338,13 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
       - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: "target-airflow"
           ref: ${{ github.base_ref }}
