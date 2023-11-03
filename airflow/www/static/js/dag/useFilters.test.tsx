@@ -21,11 +21,15 @@
 import { act, renderHook } from "@testing-library/react";
 
 import { RouterWrapper } from "src/utils/testUtils";
+import type { RunState } from "src/types";
 
 declare global {
   namespace NodeJS {
     interface Global {
       defaultDagRunDisplayNumber: number;
+      filtersOptions: {
+        dagStates: RunState[];
+      };
     }
   }
 }
@@ -63,7 +67,7 @@ describe("Test useFilters hook", () => {
     expect(baseDate).toBe(date.toISOString());
     expect(numRuns).toBe(global.defaultDagRunDisplayNumber.toString());
     expect(runType).toBeNull();
-    expect(runState).toBeNull();
+    expect(runState).toBe(global.filtersOptions.dagStates.join(","));
     expect(root).toBeUndefined();
     expect(filterUpstream).toBeUndefined();
     expect(filterDownstream).toBeUndefined();
@@ -113,6 +117,10 @@ describe("Test useFilters hook", () => {
     } else if (paramName === "numRuns") {
       expect(result.current.filters[paramName]).toBe(
         global.defaultDagRunDisplayNumber.toString()
+      );
+    } else if (paramName === "runState") {
+      expect(result.current.filters[paramName]).toBe(
+        global.filtersOptions.dagStates.join(",")
       );
     } else {
       expect(result.current.filters[paramName]).toBeNull();

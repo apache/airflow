@@ -58,6 +58,10 @@ global.stateColors = {
 
 global.defaultDagRunDisplayNumber = 245;
 
+global.filtersOptions = {
+  dagStates: ["success", "running", "queued", "failed"],
+};
+
 global.moment = moment;
 
 global.standaloneDagProcessor = true;
