@@ -21,8 +21,16 @@
 
 import { useSearchParams } from "react-router-dom";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import type { DagRun, RunState, TaskState } from "src/types";
 
 declare const defaultDagRunDisplayNumber: number;
+
+declare const filtersOptions: {
+  dagStates: RunState[];
+  numRuns: number[];
+  runTypes: DagRun["runType"][];
+  taskStates: TaskState[];
+};
 
 export interface Filters {
   root: string | undefined;
@@ -32,6 +40,7 @@ export interface Filters {
   numRuns: string | null;
   runType: string | null;
   runState: string | null;
+  runStateOptions: string | null;
 }
 
 export interface FilterTasksProps {
@@ -84,10 +93,12 @@ const useFilters = (): FilterHookReturn => {
   const numRuns =
     searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber.toString();
   const runType = searchParams.get(RUN_TYPE_PARAM);
-  const runState = searchParams.get(RUN_STATE_PARAM);
+
+  const runStateOptions = filtersOptions.dagStates.join(",");
+  const runState = searchParams.get(RUN_STATE_PARAM) || runStateOptions;
 
   const makeOnChangeFn =
-    (paramName: string, formatFn?: (arg: string) => string) =>
+    (paramName: string, formatFn?: (arg: string) => string | null) =>
     (value: string) => {
       const formattedValue = formatFn ? formatFn(value) : value;
       const params = new URLSearchParamsWrapper(searchParams);
@@ -105,7 +116,14 @@ const useFilters = (): FilterHookReturn => {
   );
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
   const onRunTypeChange = makeOnChangeFn(RUN_TYPE_PARAM);
-  const onRunStateChange = makeOnChangeFn(RUN_STATE_PARAM);
+  const onRunStateChange = makeOnChangeFn(RUN_STATE_PARAM, (arg) => {
+    // With MultiSelect, delete uri param when arg length is equal to all of
+    // the options or when it is equal to none of the options
+    const argLength = arg.split(",").length;
+    return argLength === filtersOptions.dagStates.length || argLength === 0
+      ? null
+      : arg;
+  });
 
   const onFilterTasksChange = ({
     root: newRoot,
@@ -155,6 +173,7 @@ const useFilters = (): FilterHookReturn => {
       numRuns,
       runType,
       runState,
+      runStateOptions,
     },
     onBaseDateChange,
     onNumRunsChange,

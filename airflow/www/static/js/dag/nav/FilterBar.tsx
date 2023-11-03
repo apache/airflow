@@ -20,9 +20,11 @@
 /* global moment */
 
 import { Box, Button, Flex, Input, Select } from "@chakra-ui/react";
+import MultiSelect from "src/components/MultiSelect";
 import React from "react";
 import type { DagRun, RunState, TaskState } from "src/types";
 import AutoRefresh from "src/components/AutoRefresh";
+import type { Size } from "chakra-react-select";
 
 import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
@@ -51,7 +53,10 @@ const FilterBar = () => {
   // @ts-ignore
   const formattedTime = time.tz(timezone).format(isoFormatWithoutTZ);
 
-  const inputStyles = { backgroundColor: "white", size: "lg" };
+  const inputStyles: { backgroundColor: string; size: Size } = {
+    backgroundColor: "white",
+    size: "lg",
+  };
 
   return (
     <Flex
@@ -100,21 +105,40 @@ const FilterBar = () => {
           </Select>
         </Box>
         <Box />
-        <Box px={2}>
-          <Select
+        <Box px={2} minWidth="max-content">
+          <MultiSelect
             {...inputStyles}
-            value={filters.runState || ""}
-            onChange={(e) => onRunStateChange(e.target.value)}
-          >
-            <option value="" key="all">
-              All Run States
-            </option>
-            {filtersOptions.dagStates.map((value) => (
-              <option value={value} key={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
+            isMulti
+            value={
+              filters.runState === null
+                ? []
+                : filters.runState
+                    .split(",")
+                    .map((option) => ({ label: option, value: option }))
+            }
+            onChange={(stateOptions) =>
+              onRunStateChange(
+                stateOptions.map((stateOption) => stateOption.value).join(",")
+              )
+            }
+            options={
+              filters.runStateOptions === null
+                ? []
+                : filters.runStateOptions
+                    .split(",")
+                    .map((option) => ({ label: option, value: option }))
+            }
+            placeholder="All State Types"
+            hideSelectedOptions
+            tagVariant="solid"
+            isClearable={false}
+            chakraStyles={{
+              container: (provided) => ({
+                ...provided,
+                bg: "white",
+              }),
+            }}
+          />
         </Box>
         <Box px={2}>
           <Button
