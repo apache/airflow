@@ -34,7 +34,11 @@ from azure.storage.filedatalake import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_field,
+)
 
 Credentials = Union[ClientSecretCredential, AzureIdentityCredentialAdapter]
 
@@ -62,6 +66,7 @@ class AzureDataLakeHook(BaseHook):
     hook_name = "Azure Data Lake"
 
     @staticmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -265,6 +270,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     hook_name = "Azure Date Lake Storage V2"
 
     @classmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
@@ -305,6 +311,17 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         self.conn_id = adls_conn_id
         self.public_read = public_read
 
+    def _get_field(self, extra_dict, field_name):
+        prefix = "extra__adls__"
+        if field_name.startswith("extra__"):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
+                f"when using this method."
+            )
+        if field_name in extra_dict:
+            return extra_dict[field_name] or None
+        return extra_dict.get(f"{prefix}{field_name}") or None
+
     @cached_property
     def service_client(self) -> DataLakeServiceClient:
         """Return the DataLakeServiceClient object (cached)."""
@@ -337,17 +354,6 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             credential=credential,  # type: ignore[arg-type]
             **extra,
         )
-
-    def _get_field(self, extra_dict, field_name):
-        prefix = "extra__adls__"
-        if field_name.startswith("extra__"):
-            raise ValueError(
-                f"Got prefixed name {field_name}; please remove the '{prefix}' prefix "
-                f"when using this method."
-            )
-        if field_name in extra_dict:
-            return extra_dict[field_name] or None
-        return extra_dict.get(f"{prefix}{field_name}") or None
 
     def create_file_system(self, file_system_name: str) -> None:
         """Create a new file system under the specified account.

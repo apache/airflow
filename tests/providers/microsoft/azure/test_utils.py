@@ -17,11 +17,16 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest import mock
 
 import pytest
 
-from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_field,
+)
 
 MODULE = "airflow.providers.microsoft.azure.utils"
 
@@ -60,6 +65,16 @@ def test_get_field_non_prefixed(input, expected):
         field_name="this_param",
     )
     assert value == expected
+
+
+def test_add_managed_identity_connection_widgets():
+    def test_func() -> dict[str, Any]:
+        return {}
+
+    widgets = add_managed_identity_connection_widgets(test_func)()
+
+    assert "managed_identity_client_id" in widgets
+    assert "workload_identity_tenant_id" in widgets
 
 
 class TestAzureIdentityCredentialAdapter:
