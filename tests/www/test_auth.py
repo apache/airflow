@@ -92,6 +92,7 @@ class TestHasAccessNoDetails:
         mock_call.assert_not_called()
         mock_render_template.assert_called_once()
 
+    @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_no_details_when_not_logged_in(
         self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name
@@ -142,6 +143,7 @@ class TestHasAccessWithDetails:
         mock_call.assert_called_once()
         assert result is True
 
+    @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_with_details_when_unauthorized(
         self, mock_get_auth_manager, app, decorator_name, is_authorized_method_name, items
@@ -188,6 +190,7 @@ class TestHasAccessDagEntities:
         mock_call.assert_called_once()
         assert result is True
 
+    @pytest.mark.db_test
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_dag_entities_when_unauthorized(self, mock_get_auth_manager, app, dag_access_entity):
         auth_manager = Mock()
