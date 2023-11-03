@@ -90,7 +90,6 @@ __deprecated_classes = {
         "HiveToSambaOperator": "airflow.providers.apache.hive.transfers.hive_to_samba.HiveToSambaOperator",
     },
     "http_operator": {
-        "HttpOperator": "airflow.providers.http.operators.http.HttpOperator",
         "SimpleHttpOperator": "airflow.providers.http.operators.http.SimpleHttpOperator",
     },
     "jdbc_operator": {
