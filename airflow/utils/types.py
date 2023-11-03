@@ -77,3 +77,4 @@ class EdgeInfoType(TypedDict):
 class Stringable(Protocol):
     def __str__(self) -> str:
         pass
+    
