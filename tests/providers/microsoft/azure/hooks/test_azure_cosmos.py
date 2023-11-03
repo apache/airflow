@@ -73,7 +73,7 @@ class TestAzureCosmosDbHook:
         ],
         indirect=True,
     )
-    @mock.patch(f"{MODULE}.get_default_azure_credential")
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential")
     @mock.patch(f"{MODULE}.CosmosDBManagementClient")
     @mock.patch(f"{MODULE}.CosmosClient")
     def test_get_conn(self, mock_cosmos, mock_cosmos_db, mock_default_azure_credential, mocked_connection):

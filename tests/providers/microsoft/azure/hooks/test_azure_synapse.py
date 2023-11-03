@@ -106,7 +106,7 @@ def test_get_connection_by_credential_client_secret(mock_credential):
         )
 
 
-@patch(f"{MODULE}.get_default_azure_credential")
+@patch(f"{MODULE}.get_sync_default_azure_credential")
 def test_get_conn_by_default_azure_credential(mock_credential):
     hook = AzureSynapseHook(DEFAULT_CONNECTION_DEFAULT_CREDENTIAL)
 

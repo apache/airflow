@@ -178,7 +178,7 @@ def test_get_conn_by_credential_client_secret(mock_credential):
         mock_create_client.assert_called_with(mock_credential(), "subscriptionId")
 
 
-@mock.patch(f"{MODULE}.get_default_azure_credential")
+@mock.patch(f"{MODULE}.get_sync_default_azure_credential")
 def test_get_conn_by_default_azure_credential(mock_credential):
     hook = AzureDataFactoryHook(DEFAULT_CONNECTION_DEFAULT_CREDENTIAL)
 
@@ -656,6 +656,37 @@ class TestAzureDataFactoryAsyncHook:
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         with pytest.raises(AirflowException):
             await hook.get_pipeline_run(RUN_ID, None, DATAFACTORY_NAME)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+                conn_type="azure_data_factory",
+                extra={
+                    "subscriptionId": "subscriptionId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
+                    "managed_identity_client_id": "test_client_id",
+                    "workload_identity_tenant_id": "test_tenant_id",
+                },
+            )
+        ],
+        indirect=True,
+    )
+    @mock.patch(f"{MODULE}.get_async_default_azure_credential")
+    async def test_get_async_conn_with_default_azure_credential(
+        self, mock_default_azure_credential, mocked_connection
+    ):
+        """"""
+        hook = AzureDataFactoryAsyncHook(mocked_connection.conn_id)
+        response = await hook.get_async_conn()
+        assert isinstance(response, DataFactoryManagementClient)
+
+        assert mock_default_azure_credential.called_with(
+            managed_identity_client_id="test_client_id", workload_identity_tenant_id="test_tenant_id"
+        )
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
