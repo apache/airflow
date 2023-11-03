@@ -134,7 +134,7 @@ class AwsEcsExecutor(BaseExecutor):
             # If it got this far, something is wrong.  stop_task() called with an
             # invalid taskID should have thrown a ClientError.  All known reasons are
             # covered in the ``except`` block below, and this should never be reached.
-            status = "failed for an unknown reason."
+            status = "failed for an unknown reason. "
         except ClientError as ex:
             error_code = ex.response["Error"]["Code"]
             error_message = ex.response["Error"]["Message"]
