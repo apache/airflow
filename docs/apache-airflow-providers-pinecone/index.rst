@@ -82,11 +82,6 @@ for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-pinecone``
 
 
-Requirements
-------------
-
-The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
-
 
 Requirements
 ------------
