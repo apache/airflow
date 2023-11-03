@@ -30,14 +30,14 @@ import yaml
 from inflection import camelize
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.amazon.aws.executors.ecs import (
+from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
+from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
     CONFIG_GROUP_NAME,
     AllEcsConfigKeys,
     AwsEcsExecutor,
     EcsTaskCollection,
-    ecs_executor_config,
 )
-from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
     EcsExecutorTask,
