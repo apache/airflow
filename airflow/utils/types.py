@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING
+from typing import Protocol, runtime_checkable, TYPE_CHECKING
 
 from airflow.typing_compat import TypedDict
 
@@ -71,3 +71,9 @@ class EdgeInfoType(TypedDict):
     """Extra metadata that the DAG can store about an edge, usually generated from an EdgeModifier."""
 
     label: str | None
+
+
+@runtime_checkable
+class Stringable(Protocol):
+    def __str__(self) -> str:
+        pass
