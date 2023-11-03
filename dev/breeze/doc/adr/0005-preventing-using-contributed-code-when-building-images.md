@@ -108,7 +108,7 @@ but to make sure that the following rules are in-place:
    to our repository
 
 ```yaml
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
           persist-credentials: false

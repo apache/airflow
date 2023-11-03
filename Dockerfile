@@ -1533,6 +1533,9 @@ RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"\/.venv\/bin:/" /etc/sud
 
 ARG AIRFLOW_VERSION
 
+COPY --from=scripts install_pip_version.sh /scripts/docker/
+RUN bash /scripts/docker/install_pip_version.sh
+
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image
 # Also set airflow as nice PROMPT message.
