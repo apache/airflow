@@ -730,6 +730,18 @@
     "cross-providers-deps": [],
     "excluded-python-versions": []
   },
+  "pgvector": {
+    "deps": [
+      "apache-airflow-providers-postgres>=5.7.1",
+      "apache-airflow>=2.5.0",
+      "pgvector>=0.2.3"
+    ],
+    "cross-providers-deps": [
+      "common.sql",
+      "postgres"
+    ],
+    "excluded-python-versions": []
+  },
   "pinecone": {
     "deps": [
       "apache-airflow>=2.5.0",
