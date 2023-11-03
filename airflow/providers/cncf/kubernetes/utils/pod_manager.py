@@ -20,7 +20,6 @@ from __future__ import annotations
 import enum
 import itertools
 import json
-import logging
 import math
 import time
 import warnings
@@ -37,7 +36,6 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
-from tenacity import before_log
 from typing_extensions import Literal
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
@@ -392,7 +390,6 @@ class PodManager(LoggingMixin):
             retry=tenacity.retry_if_exception_type(ApiException),
             stop=tenacity.stop_after_attempt(10),
             wait=tenacity.wait_fixed(1),
-            before=before_log(self.log, logging.INFO),
         )
         def consume_logs(
             *,
@@ -452,17 +449,10 @@ class PodManager(LoggingMixin):
                             self._progress_callback(line)
                     self.log.info("[%s] %s", container_name, message_to_log)
                     last_captured_timestamp = message_timestamp
-            except BaseHTTPError as e:
-                self.log.warning(
-                    "Reading of logs interrupted for container %r with error %r; will retry. "
-                    "Set log level to DEBUG for traceback.",
+            except BaseHTTPError:
+                self.log.exception(
+                    "Reading of logs interrupted for container %r; will retry.",
                     container_name,
-                    e,
-                )
-                self.log.debug(
-                    "Traceback for interrupted logs read for pod %r",
-                    pod.metadata.name,
-                    exc_info=True,
                 )
             return last_captured_timestamp or since_time, logs
 
