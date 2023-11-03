@@ -65,7 +65,7 @@ VIRTUAL_CLUSTER_CONFIG = {
             "gke_cluster_target": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}",
             "node_pool_target": [
                 {
-                    "node_pool": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}/nodePools/dp",  # noqa
+                    "node_pool": f"projects/{PROJECT_ID}/locations/{REGION}/clusters/{GKE_CLUSTER_NAME}/nodePools/dp",
                     "roles": ["DEFAULT"],
                     "node_pool_config": {
                         "config": {

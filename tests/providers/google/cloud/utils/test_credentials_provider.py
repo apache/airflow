@@ -130,6 +130,7 @@ class TestProvideGcpConnAndCredentials:
         assert os.environ[CREDENTIALS] == ENV_VALUE
 
 
+@pytest.mark.db_test
 class TestGetGcpCredentialsAndProjectId:
     test_scopes = _DEFAULT_SCOPES
     test_key_file = "KEY_PATH.json"

@@ -1264,6 +1264,7 @@ class TestAsyncGCSToBigQueryOperator:
                 context=None, event={"status": "error", "message": "test failure message"}
             )
 
+    @pytest.mark.db_test
     def test_execute_logging_without_external_table_async_should_execute_successfully(self):
         """
         Asserts that logging occurs as expected.

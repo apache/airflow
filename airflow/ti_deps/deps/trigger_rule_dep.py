@@ -27,6 +27,7 @@ from sqlalchemy import and_, func, or_, select
 from airflow.models.taskinstance import PAST_DEPENDS_MET
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule as TR
 
 if TYPE_CHECKING:
@@ -132,6 +133,20 @@ class TriggerRuleDep(BaseTIDep):
             """
             return ti.task.get_mapped_ti_count(ti.run_id, session=session)
 
+        def _iter_expansion_dependencies() -> Iterator[str]:
+            from airflow.models.mappedoperator import MappedOperator
+
+            if isinstance(ti.task, MappedOperator):
+                for op in ti.task.iter_mapped_dependencies():
+                    yield op.task_id
+            task_group = ti.task.task_group
+            if task_group and task_group.iter_mapped_task_groups():
+                yield from (
+                    op.task_id
+                    for tg in task_group.iter_mapped_task_groups()
+                    for op in tg.iter_mapped_dependencies()
+                )
+
         @functools.lru_cache
         def _get_relevant_upstream_map_indexes(upstream_id: str) -> int | range | None:
             """Get the given task's map indexes relevant to the current ti.
@@ -142,6 +157,9 @@ class TriggerRuleDep(BaseTIDep):
             """
             if TYPE_CHECKING:
                 assert isinstance(ti.task.dag, DAG)
+            if isinstance(ti.task.task_group, MappedTaskGroup):
+                if upstream_id not in set(_iter_expansion_dependencies()):
+                    return None
             try:
                 expanded_ti_count = _get_expanded_ti_count()
             except (NotFullyPopulated, NotMapped):
@@ -275,9 +293,12 @@ class TriggerRuleDep(BaseTIDep):
                         task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False
                     )
                     if not past_depends_met:
-                        yield self._failing_status(
-                            reason="Task should be skipped but the past depends are not met"
-                        ), changed
+                        yield (
+                            self._failing_status(
+                                reason="Task should be skipped but the past depends are not met"
+                            ),
+                            changed,
+                        )
                         return
                 changed = ti.set_state(new_state, session)
 
@@ -288,13 +309,16 @@ class TriggerRuleDep(BaseTIDep):
             if ti.map_index > -1:
                 non_successes -= removed
             if non_successes > 0:
-                yield self._failing_status(
-                    reason=(
-                        f"All setup tasks must complete successfully. Relevant setups: {relevant_setups}: "
-                        f"upstream_states={upstream_states}, "
-                        f"upstream_task_ids={task.upstream_task_ids}"
+                yield (
+                    self._failing_status(
+                        reason=(
+                            f"All setup tasks must complete successfully. Relevant setups: {relevant_setups}: "
+                            f"upstream_states={upstream_states}, "
+                            f"upstream_task_ids={task.upstream_task_ids}"
+                        ),
                     ),
-                ), changed
+                    changed,
+                )
 
         def _evaluate_direct_relatives() -> Iterator[TIDepStatus]:
             """Evaluate whether ``ti``'s trigger rule was met.

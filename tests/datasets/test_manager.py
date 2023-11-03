@@ -29,6 +29,8 @@ from airflow.models.dag import DagModel
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from tests.listeners import dataset_listener
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture()
 def mock_task_instance():

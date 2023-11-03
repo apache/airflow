@@ -95,7 +95,9 @@ Other Methods
 
 Since Airflow 2.0, the default UI is the Flask App Builder RBAC. A ``webserver_config.py`` configuration file
 is automatically generated and can be used to configure the Airflow to support authentication
-methods like OAuth, OpenID, LDAP, REMOTE_USER.
+methods like OAuth, OpenID, LDAP, REMOTE_USER. It should be noted that due to the limitation of Flask AppBuilder
+and Authlib, only a selection of OAuth2 providers is supported. This list includes ``github``, ``githublocal``, ``twitter``,
+``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``keycloak`` and ``keycloak_before_17``.
 
 The default authentication option described in the :ref:`Web Authentication <web-authentication>` section is related
 with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.

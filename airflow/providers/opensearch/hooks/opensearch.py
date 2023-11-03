@@ -31,8 +31,8 @@ class OpenSearchHook(BaseHook):
     """
     Provide a thin wrapper around the OpenSearch client.
 
-    :param: open_search_conn_id: Connection to use with Open Search
-    :param: log_query: Whether to log the query used for Open Search
+    :param open_search_conn_id: Connection to use with Open Search
+    :param log_query: Whether to log the query used for Open Search
     """
 
     conn_name_attr = "opensearch_conn_id"
@@ -70,8 +70,8 @@ class OpenSearchHook(BaseHook):
         """
         Run a search query against the connected OpenSearch cluster.
 
-        :param: query: The query for the search against OpenSearch.
-        :param: index_name: The name of the index to search against
+        :param query: The query for the search against OpenSearch.
+        :param index_name: The name of the index to search against
         """
         if self.log_query:
             self.log.info("Searching %s with Query: %s", index_name, query)
@@ -81,9 +81,9 @@ class OpenSearchHook(BaseHook):
         """
         Index a document on OpenSearch.
 
-        :param: document: A dictionary representation of the document
-        :param: index_name: the name of the index that this document will be associated with
-        :param: doc_id: the numerical identifier that will be used to identify the document on the index.
+        :param document: A dictionary representation of the document
+        :param index_name: the name of the index that this document will be associated with
+        :param doc_id: the numerical identifier that will be used to identify the document on the index.
         """
         return self.client.index(index=index_name, id=doc_id, body=document, **kwargs)
 
@@ -91,10 +91,10 @@ class OpenSearchHook(BaseHook):
         """
         Delete from an index by either a query or by the document id.
 
-        :param: index_name: the name of the index to delete from
-        :param: query: If deleting by query a dict representation of the query to run to
-                       identify documents to delete.
-        :param: doc_id: The identifier of the document to delete.
+        :param index_name: the name of the index to delete from
+        :param query: If deleting by query a dict representation of the query to run to
+            identify documents to delete.
+        :param doc_id: The identifier of the document to delete.
         """
         if query is not None:
             if self.log_query:

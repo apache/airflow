@@ -299,7 +299,9 @@ class TestGCSHook:
 
         # When
         response = self.gcs_hook.is_older_than(
-            bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
+            bucket_name=test_bucket,
+            object_name=test_object,
+            seconds=86400,  # 24hr
         )
 
         # Then
@@ -318,7 +320,9 @@ class TestGCSHook:
 
         # When
         response = self.gcs_hook.is_older_than(
-            bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
+            bucket_name=test_bucket,
+            object_name=test_object,
+            seconds=86400,  # 24hr
         )
         # Then
         assert not response
@@ -504,6 +508,7 @@ class TestGCSHook:
         mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
+    @pytest.mark.db_test
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_nonexisting_bucket(self, mock_service, caplog):
         mock_service.return_value.bucket.return_value.delete.side_effect = exceptions.NotFound(

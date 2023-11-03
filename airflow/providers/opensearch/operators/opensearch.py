@@ -38,11 +38,11 @@ class OpenSearchQueryOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OpenSearchQueryOperator`
 
-    :param: query: A Dictionary Open Search DSL query.
-    :param: search_object: A Search object from opensearch-dsl.
-    :param: index_name: The name of the index to search for documents.
-    :param: opensearch_conn_id: opensearch connection to use
-    :param: log_query: Whether to log the query used. Defaults to True and logs query used.
+    :param query: A Dictionary Open Search DSL query.
+    :param search_object: A Search object from opensearch-dsl.
+    :param index_name: The name of the index to search for documents.
+    :param opensearch_conn_id: opensearch connection to use
+    :param log_query: Whether to log the query used. Defaults to True and logs query used.
     """
 
     template_fields: Sequence[str] = ["query"]
@@ -103,9 +103,9 @@ class OpenSearchCreateIndexOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OpenSearchCreateIndexOperator`
 
-    :param: index_name: The name of the index to be created.
-    :param: index_body: A dictionary that defines index settings
-    :param: opensearch_conn_id: opensearch connection to use
+    :param index_name: The name of the index to be created.
+    :param index_body: A dictionary that defines index settings
+    :param opensearch_conn_id: opensearch connection to use
     """
 
     def __init__(
@@ -142,11 +142,11 @@ class OpenSearchAddDocumentOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OpenSearchAddDocumentOperator`
 
-    :param: index_name: The name of the index to put the document.
-    :param: document: A dictionary representation of the document.
-    :param: document_id: The id for the document in the index.
-    :param: doc_class: A Document subclassed object using opensearch-dsl
-    :param: opensearch_conn_id: opensearch connection to use
+    :param index_name: The name of the index to put the document.
+    :param document: A dictionary representation of the document.
+    :param document_id: The id for the document in the index.
+    :param doc_class: A Document subclassed object using opensearch-dsl
+    :param opensearch_conn_id: opensearch connection to use
     """
 
     def __init__(

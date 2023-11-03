@@ -2850,7 +2850,9 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         project_id = self.project_id or self.hook.project_id
         if project_id:
             job_id_path = convert_job_id(
-                job_id=self.job_id, project_id=project_id, location=self.location  # type: ignore[arg-type]
+                job_id=self.job_id,  # type: ignore[arg-type]
+                project_id=project_id,
+                location=self.location,
             )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
         # Wait for the job to complete
