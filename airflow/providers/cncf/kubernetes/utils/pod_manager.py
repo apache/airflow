@@ -385,13 +385,7 @@ class PodManager(LoggingMixin):
         :meta private:
         """
 
-        def consume_logs(
-            *,
-            since_time: DateTime | None = None,
-            follow: bool = True,
-            termination_timeout: int = 120,
-            logs: PodLogsConsumer | None,
-        ) -> tuple[DateTime | None, PodLogsConsumer | None]:
+        def consume_logs(*, since_time: DateTime | None = None) -> DateTime | None:
             """
             Try to follow container logs until container completes.
 
@@ -448,20 +442,14 @@ class PodManager(LoggingMixin):
                     "Reading of logs interrupted for container %r; will retry.",
                     container_name,
                 )
-            return last_captured_timestamp or since_time, logs
+            return last_captured_timestamp or since_time
 
         # note: `read_pod_logs` follows the logs, so we shouldn't necessarily *need* to
         # loop as we do here. But in a long-running process we might temporarily lose connectivity.
         # So the looping logic is there to let us resume following the logs.
-        logs = None
         last_log_time = since_time
         while True:
-            last_log_time, logs = consume_logs(
-                since_time=last_log_time,
-                follow=follow,
-                termination_timeout=post_termination_timeout,
-                logs=logs,
-            )
+            last_log_time = consume_logs(since_time=last_log_time)
             if not follow:
                 return
             if self.container_is_running(pod, container_name=container_name):
