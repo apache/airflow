@@ -1415,7 +1415,7 @@ def test_override_dag_default_args():
             task = EmptyOperator(task_id="task")
 
     assert task.retries == 1
-    assert task.owner_str == "y"
+    assert task.owner == "y"
     assert task.execution_timeout == timedelta(seconds=10)
 
 
@@ -1439,7 +1439,7 @@ def test_override_dag_default_args_in_nested_tg():
                 task = EmptyOperator(task_id="task")
 
     assert task.retries == 1
-    assert task.owner_str == "y"
+    assert task.owner == "y"
     assert task.execution_timeout == timedelta(seconds=10)
 
 
@@ -1470,7 +1470,7 @@ def test_override_dag_default_args_in_multi_level_nested_tg():
                         task = EmptyOperator(task_id="task")
 
     assert task.retries == 1
-    assert task.owner_str == "z"
+    assert task.owner == "z"
     assert task.execution_timeout == timedelta(seconds=10)
 
 
