@@ -95,7 +95,10 @@ class AzureContainerInstanceHook(AzureBaseHook):
             self.log.info("Using DefaultAzureCredential as credential")
             managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
             workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
-            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
+            credential = get_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
 
         subscription_id = cast(str, conn.extra_dejson.get("subscriptionId"))
         return ContainerInstanceManagementClient(

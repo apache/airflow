@@ -148,7 +148,9 @@ class TestAzureContainerInstanceHookWithoutSetupCredential:
         hook = AzureContainerInstanceHook(azure_conn_id=connection_without_login_password_tenant_id.conn_id)
         conn = hook.get_conn()
 
-        mock_default_azure_credential.assert_called_with(None, None)
+        assert mock_default_azure_credential.called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
         assert not mock_service_pricipal_credential.called
         assert conn == mock_client_instance
         mock_client_cls.assert_called_once_with(

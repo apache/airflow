@@ -111,7 +111,10 @@ class AzureFileShareHook(BaseHook):
         extras = conn.extra_dejson
         managed_identity_client_id = extras.get("managed_identity_client_id")
         workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
-        return get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
+        return get_default_azure_credential(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
+        )
 
     @property
     def share_service_client(self):

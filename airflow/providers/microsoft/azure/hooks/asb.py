@@ -120,7 +120,8 @@ class AdminClientHook(BaseAzureServiceBusHook):
                     extras=extras, field_name="workload_identity_tenant_id"
                 )
                 credential = get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
                 )
             client = ServiceBusAdministrationClient(
                 fully_qualified_namespace=fully_qualified_namespace,
@@ -212,7 +213,8 @@ class MessageHook(BaseAzureServiceBusHook):
                     extras=extras, field_name="workload_identity_tenant_id"
                 )
                 credential = get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
                 )
             client = ServiceBusClient(
                 fully_qualified_namespace=fully_qualified_namespace,

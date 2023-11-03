@@ -69,7 +69,9 @@ class TestAdminClientHook:
         mock_connection.return_value = self.mock_conn_without_schema
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusAdministrationClient)
-        mock_default_azure_credential.assert_called_with(None, None)
+        assert mock_default_azure_credential.called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
 
     @mock.patch("azure.servicebus.management.QueueProperties")
     @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
@@ -180,7 +182,9 @@ class TestMessageHook:
         mock_connection.return_value = self.mock_conn_without_schema
         hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusClient)
-        mock_default_azure_credential.assert_called_with(None, None)
+        assert mock_default_azure_credential.called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
 
     @pytest.mark.parametrize(
         "mock_message, mock_batch_flag",

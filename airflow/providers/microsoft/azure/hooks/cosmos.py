@@ -133,10 +133,12 @@ class AzureCosmosDBHook(BaseHook):
                 managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
                 workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
                 subscritption_id = self._get_field(extras, "subscription_id")
+                credential = get_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
                 management_client = CosmosDBManagementClient(
-                    credential=get_default_azure_credential(
-                        managed_identity_client_id, workload_identity_tenant_id
-                    ),
+                    credential=credential,
                     subscription_id=subscritption_id,
                 )
 

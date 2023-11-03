@@ -131,7 +131,10 @@ class AzureSynapseHook(BaseHook):
         else:
             managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
             workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
-            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
+            credential = get_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
 
         self._conn = self._create_client(credential, conn.host, spark_pool, livy_api_version, subscription_id)
 

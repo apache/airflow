@@ -112,4 +112,6 @@ class TestAzureContainerVolumeHook:
         assert volume.azure_file.storage_account_name == "storage"
         assert volume.azure_file.read_only is True
 
-        mocked_default_azure_credential.assert_called_with(None, None)
+        assert mocked_default_azure_credential.called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
