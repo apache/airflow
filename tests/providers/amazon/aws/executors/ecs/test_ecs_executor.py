@@ -931,7 +931,7 @@ class TestEcsExecutorConfig:
             else:
                 assert run_task_kwargs_network_config[camelized_key] == value.split(",")
 
-    def test_start_failure_with_invalid_permissions(self, set_env_vars, caplog):
+    def test_start_failure_with_invalid_permissions(self, set_env_vars):
         executor = AwsEcsExecutor()
 
         # Replace boto3 ECS client with mock.
@@ -946,11 +946,10 @@ class TestEcsExecutorConfig:
 
         executor.ecs = ecs_mock
 
-        with pytest.raises(AirflowException) as raised:
+        with pytest.raises(AirflowException, match=mock_resp["Error"]["Message"]):
             executor.start()
-        raised.match(mock_resp["Error"]["Message"])
 
-    def test_start_failure_with_invalid_cluster_name(self, set_env_vars, caplog):
+    def test_start_failure_with_invalid_cluster_name(self, set_env_vars):
         executor = AwsEcsExecutor()
 
         # Replace boto3 ECS client with mock.
@@ -960,9 +959,8 @@ class TestEcsExecutorConfig:
 
         executor.ecs = ecs_mock
 
-        with pytest.raises(AirflowException) as raised:
+        with pytest.raises(AirflowException, match=mock_resp["Error"]["Message"]):
             executor.start()
-        raised.match(mock_resp["Error"]["Message"])
 
     def test_start_success(self, set_env_vars, caplog):
         executor = AwsEcsExecutor()
@@ -982,7 +980,7 @@ class TestEcsExecutorConfig:
 
         assert "succeeded" in caplog.text
 
-    def test_start_health_check_config(self, set_env_vars, caplog):
+    def test_start_health_check_config(self, set_env_vars):
         executor = AwsEcsExecutor()
 
         # Replace boto3 ECS client with mock.
