@@ -43,6 +43,7 @@ in the provider's documentation. The pre-installed providers that you may want t
 * :doc:`Configuration Reference for OpenLineage Provider <apache-airflow-providers-openlineage:configurations-ref>`
 * :doc:`Configuration Reference for Elasticsearch Provider <apache-airflow-providers-elasticsearch:configurations-ref>`
 * :doc:`Configuration Reference for Amazon Provider <apache-airflow-providers-amazon:configurations-ref>`
+* :doc:`Configuration Reference for Yandex Provider <apache-airflow-providers-yandex:configurations-ref>`
 
 .. note::
     For more information see :doc:`/howto/set-config`.
