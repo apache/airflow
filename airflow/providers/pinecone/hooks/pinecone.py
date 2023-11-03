@@ -45,14 +45,13 @@ class PineconeHook(BaseHook):
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import StringField, validators
+        from wtforms import StringField
 
         return {
             "log_level": StringField(lazy_gettext("Log Level"), widget=BS3TextFieldWidget(), default=None),
             "project_name": StringField(
                 lazy_gettext("Project Name"),
                 widget=BS3TextFieldWidget(),
-                validators=[validators.InputRequired()],
             ),
         }
 
