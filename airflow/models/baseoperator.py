@@ -260,6 +260,7 @@ def partial(
     doc_json: str | None | ArgNotSet = NOTSET,
     doc_yaml: str | None | ArgNotSet = NOTSET,
     doc_rst: str | None | ArgNotSet = NOTSET,
+    logger_name: str | None | ArgNotSet = NOTSET,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -323,6 +324,7 @@ def partial(
         "doc_md": doc_md,
         "doc_rst": doc_rst,
         "doc_yaml": doc_yaml,
+        "logger_name": logger_name,
     }
 
     # Inject DAG-level default args into args provided to this function.
@@ -651,6 +653,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that is visible in Task Instance details View in the Webserver
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
+    :param logger_name: Name of the logger used by the Operator to emit logs.
+        If set to `None` (default), the logger name will fall back to
+        `airflow.task.operators.{class.__module__}.{class.__name__}` (e.g. SimpleHttpOperator will have
+        *airflow.task.operators.airflow.providers.http.operators.http.SimpleHttpOperator* as logger).
     """
 
     # Implementing Operator.
@@ -670,7 +676,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "user_defined_macros",
         "user_defined_filters",
         "params",
-        "_log",
     )
 
     # each operator should override this class attr for shallow copy attrs.
@@ -781,6 +786,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_json: str | None = None,
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
+        logger_name: str | None = None,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -931,7 +937,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if dag:
             self.dag = dag
 
-        self._log = logging.getLogger("airflow.task.operators")
+        self._log_config_logger_name = "airflow.task.operators"
+        self._logger_name = logger_name
 
         # Lineage
         self.inlets: list = []
@@ -1220,13 +1227,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __getstate__(self):
         state = dict(self.__dict__)
-        del state["_log"]
+        if self._log:
+            del state["_log"]
 
         return state
 
     def __setstate__(self, state):
         self.__dict__ = state
-        self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_fields(
         self,
