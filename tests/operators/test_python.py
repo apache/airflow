@@ -72,6 +72,7 @@ TI = TaskInstance
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEMPLATE_SEARCHPATH = os.path.join(AIRFLOW_MAIN_FOLDER, "tests", "config_templates")
 LOGGER_NAME = "airflow.task.operators"
+DEFAULT_PYTHON_VERSION = f"{sys.version_info[0]}.{sys.version_info[1]}"
 
 
 class BasePythonTest:
@@ -859,7 +860,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     opcls = PythonVirtualenvOperator
 
     @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+    def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
         kwargs["python_version"] = python_version
         if "do_not_use_caching" in kwargs:
             kwargs.pop("do_not_use_caching")
@@ -1158,7 +1159,7 @@ class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
     opcls = ExternalPythonOperator
 
     @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+    def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
         kwargs["python"] = sys.executable
         return kwargs
 
@@ -1352,7 +1353,7 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
     opcls = BranchPythonVirtualenvOperator
 
     @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+    def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
         if "do_not_use_caching" in kwargs:
             kwargs.pop("do_not_use_caching")
         else:
@@ -1370,7 +1371,7 @@ class TestBranchExternalPythonOperator(BaseTestBranchPythonVirtualenvOperator):
     opcls = BranchExternalPythonOperator
 
     @staticmethod
-    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+    def default_kwargs(*, python_version=DEFAULT_PYTHON_VERSION, **kwargs):
         # Remove do not use caching that might come from one of the tests in the base class
         if "do_not_use_caching" in kwargs:
             kwargs.pop("do_not_use_caching")
