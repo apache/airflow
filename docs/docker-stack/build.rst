@@ -157,7 +157,7 @@ Here is the comparison of the two approaches:
 +----------------------------------------------------+-----------+-------------+
 | Can build from custom airflow sources (forks)      | No        | Yes         |
 +----------------------------------------------------+-----------+-------------+
-| Can build on air-gaped system                      | No        | Yes         |
+| Can build on air-gapped system                     | No        | Yes         |
 +----------------------------------------------------+-----------+-------------+
 
 TL;DR; If you have a need to build custom image, it is easier to start with "Extending". However, if your
