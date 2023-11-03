@@ -409,6 +409,8 @@ def dag_list_import_errors(args) -> None:
         data=data,
         output=args.output,
     )
+    if data:
+        sys.exit(1)
 
 
 @cli_utils.action_cli
