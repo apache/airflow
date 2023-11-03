@@ -4039,9 +4039,7 @@ class AirflowModelView(ModelView):
         name = request.form["action"]
         pks = request.form.getlist("rowid")
         action = self.actions.get(name)
-        items = [
-            self.datamodel.get(self._deserialize_pk_if_composite(pk)) for pk in pks
-        ]
+        items = [self.datamodel.get(self._deserialize_pk_if_composite(pk)) for pk in pks]
         return action.func(items)
 
 
