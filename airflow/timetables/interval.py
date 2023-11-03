@@ -228,12 +228,23 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
     def _align_to_prev(self, current: DateTime) -> DateTime:
         return current
 
+    @staticmethod
+    def _relativedelta_in_seconds(delta: relativedelta) -> int:
+        return (
+            delta.years * 365 * 24 * 60 * 60
+            + delta.months * 30 * 24 * 60 * 60
+            + delta.days * 24 * 60 * 60
+            + delta.hours * 60 * 60
+            + delta.minutes * 60
+            + delta.seconds
+        )
+
     def _round(self, dt: DateTime) -> DateTime:
         """Round the given time to the nearest interval."""
         if isinstance(self._delta, datetime.timedelta):
             delta_in_seconds = self._delta.total_seconds()
         else:
-            delta_in_seconds = self._delta.seconds
+            delta_in_seconds = self._relativedelta_in_seconds(self._delta)
         dt_in_seconds = dt.timestamp()
         rounded_dt = dt_in_seconds - (dt_in_seconds % delta_in_seconds)
         return DateTime.fromtimestamp(rounded_dt, tz=dt.tzinfo)
