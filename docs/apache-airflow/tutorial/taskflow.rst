@@ -465,7 +465,8 @@ In the above code block, a new TaskFlow function is defined as ``extract_from_fi
 reads the data from a known file location.
 In the main DAG, a new ``FileSensor`` task is defined to check for this file. Please note
 that this is a Sensor task which waits for the file.
-Finally, a dependency between this Sensor task and the TaskFlow function is specified.
+The TaskFlow function call is put in a variable ``order_data``.
+Finally, a dependency between this Sensor task and the TaskFlow function is specified using the variable.
 
 
 Consuming XComs between decorated and traditional tasks
