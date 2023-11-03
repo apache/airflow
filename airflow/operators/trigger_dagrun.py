@@ -181,7 +181,7 @@ class TriggerDagRunOperator(BaseOperator):
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
+                dag.clear(start_date=e.dag_run.execution_date, end_date=e.dag_run.execution_date)
                 dag_run = e.dag_run
             else:
                 raise e
