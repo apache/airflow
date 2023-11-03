@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-01T22:41:48Z
+# This constraints file was automatically generated on 2023-11-02T23:32:00Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -88,7 +88,6 @@ aliyun-python-sdk-kms==2.16.2
 amqp==5.1.1
 analytics-python==1.4.post1
 annotated-types==0.6.0
-ansiwrap==0.8.4
 anyascii==0.3.2
 anyio==4.0.0
 apache-airflow-providers-airbyte==3.4.0
@@ -177,7 +176,7 @@ apache-airflow-providers-zendesk==4.4.0
 apache-beam==2.51.0
 apispec==6.3.0
 apprise==1.6.0
-argcomplete==3.1.3
+argcomplete==3.1.4
 arrow==1.3.0
 asana==3.2.2
 asgiref==3.7.2
@@ -305,22 +304,22 @@ google-cloud-aiplatform==1.36.0
 google-cloud-appengine-logging==1.3.2
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.3
-google-cloud-batch==0.17.2
+google-cloud-batch==0.17.3
 google-cloud-bigquery-datatransfer==3.12.1
 google-cloud-bigquery-storage==2.22.0
 google-cloud-bigquery==3.13.0
 google-cloud-bigtable==2.21.0
-google-cloud-build==3.20.1
+google-cloud-build==3.21.0
 google-cloud-compute==1.14.1
-google-cloud-container==2.32.0
+google-cloud-container==2.33.0
 google-cloud-core==2.3.3
 google-cloud-datacatalog==3.16.0
 google-cloud-dataflow-client==0.8.5
-google-cloud-dataform==0.5.3
-google-cloud-dataplex==1.7.0
+google-cloud-dataform==0.5.4
+google-cloud-dataplex==1.8.0
 google-cloud-dataproc-metastore==1.13.0
-google-cloud-dataproc==5.6.0
-google-cloud-dlp==3.12.3
+google-cloud-dataproc==5.7.0
+google-cloud-dlp==3.13.0
 google-cloud-kms==2.19.2
 google-cloud-language==2.11.1
 google-cloud-logging==3.8.0
@@ -334,7 +333,7 @@ google-cloud-resource-manager==1.10.4
 google-cloud-run==0.10.0
 google-cloud-secret-manager==2.16.4
 google-cloud-spanner==3.40.1
-google-cloud-speech==2.21.1
+google-cloud-speech==2.22.0
 google-cloud-storage-transfer==1.9.2
 google-cloud-storage==2.13.0
 google-cloud-tasks==2.14.2
@@ -450,9 +449,9 @@ oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.4.1
-openlineage-python==1.4.1
-openlineage_sql==1.4.1
+openlineage-integration-common==1.5.0
+openlineage-python==1.5.0
+openlineage_sql==1.5.0
 openpyxl==3.1.2
 opensearch-py==2.3.2
 opentelemetry-api==1.20.0
@@ -473,7 +472,7 @@ oss2==2.18.3
 packaging==23.2
 pandas-gbq==0.19.2
 pandas==2.1.2
-papermill==2.4.0
+papermill==2.5.0
 paramiko==3.3.1
 parso==0.8.3
 partd==1.4.1
@@ -588,7 +587,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.10.0
 sentinels==1.0.0
-sentry-sdk==1.33.1
+sentry-sdk==1.34.0
 setproctitle==1.3.3
 shapely==2.0.2
 simple-salesforce==1.12.5
@@ -598,8 +597,8 @@ smbprotocol==1.11.0
 smmap==5.0.1
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==3.3.1
-snowflake-sqlalchemy==1.5.0
+snowflake-connector-python==3.4.0
+snowflake-sqlalchemy==1.5.1
 sortedcontainers==2.4.0
 soupsieve==2.5
 sphinx-airflow-theme==0.0.12
@@ -636,11 +635,10 @@ tblib==3.0.0
 tenacity==8.2.3
 termcolor==2.3.0
 text-unidecode==1.3
-textwrap3==0.9.2
 thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.13.0
-tomlkit==0.12.1
+tomlkit==0.12.2
 toolz==0.12.0
 tornado==6.3.3
 towncrier==23.10.0
