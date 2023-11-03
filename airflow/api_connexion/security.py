@@ -246,5 +246,26 @@ def requires_access_view(access_view: AccessView) -> Callable[[T], T]:
     return requires_access_decorator
 
 
+def requires_access_custom_view(
+    fab_action_name: str,
+    fab_resource_name: str,
+) -> Callable[[T], T]:
+    def requires_access_decorator(func: T):
+        @wraps(func)
+        def decorated(*args, **kwargs):
+            return _requires_access(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_custom_view(
+                    fab_action_name=fab_action_name, fab_resource_name=fab_resource_name
+                ),
+                func=func,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cast(T, decorated)
+
+    return requires_access_decorator
+
+
 def get_readable_dags() -> list[str]:
     return get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
