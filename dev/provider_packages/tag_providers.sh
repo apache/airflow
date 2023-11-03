@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,38 +15,48 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
-AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
+
+import os
+import subprocess
+from datetime import datetime
+
+AIRFLOW_SOURCES = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 
 # Check common named remotes for the upstream repo
-for remote in origin apache; do
-   git remote get-url --push "$remote" 2>/dev/null | grep -q apache/airflow.git && break
-   unset remote
-done
+remotes = ["origin", "apache"]
+for remote in remotes:
+    try:
+        output = subprocess.check_output(["git", "remote", "get-url", "--push", remote], stderr=subprocess.DEVNULL).decode().strip()
+        if "apache/airflow.git" in output:
+            break
+    except subprocess.CalledProcessError:
+        pass
+else:
+    raise ValueError("Could not find remote configured to push to apache/airflow")
 
-: "${remote?Could not find remote configured to push to apache/airflow}"
+tags = []
+for file in os.listdir(os.path.join(AIRFLOW_SOURCES, "dist")):
+    if file.endswith(".whl") and "airflow_providers_" in file and "-py3" in file:
+        matches = re.search(r"airflow_providers_(.*)-(.*)-py3", file)
+        if matches:
+            provider = f"providers-{matches.group(1).replace('_', '-')}"
+            tag = f"{provider}/{matches.group(2)}"
+            try:
+                subprocess.check_call(["git", "tag", tag, "-m", f"Release {datetime.now().strftime('%Y-%m-%d')} of providers"])
+                tags.append(tag)
+            except subprocess.CalledProcessError:
+                pass
 
-tags=()
-for file in "${AIRFLOW_SOURCES}/dist/"*.whl
-do
-   if [[ ${file} =~ .*airflow_providers_(.*)-(.*)-py3.* ]]; then
-        provider="providers-${BASH_REMATCH[1]}"
-        tag="${provider//_/-}/${BASH_REMATCH[2]}"
-    { git tag "${tag}" -m "Release $(date '+%Y-%m-%d') of providers" && tags+=("$tag") ; } || true
-   fi
-done
-
-if [[ -n "${tags:-}" && "${#tags}" -gt 0 ]]; then
-   if git push $remote "${tags[@]}"; then
-       echo "Tags pushed successfully"
-   else
-       echo "Failed to push tags, probably a connectivity issue to Github"
-       CLEAN_LOCAL_TAGS="${CLEAN_LOCAL_TAGS:-true}"
-       if [[ "$CLEAN_LOCAL_TAGS" == "true" ]]; then
-           echo "Cleaning up local tags..."
-           git tag -d "${tags[@]}"
-       else
-           echo "Local tags are not cleaned up, unset CLEAN_LOCAL_TAGS or set to true"
-       fi
-   fi
-fi
+if tags:
+    try:
+        subprocess.check_call(["git", "push", remote] + tags)
+        print("Tags pushed successfully")
+    except subprocess.CalledProcessError:
+        print("Failed to push tags, probably a connectivity issue to Github")
+        CLEAN_LOCAL_TAGS = os.environ.get("CLEAN_LOCAL_TAGS", "true")
+        if CLEAN_LOCAL_TAGS == "true":
+            print("Cleaning up local tags...")
+            for tag in tags:
+                subprocess.run(["git", "tag", "-d", tag])
+        else:
+            print("Local tags are not cleaned up, unset CLEAN_LOCAL_TAGS or set to true")
