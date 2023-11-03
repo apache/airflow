@@ -24,7 +24,7 @@ from azure.storage.fileshare import FileProperties, ShareDirectoryClient, ShareF
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
-    get_default_azure_credential,
+    get_sync_default_azure_credential,
 )
 
 
@@ -106,12 +106,15 @@ class AzureFileShareHook(BaseHook):
             return f"https://{account_url}.file.core.windows.net"
         return account_url
 
-    def _get_default_azure_credential(self):
+    def _get_sync_default_azure_credential(self):
         conn = self.get_connection(self._conn_id)
         extras = conn.extra_dejson
         managed_identity_client_id = extras.get("managed_identity_client_id")
         workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
-        return get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
+        return get_sync_default_azure_credential(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
+        )
 
     @property
     def share_service_client(self):
@@ -126,7 +129,7 @@ class AzureFileShareHook(BaseHook):
         else:
             return ShareServiceClient(
                 account_url=self._account_url,
-                credential=self._get_default_azure_credential(),
+                credential=self._get_sync_default_azure_credential(),
                 token_intent="backup",
             )
 
@@ -151,7 +154,7 @@ class AzureFileShareHook(BaseHook):
                 account_url=self._account_url,
                 share_name=self.share_name,
                 directory_path=self.directory_path,
-                credential=self._get_default_azure_credential(),
+                credential=self._get_sync_default_azure_credential(),
                 token_intent="backup",
             )
 
@@ -176,7 +179,7 @@ class AzureFileShareHook(BaseHook):
                 account_url=self._account_url,
                 share_name=self.share_name,
                 file_path=self.file_path,
-                credential=self._get_default_azure_credential(),
+                credential=self._get_sync_default_azure_credential(),
                 token_intent="backup",
             )
 
