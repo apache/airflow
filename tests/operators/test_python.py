@@ -1101,6 +1101,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             prev_execution_date,
             prev_execution_date_success,
             prev_start_date_success,
+            prev_end_date_success,
             # airflow-specific
             macros,
             conf,
@@ -1141,6 +1142,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             prev_execution_date,
             prev_execution_date_success,
             prev_start_date_success,
+            prev_end_date_success,
             # other
             **context,
         ):
