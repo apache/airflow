@@ -14,3 +14,12 @@
     KIND, either express or implied.  See the License for the
     specific language governing permissions and limitations
     under the License.
+
+.. _howto/connection:pgvector:
+
+pgvector Connection
+===================
+
+The pgvector operators and hooks use the same connection type as Postgres connection type.
+Hence, setup a Postgres type connection as described for the ``apache-airflow-providers-postgres``
+connection.
