@@ -889,7 +889,7 @@ config:
         default: ~
       check_health_on_startup:
         description: |
-          Whether or not to check the ECS Executor health on startup
+          Whether or not to check the ECS Executor health on startup.
         version_added: "8.10"
         type: boolean
         example: "True"

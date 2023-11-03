@@ -106,7 +106,7 @@ class AwsEcsExecutor(BaseExecutor):
         """
         Make a test API call to check the health of the ECS Executor.
 
-        Deliberately use an invalid taskID, some potential outcomes in order:
+        Deliberately use an invalid task ID, some potential outcomes in order:
           1. "AccessDeniedException" is raised if there are insufficient permissions.
           2. "ClusterNotFoundException" is raised if permissions exist but the cluster does not.
           3. The API responds with a failure message if the cluster is found and there
