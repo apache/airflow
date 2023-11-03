@@ -32,7 +32,8 @@ class PineconeHook(BaseHook):
     """
     Interact with Pinecone. This hook uses the Pinecone conn_id.
 
-    :param conn_id: The connection id to use when connecting to Pinecone.
+    :param conn_id: Optional, default connection id is `pinecone_default`. The connection id to use when
+        connecting to Pinecone.
     """
 
     conn_name_attr = "conn_id"
