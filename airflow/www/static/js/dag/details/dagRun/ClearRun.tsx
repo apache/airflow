@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Flex,
   Button,
@@ -32,6 +32,7 @@ import { getMetaValue } from "src/utils";
 import { useKeysPress } from "src/utils/useKeysPress";
 import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 import { useClearRun, useQueueRun } from "src/api";
+import ActionModal from "./ActionModal";
 
 const canEdit = getMetaValue("can_edit") === "True";
 const dagId = getMetaValue("dag_id");
@@ -59,31 +60,57 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
     onQueue({ confirmed: true });
   };
 
-  useKeysPress(keyboardShortcutIdentifier.dagRunClear, clearExistingTasks);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [doNotShowAgain, setDoNotShowAgain] = useState(false);
+  const confirmAction = () => {
+    clearExistingTasks();
+    setShowConfirmationModal(false);
+  };
+  useKeysPress(keyboardShortcutIdentifier.dagRunClear, () => {
+    if (!doNotShowAgain) {
+      setShowConfirmationModal(true);
+    } else clearExistingTasks();
+  });
 
   const clearLabel = "Clear tasks or add new tasks";
   return (
-    <Menu>
-      <MenuButton
-        as={Button}
-        colorScheme="blue"
-        transition="all 0.2s"
-        title={clearLabel}
-        aria-label={clearLabel}
-        disabled={!canEdit || isClearLoading || isQueueLoading}
-        {...otherProps}
-        mt={2}
+    <>
+      <Menu>
+        <MenuButton
+          as={Button}
+          colorScheme="blue"
+          transition="all 0.2s"
+          title={clearLabel}
+          aria-label={clearLabel}
+          disabled={!canEdit || isClearLoading || isQueueLoading}
+          {...otherProps}
+          mt={2}
+        >
+          <Flex>
+            Clear
+            <MdArrowDropDown size="16px" />
+          </Flex>
+        </MenuButton>
+        <MenuList>
+          <MenuItem onClick={clearExistingTasks}>Clear existing tasks</MenuItem>
+          <MenuItem onClick={queueNewTasks}>Queue up new tasks</MenuItem>
+        </MenuList>
+      </Menu>
+      <ActionModal
+        isOpen={showConfirmationModal}
+        onClose={() => setShowConfirmationModal(false)}
+        header="Confirmation"
+        submitButton={
+          <Button onClick={confirmAction} colorScheme="blue">
+            Clear DAG run
+          </Button>
+        }
+        doNotShowAgain={doNotShowAgain}
+        onDoNotShowAgainChange={(value) => setDoNotShowAgain(value)}
       >
-        <Flex>
-          Clear
-          <MdArrowDropDown size="16px" />
-        </Flex>
-      </MenuButton>
-      <MenuList>
-        <MenuItem onClick={clearExistingTasks}>Clear existing tasks</MenuItem>
-        <MenuItem onClick={queueNewTasks}>Queue up new tasks</MenuItem>
-      </MenuList>
-    </Menu>
+        This DAG run will be cleared. Are you sure you want to proceed?
+      </ActionModal>
+    </>
   );
 };
 
