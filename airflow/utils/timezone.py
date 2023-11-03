@@ -18,11 +18,14 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import overload
+from typing import TYPE_CHECKING, overload
 
 import pendulum
 from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
+
+if TYPE_CHECKING:
+    from pendulum.tz.timezone import Timezone
 
 # UTC time zone as a tzinfo instance.
 utc = pendulum.tz.timezone("UTC")
@@ -74,6 +77,18 @@ def utc_epoch() -> dt.datetime:
     return result
 
 
+def in_timezone(datetime: DateTime, tz: Timezone, dst_rule: str = pendulum.PRE_TRANSITION) -> DateTime:
+    """Convert a datetime to a timezone, but also allow for dst_rule override.
+
+    :param datetime: pendulum DateTime
+    :param tz: pendulum Timezone
+    :param dst_rule: pendulum.PRE_TRANSITION or pendulum.POST_TRANSITION
+    :return: localized datetime in timezone
+    """
+    tz = pendulum._safe_timezone(tz)
+    return tz.convert(datetime, dst_rule=dst_rule)
+
+
 @overload
 def convert_to_utc(value: None) -> None:
     ...
@@ -102,26 +117,31 @@ def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
 
 
 @overload
-def make_aware(value: None, timezone: dt.tzinfo | None = None) -> None:
+def make_aware(value: None, timezone: dt.tzinfo | None = None, dst_rule: str | None = None) -> None:
     ...
 
 
 @overload
-def make_aware(value: DateTime, timezone: dt.tzinfo | None = None) -> DateTime:
+def make_aware(value: DateTime, timezone: dt.tzinfo | None = None, dst_rule: str | None = None) -> DateTime:
     ...
 
 
 @overload
-def make_aware(value: dt.datetime, timezone: dt.tzinfo | None = None) -> dt.datetime:
+def make_aware(
+    value: dt.datetime, timezone: dt.tzinfo | None = None, dst_rule: str | None = None
+) -> dt.datetime:
     ...
 
 
-def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> dt.datetime | None:
+def make_aware(
+    value: dt.datetime | None, timezone: dt.tzinfo | None = None, dst_rule: str | None = None
+) -> dt.datetime | None:
     """
     Make a naive datetime.datetime in a given time zone aware.
 
     :param value: datetime
     :param timezone: timezone
+    :param dst_rule: str
     :return: localized datetime in settings.TIMEZONE or timezone
     """
     if timezone is None:
@@ -135,7 +155,7 @@ def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> 
     # Check that we won't overwrite the timezone of an aware datetime.
     if is_localized(value):
         raise ValueError(f"make_aware expects a naive datetime, got {value}")
-    if hasattr(value, "fold"):
+    if hasattr(value, "fold") and (dst_rule is None or dst_rule != pendulum.PRE_TRANSITION):
         # In case of python 3.6 we want to do the same that pendulum does for python3.5
         # i.e in case we move clock back we want to schedule the run at the time of the second
         # instance of the same clock time rather than the first one.
@@ -148,7 +168,7 @@ def make_aware(value: dt.datetime | None, timezone: dt.tzinfo | None = None) -> 
     convert = getattr(timezone, "convert", None)
     if convert is not None:
         # For pendulum
-        return convert(value)
+        return convert(value, dst_rule=dst_rule)
     # This may be wrong around DST changes!
     return value.replace(tzinfo=timezone)
 

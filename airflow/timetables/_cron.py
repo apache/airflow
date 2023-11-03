@@ -17,20 +17,16 @@
 from __future__ import annotations
 
 import datetime
-from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
-from pendulum import DateTime
+from pendulum import PRE_TRANSITION, DateTime, instance
 from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
-from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
-
-if TYPE_CHECKING:
-    from pendulum import DateTime
+from airflow.utils.timezone import convert_to_utc, in_timezone, make_aware, make_naive
 
 
 class CronMixin:
@@ -80,14 +76,45 @@ class CronMixin:
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_next(datetime.datetime)
-        return convert_to_utc(make_aware(scheduled, self._timezone))
+
+        # calculate the delta to the next scheduled time, taking into account
+        # if the next scheduled time is in a different tz
+        current_offset = in_timezone(current, self._timezone).utcoffset()
+        scheduled_offset = instance(scheduled, self._timezone).utcoffset()
+        if current_offset is not None and scheduled_offset is not None:
+            utc_offset_delta = current_offset - scheduled_offset
+        else:
+            utc_offset_delta = datetime.timedelta(seconds=0)
+
+        # here we need to re-offset UTC because our next calculation was in local time
+        return convert_to_utc(make_aware(scheduled, self._timezone)) - utc_offset_delta
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule before specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
-        return convert_to_utc(make_aware(scheduled, self._timezone))
+
+        # calculate the delta to the next scheduled time, taking into account
+        # if the next scheduled time is in a different tz
+        current_offset = in_timezone(current, self._timezone).utcoffset()
+        scheduled_offset = instance(scheduled, self._timezone).utcoffset()
+        if current_offset is not None and scheduled_offset is not None:
+            utc_offset_delta = current_offset - scheduled_offset
+        else:
+            utc_offset_delta = datetime.timedelta(seconds=0)
+
+        # here we need to re-offset UTC because our next calculation was in local time
+        # return convert_to_utc(make_aware(scheduled, self._timezone)) - utc_offset_delta
+        to_return = convert_to_utc(make_aware(scheduled, self._timezone)) - utc_offset_delta
+
+        if to_return == current and utc_offset_delta.total_seconds() == 0:
+            # need to hop over a DST bound
+            to_return = (
+                convert_to_utc(make_aware(scheduled, self._timezone, dst_rule=PRE_TRANSITION))
+                - utc_offset_delta
+            )
+        return to_return
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
