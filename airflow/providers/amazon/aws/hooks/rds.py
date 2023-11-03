@@ -153,8 +153,10 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_export_tasks(ExportTaskIdentifier=export_task_id)
-        except self.conn.exceptions.ExportTaskNotFoundFault as e:
-            raise AirflowNotFoundException(e)
+        except self.conn.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "ExportTaskNotFoundFault":
+                raise AirflowNotFoundException(e)
+            raise e
         return response["ExportTasks"][0]["Status"].lower()
 
     def wait_for_export_task_state(
@@ -192,8 +194,10 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_event_subscriptions(SubscriptionName=subscription_name)
-        except self.conn.exceptions.SubscriptionNotFoundFault as e:
-            raise AirflowNotFoundException(e)
+        except self.conn.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "SubscriptionNotFoundFault":
+                raise AirflowNotFoundException(e)
+            raise e
         return response["EventSubscriptionsList"][0]["Status"].lower()
 
     def wait_for_event_subscription_state(
