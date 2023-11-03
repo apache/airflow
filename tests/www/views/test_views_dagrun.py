@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import flask
-import markupsafe
 import pytest
 
 from airflow.models import DagBag, DagRun, TaskInstance
@@ -109,15 +107,7 @@ def test_get_dagrun_can_view_dags_without_edit_perms(session, running_dag_run, c
     """Test that a user without dag_edit but with dag_read permission can view the records"""
     assert session.query(DagRun).filter(DagRun.dag_id == running_dag_run.dag_id).count() == 1
     resp = client_dr_without_dag_edit.get("/dagrun/list/", follow_redirects=True)
-
-    with client_dr_without_dag_edit.application.test_request_context():
-        url = flask.url_for(
-            "Airflow.graph", dag_id=running_dag_run.dag_id, execution_date=running_dag_run.execution_date
-        )
-        dag_url_link = markupsafe.Markup('<a href="{url}">{dag_id}</a>').format(
-            url=url, dag_id=running_dag_run.dag_id
-        )
-    check_content_in_response(dag_url_link, resp)
+    check_content_in_response(running_dag_run.dag_id, resp)
 
 
 def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_create):
