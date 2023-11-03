@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import warnings
-from functools import wraps
+from functools import partial, wraps
+from typing import TYPE_CHECKING
 
 from azure.core.pipeline import PipelineContext, PipelineRequest
 from azure.core.pipeline.policies import BearerTokenCredentialPolicy
@@ -26,6 +27,9 @@ from azure.core.pipeline.transport import HttpRequest
 from azure.identity import DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
 from msrest.authentication import BasicTokenAuthentication
+
+if TYPE_CHECKING:
+    pass
 
 
 def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
@@ -53,7 +57,7 @@ def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
     return ret
 
 
-def get_default_azure_credential(
+def _get_default_azure_credential(
     *,
     managed_identity_client_id: str | None,
     workload_identity_tenant_id: str | None,
@@ -75,6 +79,17 @@ def get_default_azure_credential(
         )
     else:
         return credential_cls()
+
+
+get_sync_default_azure_credential: partial[DefaultAzureCredential] = partial(
+    _get_default_azure_credential,  #  type: ignore[arg-type]
+    use_async=False,
+)
+
+get_async_default_azure_credential: partial[AsyncDefaultAzureCredential] = partial(
+    _get_default_azure_credential,  #  type: ignore[arg-type]
+    use_async=False,
+)
 
 
 def add_managed_identity_connection_widgets(func):
@@ -130,7 +145,7 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         """
         super().__init__(None)  # type: ignore[arg-type]
         if credential is None:
-            credential = get_default_azure_credential(
+            credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )

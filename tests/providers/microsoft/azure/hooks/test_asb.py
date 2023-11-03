@@ -61,7 +61,7 @@ class TestAdminClientHook:
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusAdministrationClient)
 
-    @mock.patch(f"{MODULE}.get_default_azure_credential")
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential")
     @mock.patch(f"{MODULE}.AdminClientHook.get_connection")
     def test_get_conn_fallback_to_default_azure_credential_when_schema_is_not_provided(
         self, mock_connection, mock_default_azure_credential
@@ -174,7 +174,7 @@ class TestMessageHook:
         hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusClient)
 
-    @mock.patch(f"{MODULE}.get_default_azure_credential")
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential")
     @mock.patch(f"{MODULE}.MessageHook.get_connection")
     def test_get_conn_fallback_to_default_azure_credential_when_schema_is_not_provided(
         self, mock_connection, mock_default_azure_credential

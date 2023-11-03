@@ -131,7 +131,7 @@ class TestAzureContainerInstanceHook:
 class TestAzureContainerInstanceHookWithoutSetupCredential:
     @patch("airflow.providers.microsoft.azure.hooks.container_instance.ContainerInstanceManagementClient")
     @patch("azure.common.credentials.ServicePrincipalCredentials")
-    @patch("airflow.providers.microsoft.azure.hooks.container_instance.get_default_azure_credential")
+    @patch("airflow.providers.microsoft.azure.hooks.container_instance.get_sync_default_azure_credential")
     def test_get_conn_fallback_to_default_azure_credential(
         self,
         mock_default_azure_credential,

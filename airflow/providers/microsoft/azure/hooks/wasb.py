@@ -49,7 +49,8 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
-    get_default_azure_credential,
+    get_async_default_azure_credential,
+    get_sync_default_azure_credential,
 )
 
 if TYPE_CHECKING:
@@ -214,7 +215,7 @@ class WasbHook(BaseHook):
         if not credential:
             managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
             workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
-            credential = get_default_azure_credential(
+            credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
@@ -646,10 +647,9 @@ class WasbAsyncHook(WasbHook):
         if not credential:
             managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
             workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
-            credential = get_default_azure_credential(
+            credential = get_async_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
-                use_async=True,
             )
             self.log.info("Using DefaultAzureCredential as credential")
         self.blob_service_client = AsyncBlobServiceClient(

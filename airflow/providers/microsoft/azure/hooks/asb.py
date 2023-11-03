@@ -24,8 +24,8 @@ from azure.servicebus.management import QueueProperties, ServiceBusAdministratio
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
-    get_default_azure_credential,
     get_field,
+    get_sync_default_azure_credential,
 )
 
 if TYPE_CHECKING:
@@ -119,7 +119,7 @@ class AdminClientHook(BaseAzureServiceBusHook):
                 workload_identity_tenant_id = self._get_field(
                     extras=extras, field_name="workload_identity_tenant_id"
                 )
-                credential = get_default_azure_credential(
+                credential = get_sync_default_azure_credential(
                     managed_identity_client_id=managed_identity_client_id,
                     workload_identity_tenant_id=workload_identity_tenant_id,
                 )
@@ -212,7 +212,7 @@ class MessageHook(BaseAzureServiceBusHook):
                 workload_identity_tenant_id = self._get_field(
                     extras=extras, field_name="workload_identity_tenant_id"
                 )
-                credential = get_default_azure_credential(
+                credential = get_sync_default_azure_credential(
                     managed_identity_client_id=managed_identity_client_id,
                     workload_identity_tenant_id=workload_identity_tenant_id,
                 )

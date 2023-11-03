@@ -27,8 +27,8 @@ from azure.mgmt.containerregistry import ContainerRegistryManagementClient
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
-    get_default_azure_credential,
     get_field,
+    get_sync_default_azure_credential,
 )
 
 
@@ -109,7 +109,7 @@ class AzureContainerRegistryHook(BaseHook):
             resource_group = self._get_field(extras, "resource_group")
             managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
             workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
-            credential = get_default_azure_credential(
+            credential = get_sync_default_azure_credential(
                 managed_identity_client_id=managed_identity_client_id,
                 workload_identity_tenant_id=workload_identity_tenant_id,
             )
