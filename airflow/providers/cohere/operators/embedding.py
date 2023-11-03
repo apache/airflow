@@ -34,7 +34,7 @@ class CohereEmbeddingOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CohereEmbeddingOperator`
 
-    :param input_text: list of text items that need to be embedded.
+    :param input_text: single string text or list of text items that need to be embedded.
     :param conn_id: Optional. The name of the Airflow connection to get connection
         information for Cohere. Defaults to "cohere_default".
     :param timeout: Timeout in seconds for Cohere API.
