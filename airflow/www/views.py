@@ -4023,6 +4023,27 @@ class AirflowModelView(ModelView):
         self._delete(pk)
         return self.post_delete_redirect()
 
+    @expose("/action_post", methods=["POST"])
+    def action_post(self):
+        """
+        Action method to handle multiple records selected from a list view.
+
+        Same implementation as
+        https://github.com/dpgaspar/Flask-AppBuilder/blob/2c5763371b81cd679d88b9971ba5d1fc4d71d54b/flask_appbuilder/views.py#L677
+
+        The difference is, it no longer check permissions with ``self.appbuilder.sm.has_access``,
+        it executes the function without verifying permissions.
+        Thus, each action need to be annotated individually with ``@auth.has_access_*`` to check user
+        permissions.
+        """
+        name = request.form["action"]
+        pks = request.form.getlist("rowid")
+        action = self.actions.get(name)
+        items = [
+            self.datamodel.get(self._deserialize_pk_if_composite(pk)) for pk in pks
+        ]
+        return action.func(items)
+
 
 class SlaMissModelView(AirflowModelView):
     """View to show SlaMiss table."""
