@@ -28,7 +28,10 @@ from collections import defaultdict, deque
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
+from botocore.exceptions import ClientError
+
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
@@ -98,6 +101,60 @@ class AwsEcsExecutor(BaseExecutor):
 
         self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.run_task_kwargs = self._load_run_kwargs()
+
+    def start(self):
+        """
+        Make a test API call to check the health of the ECS Executor.
+
+        Deliberately use an invalid task ID, some potential outcomes in order:
+          1. "AccessDeniedException" is raised if there are insufficient permissions.
+          2. "ClusterNotFoundException" is raised if permissions exist but the cluster does not.
+          3. The API responds with a failure message if the cluster is found and there
+             are permissions, but the cluster itself has issues.
+          4. "InvalidParameterException" is raised if the permissions and cluster exist but the task does not.
+
+        The last one is considered a success state for the purposes of this check.
+        """
+        check_health = conf.getboolean(
+            CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
+        )
+
+        if not check_health:
+            return
+
+        self.log.info("Starting ECS Executor and determining health...")
+
+        success_status = "succeeded."
+        status = success_status
+
+        try:
+            invalid_task_id = "a" * 32
+            self.ecs.stop_task(cluster=self.cluster, task=invalid_task_id)
+
+            # If it got this far, something is wrong.  stop_task() called with an
+            # invalid taskID should have thrown a ClientError.  All known reasons are
+            # covered in the ``except`` block below, and this should never be reached.
+            status = "failed for an unknown reason. "
+        except ClientError as ex:
+            error_code = ex.response["Error"]["Code"]
+            error_message = ex.response["Error"]["Message"]
+
+            if ("InvalidParameterException" in error_code) and ("task was not found" in error_message):
+                # This failure is expected, and means we're healthy
+                pass
+            else:
+                # Catch all for unexpected failures
+                status = f"failed because: {error_message}. "
+        finally:
+            msg_prefix = "ECS Executor health check has %s"
+            if status == success_status:
+                self.log.info(msg_prefix, status)
+            else:
+                msg_error_suffix = (
+                    "The ECS executor will not be able to run Airflow tasks until the issue is addressed. "
+                    "Stopping the Airflow Scheduler from starting until the issue is resolved."
+                )
+                raise AirflowException(msg_prefix % status + msg_error_suffix)
 
     def sync(self):
         try:
