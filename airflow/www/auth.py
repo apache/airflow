@@ -265,7 +265,7 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
         @wraps(func)
         def decorated(*args, **kwargs):
             items: set[SlaMiss | BaseXCom | DagRun | TaskInstance] = set(args[1])
-            dags_details = [DagDetails(id=item.dag_id) for item in items]
+            dags_details = [DagDetails(id=item.dag_id) for item in items if item is not None]
             is_authorized = all(
                 [
                     get_auth_manager().is_authorized_dag(
