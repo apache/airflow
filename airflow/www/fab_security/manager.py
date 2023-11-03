@@ -63,6 +63,26 @@ if TYPE_CHECKING:
 # Copyright 2013, Daniel Vaz Gaspar
 log = logging.getLogger(__name__)
 
+__lazy_imports = {
+    "AUTH_DB": "flask_appbuilder.const",
+    "AUTH_LDAP": "flask_appbuilder.const",
+    "LOGMSG_WAR_SEC_LOGIN_FAILED": "flask_appbuilder.const",
+}
+
+
+def __getattr__(name: str):
+    # PEP-562: Lazy loaded attributes on python modules
+    path = __lazy_imports.get(name)
+    if not path:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    from airflow.utils.module_loading import import_string
+
+    val = import_string(f"{path}.{name}")
+    # Store for next time
+    globals()[name] = val
+    return val
+
 
 def _oauth_tokengetter(token=None):
     """Return the current user oauth token from session cookie."""

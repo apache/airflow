@@ -21,10 +21,13 @@ import uuid
 from unittest.mock import patch
 
 import pandas as pd
+import pytest
 
 from airflow.models import DAG, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils.state import State
+
+pytestmark = pytest.mark.db_test
 
 
 class TemplateOperator(BaseOperator):

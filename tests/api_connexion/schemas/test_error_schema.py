@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.api_connexion.schemas.error_schema import (
     ImportErrorCollection,
     import_error_collection_schema,
@@ -25,6 +27,8 @@ from airflow.models.errors import ImportError
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_import_errors
+
+pytestmark = pytest.mark.db_test
 
 
 class TestErrorSchemaBase:

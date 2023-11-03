@@ -81,9 +81,7 @@ class TestFunctionHookNoDefaultProjectId:
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
         mck, open_module = get_open_mock()
         with mock.patch(f"{open_module}.open", mck):
-            generate_upload_url_method = (
-                get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.generateUploadUrl
-            )
+            generate_upload_url_method = get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.generateUploadUrl
 
             execute_method = generate_upload_url_method.return_value.execute
             execute_method.return_value = {"uploadUrl": "http://uploadHere"}
@@ -222,9 +220,7 @@ class TestFunctionHookDefaultProjectId:
     def test_upload_function_zip(self, get_conn, requests_put, mock_project_id):
         mck, open_module = get_open_mock()
         with mock.patch(f"{open_module}.open", mck):
-            generate_upload_url_method = (
-                get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.generateUploadUrl
-            )
+            generate_upload_url_method = get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.generateUploadUrl
 
             execute_method = generate_upload_url_method.return_value.execute
             execute_method.return_value = {"uploadUrl": "http://uploadHere"}
@@ -250,9 +246,7 @@ class TestFunctionHookDefaultProjectId:
     def test_upload_function_zip_overridden_project_id(self, get_conn, requests_put):
         mck, open_module = get_open_mock()
         with mock.patch(f"{open_module}.open", mck):
-            generate_upload_url_method = (
-                get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.generateUploadUrl
-            )
+            generate_upload_url_method = get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.generateUploadUrl
 
             execute_method = generate_upload_url_method.return_value.execute
             execute_method.return_value = {"uploadUrl": "http://uploadHere"}
@@ -275,9 +269,7 @@ class TestFunctionHookDefaultProjectId:
     def test_call_function(self, mock_get_conn):
         payload = {"executionId": "wh41ppcyoa6l", "result": "Hello World!"}
 
-        call = (
-            mock_get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.call
-        )
+        call = mock_get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.call
 
         call.return_value.execute.return_value = payload
 
@@ -299,9 +291,7 @@ class TestFunctionHookDefaultProjectId:
     def test_call_function_error(self, mock_get_conn):
         payload = {"error": "Something very bad"}
 
-        call = (
-            mock_get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.call
-        )
+        call = mock_get_conn.return_value.projects.return_value.locations.return_value.functions.return_value.call
 
         call.return_value.execute.return_value = payload
 

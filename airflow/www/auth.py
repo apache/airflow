@@ -21,9 +21,10 @@ import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
-from flask import flash, g, redirect, render_template, request
+from flask import flash, redirect, render_template, request
 
 from airflow.auth.managers.models.resource_details import (
+    AccessView,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
@@ -107,7 +108,9 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
     """
     if is_authorized:
         return func(*args, **kwargs)
-    elif get_auth_manager().is_logged_in() and not g.user.perms:
+    elif get_auth_manager().is_logged_in() and not get_auth_manager().is_authorized_view(
+        access_view=AccessView.WEBSITE
+    ):
         return (
             render_template(
                 "airflow/no_roles_permissions.html",
@@ -215,6 +218,6 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_variable(method=method))
 
 
-def has_access_website() -> Callable[[T], T]:
-    """Check current user's permissions to access the website."""
-    return _has_access_no_details(lambda: get_auth_manager().is_authorized_website())
+def has_access_view(access_view: AccessView = AccessView.WEBSITE) -> Callable[[T], T]:
+    """Decorator that checks current user's permissions to access the website."""
+    return _has_access_no_details(lambda: get_auth_manager().is_authorized_view(access_view=access_view))

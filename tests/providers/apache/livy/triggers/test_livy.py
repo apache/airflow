@@ -97,6 +97,7 @@ class TestLivyTrigger:
         assert len(task) == 2
         assert TriggerEvent({"status": "error"}) in task
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_livy_trigger_run_with_exception(self):
         """Test if the task in the trigger failed with a connection error when no connection is mocked."""
@@ -119,6 +120,7 @@ class TestLivyTrigger:
             in task
         )
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_livy_trigger_poll_for_termination_with_client_error(self):
         """

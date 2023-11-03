@@ -830,7 +830,7 @@ class DagFileProcessor(LoggingMixin):
             return 0, 0
 
         if dagbag.dags:
-            self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
+            self.log.info("DAG(s) %s retrieved from %s", ", ".join(map(repr, dagbag.dags)), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
             DagFileProcessor.update_import_errors(

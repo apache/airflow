@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from functools import wraps
 
 from azure.core.pipeline import PipelineContext, PipelineRequest
 from azure.core.pipeline.policies import BearerTokenCredentialPolicy
@@ -51,6 +52,47 @@ def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
     return ret
 
 
+def get_default_azure_credential(
+    managed_identity_client_id: str | None, workload_identity_tenant_id: str | None
+) -> DefaultAzureCredential:
+    """Get DefaultAzureCredential based on provided arguments.
+
+    If managed_identity_client_id and workload_identity_tenant_id are provided, this function returns
+    DefaultAzureCredential with managed identity.
+    """
+    if managed_identity_client_id and workload_identity_tenant_id:
+        return DefaultAzureCredential(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
+            additionally_allowed_tenants=[workload_identity_tenant_id],
+        )
+    else:
+        return DefaultAzureCredential()
+
+
+def add_managed_identity_connection_widgets(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        widgets = func(*args, **kwargs)
+        widgets.update(
+            {
+                "managed_identity_client_id": StringField(
+                    lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
+                ),
+                "workload_identity_tenant_id": StringField(
+                    lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
+                ),
+            }
+        )
+        return widgets
+
+    return wrapper
+
+
 class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
     """Adapt azure-identity credentials for backward compatibility.
 
@@ -60,15 +102,28 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
     Check https://stackoverflow.com/questions/63384092/exception-attributeerror-defaultazurecredential-object-has-no-attribute-sig
     """
 
-    def __init__(self, credential=None, resource_id="https://management.azure.com/.default", **kwargs):
+    def __init__(
+        self,
+        credential=None,
+        resource_id="https://management.azure.com/.default",
+        *,
+        managed_identity_client_id: str | None = None,
+        workload_identity_tenant_id: str | None = None,
+        **kwargs,
+    ):
         """Adapt azure-identity credentials for backward compatibility.
 
         :param credential: Any azure-identity credential (DefaultAzureCredential by default)
-        :param str resource_id: The scope to use to get the token (default ARM)
+        :param resource_id: The scope to use to get the token (default ARM)
+        :param managed_identity_client_id: The client ID of a user-assigned managed identity.
+            If provided with `workload_identity_tenant_id`, they'll pass to ``DefaultAzureCredential``.
+        :param workload_identity_tenant_id: ID of the application's Microsoft Entra tenant.
+            Also called its "directory" ID.
+            If provided with `managed_identity_client_id`, they'll pass to ``DefaultAzureCredential``.
         """
-        super().__init__(None)
+        super().__init__(None)  # type: ignore[arg-type]
         if credential is None:
-            credential = DefaultAzureCredential()
+            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
         self._policy = BearerTokenCredentialPolicy(credential, resource_id, **kwargs)
 
     def _make_request(self):

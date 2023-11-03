@@ -62,6 +62,7 @@ class EmptyMockConnectionCursor(BaseMockConnectionCursor):
         self.iterable = []
 
 
+@pytest.mark.db_test
 class TestHiveCliHook:
     @mock.patch("tempfile.tempdir", "/tmp/")
     @mock.patch("tempfile._RandomNameSequence.__next__")
@@ -415,16 +416,16 @@ class TestHiveMetastoreHook:
         socket_mock.socket.return_value.connect_ex.return_value = 0
         self.hook.get_metastore_client()
 
-    @mock.patch(
-        "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
-        return_value=Connection(host="metastore1.host,metastore2.host", port=9802),
-    )
     @mock.patch("airflow.providers.apache.hive.hooks.hive.socket")
-    def test_ha_hosts(self, socket_mock, get_connection_mock):
-        socket_mock.socket.return_value.connect_ex.return_value = 1
-        with pytest.raises(AirflowException):
-            HiveMetastoreHook()
-        assert socket_mock.socket.call_count == 2
+    def test_ha_hosts(self, socket_mock):
+        with mock.patch(
+            "airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook.get_connection",
+            return_value=Connection(host="metastore1.host,metastore2.host", port=9802),
+        ):
+            socket_mock.socket.return_value.connect_ex.return_value = 1
+            with pytest.raises(AirflowException):
+                HiveMetastoreHook()
+            assert socket_mock.socket.call_count == 2
 
     def test_get_conn(self):
         with mock.patch(
@@ -589,6 +590,7 @@ class TestHiveMetastoreHook:
         assert metastore_mock.drop_partition(self.table, db=self.database, part_vals=[DEFAULT_DATE_DS]), ret
 
 
+@pytest.mark.db_test
 class TestHiveServer2Hook:
     def _upload_dataframe(self):
         df = pd.DataFrame({"a": [1, 2], "b": [1, 2]})
@@ -871,6 +873,7 @@ class TestHiveServer2Hook:
         assert "test_dag_run_id" in output
 
 
+@pytest.mark.db_test
 @mock.patch.dict("os.environ", AIRFLOW__CORE__SECURITY="kerberos")
 class TestHiveCli:
     def setup_method(self):

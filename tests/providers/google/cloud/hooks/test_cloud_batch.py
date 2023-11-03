@@ -27,6 +27,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchAsyncHook, CloudBatchHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
+pytestmark = pytest.mark.db_test
+
 
 class TestCloudBathHook:
     def dummy_get_credentials(self):

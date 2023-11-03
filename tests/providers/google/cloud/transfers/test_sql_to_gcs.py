@@ -85,6 +85,7 @@ class DummySQLToGCSOperator(BaseSQLToGCSOperator):
 
 
 class TestBaseSQLToGCSOperator:
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.NamedTemporaryFile")
     @mock.patch("csv.writer")
     @mock.patch.object(GCSHook, "upload")

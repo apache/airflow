@@ -36,6 +36,7 @@ from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.json import AirflowJsonProvider
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.extensions.init_cache import init_cache
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
@@ -65,16 +66,6 @@ app: Flask | None = None
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
 csrf = CSRFProtect()
-
-
-def sync_appbuilder_roles(flask_app):
-    """Sync appbuilder roles to DB."""
-    # Garbage collect old permissions/views after they have been modified.
-    # Otherwise, when the name of a view or menu is changed, the framework
-    # will add the new Views and Menus names to the backend, but will not
-    # delete the old ones.
-    if conf.getboolean("webserver", "UPDATE_FAB_PERMS"):
-        flask_app.appbuilder.sm.sync_roles()
 
 
 def create_app(config=None, testing=False):
@@ -174,7 +165,7 @@ def create_app(config=None, testing=False):
         init_api_auth_provider(flask_app)
         init_api_error_handlers(flask_app)  # needs to be after all api inits to let them add their path first
 
-        sync_appbuilder_roles(flask_app)
+        get_auth_manager().init()
 
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
