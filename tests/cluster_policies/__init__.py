@@ -24,18 +24,18 @@ from typing import TYPE_CHECKING, Callable
 from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicySkipDag, AirflowClusterPolicyViolation
 from airflow.models.baseoperator import BaseOperator
+from airflow.utils.types import Stringable
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.taskinstance import TaskInstance
 
-
 # [START example_cluster_policy_rule]
 def task_must_have_owners(task: BaseOperator):
-    if task.owner and not isinstance(task.owner, str):
+    if task.owner and not isinstance(task.owner, Stringable):
         raise AirflowClusterPolicyViolation(f"""owner should be a string. Current value: {task.owner!r}""")
 
-    if not task.owner or task.owner.lower() == conf.get("operators", "default_owner"):
+    if not task.owner_str or task.owner_str.lower() == conf.get("operators", "default_owner"):
         raise AirflowClusterPolicyViolation(
             f"""Task must have non-None non-default owner. Current value: {task.owner}"""
         )

@@ -152,7 +152,7 @@ class AbstractOperator(Templater, DAGNode):
         dag = self.get_dag()
         if dag:
             return dag.dag_id
-        return f"adhoc_{self.owner}"
+        return f"adhoc_{self.owner_str}"
 
     @property
     def node_id(self) -> str:

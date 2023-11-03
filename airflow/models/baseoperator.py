@@ -111,7 +111,7 @@ if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import BaseTrigger
     from airflow.utils.task_group import TaskGroup
-    from airflow.utils.types import ArgNotSet
+    from airflow.utils.types import ArgNotSet, Stringable
 
 ScheduleInterval = Union[str, timedelta, relativedelta]
 
@@ -225,7 +225,7 @@ def partial(
     task_group: TaskGroup | None = None,
     start_date: datetime | ArgNotSet = NOTSET,
     end_date: datetime | ArgNotSet = NOTSET,
-    owner: str | ArgNotSet = NOTSET,
+    owner: Stringable | ArgNotSet = NOTSET,
     email: None | str | Iterable[str] | ArgNotSet = NOTSET,
     params: collections.abc.MutableMapping | None = None,
     resources: dict[str, Any] | None | ArgNotSet = NOTSET,
@@ -735,7 +735,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __init__(
         self,
         task_id: str,
-        owner: str = DEFAULT_OWNER,
+        owner: Stringable = DEFAULT_OWNER,
         email: str | Iterable[str] | None = None,
         email_on_retry: bool = conf.getboolean("email", "default_email_on_retry", fallback=True),
         email_on_failure: bool = conf.getboolean("email", "default_email_on_failure", fallback=True),
@@ -814,6 +814,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             task_group.add(self)
 
         self.owner = owner
+        self.owner_str = str(owner)
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure

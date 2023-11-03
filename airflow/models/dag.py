@@ -1337,7 +1337,7 @@ class DAG(LoggingMixin):
 
         :return: Comma separated list of owners in DAG tasks
         """
-        return ", ".join({t.owner for t in self.tasks})
+        return ", ".join({t.owner_str for t in self.tasks})
 
     @property
     def allow_future_exec_dates(self) -> bool:

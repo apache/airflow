@@ -614,7 +614,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             "cluster": self.cluster,
             "taskDefinition": self.task_definition,
             "overrides": self.overrides,
-            "startedBy": self._started_by or self.owner,
+            "startedBy": self._started_by or self.owner_str,
         }
 
         if self.capacity_provider_strategy:
