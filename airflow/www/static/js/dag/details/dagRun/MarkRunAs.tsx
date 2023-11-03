@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Flex,
   Button,
@@ -35,6 +35,7 @@ import { useMarkFailedRun, useMarkSuccessRun } from "src/api";
 import type { RunState } from "src/types";
 
 import { SimpleStatus } from "../../StatusBox";
+import ActionModal from "./ActionModal";
 
 const canEdit = getMetaValue("can_edit") === "True";
 const dagId = getMetaValue("dag_id");
@@ -50,6 +51,12 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
   const { mutateAsync: markSuccess, isLoading: isMarkSuccessLoading } =
     useMarkSuccessRun(dagId, runId);
 
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [confirmingAction, setConfirmingAction] = useState<
+    "success" | "failed"
+  >();
+  const [doNotShowAgainSuccess, setDoNotShowAgainSuccess] = useState(false);
+  const [doNotShowAgainFailed, setDoNotShowAgainFailed] = useState(false);
   const markAsFailed = () => {
     markFailed({ confirmed: true });
   };
@@ -58,42 +65,95 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
     markSuccess({ confirmed: true });
   };
 
+  const confirmAction = () => {
+    if (confirmingAction === "failed") {
+      markAsFailed();
+    } else if (confirmingAction === "success") {
+      markAsSuccess();
+    }
+    setShowConfirmationModal(false);
+  };
+
   useKeysPress(keyboardShortcutIdentifier.dagMarkSuccess, () => {
-    if (state !== "success") markAsSuccess();
+    if (state !== "success") {
+      if (!doNotShowAgainSuccess) {
+        setConfirmingAction("success");
+        setShowConfirmationModal(true);
+      } else markAsSuccess();
+    }
   });
   useKeysPress(keyboardShortcutIdentifier.dagMarkFailed, () => {
-    if (state !== "failed") markAsFailed();
+    if (state !== "failed") {
+      if (!doNotShowAgainFailed) {
+        setConfirmingAction("failed");
+        setShowConfirmationModal(true);
+      } else markAsFailed();
+    }
   });
 
   const markLabel = "Manually set dag run state";
   return (
-    <Menu>
-      <MenuButton
-        as={Button}
-        colorScheme="blue"
-        transition="all 0.2s"
-        title={markLabel}
-        aria-label={markLabel}
-        disabled={!canEdit || isMarkFailedLoading || isMarkSuccessLoading}
-        {...otherProps}
-        mt={2}
+    <>
+      <Menu>
+        <MenuButton
+          as={Button}
+          colorScheme="blue"
+          transition="all 0.2s"
+          title={markLabel}
+          aria-label={markLabel}
+          disabled={!canEdit || isMarkFailedLoading || isMarkSuccessLoading}
+          {...otherProps}
+          mt={2}
+        >
+          <Flex>
+            Mark state as...
+            <MdArrowDropDown size="16px" />
+          </Flex>
+        </MenuButton>
+        <MenuList>
+          <MenuItem onClick={markAsFailed} isDisabled={state === "failed"}>
+            <SimpleStatus state="failed" mr={2} />
+            failed
+          </MenuItem>
+          <MenuItem onClick={markAsSuccess} isDisabled={state === "success"}>
+            <SimpleStatus state="success" mr={2} />
+            success
+          </MenuItem>
+        </MenuList>
+      </Menu>
+      <ActionModal
+        isOpen={showConfirmationModal}
+        onClose={() => setShowConfirmationModal(false)}
+        header="Confirmation"
+        submitButton={
+          <Button
+            onClick={confirmAction}
+            colorScheme={
+              (confirmingAction === "success" && "green") ||
+              (confirmingAction === "failed" && "red") ||
+              "grey"
+            }
+          >
+            Mark as {confirmingAction}
+          </Button>
+        }
+        doNotShowAgain={
+          confirmingAction === "success"
+            ? doNotShowAgainSuccess
+            : doNotShowAgainFailed
+        }
+        onDoNotShowAgainChange={(value) => {
+          if (confirmingAction === "success") {
+            setDoNotShowAgainSuccess(value);
+          } else if (confirmingAction === "failed") {
+            setDoNotShowAgainFailed(value);
+          }
+        }}
       >
-        <Flex>
-          Mark state as...
-          <MdArrowDropDown size="16px" />
-        </Flex>
-      </MenuButton>
-      <MenuList>
-        <MenuItem onClick={markAsFailed} isDisabled={state === "failed"}>
-          <SimpleStatus state="failed" mr={2} />
-          failed
-        </MenuItem>
-        <MenuItem onClick={markAsSuccess} isDisabled={state === "success"}>
-          <SimpleStatus state="success" mr={2} />
-          success
-        </MenuItem>
-      </MenuList>
-    </Menu>
+        This marks the DAG run as {confirmingAction}. Are you sure you want to
+        proceed?
+      </ActionModal>
+    </>
   );
 };
 
