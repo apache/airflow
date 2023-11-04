@@ -1726,6 +1726,7 @@ jobs:
           KUBERNETES_VERSIONS: ${{needs.build-info.outputs.kubernetes-versions-list-as-string}}
           EXECUTOR: ${{matrix.executor}}
           USE_STANDARD_NAMING: ${{matrix.use-standard-naming}}
+          VERBOSE: "false"
       - name: Upload KinD logs on failure ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         uses: actions/upload-artifact@v3
         if: failure() || cancelled()
