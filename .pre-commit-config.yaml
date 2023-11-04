@@ -972,6 +972,13 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_deferrable_default.py
         pass_filenames: false
         files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
+      - id: check-provider-docs-valid
+        name: Validate provider doc files
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_docs.py
+        language: python
+        files: ^airflow/providers/.*/provider\.yaml|^docs/.*
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'jinja2']
+        require_serial: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
