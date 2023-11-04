@@ -253,7 +253,11 @@ def convert_test_type_to_pytest_args(
             if (AIRFLOW_SOURCES_ROOT / provider_path).is_dir():
                 providers_to_test.append(provider_path)
             else:
-                get_console().print(f"[warning]Provider {provider} does not exist. Ignoring it.")
+                get_console().print(
+                    f"[error]Provider directory {provider_path} does not exist for {provider}. "
+                    f"This is bad. Please add it (all providers should have a package in tests)"
+                )
+                sys.exit(1)
         return providers_to_test
     if test_type == "Other":
         return find_all_other_tests()
