@@ -26,7 +26,7 @@ import warnings
 from collections.abc import Iterable
 from contextlib import closing, suppress
 from datetime import timedelta
-from typing import TYPE_CHECKING, Callable, Generator, Protocol, cast
+from typing import TYPE_CHECKING, Callable, Generator, Literal, Protocol, cast
 
 import pendulum
 import tenacity
@@ -35,7 +35,6 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
-from typing_extensions import Literal
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
