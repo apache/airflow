@@ -52,12 +52,12 @@ class BaseGoogleLink(BaseOperatorLink):
         ti_key: TaskInstanceKey,
     ) -> str:
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        
+
         if not conf:
             return ""
-        
+
         # Add a default value for the 'namespace' parameter for backward compatibility.
-        conf.setdefault('namespace', 'default')
+        conf.setdefault("namespace", "default")
 
         return self.format_str.format(**conf)
 
