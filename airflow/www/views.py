@@ -2975,7 +2975,7 @@ class Airflow(AirflowBaseView):
                 for (date, count) in dates.items()
             )
 
-        now = DateTime.utcnow()
+        now = timezone.utcnow()
         data = {
             "dag_states": data_dag_states,
             "start_date": (dag.start_date or now).date().isoformat(),
@@ -3561,7 +3561,7 @@ class Airflow(AirflowBaseView):
                 select(DagRun.run_type, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
+                    func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.run_type)
             ).all()
@@ -3570,7 +3570,7 @@ class Airflow(AirflowBaseView):
                 select(DagRun.state, func.count(DagRun.run_id))
                 .where(
                     DagRun.start_date >= start_date,
-                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
+                    func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
                 )
                 .group_by(DagRun.state)
             ).all()
@@ -3581,7 +3581,7 @@ class Airflow(AirflowBaseView):
                 .join(TaskInstance.dag_run)
                 .where(
                     DagRun.start_date >= start_date,
-                    func.coalesce(DagRun.end_date, datetime.datetime.utcnow()) <= end_date,
+                    func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
                 )
                 .group_by(TaskInstance.state)
             ).all()
