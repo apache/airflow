@@ -976,14 +976,6 @@ jobs:
         uses: ./.github/actions/prepare_breeze_and_image
       - name: "Helm Unit Tests: ${{ matrix.helm-test-package }}"
         run: breeze testing helm-tests --helm-test-package "${{ matrix.helm-test-package }}"
-      - name: >
-          Post Tests success: Helm"
-        uses: ./.github/actions/post_tests_success
-        if: success()
-      - name: >
-          Post Tests failure: Helm"
-        uses: ./.github/actions/post_tests_failure
-        if: failure()
 
   tests-postgres:
     timeout-minutes: 130
@@ -1894,6 +1886,7 @@ jobs:
           --builder airflow_cache
           --install-packages-from-context
           --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers
           --prepare-buildx-cache
           --platform ${{ matrix.platform }}
         env:
