@@ -26,6 +26,7 @@
     :caption: Basics
 
     Home <self>
+    Changelog <changelog>
     Security <security>
 
 .. toctree::
