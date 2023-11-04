@@ -62,7 +62,8 @@ jobs:
       default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
-      image-build: ${{ steps.selective-checks.outputs.image-build }}
+      ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
+      prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
@@ -192,7 +193,7 @@ jobs:
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     if: |
-      needs.build-info.outputs.image-build == 'true' &&
+      needs.build-info.outputs.ci-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
       github.repository == 'apache/airflow'
     env:
@@ -265,7 +266,7 @@ jobs:
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-ci-images]
     if: |
-      needs.build-info.outputs.image-build == 'true' &&
+      needs.build-info.outputs.prod-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
       github.repository == 'apache/airflow'
     env:
@@ -322,7 +323,7 @@ jobs:
     needs: [build-info, build-prod-images]
     # We can change the job to run on ASF ARM runners and do not start our instance once we enable ASF runners
     if: |
-      needs.build-info.outputs.image-build == 'true' &&
+      needs.build-info.outputs.ci-image-build == 'true' &&
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
       needs.build-info.outputs.is-self-hosted-runner == 'true' &&
