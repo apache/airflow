@@ -98,7 +98,6 @@ class _DataIntervalTimetable(Timetable):
             start = earliest
         else:  # There's a previous run.
             # Alignment is needed when DAG has new schedule interval.
-            # TODO: The issue is here with 4-5am interval (which is in UTC, so 5-6am in Belgium), this aligns 6am BELG to prev and it's 21:45
             align_last_data_interval_end = self._align_to_prev(last_automated_data_interval.end)
             if earliest is not None:
                 # Catchup is False or DAG has new start date in the future.
@@ -109,8 +108,6 @@ class _DataIntervalTimetable(Timetable):
                 start = align_last_data_interval_end
         if restriction.latest is not None and start > restriction.latest:
             return None
-        # TODO: This is giving incorrect time as well. This is the real issue here!!!
-        # self._get_next(DateTime(2023, 10, 28, 20, 45, 0), tzinfo=UTC) == 2023,10,29,4,0,0
         end = self._get_next(start)
         return DagRunInfo.interval(start=start, end=end)
 
