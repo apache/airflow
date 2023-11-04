@@ -1886,6 +1886,7 @@ jobs:
           --builder airflow_cache
           --install-packages-from-context
           --run-in-parallel
+          --airflow-constraints-mode constraints-source-providers
           --prepare-buildx-cache
           --platform ${{ matrix.platform }}
         env:
