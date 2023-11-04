@@ -102,20 +102,14 @@ class CronMixin:
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_next(datetime.datetime)
-        if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = scheduled - naive
-        return convert_to_utc(current.in_timezone(self._timezone) + delta)
+        return convert_to_utc(make_aware(scheduled, self._timezone))
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule before specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
         scheduled = cron.get_prev(datetime.datetime)
-        if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = naive - scheduled
-        return convert_to_utc(current.in_timezone(self._timezone) - delta)
+        return convert_to_utc(make_aware(scheduled, self._timezone))
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
