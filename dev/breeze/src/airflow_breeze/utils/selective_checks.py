@@ -563,8 +563,12 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.ALL_SOURCE_FILES)
 
     @cached_property
-    def image_build(self) -> bool:
+    def ci_image_build(self) -> bool:
         return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
+
+    @cached_property
+    def prod_image_build(self) -> bool:
+        return self.run_kubernetes_tests or self.needs_helm_tests
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveUnitTestTypes
@@ -691,7 +695,7 @@ class SelectiveChecks:
 
     @cached_property
     def basic_checks_only(self) -> bool:
-        return not self.image_build
+        return not self.ci_image_build
 
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
