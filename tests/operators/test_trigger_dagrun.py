@@ -304,12 +304,17 @@ class TestDagRunOperator:
             dag=self.dag,
         )
         task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+
+        with create_session() as session:
+            all_dagruns_before_trigger = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+
         task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
 
         with create_session() as session:
-            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
-            assert len(dagruns) == 1
-            assert dagruns[0].external_trigger
+            all_dagruns_after_trigger = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert all_dagruns_before_trigger[0].execution_date == all_dagruns_after_trigger[0].execution_date
+            assert len(all_dagruns_after_trigger) == 1
+            assert all_dagruns_after_trigger[0].external_trigger
 
     def test_trigger_dagrun_with_wait_for_completion_true(self):
         """Test TriggerDagRunOperator with wait_for_completion."""
