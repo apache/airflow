@@ -22,7 +22,6 @@ import typing
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
 
-from airflow.configuration import conf
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
