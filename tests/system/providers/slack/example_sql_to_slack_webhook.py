@@ -24,9 +24,10 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackApiFileOperator
+from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
 
-SQL_CONN_ID = os.environ.get("SQL_CONN_ID", "postgres_default")
+SQL_TABLE = os.environ.get("SQL_TABLE", "test_table")
+SQL_CONN_ID = "presto_default"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_sql_to_slack"
 
@@ -37,18 +38,16 @@ with models.DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    # [START howto_operator_sql_to_slack_api_file]
-    SqlToSlackApiFileOperator(
-        task_id="sql_to_slack_api_file",
+    # [START howto_operator_sql_to_slack_webhook]
+    SqlToSlackWebhookOperator(
+        task_id="presto_to_slack",
         sql_conn_id=SQL_CONN_ID,
-        sql="SELECT 6 as multiplier, 9 as multiplicand, 42 as answer",
-        slack_channels="C123456",
-        slack_conn_id="slack_api_default",
-        slack_filename="awesome.json.gz",
-        slack_initial_comment="Awesome compressed multiline JSON.",
-        df_kwargs={"orient": "records", "lines": True},
+        sql=f"SELECT col FROM {SQL_TABLE}",
+        slack_channel="my_channel",
+        slack_webhook_conn_id="slack_default",
+        slack_message="message: {{ ds }}, {{ results_df }}",
     )
-    # [END howto_operator_sql_to_slack_api_file]
+    # [END howto_operator_sql_to_slack_webhook]
 
 
 from tests.system.utils import get_test_run  # noqa: E402
