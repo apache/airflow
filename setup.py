@@ -453,6 +453,10 @@ _devel_only_mongo = [
     "mongomock",
 ]
 
+_devel_only_iceberg = [
+    "pyiceberg>=0.5.0",
+]
+
 _devel_only_sentry = [
     "blinker",
 ]
@@ -492,6 +496,7 @@ devel_only = [
     *_devel_only_devscripts,
     *_devel_only_duckdb,
     *_devel_only_mongo,
+    *_devel_only_iceberg,
     *_devel_only_sentry,
     *_devel_only_static_checks,
     *_devel_only_tests,
