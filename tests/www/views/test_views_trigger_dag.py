@@ -239,7 +239,7 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
 @pytest.mark.parametrize("allow_html", [False, True])
 def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypatch, allow_html):
     """
-    Test that HTML is masked per default in description.
+    Test that HTML is escaped per default in description.
     """
     from markupsafe import escape
 

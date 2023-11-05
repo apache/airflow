@@ -1990,8 +1990,9 @@ class Airflow(AirflowBaseView):
             flash(
                 Markup(
                     f"At least one field in trigger form uses custom HTML form definition. This is not allowed per "
-                    "configuration for security. Change <code>allow_html_in_dag_docs</code> to enable HTML. "
-                    "Using plain text as fallback for these fields. "
+                    "configuration for security. Switch to markdown description via <code>description_md</code> "
+                    "or ask your deployment manager to change <code>webserver.allow_html_in_dag_docs</code> "
+                    "configuration parameter to enable HTML. Using plain text as fallback for these fields. "
                     f"<ul><li>{'</li><li>'.join(form_trust_problems)}</li></ul>"
                 ),
                 "warning",

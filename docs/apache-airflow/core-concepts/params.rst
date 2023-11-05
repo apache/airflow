@@ -331,7 +331,7 @@ The trigger form can also be forced to be displayed also if no params are define
 
 .. versionadded:: 2.8.0
 
-Per default custom HTML is not allowed to prevent injection of scripts or other maliceus HTML code. If you trust your DAG authors
+Per default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. If you trust your DAG authors
 you can change the trust level of parameter descriptions to allow raw HTML by setting the configuration entry
 ``webserver.allow_html_in_dag_docs`` to ``True``. With the default setting all HTML will be displayed as plain text.
 This relates to the previous feature to enable rich formatting with the attribute ``description_html`` which is now super-seeded
