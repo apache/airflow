@@ -25,7 +25,10 @@ import pytest
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
     get_field,
+    # _get_default_azure_credential
+    get_sync_default_azure_credential,
 )
 
 MODULE = "airflow.providers.microsoft.azure.utils"
@@ -75,6 +78,19 @@ def test_add_managed_identity_connection_widgets():
 
     assert "managed_identity_client_id" in widgets
     assert "workload_identity_tenant_id" in widgets
+
+
+@mock.patch(f"{MODULE}.DefaultAzureCredential")
+def test_get_sync_default_azure_credential(mock_default_azure_credential):
+    get_sync_default_azure_credential()
+
+    assert mock_default_azure_credential.called
+
+
+@mock.patch(f"{MODULE}.AsyncDefaultAzureCredential")
+def test_get_async_default_azure_credential(mock_default_azure_credential):
+    get_async_default_azure_credential()
+    assert mock_default_azure_credential.called
 
 
 class TestAzureIdentityCredentialAdapter:
