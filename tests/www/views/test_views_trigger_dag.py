@@ -236,43 +236,50 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
     )
 
 
-@pytest.mark.parametrize(
-    "trust, expect_escape",
-    [
-        ["None", True],
-        ["FullTrust", False],
-    ],
-)
-def test_trigger_dag_html_trust(admin_client, dag_maker, session, app, monkeypatch, trust, expect_escape):
+@pytest.mark.parametrize("allow_html", [False, True])
+def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypatch, allow_html):
     """
     Test that HTML is masked per default in description.
     """
     from markupsafe import escape
 
-    with conf_vars({("webserver", "trigger_form_param_html_trust_level"): trust}):
-        DAG_ID = "params_dag"
-        HTML_DESCRIPTION = "HTML <code>raw code</code>."
+    DAG_ID = "params_dag"
+    HTML_DESCRIPTION1 = "HTML <code>raw code</code>."
+    HTML_DESCRIPTION2 = "HTML <code>in md text</code>."
+    expect_escape = not allow_html
+    with conf_vars({("webserver", "allow_html_in_dag_docs"): str(allow_html)}):
         param1 = Param(
             42,
-            description_html=HTML_DESCRIPTION,
+            description_html=HTML_DESCRIPTION1,
+            type="integer",
+            minimum=1,
+            maximum=100,
+        )
+        param2 = Param(
+            42,
+            description_md=HTML_DESCRIPTION2,
             type="integer",
             minimum=1,
             maximum=100,
         )
         with monkeypatch.context() as m:
-            with dag_maker(dag_id=DAG_ID, serialized=True, session=session, params={"param1": param1}):
+            with dag_maker(
+                dag_id=DAG_ID, serialized=True, session=session, params={"param1": param1, "param2": param2}
+            ):
                 EmptyOperator(task_id="task1")
 
             m.setattr(app, "dag_bag", dag_maker.dagbag)
             resp = admin_client.get(f"dags/{DAG_ID}/trigger")
 
         if expect_escape:
-            check_content_in_response(escape(HTML_DESCRIPTION), resp)
+            check_content_in_response(escape(HTML_DESCRIPTION1), resp)
+            check_content_in_response(escape(HTML_DESCRIPTION2), resp)
             check_content_in_response(
                 "At least one field in trigger form uses custom HTML form definition.", resp
             )
         else:
-            check_content_in_response(HTML_DESCRIPTION, resp)
+            check_content_in_response(HTML_DESCRIPTION1, resp)
+            check_content_in_response(HTML_DESCRIPTION2, resp)
             check_content_not_in_response(
                 "At least one field in trigger form uses custom HTML form definition.", resp
             )
