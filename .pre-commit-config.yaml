@@ -979,6 +979,15 @@ repos:
         files: ^airflow/providers/.*/provider\.yaml|^docs/.*
         additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'jinja2']
         require_serial: true
+      - id: bandit
+        name: bandit
+        description: "Bandit is a tool for finding common security issues in Python code"
+        entry: bandit
+        language: python
+        language_version: python3
+        types: [ python ]
+        require_serial: true
+        files: ^airflow/*
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
