@@ -497,6 +497,7 @@ devel_only = [
     *_devel_only_azure,
     *_devel_only_breeze,
     *_devel_only_debuggers,
+    *_devel_only_deltalake,
     *_devel_only_devscripts,
     *_devel_only_duckdb,
     *_devel_only_mongo,
