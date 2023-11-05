@@ -50,6 +50,13 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
     from urllib3.response import HTTPResponse
 
+EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"
+"""
+Sentinel for no xcom result.
+
+:meta private:
+"""
+
 
 class PodLaunchFailedException(AirflowException):
     """When pod launching fails in KubernetesPodOperator."""
@@ -712,9 +719,11 @@ class PodManager(LoggingMixin):
         ) as resp:
             result = self._exec_pod_command(
                 resp,
-                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi",
+                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
+                f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
+                f"else echo {EMPTY_XCOM_RESULT}; fi",
             )
-            if result and result.rstrip() != "__airflow_xcom_result_empty__":
+            if result and result.rstrip() != EMPTY_XCOM_RESULT:
                 # Note: result string is parsed to check if its valid json.
                 # This function still returns a string which is converted into json in the calling method.
                 json.loads(result)
