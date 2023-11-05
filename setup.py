@@ -432,6 +432,10 @@ _devel_only_debuggers = [
     "ipdb",
 ]
 
+_devel_only_deltalake = [
+    "deltalake>=0.12.0",
+]
+
 _devel_only_devscripts = [
     "click>=8.0",
     "gitpython",
