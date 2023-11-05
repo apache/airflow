@@ -611,7 +611,7 @@ class KubernetesPodOperator(BaseOperator):
             if self.get_logs:
                 self.pod_manager.fetch_requested_container_logs(
                     pod=self.pod,
-                    container_logs=self.container_logs,
+                    containers=self.container_logs,
                     follow_logs=True,
                 )
             if not self.get_logs or (
