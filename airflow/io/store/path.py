@@ -174,10 +174,6 @@ class ObjectStoragePath(os.PathLike):
         path = f"{self_path.rstrip(self.sep)}/{other_path.lstrip(self.sep)}"
         return ObjectStoragePath(path, conn_id=self._conn_id)
 
-    def strip_protocol(self) -> str:
-        """Return the path without the protocol."""
-        return f"{self._bucket}/{self._key}"
-
     def _unsupported(self, method_name):
         msg = f"{type(self).__name__}.{method_name}() is unsupported"
         raise UnsupportedOperation(msg)
