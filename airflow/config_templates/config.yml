@@ -1821,18 +1821,17 @@ webserver:
       type: boolean
       example: ~
       default: "False"
-    trigger_form_param_html_trust_level:
+    allow_html_in_dag_docs:
       description: |
-        Level of trust which is given to DAG authors for raw HTML that is passed from trigger form
-        descriptions and custom HTML forms. As a DAG author is able to provide any HTML also
-        including potentially unsafe javascript in params description, displaying the trigger form
-        might provide potential to inject code into clients browsers.
-        Current version provides two options, "FullTrust" allows unfiltered HTML to be used, "None"
-        will block HTML code in descriptions.
+        A DAG author is able to provide any raw HTML into ``doc_md`` or params description for text
+        formatting. This is including potentially unsafe javascript. Displaying the DAG or trigger
+        form in web UI provides the DAG author the potential to inject malicieus code into clients
+        browsers. To ensure the web UI is safe by default, raw HTML is disabled by default. If you
+        trust your DAG authors, you can enable HTML support by setting this option to True.
       version_added: 2.8.0
-      type: string
-      example: FullTrust
-      default: None
+      type: boolean
+      example: "False"
+      default: "False"
 email:
   description: |
     Configuration email backend and whether to

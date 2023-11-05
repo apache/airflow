@@ -1952,6 +1952,7 @@ class Airflow(AirflowBaseView):
 
         # Prepare form fields with param struct details to render a proper form with schema information
         form_fields = {}
+        allow_html_in_dag_docs = conf.getboolean("webserver", "allow_html_in_dag_docs")
         form_trust_problems = []
         for k, v in dag.params.items():
             form_fields[k] = v.dump()
@@ -1971,25 +1972,26 @@ class Airflow(AirflowBaseView):
                 elif isinstance(form_field_value, dict):
                     form_field_schema["type"] = ["object", "null"]
             # Mark HTML fields as safe if allowed
-            trust_level = conf.get("webserver", "trigger_form_param_html_trust_level")
-            if trust_level == "FullTrust":
+            if allow_html_in_dag_docs:
                 if "description_html" in form_field_schema:
                     form_field["description"] = Markup(form_field_schema["description_html"])
                 if "custom_html_form" in form_field_schema:
                     form_field_schema["custom_html_form"] = Markup(form_field_schema["custom_html_form"])
             else:
-                if "description_html" in form_field_schema:
+                if "description_html" in form_field_schema and "description_md" not in form_field_schema:
                     form_trust_problems.append(f"Field {k} uses HTML description")
                     form_field["description"] = form_field_schema.pop("description_html")
                 if "custom_html_form" in form_field_schema:
                     form_trust_problems.append(f"Field {k} uses custom HTML form definition")
                     form_field_schema.pop("custom_html_form")
+            if "description_md" in form_field_schema:
+                form_field["description"] = wwwutils.wrapped_markdown(form_field_schema["description_md"])
         if form_trust_problems:
             flash(
                 Markup(
                     f"At least one field in trigger form uses custom HTML form definition. This is not allowed per "
-                    "configured trust level. Change <code>trigger_form_param_html_trust_level</code> to enable HTML."
-                    "Using plain text as fallback for these fields."
+                    "configuration for security. Change <code>allow_html_in_dag_docs</code> to enable HTML. "
+                    "Using plain text as fallback for these fields. "
                     f"<ul><li>{'</li><li>'.join(form_trust_problems)}</li></ul>"
                 ),
                 "warning",

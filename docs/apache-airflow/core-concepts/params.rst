@@ -191,9 +191,8 @@ The following features are supported in the Trigger UI Form:
   - The :class:`~airflow.models.param.Param` attribute ``title`` is used to render the form field label of the entry box.
     If no ``title`` is defined the parameter name/key is used instead.
   - The :class:`~airflow.models.param.Param` attribute ``description`` is rendered below an entry field as help text in gray color.
-    If you want to provide HTML tags for special formatting or links you need to use the Param attribute
-    ``description_html`` and adjust the webserver configuration ``trigger_form_param_html_trust_level`` allowing raw HTML,
-    see tutorial DAG ``example_params_ui_tutorial`` for an example.
+    If you want to provide special formatting or links you need to use the Param attribute
+    ``description_md``. See tutorial DAG ``example_params_ui_tutorial`` for an example.
   - The :class:`~airflow.models.param.Param` attribute ``type`` influences how a field is rendered. The following types are supported:
 
       .. list-table::
@@ -316,8 +315,6 @@ The following features are supported in the Trigger UI Form:
   The ``const`` value must match the default value to pass `JSON Schema validation <https://json-schema.org/understanding-json-schema/reference/generic.html#constant-values>`_.
 - On the bottom of the form the generated JSON configuration can be expanded.
   If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
-- If you want to render custom HTML as form on top of the provided features, you can use the ``custom_html_form`` attribute it the
-  webserver configuration ``trigger_form_param_html_trust_level`` allowing raw HTML.
 
 .. note::
     If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
@@ -336,8 +333,12 @@ The trigger form can also be forced to be displayed also if no params are define
 
 Per default custom HTML is not allowed to prevent injection of scripts or other maliceus HTML code. If you trust your DAG authors
 you can change the trust level of parameter descriptions to allow raw HTML by setting the configuration entry
-``webserver.trigger_form_param_html_trust_level`` to ``FullTrust``. With the default of ``None`` all HTML will be displayed as
-plain text. In future maybe more HTML filtering options might be added.
+``webserver.allow_html_in_dag_docs`` to ``True``. With the default setting all HTML will be displayed as plain text.
+This relates to the previous feature to enable rich formatting with the attribute ``description_html`` which is now super-seeded
+with the attribute ``description_md``.
+Custom form elements using the attribute ``custom_html_form`` are allowing a DAG author to specify raw HTML form templates. These
+custom HTML form elements are with version 2.8.0 deprecated and will be replaced with a newer and more secure option in a future
+release.
 
 Disabling Runtime Param Modification
 ------------------------------------
