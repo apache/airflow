@@ -135,7 +135,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v4
         with:
@@ -318,7 +317,6 @@ jobs:
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
-          submodules: recursive
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
           Build CI Images
@@ -353,7 +351,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Pull CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
@@ -417,7 +414,6 @@ jobs:
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
-          submodules: recursive
         if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
           Build PROD Images
@@ -538,7 +534,6 @@ jobs:
         with:
           fetch-depth: 2
           persist-credentials: false
-
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
@@ -684,7 +679,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: >
           Prepare breeze & CI image: ${{needs.build-info.outputs.default-python-version}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/prepare_breeze_and_image
@@ -1596,7 +1590,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: "Download all artifacts from the current build"
         uses: actions/download-artifact@v3
         with:
@@ -1783,7 +1776,6 @@ jobs:
         with:
           # Needed to perform push action
           persist-credentials: false
-          submodules: recursive
       - name: "Set constraints branch name"
         id: constraints-branch
         run: ./scripts/ci/constraints/ci_branch_constraints.sh >> ${GITHUB_OUTPUT}
@@ -1944,7 +1936,6 @@ jobs:
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
-          submodules: recursive
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Start ARM instance"
