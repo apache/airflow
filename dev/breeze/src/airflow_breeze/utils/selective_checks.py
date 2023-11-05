@@ -77,6 +77,7 @@ class FileGroupForCi(Enum):
     ENVIRONMENT_FILES = "environment_files"
     PYTHON_PRODUCTION_FILES = "python_scans"
     JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
+    ALWAYS_TESTS_FILES = "always_test_files"
     API_TEST_FILES = "api_test_files"
     API_CODEGEN_FILES = "api_codegen_files"
     HELM_FILES = "helm_files"
@@ -175,6 +176,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
             r"^tests/system/",
+        ],
+        FileGroupForCi.ALWAYS_TESTS_FILES: [
+            r"^tests/always/",
         ],
     }
 )
@@ -613,11 +617,17 @@ class SelectiveChecks:
         kubernetes_files = self._matching_files(FileGroupForCi.KUBERNETES_FILES, CI_FILE_GROUP_MATCHES)
         system_test_files = self._matching_files(FileGroupForCi.SYSTEM_TEST_FILES, CI_FILE_GROUP_MATCHES)
         all_source_files = self._matching_files(FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES)
-
+        test_always_files = self._matching_files(FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES)
         remaining_files = (
-            set(all_source_files) - set(matched_files) - set(kubernetes_files) - set(system_test_files)
+            set(all_source_files)
+            - set(matched_files)
+            - set(kubernetes_files)
+            - set(system_test_files)
+            - set(test_always_files)
         )
+        get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
         count_remaining_files = len(remaining_files)
+
         if count_remaining_files > 0:
             get_console().print(
                 f"[warning]We should run all tests. There are {count_remaining_files} changed "

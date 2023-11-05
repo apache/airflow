@@ -439,6 +439,30 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
+        pytest.param(
+            (
+                "tests/always/test_project_structure.py",
+                "tests/providers/common/io/operators/__init__.py",
+                "tests/providers/common/io/operators/test_file_transfer.py",
+            ),
+            {
+                "affected-providers-list-as-string": "common.io",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
+                "python-versions": "['3.8']",
+                "python-versions-list-as-string": "3.8",
+                "ci-image-build": "true",
+                "prod-image-build": "false",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "run-amazon-tests": "false",
+                "docs-build": "false",
+                "run-kubernetes-tests": "false",
+                "upgrade-to-newer-dependencies": "false",
+                "parallel-test-types-list-as-string": "Always Providers[common.io]",
+            },
+            id="Only Always and Common.IO tests should run when only common.io and tests/always changed",
+        ),
     ],
 )
 def test_expected_output_pull_request_main(
@@ -676,7 +700,7 @@ def test_expected_output_full_tests_needed(
         ),
     ],
 )
-def test_expected_output_pull_request_v2_3(
+def test_expected_output_pull_request_v2_7(
     files: tuple[str, ...],
     expected_outputs: dict[str, str],
 ):
@@ -685,7 +709,7 @@ def test_expected_output_pull_request_v2_3(
         commit_ref="HEAD",
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
-        default_branch="v2-3-stable",
+        default_branch="v2-7-stable",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
