@@ -37,6 +37,7 @@ def clean_listener_manager():
     dataset_listener.clear()
 
 
+@pytest.mark.db_test
 @provide_session
 def test_dataset_listener_on_dataset_changed_gets_calls(create_task_instance_of_operator, session):
     dataset_uri = "test_dataset_uri"
