@@ -88,6 +88,11 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
             False,
         ),
         (
+            "Providers[common.io]",
+            ["tests/providers/common/io"],
+            False,
+        ),
+        (
             "Providers[amazon,google,apache.hive]",
             ["tests/providers/amazon", "tests/providers/google", "tests/providers/apache/hive"],
             False,
@@ -186,6 +191,11 @@ def test_pytest_args_for_regular_test_types(
         )
         == pytest_args
     )
+
+
+def test_pytest_args_for_missing_provider():
+    with pytest.raises(SystemExit):
+        convert_test_type_to_pytest_args(test_type="Providers[missing.provider]", skip_provider_tests=False)
 
 
 @pytest.mark.parametrize(
