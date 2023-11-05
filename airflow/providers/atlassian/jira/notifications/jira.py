@@ -36,6 +36,7 @@ class JiraNotifier(BaseNotifier):
     Jira notifier for creating Jira issues upon failures.
 
     :param jira_conn_id: The HTTP connection ID for the Jira instance.
+    :param proxies: Proxies to make the Jira REST API call. Optional
     :param description: The content for the body of the issue
     :param summary: The title of the issue
     :param project_id: The ID of the project under which the issue will be created
@@ -54,7 +55,7 @@ class JiraNotifier(BaseNotifier):
         summary: str,
         project_id: int,
         issue_type_id: int,
-        labels: list[str] = [],
+        labels: list[str] | None = None,
     ):
         super().__init__()
         self.jira_conn_id = jira_conn_id
@@ -63,7 +64,7 @@ class JiraNotifier(BaseNotifier):
         self.summary = summary
         self.project_id = project_id
         self.issue_type_id = issue_type_id
-        self.labels = labels
+        self.labels = labels or []
 
     @cached_property
     def hook(self) -> JiraHook:

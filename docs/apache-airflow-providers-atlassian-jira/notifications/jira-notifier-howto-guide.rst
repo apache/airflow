@@ -40,7 +40,7 @@ Example Code
         on_failure_callback=[
             send_jira_notification(
                 jira_conn_id="my-jira-conn",
-                description="Failure in the DAG",
+                description="Failure in the DAG {{ dag.dag_id }}",
                 summary="Airflow DAG Issue",
                 project_id=10000,
                 issue_type_id=10003,
@@ -53,7 +53,7 @@ Example Code
             on_failure_callback=[
                 send_jira_notification(
                     jira_conn_id="my-jira-conn",
-                    description="The task failed",
+                    description="The task {{ ti.task_id }} failed",
                     summary="Airflow Task Issue",
                     project_id=10000,
                     issue_type_id=10003,
