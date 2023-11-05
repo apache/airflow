@@ -219,10 +219,10 @@ class TestTransferJobValidator:
     @pytest.mark.parametrize(
         "transfer_spec",
         [
-            {**SOURCE_AWS, **SOURCE_GCS, **SOURCE_HTTP},
+            {**SOURCE_AWS, **SOURCE_GCS, **SOURCE_HTTP},  # type: ignore[arg-type]
             {**SOURCE_AWS, **SOURCE_GCS},
-            {**SOURCE_AWS, **SOURCE_HTTP},
-            {**SOURCE_GCS, **SOURCE_HTTP},
+            {**SOURCE_AWS, **SOURCE_HTTP},  # type: ignore[arg-type]
+            {**SOURCE_GCS, **SOURCE_HTTP},  # type: ignore[arg-type]
         ],
     )
     def test_verify_data_source(self, transfer_spec):

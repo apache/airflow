@@ -30,7 +30,7 @@ def impala_hook_fixture() -> ImpalaHook:
     mock_get_conn = MagicMock()
     mock_get_conn.return_value.cursor = MagicMock()
     mock_get_conn.return_value.cursor.return_value.rowcount = 2
-    hook.get_conn = mock_get_conn
+    hook.get_conn = mock_get_conn  # type:ignore[method-assign]
 
     return hook
 
