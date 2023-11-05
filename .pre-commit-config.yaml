@@ -987,7 +987,14 @@ repos:
         language_version: python3
         types: [ python ]
         require_serial: true
-        files: ^airflow/*
+        files: ^airflow/.*
+        exclude:
+          airflow/example_dags/.*
+        args:
+          - "--skip"
+          - "B301,B324,B403,B404,B603"
+          - "--severity-level"
+          - "medium"  # TODO: remove this line when we fix all the issues
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev

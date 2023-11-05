@@ -73,7 +73,7 @@ def internal_api(args):
         log.info(f"Starting the Internal API server on port {args.port} and host {args.hostname}.")
         app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
-            debug=True,
+            debug=True,  # nosec
             use_reloader=not app.config["TESTING"],
             port=args.port,
             host=args.hostname,

@@ -462,6 +462,7 @@ _devel_only_static_checks = [
     "black",
     "ruff>=0.0.219",
     "yamllint",
+    "bandit",
 ]
 
 _devel_only_tests = [

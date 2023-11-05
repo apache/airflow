@@ -83,6 +83,8 @@ def write_python_script(
             loader=template_loader, undefined=jinja2.StrictUndefined
         )
     else:
-        template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
+        template_env = jinja2.Environment(
+            loader=template_loader, undefined=jinja2.StrictUndefined, autoescape=True
+        )
     template = template_env.get_template("python_kubernetes_script.jinja2")
     template.stream(**jinja_context).dump(filename)
