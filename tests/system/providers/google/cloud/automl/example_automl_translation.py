@@ -24,7 +24,8 @@ import os
 from datetime import datetime
 from typing import cast
 
-from google.cloud import storage
+# The storage module cannot be imported yet https://github.com/googleapis/python-storage/issues/393
+from google.cloud import storage  # type: ignore[attr-defined]
 
 from airflow.decorators import task
 from airflow.models.dag import DAG

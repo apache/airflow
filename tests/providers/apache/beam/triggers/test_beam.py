@@ -33,7 +33,7 @@ INSTANCE = {"type": "BASIC", "displayName": INSTANCE_NAME}
 PROJECT_ID = "test_project_id"
 TEST_VARIABLES = {"output": "gs://bucket_test/output", "labels": {"airflow-version": "v2-7-0-dev0"}}
 TEST_PY_FILE = "apache_beam.examples.wordcount"
-TEST_PY_OPTIONS = []
+TEST_PY_OPTIONS: list[str] = []
 TEST_PY_INTERPRETER = "python3"
 TEST_PY_REQUIREMENTS = ["apache-beam[gcp]==2.46.0"]
 TEST_PY_PACKAGES = False

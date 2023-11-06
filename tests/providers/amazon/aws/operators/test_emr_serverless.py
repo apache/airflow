@@ -892,7 +892,7 @@ class TestEmrServerlessStopOperator:
         mock_get_waiter().wait.return_value = True
         operator = EmrServerlessStopApplicationOperator(task_id=task_id, application_id="test")
 
-        operator.execute(None)
+        operator.execute({})
 
         mock_get_waiter().wait.assert_called_once()
         mock_conn.stop_application.assert_called_once()
@@ -904,7 +904,7 @@ class TestEmrServerlessStopOperator:
             task_id=task_id, application_id="test", wait_for_completion=False
         )
 
-        operator.execute(None)
+        operator.execute({})
 
         mock_get_waiter().wait.assert_not_called()
         mock_conn.stop_application.assert_called_once()
@@ -921,7 +921,7 @@ class TestEmrServerlessStopOperator:
             task_id=task_id, application_id="test", force_stop=True
         )
 
-        operator.execute(None)
+        operator.execute({})
 
         mock_cancel_running_jobs.assert_called_once()
         mock_conn.stop_application.assert_called_once()
@@ -934,7 +934,7 @@ class TestEmrServerlessStopOperator:
             task_id=task_id, application_id="test", deferrable=True, force_stop=True
         )
         with pytest.raises(TaskDeferred):
-            operator.execute(None)
+            operator.execute({})
         assert "now waiting for the 2 cancelled job(s) to terminate" in caplog.messages
 
     @mock.patch.object(EmrServerlessHook, "conn")
@@ -948,6 +948,6 @@ class TestEmrServerlessStopOperator:
             task_id=task_id, application_id="test", deferrable=True, force_stop=True
         )
         with pytest.raises(TaskDeferred):
-            operator.execute(None)
+            operator.execute({})
 
         assert "no running jobs found with application ID test" in caplog.messages

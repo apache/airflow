@@ -354,7 +354,7 @@ class OpenLineageRedactor(SecretsMasker):
                 if name and should_hide_value_for_key(name):
                     return self._redact_all(item, depth, max_depth)
                 if attrs.has(type(item)):
-                    # TODO: fixme when mypy gets compatible with new attrs
+                    # TODO: FIXME when mypy gets compatible with new attrs
                     for dict_key, subval in attrs.asdict(
                         item,  # type: ignore[arg-type]
                         recurse=False,

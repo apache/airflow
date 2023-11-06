@@ -19,18 +19,22 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from opensearchpy import OpenSearch
 
 from airflow.models import Connection
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 from airflow.utils import db
+
+# TODO: FIXME - those Mocks have overrides that are not used but they also do not make Mypy Happy
+# mypy: disable-error-code="override"
 
 MOCK_RETURN = {"status": "test"}
 
 
 class MockSearch(OpenSearchHook):
     # Mock class to override the Hook for monkeypatching
-    def client(self) -> None:
-        return None
+    def client(self) -> OpenSearch:
+        return OpenSearch()
 
     def search(self, query: dict, index_name: str, **kwargs: Any) -> Any:
         return MOCK_RETURN
