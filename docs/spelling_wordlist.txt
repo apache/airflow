@@ -1136,6 +1136,7 @@ picklable
 pid
 pidbox
 pigcmd
+pinecone
 pinodb
 Pinot
 pinot
@@ -1665,6 +1666,7 @@ updateMask
 updateonly
 Upsert
 upsert
+upserted
 upserts
 Upsight
 upstreams
