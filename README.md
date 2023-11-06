@@ -118,7 +118,9 @@ The work to add Windows support is tracked via [#10388](https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
-`Debian Bullseye`.
+`Debian Bookworm`. We also have support for legacy ``Debian Bullseye`` base image if you want to build a
+custom image but it is deprecated and option to do it will be removed in the Dockerfile that
+will accompany Airflow 2.9.0 so you are advised to switch to ``Debian Bookworm`` for your custom images.
 
 <!-- END Requirements, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Getting started, please keep comment here to allow auto update of PyPI readme.md -->
@@ -344,20 +346,21 @@ we publish an Apache Airflow release. Those images contain:
 
 The version of the base OS image is the stable version of Debian. Airflow supports using all currently active
 stable versions - as soon as all Airflow dependencies support building, and we set up the CI pipeline for
-building and testing the OS version. Approximately 6 months before the end-of-life of a previous stable
-version of the OS, Airflow switches the images released to use the latest supported version of the OS.
+building and testing the OS version. Approximately 6 months before the end-of-regular support of a
+previous stable version of the OS, Airflow switches the images released to use the latest supported
+version of the OS.
+
 For example since ``Debian Buster`` end-of-life was August 2022, Airflow switched the images in `main` branch
 to use ``Debian Bullseye`` in February/March 2022. The version was used in the next MINOR release after
 the switch happened. In case of the Bullseye switch - 2.3.0 version used ``Debian Bullseye``.
 The images released  in the previous MINOR version continue to use the version that all other releases
-for the MINOR version used.
+for the MINOR version used. Similar switch from ``Debian Bullseye`` to ``Debian Bookworm`` has been implemented
+before 2.8.0 release in October 2023 and ``Debian Bookworm`` will be the only option supported as of
+Airflow 2.9.0.
 
-Support for ``Debian Buster`` image was dropped in August 2022 completely and everyone is expected to
-stop building their images using ``Debian Buster``.
-
-Users will continue to be able to build their images using stable Debian releases until the end of life and
-building and verifying of the images happens in our CI but no unit tests were executed using this image in
-the `main` branch.
+Users will continue to be able to build their images using stable Debian releases until the end of regular
+support and building and verifying of the images happens in our CI but no unit tests were executed using
+this image in the `main` branch.
 
 ## Approach to dependencies of Airflow
 
