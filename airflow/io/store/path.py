@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import contextlib
+import functools
 import os
 import shutil
 import typing
@@ -37,6 +38,7 @@ def _rewrite_info(info: dict, store: ObjectStore) -> dict:
     return info
 
 
+@functools.total_ordering
 class ObjectStoragePath(os.PathLike):
     """A path-like object for object storage."""
 
@@ -66,8 +68,6 @@ class ObjectStoragePath(os.PathLike):
     ):
         self._conn_id = conn_id
         self._store = store
-
-        self._hash = None
 
         if isinstance(path, ObjectStoragePath):
             self._protocol = path._protocol
@@ -115,44 +115,21 @@ class ObjectStoragePath(os.PathLike):
     def __lt__(self, other):
         if not isinstance(other, ObjectStoragePath):
             return NotImplemented
-
         return self._bucket < other._bucket
-
-    def __le__(self, other):
-        if not isinstance(other, ObjectStoragePath):
-            return NotImplemented
-
-        return self._bucket <= other._bucket
 
     def __eq__(self, other):
         if not isinstance(other, ObjectStoragePath):
             return NotImplemented
-
         return self._bucket == other._bucket
 
     def __ne__(self, other):
         if not isinstance(other, ObjectStoragePath):
             return NotImplemented
-
         return self._bucket != other._bucket
 
-    def __gt__(self, other):
-        if not isinstance(other, ObjectStoragePath):
-            return NotImplemented
-
-        return self._bucket > other._bucket
-
-    def __ge__(self, other):
-        if not isinstance(other, ObjectStoragePath):
-            return NotImplemented
-
-        return self._bucket >= other._bucket
-
+    @functools.lru_cache
     def __hash__(self):
-        if not self._hash:
-            self._hash = hash(self._bucket)
-
-        return self._hash
+        return hash(self._bucket)
 
     def __truediv__(self, other) -> ObjectStoragePath:
         o_protocol, o_bucket, _ = self._split_path(other)
