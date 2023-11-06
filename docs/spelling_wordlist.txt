@@ -1023,6 +1023,7 @@ natively
 navbar
 nd
 ndjson
+nearText
 neighbours
 neo
 Neo4j
@@ -1693,6 +1694,8 @@ validator
 vals
 vCPU
 ve
+vectorizer
+vectorizers
 vendored
 Vendorize
 venv
@@ -1715,6 +1718,7 @@ wape
 warmup
 Wasb
 wasb
+weaviate
 WebClient
 webhdfs
 Webhook
