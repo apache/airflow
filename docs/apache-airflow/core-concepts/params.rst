@@ -325,20 +325,18 @@ For examples also please take a look to two example DAGs provided: ``example_par
 .. image:: ../img/trigger-dag-tutorial-form.png
 
 .. versionadded:: 2.7.0
+    The trigger form can also be forced to be displayed also if no params are defined using the configuration switch
+    ``webserver.show_trigger_form_if_no_params``.
 
-The trigger form can also be forced to be displayed also if no params are defined using the configuration switch
-``webserver.show_trigger_form_if_no_params``.
-
-.. versionadded:: 2.8.0
-
-Per default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. If you trust your DAG authors
-you can change the trust level of parameter descriptions to allow raw HTML by setting the configuration entry
-``webserver.allow_html_in_dag_docs`` to ``True``. With the default setting all HTML will be displayed as plain text.
-This relates to the previous feature to enable rich formatting with the attribute ``description_html`` which is now super-seeded
-with the attribute ``description_md``.
-Custom form elements using the attribute ``custom_html_form`` are allowing a DAG author to specify raw HTML form templates. These
-custom HTML form elements are with version 2.8.0 deprecated and will be replaced with a newer and more secure option in a future
-release.
+.. versionchanged:: 2.8.0
+    Per default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. If you trust your DAG authors
+    you can change the trust level of parameter descriptions to allow raw HTML by setting the configuration entry
+    ``webserver.allow_html_in_dag_docs`` to ``True``. With the default setting all HTML will be displayed as plain text.
+    This relates to the previous feature to enable rich formatting with the attribute ``description_html`` which is now super-seeded
+    with the attribute ``description_md``.
+    Custom form elements using the attribute ``custom_html_form`` are allowing a DAG author to specify raw HTML form templates. These
+    custom HTML form elements are with version 2.8.0 deprecated and will be replaced with a newer and more secure option in a future
+    release.
 
 Disabling Runtime Param Modification
 ------------------------------------

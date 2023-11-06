@@ -47,7 +47,7 @@ with DAG(
         "flag": False,
         "a_simple_list": ["one", "two", "three", "actually one value is made per line"],
         # But of course you might want to have it nicer! Let's add some description to parameters.
-        # Note if you can add any MD formatting to the description, you need to use the description_md
+        # Note if you can add any Markdown formatting to the description, you need to use the description_md
         # attribute.
         "most_loved_number": Param(
             42,
