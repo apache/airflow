@@ -28,6 +28,8 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import db_command
 from airflow.exceptions import AirflowException
 
+pytestmark = pytest.mark.db_test
+
 
 class TestCliDb:
     @classmethod

@@ -27,6 +27,7 @@ from azure.mgmt.containerinstance import ContainerInstanceManagementClient
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+from airflow.providers.microsoft.azure.utils import get_sync_default_azure_credential
 
 if TYPE_CHECKING:
     from azure.mgmt.containerinstance.models import (
@@ -92,7 +93,12 @@ class AzureContainerInstanceHook(AzureBaseHook):
             )
         else:
             self.log.info("Using DefaultAzureCredential as credential")
-            credential = DefaultAzureCredential()
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
 
         subscription_id = cast(str, conn.extra_dejson.get("subscriptionId"))
         return ContainerInstanceManagementClient(

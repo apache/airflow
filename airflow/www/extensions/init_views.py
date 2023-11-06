@@ -130,6 +130,7 @@ def init_appbuilder_views(app):
     appbuilder.add_view_no_menu(views.RedocView)
     # Development views
     appbuilder.add_view_no_menu(views.DevView)
+    appbuilder.add_view_no_menu(views.DocsView)
 
 
 def init_plugins(app):

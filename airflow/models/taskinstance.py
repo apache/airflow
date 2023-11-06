@@ -609,6 +609,12 @@ def _get_template_context(
             return None
         return timezone.coerce_datetime(dagrun.start_date)
 
+    def get_prev_end_date_success() -> pendulum.DateTime | None:
+        dagrun = _get_previous_dagrun_success()
+        if dagrun is None:
+            return None
+        return timezone.coerce_datetime(dagrun.end_date)
+
     @cache
     def get_yesterday_ds() -> str:
         return (logical_date - timedelta(1)).strftime("%Y-%m-%d")
@@ -729,6 +735,7 @@ def _get_template_context(
             session=session,
         ),
         "prev_start_date_success": get_prev_start_date_success(),
+        "prev_end_date_success": get_prev_end_date_success(),
         "run_id": task_instance.run_id,
         "task": task,
         "task_instance": task_instance,

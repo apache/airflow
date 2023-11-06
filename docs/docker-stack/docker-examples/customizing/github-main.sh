@@ -30,7 +30,7 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/apache/airflow/archive/main.tar.gz#egg=apache-airflow" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
     --tag "my-github-main:0.0.1"

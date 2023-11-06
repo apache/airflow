@@ -29,6 +29,8 @@ from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs, clear_db_variables
 from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
 
+pytestmark = pytest.mark.db_test
+
 EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
 

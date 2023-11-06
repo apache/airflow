@@ -29,6 +29,8 @@ from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 from airflow.cli import cli_parser
 from airflow.security import permissions
 
+pytestmark = pytest.mark.db_test
+
 if TYPE_CHECKING:
     from airflow.auth.managers.fab.models import Role
 

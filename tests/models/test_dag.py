@@ -93,6 +93,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs,
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
+pytestmark = pytest.mark.db_test
+
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
 repo_root = Path(__file__).parents[2]
@@ -2247,8 +2249,9 @@ my_postgres_conn:
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
-    @time_machine.travel(timezone.datetime(2020, 1, 5), tick=False)
-    def test_next_dagrun_info_timedelta_schedule_and_catchup_false(self):
+    @time_machine.travel(timezone.datetime(2020, 1, 5))
+    @pytest.mark.parametrize("schedule", ("@daily", timedelta(days=1), cron_timetable("0 0 * * *")))
+    def test_next_dagrun_info_timedelta_schedule_and_catchup_false(self, schedule):
         """
         Test that the dag file processor does not create multiple dagruns
         if a dag is scheduled with 'timedelta' and catchup=False
@@ -2256,7 +2259,7 @@ my_postgres_conn:
         dag = DAG(
             "test_scheduler_dagrun_once_with_timedelta_and_catchup_false",
             start_date=timezone.datetime(2015, 1, 1),
-            schedule=timedelta(days=1),
+            schedule=schedule,
             catchup=False,
         )
 

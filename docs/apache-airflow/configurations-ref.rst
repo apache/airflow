@@ -32,19 +32,21 @@ generated using the secret key has a short expiry time though - make sure that t
 that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
 "forbidden" errors when the logs are accessed.
 
-Some of the providers have their own configuration options, you will find details of their configuration
-in the provider's documentation. The pre-installed providers that you may want to configure are:
-
-* :doc:`Configuration Reference for Celery Provider <apache-airflow-providers-celery:configurations-ref>`
-* :doc:`Configuration Reference for Apache Hive Provider <apache-airflow-providers-apache-hive:configurations-ref>`
-* :doc:`Configuration Reference for CNCF Kubernetes Provider <apache-airflow-providers-cncf-kubernetes:configurations-ref>`
-* :doc:`Configuration Reference for SMTP Provider <apache-airflow-providers-smtp:configurations-ref>`
-* :doc:`Configuration Reference for IMAP Provider <apache-airflow-providers-imap:configurations-ref>`
-* :doc:`Configuration Reference for OpenLineage Provider <apache-airflow-providers-openlineage:configurations-ref>`
-* :doc:`Configuration Reference for Elasticsearch Provider <apache-airflow-providers-elasticsearch:configurations-ref>`
-* :doc:`Configuration Reference for Amazon Provider <apache-airflow-providers-amazon:configurations-ref>`
-
 .. note::
     For more information see :doc:`/howto/set-config`.
+
+
+Provider-specific configuration options
+---------------------------------------
+
+Some of the providers have their own configuration options, you will find details of their configuration
+in the provider's documentation.
+
+You can find all the provider configuration in
+:doc:`configurations specific for provider packages <apache-airflow-providers:core-extensions/configurations>`
+
+Airflow configuration options
+-----------------------------
+
 
 .. include:: ../exts/includes/sections-and-options.rst

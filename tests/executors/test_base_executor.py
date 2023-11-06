@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import sys
 from datetime import timedelta
 from unittest import mock
 
@@ -24,6 +26,9 @@ import pendulum
 import pytest
 import time_machine
 
+from airflow.callbacks.callback_requests import CallbackRequest
+from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
+from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -49,6 +54,11 @@ def test_is_single_threaded_default_value():
 
 def test_is_production_default_value():
     assert BaseExecutor.is_production
+
+
+def test_infinite_slotspool():
+    executor = BaseExecutor(0)
+    assert executor.slots_available == sys.maxsize
 
 
 def test_get_task_log():
@@ -83,11 +93,45 @@ def test_get_event_buffer():
     assert len(executor.event_buffer) == 0
 
 
+def test_fail_and_success():
+    executor = BaseExecutor()
+
+    date = timezone.utcnow()
+    try_number = 1
+    success_state = State.SUCCESS
+    fail_state = State.FAILED
+    key1 = TaskInstanceKey("my_dag1", "my_task1", date, try_number)
+    key2 = TaskInstanceKey("my_dag2", "my_task1", date, try_number)
+    key3 = TaskInstanceKey("my_dag2", "my_task2", date, try_number)
+    executor.fail(key1, fail_state)
+    executor.fail(key2, fail_state)
+    executor.success(key3, success_state)
+
+    assert len(executor.running) == 0
+    assert len(executor.get_event_buffer()) == 3
+
+
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.Stats.gauge")
 def test_gauge_executor_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync):
     executor = BaseExecutor()
+    executor.heartbeat()
+    calls = [
+        mock.call("executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "BaseExecutor"}),
+        mock.call("executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "BaseExecutor"}),
+        mock.call(
+            "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "BaseExecutor"}
+        ),
+    ]
+    mock_stats_gauge.assert_has_calls(calls)
+
+
+@mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
+@mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+@mock.patch("airflow.executors.base_executor.Stats.gauge")
+def test_gauge_executor_with_infinite_pool_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync):
+    executor = BaseExecutor(0)
     executor.heartbeat()
     calls = [
         mock.call("executor.open_slots", value=mock.ANY, tags={"status": "open", "name": "BaseExecutor"}),
@@ -111,6 +155,7 @@ def setup_dagrun(dag_maker):
     return dag_maker.create_dagrun(execution_date=date)
 
 
+@pytest.mark.db_test
 def test_try_adopt_task_instances(dag_maker):
     dagrun = setup_dagrun(dag_maker)
     tis = dagrun.task_instances
@@ -131,6 +176,7 @@ def setup_trigger_tasks(dag_maker):
     return executor, dagrun
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize("open_slots", [1, 2, 3])
 def test_trigger_queued_tasks(dag_maker, open_slots):
     executor, _ = setup_trigger_tasks(dag_maker)
@@ -138,6 +184,7 @@ def test_trigger_queued_tasks(dag_maker, open_slots):
     assert executor.execute_async.call_count == open_slots
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     "can_try_num, change_state_num, second_exec",
     [
@@ -197,11 +244,98 @@ def test_trigger_running_tasks(can_try_mock, dag_maker, can_try_num, change_stat
     assert executor.execute_async.call_count == expected_calls
 
 
+@pytest.mark.db_test
 def test_validate_airflow_tasks_run_command(dag_maker):
     dagrun = setup_dagrun(dag_maker)
     tis = dagrun.task_instances
+    print(f"command: {tis[0].command_as_list()}")
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
+    print(f"dag_id: {dag_id}, task_id: {task_id}")
     assert dag_id == dagrun.dag_id and task_id == tis[0].task_id
+
+
+@pytest.mark.db_test
+@mock.patch(
+    "airflow.models.taskinstance.TaskInstance.generate_command",
+    return_value=["airflow", "tasks", "run", "--test_dag", "--test_task"],
+)
+def test_validate_airflow_tasks_run_command_with_complete_forloop(generate_command_mock, dag_maker):
+    dagrun = setup_dagrun(dag_maker)
+    tis = dagrun.task_instances
+    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
+    assert dag_id is None and task_id is None
+
+
+@pytest.mark.db_test
+@mock.patch(
+    "airflow.models.taskinstance.TaskInstance.generate_command", return_value=["airflow", "task", "run"]
+)
+def test_invalid_airflow_tasks_run_command(generate_command_mock, dag_maker):
+    dagrun = setup_dagrun(dag_maker)
+    tis = dagrun.task_instances
+    with pytest.raises(ValueError):
+        BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
+
+
+@pytest.mark.db_test
+@mock.patch(
+    "airflow.models.taskinstance.TaskInstance.generate_command", return_value=["airflow", "tasks", "run"]
+)
+def test_empty_airflow_tasks_run_command(generate_command_mock, dag_maker):
+    dagrun = setup_dagrun(dag_maker)
+    tis = dagrun.task_instances
+    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
+    assert dag_id is None, task_id is None
+
+
+@pytest.mark.db_test
+def test_deprecate_validate_api(dag_maker):
+    dagrun = setup_dagrun(dag_maker)
+    tis = dagrun.task_instances
+    with pytest.warns(DeprecationWarning):
+        BaseExecutor.validate_command(tis[0].command_as_list())
+
+
+def test_debug_dump(caplog):
+    executor = BaseExecutor()
+    with caplog.at_level(logging.INFO):
+        executor.debug_dump()
+    assert "executor.queued" in caplog.text
+    assert "executor.running" in caplog.text
+    assert "executor.event_buffer" in caplog.text
+
+
+def test_base_executor_cannot_send_callback():
+    cbr = CallbackRequest("some_file_path_for_callback")
+    executor = BaseExecutor()
+    with pytest.raises(ValueError):
+        executor.send_callback(cbr)
+
+
+def test_parser_and_formatter_class():
+    executor = BaseExecutor()
+    parser = executor._get_parser()
+    assert isinstance(parser, DefaultHelpParser)
+    assert parser.formatter_class is AirflowHelpFormatter
+
+
+@mock.patch("airflow.cli.cli_parser._add_command")
+@mock.patch(
+    "airflow.executors.base_executor.BaseExecutor.get_cli_commands",
+    return_value=[
+        GroupCommand(
+            name="some_name",
+            help="some_help",
+            subcommands=["A", "B", "C"],
+            description="some_description",
+            epilog="some_epilog",
+        )
+    ],
+)
+def test_parser_add_command(mock_add_command, mock_get_cli_command):
+    executor = BaseExecutor()
+    executor._get_parser()
+    mock_add_command.assert_called_once()
 
 
 @pytest.mark.parametrize("loop_duration, total_tries", [(0.5, 12), (1.0, 7), (1.7, 4), (10, 2)])

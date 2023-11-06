@@ -35,8 +35,6 @@ source_files = [
 
 files_not_fully_covered = [
     # executors
-    "airflow/executors/base_executor.py",
-    "airflow/executors/debug_executor.py",
     "airflow/executors/executor_loader.py",
     "airflow/executors/local_executor.py",
     "airflow/executors/sequential_executor.py",

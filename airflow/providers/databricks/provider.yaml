@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 5.0.0
+  - 4.7.0
   - 4.6.0
   - 4.5.0
   - 4.4.0

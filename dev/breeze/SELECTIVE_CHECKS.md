@@ -38,36 +38,28 @@ We have the following Groups of files for CI that determine which tests are run:
   the python or javascript files for airflow "production" changed, this means that the security scans should run
 * `API tests and codegen files` - those are OpenAPI definition files that impact Open API specification and
   determine that we should run dedicated API tests.
-* `Helm files` - change in those files impacts helm "rendering" tests
-* `Setup files` - change in the setup files indicates that we should run  `upgrade to newer dependencies`
-* `DOCs files` - change in those files indicate that we should run documentation builds
-* `UI and WWW files` - those are files for the UI and WWW part of our UI (useful to determine if UI
-  tests should run)
+* `Helm files` - change in those files impacts helm "rendering" tests - `chart` folder and `helm_tests` folder.
+* `Setup files` - change in the setup files indicates that we should run  `upgrade to newer dependencies` -
+  setup.* files, pyproject.toml, generated dependencies files in `generated` folder
+* `DOC files` - change in those files indicate that we should run documentation builds (both airflow sources
+   and airflow documentation)
+* `WWW files` - those are files for the WWW part of our UI (useful to determine if UI tests should run)
+* `System test files` - those are the files that are part of system tests (system tests are not automatically
+  run in our CI, but Airflow stakeholders are running the tests and expose dashboards for them at
+  [System Test Dashbards](https://airflow.apache.org/ecosystem/#airflow-provider-system-test-dashboards)
 * `Kubernetes files` - determine if any of Kubernetes related tests should be run
 * `All Python files` - if none of the Python file changed, that indicates that we should not run unit tests
 * `All source files` - if none of the sources change, that indicates that we should probably not build
   an image and run any image-based static checks
 
 We have the following unit test types that can be selectively disabled/enabled based on the
-content of the incoming PR:
+content of the incoming PR. Usually they are limited to a sub-folder of the "tests" folder but there
+are some exceptions. You can read more about those in `TESTING.rst <TESTING.rst>`.
 
-* Always - those are tests that should be always executed (always folder)
-* Operators - tests for the operators (operators folder)
-* Core - for the core Airflow functionality (core folder)
-* API - Tests for the Airflow API (api and api_connexion folders)
-* CLI - Tests for the Airflow CLI (cli folder)
-* WWW - Tests for the Airflow webserver (www folder)
-* Providers - Tests for all Providers of Airflow (providers folder)
-* Other - all other tests remaining after the above tests are selected
+We also have `Integration` tests that are running Integration tests with external software that is run
+via `--integration` flag in `breeze` environment.
 
-We also have several special kinds of tests that are not separated by packages, but they are marked with
-pytest markers. They can be found in any of those packages and they can be selected by the appropriate
-pytest custom command line options. See `TESTING.rst <TESTING.rst>`_ for details but those are:
-
-* Integration - tests that require external integration images running in docker-compose
-* Quarantined - tests that are flaky and need to be fixed
-* Postgres - tests that require Postgres database. They are only run when backend is Postgres
-* MySQL - tests that require MySQL database. They are only run when backend is MySQL
+* `Integration` - tests that require external integration images running in docker-compose
 
 Even if the types are separated, In case they share the same backend version/python version, they are
 run sequentially in the same job, on the same CI machine. Each of them in a separate `docker run` command
@@ -97,7 +89,7 @@ The logic implements the following rules:
   * if there are any changes to "common" provider code not belonging to any provider (usually system tests
     or tests), then tests for all Providers are run
 * The specific unit test type is enabled only if changed files match the expected patterns for each type
-  (`API`, `CLI`, `WWW`, `Providers`, `Operators`). The `Always` test type is added always if any unit
+  (`API`, `CLI`, `WWW`, `Providers`, `Operators` etc.). The `Always` test type is added always if any unit
   tests are run. `Providers` tests are removed if current branch is different than `main`
 * If there are no files left in sources after matching the test types and Kubernetes files,
   then apparently some Core/Other files have been changed. This automatically adds all test
@@ -142,7 +134,8 @@ Github Actions to pass the list of parameters to a command to execute
 | docs-list-as-string                | What filter to apply to docs building - based on which documentation packages should be built           | apache-airflow helm-chart google                    |                |
 | full-tests-needed                  | Whether this build runs complete set of tests or only subset (for faster PR builds)                     | false                                               |                |
 | helm-version                       | Which Helm version to use for tests                                                                     | v3.9.4                                              |                |
-| image-build                        | Whether CI image build is needed                                                                        | true                                                |                |
+| ci-image-build                     | Whether CI image build is needed                                                                        | true                                                |                |
+| prod-image-build                   | Whether PROD image build is needed                                                                      | true                                                |                |
 | kind-version                       | Which Kind version to use for tests                                                                     | v0.16.0                                             |                |
 | kubernetes-combos-list-as-string   | All combinations of Python version and Kubernetes version to use for tests as space-separated string    | 3.8-v1.25.2 3.9-v1.26.4                             | *              |
 | kubernetes-versions                | All Kubernetes versions to use for tests as JSON array                                                  | ['v1.25.2']                                         |                |

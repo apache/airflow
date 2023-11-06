@@ -102,7 +102,7 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.5.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
-``snowflake-connector-python``           ``>=2.4.1``
+``snowflake-connector-python``           ``>=2.7.8``
 ``snowflake-sqlalchemy``                 ``>=1.1.0``
 =======================================  ==================
 

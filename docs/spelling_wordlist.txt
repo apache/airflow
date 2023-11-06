@@ -638,6 +638,7 @@ ga
 Gantt
 gantt
 gapic
+gapped
 gbq
 gcc
 gcloud

@@ -23,6 +23,8 @@ from flask_login import current_user
 
 from tests.test_utils.db import clear_db_pools
 
+pytestmark = pytest.mark.db_test
+
 
 class TestBasicAuth:
     @pytest.fixture(autouse=True)

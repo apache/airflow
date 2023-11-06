@@ -27,6 +27,8 @@ TEST_EMAIL = "test@example.org"
 
 DEFAULT_TIME = "2021-01-09T13:59:56.336000+00:00"
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):

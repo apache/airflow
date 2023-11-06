@@ -20,8 +20,8 @@ import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.auth.managers.fab.models import Role
+from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES
 from airflow.security import permissions
-from airflow.www.security_manager import EXISTING_ROLES
 from tests.test_utils.api_connexion_utils import (
     assert_401,
     create_role,
@@ -29,6 +29,8 @@ from tests.test_utils.api_connexion_utils import (
     delete_role,
     delete_user,
 )
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
