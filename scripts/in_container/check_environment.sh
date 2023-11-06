@@ -118,14 +118,19 @@ function startairflow_if_requested() {
         if [ -z "${FILES_DIR+x}" ]; then
             export FILES_DIR="/files"
         fi
+        
+        # Set AIRFLOW_BREEZE_CONFIG_DIR to "${FILES_DIR}/airflow-breeze-config" if it's not defined
         if [ -z "${AIRFLOW_BREEZE_CONFIG_DIR+x}" ]; then
             export AIRFLOW_BREEZE_CONFIG_DIR="${FILES_DIR}/airflow-breeze-config"
         fi
 
+        # Set INIT_SCRIPT_FILE to "init.sh" if it's not defined
         if [ -z "${INIT_SCRIPT_FILE=}" ]; then
             export INIT_SCRIPT_FILE="init.sh"
         fi
 
+        # Check if the directory AIRFLOW_BREEZE_CONFIG_DIR exists and if INIT_SCRIPT_FILE is present
+        # If they exist, source the INIT_SCRIPT_FILE
         if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && -f "${AIRFLOW_BREEZE_CONFIG_DIR}/${INIT_SCRIPT_FILE}" ]]; then
             pushd "${AIRFLOW_BREEZE_CONFIG_DIR}" >/dev/null 2>&1 || exit 1
             echo
@@ -136,31 +141,28 @@ function startairflow_if_requested() {
             popd >/dev/null 2>&1 || exit 1
         fi
 
-        if [[ "${BREEZE_INIT_COMMAND=}" != "" ]]; then
-            eval "${BREEZE_INIT_COMMAND}"
-        fi
-
+        # Perform an initial migration with airflow
         if airflow db migrate; then
-            if [[ ${LOAD_DEFAULT_CONNECTIONS=} == "true" || ${LOAD_DEFAULT_CONNECTIONS=} == "True" ]]; then
-                echo
-                echo "${COLOR_BLUE}Creating default connections${COLOR_RESET}"
-                echo
-                airflow connections create-default-connections
+            # If BREEZE_INIT_COMMAND is defined, execute it
+            if [[ "${BREEZE_INIT_COMMAND=}" != "" ]]; then
+                eval "${BREEZE_INIT_COMMAND}"
             fi
-        else
-            echo "${COLOR_YELLOW}Failed to run 'airflow db migrate'.${COLOR_RESET}"
-            echo "${COLOR_BLUE}This could be because you are installing old airflow version${COLOR_RESET}"
-            echo "${COLOR_BLUE}Attempting to run deprecated 'airflow db init' instead.${COLOR_RESET}"
-            # For Airflow versions that do not support db migrate, we should run airflow db init and
-            # set the removed AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS
-            AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS} airflow db init
-        fi
-        airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain
+
+            if airflow db migrate; then
+                # If LOAD_DEFAULT_CONNECTIONS is set to "true" or "True," create default connections
+                if [[ ${LOAD_DEFAULT_CONNECTIONS=} == "true" || ${LOAD_DEFAULT_CONNECTIONS=} == "True" ]]; then
+                    echo
+                    echo "${COLOR_BLUE}Creating default connections${COLOR_RESET}"
+                fi
+                AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS} airflow db init
+            fi
+            # Create an airflow user with admin credentials
+            airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain
     fi
     return $?
 }
 
-
+# Additional information: Checking backend and integrations
 echo
 echo "${COLOR_BLUE}Checking backend and integrations.${COLOR_RESET}"
 echo
