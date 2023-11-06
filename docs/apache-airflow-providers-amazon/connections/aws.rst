@@ -240,6 +240,17 @@ With a AWS IAM key pair
       "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     }'
 
+Reference as Jinja templated fields
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To render the AWS credentials using Jinja template reference ``AWS_ACCESS_KEY_ID`` as ``login`` and ``AWS_SECRET_ACCESS_KEY`` as ``password``
+
+  .. code-block:: bash
+
+    echo "AWS_ACCESS_KEY_ID={{ conn.connection_id.login }}"
+    echo "AWS_SECRET_ACCESS_KEY={{ conn.connection_id.password }}"
+
+
 Examples for the **Extra** field
 --------------------------------
 
