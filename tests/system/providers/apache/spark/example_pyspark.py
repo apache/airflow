@@ -67,7 +67,8 @@ def example_pyspark():
 
 
 # work around pre-commit
-dag = example_pyspark()
+dag = example_pyspark()  # type: ignore
+
 
 from tests.system.utils import get_test_run  # noqa: E402
 

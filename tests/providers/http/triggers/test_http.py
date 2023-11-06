@@ -21,6 +21,7 @@ import base64
 import pickle
 from asyncio import Future
 from http.cookies import SimpleCookie
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -39,7 +40,7 @@ TEST_METHOD = "POST"
 TEST_ENDPOINT = "endpoint"
 TEST_HEADERS = {"Authorization": "Bearer test"}
 TEST_DATA = ""
-TEST_EXTRA_OPTIONS = {}
+TEST_EXTRA_OPTIONS: dict[str, Any] = {}
 
 
 @pytest.fixture
