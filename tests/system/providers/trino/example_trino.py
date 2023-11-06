@@ -36,7 +36,7 @@ with models.DAG(
     dag_id="example_trino",
     schedule="@once",  # Override to match your needs
     start_date=datetime(2022, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     trino_create_schema = TrinoOperator(

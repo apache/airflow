@@ -26,7 +26,7 @@ dag = DAG(
     "example_arangodb_operator",
     start_date=datetime(2021, 1, 1),
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 )
 
 # [START howto_aql_sensor_arangodb]

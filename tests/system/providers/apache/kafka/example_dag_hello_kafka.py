@@ -153,7 +153,7 @@ with DAG(
     description="Examples of Kafka Operators",
     schedule=timedelta(days=1),
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     t0 = PythonOperator(task_id="load_connections", python_callable=load_connections)

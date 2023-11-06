@@ -101,7 +101,7 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2022, 1, 1),
-    catchup=False,
+    catchup="disable",
     default_args=default_args,
     tags=["example", "bigquery", "deferrable"],
     user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME_1},

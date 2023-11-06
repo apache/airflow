@@ -79,7 +79,7 @@ In the following example, failures in any task call the ``task_failure_alert`` f
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         dagrun_timeout=datetime.timedelta(minutes=60),
-        catchup=False,
+        catchup="disable",
         on_success_callback=None,
         on_failure_callback=task_failure_alert,
         tags=["example"],

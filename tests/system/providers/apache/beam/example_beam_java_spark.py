@@ -34,7 +34,7 @@ with models.DAG(
     "example_beam_native_java_spark_runner",
     schedule=None,  # Override to match your needs
     start_date=START_DATE,
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     jar_to_local_spark_runner = GCSToLocalFilesystemOperator(

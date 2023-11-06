@@ -23,6 +23,7 @@ import pytest
 from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.events import EventsTimetable
+from airflow.utils.catchup import Catchup
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)  # Precedes all events
 
@@ -49,7 +50,7 @@ MOST_RECENT_EVENT = pendulum.DateTime(2021, 9, 10, tzinfo=TIMEZONE)
 
 @pytest.fixture()
 def restriction():
-    return TimeRestriction(earliest=START_DATE, latest=None, catchup=True)
+    return TimeRestriction(earliest=START_DATE, latest=None, catchup=Catchup.ENABLE)
 
 
 @pytest.fixture()

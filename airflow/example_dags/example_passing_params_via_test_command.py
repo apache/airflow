@@ -61,7 +61,7 @@ with DAG(
     "example_passing_params_via_test_command",
     schedule="*/1 * * * *",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     dagrun_timeout=datetime.timedelta(minutes=4),
     tags=["example"],
 ) as dag:

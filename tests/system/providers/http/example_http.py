@@ -35,7 +35,7 @@ dag = DAG(
     default_args={"retries": 1},
     tags=["example"],
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 )
 
 dag.doc_md = __doc__

@@ -45,7 +45,7 @@ Example Code:
         on_success_callback=[
             send_chime_notification(chime_conn_id="my_chime_conn", message="The DAG {{ dag.dag_id }} succeeded")
         ],
-        catchup=False,
+        catchup="disable",
     ):
         BashOperator(
             task_id="mytask",

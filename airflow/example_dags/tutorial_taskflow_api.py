@@ -32,7 +32,7 @@ from airflow.decorators import dag, task
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 )
 def tutorial_taskflow_api():

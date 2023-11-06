@@ -50,7 +50,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     default_args={"conn_id": CONN_ID},
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START asana_example_dag]
     # [START run_asana_create_task_operator]

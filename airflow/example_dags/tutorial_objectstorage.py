@@ -51,7 +51,7 @@ base = ObjectStoragePath("s3://airflow-tutorial-data/", conn_id="aws_default")
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 )
 def tutorial_objectstorage():

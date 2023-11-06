@@ -25,6 +25,7 @@ from pendulum import DateTime
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.utils.catchup import Catchup
 from airflow.utils.timezone import convert_to_utc
 
 if TYPE_CHECKING:
@@ -44,7 +45,7 @@ class _DataIntervalTimetable(Timetable):
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """Bound the earliest time a run can be scheduled.
 
-        This is called when ``catchup=False``. See docstring of subclasses for
+        This is called when ``catchup`` is disabled. See docstring of subclasses for
         exact skipping behaviour of a schedule.
         """
         raise NotImplementedError()
@@ -85,8 +86,8 @@ class _DataIntervalTimetable(Timetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        should_catchup = restriction.catchup and (
-            not restriction.ignore_first_catchup or last_automated_data_interval is not None
+        should_catchup = (restriction.catchup == Catchup.ENABLE) or (
+            restriction.catchup == Catchup.IGNORE_FIRST and last_automated_data_interval is not None
         )
         earliest = restriction.earliest
         if not should_catchup:
@@ -103,7 +104,7 @@ class _DataIntervalTimetable(Timetable):
             # Alignment is needed when DAG has new schedule interval.
             align_last_data_interval_end = self._align_to_prev(last_automated_data_interval.end)
             if earliest is not None:
-                # Catchup is False or DAG has new start date in the future.
+                # Catchup is disabled or DAG has new start date in the future.
                 # Make sure we get the later one.
                 start = max(align_last_data_interval_end, earliest)
             else:

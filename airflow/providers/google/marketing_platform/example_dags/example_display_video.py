@@ -90,7 +90,7 @@ START_DATE = datetime(2021, 1, 1)
 with DAG(
     "example_display_video_misc",
     start_date=START_DATE,
-    catchup=False,
+    catchup="disable",
 ) as dag2:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
     upload_erf_to_bq = GCSToBigQueryOperator(
@@ -123,7 +123,7 @@ with DAG(
 with DAG(
     "example_display_video_sdf",
     start_date=START_DATE,
-    catchup=False,
+    catchup="disable",
 ) as dag3:
     # [START howto_google_display_video_create_sdf_download_task_operator]
     create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
@@ -171,7 +171,7 @@ with DAG(
 with DAG(
     "example_display_video_v2",
     start_date=START_DATE,
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_google_display_video_create_query_operator]
     create_query_v2 = GoogleDisplayVideo360CreateQueryOperator(body=REPORT_V2, task_id="create_query")

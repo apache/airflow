@@ -61,7 +61,7 @@ def generate_parallel_tasks(name_prefix, num_of_tasks, deps):
 with DAG(
     DAG_ID,
     default_args=default_args,
-    catchup=True,
+    catchup="enable",
     schedule=timedelta(minutes=1),
     is_paused_upon_creation=False,
 ):

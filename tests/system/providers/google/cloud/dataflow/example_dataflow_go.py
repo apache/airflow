@@ -65,7 +65,7 @@ with DAG(
     "example_beam_native_go",
     start_date=datetime(2021, 1, 1),
     schedule="@once",
-    catchup=False,
+    catchup="disable",
     default_args=default_args,
     tags=["example"],
 ) as dag:

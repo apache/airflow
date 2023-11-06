@@ -85,7 +85,7 @@ def get_data_without_vectors(*args, **kwargs):
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example", "weaviate"],
 )
 def example_weaviate_using_operator():

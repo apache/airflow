@@ -36,7 +36,7 @@ dag = DAG(
     schedule="*/10 * * * *",
     default_args={"depends_on_past": True},
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
 )
 
 run_this_1 = EmptyOperator(task_id="run_this_1", dag=dag)

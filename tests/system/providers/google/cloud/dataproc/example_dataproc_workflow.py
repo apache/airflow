@@ -65,7 +65,7 @@ with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "dataproc", "workflow"],
 ) as dag:
     # [START how_to_cloud_dataproc_create_workflow_template]

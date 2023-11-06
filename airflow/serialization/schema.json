@@ -130,8 +130,7 @@
             "value": { "$ref": "#/definitions/dict" }
           }
         },
-        "catchup": { "type": "boolean" },
-        "ignore_first_catchup": { "type": "boolean" },
+        "catchup": { "type": "string" },
         "is_subdag": { "type": "boolean" },
         "fileloc": { "type" : "string"},
         "_processor_dags_folder": {

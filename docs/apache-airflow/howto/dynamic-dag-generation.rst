@@ -84,7 +84,7 @@ Then you can import and use the ``ALL_TASKS`` constant in all your DAGs like tha
         dag_id="my_dag",
         schedule=None,
         start_date=datetime(2021, 1, 1),
-        catchup=False,
+        catchup="disable",
     ):
         for task in ALL_TASKS:
             # create your operators and relations here

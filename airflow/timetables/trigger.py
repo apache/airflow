@@ -23,6 +23,7 @@ from pendulum import DateTime
 
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.utils.catchup import Catchup
 
 if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
@@ -85,8 +86,8 @@ class CronTriggerTimetable(CronMixin, Timetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        should_catchup = restriction.catchup and (
-            not restriction.ignore_first_catchup or last_automated_data_interval is not None
+        should_catchup = (restriction.catchup == Catchup.ENABLE) or (
+            restriction.catchup == Catchup.IGNORE_FIRST and last_automated_data_interval is not None
         )
         if should_catchup:
             if last_automated_data_interval is not None:

@@ -68,7 +68,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # This context contains the ENV_ID and any env variables requested when the
     # task was built above. Access the info as you would any other TaskFlow task.

@@ -45,7 +45,7 @@ works.
         dag_id="example_lineage",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         schedule="0 0 * * *",
-        catchup=False,
+        catchup="disable",
         dagrun_timeout=datetime.timedelta(minutes=60),
     )
 

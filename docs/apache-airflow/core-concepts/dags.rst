@@ -662,7 +662,7 @@ This is especially useful if your tasks are built dynamically from configuration
         "my_dag",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         schedule="@daily",
-        catchup=False,
+        catchup="disable",
     )
     dag.doc_md = __doc__
 

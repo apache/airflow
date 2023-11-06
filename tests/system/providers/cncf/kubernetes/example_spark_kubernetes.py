@@ -52,7 +52,7 @@ with DAG(
     description="submit spark-pi as sparkApplication on kubernetes",
     schedule=timedelta(days=1),
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START SparkKubernetesOperator_DAG]
     t1 = SparkKubernetesOperator(

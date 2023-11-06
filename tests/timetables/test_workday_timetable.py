@@ -25,6 +25,7 @@ import pytest
 from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.utils.catchup import Catchup
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)  # This is a Saturday.
 
@@ -44,7 +45,7 @@ WEEK_2_TUESDAY = pendulum.DateTime(2021, 9, 14, tzinfo=TIMEZONE)
 
 @pytest.fixture()
 def restriction():
-    return TimeRestriction(earliest=START_DATE, latest=None, catchup=True)
+    return TimeRestriction(earliest=START_DATE, latest=None, catchup=Catchup.ENABLE)
 
 
 @pytest.fixture()

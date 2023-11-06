@@ -26,7 +26,7 @@ from airflow.models.dag import DAG
 with DAG(
     dag_id="example_setup_teardown_taskflow",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
 

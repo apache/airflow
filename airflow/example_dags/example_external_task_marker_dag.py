@@ -50,7 +50,7 @@ start_date = pendulum.datetime(2021, 1, 1, tz="UTC")
 with DAG(
     dag_id="example_external_task_marker_parent",
     start_date=start_date,
-    catchup=False,
+    catchup="disable",
     schedule=None,
     tags=["example2"],
 ) as parent_dag:
@@ -66,7 +66,7 @@ with DAG(
     dag_id="example_external_task_marker_child",
     start_date=start_date,
     schedule=None,
-    catchup=False,
+    catchup="disable",
     tags=["example2"],
 ) as child_dag:
     # [START howto_operator_external_task_sensor]

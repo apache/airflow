@@ -133,7 +133,7 @@ Bad example:
       dag_id="example_python_operator",
       schedule=None,
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-      catchup=False,
+      catchup="disable",
       tags=["example"],
   ) as dag:
 
@@ -159,7 +159,7 @@ Good example:
       dag_id="example_python_operator",
       schedule=None,
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-      catchup=False,
+      catchup="disable",
       tags=["example"],
   ) as dag:
 
@@ -212,7 +212,7 @@ Imagine this code:
       dag_id="example_python_operator",
       schedule=None,
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-      catchup=False,
+      catchup="disable",
       tags=["example"],
   ) as dag:
       operator = PythonOperator(
@@ -246,7 +246,7 @@ What you can do check it, add to your code you want to check some print statemen
       dag_id="example_python_operator",
       schedule=None,
       start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-      catchup=False,
+      catchup="disable",
       tags=["example"],
   ) as dag:
       operator = PythonOperator(
@@ -461,7 +461,7 @@ It's easier to grab the concept with an example. Let's say that we have the foll
         dag_id="watcher_example",
         schedule="@once",
         start_date=datetime(2021, 1, 1),
-        catchup=False,
+        catchup="disable",
     ) as dag:
         failing_task = BashOperator(task_id="failing_task", bash_command="exit 1", retries=0)
         passing_task = BashOperator(task_id="passing_task", bash_command="echo passing_task")

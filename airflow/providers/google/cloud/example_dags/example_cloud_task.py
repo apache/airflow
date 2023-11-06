@@ -40,7 +40,7 @@ QUEUE_NAME = os.environ.get("GCP_QUEUE_NAME", "testqueue")
 with DAG(
     "example_gcp_cloud_tasks_sensor",
     start_date=datetime(2022, 8, 8),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     # [START cloud_tasks_empty_sensor]

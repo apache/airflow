@@ -57,7 +57,7 @@ with DAG(
     description="create and delete a PVC in a kubernetes",
     schedule=timedelta(days=1),
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     t1 = KubernetesCreateResourceOperator(
         task_id="create_pvc",

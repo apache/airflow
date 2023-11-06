@@ -28,7 +28,7 @@ with DAG(
     dag_id="latest_only",
     schedule=datetime.timedelta(hours=4),
     start_date=datetime.datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example2", "example3"],
 ) as dag:
     latest_only = LatestOnlyOperator(task_id="latest_only")

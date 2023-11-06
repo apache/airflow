@@ -30,7 +30,7 @@ from airflow.providers.google.cloud.sensors.looker import LookerCheckPdtBuildSen
 with DAG(
     dag_id="example_gcp_looker",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START cloud_looker_async_start_pdt_sensor]
     start_pdt_task_async = LookerStartPdtBuildOperator(

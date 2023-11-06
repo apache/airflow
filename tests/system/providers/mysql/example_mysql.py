@@ -34,7 +34,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     default_args={"mysql_conn_id": "mysql_conn_id"},
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_mysql]
 

@@ -58,7 +58,7 @@ with DAG(
     default_args=default_args,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "dataflow"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)

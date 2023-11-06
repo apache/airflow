@@ -51,7 +51,7 @@ def safe_name(s: str) -> str:
 with DAG(
     dag_id="example_presto_to_gcs",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create-dataset", dataset_id=DATASET_NAME)

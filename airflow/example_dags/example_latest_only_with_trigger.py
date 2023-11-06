@@ -34,7 +34,7 @@ with DAG(
     dag_id="latest_only_with_trigger",
     schedule=datetime.timedelta(hours=4),
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example3"],
 ) as dag:
     latest_only = LatestOnlyOperator(task_id="latest_only")

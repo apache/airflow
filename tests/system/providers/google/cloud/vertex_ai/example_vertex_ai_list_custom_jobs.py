@@ -37,7 +37,7 @@ with DAG(
     f"{DAG_ID}_list_custom_job",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "vertex_ai", "custom_job"],
 ) as dag:
     # [START how_to_cloud_vertex_ai_list_custom_training_job_operator]

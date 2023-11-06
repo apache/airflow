@@ -29,7 +29,7 @@ from airflow.utils.trigger_rule import TriggerRule
 with DAG(
     dag_id="example_short_circuit_operator",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     cond_true = ShortCircuitOperator(

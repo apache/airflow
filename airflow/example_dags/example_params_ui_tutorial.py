@@ -36,7 +36,7 @@ with DAG(
     doc_md=__doc__,
     schedule=None,
     start_date=datetime.datetime(2022, 3, 4),
-    catchup=False,
+    catchup="disable",
     tags=["example_ui"],
     params={
         # Let's start simple: Standard dict values are detected from type and offered as entry form fields.

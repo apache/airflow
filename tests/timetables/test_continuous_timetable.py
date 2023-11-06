@@ -23,6 +23,7 @@ import time_machine
 
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
+from airflow.utils.catchup import Catchup
 
 BEFORE_DATE = pendulum.datetime(2023, 3, 1, tz="UTC")
 START_DATE = pendulum.datetime(2023, 3, 3, tz="UTC")
@@ -33,7 +34,7 @@ AFTER_DATE = pendulum.datetime(2023, 3, 12, tz="UTC")
 
 @pytest.fixture()
 def restriction():
-    return TimeRestriction(earliest=START_DATE, latest=END_DATE, catchup=True)
+    return TimeRestriction(earliest=START_DATE, latest=END_DATE, catchup=Catchup.ENABLE)
 
 
 @pytest.fixture()

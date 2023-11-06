@@ -55,7 +55,7 @@ INSERT_ROWS_QUERY = (
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "dataflow-sql"],
 ) as dag:
     create_bq_dataset = BigQueryCreateEmptyDatasetOperator(

@@ -107,7 +107,7 @@ with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2023, 1, 1),
     schedule="@once",
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()

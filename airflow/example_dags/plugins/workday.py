@@ -27,6 +27,7 @@ from pendulum import UTC, Date, DateTime, Time
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+from airflow.utils.catchup import Catchup
 
 if TYPE_CHECKING:
     from airflow.timetables.base import TimeRestriction
@@ -71,8 +72,8 @@ class AfterWorkdayTimetable(Timetable):
         last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
-        should_catchup = restriction.catchup and (
-            not restriction.ignore_first_catchup or last_automated_data_interval is not None
+        should_catchup = (restriction.catchup == Catchup.ENABLE) or (
+            restriction.catchup == Catchup.IGNORE_FIRST and last_automated_data_interval is not None
         )
         if last_automated_data_interval is not None:  # There was a previous run on the regular schedule.
             last_start = last_automated_data_interval.start
@@ -84,7 +85,7 @@ class AfterWorkdayTimetable(Timetable):
             if next_start is None:  # No start_date. Don't schedule.
                 return None
             if not should_catchup:
-                # If the DAG has catchup=False, or it doesn't have any run and has ignore_first_dag=True,
+                # If the DAG has catchup="disabled", or catchup="ignore_first" and it doesn't have any run,
                 # today is the earliest to consider.
                 next_start = max(next_start, DateTime.combine(Date.today(), Time.min).replace(tzinfo=UTC))
             elif next_start.time() != Time.min:

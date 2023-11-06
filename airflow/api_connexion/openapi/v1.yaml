@@ -3579,10 +3579,7 @@ components:
             timezone:
               $ref: '#/components/schemas/Timezone'
             catchup:
-              type: boolean
-              readOnly: true
-            ignore_first_catchup:
-              type: boolean
+              type: string
               readOnly: true
             orientation:
               type: string

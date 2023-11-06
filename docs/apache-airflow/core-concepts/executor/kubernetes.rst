@@ -176,7 +176,7 @@ Here is an example of a task with both features:
         dag_id="example_pod_template_file",
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        catchup=False,
+        catchup="disable",
         tags=["example3"],
     ) as dag:
         executor_config_template = {

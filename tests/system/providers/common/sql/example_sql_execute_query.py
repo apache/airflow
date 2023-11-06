@@ -38,7 +38,7 @@ with DAG(
     default_args=connection_args,
     start_date=datetime(2021, 1, 1),
     schedule=None,
-    catchup=False,
+    catchup="disable",
 ) as dag:
     """
     ### Example SQL execute query DAG

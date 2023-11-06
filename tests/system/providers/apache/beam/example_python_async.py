@@ -37,7 +37,7 @@ with models.DAG(
     dag_id="dataflow_native_python_async",
     start_date=START_DATE,
     schedule=None,  # Override to match your needs
-    catchup=False,
+    catchup="disable",
     default_args=DEFAULT_ARGS,
     tags=["example"],
 ) as dag:

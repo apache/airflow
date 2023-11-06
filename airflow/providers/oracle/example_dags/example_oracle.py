@@ -25,7 +25,7 @@ from airflow.providers.oracle.operators.oracle import OracleStoredProcedureOpera
 with DAG(
     max_active_runs=1,
     max_active_tasks=3,
-    catchup=False,
+    catchup="disable",
     start_date=datetime(2023, 1, 1),
     dag_id="example_oracle",
 ) as dag:

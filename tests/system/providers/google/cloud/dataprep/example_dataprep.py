@@ -82,7 +82,7 @@ with models.DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
-    catchup=False,
+    catchup="disable",
     tags=["example", "dataprep"],
     render_template_as_native_obj=True,
 ) as dag:

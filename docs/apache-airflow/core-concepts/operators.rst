@@ -218,7 +218,7 @@ you can pass ``render_template_as_native_obj=True`` to the DAG as follows:
         dag_id="example_template_as_python_object",
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        catchup=False,
+        catchup="disable",
         render_template_as_native_obj=True,
     )
 

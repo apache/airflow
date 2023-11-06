@@ -53,7 +53,7 @@ class SumItOperator(BaseOperator):
 with DAG(
     dag_id="example_dynamic_task_mapping_with_no_taskflow_operators",
     start_date=datetime(2022, 3, 4),
-    catchup=False,
+    catchup="disable",
 ):
     # map the task to a list of values
     add_one_task = AddOneOperator.partial(task_id="add_one").expand(value=[1, 2, 3])

@@ -28,6 +28,7 @@ import time_machine
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.timetables.trigger import CronTriggerTimetable
+from airflow.utils.catchup import Catchup
 
 TIMEZONE = pendulum.tz.timezone("UTC")
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)
@@ -72,7 +73,7 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
     timetable = CronTriggerTimetable("30 16 * * *", timezone=TIMEZONE)
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,
-        restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=False),
+        restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=Catchup.DISABLE),
     )
     assert next_info == DagRunInfo.exact(next_start_time)
 
@@ -120,7 +121,7 @@ def test_hourly_cron_trigger_no_catchup_next_info(
     with time_machine.travel(current_time):
         next_info = HOURLY_CRON_TRIGGER_TIMETABLE.next_dagrun_info(
             last_automated_data_interval=PREV_DATA_INTERVAL_EXACT,
-            restriction=TimeRestriction(earliest=earliest, latest=None, catchup=False),
+            restriction=TimeRestriction(earliest=earliest, latest=None, catchup=Catchup.DISABLE),
         )
     assert next_info == expected
 
@@ -167,7 +168,7 @@ def test_hourly_cron_trigger_catchup_next_info(
 ) -> None:
     next_info = HOURLY_CRON_TRIGGER_TIMETABLE.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,
-        restriction=TimeRestriction(earliest=earliest, latest=None, catchup=True),
+        restriction=TimeRestriction(earliest=earliest, latest=None, catchup=Catchup.ENABLE),
     )
     assert next_info == expected
 
@@ -185,7 +186,7 @@ def test_cron_trigger_next_info_with_interval():
             pendulum.DateTime(2022, 8, 1, tzinfo=TIMEZONE),
             pendulum.DateTime(2022, 8, 1, 16, 30, tzinfo=TIMEZONE),
         ),
-        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=True),
+        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=Catchup.ENABLE),
     )
     assert next_info == DagRunInfo.interval(
         pendulum.DateTime(2022, 8, 8, tzinfo=TIMEZONE),

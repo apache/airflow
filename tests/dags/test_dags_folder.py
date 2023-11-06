@@ -26,7 +26,7 @@ with DAG(
     dag_id="test_dags_folder",
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
 ) as dag:
 
     @task(task_id="task")

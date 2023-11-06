@@ -25,7 +25,7 @@ with DAG(
     dag_id="child_dag",
     start_date=datetime(2022, 1, 1),
     schedule="@once",
-    catchup=False,
+    catchup="disable",
     tags=["example", "async", "core"],
 ) as dag:
     dummy_task = BashOperator(

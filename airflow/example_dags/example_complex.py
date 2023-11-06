@@ -30,7 +30,7 @@ with DAG(
     dag_id="example_complex",
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example", "example2", "example3"],
 ) as dag:
     # Create

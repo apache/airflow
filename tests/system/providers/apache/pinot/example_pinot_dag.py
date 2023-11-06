@@ -30,7 +30,7 @@ with DAG(
     schedule=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_pinot_admin_hook]
     @task

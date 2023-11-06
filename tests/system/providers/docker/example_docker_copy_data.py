@@ -42,7 +42,7 @@ with models.DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "docker"],
 ) as dag:
     locate_file_cmd = """

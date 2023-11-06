@@ -118,7 +118,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]

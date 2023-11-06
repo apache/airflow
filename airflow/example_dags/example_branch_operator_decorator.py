@@ -40,7 +40,7 @@ PATH_TO_PYTHON_BINARY = sys.executable
 with DAG(
     dag_id="example_branch_python_operator_decorator",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     schedule="@daily",
     tags=["example", "example2"],
     orientation="TB",

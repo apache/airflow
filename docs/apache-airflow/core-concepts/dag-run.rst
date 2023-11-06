@@ -127,7 +127,7 @@ The scheduler, by default, will
 kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
 If your DAG is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
-then you will want to turn catchup off. This can be done by setting ``catchup=False`` in DAG  or ``catchup_by_default=False``
+then you will want to turn catchup off. This can be done by setting ``catchup="disable"`` in DAG  or ``catchup_by_default=False``
 in the configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
 
 .. code-block:: python
@@ -152,7 +152,7 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
         start_date=pendulum.datetime(2015, 12, 1, tz="UTC"),
         description="A simple tutorial DAG",
         schedule="@daily",
-        catchup=False,
+        catchup="disable",
     )
 
 In the example above, if the DAG is picked up by the scheduler daemon on
@@ -266,7 +266,7 @@ Example of a parameterized DAG:
         "example_parameterized_dag",
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        catchup=False,
+        catchup="disable",
     )
 
     parameterized_task = BashOperator(

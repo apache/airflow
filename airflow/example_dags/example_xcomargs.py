@@ -44,7 +44,7 @@ def print_value(value, ts=None):
 with DAG(
     dag_id="example_xcom_args",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     schedule=None,
     tags=["example"],
 ) as dag:
@@ -53,7 +53,7 @@ with DAG(
 with DAG(
     "example_xcom_args_with_operators",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     schedule=None,
     tags=["example"],
 ) as dag2:

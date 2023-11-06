@@ -30,7 +30,7 @@ with DAG(
     "example_branch_labels",
     schedule="@daily",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     ingest = EmptyOperator(task_id="ingest")
     analyse = EmptyOperator(task_id="analyze")

@@ -78,6 +78,7 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.utils import timezone
+from airflow.utils.catchup import Catchup
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -2218,7 +2219,7 @@ my_postgres_conn:
             dag_id="dag_without_catchup_ten_minute",
             schedule="*/10 * * * *",
             start_date=six_hours_ago_to_the_hour,
-            catchup=False,
+            catchup="disable",
         )
         next_date, _ = dag1.next_dagrun_info(None)
         # The DR should be scheduled in the last half an hour, not 6 hours ago
@@ -2229,7 +2230,7 @@ my_postgres_conn:
             dag_id="dag_without_catchup_hourly",
             schedule="@hourly",
             start_date=six_hours_ago_to_the_hour,
-            catchup=False,
+            catchup="disable",
         )
 
         next_date, _ = dag2.next_dagrun_info(None)
@@ -2242,7 +2243,7 @@ my_postgres_conn:
             dag_id="dag_without_catchup_once",
             schedule="@once",
             start_date=six_hours_ago_to_the_hour,
-            catchup=False,
+            catchup="disable",
         )
 
         next_date, _ = dag3.next_dagrun_info(None)
@@ -2254,13 +2255,13 @@ my_postgres_conn:
     def test_next_dagrun_info_timedelta_schedule_and_catchup_false(self, schedule):
         """
         Test that the dag file processor does not create multiple dagruns
-        if a dag is scheduled with 'timedelta' and catchup=False
+        if a dag is scheduled with 'timedelta' and catchup="disable"
         """
         dag = DAG(
             "test_scheduler_dagrun_once_with_timedelta_and_catchup_false",
             start_date=timezone.datetime(2015, 1, 1),
             schedule=schedule,
-            catchup=False,
+            catchup="disable",
         )
 
         next_info = dag.next_dagrun_info(None)
@@ -2274,13 +2275,13 @@ my_postgres_conn:
     def test_next_dagrun_info_timedelta_schedule_and_catchup_true(self):
         """
         Test that the dag file processor creates multiple dagruns
-        if a dag is scheduled with 'timedelta' and catchup=True
+        if a dag is scheduled with 'timedelta' and catchup="enable"
         """
         dag = DAG(
             "test_scheduler_dagrun_once_with_timedelta_and_catchup_true",
             start_date=timezone.datetime(2020, 5, 1),
             schedule=timedelta(days=1),
-            catchup=True,
+            catchup="enable",
         )
 
         next_info = dag.next_dagrun_info(None)
@@ -2297,26 +2298,25 @@ my_postgres_conn:
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 4)
 
     @time_machine.travel(timezone.datetime(2020, 5, 4))
-    def test_next_dagrun_info_timedelta_schedule_and_catchup_true_and_ignore_first_catchup_true(self):
+    def test_next_dagrun_info_timedelta_schedule_and_catchup_ignore_first(self):
         """
         Test that the dag file processor creates multiple dagruns
-        if a dag is scheduled with 'timedelta' and catchup=True and ignore_first_depends_on_past=True
+        if a dag is scheduled with 'timedelta' and catchup='ignore_first'
         """
         dag = DAG(
             "test_scheduler_dagrun_once_with_timedelta_and_catchup_true",
             start_date=timezone.datetime(2020, 5, 1),
             schedule=timedelta(days=1),
-            catchup=True,
-            ignore_first_catchup=True,
+            catchup="ignore_first",
         )
 
         next_info = dag.next_dagrun_info(None)
-        # # if it is the first dagrun, the scheduling should be the same as catchup=False
+        # # if it is the first dagrun, the scheduling should be the same as catchup="disable"
         # for the first dagrun, the dagrun date is the nearest data interval to current time (<= current time)
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 3)
 
         next_info = dag.next_dagrun_info(timezone.datetime(2020, 5, 1))
-        # if it is not the first dagrun, the scheduling should be the same as catchup=True
+        # if it is not the first dagrun, the scheduling should be the same as catchup="enable"
         assert next_info and next_info.logical_date == timezone.datetime(2020, 5, 2)
 
         next_info = dag.next_dagrun_info(next_info.data_interval)
@@ -2337,7 +2337,7 @@ my_postgres_conn:
             "test_next_dagrun_info_timetable_exception",
             start_date=timezone.datetime(2020, 5, 1),
             timetable=FailingTimetable(),
-            catchup=True,
+            catchup="enable",
         )
 
         def _check_logs(records: list[logging.LogRecord], data_interval: DataInterval) -> None:
@@ -3441,12 +3441,12 @@ def test_get_next_data_interval(
                 (DEFAULT_DATE + timedelta(days=1), DEFAULT_DATE + timedelta(days=2)),
                 (DEFAULT_DATE + timedelta(days=3), DEFAULT_DATE + timedelta(days=4)),
             ],
-            TimeRestriction(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=4), True),
+            TimeRestriction(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=4), Catchup.ENABLE),
         ],
         [
             (DEFAULT_DATE, None),
             [(DEFAULT_DATE, DEFAULT_DATE + timedelta(days=1)), (DEFAULT_DATE, None)],
-            TimeRestriction(DEFAULT_DATE, None, True),
+            TimeRestriction(DEFAULT_DATE, None, Catchup.ENABLE),
         ],
     ],
 )
@@ -4059,7 +4059,7 @@ class TestTaskClearingSetupTeardownBehavior:
 
     def test_validate_setup_teardown_trigger_rule(self):
         with DAG(
-            dag_id="direct_setup_trigger_rule", start_date=pendulum.now(), schedule=None, catchup=False
+            dag_id="direct_setup_trigger_rule", start_date=pendulum.now(), schedule=None, catchup="disable"
         ) as dag:
             s1, w1 = self.make_tasks(dag, "s1, w1")
             s1 >> w1

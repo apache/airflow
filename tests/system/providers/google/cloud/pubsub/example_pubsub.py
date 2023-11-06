@@ -57,7 +57,7 @@ with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_gcp_pubsub_create_topic]
     create_topic = PubSubCreateTopicOperator(

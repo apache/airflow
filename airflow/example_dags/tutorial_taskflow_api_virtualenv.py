@@ -29,7 +29,7 @@ if not is_venv_installed():
     log.warning("The tutorial_taskflow_api_virtualenv example DAG requires virtualenv, please install it.")
 else:
 
-    @dag(schedule=None, start_date=datetime(2021, 1, 1), catchup=False, tags=["example"])
+    @dag(schedule=None, start_date=datetime(2021, 1, 1), catchup="disable", tags=["example"])
     def tutorial_taskflow_api_virtualenv():
         """
         ### TaskFlow API example using virtualenv

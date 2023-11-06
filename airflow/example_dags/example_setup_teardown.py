@@ -27,7 +27,7 @@ from airflow.utils.task_group import TaskGroup
 with DAG(
     dag_id="example_setup_teardown",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     root_setup = BashOperator(task_id="root_setup", bash_command="echo 'Hello from root_setup'").as_setup()

@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowTimetableInvalid
 from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
+from airflow.utils.catchup import Catchup
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)
 
@@ -56,10 +57,10 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 def test_no_catchup_first_starts_at_current_time(
     last_automated_data_interval: DataInterval | None,
 ) -> None:
-    """If ``catchup=False`` and start_date is a day before"""
+    """If ``catchup="disable`` and start_date is a day before"""
     next_info = CRON_TIMETABLE.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,
-        restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=False),
+        restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=Catchup.DISABLE),
     )
     expected_start = YESTERDAY + DELTA_FROM_MIDNIGHT
     assert next_info == DagRunInfo.interval(start=expected_start, end=CURRENT_TIME + DELTA_FROM_MIDNIGHT)
@@ -71,12 +72,12 @@ def test_no_catchup_first_starts_at_current_time(
 )
 @pytest.mark.parametrize(
     "catchup",
-    [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
+    [pytest.param(Catchup.ENABLE, id="catchup_enable"), pytest.param(Catchup.DISABLE, id="catchup_disable")],
 )
 @time_machine.travel(CURRENT_TIME)
 def test_new_schedule_interval_next_info_starts_at_new_time(
     earliest: pendulum.DateTime | None,
-    catchup: bool,
+    catchup: Catchup,
 ) -> None:
     """First run after DAG has new schedule interval."""
     next_info = CRON_TIMETABLE.next_dagrun_info(
@@ -105,10 +106,10 @@ def test_no_catchup_next_info_starts_at_current_time(
     timetable: Timetable,
     last_automated_data_interval: DataInterval | None,
 ) -> None:
-    """If ``catchup=False``, the next data interval ends at the current time."""
+    """If ``catchup="disable"``, the next data interval ends at the current time."""
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,
-        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=False),
+        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=Catchup.DISABLE),
     )
     expected_start = CURRENT_TIME - datetime.timedelta(hours=1)
     assert next_info == DagRunInfo.interval(start=expected_start, end=CURRENT_TIME)
@@ -123,10 +124,10 @@ def test_no_catchup_next_info_starts_at_current_time(
     ],
 )
 def test_catchup_next_info_starts_at_previous_interval_end(timetable: Timetable) -> None:
-    """If ``catchup=True``, the next interval starts at the previous's end."""
+    """If ``catchup="enable"``, the next interval starts at the previous's end."""
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=PREV_DATA_INTERVAL,
-        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=True),
+        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=Catchup.ENABLE),
     )
     expected_end = PREV_DATA_INTERVAL_END + datetime.timedelta(hours=1)
     assert next_info == DagRunInfo.interval(start=PREV_DATA_INTERVAL_END, end=expected_end)
@@ -250,6 +251,6 @@ def test_cron_next_dagrun_info_alignment(last_data_interval: DataInterval, expec
     timetable = CronDataIntervalTimetable("@daily", TIMEZONE)
     info = timetable.next_dagrun_info(
         last_automated_data_interval=last_data_interval,
-        restriction=TimeRestriction(None, None, True),
+        restriction=TimeRestriction(None, None, Catchup.ENABLE),
     )
     assert info == expected_info

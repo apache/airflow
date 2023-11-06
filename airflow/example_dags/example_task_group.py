@@ -29,7 +29,7 @@ from airflow.utils.task_group import TaskGroup
 with DAG(
     dag_id="example_task_group",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     start = EmptyOperator(task_id="start")

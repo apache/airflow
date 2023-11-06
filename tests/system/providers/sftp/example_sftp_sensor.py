@@ -42,7 +42,7 @@ with DAG(
     "example_sftp_sensor",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "sftp"],
 ) as dag:
     # [START howto_operator_sftp_sensor_decorator]

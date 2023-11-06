@@ -30,7 +30,7 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 with DAG(
     dag_id="example_trigger_controller_dag",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     schedule="@once",
     tags=["example"],
 ) as dag:

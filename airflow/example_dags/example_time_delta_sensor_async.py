@@ -33,7 +33,7 @@ with DAG(
     dag_id="example_time_delta_sensor_async",
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     wait = TimeDeltaSensorAsync(task_id="wait", delta=datetime.timedelta(seconds=30))

@@ -69,7 +69,7 @@ with DAG(
     dag_id="fizzbuzz-load-topic",
     description="Load Data to fizz_buzz topic",
     start_date=datetime(2022, 11, 1),
-    catchup=False,
+    catchup="disable",
     tags=["fizz-buzz"],
 ) as dag:
     t0 = PythonOperator(task_id="load_connections", python_callable=load_connections)
@@ -85,7 +85,7 @@ with DAG(
     dag_id="fizzbuzz-listener-dag",
     description="listen for messages with mod 3 and mod 5 are zero",
     start_date=datetime(2022, 11, 1),
-    catchup=False,
+    catchup="disable",
     tags=["fizz", "buzz"],
 ):
 

@@ -2148,16 +2148,17 @@ scheduler:
       default: "10.0"
     catchup_by_default:
       description: |
-        Turn off scheduler catchup by setting this to ``False``.
+        Turn off scheduler catchup by setting this to ``disable``.
         Default behavior is unchanged and
         Command Line Backfills still work, but the scheduler
-        will not do scheduler catchup if this is ``False``,
+        will not do scheduler catchup if this is ``disable``,
         however it can be set on a per DAG basis in the
-        DAG definition (catchup)
+        DAG definition (catchup). You can set it to ``ignore_first``
+        to disable backfilling since the start date of the DAG.
       version_added: ~
-      type: boolean
+      type: string
       example: ~
-      default: "True"
+      default: "enable"
     ignore_first_depends_on_past_by_default:
       description: |
         Setting this to True will make first task instance of a task
@@ -2169,14 +2170,6 @@ scheduler:
       type: boolean
       example: ~
       default: "True"
-    ignore_first_catchup:
-      description: |
-        Setting this to True will make the scheduler ignore the catchup
-        configuration on the first DAG run.
-      version_added: 2.8.0
-      type: boolean
-      example: ~
-      default: "False"
     max_tis_per_query:
       description: |
         This changes the batch size of queries in the scheduling main loop.

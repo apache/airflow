@@ -35,7 +35,7 @@ def raise_skip_exc():
 
 dag_with_skip_task = DAG(
     dag_id="dag_with_skip_task",
-    catchup=False,
+    catchup="disable",
     start_date=datetime(2020, 1, 1),
     schedule="@daily",
     tags=["upstream-skipping"],
@@ -49,7 +49,7 @@ PythonOperator(
 
 with DAG(
     dag_id="dag_that_follows_dag_with_skip",
-    catchup=False,
+    catchup="disable",
     start_date=datetime(2020, 1, 1),
     schedule=[skip_task_dag_dataset],
     tags=["downstream-skipped"],
@@ -66,7 +66,7 @@ def raise_fail_exc():
 
 dag_with_fail_task = DAG(
     dag_id="dag_with_fail_task",
-    catchup=False,
+    catchup="disable",
     start_date=datetime(2020, 1, 1),
     schedule="@daily",
     tags=["upstream-skipping"],
@@ -80,7 +80,7 @@ PythonOperator(
 
 with DAG(
     dag_id="dag_that_follows_dag_with_fail",
-    catchup=False,
+    catchup="disable",
     start_date=datetime(2020, 1, 1),
     schedule=[fail_task_dag_dataset],
     tags=["downstream-failed"],

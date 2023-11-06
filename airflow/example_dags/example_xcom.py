@@ -67,7 +67,7 @@ with DAG(
     "example_xcom",
     schedule="@once",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     bash_push = BashOperator(

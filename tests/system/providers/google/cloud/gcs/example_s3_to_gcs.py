@@ -50,7 +50,7 @@ with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "s3"],
 ) as dag:
     create_s3_bucket = S3CreateBucketOperator(

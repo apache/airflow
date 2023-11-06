@@ -46,7 +46,7 @@ SALESFORCE_CONN_ID = os.environ.get("SALESFORCE_CONN_ID", "salesforce_default")
 with DAG(
     "example_salesforce_to_gcs",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",

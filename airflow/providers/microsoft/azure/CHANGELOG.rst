@@ -729,7 +729,7 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-   * ``Ensure ''catchup=False'' is used in example dags (#19396)``
+   * ``Ensure ''catchup="disable"'' is used in example dags (#19396)``
 
 3.3.0
 .....

@@ -51,7 +51,7 @@ dag2_dataset = Dataset("s3://dag2/output_1.txt", extra={"hi": "bye"})
 
 with DAG(
     dag_id="dataset_produces_1",
-    catchup=False,
+    catchup="disable",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule="@daily",
     tags=["produces", "dataset-scheduled"],
@@ -62,7 +62,7 @@ with DAG(
 
 with DAG(
     dag_id="dataset_produces_2",
-    catchup=False,
+    catchup="disable",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=None,
     tags=["produces", "dataset-scheduled"],
@@ -72,7 +72,7 @@ with DAG(
 # [START dag_dep]
 with DAG(
     dag_id="dataset_consumes_1",
-    catchup=False,
+    catchup="disable",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[dag1_dataset],
     tags=["consumes", "dataset-scheduled"],
@@ -86,7 +86,7 @@ with DAG(
 
 with DAG(
     dag_id="dataset_consumes_1_and_2",
-    catchup=False,
+    catchup="disable",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[dag1_dataset, dag2_dataset],
     tags=["consumes", "dataset-scheduled"],
@@ -99,7 +99,7 @@ with DAG(
 
 with DAG(
     dag_id="dataset_consumes_1_never_scheduled",
-    catchup=False,
+    catchup="disable",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[
         dag1_dataset,
@@ -115,7 +115,7 @@ with DAG(
 
 with DAG(
     dag_id="dataset_consumes_unknown_never_scheduled",
-    catchup=False,
+    catchup="disable",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[
         Dataset("s3://unrelated/dataset3.txt"),

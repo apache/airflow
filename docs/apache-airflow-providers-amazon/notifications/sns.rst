@@ -59,7 +59,7 @@ Example Code:
         schedule="@once",
         start_date=datetime(2023, 1, 1),
         on_failure_callback=[dag_failure_sns_notification],
-        catchup=False,
+        catchup="disable",
     ):
         BashOperator(
             task_id="mytask",

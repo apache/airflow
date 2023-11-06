@@ -72,7 +72,7 @@ for index, location in enumerate(locations, 1):
         DAG_ID,
         schedule="@once",
         start_date=datetime(2021, 1, 1),
-        catchup=False,
+        catchup="disable",
         tags=["example", "bigquery"],
         user_defined_macros={"DATASET": DATASET, "TABLE": TABLE_1, "QUERY_SQL_PATH": QUERY_SQL_PATH},
     ) as dag:

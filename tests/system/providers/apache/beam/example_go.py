@@ -37,7 +37,7 @@ with models.DAG(
     "example_beam_native_go",
     start_date=START_DATE,
     schedule="@once",
-    catchup=False,
+    catchup="disable",
     default_args=DEFAULT_ARGS,
     tags=["example"],
 ) as dag:

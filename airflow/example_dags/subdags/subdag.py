@@ -38,7 +38,7 @@ def subdag(parent_dag_name, child_dag_name, args) -> DAG:
         dag_id=f"{parent_dag_name}.{child_dag_name}",
         default_args=args,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-        catchup=False,
+        catchup="disable",
         schedule="@daily",
     )
 

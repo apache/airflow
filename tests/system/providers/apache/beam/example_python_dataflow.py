@@ -40,7 +40,7 @@ with models.DAG(
     default_args=DEFAULT_ARGS,
     start_date=START_DATE,
     schedule=None,  # Override to match your needs
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     # [START howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]

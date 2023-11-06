@@ -67,7 +67,7 @@ def task_group_function(value: int) -> None:
 with DAG(
     dag_id="example_task_group_decorator",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     start_task = task_start()

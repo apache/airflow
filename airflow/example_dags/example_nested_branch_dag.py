@@ -32,7 +32,7 @@ from airflow.utils.trigger_rule import TriggerRule
 with DAG(
     dag_id="example_nested_branch_dag",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     schedule="@daily",
     tags=["example"],
 ) as dag:

@@ -2236,7 +2236,7 @@ class TestTaskInstance:
     @staticmethod
     def _test_previous_dates_setup(
         schedule_interval: str | datetime.timedelta | None,
-        catchup: bool,
+        catchup: str,
         scenario: list[TaskInstanceState],
         dag_maker,
     ) -> list:
@@ -2269,12 +2269,12 @@ class TestTaskInstance:
         return ret
 
     _prev_dates_param_list = [
-        pytest.param("0 0 * * * ", True, id="cron/catchup"),
-        pytest.param("0 0 * * *", False, id="cron/no-catchup"),
-        pytest.param(None, True, id="no-sched/catchup"),
-        pytest.param(None, False, id="no-sched/no-catchup"),
-        pytest.param(datetime.timedelta(days=1), True, id="timedelta/catchup"),
-        pytest.param(datetime.timedelta(days=1), False, id="timedelta/no-catchup"),
+        pytest.param("0 0 * * * ", "enable", id="cron/catchup"),
+        pytest.param("0 0 * * *", "disable", id="cron/no-catchup"),
+        pytest.param(None, "enable", id="no-sched/catchup"),
+        pytest.param(None, "disable", id="no-sched/no-catchup"),
+        pytest.param(datetime.timedelta(days=1), "enable", id="timedelta/catchup"),
+        pytest.param(datetime.timedelta(days=1), "disable", id="timedelta/no-catchup"),
     ]
 
     @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)

@@ -250,7 +250,7 @@ Keep in mind that some tables have foreign key relationships defined with ``ON D
 Special handling for DAG runs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Commonly, Airflow determines which DagRun to run next by looking up the latest DagRun.  If you delete all DAG runs, Airflow may schedule an old DAG run that was already completed, e.g. if you have set ``catchup=True``.  So the ``db clean`` command will preserve the latest non-manually-triggered DAG run to preserve continuity in scheduling.
+Commonly, Airflow determines which DagRun to run next by looking up the latest DagRun.  If you delete all DAG runs, Airflow may schedule an old DAG run that was already completed, e.g. if you have set ``catchup="enable"``.  So the ``db clean`` command will preserve the latest non-manually-triggered DAG run to preserve continuity in scheduling.
 
 Considerations for backfillable DAGs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

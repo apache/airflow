@@ -35,7 +35,7 @@ with DAG(
     default_args={"args": [10]},
     schedule="@daily",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START create_livy]
     livy_java_task = LivyOperator(

@@ -24,6 +24,7 @@ from airflow.typing_compat import Protocol, runtime_checkable
 if TYPE_CHECKING:
     from pendulum import DateTime
 
+    from airflow.utils.catchup import Catchup
     from airflow.utils.types import DagRunType
 
 
@@ -47,14 +48,14 @@ class TimeRestriction(NamedTuple):
     """Restriction on when a DAG can be scheduled for a run.
 
     Specifically, the run must not be earlier than ``earliest``, nor later than
-    ``latest``. If ``catchup`` is *False*, the run must also not be earlier than
+    ``latest``. If ``catchup`` is *disabled*, the run must also not be earlier than
     the current time, i.e. "missed" schedules are not backfilled. If
-    ``ignore_first_catchup`` is *True*, the run must also not be earlier than the
+    ``catchup`` is *ignore_first*, the run must also not be earlier than the
     first DAG run's ``execution_date`` if there is any, and not earlier than the
     current time otherwise.
 
     These values are generally set on the DAG or task's ``start_date``,
-    ``end_date``, ``catchup`` and ``ignore_first_catchup`` arguments.
+    ``end_date`` and ``catchup``
 
     Both ``earliest`` and ``latest``, if not *None*, are inclusive; a DAG run
     can happen exactly at either point of time. They are guaranteed to be aware
@@ -64,8 +65,7 @@ class TimeRestriction(NamedTuple):
 
     earliest: DateTime | None
     latest: DateTime | None
-    catchup: bool
-    ignore_first_catchup: bool = False
+    catchup: Catchup
 
 
 class DagRunInfo(NamedTuple):

@@ -42,7 +42,7 @@ Example Code:
         dag_id="smtp_notifier",
         schedule_interval=None,
         start_date=datetime(2023, 1, 1),
-        catchup=False,
+        catchup="disable",
         on_failure_callback=[
             send_smtp_notification(
                 from_email="someone@mail.com",

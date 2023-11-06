@@ -45,7 +45,7 @@ class GetRequestOperator(BaseOperator):
 @dag(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 )
 def example_dag_decorator(email: str = "example@example.com"):

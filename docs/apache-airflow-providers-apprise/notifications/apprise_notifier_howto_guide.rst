@@ -38,7 +38,7 @@ Example Code:
         dag_id="apprise_notifier_testing",
         schedule_interval=None,
         start_date=datetime(2023, 1, 1),
-        catchup=False,
+        catchup="disable",
         on_success_callback=[
             send_apprise_notification(body="The dag {{ dag.dag_id }} failed", notify_type=NotifyType.FAILURE)
         ],

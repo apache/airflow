@@ -26,7 +26,7 @@ with DAG(
     dag_id="example_external_task",
     start_date=datetime(2022, 1, 1),
     schedule="@once",
-    catchup=False,
+    catchup="disable",
     tags=["example", "async", "core"],
 ) as dag:
     start = DummyOperator(task_id="start")

@@ -30,7 +30,7 @@ from airflow.operators.empty import EmptyOperator
 dag1 = DAG(
     dag_id="example_branch_datetime_operator",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
     schedule="@daily",
 )
@@ -56,7 +56,7 @@ cond1 >> [empty_task_11, empty_task_21]
 dag2 = DAG(
     dag_id="example_branch_datetime_operator_2",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
     schedule="@daily",
 )
@@ -81,7 +81,7 @@ cond2 >> [empty_task_12, empty_task_22]
 dag3 = DAG(
     dag_id="example_branch_datetime_operator_3",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
     schedule="@daily",
 )

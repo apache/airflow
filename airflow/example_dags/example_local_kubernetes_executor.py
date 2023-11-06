@@ -45,7 +45,7 @@ if k8s:
         dag_id="example_local_kubernetes_executor",
         schedule=None,
         start_date=datetime(2021, 1, 1),
-        catchup=False,
+        catchup="disable",
         tags=["example3"],
     ) as dag:
         # You can use annotations on your kubernetes pods!

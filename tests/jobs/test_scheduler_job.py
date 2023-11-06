@@ -3736,7 +3736,7 @@ class TestSchedulerJob:
             dag_id="test_bulk_write_to_db_external_trigger_dont_skip_scheduled_run",
             schedule="*/1 * * * *",
             max_active_runs=5,
-            catchup=True,
+            catchup="enable",
         ) as dag:
             EmptyOperator(task_id="dummy")
 
@@ -3845,7 +3845,7 @@ class TestSchedulerJob:
             dag_id="test_max_active_run_with_dag_timed_out",
             schedule="@once",
             max_active_runs=1,
-            catchup=True,
+            catchup="enable",
             dagrun_timeout=datetime.timedelta(seconds=1),
         ) as dag:
             task1 = BashOperator(
@@ -4964,7 +4964,7 @@ class TestSchedulerJob:
             dag_id="test_catchup_schedule_dag",
             schedule=timedelta(days=1),
             start_date=DEFAULT_DATE,
-            catchup=True,
+            catchup="enable",
             max_active_runs=1,
             session=session,
         ) as dag:

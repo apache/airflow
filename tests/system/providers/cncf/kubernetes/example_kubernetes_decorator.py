@@ -27,7 +27,7 @@ with DAG(
     schedule=None,
     start_date=datetime(2021, 1, 1),
     tags=["example", "cncf", "kubernetes"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_kubernetes]
     @task.kubernetes(

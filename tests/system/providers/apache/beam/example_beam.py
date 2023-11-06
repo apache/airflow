@@ -34,7 +34,7 @@ with models.DAG(
     "example_beam_native_java_direct_runner",
     schedule=None,  # Override to match your needs
     start_date=START_DATE,
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     # [START howto_operator_start_java_direct_runner_pipeline]
