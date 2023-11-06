@@ -24,6 +24,8 @@ from airflow import configuration, models
 from airflow.providers.tableau.hooks.tableau import TableauHook, TableauJobFinishCode
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestTableauHook:
     """

@@ -19,7 +19,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.spark import SparkClient
 
 from airflow.models.connection import Connection
@@ -37,6 +36,8 @@ MODEL = object()
 NAME = "testName"
 ID = "testId"
 JOB_ID = 1
+
+MODULE = "airflow.providers.microsoft.azure.hooks.synapse"
 
 
 @pytest.fixture(autouse=True)
@@ -87,23 +88,41 @@ def hook():
     return client
 
 
-@pytest.mark.parametrize(
-    ("connection_id", "credential_type"),
-    [
-        (DEFAULT_CONNECTION_CLIENT_SECRET, ClientSecretCredential),
-        (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential),
-    ],
-)
-def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: type):
-    hook = AzureSynapseHook(connection_id)
+@patch(f"{MODULE}.ClientSecretCredential")
+def test_get_connection_by_credential_client_secret(mock_credential):
+    hook = AzureSynapseHook(DEFAULT_CONNECTION_CLIENT_SECRET)
 
     with patch.object(hook, "_create_client") as mock_create_client:
         mock_create_client.return_value = MagicMock()
+
         connection = hook.get_conn()
         assert connection is not None
-        mock_create_client.assert_called_once()
-        assert isinstance(mock_create_client.call_args.args[0], credential_type)
-        assert mock_create_client.call_args.args[-1] == "subscriptionId"
+        mock_create_client.assert_called_with(
+            mock_credential(),
+            "https://testsynapse.dev.azuresynapse.net",
+            "",
+            "2022-02-22-preview",
+            "subscriptionId",
+        )
+
+
+@patch(f"{MODULE}.get_sync_default_azure_credential")
+def test_get_conn_by_default_azure_credential(mock_credential):
+    hook = AzureSynapseHook(DEFAULT_CONNECTION_DEFAULT_CREDENTIAL)
+
+    with patch.object(hook, "_create_client") as mock_create_client:
+        mock_create_client.return_value = MagicMock()
+
+        connection = hook.get_conn()
+        assert connection is not None
+        assert mock_credential.called_with(None, None)
+        mock_create_client.assert_called_with(
+            mock_credential(),
+            "https://testsynapse.dev.azuresynapse.net",
+            "",
+            "2022-02-22-preview",
+            "subscriptionId",
+        )
 
 
 def test_run_spark_job(hook: AzureSynapseHook):

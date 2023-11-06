@@ -88,7 +88,7 @@ class ObjectStoragePath(os.PathLike):
         protocol = ""
         key = ""
 
-        path = stringify_path(path)
+        path = str(stringify_path(path))
 
         i = path.find("://")
         if i > 0:
@@ -162,13 +162,16 @@ class ObjectStoragePath(os.PathLike):
 
     def __truediv__(self, other) -> ObjectStoragePath:
         o_protocol, o_bucket, o_key = self.split_path(other)
-        if not isinstance(other, str) and o_bucket and self._bucket != o_bucket:
+        if isinstance(other, ObjectStoragePath) and o_bucket and self._bucket != o_bucket:
             raise ValueError("Cannot combine paths from different buckets / containers")
 
         if o_protocol and self._protocol != o_protocol:
             raise ValueError("Cannot combine paths from different protocols")
 
-        path = f"{stringify_path(self).rstrip(self.sep)}/{stringify_path(other).lstrip(self.sep)}"
+        self_path = str(stringify_path(self))
+        other_path = str(stringify_path(other))
+
+        path = f"{self_path.rstrip(self.sep)}/{other_path.lstrip(self.sep)}"
         return ObjectStoragePath(path, conn_id=self._conn_id)
 
     def _unsupported(self, method_name):

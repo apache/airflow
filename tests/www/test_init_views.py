@@ -24,6 +24,8 @@ import pytest
 from airflow.www.extensions import init_views
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestInitApiExperimental:
     @conf_vars({("api", "enable_experimental_api"): "true"})

@@ -81,5 +81,7 @@ class SecretsManagerHook(GoogleBaseHook):
         :param project_id: Project id (if you want to override the project_id from credentials)
         """
         return self.get_conn().get_secret(
-            secret_id=secret_id, secret_version=secret_version, project_id=project_id  # type: ignore
+            secret_id=secret_id,
+            secret_version=secret_version,
+            project_id=project_id,  # type: ignore
         )

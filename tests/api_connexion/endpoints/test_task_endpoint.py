@@ -31,6 +31,8 @@ from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
@@ -234,6 +236,14 @@ class TestGetTask(TestTaskEndpoint):
             f"/api/v1/dags/{self.dag_id}/tasks/{task_id}", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
+
+    def test_should_respond_404_when_dag_not_found(self):
+        dag_id = "xxxx_not_existing"
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/tasks/{self.task_id}", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 404
+        assert response.json["title"] == "DAG not found"
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}")

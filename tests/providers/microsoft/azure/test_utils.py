@@ -17,11 +17,19 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest import mock
 
 import pytest
 
-from airflow.providers.microsoft.azure.utils import AzureIdentityCredentialAdapter, get_field
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
+    get_field,
+    # _get_default_azure_credential
+    get_sync_default_azure_credential,
+)
 
 MODULE = "airflow.providers.microsoft.azure.utils"
 
@@ -62,6 +70,29 @@ def test_get_field_non_prefixed(input, expected):
     assert value == expected
 
 
+def test_add_managed_identity_connection_widgets():
+    def test_func() -> dict[str, Any]:
+        return {}
+
+    widgets = add_managed_identity_connection_widgets(test_func)()
+
+    assert "managed_identity_client_id" in widgets
+    assert "workload_identity_tenant_id" in widgets
+
+
+@mock.patch(f"{MODULE}.DefaultAzureCredential")
+def test_get_sync_default_azure_credential(mock_default_azure_credential):
+    get_sync_default_azure_credential()
+
+    assert mock_default_azure_credential.called
+
+
+@mock.patch(f"{MODULE}.AsyncDefaultAzureCredential")
+def test_get_async_default_azure_credential(mock_default_azure_credential):
+    get_async_default_azure_credential()
+    assert mock_default_azure_credential.called
+
+
 class TestAzureIdentityCredentialAdapter:
     @mock.patch(f"{MODULE}.PipelineRequest")
     @mock.patch(f"{MODULE}.BearerTokenCredentialPolicy")
@@ -71,6 +102,27 @@ class TestAzureIdentityCredentialAdapter:
 
         adapter = AzureIdentityCredentialAdapter()
         mock_default_azure_credential.assert_called_once()
+        mock_policy.assert_called_once()
+
+        adapter.signed_session()
+        assert adapter.token == {"access_token": "token"}
+
+    @mock.patch(f"{MODULE}.PipelineRequest")
+    @mock.patch(f"{MODULE}.BearerTokenCredentialPolicy")
+    @mock.patch(f"{MODULE}.DefaultAzureCredential")
+    def test_init_with_identity(self, mock_default_azure_credential, mock_policy, mock_request):
+        mock_request.return_value.http_request.headers = {"Authorization": "Bearer token"}
+
+        adapter = AzureIdentityCredentialAdapter(
+            managed_identity_client_id="managed_identity_client_id",
+            workload_identity_tenant_id="workload_identity_tenant_id",
+            additionally_allowed_tenants=["workload_identity_tenant_id"],
+        )
+        mock_default_azure_credential.assert_called_once_with(
+            managed_identity_client_id="managed_identity_client_id",
+            workload_identity_tenant_id="workload_identity_tenant_id",
+            additionally_allowed_tenants=["workload_identity_tenant_id"],
+        )
         mock_policy.assert_called_once()
 
         adapter.signed_session()

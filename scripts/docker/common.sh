@@ -77,9 +77,9 @@ function common::install_pip_version() {
     echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
     echo
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
-        pip install --disable-pip-version-check --no-cache-dir "pip @ ${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
     else
-        pip install --disable-pip-version-check --no-cache-dir "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     fi
     mkdir -p "${HOME}/.local/bin"
 }

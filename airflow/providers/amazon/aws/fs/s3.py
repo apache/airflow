@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict
@@ -51,7 +52,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
         raise ImportError(
             "Airflow FS S3 protocol requires the s3fs library, but it is not installed as it requires"
             "aiobotocore. Please install the s3 protocol support library by running: "
-            "pip install apache-airflow[s3]"
+            "pip install apache-airflow-providers-amazon[s3fs]"
         )
 
     aws: AwsGenericHook = AwsGenericHook(aws_conn_id=conn_id, client_type="s3")
@@ -85,7 +86,12 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
     if proxy_uri := s3_service_config.get(S3_PROXY_URI, None):
         config_kwargs["proxies"] = {"http": proxy_uri, "https": proxy_uri}
 
-    fs = S3FileSystem(session=session, config_kwargs=config_kwargs, endpoint_url=endpoint_url)
+    anon = False
+    if asyncio.run(session.get_credentials()) is None:
+        log.info("No credentials found, using anonymous access")
+        anon = True
+
+    fs = S3FileSystem(session=session, config_kwargs=config_kwargs, endpoint_url=endpoint_url, anon=anon)
 
     for event_name, event_function in register_events.items():
         fs.s3.meta.events.register_last(event_name, event_function, unique_id=1925)

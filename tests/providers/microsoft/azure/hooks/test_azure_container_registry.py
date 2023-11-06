@@ -63,7 +63,9 @@ class TestAzureContainerRegistryHook:
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.container_registry.ContainerRegistryManagementClient"
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.container_registry.DefaultAzureCredential")
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.container_registry.get_sync_default_azure_credential"
+    )
     def test_get_conn_with_default_azure_credential(
         self, mocked_default_azure_credential, mocked_client, mocked_connection
     ):
@@ -80,4 +82,6 @@ class TestAzureContainerRegistryHook:
         assert hook.connection.password == "password"
         assert hook.connection.server == "test.cr"
 
-        mocked_default_azure_credential.assert_called_with()
+        assert mocked_default_azure_credential.called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )

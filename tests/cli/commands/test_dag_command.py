@@ -22,7 +22,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from io import StringIO
-from unittest import mock
+from unittest import TestCase, mock
 from unittest.mock import MagicMock
 
 import pendulum
@@ -50,6 +50,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
+
+pytestmark = pytest.mark.db_test
 
 
 class TestCliDags:
@@ -544,10 +546,12 @@ class TestCliDags:
         dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
         args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            dag_command.dag_list_import_errors(args)
+            with TestCase.assertRaises(TestCase(), SystemExit) as context:
+                dag_command.dag_list_import_errors(args)
             out = temp_stdout.getvalue()
         assert "[0 100 * * *] is not acceptable, out of range" in out
         assert dag_path in out
+        assert context.exception.code == 1
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(

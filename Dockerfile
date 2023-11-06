@@ -553,9 +553,9 @@ function common::install_pip_version() {
     echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
     echo
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
-        pip install --disable-pip-version-check --no-cache-dir "pip @ ${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
     else
-        pip install --disable-pip-version-check --no-cache-dir "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
     fi
     mkdir -p "${HOME}/.local/bin"
 }
@@ -1123,7 +1123,7 @@ if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
     >&2 echo "         the container starts, so it is only useful for testing and trying out"
     >&2 echo "         of adding dependencies."
     >&2 echo
-    pip install --root-user-action ignore --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
+    pip install --root-user-action ignore ${_PIP_ADDITIONAL_REQUIREMENTS}
 fi
 
 
@@ -1201,7 +1201,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 ARG PYTHON_BASE_IMAGE
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
+    PIP_CACHE_DIR=/tmp/.cache/pip
 
 ARG DEV_APT_DEPS=""
 ARG ADDITIONAL_DEV_APT_DEPS=""
@@ -1222,6 +1223,44 @@ ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
+ARG AIRFLOW_PIP_VERSION
+
+ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
+    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
+
+# Only copy mysql/mssql installation scripts for now - so that changing the other
+# scripts which are needed much later will not invalidate the docker layer here
+COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
+
+# THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
+# AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
+ARG AIRFLOW_PIP_VERSION=23.3.1
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
+COPY --from=scripts common.sh /scripts/docker/
+
+RUN bash /scripts/docker/install_mysql.sh dev && \
+    bash /scripts/docker/install_mssql.sh dev && \
+    bash /scripts/docker/install_postgres.sh dev
+ENV PATH=${PATH}:/opt/mssql-tools/bin
+
+# By default we do not install from docker context files but if we decide to install from docker context
+# files, we should override those variables to "docker-context-files"
+ARG DOCKER_CONTEXT_FILES="Dockerfile"
+
+COPY ${DOCKER_CONTEXT_FILES} /docker-context-files
+
+ARG AIRFLOW_HOME
+ARG AIRFLOW_USER_HOME_DIR
+ARG AIRFLOW_UID
+
+RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+       --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
+    mkdir -p ${AIRFLOW_HOME} && chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
+
+USER airflow
+
 ARG AIRFLOW_REPO=apache/airflow
 ARG AIRFLOW_BRANCH=main
 ARG AIRFLOW_EXTRAS
@@ -1232,7 +1271,7 @@ ARG AIRFLOW_CONSTRAINTS_MODE="constraints"
 ARG AIRFLOW_CONSTRAINTS_REFERENCE=""
 ARG AIRFLOW_CONSTRAINTS_LOCATION=""
 ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
-ARG AIRFLOW_PIP_VERSION
+
 # By default PIP has progress bar but you can disable it.
 ARG PIP_PROGRESS_BAR
 # By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
@@ -1261,42 +1300,6 @@ ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
 ARG AIRFLOW_SOURCES_FROM="Dockerfile"
 ARG AIRFLOW_SOURCES_TO="/Dockerfile"
 
-# By default we do not install from docker context files but if we decide to install from docker context
-# files, we should override those variables to "docker-context-files"
-ARG DOCKER_CONTEXT_FILES="Dockerfile"
-
-ARG AIRFLOW_HOME
-ARG AIRFLOW_USER_HOME_DIR
-ARG AIRFLOW_UID
-
-ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
-    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
-    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
-
-# Only copy mysql/mssql installation scripts for now - so that changing the other
-# scripts which are needed much later will not invalidate the docker layer here
-COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
-
-# THE 3 LINES ARE ONLY NEEDED IN ORDER TO MAKE PYMSSQL BUILD WORK WITH LATEST CYTHON
-# AND SHOULD BE REMOVED WHEN WORKAROUND IN install_mssql.sh IS REMOVED
-ARG AIRFLOW_PIP_VERSION=23.3.1
-ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION}
-COPY --from=scripts common.sh /scripts/docker/
-
-
-RUN bash /scripts/docker/install_mysql.sh dev && \
-    bash /scripts/docker/install_mssql.sh dev && \
-    bash /scripts/docker/install_postgres.sh dev
-ENV PATH=${PATH}:/opt/mssql-tools/bin
-
-COPY ${DOCKER_CONTEXT_FILES} /docker-context-files
-
-RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
-       --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
-    mkdir -p ${AIRFLOW_HOME} && chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
-
-USER airflow
 
 RUN if [[ -f /docker-context-files/pip.conf ]]; then \
         mkdir -p ${AIRFLOW_USER_HOME_DIR}/.config/pip; \
@@ -1386,8 +1389,15 @@ WORKDIR ${AIRFLOW_HOME}
 COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
      install_additional_dependencies.sh /scripts/docker/
 
-# hadolint ignore=SC2086, SC2010
-RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
+# Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
+# an incorrect architecture.
+ARG TARGETARCH
+# Value to be able to easily change cache id and therefore use a bare new cache
+ARG PIP_CACHE_EPOCH="0"
+
+# hadolint ignore=SC2086, SC2010, DL3042
+RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
+  if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
     if ! airflow version 2>/dev/null >/dev/null; then \
@@ -1405,8 +1415,10 @@ RUN if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
 # In case there is a requirements.txt file in "docker-context-files" it will be installed
 # during the build additionally to whatever has been installed so far. It is recommended that
 # the requirements.txt contains only dependencies with == version specification
-RUN if [[ -f /docker-context-files/requirements.txt ]]; then \
-        pip install --no-cache-dir --user -r /docker-context-files/requirements.txt; \
+# hadolint ignore=DL3042
+RUN --mount=type=cache,id=additional-requirements-$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
+    if [[ -f /docker-context-files/requirements.txt ]]; then \
+        pip install --user -r /docker-context-files/requirements.txt; \
     fi
 
 ##############################################################################################
@@ -1522,6 +1534,9 @@ RUN chmod a+rx /entrypoint /clean-logs \
 RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"\/.venv\/bin:/" /etc/sudoers
 
 ARG AIRFLOW_VERSION
+
+COPY --from=scripts install_pip_version.sh /scripts/docker/
+RUN bash /scripts/docker/install_pip_version.sh
 
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image
