@@ -460,6 +460,10 @@ def build_docs(
         *doc_builder.args_doc_builder,
     ]
     process = run_command(cmd, text=True, env=env, check=False)
+    if process.returncode == 0:
+        get_console().print(
+            "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
+        )
     sys.exit(process.returncode)
 
 
