@@ -263,10 +263,6 @@ class AirflowDocsBuilder:
             console.print(f"[info]{self.package_name:60}:[/] [red]Finished docs building with errors[/]")
         else:
             console.print(f"[info]{self.package_name:60}:[/] [green]Finished docs building successfully[/]")
-            console.print(
-                f"[info]{self.package_name:60}:[/] [green]Start the webserver in breeze and view "
-                f"the built docs at http://localhost:28080/docs/[/]"
-            )
         return build_errors
 
     def publish(self, override_versioned: bool):
