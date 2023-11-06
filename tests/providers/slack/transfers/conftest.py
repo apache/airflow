@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -19,28 +18,10 @@ from __future__ import annotations
 
 from unittest import mock
 
-from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
-
-TASK_ID = "test-s3-list-operator"
-BUCKET = "test-bucket"
-DELIMITER = ".csv"
-PREFIX = "TEST"
-MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
+import pytest
 
 
-class TestS3ListOperator:
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
-    def test_execute(self, mock_hook):
-        mock_hook.return_value.list_keys.return_value = MOCK_FILES
-
-        operator = S3ListOperator(task_id=TASK_ID, bucket=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
-
-        files = operator.execute(None)
-
-        mock_hook.return_value.list_keys.assert_called_once_with(
-            bucket_name=BUCKET,
-            prefix=PREFIX,
-            delimiter=DELIMITER,
-            apply_wildcard=False,
-        )
-        assert sorted(files) == sorted(MOCK_FILES)
+@pytest.fixture
+def mocked_get_connection():
+    with mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection") as m:
+        yield m

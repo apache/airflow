@@ -235,7 +235,7 @@ class TestAzureDataExplorerHook:
         ],
         indirect=True,
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.adx.get_default_azure_credential")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.adx.get_sync_default_azure_credential")
     @mock.patch.object(KustoClient, "__init__")
     def test_conn_method_azure_token_cred(self, mock_init, mock_default_azure_credential, mocked_connection):
         mock_init.return_value = None

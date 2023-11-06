@@ -24,8 +24,8 @@ from azure.mgmt.storage import StorageManagementClient
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
-    get_default_azure_credential,
     get_field,
+    get_sync_default_azure_credential,
 )
 
 
@@ -111,10 +111,11 @@ class AzureContainerVolumeHook(BaseHook):
         if subscription_id and storage_account_name and resource_group:
             managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
             workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
-            credentials = get_default_azure_credential(
-                managed_identity_client_id, workload_identity_tenant_id
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
             )
-            storage_client = StorageManagementClient(credentials, subscription_id)
+            storage_client = StorageManagementClient(credential, subscription_id)
             storage_account_list_keys_result = storage_client.storage_accounts.list_keys(
                 resource_group, storage_account_name
             )

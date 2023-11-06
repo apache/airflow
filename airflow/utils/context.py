@@ -71,6 +71,7 @@ KNOWN_CONTEXT_KEYS = {
     "prev_execution_date",
     "prev_execution_date_success",
     "prev_start_date_success",
+    "prev_end_date_success",
     "run_id",
     "task",
     "task_instance",

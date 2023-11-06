@@ -35,7 +35,7 @@ class TestAzureKeyVaultBackend:
         conn = AzureKeyVaultBackend().get_connection("fake_conn")
         assert conn.host == "host"
 
-    @mock.patch(f"{KEY_VAULT_MODULE}.get_default_azure_credential")
+    @mock.patch(f"{KEY_VAULT_MODULE}.get_sync_default_azure_credential")
     @mock.patch(f"{KEY_VAULT_MODULE}.SecretClient")
     def test_get_conn_uri(self, mock_secret_client, mock_azure_cred):
         mock_cred = mock.Mock()
@@ -153,7 +153,7 @@ class TestAzureKeyVaultBackend:
         assert backend.get_config("test_mysql") is None
         mock_get_secret.assert_not_called()
 
-    @mock.patch(f"{KEY_VAULT_MODULE}.get_default_azure_credential")
+    @mock.patch(f"{KEY_VAULT_MODULE}.get_sync_default_azure_credential")
     @mock.patch(f"{KEY_VAULT_MODULE}.ClientSecretCredential")
     @mock.patch(f"{KEY_VAULT_MODULE}.SecretClient")
     def test_client_authenticate_with_default_azure_credential(
@@ -169,7 +169,7 @@ class TestAzureKeyVaultBackend:
         assert not mock_client_secret_credential.called
         mock_defaul_azure_credential.assert_called_once()
 
-    @mock.patch(f"{KEY_VAULT_MODULE}.get_default_azure_credential")
+    @mock.patch(f"{KEY_VAULT_MODULE}.get_sync_default_azure_credential")
     @mock.patch(f"{KEY_VAULT_MODULE}.ClientSecretCredential")
     @mock.patch(f"{KEY_VAULT_MODULE}.SecretClient")
     def test_client_authenticate_with_default_azure_credential_and_customized_configuration(
@@ -187,7 +187,7 @@ class TestAzureKeyVaultBackend:
             workload_identity_tenant_id="workload_identity_tenant_id",
         )
 
-    @mock.patch(f"{KEY_VAULT_MODULE}.get_default_azure_credential")
+    @mock.patch(f"{KEY_VAULT_MODULE}.get_sync_default_azure_credential")
     @mock.patch(f"{KEY_VAULT_MODULE}.ClientSecretCredential")
     @mock.patch(f"{KEY_VAULT_MODULE}.SecretClient")
     def test_client_authenticate_with_client_secret_credential(

@@ -17,27 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-
-from airflow.providers.amazon.aws.operators.s3 import S3ListPrefixesOperator
-
-TASK_ID = "test-s3-list-prefixes-operator"
-BUCKET = "test-bucket"
-DELIMITER = "/"
-PREFIX = "test/"
-MOCK_SUBFOLDERS = ["test/"]
+from airflow.hooks.base import BaseHook
 
 
-class TestS3ListPrefixesOperator:
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
-    def test_execute(self, mock_hook):
-        mock_hook.return_value.list_prefixes.return_value = MOCK_SUBFOLDERS
+class TestBaseHook:
+    def test_hook_has_default_logger_name(self):
+        hook = BaseHook()
+        assert hook.log.name == "airflow.task.hooks.airflow.hooks.base.BaseHook"
 
-        operator = S3ListPrefixesOperator(task_id=TASK_ID, bucket=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
+    def test_custom_logger_name_is_correctly_set(self):
+        hook = BaseHook(logger_name="airflow.custom.logger")
+        assert hook.log.name == "airflow.task.hooks.airflow.custom.logger"
 
-        subfolders = operator.execute(None)
-
-        mock_hook.return_value.list_prefixes.assert_called_once_with(
-            bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER
-        )
-        assert subfolders == MOCK_SUBFOLDERS
+    def test_empty_string_as_logger_name(self):
+        hook = BaseHook(logger_name="")
+        assert hook.log.name == "airflow.task.hooks"

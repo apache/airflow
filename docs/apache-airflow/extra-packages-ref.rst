@@ -172,6 +172,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | cloudant            | ``pip install 'apache-airflow[cloudant]'``          | Cloudant hook                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| cohere              | ``pip install 'apache-airflow[cohere]'``            | Cohere hook and operators                           |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | databricks          | ``pip install 'apache-airflow[databricks]'``        | Databricks hooks and operators                      |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                           |
@@ -213,6 +215,8 @@ These are extras that add dependencies needed for integration with external serv
 | telegram            | ``pip install 'apache-airflow[telegram]'``          | Telegram hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend          |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| weaviate            | ``pip install 'apache-airflow[weaviate]'``          | Weaviate hook and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | yandex              | ``pip install 'apache-airflow[yandex]'``            | Yandex.cloud hooks and operators                    |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
