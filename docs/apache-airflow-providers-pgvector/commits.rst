@@ -1,4 +1,4 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -15,5 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
 Package apache-airflow-providers-pgvector
---------------------------------------------------
+------------------------------------------------------
+
+`pgvector <https://github.com/pgvector/pgvector>`__
+
+
+This is detailed commit list of changes for versions provider package: ``pgvector``.
+For high-level changelog, see :doc:`package information including changelog <index>`.

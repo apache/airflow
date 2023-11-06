@@ -21,7 +21,7 @@ package-name: apache-airflow-providers-pgvector
 name: pgvector
 
 description: |
-    `pgvector <https://github.com/pgvector/pgvector>`
+    `pgvector <https://github.com/pgvector/pgvector>`__
 
 suspended: false
 
