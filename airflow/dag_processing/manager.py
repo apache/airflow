@@ -587,7 +587,23 @@ class DagFileProcessorManager(LoggingMixin):
             if standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._deactivate_stale_dags()
-            self._refresh_dag_dir()
+
+            # Lyft-specific patch
+            # https://jira.lyft.net/browse/DATAOR-1099
+            # self._file_path_queue does not reach 0 due to the number of callbacks which are enqueued
+            # during the _do_scheduling run in the scheduler (scheduler_job.py:935)
+            # as a result, dags without a callback defined and triggered are never re-queued, and
+            # changes to those dags since the start of the scheduler are not picked up
+            #
+            # To address: re-add files to the queue periodically.
+            # The 'dag_dir_list_interval' is re-used for simplicity.
+            # The prepare_file_path_queue function is modified as part of this patch to exclude
+            # files already in the queue from being re-added, to ensure there are no duplicates
+            now = timezone.utcnow()
+            elapsed_time_since_refresh = (now - self.last_dag_dir_refresh_time).total_seconds()
+            if elapsed_time_since_refresh > self.dag_dir_list_interval:
+                self._refresh_dag_dir()
+                self.prepare_file_path_queue()
 
             self._kill_timed_out_processors()
 
@@ -747,6 +763,11 @@ class DagFileProcessorManager(LoggingMixin):
         if 0 < self.print_stats_interval < time.monotonic() - self.last_stat_print_time:
             if self._file_paths:
                 self._log_file_processing_stats(self._file_paths)
+
+            # Lyft-specific patch
+            # https://jira.lyft.net/browse/DATAOR-1099
+            Stats.gauge('dag_processing.file_path_queue_length', len(self._file_path_queue))
+
             self.last_stat_print_time = time.monotonic()
 
     @provide_session
@@ -1066,8 +1087,16 @@ class DagFileProcessorManager(LoggingMixin):
 
         # Do not convert the following list to set as set does not preserve the order
         # and we need to maintain the order of file_paths for `[scheduler] file_parsing_sort_mode`
+        # 
+        # Lyft-specific Patch
+        # https://jira.lyft.net/browse/DATAOR-1099
+        # self._file_path_queue is not guaranteed to be empty when this function is called
+        # ensure not adding duplicates to the queue by excluding files already in queue
+        self.log.debug("Excluding files already in file queue from being added to processing again:\n\t%s",
+                       "\n\t".join(self._file_path_queue))
         files_paths_to_queue = [
             file_path for file_path in file_paths if file_path not in file_paths_to_exclude
+            and file_path not in self._file_path_queue
         ]
 
         for file_path, processor in self._processors.items():
