@@ -2378,8 +2378,8 @@ scheduler:
         interval up to the scheduled datetime. If False, CronTriggerTimetable is used,
         which is closer to the behavior of cron itself.
 
-        Notably, for CronTriggerTimetable, the logical_date is the same as the time the DAG Run will try to schedule, while for
-        CronDataIntervalTimetable, the logical_date is the beginning of the data interval,
+        Notably, for CronTriggerTimetable, the logical_date is the same as the time the DAG Run will try to
+        schedule, while for CronDataIntervalTimetable, the logical_date is the beginning of the data interval,
         but the DAG Run will try to schedule at the end of the data interval. For more differences
         between the two Timetables, see https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/timetable.html#differences-between-the-two-cron-timetables
       version_added: 2.9.0
