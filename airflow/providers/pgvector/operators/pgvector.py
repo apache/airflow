@@ -28,6 +28,11 @@ class PgVectorIngestOperator(SQLExecuteQueryOperator):
 
     It inherits from the SQLExecuteQueryOperator and extends its functionality by registering
     the pgvector data type with the database connection before executing queries.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:PgVectorIngestOperator`
+
     """
 
     def __init__(self, *args, **kwargs):

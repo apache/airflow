@@ -26,6 +26,7 @@
     :caption: Basics
 
     Home <self>
+    Changelog <changelog>
     Security <security>
 
 .. toctree::
@@ -89,10 +90,10 @@ Requirements
 The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
 
 
-===================                    ==================
+=====================================  ==================
 PIP package                            Version required
-===================                    ==================
+=====================================  ==================
 ``apache-airflow``                     ``>=2.5.0``
 ``apache-airflow-providers-postgres``  ``>=5.7.1``
 ``pgvector``                           ``>=0.2.3``
-===================                    ==================
+=====================================  ==================

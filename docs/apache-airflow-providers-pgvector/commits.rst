@@ -19,5 +19,3 @@
 
 Package apache-airflow-providers-pgvector
 ------------------------------------------------------
-
-`pgvector <https://github.com/pgvector/pgvector>`__
