@@ -23,7 +23,7 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 class PgVectorHook(PostgresHook):
     """Extend PostgresHook for working with PostgreSQL and pgvector extension for vector data types."""
 
-    def __init__(self, *args, **kwargs) -> None: 
+    def __init__(self, *args, **kwargs) -> None:
         """Initialize a PgVectorHook."""
         super().__init__(*args, **kwargs)
 
