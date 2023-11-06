@@ -887,3 +887,13 @@ config:
         type: string
         example: '{"tags": {"key": "schema", "value": "1.0"}}'
         default: ~
+      check_health_on_startup:
+        description: |
+          Whether or not to check the ECS Executor health on startup.
+        version_added: "8.11"
+        type: boolean
+        example: "True"
+        default: "True"
+
+executors:
+  - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor

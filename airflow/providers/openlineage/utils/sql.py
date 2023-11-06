@@ -193,6 +193,7 @@ def create_filter_clauses(
             name.upper() if uppercase_names else name for name in tables
         )
         if schema:
+            schema = schema.upper() if uppercase_names else schema
             filter_clause = and_(information_schema_table.c.table_schema == schema, filter_clause)
         filter_clauses.append(filter_clause)
     return filter_clauses

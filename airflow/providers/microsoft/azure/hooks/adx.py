@@ -36,7 +36,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.hooks.base import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
-    get_default_azure_credential,
+    get_sync_default_azure_credential,
 )
 
 if TYPE_CHECKING:
@@ -198,7 +198,10 @@ class AzureDataExplorerHook(BaseHook):
         elif auth_method == "AZURE_TOKEN_CRED":
             managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
             workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
-            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
             kcsb = KustoConnectionStringBuilder.with_azure_token_credential(
                 connection_string=cluster,
                 credential=credential,

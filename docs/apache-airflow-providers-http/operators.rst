@@ -37,23 +37,23 @@ Here we are poking until httpbin gives us a response text containing ``httpbin``
     :start-after: [START howto_operator_http_http_sensor_check]
     :end-before: [END howto_operator_http_http_sensor_check]
 
-.. _howto/operator:SimpleHttpOperator:
+.. _howto/operator:HttpOperator:
 
-SimpleHttpOperator
-------------------
+HttpOperator
+------------
 
-Use the :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` to call HTTP requests and get
+Use the :class:`~airflow.providers.http.operators.http.HttpOperator` to call HTTP requests and get
 the response text back.
 
-.. warning:: Configuring ``https`` via SimpleHttpOperator is counter-intuitive
+.. warning:: Configuring ``https`` via HttpOperator is counter-intuitive
 
    For historical reasons, configuring ``HTTPS`` connectivity via HTTP operator is, well, difficult and
    counter-intuitive. The Operator defaults to ``http`` protocol and you can change the schema used by the
    operator via ``scheme`` connection attribute. However, this field was originally added to connection for
    database type of URIs, where database schemes are set traditionally as first component of URI ``path``.
    Therefore if you want to configure as ``https`` connection via URI, you need to pass ``https`` scheme
-   to the SimpleHttpOperator. AS stupid as it looks, your connection URI will look like this:
-   ``http://your_host:443/https``. Then if you want to use different URL paths in SimpleHttpOperator
+   to the HttpOperator. AS stupid as it looks, your connection URI will look like this:
+   ``http://your_host:443/https``. Then if you want to use different URL paths in HttpOperator
    you should pass your path as ``endpoint`` parameter when running the task. For example to run a query to
    ``https://your_host:443/my_endpoint`` you need to set the endpoint parameter to ``my_endpoint``.
    Alternatively, if you want, you could also percent-encode the host including the ``https://`` prefix,
@@ -62,7 +62,7 @@ the response text back.
    In this case, however, the ``path`` will not be used at all - you still need to use ``endpoint``
    parameter in the task if wish to make a request with specific path. As counter-intuitive as it is, this
    is historically the way how the operator/hook works and it's not easy to change without breaking
-   backwards compatibility because there are other operators build on top of the ``SimpleHttpOperator`` that
+   backwards compatibility because there are other operators build on top of the ``HttpOperator`` that
    rely on that functionality and there are many users using it already.
 
 
@@ -81,7 +81,7 @@ Here we are calling a ``GET`` request and pass params to it. The task will succe
     :start-after: [START howto_operator_http_task_get_op]
     :end-before: [END howto_operator_http_task_get_op]
 
-SimpleHttpOperator returns the response body as text by default. If you want to modify the response before passing
+HttpOperator returns the response body as text by default. If you want to modify the response before passing
 it on the next task downstream use ``response_filter``. This is useful if:
 
 - the API you are consuming returns a large JSON payload and you're interested in a subset of the data
@@ -118,3 +118,22 @@ Here we pass form data to a ``POST`` operation which is equal to a usual form su
     :language: python
     :start-after: [START howto_operator_http_task_post_op_formenc]
     :end-before: [END howto_operator_http_task_post_op_formenc]
+
+
+
+The :class:`~airflow.providers.http.operators.paginated.HttpOperator` also allows to repeatedly call an API
+endpoint, typically to loop over its pages. All API responses are stored in memory by the Operator and returned
+in one single result. Thus, it can be more memory and CPU intensive compared to a non-paginated call.
+
+By default, the result of the HttpOperator will become a list of Response.text (instead of one single
+Response.text object).
+
+Example - Let's assume your API returns a JSON body containing a cursor:
+You can write a ``pagination_function`` that will receive the raw ``request.Response`` object of your request, and
+generate new request parameters (as ``dict``) based on this cursor. The HttpOperator will repeat calls to the
+API until the function stop returning anything.
+
+.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+    :language: python
+    :start-after: [START howto_operator_http_pagination_function]
+    :end-before: [END howto_operator_http_pagination_function]

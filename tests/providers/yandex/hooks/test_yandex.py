@@ -25,6 +25,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
+from tests.test_utils.config import conf_vars
 
 
 class TestYandexHook:
@@ -138,6 +139,17 @@ class TestYandexHook:
         )
 
         assert hook._get_endpoint() == {}
+
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook._get_credentials")
+    def test_sdk_user_agent(self, get_credentials_mock, get_connection_mock):
+        get_connection_mock.return_value = mock.Mock(connection_id="yandexcloud_default", extra_dejson="{}")
+        get_credentials_mock.return_value = {"token": 122323}
+        sdk_prefix = "MyAirflow"
+
+        with conf_vars({("yandex", "sdk_user_agent_prefix"): sdk_prefix}):
+            hook = YandexCloudBaseHook()
+            assert hook.sdk._channels._client_user_agent.startswith(sdk_prefix)
 
     @pytest.mark.parametrize(
         "uri",
