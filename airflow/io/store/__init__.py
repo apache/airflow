@@ -34,7 +34,7 @@ class ObjectStore:
     conn_id: str | None
     protocol: str
 
-    _fs: AbstractFileSystem = None
+    _fs: AbstractFileSystem | None = None
 
     def __init__(self, protocol: str, conn_id: str | None, fs: AbstractFileSystem | None = None):
         self.conn_id = conn_id
@@ -46,8 +46,7 @@ class ObjectStore:
 
     @property
     def fs(self) -> AbstractFileSystem:
-        self._connect()
-        return self._fs
+        return self._connect()
 
     @property
     def fsid(self) -> str:
@@ -59,9 +58,9 @@ class ObjectStore:
 
         :return: deterministic the filesystem ID
         """
-        self._connect()
+        fs = self._connect()
         try:
-            return self._fs.fsid
+            return fs.fsid
         except NotImplementedError:
             return f"{self.fs.protocol}-{self.conn_id or 'env'}"
 
@@ -94,9 +93,10 @@ class ObjectStore:
 
         return attach(protocol=protocol, conn_id=conn_id)
 
-    def _connect(self):
+    def _connect(self) -> AbstractFileSystem:
         if self._fs is None:
             self._fs = get_fs(self.protocol, self.conn_id)
+        return self._fs
 
     def __eq__(self, other):
         return isinstance(other, type(self)) and other.conn_id == self.conn_id and other._fs == self._fs
