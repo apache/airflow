@@ -54,9 +54,7 @@ with models.DAG(
 
     (
         # TEST BODY
-        t1
-        >> [t2, t3]
-        >> t4
+        t1 >> [t2, t3] >> t4
     )
 
 from tests.system.utils import get_test_run  # noqa: E402

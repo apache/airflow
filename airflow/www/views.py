@@ -85,7 +85,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
@@ -731,7 +731,7 @@ class Airflow(AirflowBaseView):
         return flask.json.jsonify(airflow_health_status)
 
     @expose("/home")
-    @auth.has_access_website()
+    @auth.has_access_view()
     def index(self):
         """Home view."""
         from airflow.models.dag import DagOwnerAttributes
@@ -929,7 +929,7 @@ class Airflow(AirflowBaseView):
             dagtags = session.execute(select(func.distinct(DagTag.name)).order_by(DagTag.name)).all()
             tags = [
                 {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
-                for name, in dagtags
+                for (name,) in dagtags
             ]
 
             owner_links_dict = DagOwnerAttributes.get_all(session)
@@ -2447,7 +2447,7 @@ class Airflow(AirflowBaseView):
                 )
             )
 
-            completed_tis_ids = [task_id for task_id, in existing_tis]
+            completed_tis_ids = [task_id for (task_id,) in existing_tis]
             tasks_with_no_state = list(set(all_task_ids) - set(completed_tis_ids))
             details = [str(t) for t in tasks_with_no_state]
 
@@ -4527,7 +4527,7 @@ class PluginView(AirflowBaseView):
     plugins_attributes_to_dump = PLUGINS_ATTRIBUTES_TO_DUMP
 
     @expose("/plugin")
-    @auth.has_access_website()
+    @auth.has_access_view(AccessView.PLUGINS)
     def list(self):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
@@ -4575,7 +4575,7 @@ class ProviderView(AirflowBaseView):
     ]
 
     @expose("/provider")
-    @auth.has_access_website()
+    @auth.has_access_view(AccessView.PROVIDERS)
     def list(self):
         """List providers."""
         providers_manager = ProvidersManager()
@@ -4973,6 +4973,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
 
     class_permission_name = permissions.RESOURCE_DAG_RUN
     method_permission_name = {
+        "add": "create",
         "delete": "delete",
         "edit": "edit",
         "list": "read",
@@ -5861,9 +5862,26 @@ class DevView(BaseView):
     @expose("/coverage/<path:path>")
     @restrict_to_dev
     def coverage(self, path):
-        self.template_folder = Path("htmlcov").resolve()
-        self.static_folder = Path("htmlcov").resolve()
-        return send_from_directory(self.template_folder, path)
+        return send_from_directory(Path("htmlcov").resolve(), path)
+
+
+class DocsView(BaseView):
+    """View to show airflow dev docs endpoints.
+
+    This view should only be accessible in development mode. You can enable development mode by setting
+    `AIRFLOW_ENV=development` in your environment.
+    """
+
+    route_base = "/docs"
+
+    @expose("/")
+    @expose("/<path:filename>")
+    @restrict_to_dev
+    def home(self, filename="index.html"):
+        """Serve documentation from the build directory."""
+        if filename != "index.html":
+            return send_from_directory(Path("docs/_build/docs/").resolve(), filename)
+        return send_from_directory(Path("docs/_build/").resolve(), filename)
 
 
 # NOTE: Put this at the end of the file. Pylance is too clever and detects that

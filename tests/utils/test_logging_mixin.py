@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.utils.log.logging_mixin import SetContextPropagate, StreamLogWriter, set_context
+from airflow.utils.log.logging_mixin import LoggingMixin, SetContextPropagate, StreamLogWriter, set_context
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def parent_child_handlers(child_logger):
     logger = child_logger.parent
     logger.addHandler(parent_handler)
 
-    child_logger.addHandler(child_handler),
+    child_logger.addHandler(child_handler)
     child_logger.propagate = True
 
     yield parent_handler, child_handler
@@ -74,7 +74,7 @@ class TestLoggingMixin:
         parent.propagate = False
         parent.addHandler(handler1)
         log = parent.getChild("child")
-        log.addHandler(handler2),
+        log.addHandler(handler2)
         log.propagate = True
 
         value = "test"
@@ -82,6 +82,42 @@ class TestLoggingMixin:
 
         handler1.set_context.assert_called_once_with(value)
         handler2.set_context.assert_called_once_with(value)
+
+    def test_default_logger_name(self):
+        """
+        Ensure that by default, object logger name is equals to its module and class path.
+        """
+
+        class DummyClass(LoggingMixin):
+            pass
+
+        assert DummyClass().log.name == "tests.utils.test_logging_mixin.DummyClass"
+
+    def test_logger_name_is_root_when_logger_name_is_empty_string(self):
+        """
+        Ensure that when `_logger_name` is set as an empty string, the resulting logger name is an empty
+        string too, which result in a logger with 'root' as name.
+        Note: Passing an empty string to `logging.getLogger` will create a logger with name 'root'.
+        """
+
+        class EmptyStringLogger(LoggingMixin):
+            _logger_name: str | None = ""
+
+        assert EmptyStringLogger().log.name == "root"
+
+    def test_log_config_logger_name_correctly_prefix_logger_name(self):
+        """
+        Ensure that when a class has `_log_config_logger_name`, it is used as prefix in the final logger
+        name.
+        """
+
+        class ClassWithParentLogConfig(LoggingMixin):
+            _log_config_logger_name: str = "airflow.tasks"
+
+        assert (
+            ClassWithParentLogConfig().log.name
+            == "airflow.tasks.tests.utils.test_logging_mixin.ClassWithParentLogConfig"
+        )
 
     def teardown_method(self):
         warnings.resetwarnings()

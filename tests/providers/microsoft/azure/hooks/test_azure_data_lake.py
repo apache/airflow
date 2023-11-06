@@ -68,7 +68,7 @@ class TestAzureDataLakeHook:
             )
         )
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
+    @mock.patch(f"{MODULE}.lib", autospec=True)
     def test_conn(self, mock_lib):
         from azure.datalake.store import core
 
@@ -96,12 +96,12 @@ class TestAzureDataLakeHook:
         assert hook._conn is None
         assert hook.conn_id == "adl_test_key_without_tenant"
         assert isinstance(hook.get_conn(), core.AzureDLFileSystem)
-        assert mock_azure_identity_credential_adapter.called
+        assert mock_azure_identity_credential_adapter.called_with(None, None)
         assert not mock_datalake_store_lib.auth.called
 
     @pytest.mark.usefixtures("connection")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.core.AzureDLFileSystem", autospec=True)
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
+    @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)
+    @mock.patch(f"{MODULE}.lib", autospec=True)
     def test_check_for_blob(self, mock_lib, mock_filesystem):
         from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
@@ -111,8 +111,8 @@ class TestAzureDataLakeHook:
         mocked_glob.assert_called()
 
     @pytest.mark.usefixtures("connection")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.multithread.ADLUploader", autospec=True)
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
+    @mock.patch(f"{MODULE}.multithread.ADLUploader", autospec=True)
+    @mock.patch(f"{MODULE}.lib", autospec=True)
     def test_upload_file(self, mock_lib, mock_uploader):
         from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
@@ -136,8 +136,8 @@ class TestAzureDataLakeHook:
         )
 
     @pytest.mark.usefixtures("connection")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.multithread.ADLDownloader", autospec=True)
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
+    @mock.patch(f"{MODULE}.multithread.ADLDownloader", autospec=True)
+    @mock.patch(f"{MODULE}.lib", autospec=True)
     def test_download_file(self, mock_lib, mock_downloader):
         from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
@@ -161,8 +161,8 @@ class TestAzureDataLakeHook:
         )
 
     @pytest.mark.usefixtures("connection")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.core.AzureDLFileSystem", autospec=True)
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
+    @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)
+    @mock.patch(f"{MODULE}.lib", autospec=True)
     def test_list_glob(self, mock_lib, mock_fs):
         from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
@@ -171,8 +171,8 @@ class TestAzureDataLakeHook:
         mock_fs.return_value.glob.assert_called_once_with("file_path/*")
 
     @pytest.mark.usefixtures("connection")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.core.AzureDLFileSystem", autospec=True)
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
+    @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)
+    @mock.patch(f"{MODULE}.lib", autospec=True)
     def test_list_walk(self, mock_lib, mock_fs):
         from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
@@ -181,8 +181,8 @@ class TestAzureDataLakeHook:
         mock_fs.return_value.walk.assert_called_once_with("file_path/some_folder/")
 
     @pytest.mark.usefixtures("connection")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.core.AzureDLFileSystem", autospec=True)
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.lib", autospec=True)
+    @mock.patch(f"{MODULE}.core.AzureDLFileSystem", autospec=True)
+    @mock.patch(f"{MODULE}.lib", autospec=True)
     def test_remove(self, mock_lib, mock_fs):
         from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
 
@@ -198,63 +198,57 @@ class TestAzureDataLakeStorageV2Hook:
         self.directory_name = "test_directory"
         self.file_name = "test_file_name"
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_create_file_system(self, mock_conn):
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         hook.create_file_system("test_file_system")
         expected_calls = [mock.call().create_file_system(file_system=self.file_system_name)]
         mock_conn.assert_has_calls(expected_calls)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.FileSystemClient")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.FileSystemClient")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_get_file_system(self, mock_conn, mock_file_system):
         mock_conn.return_value.get_file_system_client.return_value = mock_file_system
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         result = hook.get_file_system(self.file_system_name)
         assert result == mock_file_system
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.DataLakeDirectoryClient")
-    @mock.patch(
-        "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_file_system"
-    )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.DataLakeDirectoryClient")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_file_system")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_create_directory(self, mock_conn, mock_get_file_system, mock_directory_client):
         mock_get_file_system.return_value.create_directory.return_value = mock_directory_client
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         result = hook.create_directory(self.file_system_name, self.directory_name)
         assert result == mock_directory_client
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.DataLakeDirectoryClient")
-    @mock.patch(
-        "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_file_system"
-    )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.DataLakeDirectoryClient")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_file_system")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_get_directory(self, mock_conn, mock_get_file_system, mock_directory_client):
         mock_get_file_system.return_value.get_directory_client.return_value = mock_directory_client
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         result = hook.get_directory_client(self.file_system_name, self.directory_name)
         assert result == mock_directory_client
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.DataLakeFileClient")
-    @mock.patch(
-        "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_file_system"
-    )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.DataLakeFileClient")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_file_system")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_create_file(self, mock_conn, mock_get_file_system, mock_file_client):
         mock_get_file_system.return_value.create_file.return_value = mock_file_client
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         result = hook.create_file(self.file_system_name, self.file_name)
         assert result == mock_file_client
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_delete_file_system(self, mock_conn):
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         hook.delete_file_system(self.file_system_name)
         expected_calls = [mock.call().delete_file_system(self.file_system_name)]
         mock_conn.assert_has_calls(expected_calls)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.DataLakeDirectoryClient")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.DataLakeDirectoryClient")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_delete_directory(self, mock_conn, mock_directory_client):
         mock_conn.return_value.get_directory_client.return_value = mock_directory_client
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
@@ -267,7 +261,7 @@ class TestAzureDataLakeStorageV2Hook:
         ]
         mock_conn.assert_has_calls(expected_calls)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_list_file_system(self, mock_conn):
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         hook.list_file_system(prefix="prefix")
@@ -275,10 +269,8 @@ class TestAzureDataLakeStorageV2Hook:
             name_starts_with="prefix", include_metadata=False
         )
 
-    @mock.patch(
-        "airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_file_system"
-    )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_file_system")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_list_files_directory(self, mock_conn, mock_get_file_system):
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         hook.list_files_directory(self.file_system_name, self.directory_name)
@@ -288,7 +280,7 @@ class TestAzureDataLakeStorageV2Hook:
         argnames="list_file_systems_result",
         argvalues=[iter([FileSystemProperties]), iter([])],
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_connection_success(self, mock_conn, list_file_systems_result):
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         hook.get_conn().list_file_systems.return_value = list_file_systems_result
@@ -297,7 +289,7 @@ class TestAzureDataLakeStorageV2Hook:
         assert status is True
         assert msg == "Successfully connected to ADLS Gen2 Storage."
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook.get_conn")
+    @mock.patch(f"{MODULE}.AzureDataLakeStorageV2Hook.get_conn")
     def test_connection_failure(self, mock_conn):
         hook = AzureDataLakeStorageV2Hook(adls_conn_id=self.conn_id)
         hook.get_conn().list_file_systems = PropertyMock(side_effect=Exception("Authentication failed."))

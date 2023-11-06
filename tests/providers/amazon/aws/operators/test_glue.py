@@ -21,7 +21,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import conf
 from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -38,10 +37,7 @@ JOB_RUN_ID = "11111"
 
 
 class TestGlueJobOperator:
-    @pytest.fixture(autouse=True)
-    def setup_method(self):
-        conf.load_test_config()
-
+    @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):
         ti: TaskInstance = create_task_instance_of_operator(
             GlueJobOperator,

@@ -83,6 +83,10 @@ connection-types:
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
     connection-type: spark
 
+task-decorators:
+  - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task
+    name: pyspark
+
 additional-extras:
   - name: cncf.kubernetes
     dependencies:

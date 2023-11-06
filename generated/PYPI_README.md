@@ -53,7 +53,7 @@ Apache Airflow is tested with:
 | Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)        |
 | Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27 |
 | PostgreSQL  | 11, 12, 13, 14, 15, 16 | 11, 12, 13, 14, 15     |
-| MySQL       | 8.0, 8.1               | 5.7, 8.0               |
+| MySQL       | 8.0, Innovation        | 5.7, 8.0               |
 | SQLite      | 3.15.0+                | 3.15.0+                |
 | MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*) |
 
@@ -75,7 +75,9 @@ The work to add Windows support is tracked via [#10388](https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
-`Debian Bullseye`.
+`Debian Bookworm`. We also have support for legacy ``Debian Bullseye`` base image if you want to build a
+custom image but it is deprecated and option to do it will be removed in the Dockerfile that
+will accompany Airflow 2.9.0 so you are advised to switch to ``Debian Bookworm`` for your custom images.
 
 ## Getting started
 

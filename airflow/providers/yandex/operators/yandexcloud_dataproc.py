@@ -194,7 +194,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             services=self.services,
             s3_bucket=self.s3_bucket,
             zone=self.zone,
-            service_account_id=self.service_account_id,
+            service_account_id=self.service_account_id or self.hook.default_service_account_id,
             masternode_resource_preset=self.masternode_resource_preset,
             masternode_disk_size=self.masternode_disk_size,
             masternode_disk_type=self.masternode_disk_type,

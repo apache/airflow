@@ -21,7 +21,7 @@ Operators
 An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, that you can just define declaratively inside your DAG::
 
     with DAG("my-dag") as dag:
-        ping = SimpleHttpOperator(endpoint="http://example.com/update/")
+        ping = HttpOperator(endpoint="http://example.com/update/")
         email = EmailOperator(to="admin@example.com", subject="Update complete")
 
         ping >> email
@@ -41,7 +41,7 @@ For a list of all core operators, see: :doc:`Core Operators and Hooks Reference 
 
 If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`provider packages <apache-airflow-providers:index>`. Some popular operators from here include:
 
-- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator`
+- :class:`~airflow.providers.http.operators.http.HttpOperator`
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`
 - :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`
 - :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`

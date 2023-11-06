@@ -71,7 +71,10 @@ You can also see all the available arguments via ``--help``.
 Running the Docs Locally
 ------------------------
 
-Once you have built the documentation run the following command from the root directory,
+Once you have built the documentation you can start the webserver in breeze environment and view the built documentation
+at ``http://localhost:28080/docs/``
+
+Alternatively, run the following command from the root directory.
 You need to have Python installed to run the command:
 
 .. code-block:: bash

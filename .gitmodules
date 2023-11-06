@@ -1,9 +1,0 @@
-[submodule ".github/actions/get-workflow-origin"]
-	path = .github/actions/get-workflow-origin
-	url = https://github.com/potiuk/get-workflow-origin
-[submodule ".github/actions/configure-aws-credentials"]
-	path = .github/actions/configure-aws-credentials
-	url = https://github.com/aws-actions/configure-aws-credentials
-[submodule ".github/actions/github-push-action"]
-	path = .github/actions/github-push-action
-	url = https://github.com/ad-m/github-push-action
