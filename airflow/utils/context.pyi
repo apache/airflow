@@ -83,6 +83,7 @@ class Context(TypedDict, total=False):
     prev_execution_date: DateTime | None
     prev_execution_date_success: DateTime | None
     prev_start_date_success: DateTime | None
+    prev_end_date_success: DateTime | None
     reason: str | None
     run_id: str
     task: BaseOperator

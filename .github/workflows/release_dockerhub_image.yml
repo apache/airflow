@@ -58,7 +58,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Selective checks

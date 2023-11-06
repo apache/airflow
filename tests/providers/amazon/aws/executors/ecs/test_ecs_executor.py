@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 import os
 import re
 import time
@@ -27,17 +28,19 @@ from unittest import mock
 
 import pytest
 import yaml
+from botocore.exceptions import ClientError
 from inflection import camelize
 
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.amazon.aws.executors.ecs import (
+from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
+from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
     CONFIG_GROUP_NAME,
     AllEcsConfigKeys,
     AwsEcsExecutor,
     EcsTaskCollection,
-    ecs_executor_config,
 )
-from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
     EcsExecutorTask,
@@ -98,8 +101,7 @@ def mock_config():
 
 
 @pytest.fixture
-def mock_executor() -> AwsEcsExecutor:
-    """Mock ECS to a repeatable starting state.."""
+def set_env_vars():
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.REGION_NAME}".upper()] = "us-west-1"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
@@ -110,6 +112,11 @@ def mock_executor() -> AwsEcsExecutor:
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS}".upper()] = "3"
+
+
+@pytest.fixture
+def mock_executor(set_env_vars) -> AwsEcsExecutor:
+    """Mock ECS to a repeatable starting state.."""
     executor = AwsEcsExecutor()
 
     # Replace boto3 ECS client with mock.
@@ -788,9 +795,13 @@ class TestEcsExecutorConfig:
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
         for expected_key, expected_value in CONFIG_DEFAULTS.items():
-            # "conn_id" and max_run_task_attempts are used by the executor, but are not expected to appear
-            # in the task_kwargs.
-            if expected_key in [AllEcsConfigKeys.AWS_CONN_ID, AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS]:
+            # conn_id, max_run_task_attempts, and check_health_on_startup are used by the executor,
+            # but are not expected to appear in the task_kwargs.
+            if expected_key in [
+                AllEcsConfigKeys.AWS_CONN_ID,
+                AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
+                AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP,
+            ]:
                 assert expected_key not in found_keys.keys()
             else:
                 assert expected_key in found_keys.keys()
@@ -919,3 +930,72 @@ class TestEcsExecutorConfig:
                 assert run_task_kwargs_network_config[camelized_key] == "ENABLED"
             else:
                 assert run_task_kwargs_network_config[camelized_key] == value.split(",")
+
+    def test_start_failure_with_invalid_permissions(self, set_env_vars):
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "no identity-based policy allows the ecs:StopTask action",
+            }
+        }
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+
+        executor.ecs = ecs_mock
+
+        with pytest.raises(AirflowException, match=mock_resp["Error"]["Message"]):
+            executor.start()
+
+    def test_start_failure_with_invalid_cluster_name(self, set_env_vars):
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {"Error": {"Code": "ClusterNotFoundException", "Message": "Cluster not found."}}
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+
+        executor.ecs = ecs_mock
+
+        with pytest.raises(AirflowException, match=mock_resp["Error"]["Message"]):
+            executor.start()
+
+    def test_start_success(self, set_env_vars, caplog):
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {
+            "Error": {"Code": "InvalidParameterException", "Message": "The referenced task was not found."}
+        }
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+
+        executor.ecs = ecs_mock
+
+        caplog.set_level(logging.DEBUG)
+
+        executor.start()
+
+        assert "succeeded" in caplog.text
+
+    def test_start_health_check_config(self, set_env_vars):
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {
+            "Error": {"Code": "InvalidParameterException", "Message": "The referenced task was not found."}
+        }
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+
+        executor.ecs = ecs_mock
+
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()
+        ] = "False"
+
+        executor.start()
+
+        ecs_mock.stop_task.assert_not_called()

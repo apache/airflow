@@ -5887,9 +5887,26 @@ class DevView(BaseView):
     @expose("/coverage/<path:path>")
     @restrict_to_dev
     def coverage(self, path):
-        self.template_folder = Path("htmlcov").resolve()
-        self.static_folder = Path("htmlcov").resolve()
-        return send_from_directory(self.template_folder, path)
+        return send_from_directory(Path("htmlcov").resolve(), path)
+
+
+class DocsView(BaseView):
+    """View to show airflow dev docs endpoints.
+
+    This view should only be accessible in development mode. You can enable development mode by setting
+    `AIRFLOW_ENV=development` in your environment.
+    """
+
+    route_base = "/docs"
+
+    @expose("/")
+    @expose("/<path:filename>")
+    @restrict_to_dev
+    def home(self, filename="index.html"):
+        """Serve documentation from the build directory."""
+        if filename != "index.html":
+            return send_from_directory(Path("docs/_build/docs/").resolve(), filename)
+        return send_from_directory(Path("docs/_build/").resolve(), filename)
 
 
 # NOTE: Put this at the end of the file. Pylance is too clever and detects that

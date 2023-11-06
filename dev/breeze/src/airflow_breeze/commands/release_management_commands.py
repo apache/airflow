@@ -1018,7 +1018,7 @@ def release_prod_images(
             slim_build_args = {
                 "AIRFLOW_EXTRAS": "",
                 "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
-                "PYTHON_BASE_IMAGE": f"python:{python}-slim-bullseye",
+                "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
             }
             if commit_sha:
@@ -1050,7 +1050,7 @@ def release_prod_images(
             get_console().print(f"[info]Building regular {airflow_version} image for Python {python}[/]")
             image_name = f"{dockerhub_repo}:{airflow_version}-python{python}"
             regular_build_args = {
-                "PYTHON_BASE_IMAGE": f"python:{python}-slim-bullseye",
+                "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
             }
             if commit_sha:

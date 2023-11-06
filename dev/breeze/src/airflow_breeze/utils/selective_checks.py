@@ -77,6 +77,7 @@ class FileGroupForCi(Enum):
     ENVIRONMENT_FILES = "environment_files"
     PYTHON_PRODUCTION_FILES = "python_scans"
     JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
+    ALWAYS_TESTS_FILES = "always_test_files"
     API_TEST_FILES = "api_test_files"
     API_CODEGEN_FILES = "api_codegen_files"
     HELM_FILES = "helm_files"
@@ -175,6 +176,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.SYSTEM_TEST_FILES: [
             r"^tests/system/",
+        ],
+        FileGroupForCi.ALWAYS_TESTS_FILES: [
+            r"^tests/always/",
         ],
     }
 )
@@ -563,8 +567,12 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.ALL_SOURCE_FILES)
 
     @cached_property
-    def image_build(self) -> bool:
+    def ci_image_build(self) -> bool:
         return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
+
+    @cached_property
+    def prod_image_build(self) -> bool:
+        return self.run_kubernetes_tests or self.needs_helm_tests
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveUnitTestTypes
@@ -609,11 +617,17 @@ class SelectiveChecks:
         kubernetes_files = self._matching_files(FileGroupForCi.KUBERNETES_FILES, CI_FILE_GROUP_MATCHES)
         system_test_files = self._matching_files(FileGroupForCi.SYSTEM_TEST_FILES, CI_FILE_GROUP_MATCHES)
         all_source_files = self._matching_files(FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES)
-
+        test_always_files = self._matching_files(FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES)
         remaining_files = (
-            set(all_source_files) - set(matched_files) - set(kubernetes_files) - set(system_test_files)
+            set(all_source_files)
+            - set(matched_files)
+            - set(kubernetes_files)
+            - set(system_test_files)
+            - set(test_always_files)
         )
+        get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
         count_remaining_files = len(remaining_files)
+
         if count_remaining_files > 0:
             get_console().print(
                 f"[warning]We should run all tests. There are {count_remaining_files} changed "
@@ -691,7 +705,7 @@ class SelectiveChecks:
 
     @cached_property
     def basic_checks_only(self) -> bool:
-        return not self.image_build
+        return not self.ci_image_build
 
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:

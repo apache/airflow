@@ -36,7 +36,7 @@ TEST_VERSION = "3.14"
 TEST_CONN = {"host": "some.docker.registry.com", "login": "some_user", "password": "some_p4$$w0rd"}
 MOCK_CONNECTION_NOT_EXIST_MSG = "Testing connection not exists"
 MOCK_CONNECTION_NOT_EXISTS_EX = AirflowNotFoundException(MOCK_CONNECTION_NOT_EXIST_MSG)
-HOOK_LOGGER_NAME = "airflow.providers.docker.hooks.docker.DockerHook"
+HOOK_LOGGER_NAME = "airflow.task.hooks.airflow.providers.docker.hooks.docker.DockerHook"
 
 
 @pytest.fixture
