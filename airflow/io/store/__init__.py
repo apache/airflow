@@ -81,15 +81,14 @@ class ObjectStore:
 
         alias = f"{protocol}-{conn_id}" if conn_id else protocol
 
-        if store := _STORE_CACHE.get(alias, None):
+        if store := _STORE_CACHE.get(alias):
             return store
 
-        if not has_fs(protocol):
-            if "filesystem" in data and data["filesystem"]:
-                raise ValueError(
-                    f"No attached filesystem found for {data['filesystem']} with "
-                    f"protocol {data['protocol']}. Please use attach() for this protocol and filesystem."
-                )
+        if not has_fs(protocol) and "filesystem" in data and data["filesystem"]:
+            raise ValueError(
+                f"No attached filesystem found for {data['filesystem']} with "
+                f"protocol {data['protocol']}. Please use attach() for this protocol and filesystem."
+            )
 
         return attach(protocol=protocol, conn_id=conn_id)
 
@@ -122,7 +121,7 @@ def attach(
     :param fs: the filesystem type to use to connect to the filesystem
     """
     if alias:
-        if store := _STORE_CACHE.get(alias, None):
+        if store := _STORE_CACHE.get(alias):
             return store
         elif not protocol:
             raise ValueError(f"No registered store with alias: {alias}")
@@ -135,7 +134,6 @@ def attach(
         if store := _STORE_CACHE.get(alias, None):
             return store
 
-    store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs)
-    _STORE_CACHE[alias] = store
+    _STORE_CACHE[alias] = store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs)
 
     return store
