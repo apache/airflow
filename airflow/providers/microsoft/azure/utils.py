@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import warnings
 from functools import partial, wraps
-from typing import TYPE_CHECKING
 
 from azure.core.pipeline import PipelineContext, PipelineRequest
 from azure.core.pipeline.policies import BearerTokenCredentialPolicy
@@ -27,9 +26,6 @@ from azure.core.pipeline.transport import HttpRequest
 from azure.identity import DefaultAzureCredential
 from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
 from msrest.authentication import BasicTokenAuthentication
-
-if TYPE_CHECKING:
-    pass
 
 
 def get_field(*, conn_id: str, conn_type: str, extras: dict, field_name: str):
