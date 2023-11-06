@@ -64,8 +64,12 @@ class ObjectStoragePath(os.PathLike):
     )
 
     def __init__(
-        self, path: str | ObjectStoragePath, conn_id: str | None = None, store: ObjectStore | None = None
-    ):
+        self,
+        path: str | ObjectStoragePath,
+        *,
+        conn_id: str | None = None,
+        store: ObjectStore | None = None,
+    ) -> None:
         self._conn_id = conn_id
         self._store = store
 
