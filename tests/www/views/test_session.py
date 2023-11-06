@@ -101,8 +101,10 @@ def test_check_active_user(app, user_client):
 
 
 def test_check_deactivated_user_redirected_to_login(app, user_client):
-    user = app.appbuilder.sm.find_user(username="test_user")
-    user.active = False
-    resp = user_client.get("/home", follow_redirects=True)
-    assert resp.status_code == 200
-    assert "/login" in resp.request.url
+    breakpoint()
+    with app.test_request_context():
+        user = app.appbuilder.sm.find_user(username="test_user")
+        user.active = False
+        resp = user_client.get("/home", follow_redirects=True)
+        assert resp.status_code == 200
+        assert "/login" in resp.request.url
