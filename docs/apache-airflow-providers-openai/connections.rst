@@ -32,3 +32,6 @@ Configuring the Connection
 
 API Key (required)
     Specify your OpenAI API Key to connect.
+
+Host (optional)
+    The host address of the OpenAI instance.

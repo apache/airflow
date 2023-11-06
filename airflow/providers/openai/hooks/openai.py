@@ -42,12 +42,15 @@ class OpenAIHook(BaseHook):
         super().__init__(*args, **kwargs)
         self.conn_id = conn_id
         openai.api_key = self._get_api_key()
+        api_base = self._get_api_base()
+        if api_base:
+            openai.api_base = api_base
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["host", "schema", "port", "login", "extra"],
+            "hidden_fields": ["schema", "port", "login", "extra"],
             "relabeling": {"password": "API Key"},
             "placeholders": {},
         }
@@ -65,6 +68,10 @@ class OpenAIHook(BaseHook):
         if not conn.password:
             raise ValueError("OpenAI API key not found in connection")
         return str(conn.password)
+
+    def _get_api_base(self) -> None | str:
+        conn = self.get_connection(self.conn_id)
+        return conn.host
 
     def create_embeddings(
         self, text: str | list[Any], model: str = "text-embedding-ada-002", **kwargs: Any
