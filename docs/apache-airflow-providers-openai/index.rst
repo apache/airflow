@@ -60,7 +60,7 @@ Package apache-airflow-providers-openai
 `Open AI <https://platform.openai.com/docs/api-reference/>`__
 
 
-Release: 0.0.1
+Release: 1.0.0
 
 Provider package
 ----------------
