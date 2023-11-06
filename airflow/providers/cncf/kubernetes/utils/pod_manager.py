@@ -25,9 +25,8 @@ import time
 import warnings
 from collections.abc import Iterable
 from contextlib import closing, suppress
-from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Callable, Generator, Protocol, cast
+from typing import TYPE_CHECKING, Callable, Generator, Literal, Protocol, cast
 
 import pendulum
 import tenacity
@@ -36,7 +35,6 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
-from typing_extensions import Literal
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -49,6 +47,13 @@ if TYPE_CHECKING:
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
     from kubernetes.client.models.v1_pod import V1Pod
     from urllib3.response import HTTPResponse
+
+EMPTY_XCOM_RESULT = "__airflow_xcom_result_empty__"
+"""
+Sentinel for no xcom result.
+
+:meta private:
+"""
 
 
 class PodLaunchFailedException(AirflowException):
@@ -266,14 +271,6 @@ class PodLogsConsumer:
         return self.read_pod_cache
 
 
-@dataclass
-class PodLoggingStatus:
-    """Return the status of the pod and last log time when exiting from `fetch_container_logs`."""
-
-    running: bool
-    last_log_time: DateTime | None
-
-
 class PodManager(LoggingMixin):
     """Create, monitor, and otherwise interact with Kubernetes pods for use with the KubernetesPodOperator."""
 
@@ -358,7 +355,7 @@ class PodManager(LoggingMixin):
                 raise PodLaunchFailedException(msg)
             time.sleep(startup_check_interval)
 
-    def follow_container_logs(self, pod: V1Pod, container_name: str) -> PodLoggingStatus:
+    def follow_container_logs(self, pod: V1Pod, container_name: str) -> None:
         warnings.warn(
             "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead"
             "with option `follow=True`.",
@@ -375,7 +372,7 @@ class PodManager(LoggingMixin):
         follow=False,
         since_time: DateTime | None = None,
         post_termination_timeout: int = 120,
-    ) -> PodLoggingStatus:
+    ) -> None:
         """
         Follow the logs of container and stream to airflow logging.
 
@@ -468,36 +465,31 @@ class PodManager(LoggingMixin):
                 termination_timeout=post_termination_timeout,
                 logs=logs,
             )
-            if not self.container_is_running(pod, container_name=container_name):
-                return PodLoggingStatus(running=False, last_log_time=last_log_time)
             if not follow:
-                return PodLoggingStatus(running=True, last_log_time=last_log_time)
-            else:
+                return
+            if self.container_is_running(pod, container_name=container_name):
                 self.log.warning(
-                    "Pod %s log read interrupted but container %s still running",
-                    pod.metadata.name,
+                    "Follow requested but pod log read interrupted and container %s still running",
                     container_name,
                 )
                 time.sleep(1)
+            else:  # follow requested, but container is done
+                break
 
     def fetch_requested_container_logs(
         self, pod: V1Pod, container_logs: Iterable[str] | str | Literal[True], follow_logs=False
-    ) -> list[PodLoggingStatus]:
+    ) -> None:
         """
         Follow the logs of containers in the specified pod and publish it to airflow logging.
 
         Returns when all the containers exit.
         """
-        pod_logging_statuses = []
         all_containers = self.get_container_names(pod)
         if all_containers:
             if isinstance(container_logs, str):
                 # fetch logs only for requested container if only one container is provided
                 if container_logs in all_containers:
-                    status = self.fetch_container_logs(
-                        pod=pod, container_name=container_logs, follow=follow_logs
-                    )
-                    pod_logging_statuses.append(status)
+                    self.fetch_container_logs(pod=pod, container_name=container_logs, follow=follow_logs)
                 else:
                     self.log.error(
                         "container %s whose logs were requested not found in the pod %s",
@@ -508,10 +500,7 @@ class PodManager(LoggingMixin):
                 # if True is provided, get logs for all the containers
                 if container_logs is True:
                     for container_name in all_containers:
-                        status = self.fetch_container_logs(
-                            pod=pod, container_name=container_name, follow=follow_logs
-                        )
-                        pod_logging_statuses.append(status)
+                        self.fetch_container_logs(pod=pod, container_name=container_name, follow=follow_logs)
                 else:
                     self.log.error(
                         "False is not a valid value for container_logs",
@@ -521,10 +510,7 @@ class PodManager(LoggingMixin):
                 if isinstance(container_logs, Iterable):
                     for container in container_logs:
                         if container in all_containers:
-                            status = self.fetch_container_logs(
-                                pod=pod, container_name=container, follow=follow_logs
-                            )
-                            pod_logging_statuses.append(status)
+                            self.fetch_container_logs(pod=pod, container_name=container, follow=follow_logs)
                         else:
                             self.log.error(
                                 "Container %s whose logs were requests not found in the pod %s",
@@ -537,8 +523,6 @@ class PodManager(LoggingMixin):
                     )
         else:
             self.log.error("Could not retrieve containers for the pod: %s", pod.metadata.name)
-
-        return pod_logging_statuses
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
         """
@@ -712,9 +696,11 @@ class PodManager(LoggingMixin):
         ) as resp:
             result = self._exec_pod_command(
                 resp,
-                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi",
+                f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
+                f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
+                f"else echo {EMPTY_XCOM_RESULT}; fi",
             )
-            if result and result.rstrip() != "__airflow_xcom_result_empty__":
+            if result and result.rstrip() != EMPTY_XCOM_RESULT:
                 # Note: result string is parsed to check if its valid json.
                 # This function still returns a string which is converted into json in the calling method.
                 json.loads(result)

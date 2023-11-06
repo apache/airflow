@@ -43,7 +43,7 @@ CURSOR_DESCRIPTION = [
     ("column_c", "10", 0, 0, 0, 0, False),
 ]
 TMP_FILE_NAME = "temp-file"
-EMPTY_INPUT_DATA = []
+EMPTY_INPUT_DATA: list[str] = []
 INPUT_DATA = [
     ["101", "school", "2015-01-01"],
     ["102", "business", "2017-05-24"],

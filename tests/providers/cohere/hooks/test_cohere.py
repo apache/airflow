@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,27 +16,31 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
+from unittest.mock import patch
 
-from airflow.providers.amazon.aws.operators.s3 import S3ListPrefixesOperator
-
-TASK_ID = "test-s3-list-prefixes-operator"
-BUCKET = "test-bucket"
-DELIMITER = "/"
-PREFIX = "test/"
-MOCK_SUBFOLDERS = ["test/"]
+from airflow.models import Connection
+from airflow.providers.cohere.hooks.cohere import (
+    CohereHook,
+)
 
 
-class TestS3ListPrefixesOperator:
-    @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
-    def test_execute(self, mock_hook):
-        mock_hook.return_value.list_prefixes.return_value = MOCK_SUBFOLDERS
+class TestCohereHook:
+    """
+    Test for CohereHook
+    """
 
-        operator = S3ListPrefixesOperator(task_id=TASK_ID, bucket=BUCKET, prefix=PREFIX, delimiter=DELIMITER)
-
-        subfolders = operator.execute(None)
-
-        mock_hook.return_value.list_prefixes.assert_called_once_with(
-            bucket_name=BUCKET, prefix=PREFIX, delimiter=DELIMITER
-        )
-        assert subfolders == MOCK_SUBFOLDERS
+    def test__get_api_key(self):
+        api_key = "test"
+        api_url = "http://some_host.com"
+        timeout = 150
+        max_retries = 5
+        with patch.object(
+            CohereHook,
+            "get_connection",
+            return_value=Connection(conn_type="cohere", password=api_key, host=api_url),
+        ), patch("cohere.Client") as client:
+            hook = CohereHook(timeout=timeout, max_retries=max_retries)
+            _ = hook.get_conn
+            client.assert_called_once_with(
+                api_key=api_key, timeout=timeout, max_retries=max_retries, api_url=api_url
+            )

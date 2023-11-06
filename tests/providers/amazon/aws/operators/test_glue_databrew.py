@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Generator
 from unittest import mock
 
 import pytest
@@ -29,7 +30,7 @@ JOB_NAME = "test_job"
 
 
 @pytest.fixture
-def hook() -> GlueDataBrewHook:
+def hook() -> Generator[GlueDataBrewHook, None, None]:
     with mock_databrew():
         yield GlueDataBrewHook(aws_conn_id="aws_default")
 

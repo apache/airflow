@@ -269,6 +269,14 @@
     "cross-providers-deps": [],
     "excluded-python-versions": []
   },
+  "cohere": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "cohere>=4.27"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "common.io": {
     "deps": [
       "apache-airflow>=2.8.0"
@@ -915,6 +923,14 @@
     "cross-providers-deps": [
       "common.sql"
     ],
+    "excluded-python-versions": []
+  },
+  "weaviate": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "weaviate-client>=3.24.2"
+    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": []
   },
   "yandex": {
