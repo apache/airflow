@@ -703,6 +703,7 @@ jobs:
           breeze release-management publish-docs
           --override-versioned --run-in-parallel
           ${{ needs.build-info.outputs.docs-list-as-string }}
+        if: needs.build-info.outputs.full-tests-needed == 'true'
       - name: "Generate back references for providers"
         run: breeze release-management add-back-references all-providers
         if: needs.build-info.outputs.full-tests-needed == 'true'
