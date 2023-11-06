@@ -35,11 +35,11 @@ class PgVectorIngestOperator(SQLExecuteQueryOperator):
 
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """Initialize a new PgVectorIngestOperator."""
         super().__init__(*args, **kwargs)
 
-    def _register_vector(self):
+    def _register_vector(self) -> None:
         """Register the vector type with your connection."""
         conn = self.get_db_hook().get_conn()
         register_vector(conn)

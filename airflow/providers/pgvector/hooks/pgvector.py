@@ -23,11 +23,11 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 class PgVectorHook(PostgresHook):
     """Extend PostgresHook for working with PostgreSQL and pgvector extension for vector data types."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None: 
         """Initialize a PgVectorHook."""
         super().__init__(*args, **kwargs)
 
-    def create_table(self, table_name: str, columns: list[str], if_not_exists: bool = True):
+    def create_table(self, table_name: str, columns: list[str], if_not_exists: bool = True) -> None:
         """
         Create a table in the Postgres database.
 
@@ -37,11 +37,11 @@ class PgVectorHook(PostgresHook):
         """
         create_table_sql = "CREATE TABLE"
         if if_not_exists:
-            create_table_sql += " IF NOT EXISTS"
-        create_table_sql += f" {table_name} ({', '.join(columns)})"
+            create_table_sql = f"{create_table_sql} IF NOT EXISTS"
+        create_table_sql = f"{create_table_sql} {table_name} ({', '.join(columns)})"
         self.run(create_table_sql)
 
-    def create_extension(self, extension_name: str, if_not_exists: bool = True):
+    def create_extension(self, extension_name: str, if_not_exists: bool = True) -> None:
         """
         Create a PostgreSQL extension.
 
@@ -50,8 +50,8 @@ class PgVectorHook(PostgresHook):
         """
         create_extension_sql = "CREATE EXTENSION"
         if if_not_exists:
-            create_extension_sql += " IF NOT EXISTS"
-        create_extension_sql += f" {extension_name}"
+            create_extension_sql = f"{create_extension_sql} IF NOT EXISTS"
+        create_extension_sql = f"{create_extension_sql} {extension_name}"
         self.run(create_extension_sql)
 
     def create_index(
@@ -61,7 +61,7 @@ class PgVectorHook(PostgresHook):
         columns: list[str],
         unique: bool = False,
         if_not_exists: bool = True,
-    ):
+    ) -> None:
         """
         Create an index on a table.
 
@@ -73,14 +73,14 @@ class PgVectorHook(PostgresHook):
         """
         create_index_sql = "CREATE"
         if unique:
-            create_index_sql += " UNIQUE"
-        create_index_sql += " INDEX"
+            create_index_sql = f"{create_index_sql} UNIQUE"
+        create_index_sql = f"{create_index_sql} INDEX"
         if if_not_exists:
-            create_index_sql += " IF NOT EXISTS"
-        create_index_sql += f" {index_name} ON {table_name} ({', '.join(columns)})"
+            create_index_sql = f"{create_index_sql} IF NOT EXISTS"
+        create_index_sql = f"{create_index_sql} {index_name} ON {table_name} ({', '.join(columns)})"
         self.run(create_index_sql)
 
-    def drop_table(self, table_name: str, if_exists: bool = True):
+    def drop_table(self, table_name: str, if_exists: bool = True) -> None:
         """
         Drop a table from the Postgres database.
 
@@ -89,11 +89,11 @@ class PgVectorHook(PostgresHook):
         """
         drop_table_sql = "DROP TABLE"
         if if_exists:
-            drop_table_sql += " IF EXISTS"
-        drop_table_sql += f" {table_name}"
+            drop_table_sql = f"{drop_table_sql} IF EXISTS"
+        drop_table_sql = f"{drop_table_sql} {table_name}"
         self.run(drop_table_sql)
 
-    def drop_index(self, index_name: str, if_exists: bool = True):
+    def drop_index(self, index_name: str, if_exists: bool = True) -> None:
         """
         Drop an index from the database.
 
@@ -102,11 +102,11 @@ class PgVectorHook(PostgresHook):
         """
         drop_index_sql = "DROP INDEX"
         if if_exists:
-            drop_index_sql += " IF EXISTS"
-        drop_index_sql += f" {index_name}"
+            drop_index_sql = f"{drop_index_sql} IF EXISTS"
+        drop_index_sql = f"{drop_index_sql} {index_name}"
         self.run(drop_index_sql)
 
-    def truncate_table(self, table_name: str, restart_identity: bool = True):
+    def truncate_table(self, table_name: str, restart_identity: bool = True) -> None:
         """
         Truncate a table, removing all rows.
 
