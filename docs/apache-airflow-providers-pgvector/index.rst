@@ -26,6 +26,7 @@
     :caption: Basics
 
     Home <self>
+    Security <security>
 
 .. toctree::
     :hidden:
