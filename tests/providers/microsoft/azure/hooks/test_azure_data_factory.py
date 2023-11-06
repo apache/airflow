@@ -21,7 +21,6 @@ from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import FactoryListResponse
 
@@ -54,6 +53,11 @@ DEFAULT_CONNECTION_DEFAULT_CREDENTIAL = "azure_data_factory_test_default_credent
 MODEL = object()
 NAME = "testName"
 ID = "testId"
+
+MODULE = "airflow.providers.microsoft.azure.hooks.data_factory"
+
+# TODO: FIXME: the tests here have tricky issues with typing and need a bit more thought to fix them
+# mypy: disable-error-code="union-attr,call-overload"
 
 
 @pytest.fixture(autouse=True)
@@ -164,23 +168,30 @@ def test_provide_targeted_factory():
         provide_targeted_factory(echo)(hook)
 
 
-@pytest.mark.parametrize(
-    ("connection_id", "credential_type"),
-    [
-        (DEFAULT_CONNECTION_CLIENT_SECRET, ClientSecretCredential),
-        (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential),
-    ],
-)
-def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: type):
-    hook = AzureDataFactoryHook(connection_id)
+@mock.patch(f"{MODULE}.ClientSecretCredential")
+def test_get_conn_by_credential_client_secret(mock_credential):
+    hook = AzureDataFactoryHook(DEFAULT_CONNECTION_CLIENT_SECRET)
 
     with patch.object(hook, "_create_client") as mock_create_client:
         mock_create_client.return_value = MagicMock()
+
         connection = hook.get_conn()
         assert connection is not None
-        mock_create_client.assert_called_once()
-        assert isinstance(mock_create_client.call_args.args[0], credential_type)
-        assert mock_create_client.call_args.args[1] == "subscriptionId"
+
+        mock_create_client.assert_called_with(mock_credential(), "subscriptionId")
+
+
+@mock.patch(f"{MODULE}.get_sync_default_azure_credential")
+def test_get_conn_by_default_azure_credential(mock_credential):
+    hook = AzureDataFactoryHook(DEFAULT_CONNECTION_DEFAULT_CREDENTIAL)
+
+    with patch.object(hook, "_create_client") as mock_create_client:
+        mock_create_client.return_value = MagicMock()
+
+        connection = hook.get_conn()
+        assert connection is not None
+        assert mock_credential.called_with(None, None)
+        mock_create_client.assert_called_with(mock_credential(), "subscriptionId")
 
 
 def test_get_factory(hook: AzureDataFactoryHook):
@@ -520,7 +531,7 @@ def test_connection_failure_missing_tenant_id():
         pytest.param("a://?resource_group_name=abc&factory_name=abc", id="no-prefix"),
     ],
 )
-@patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_conn")
+@patch(f"{MODULE}.AzureDataFactoryHook.get_conn")
 def test_provide_targeted_factory_backcompat_prefix_works(mock_connect, uri):
     with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
         hook = AzureDataFactoryHook("my_conn")
@@ -539,8 +550,8 @@ def test_provide_targeted_factory_backcompat_prefix_works(mock_connect, uri):
         pytest.param("a://hi:yo@?tenantId=ten&subscriptionId=sub", id="no-prefix"),
     ],
 )
-@patch("airflow.providers.microsoft.azure.hooks.data_factory.ClientSecretCredential")
-@patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook._create_client")
+@patch(f"{MODULE}.ClientSecretCredential")
+@patch(f"{MODULE}.AzureDataFactoryHook._create_client")
 def test_get_conn_backcompat_prefix_works(mock_create, mock_cred, uri):
     with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
         hook = AzureDataFactoryHook("my_conn")
@@ -549,7 +560,7 @@ def test_get_conn_backcompat_prefix_works(mock_create, mock_cred, uri):
         mock_create.assert_called_with(mock_cred.return_value, "sub")
 
 
-@patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_conn")
+@patch(f"{MODULE}.AzureDataFactoryHook.get_conn")
 def test_backcompat_prefix_both_prefers_short(mock_connect):
     with patch.dict(
         os.environ,
@@ -573,8 +584,8 @@ def test_refresh_conn(hook):
 
 class TestAzureDataFactoryAsyncHook:
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_queued(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Queued"
@@ -584,8 +595,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_inprogress(
         self,
         mock_get_pipeline_run,
@@ -599,8 +610,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_success(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Succeeded"
@@ -610,8 +621,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_failed(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Failed"
@@ -621,8 +632,8 @@ class TestAzureDataFactoryAsyncHook:
         assert response == mock_status
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_pipeline_run")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_pipeline_run")
     async def test_get_adf_pipeline_run_status_cancelled(self, mock_get_pipeline_run, mock_conn):
         """Test get_adf_pipeline_run_status function with mocked status"""
         mock_status = "Cancelled"
@@ -633,8 +644,8 @@ class TestAzureDataFactoryAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch("azure.mgmt.datafactory.models._models_py3.PipelineRun")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_connection")
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_connection")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
     async def test_get_pipeline_run_exception_without_resource(
         self, mock_conn, mock_get_connection, mock_pipeline_run
     ):
@@ -648,6 +659,37 @@ class TestAzureDataFactoryAsyncHook:
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         with pytest.raises(AirflowException):
             await hook.get_pipeline_run(RUN_ID, None, DATAFACTORY_NAME)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mocked_connection",
+        [
+            Connection(
+                conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+                conn_type="azure_data_factory",
+                extra={
+                    "subscriptionId": "subscriptionId",
+                    "resource_group_name": RESOURCE_GROUP_NAME,
+                    "factory_name": DATAFACTORY_NAME,
+                    "managed_identity_client_id": "test_client_id",
+                    "workload_identity_tenant_id": "test_tenant_id",
+                },
+            )
+        ],
+        indirect=True,
+    )
+    @mock.patch(f"{MODULE}.get_async_default_azure_credential")
+    async def test_get_async_conn_with_default_azure_credential(
+        self, mock_default_azure_credential, mocked_connection
+    ):
+        """"""
+        hook = AzureDataFactoryAsyncHook(mocked_connection.conn_id)
+        response = await hook.get_async_conn()
+        assert isinstance(response, DataFactoryManagementClient)
+
+        assert mock_default_azure_credential.called_with(
+            managed_identity_client_id="test_client_id", workload_identity_tenant_id="test_tenant_id"
+        )
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -786,7 +828,7 @@ class TestAzureDataFactoryAsyncHook:
             get_field(extras, "non-existent-field", strict=True)
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    @mock.patch(f"{MODULE}.AzureDataFactoryAsyncHook.get_async_conn")
     async def test_refresh_conn(self, mock_get_async_conn):
         """Test refresh_conn method _conn is reset and get_async_conn is called"""
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)

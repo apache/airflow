@@ -35,7 +35,11 @@ from azure.mgmt.cosmosdb import CosmosDBManagementClient
 
 from airflow.exceptions import AirflowBadRequest, AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_field,
+    get_sync_default_azure_credential,
+)
 
 
 class AzureCosmosDBHook(BaseHook):
@@ -56,6 +60,7 @@ class AzureCosmosDBHook(BaseHook):
     hook_name = "Azure CosmosDB"
 
     @staticmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -77,12 +82,6 @@ class AzureCosmosDBHook(BaseHook):
                 lazy_gettext("Resource Group Name (optional)"),
                 widget=BS3TextFieldWidget(),
             ),
-            "managed_identity_client_id": StringField(
-                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-            ),
-            "workload_identity_tenant_id": StringField(
-                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
-            ),
         }
 
     @staticmethod
@@ -101,8 +100,6 @@ class AzureCosmosDBHook(BaseHook):
                 "collection_name": "collection name",
                 "subscription_id": "Subscription ID (required for Azure AD authentication)",
                 "resource_group_name": "Resource Group Name (required for Azure AD authentication)",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -136,10 +133,12 @@ class AzureCosmosDBHook(BaseHook):
                 managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
                 workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
                 subscritption_id = self._get_field(extras, "subscription_id")
+                credential = get_sync_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
                 management_client = CosmosDBManagementClient(
-                    credential=get_default_azure_credential(
-                        managed_identity_client_id, workload_identity_tenant_id
-                    ),
+                    credential=credential,
                     subscription_id=subscritption_id,
                 )
 

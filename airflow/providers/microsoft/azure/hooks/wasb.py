@@ -47,7 +47,11 @@ from azure.storage.blob.aio import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_default_azure_credential
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
+    get_sync_default_azure_credential,
+)
 
 if TYPE_CHECKING:
     from azure.storage.blob._models import BlobProperties
@@ -78,6 +82,7 @@ class WasbHook(BaseHook):
     hook_name = "Azure Blob Storage"
 
     @staticmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
@@ -95,12 +100,6 @@ class WasbHook(BaseHook):
                 lazy_gettext("Tenant Id (Active Directory Auth)"), widget=BS3TextFieldWidget()
             ),
             "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
-            "managed_identity_client_id": StringField(
-                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-            ),
-            "workload_identity_tenant_id": StringField(
-                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
-            ),
         }
 
     @staticmethod
@@ -122,8 +121,6 @@ class WasbHook(BaseHook):
                 "shared_access_key": "shared access key",
                 "sas_token": "account url or token",
                 "extra": "additional options for use with ClientSecretCredential or DefaultAzureCredential",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -218,8 +215,10 @@ class WasbHook(BaseHook):
         if not credential:
             managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
             workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
-            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
-
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
             self.log.info("Using DefaultAzureCredential as credential")
         return BlobServiceClient(
             account_url=account_url,
@@ -646,7 +645,12 @@ class WasbAsyncHook(WasbHook):
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
-            credential = AsyncDefaultAzureCredential()
+            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            credential = get_async_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
             self.log.info("Using DefaultAzureCredential as credential")
         self.blob_service_client = AsyncBlobServiceClient(
             account_url=account_url,

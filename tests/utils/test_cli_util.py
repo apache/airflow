@@ -34,7 +34,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models.log import Log
 from airflow.utils import cli, cli_action_loggers, timezone
-from airflow.utils.cli import _search_for_dag_file
+from airflow.utils.cli import _search_for_dag_file, get_dag_by_pickle
 
 repo_root = Path(airflow.__file__).parent.parent
 
@@ -170,6 +170,23 @@ class TestCliUtil:
         default_pid_path = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process_name}.pid")
         pid, _, _, _ = cli.setup_locations(process=process_name)
         assert pid == default_pid_path
+
+    @pytest.mark.db_test
+    def test_get_dag_by_pickle(self, session, dag_maker):
+        from airflow.models.dagpickle import DagPickle
+
+        with dag_maker(dag_id="test_get_dag_by_pickle") as dag:
+            pass
+
+        dp = DagPickle(dag=dag)
+        session.add(dp)
+        session.commit()
+
+        dp_from_db = get_dag_by_pickle(pickle_id=dp.id, session=session)
+        assert dp_from_db.dag_id == "test_get_dag_by_pickle"
+
+        with pytest.raises(AirflowException, match="pickle_id could not be found .* -42"):
+            get_dag_by_pickle(pickle_id=-42, session=session)
 
 
 @contextmanager

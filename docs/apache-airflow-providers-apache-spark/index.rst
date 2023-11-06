@@ -34,6 +34,7 @@
     :caption: Guides
 
     Connection types <connections/spark>
+    Decorators <decorators/pyspark>
     Operators <operators>
 
 .. toctree::

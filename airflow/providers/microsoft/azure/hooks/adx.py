@@ -34,7 +34,10 @@ from azure.kusto.data.exceptions import KustoServiceError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_default_azure_credential
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_sync_default_azure_credential,
+)
 
 if TYPE_CHECKING:
     from azure.kusto.data.response import KustoResponseDataSetV2
@@ -80,6 +83,7 @@ class AzureDataExplorerHook(BaseHook):
     hook_name = "Azure Data Explorer"
 
     @classmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
@@ -94,12 +98,6 @@ class AzureDataExplorerHook(BaseHook):
             ),
             "thumbprint": PasswordField(
                 lazy_gettext("Application Certificate Thumbprint"), widget=BS3PasswordFieldWidget()
-            ),
-            "managed_identity_client_id": StringField(
-                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-            ),
-            "workload_identity_tenant_id": StringField(
-                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -119,8 +117,6 @@ class AzureDataExplorerHook(BaseHook):
                 "tenant": "Used with AAD_APP/AAD_APP_CERT/AAD_CREDS",
                 "certificate": "Used with AAD_APP_CERT",
                 "thumbprint": "Used with AAD_APP_CERT",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -202,7 +198,10 @@ class AzureDataExplorerHook(BaseHook):
         elif auth_method == "AZURE_TOKEN_CRED":
             managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
             workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
-            credential = get_default_azure_credential(managed_identity_client_id, workload_identity_tenant_id)
+            credential = get_sync_default_azure_credential(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
             kcsb = KustoConnectionStringBuilder.with_azure_token_credential(
                 connection_string=cluster,
                 credential=credential,

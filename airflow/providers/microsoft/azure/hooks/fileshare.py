@@ -22,7 +22,10 @@ from typing import IO, Any
 from azure.storage.fileshare import FileProperties, ShareDirectoryClient, ShareFileClient, ShareServiceClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_default_azure_credential
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_sync_default_azure_credential,
+)
 
 
 class AzureFileShareHook(BaseHook):
@@ -38,6 +41,38 @@ class AzureFileShareHook(BaseHook):
     default_conn_name = "azure_fileshare_default"
     conn_type = "azure_fileshare"
     hook_name = "Azure FileShare"
+
+    @staticmethod
+    @add_managed_identity_connection_widgets
+    def get_connection_form_widgets() -> dict[str, Any]:
+        """Returns connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import PasswordField, StringField
+
+        return {
+            "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
+            "connection_string": StringField(
+                lazy_gettext("Connection String (optional)"), widget=BS3TextFieldWidget()
+            ),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        """Returns custom field behaviour."""
+        return {
+            "hidden_fields": ["schema", "port", "host", "extra"],
+            "relabeling": {
+                "login": "Blob Storage Login (optional)",
+                "password": "Blob Storage Key (optional)",
+            },
+            "placeholders": {
+                "login": "account name or account url",
+                "password": "secret",
+                "sas_token": "account url or token (optional)",
+                "connection_string": "account url or token (optional)",
+            },
+        }
 
     def __init__(
         self,
@@ -56,45 +91,6 @@ class AzureFileShareHook(BaseHook):
         self._account_access_key: str | None = None
         self._sas_token: str | None = None
 
-    @staticmethod
-    def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
-        from flask_babel import lazy_gettext
-        from wtforms import PasswordField, StringField
-
-        return {
-            "sas_token": PasswordField(lazy_gettext("SAS Token (optional)"), widget=BS3PasswordFieldWidget()),
-            "connection_string": StringField(
-                lazy_gettext("Connection String (optional)"), widget=BS3TextFieldWidget()
-            ),
-            "managed_identity_client_id": StringField(
-                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-            ),
-            "workload_identity_tenant_id": StringField(
-                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
-            ),
-        }
-
-    @staticmethod
-    def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
-        return {
-            "hidden_fields": ["schema", "port", "host", "extra"],
-            "relabeling": {
-                "login": "Blob Storage Login (optional)",
-                "password": "Blob Storage Key (optional)",
-            },
-            "placeholders": {
-                "login": "account name or account url",
-                "password": "secret",
-                "sas_token": "account url or token (optional)",
-                "connection_string": "account url or token (optional)",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
-            },
-        }
-
     def get_conn(self) -> None:
         conn = self.get_connection(self._conn_id)
         extras = conn.extra_dejson
@@ -110,6 +106,16 @@ class AzureFileShareHook(BaseHook):
             return f"https://{account_url}.file.core.windows.net"
         return account_url
 
+    def _get_sync_default_azure_credential(self):
+        conn = self.get_connection(self._conn_id)
+        extras = conn.extra_dejson
+        managed_identity_client_id = extras.get("managed_identity_client_id")
+        workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
+        return get_sync_default_azure_credential(
+            managed_identity_client_id=managed_identity_client_id,
+            workload_identity_tenant_id=workload_identity_tenant_id,
+        )
+
     @property
     def share_service_client(self):
         self.get_conn()
@@ -121,15 +127,9 @@ class AzureFileShareHook(BaseHook):
             credential = self._sas_token or self._account_access_key
             return ShareServiceClient(account_url=self._account_url, credential=credential)
         else:
-            conn = self.get_connection(self._conn_id)
-            extras = conn.extra_dejson
-            managed_identity_client_id = extras.get("managed_identity_client_id")
-            workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
             return ShareServiceClient(
                 account_url=self._account_url,
-                credential=get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
-                ),
+                credential=self._get_sync_default_azure_credential(),
                 token_intent="backup",
             )
 
@@ -150,17 +150,11 @@ class AzureFileShareHook(BaseHook):
                 credential=credential,
             )
         else:
-            conn = self.get_connection(self._conn_id)
-            extras = conn.extra_dejson
-            managed_identity_client_id = extras.get("managed_identity_client_id")
-            workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
             return ShareDirectoryClient(
                 account_url=self._account_url,
                 share_name=self.share_name,
                 directory_path=self.directory_path,
-                credential=get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
-                ),
+                credential=self._get_sync_default_azure_credential(),
                 token_intent="backup",
             )
 
@@ -181,17 +175,11 @@ class AzureFileShareHook(BaseHook):
                 credential=credential,
             )
         else:
-            conn = self.get_connection(self._conn_id)
-            extras = conn.extra_dejson
-            managed_identity_client_id = extras.get("managed_identity_client_id")
-            workload_identity_tenant_id = extras.get("workload_identity_tenant_id")
             return ShareFileClient(
                 account_url=self._account_url,
                 share_name=self.share_name,
                 file_path=self.file_path,
-                credential=get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
-                ),
+                credential=self._get_sync_default_azure_credential(),
                 token_intent="backup",
             )
 
