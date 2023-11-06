@@ -105,4 +105,4 @@ def test_check_deactivated_user_redirected_to_login(app, user_client):
     user.active = False
     resp = user_client.get("/home", follow_redirects=True)
     assert resp.status_code == 200
-    assert '/login' in resp.request.url
+    assert "/login" in resp.request.url
