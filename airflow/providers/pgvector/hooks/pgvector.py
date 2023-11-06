@@ -115,5 +115,5 @@ class PgVectorHook(PostgresHook):
         """
         truncate_sql = f"TRUNCATE TABLE {table_name}"
         if restart_identity:
-            truncate_sql += " RESTART IDENTITY"
+            truncate_sql = f"{truncate_sql} RESTART IDENTITY"
         self.run(truncate_sql)
