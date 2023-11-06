@@ -75,7 +75,7 @@ class ObjectStoragePath(os.PathLike):
             self._key = path._key
             self._store = path._store
         else:
-            self._protocol, self._bucket, self._key = self.split_path(path)
+            self._protocol, self._bucket, self._key = self._split_path(path)
 
         if store:
             self._conn_id = store.conn_id
@@ -84,19 +84,13 @@ class ObjectStoragePath(os.PathLike):
             self._store = attach(self._protocol, conn_id)
 
     @classmethod
-    def split_path(cls, path) -> tuple[str, str, str]:
-        protocol = ""
-        key = ""
-
+    def _split_path(cls, path) -> tuple[str, str, str]:
         path = str(stringify_path(path))
-
-        i = path.find("://")
-        if i > 0:
-            protocol = path[:i]
-            path = path[i + 3 :]
+        protocol, _, path = path.rpartition("://")
 
         if cls.sep not in path:
             bucket = path
+            key = ""
         else:
             bucket, key = path.split(cls.sep, 1)
 
@@ -161,7 +155,7 @@ class ObjectStoragePath(os.PathLike):
         return self._hash
 
     def __truediv__(self, other) -> ObjectStoragePath:
-        o_protocol, o_bucket, o_key = self.split_path(other)
+        o_protocol, o_bucket, _ = self._split_path(other)
         if isinstance(other, ObjectStoragePath) and o_bucket and self._bucket != o_bucket:
             raise ValueError("Cannot combine paths from different buckets / containers")
 
