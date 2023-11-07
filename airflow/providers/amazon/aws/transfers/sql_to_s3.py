@@ -20,7 +20,7 @@ from __future__ import annotations
 import enum
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from typing_extensions import Literal
 
@@ -158,7 +158,7 @@ class SqlToS3Operator(BaseOperator):
 
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
-                notna_series = df[col].dropna().values
+                notna_series: Any = df[col].dropna().values
                 if np.equal(notna_series, notna_series.astype(int)).all():
                     # set to dtype that retains integers and supports NaNs
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
