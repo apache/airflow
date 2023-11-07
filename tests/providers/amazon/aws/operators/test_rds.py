@@ -137,7 +137,7 @@ def _create_event_subscription(hook: RdsHook):
 def _patch_hook_get_connection(hook: AwsGenericHook) -> None:
     # We're mocking all actual AWS calls and don't need a connection. This
     # avoids an Airflow warning about connection cannot be found.
-    hook.get_connection = lambda _: None
+    hook.get_connection = lambda _: None  # type: ignore[assignment,return-value]
 
 
 class TestBaseRdsOperator:

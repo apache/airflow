@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -50,7 +50,7 @@ class BaseSqlToSlackOperator(BaseOperator):
         sql: str,
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
-        parameters: Iterable | Mapping[str, Any] | None = None,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
         slack_proxy: str | None = None,
         slack_timeout: int | None = None,
         slack_retry_handlers: list[RetryHandler] | None = None,

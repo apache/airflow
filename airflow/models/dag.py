@@ -1428,6 +1428,12 @@ class DAG(LoggingMixin):
             dagrun = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=dag_run_id, session=session)
             callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
             tis = dagrun.get_task_instances(session=session)
+            # tis from a dagrun may not be a part of dag.partial_subset,
+            # since dag.partial_subset is a subset of the dag.
+            # This ensures that we will only use the accessible TI
+            # context for the callback.
+            if dag.partial:
+                tis = [ti for ti in tis if not ti.state == State.NONE]
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = dag.get_task(ti.task_id)
             context = ti.get_template_context(session=session)

@@ -415,6 +415,17 @@ jobs:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
         if: needs.build-info.outputs.in-workflow-build == 'true'
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        if: needs.build-info.outputs.in-workflow-build == 'true'
+      - name: >
+          Pull CI image for PROD build:
+          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
+        shell: bash
+        run: breeze ci-image pull --tag-as-latest
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
+        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
@@ -431,7 +442,7 @@ jobs:
   build-prod-images-bullseye:
     timeout-minutes: 80
     name: >
-      ${{needs.build-info.outputs.build-job-description}} PROD images
+      ${{needs.build-info.outputs.build-job-description}} Bullseye PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-ci-images, generate-constraints]
@@ -454,8 +465,17 @@ jobs:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: >
-          Build PROD Images Bullseye
+          Pull CI image for PROD build:
+          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
+        shell: bash
+        run: breeze ci-image pull --tag-as-latest
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
+      - name: >
+          Build Bullseye PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
         uses: ./.github/actions/build-prod-images
         with:
@@ -468,7 +488,7 @@ jobs:
           DEBIAN_VERSION: "bullseye"
           # Do not override the "bookworm" image - just push a new bullseye image
           # TODO: improve caching for that build
-          IMAGE_TAG: bullseye-"${{ github.event.pull_request.head.sha || github.sha }}"
+          IMAGE_TAG: "bullseye-${{ github.event.pull_request.head.sha || github.sha }}"
 
   run-breeze-tests:
     timeout-minutes: 10
@@ -632,9 +652,9 @@ jobs:
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
-          key: "pre-commit-full-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: |
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
         env:
@@ -680,12 +700,11 @@ jobs:
         with:
           path: ~/.cache/pre-commit
           # yamllint disable-line rule:line-length
-          key: "pre-commit-basic-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
+          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: "\
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-\
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-\
             ${{ hashFiles('.pre-commit-config.yaml') }}\n
-            pre-commit-basic-${{steps.breeze.outputs.host-python-version}}-\n
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-"
+            pre-commit-${{steps.breeze.outputs.host-python-version}}-"
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v4
         with:

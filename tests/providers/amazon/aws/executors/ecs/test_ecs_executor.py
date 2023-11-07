@@ -48,7 +48,7 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     parse_assign_public_ip,
 )
 from airflow.utils.helpers import convert_camel_to_snake
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
 
@@ -693,8 +693,8 @@ class TestAwsEcsExecutor:
     def _mock_sync(
         self,
         executor: AwsEcsExecutor,
-        expected_state: State = State.SUCCESS,
-        set_task_state: State = State.RUNNING,
+        expected_state=TaskInstanceState.SUCCESS,
+        set_task_state=TaskInstanceState.RUNNING,
     ) -> None:
         """Mock ECS to the expected state."""
         self._add_mock_task(executor, ARN1, set_task_state)
@@ -718,9 +718,9 @@ class TestAwsEcsExecutor:
         executor.ecs.describe_tasks.return_value = {"tasks": [response_task_json], "failures": []}
 
     @staticmethod
-    def _add_mock_task(executor: AwsEcsExecutor, arn: str, state: State = State.RUNNING):
+    def _add_mock_task(executor: AwsEcsExecutor, arn: str, state=TaskInstanceState.RUNNING):
         task = mock_task(arn, state)
-        executor.active_workers.add_task(task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config, 1)
+        executor.active_workers.add_task(task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config, 1)  # type:ignore[arg-type]
 
     def _sync_mock_with_call_counts(self, sync_func: Callable):
         """Mock won't work here, because we actually want to call the 'sync' func."""
