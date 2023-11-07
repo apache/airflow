@@ -803,7 +803,10 @@ class TestAwsEcsExecutor:
                 }
             ],
         }
-        patcher = mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.fail", auth_spec=True)
+
+        patcher = mock.patch(
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.fail", auth_spec=True
+        )
         mock_failed_function = patcher.start()
         mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
         mock_executor.sync_running_tasks()

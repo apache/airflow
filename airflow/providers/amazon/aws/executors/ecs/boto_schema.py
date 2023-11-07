@@ -36,7 +36,7 @@ class BotoContainerSchema(Schema):
     exit_code = fields.Integer(data_key="exitCode")
     last_status = fields.String(data_key="lastStatus")
     name = fields.String(required=True)
-    reason = fields.String(data_key="reason")
+    reason = fields.String()
     container_arn = fields.String(data_key="containerArn")
 
     class Meta:
