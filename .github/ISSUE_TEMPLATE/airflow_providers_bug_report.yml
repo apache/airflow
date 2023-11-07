@@ -82,11 +82,13 @@ body:
         - odbc
         - openfaas
         - openlineage
+        - openai
         - opensearch
         - opsgenie
         - oracle
         - pagerduty
         - papermill
+        - pgvector
         - pinecone
         - plexus
         - postgres

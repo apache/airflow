@@ -156,7 +156,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/postgres/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "amazon common.sql google openlineage postgres",
+                    "affected-providers-list-as-string": "amazon common.sql google openlineage "
+                    "pgvector postgres",
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
                     "python-versions": "['3.8']",
@@ -169,7 +170,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "API Always Providers[amazon] "
-                    "Providers[common.sql,openlineage,postgres] Providers[google]",
+                    "Providers[common.sql,openlineage,pgvector,postgres] Providers[google]",
                 },
                 id="API and providers tests and docs should run",
             )
@@ -225,7 +226,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/postgres/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "amazon common.sql google openlineage postgres",
+                    "affected-providers-list-as-string": "amazon common.sql google openlineage "
+                    "pgvector postgres",
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
                     "python-versions": "['3.8']",
@@ -239,7 +241,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always Providers[amazon] "
-                    "Providers[common.sql,openlineage,postgres] Providers[google]",
+                    "Providers[common.sql,openlineage,pgvector,postgres] Providers[google]",
                 },
                 id="Helm tests, providers (both upstream and downstream),"
                 "kubernetes tests and docs should run",
@@ -1064,7 +1066,7 @@ def test_upgrade_to_newer_dependencies(
                 "docs-list-as-string": "apache-airflow amazon apache.drill apache.druid apache.hive "
                 "apache.impala apache.pinot common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
-                "oracle postgres presto slack snowflake sqlite trino vertica",
+                "oracle pgvector postgres presto slack snowflake sqlite trino vertica",
             },
             id="Common SQL provider package python files changed",
         ),

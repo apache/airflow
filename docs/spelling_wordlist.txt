@@ -496,6 +496,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+dotproduct
 DownloadReportV
 downscaling
 downstreams
@@ -1072,6 +1073,7 @@ onboarded
 OnFailure
 onkill
 Oozie
+openai
 openapi
 openfaas
 openlineage
@@ -1132,6 +1134,7 @@ permalinks
 personalizations
 pformat
 PgBouncer
+pgvector
 picklable
 pid
 pidbox
@@ -1667,6 +1670,7 @@ updateonly
 Upsert
 upsert
 upserted
+upserting
 upserts
 Upsight
 upstreams
