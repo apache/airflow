@@ -79,12 +79,14 @@ def delete_role(**kwargs) -> APIResponse:
 @_require_fab
 def patch_role(**kwargs) -> APIResponse:
     """Update a role."""
+    kwargs.pop("body", None)
     return role_and_permission_endpoint.patch_role(**kwargs)
 
 
 @_require_fab
 def post_role(**kwargs) -> APIResponse:
     """Create a new role."""
+    kwargs.pop("body", None)
     return role_and_permission_endpoint.post_role(**kwargs)
 
 
@@ -111,12 +113,14 @@ def get_users(**kwargs) -> APIResponse:
 @_require_fab
 def post_user(**kwargs) -> APIResponse:
     """Create a new user."""
+    kwargs.pop("body", None)
     return user_endpoint.post_user(**kwargs)
 
 
 @_require_fab
 def patch_user(**kwargs) -> APIResponse:
     """Update a user."""
+    kwargs.pop("body", None)
     return user_endpoint.patch_user(**kwargs)
 
 
