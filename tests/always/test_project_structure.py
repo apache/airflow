@@ -606,10 +606,7 @@ class TestSlackProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.slack.transfers.base_sql_to_slack.BaseSqlToSlackOperator",
         "airflow.providers.slack.operators.slack.SlackAPIOperator",
     }
-    MISSING_EXAMPLES_FOR_CLASSES = {
-        "airflow.providers.slack.operators.slack.SlackAPIPostOperator",
-        "airflow.providers.slack.operators.slack_webhook.SlackWebhookOperator",
-    }
+    MISSING_EXAMPLES_FOR_CLASSES = set()
     DEPRECATED_CLASSES = {
         "airflow.providers.slack.notifications.slack_notifier.py.",
         "airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator",

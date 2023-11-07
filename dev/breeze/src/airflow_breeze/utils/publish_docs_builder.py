@@ -95,7 +95,7 @@ class PublishDocsBuilder:
         if self.package_name == "apache-airflow":
             return get_airflow_version()
         if self.package_name.startswith("apache-airflow-providers-"):
-            all_providers_yaml = load_package_data()
+            all_providers_yaml = load_package_data(include_suspended=True)
             provider = next(p for p in all_providers_yaml if p["package-name"] == self.package_name)
             return provider["versions"][0]
         if self.package_name == "helm-chart":
