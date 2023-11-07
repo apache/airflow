@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-06T19:06:59Z
+# This constraints file was automatically generated on 2023-11-07T03:23:07Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -371,7 +371,7 @@ idna==3.4
 ijson==3.2.3
 imagesize==1.4.1
 importlib-metadata==6.8.0
-importlib-resources==6.1.0
+importlib-resources==6.1.1
 impyla==0.18.0
 incremental==22.10.0
 inflection==0.5.1
@@ -410,6 +410,7 @@ limits==3.6.0
 linkify-it-py==2.0.2
 locket==1.0.0
 lockfile==0.12.2
+loguru==0.7.2
 looker-sdk==23.16.0
 lxml==4.9.3
 lz4==4.3.2
@@ -484,6 +485,7 @@ pbr==5.11.1
 pdpyras==5.1.2
 pendulum==2.1.2
 pexpect==4.8.0
+pinecone-client==2.2.4
 pinotdb==5.1.0
 pipdeptree==2.13.0
 pipx==1.2.1
@@ -663,7 +665,7 @@ types-pyOpenSSL==23.3.0.0
 types-python-dateutil==2.8.19.14
 types-python-slugify==8.0.0.3
 types-pytz==2023.3.1.1
-types-redis==4.6.0.9
+types-redis==4.6.0.10
 types-requests==2.31.0.6
 types-setuptools==68.2.0.0
 types-tabulate==0.9.0.3
