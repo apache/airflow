@@ -145,6 +145,9 @@ class AwsEcsExecutor(BaseExecutor):
             else:
                 # Catch all for unexpected failures
                 status = f"failed because: {error_message}. "
+        except Exception as e:
+            # Any non-ClientError exceptions. This can include Botocore exceptions for example
+            status = f"failed because: {e}. "
         finally:
             msg_prefix = "ECS Executor health check has %s"
             if status == success_status:
