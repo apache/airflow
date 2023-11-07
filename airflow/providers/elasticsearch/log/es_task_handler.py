@@ -266,7 +266,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
         response = self._es_read(log_id, offset)
-        if response is not None:
+        if response is not None and response.hits:
             logs_by_host = self._group_logs_by_host(response)
             next_offset = attrgetter(self.offset_field)(response[-1])
         else:
