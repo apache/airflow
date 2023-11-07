@@ -1272,6 +1272,8 @@ class TestBackfillJob:
     def test_sub_set_subdag(self, dag_maker):
         with dag_maker(
             "test_sub_set_subdag",
+            on_success_callback=lambda _: None,
+            on_failure_callback=lambda _: None,
         ) as dag:
             op1 = EmptyOperator(task_id="leave1")
             op2 = EmptyOperator(task_id="leave2")

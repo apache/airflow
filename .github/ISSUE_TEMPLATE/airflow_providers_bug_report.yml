@@ -48,6 +48,7 @@ body:
         - celery
         - cloudant
         - cncf-kubernetes
+        - cohere
         - common-io
         - common-sql
         - daskexecutor
@@ -86,6 +87,7 @@ body:
         - oracle
         - pagerduty
         - papermill
+        - pinecone
         - plexus
         - postgres
         - presto
@@ -107,6 +109,7 @@ body:
         - telegram
         - trino
         - vertica
+        - weaviate
         - yandex
         - zendesk
     validations:

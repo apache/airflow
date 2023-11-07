@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 from typing import cast
 
-from google.cloud import storage
+from google.cloud import storage  # type: ignore[attr-defined]
 
 from airflow.decorators import task
 from airflow.models.dag import DAG

@@ -26,6 +26,7 @@ from airflow.api_connexion.schemas.provider_schema import (
     ProviderCollection,
     provider_collection_schema,
 )
+from airflow.auth.managers.models.resource_details import AccessView
 from airflow.providers_manager import ProvidersManager
 
 if TYPE_CHECKING:
@@ -45,7 +46,7 @@ def _provider_mapper(provider: ProviderInfo) -> Provider:
     )
 
 
-@security.requires_access_website()
+@security.requires_access_view(AccessView.PROVIDERS)
 def get_providers() -> APIResponse:
     """Get providers."""
     providers = [_provider_mapper(d) for d in ProvidersManager().providers.values()]

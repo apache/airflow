@@ -61,10 +61,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_db_snapshots(DBSnapshotIdentifier=snapshot_id)
-        except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "DBSnapshotNotFound":
-                raise AirflowNotFoundException(e)
-            raise e
+        except self.conn.exceptions.DBSnapshotNotFoundFault as e:
+            raise AirflowNotFoundException(e)
         return response["DBSnapshots"][0]["Status"].lower()
 
     def wait_for_db_snapshot_state(
@@ -109,10 +107,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=snapshot_id)
-        except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "DBClusterSnapshotNotFoundFault":
-                raise AirflowNotFoundException(e)
-            raise e
+        except self.conn.exceptions.DBClusterSnapshotNotFoundFault as e:
+            raise AirflowNotFoundException(e)
         return response["DBClusterSnapshots"][0]["Status"].lower()
 
     def wait_for_db_cluster_snapshot_state(
@@ -239,10 +235,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_db_instances(DBInstanceIdentifier=db_instance_id)
-        except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "DBInstanceNotFoundFault":
-                raise AirflowNotFoundException(e)
-            raise e
+        except self.conn.exceptions.DBInstanceNotFoundFault as e:
+            raise AirflowNotFoundException(e)
         return response["DBInstances"][0]["DBInstanceStatus"].lower()
 
     def wait_for_db_instance_state(
@@ -292,10 +286,8 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         """
         try:
             response = self.conn.describe_db_clusters(DBClusterIdentifier=db_cluster_id)
-        except self.conn.exceptions.ClientError as e:
-            if e.response["Error"]["Code"] == "DBClusterNotFoundFault":
-                raise AirflowNotFoundException(e)
-            raise e
+        except self.conn.exceptions.DBClusterNotFoundFault as e:
+            raise AirflowNotFoundException(e)
         return response["DBClusters"][0]["Status"].lower()
 
     def wait_for_db_cluster_state(

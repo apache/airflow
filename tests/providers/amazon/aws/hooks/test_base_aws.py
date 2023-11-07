@@ -41,7 +41,7 @@ from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
-from airflow.providers.amazon.aws.executors.ecs import AwsEcsExecutor
+from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
     AwsGenericHook,
@@ -114,14 +114,12 @@ SAML_ASSERTION = """
       </AuthnContext>
     </AuthnStatement>
   </Assertion>
-</samlp:Response>""".format(  # noqa: E501
+</samlp:Response>""".format(
     account_id=DEFAULT_ACCOUNT_ID,
     role_name="test-role",
     provider_name="TestProvFed",
     username="testuser",
-).replace(
-    "\n", ""
-)
+).replace("\n", "")
 
 
 class CustomSessionFactory(BaseSessionFactory):
@@ -413,7 +411,7 @@ class TestAwsBaseHook:
             assert key.lower() in result_user_agent_tag_keys
 
     @staticmethod
-    def fetch_tags() -> dict[str:str]:
+    def fetch_tags() -> dict[str, str]:
         """Helper method which creates an AwsBaseHook and returns the user agent string split into a dict."""
         user_agent_string = AwsBaseHook(client_type="s3").get_client_type().meta.config.user_agent
         # Split the list of {Key}/{Value} into a dict

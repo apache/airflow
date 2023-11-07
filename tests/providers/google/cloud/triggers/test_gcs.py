@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timedelta
+from typing import Any
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -39,7 +40,7 @@ TEST_OBJECT = "TEST_OBJECT"
 TEST_PREFIX = "TEST_PREFIX"
 TEST_GCP_CONN_ID = "TEST_GCP_CONN_ID"
 TEST_POLLING_INTERVAL = 3.0
-TEST_HOOK_PARAMS = {}
+TEST_HOOK_PARAMS: dict[str, Any] = {}
 TEST_TS_OBJECT = datetime.utcnow()
 
 

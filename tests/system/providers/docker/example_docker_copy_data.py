@@ -99,9 +99,7 @@ with models.DAG(
 
     (
         # TEST BODY
-        t_is_data_available
-        >> t_move
-        >> t_print
+        t_is_data_available >> t_move >> t_print
     )
 
 from tests.system.utils import get_test_run  # noqa: E402

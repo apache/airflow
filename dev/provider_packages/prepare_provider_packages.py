@@ -1342,13 +1342,6 @@ def update_release_notes(
         regenerate_missing_docs,
     ):
         errors = True
-    if not update_security_rst(
-        jinja_context,
-        provider_package_id,
-        provider_details.documentation_provider_package_path,
-        regenerate_missing_docs,
-    ):
-        errors = True
     if not force:
         if not update_commits_rst(
             jinja_context,
@@ -1545,23 +1538,6 @@ def update_changelog_rst(
         template_name="PROVIDER_CHANGELOG",
         extension=".rst",
         file_name="changelog.rst",
-        provider_package_id=provider_package_id,
-        target_path=target_path,
-        regenerate_missing_docs=regenerate_missing_docs,
-    )
-
-
-def update_security_rst(
-    context: dict[str, Any],
-    provider_package_id: str,
-    target_path: Path,
-    regenerate_missing_docs: bool,
-) -> bool:
-    return _update_file(
-        context=context,
-        template_name="PROVIDER_SECURITY",
-        extension=".rst",
-        file_name="security.rst",
         provider_package_id=provider_package_id,
         target_path=target_path,
         regenerate_missing_docs=regenerate_missing_docs,

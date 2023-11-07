@@ -52,7 +52,7 @@ def get_fs(conn_id: str | None) -> AbstractFileSystem:
         raise ImportError(
             "Airflow FS S3 protocol requires the s3fs library, but it is not installed as it requires"
             "aiobotocore. Please install the s3 protocol support library by running: "
-            "pip install apache-airflow[s3]"
+            "pip install apache-airflow-providers-amazon[s3fs]"
         )
 
     aws: AwsGenericHook = AwsGenericHook(aws_conn_id=conn_id, client_type="s3")

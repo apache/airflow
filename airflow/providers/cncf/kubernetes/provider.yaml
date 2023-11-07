@@ -342,3 +342,6 @@ config:
         type: string
         example: ~
         default: ""
+
+executors:
+  - airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor

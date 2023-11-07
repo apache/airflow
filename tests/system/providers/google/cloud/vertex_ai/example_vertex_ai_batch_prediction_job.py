@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Batch Prediction operations.
@@ -91,7 +89,7 @@ COLUMN_SPECS = {
 
 BIGQUERY_SOURCE = f"bq://{PROJECT_ID}.test_iowa_liquor_sales_forecasting_us.2021_sales_predict"
 GCS_DESTINATION_PREFIX = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/output"
-MODEL_PARAMETERS = ParseDict({}, Value())
+MODEL_PARAMETERS: dict[str, str] = {}
 
 
 with DAG(

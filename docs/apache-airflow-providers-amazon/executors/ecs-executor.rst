@@ -106,6 +106,8 @@ Optional config options:
 -  MAX_RUN_TASK_ATTEMPTS - The maximum number of times the Ecs Executor
    should attempt to run a task. This refers to instances where the task
    fails to start (i.e. ECS API failures, container failures etc.)
+-  CHECK_HEALTH_ON_STARTUP - Whether or not to check the ECS Executor
+   health on startup
 
 For a more detailed description of available options, including type
 hints and examples, see the ``config_templates`` folder in the Amazon
@@ -557,7 +559,7 @@ To configure Airflow to utilize the ECS Executor and leverage the resources we'v
 
 .. code-block:: bash
 
-   export AIRFLOW**CORE**EXECUTOR='airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor'
+   export AIRFLOW**CORE**EXECUTOR='airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor'
 
    export AIRFLOW**DATABASE**SQL*ALCHEMY*CONN=<postgres-connection-string>
 

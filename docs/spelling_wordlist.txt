@@ -637,6 +637,7 @@ ga
 Gantt
 gantt
 gapic
+gapped
 gbq
 gcc
 gcloud
@@ -1022,6 +1023,7 @@ natively
 navbar
 nd
 ndjson
+nearText
 neighbours
 neo
 Neo4j
@@ -1134,6 +1136,7 @@ picklable
 pid
 pidbox
 pigcmd
+pinecone
 pinodb
 Pinot
 pinot
@@ -1663,6 +1666,7 @@ updateMask
 updateonly
 Upsert
 upsert
+upserted
 upserts
 Upsight
 upstreams
@@ -1692,6 +1696,8 @@ validator
 vals
 vCPU
 ve
+vectorizer
+vectorizers
 vendored
 Vendorize
 venv
@@ -1714,6 +1720,7 @@ wape
 warmup
 Wasb
 wasb
+weaviate
 WebClient
 webhdfs
 Webhook

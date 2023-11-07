@@ -707,7 +707,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All
+   $ breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All
 
 - Running specific type of test
 
@@ -717,7 +717,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-    $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type Core
+    $ breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
@@ -726,7 +726,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All --integration mongo
+   $ breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All --integration mongo
 
 
 - For more information on Testing visit : |TESTING.rst|

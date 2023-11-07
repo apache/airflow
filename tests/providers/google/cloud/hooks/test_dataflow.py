@@ -55,7 +55,7 @@ PARAMETERS = {
     "inputFile": "gs://dataflow-samples/shakespeare/kinglear.txt",
     "output": "gs://test/output/my_output",
 }
-TEST_ENVIRONMENT = {}
+TEST_ENVIRONMENT: dict[str, str] = {}
 PY_FILE = "apache_beam.examples.wordcount"
 JAR_FILE = "unitest.jar"
 JOB_CLASS = "com.example.UnitTest"
@@ -1717,12 +1717,8 @@ class TestDataflowJob:
         mock_jobs.return_value.update.assert_not_called()
 
     def test_fetch_list_job_messages_responses(self):
-        mock_list = (
-            self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
-        )
-        mock_list_next = (
-            self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list_next
-        )
+        mock_list = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list
+        mock_list_next = self.mock_dataflow.projects.return_value.locations.return_value.jobs.return_value.messages.return_value.list_next
 
         mock_list.return_value.execute.return_value = "response_1"
         mock_list_next.return_value = None
