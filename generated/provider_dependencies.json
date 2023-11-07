@@ -666,6 +666,14 @@
     ],
     "excluded-python-versions": []
   },
+  "openai": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "openai[datalib]>=0.28.1,<1.0"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "openfaas": {
     "deps": [
       "apache-airflow>=2.5.0"
