@@ -82,6 +82,7 @@ body:
         - odbc
         - openfaas
         - openlineage
+        - openai
         - opensearch
         - opsgenie
         - oracle
