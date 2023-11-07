@@ -39,7 +39,7 @@ with DAG(
     # [START slack_api_post_operator_text_howto_guide]
     slack_operator_post_text = SlackAPIPostOperator(
         task_id="slack_post_text",
-        channels=SLACK_CHANNEL,
+        channel=SLACK_CHANNEL,
         text=(
             "Apache Airflow™ is an open-source platform for developing, "
             "scheduling, and monitoring batch-oriented workflows."
@@ -50,7 +50,7 @@ with DAG(
     # [START slack_api_post_operator_blocks_howto_guide]
     slack_operator_post_blocks = SlackAPIPostOperator(
         task_id="slack_post_blocks",
-        channels=SLACK_CHANNEL,
+        channel=SLACK_CHANNEL,
         blocks=[
             {
                 "type": "section",

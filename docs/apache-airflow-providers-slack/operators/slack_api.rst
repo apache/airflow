@@ -26,7 +26,7 @@ Introduction
 SlackAPIPostOperator
 --------------------
 
-Use the :class:`~airflow.providers.slack.operators.slack.SlackAPIPostOperator` to post messages to a Slack channel(s).
+Use the :class:`~airflow.providers.slack.operators.slack.SlackAPIPostOperator` to post messages to a Slack channel.
 
 
 Using the Operator

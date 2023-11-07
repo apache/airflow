@@ -63,7 +63,7 @@ with DAG(
                 "accessory": {"type": "image", "image_url": IMAGE_URL, "alt_text": "Pinwheel"},
             }
         ],
-        text="Fallback message",
+        message="Fallback message",
     )
     # [END slack_webhook_operator_blocks_howto_guide]
 
