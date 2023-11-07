@@ -310,7 +310,6 @@ class PineconeHook(BaseHook):
                      Metadata is optional.
         :param async_req: If True, upsert operations will be asynchronous.
         :param pool_threads: Number of threads for parallel upserting. If async_req is True, this must be provided.
-        :return: Upsert responses or None for async operations.
         """
         responses = []
         with pinecone.Index(index_name, pool_threads=pool_threads) as index:
