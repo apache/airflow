@@ -171,7 +171,7 @@ Breaking changes
 The ``spark-binary`` connection extra could be set to any binary, but with 4.0.0 version only two values
 are allowed for it ``spark-submit`` and ``spark2-submit``.
 
-The ``spark-home`` connection extra is not allowed any more - the binary should be available on the
+The ``spark-home`` connection extra is not allowed anymore - the binary should be available on the
 PATH in order to use SparkSubmitHook and SparkSubmitOperator.
 
 * ``Remove custom spark home and custom binaries for spark (#27646)``

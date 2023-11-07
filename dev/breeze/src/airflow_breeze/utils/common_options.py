@@ -458,7 +458,7 @@ argument_packages = click.argument(
     "packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(get_available_documentation_packages(short_version=True)),
+    type=NotVerifiedBetterChoice(get_available_documentation_packages(short_version=True)),
 )
 argument_short_doc_packages = click.argument(
     "short_doc_packages",
@@ -471,7 +471,7 @@ argument_short_doc_packages_with_providers_index = click.argument(
     "short_doc_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(
+    type=NotVerifiedBetterChoice(
         ["all-providers", PROVIDERS_INDEX_KEY, *get_available_documentation_packages(short_version=True)]
     ),
 )

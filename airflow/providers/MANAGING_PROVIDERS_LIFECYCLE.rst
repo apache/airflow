@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -16,11 +15,11 @@
     specific language governing permissions and limitations
     under the License.
 
-Community Providers
-===================
 
-How-to creating a new community provider
-----------------------------------------
+.. contents:: :local:
+
+Creating a new community provider
+=================================
 
 This document gathers the necessary steps to create a new community provider and also guidelines for updating
 the existing ones. You should be aware that providers may have distinctions that may not be covered in
@@ -47,7 +46,7 @@ When you see this placeholder you must change for your provider name.
 
 
 Initial Code and Unit Tests
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------
 
 Most likely you have developed a version of the provider using some local customization and now you need to
 transfer this code to the Airflow project. Below is described all the initial code structure that
@@ -111,13 +110,13 @@ breeze and I'll run unit tests for my Hook.
       root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/<NEW_PROVIDER>.py
 
 Integration tests
-^^^^^^^^^^^^^^^^^
+-----------------
 
 See `Airflow Integration Tests <https://github.com/apache/airflow/blob/main/TESTING.rst#airflow-integration-tests>`_
 
 
 Documentation
-^^^^^^^^^^^^^
+-------------
 
 An important part of building a new provider is the documentation.
 Some steps for documentation occurs automatically by ``pre-commit`` see `Installing pre-commit guide <https://github.com/apache/airflow/blob/main/CONTRIBUTORS_QUICK_START.rst#pre-commit>`_
@@ -285,3 +284,161 @@ main Airflow documentation that involves some steps with the providers is also w
 
     breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
     breeze build-docs --package-filter apache-airflow
+
+
+Suspending providers
+====================
+
+As of April 2023, we have the possibility to suspend individual providers, so that they are not holding
+back dependencies for Airflow and other providers. The process of suspending providers is described
+in `description of the process <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#suspending-releases-for-providers>`_
+
+Technically, suspending a provider is done by setting ``suspended : true``, in the provider.yaml of the
+provider. This should be followed by committing the change and either automatically or manually running
+pre-commit checks that will either update derived configuration files or ask you to update them manually.
+Note that you might need to run pre-commit several times until all the static checks pass,
+because modification from one pre-commit might impact other pre-commits.
+
+If you have pre-commit installed, pre-commit will be run automatically on commit. If you want to run it
+manually after commit, you can run it via ``breeze static-checks --last-commit`` some of the tests might fail
+because suspension of the provider might cause changes in the dependencies, so if you see errors about
+missing dependencies imports, non-usable classes etc., you will need to build the CI image locally
+via ``breeze build-image --python 3.8 --upgrade-to-newer-dependencies`` after the first pre-commit run
+and then run the static checks again.
+
+If you want to be absolutely sure to run all static checks you can always do this via
+``pre-commit run --all-files`` or ``breeze static-checks --all-files``.
+
+Some of the manual modifications you will have to do (in both cases ``pre-commit`` will guide you on what
+to do.
+
+* You will have to run  ``breeze setup regenerate-command-images`` to regenerate breeze help files
+* you will need to update ``extra-packages-ref.rst`` and in some cases - when mentioned there explicitly -
+  ``setup.py`` to remove the provider from list of dependencies.
+
+What happens under-the-hood as a result, is that ``generated/providers.json`` file is updated with
+the information about available providers and their dependencies and it is used by our tooling to
+exclude suspended providers from all relevant parts of the build and CI system (such as building CI image
+with dependencies, building documentation, running tests, etc.)
+
+
+Additional changes needed for cross-dependent providers
+=======================================================
+
+Those steps above are usually enough for most providers that are "standalone" and not imported or used by
+other providers (in most cases we will not suspend such providers). However some extra steps might be needed
+for providers that are used by other providers, or that are part of the default PROD Dockerfile:
+
+* Most of the tests for the suspended provider, will be automatically excluded by pytest collection. However,
+  in case a provider is dependent on by another provider, the relevant tests might fail to be collected or
+  run by ``pytest``. In such cases you should skip the whole test module failing to be collected by
+  adding ``pytest.importorskip`` at the top of the test module.
+  For example if your tests fail because they need to import ``apache.airflow.providers.google``
+  and you have suspended it, you should add this line at the top of the test module that fails.
+
+Example failing collection after ``google`` provider has been suspended:
+
+  .. code-block:: txt
+
+    _____ ERROR collecting tests/providers/apache/beam/operators/test_beam.py ______
+    ImportError while importing test module '/opt/airflow/tests/providers/apache/beam/operators/test_beam.py'.
+    Hint: make sure your test modules/packages have valid Python names.
+    Traceback:
+    /usr/local/lib/python3.8/importlib/__init__.py:127: in import_module
+        return _bootstrap._gcd_import(name[level:], package, level)
+    tests/providers/apache/beam/operators/test_beam.py:25: in <module>
+        from airflow.providers.apache.beam.operators.beam import (
+    airflow/providers/apache/beam/operators/beam.py:35: in <module>
+        from airflow.providers.google.cloud.hooks.dataflow import (
+    airflow/providers/google/cloud/hooks/dataflow.py:32: in <module>
+        from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
+    E   ModuleNotFoundError: No module named 'google.cloud.dataflow_v1beta3'
+    _ ERROR collecting tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py _
+
+
+The fix is to add this line at the top of the ``tests/providers/apache/beam/operators/test_beam.py`` module:
+
+  .. code-block:: python
+
+    pytest.importorskip("apache.airflow.providers.google")
+
+
+* Some of the other providers might also just import unconditionally the suspended provider and they will
+  fail during the provider verification step in CI. In this case you should turn the provider imports
+  into conditional imports. For example when import fails after ``amazon`` provider has been suspended:
+
+  .. code-block:: txt
+
+      Traceback (most recent call last):
+        File "/opt/airflow/scripts/in_container/verify_providers.py", line 266, in import_all_classes
+          _module = importlib.import_module(modinfo.name)
+        File "/usr/local/lib/python3.8/importlib/__init__.py", line 127, in import_module
+          return _bootstrap._gcd_import(name, package, level)
+        File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+        File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+        File "<frozen importlib._bootstrap>", line 967, in _find_and_load_unlocked
+        File "<frozen importlib._bootstrap>", line 677, in _load_unlocked
+        File "<frozen importlib._bootstrap_external>", line 728, in exec_module
+        File "<frozen importlib._bootstrap>", line 219, in _call_with_frames_removed
+        File "/usr/local/lib/python3.8/site-packages/airflow/providers/mysql/transfers/s3_to_mysql.py", line 23, in <module>
+          from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+      ModuleNotFoundError: No module named 'airflow.providers.amazon'
+
+or:
+
+  .. code-block:: txt
+
+  Error: The ``airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs`` object in transfers list in
+  airflow/providers/microsoft/azure/provider.yaml does not exist or is not a module:
+  No module named 'gcloud.aio.storage'
+
+The fix for that is to turn the feature into an optional provider feature (in the place where the excluded
+``airflow.providers`` import happens:
+
+  .. code-block:: python
+
+    try:
+        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+    except ImportError as e:
+        from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+        raise AirflowOptionalProviderFeatureException(e)
+
+
+* In case we suspend an important provider, which is part of the default Dockerfile you might want to
+  update the tests for PROD docker image in ``docker_tests/test_prod_image.py``.
+
+* Some of the suspended providers might also fail ``breeze`` unit tests that expect a fixed set of providers.
+  Those tests should be adjusted (but this is not very likely to happen, because the tests are using only
+  the most common providers that we will not be likely to suspend).
+
+
+Resuming providers
+==================
+
+Resuming providers is done by reverting the original change that suspended it. In case there are changes
+needed to fix problems in the reverted provider, our CI will detect them and you will have to fix them
+as part of the PR reverting the suspension.
+
+
+Removing providers
+==================
+
+When removing providers from Airflow code, we need to make one last release where we mark the provider as
+removed - in documentation and in description of the PyPI package. In order to that release manager has to
+add "removed: true" flag in the provider yaml file and include the provider in the next wave of the
+providers (and then remove all the code and documentation related to the provider).
+
+The "removed: true" flag will cause the provider to be available for the following commands (note that such
+provider has to be explicitly added as selected to the package - such provider will not be included in
+the available list of providers):
+
+* ``breeze build-docs``
+* ``breeze release-management prepare-provider-documentation``
+* ``breeze release-management prepare-provider-packages``
+* ``breeze release-management publish-docs``
+
+For all those commands, release manager needs to specify such to-be-removed provider explicitly as extra
+command during the release process. Except the changelog that needs to be maintained manually, all other
+documentation (main page of the provider documentation, PyPI README), will be automatically updated
+to include removal notice.

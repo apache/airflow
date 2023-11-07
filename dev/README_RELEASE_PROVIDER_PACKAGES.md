@@ -133,6 +133,17 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 breeze release-management prepare-provider-documentation [packages]
 ```
 
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), documentation for the provider will not be prepared when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
+
+```shell script
+breeze release-management prepare-provider-documentation qubole
+```
+
+
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
 provider details will be printed on what changes were implemented since the last release including
@@ -205,6 +216,18 @@ if you only build few packages, run:
 breeze release-management prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
+
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), package for the provider will not be prepared when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
+
+```shell script
+breeze release-management prepare-provider-packages --package-format both qubole
+```
+
+
 * Sign all your packages
 
 ```shell script
@@ -273,6 +296,17 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
+
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), package for the provider will not be prepared when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
+
+```shell script
+breeze release-management prepare-provider-packages --package-format both qubole
+```
+
 
 * Verify the artifacts that would be uploaded:
 
@@ -353,38 +387,31 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --package-filter apache-airflow-providers \
-   --package-filter 'apache-airflow-providers-*'
+breeze build-docs --clean-build providers-index --package-filter 'apache-airflow-providers-*'
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
 means that unless we release just few selected packages or if we need to deliberately skip some packages
 we should release documentation for all provider packages and the above command is the one to use.
 
-If we want to just release some providers you can release them in this way:
-
-```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build \
-  --package-filter apache-airflow-providers \
-  --package-filter 'apache-airflow-providers-PACKAGE1' \
-  --package-filter 'apache-airflow-providers-PACKAGE2' \
-  ...
-```
-
-You can also use shorthand names as arguments instead of using the full names
-for airflow providers. Example:
+If we want to just release some providers you can release them using package names:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs providers-index cncf.kubernetes sftp --clean-build
 ```
 
-If you have providers as list of provider ids because you just released them, you can build them with
+
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), doc for the provider will not be built when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
 
 ```shell script
-breeze build-docs --clean-build amazon apache.beam google ....
+breeze build-docs qubole
 ```
+
 
 - Now you can preview the documentation.
 
@@ -401,9 +428,7 @@ way faster on multi-cpu machines when you are publishing multiple providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs \
-    --package-filter apache-airflow-providers \
-    --package-filter 'apache-airflow-providers-*' \
+breeze release-management publish-docs providers-index --package-filter 'apache-airflow-providers-*' \
     --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers
@@ -420,21 +445,20 @@ If you have providers as list of provider ids because you just released them you
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs providers-index amazon cncf.kubernetes --override-versioned --run-in-parallel
-
-breeze release-management add-back-references amazon cncf.kubernetes
+breeze release-management publish-docs amazon apache.beam google ....
+breeze release-management add-back-references all-providers
 ```
 
-or with
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), docs for the provider will not be published when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
 
 ```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-
-./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
-
-# No need to add back references as the script has this step as integral part
+breeze release-management publish-docs qubole
+breeze release-management add-back-references all-providers
 ```
-
 
 - If you publish a new package, you must add it to
   [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):

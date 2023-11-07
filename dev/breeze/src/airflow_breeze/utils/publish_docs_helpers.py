@@ -27,6 +27,7 @@ from typing import Any
 import yaml
 
 from airflow_breeze.utils.general_utils import get_docs_filter_name_from_short_hand
+from airflow_breeze.utils.suspended_providers import get_removed_provider_ids
 
 CONSOLE_WIDTH = 180
 
@@ -59,7 +60,7 @@ def get_provider_yaml_paths():
     return sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
 
 
-def load_package_data() -> list[dict[str, Any]]:
+def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
     """
     Load all data from providers files
 
@@ -76,7 +77,7 @@ def load_package_data() -> list[dict[str, Any]]:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
             raise Exception(f"Unable to parse: {provider_yaml_path}.")
-        if provider["suspended"]:
+        if provider["suspended"] and not include_suspended:
             continue
         provider_yaml_dir = os.path.dirname(provider_yaml_path)
         provider["python-module"] = _filepath_to_module(provider_yaml_dir)
@@ -86,12 +87,10 @@ def load_package_data() -> list[dict[str, Any]]:
     return result
 
 
-def get_available_packages():
+def get_available_packages(include_suspended: bool = False):
     """Get list of all available packages to build."""
-    all_providers_yaml = load_package_data()
-    provider_package_names = [
-        provider["package-name"] for provider in all_providers_yaml if not provider.get("suspended")
-    ]
+    all_providers_yaml = load_package_data(include_suspended=include_suspended)
+    provider_package_names = [provider["package-name"] for provider in all_providers_yaml]
     return [
         "apache-airflow",
         "docker-stack",
@@ -113,15 +112,19 @@ def process_package_filters(
 
     package_filters = list(package_filters + get_docs_filter_name_from_short_hand(packages_short_form))
 
+    removed_packages = [
+        f"apache-airflow-providers-{provider.replace('.','-')}" for provider in get_removed_provider_ids()
+    ]
+    all_packages_including_removed = available_packages + removed_packages
     invalid_filters = [
-        f for f in package_filters if not any(fnmatch.fnmatch(p, f) for p in available_packages)
+        f for f in package_filters if not any(fnmatch.fnmatch(p, f) for p in all_packages_including_removed)
     ]
     if invalid_filters:
         raise SystemExit(
             f"Some filters did not find any package: {invalid_filters}, Please check if they are correct."
         )
 
-    return [p for p in available_packages if any(fnmatch.fnmatch(p, f) for f in package_filters)]
+    return [p for p in all_packages_including_removed if any(fnmatch.fnmatch(p, f) for f in package_filters)]
 
 
 def pretty_format_path(path: str, start: str) -> str:
