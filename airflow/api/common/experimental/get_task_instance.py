@@ -24,11 +24,10 @@ from deprecated import deprecated
 
 from airflow.api.common.experimental import check_and_get_dag, check_and_get_dagrun
 from airflow.exceptions import TaskInstanceNotFound
+from airflow.models import TaskInstance
 
 if TYPE_CHECKING:
     from datetime import datetime
-
-    from airflow.models import TaskInstance
 
 
 @deprecated(version="2.2.4", reason="Use DagRun.get_task_instance instead")

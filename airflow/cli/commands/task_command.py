@@ -30,7 +30,6 @@ from typing import TYPE_CHECKING, Generator, Protocol, Union, cast
 import pendulum
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
-from sqlalchemy.orm.exc import NoResultFound
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
@@ -46,6 +45,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.operator import needs_expansion
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -74,7 +74,6 @@ if TYPE_CHECKING:
 
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 log = logging.getLogger(__name__)
 
@@ -119,16 +118,15 @@ def _get_dag_run(
             return dag_run, False
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
-        try:
+        if execution_date:
             dag_run = dag.get_dagrun(execution_date=execution_date, session=session)
-        except NoResultFound:
-            if not create_if_necessary:
-                raise DagRunNotFound(
-                    f"DagRun for {dag.dag_id} with run_id or execution_date "
-                    f"of {exec_date_or_run_id!r} not found"
-                ) from None
-        else:
+        if dag_run:
             return dag_run, False
+        elif not create_if_necessary:
+            raise DagRunNotFound(
+                f"DagRun for {dag.dag_id} with run_id or execution_date "
+                f"of {exec_date_or_run_id!r} not found"
+            )
 
     if execution_date is not None:
         dag_run_execution_date = execution_date
@@ -213,7 +211,7 @@ def _run_task_by_selected_method(
     - as raw task
     - by executor
     """
-    assert isinstance(ti, TaskInstance), "Wait for AIP-44 implementation to complete"
+    assert not isinstance(ti, TaskInstancePydantic), "Wait for AIP-44 implementation to complete"
     if args.local:
         return _run_task_by_local_task_job(args, ti)
     if args.raw:
@@ -467,7 +465,7 @@ def task_failed_deps(args) -> None:
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
     # tasks_failed-deps is executed with access to the database.
-    if not isinstance(ti, TaskInstance):
+    if isinstance(ti, TaskInstancePydantic):
         raise ValueError("not a TaskInstance")
     dep_context = DepContext(deps=SCHEDULER_QUEUED_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
@@ -494,7 +492,7 @@ def task_state(args) -> None:
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
     # task_state is executed with access to the database.
-    if not isinstance(ti, TaskInstance):
+    if isinstance(ti, TaskInstancePydantic):
         raise ValueError("not a TaskInstance")
     print(ti.current_state())
 
@@ -627,7 +625,7 @@ def task_test(args, dag: DAG | None = None) -> None:
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="db"
     )
     # task_test is executed with access to the database.
-    if not isinstance(ti, TaskInstance):
+    if isinstance(ti, TaskInstancePydantic):
         raise ValueError("not a TaskInstance")
     try:
         with redirect_stdout(RedactedIO()):
@@ -663,7 +661,7 @@ def task_render(args, dag: DAG | None = None) -> None:
         task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
     )
     # task_render is executed with access to the database.
-    if not isinstance(ti, TaskInstance):
+    if isinstance(ti, TaskInstancePydantic):
         raise ValueError("not a TaskInstance")
     with create_session() as session, set_current_task_instance_session(session=session):
         ti.render_templates()
