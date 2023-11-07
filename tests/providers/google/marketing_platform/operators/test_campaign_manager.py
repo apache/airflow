@@ -182,7 +182,7 @@ class TestGoogleCampaignManagerDownloadReportOperator:
             dag_id="test_set_bucket_name",
             start_date=DEFAULT_DATE,
             schedule=None,
-            catchup=False,
+            catchup="disable",
         )
 
         if BUCKET_NAME not in test_bucket_name:

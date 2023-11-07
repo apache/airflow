@@ -53,7 +53,7 @@ with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # Create
     # [START howto_operator_gcp_datacatalog_create_tag_template]

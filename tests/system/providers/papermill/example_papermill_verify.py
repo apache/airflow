@@ -60,7 +60,7 @@ with DAG(
     schedule=SCHEDULE_INTERVAL,
     start_date=START_DATE,
     dagrun_timeout=DAGRUN_TIMEOUT,
-    catchup=False,
+    catchup="disable",
 ) as dag:
     run_this = PapermillOperator(
         task_id="run_example_notebook",

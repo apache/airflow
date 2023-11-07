@@ -76,7 +76,7 @@ with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule="@once",
-    catchup=False,
+    catchup="disable",
     tags=["example"],
     default_args=default_args,
     description="Examples of OpenSearch Operators",

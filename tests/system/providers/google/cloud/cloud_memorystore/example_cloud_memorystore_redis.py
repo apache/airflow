@@ -72,7 +72,7 @@ with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(

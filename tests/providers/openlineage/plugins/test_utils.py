@@ -107,7 +107,10 @@ def test_parse_version():
 
 def test_to_json_encodable():
     dag = AIRFLOW_DAG(
-        dag_id="test_dag", schedule_interval="*/2 * * * *", start_date=datetime.datetime.now(), catchup=False
+        dag_id="test_dag",
+        schedule_interval="*/2 * * * *",
+        start_date=datetime.datetime.now(),
+        catchup="disable",
     )
     task = EmptyOperator(task_id="test_task", dag=dag)
 

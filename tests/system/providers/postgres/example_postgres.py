@@ -35,7 +35,7 @@ with DAG(
     dag_id=DAG_ID,
     start_date=datetime.datetime(2020, 2, 2),
     schedule="@once",
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START postgres_operator_howto_guide_create_pet_table]
     create_pet_table = PostgresOperator(

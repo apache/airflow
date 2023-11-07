@@ -53,7 +53,7 @@ with DAG(
     dag_id="example_azure_service_bus",
     start_date=datetime(2021, 8, 13),
     schedule=None,
-    catchup=False,
+    catchup="disable",
     default_args={
         "execution_timeout": timedelta(hours=EXECUTION_TIMEOUT),
         "azure_service_bus_conn_id": "azure_service_bus_default",

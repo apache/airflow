@@ -72,7 +72,7 @@ with DAG(
     f"{DAG_ID}_image_training_job",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "vertex_ai", "auto_ml"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(

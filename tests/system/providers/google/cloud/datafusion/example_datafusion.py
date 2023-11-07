@@ -168,7 +168,7 @@ CloudDataFusionCreatePipelineOperator.template_fields = (
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "datafusion"],
 ) as dag:
     create_bucket1 = GCSCreateBucketOperator(

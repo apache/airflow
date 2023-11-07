@@ -110,7 +110,7 @@ with DAG(
     DAG_ID,
     start_date=datetime.datetime(2021, 1, 1),
     schedule="@once",
-    catchup=False,
+    catchup="disable",
     tags=["example", "dataproc", "metastore", "partition", "hive", "sensor"],
 ) as dag:
     create_metastore_service = DataprocMetastoreCreateServiceOperator(

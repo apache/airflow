@@ -127,7 +127,7 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "stackdriver"],
 ) as dag:
     # [START howto_operator_gcp_stackdriver_upsert_notification_channel]

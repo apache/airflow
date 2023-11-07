@@ -452,7 +452,9 @@ class DAG(LoggingMixin):
         sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
         default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
         orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
-        catchup: str | bool = airflow_conf.get("scheduler", "catchup_by_default"),
+        catchup: Literal["enable", "disable", "ignore_first"] | bool = airflow_conf.get_default_value(
+            "scheduler", "catchup_by_default", fallback="enable"
+        ),
         on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
         doc_md: str | None = None,
@@ -3838,7 +3840,9 @@ def dag(
     sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
-    catchup: str | bool = airflow_conf.get("scheduler", "catchup_by_default"),
+    catchup: Literal["enable", "disable", "ignore_first"] | bool = airflow_conf.get_default_value(
+        "scheduler", "catchup_by_default", fallback="enable"
+    ),
     on_success_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     on_failure_callback: None | DagStateChangeCallback | list[DagStateChangeCallback] = None,
     doc_md: str | None = None,

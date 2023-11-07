@@ -33,7 +33,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     default_args={"cluster_id": "your cluster", "rg_name": "your resource group", "region": "your region"},
     max_active_runs=1,
-    catchup=False,
+    catchup="disable",
 ) as dag:
     spark_pi = AnalyticDBSparkBatchOperator(
         task_id="task1",

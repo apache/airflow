@@ -31,7 +31,7 @@ DAG_ID = "example_local_to_adls"
 with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     schedule=None,
     tags=["example"],
 ) as dag:

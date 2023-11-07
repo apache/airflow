@@ -91,7 +91,7 @@ with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "workflows"],
 ) as dag:
     # [START how_to_create_workflow]

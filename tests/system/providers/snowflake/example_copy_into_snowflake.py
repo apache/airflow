@@ -44,7 +44,7 @@ with DAG(
     default_args={"snowflake_conn_id": SNOWFLAKE_CONN_ID},
     tags=["example"],
     schedule="@once",
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_s3_copy_into_snowflake]
     copy_into_table = CopyFromExternalStageToSnowflakeOperator(

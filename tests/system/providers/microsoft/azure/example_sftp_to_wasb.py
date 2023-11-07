@@ -47,7 +47,7 @@ def delete_sftp_file():
 with DAG(
     DAG_ID,
     schedule=None,
-    catchup=False,
+    catchup="disable",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
 ) as dag:
     transfer_files_to_sftp_step = SFTPOperator(

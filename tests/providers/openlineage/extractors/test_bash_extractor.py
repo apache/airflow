@@ -37,7 +37,7 @@ with DAG(
     description="Test dummy DAG",
     schedule="*/2 * * * *",
     start_date=datetime(2020, 1, 8),
-    catchup=False,
+    catchup="disable",
     max_active_runs=1,
 ) as dag:
     bash_task = BashOperator(task_id="bash-task", bash_command="ls -halt && exit 0", dag=dag)

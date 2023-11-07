@@ -90,7 +90,7 @@ with DAG(
     DAG_ID,
     start_date=datetime.datetime(2021, 1, 1),
     schedule="@once",
-    catchup=False,
+    catchup="disable",
     tags=["example", "dataproc", "metastore"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(

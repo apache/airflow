@@ -88,7 +88,7 @@ with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["dlp", "example"],
 ) as dag:
     # [START _howto_operator_dlp_deidentify_content]

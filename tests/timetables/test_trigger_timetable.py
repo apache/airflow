@@ -69,7 +69,7 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
     last_automated_data_interval: DataInterval | None,
     next_start_time: pendulum.DateTime,
 ) -> None:
-    """If ``catchup=False`` and start_date is a day before"""
+    """If ``catchup="disable"`` and start_date is a day before"""
     timetable = CronTriggerTimetable("30 16 * * *", timezone=TIMEZONE)
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,

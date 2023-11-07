@@ -45,7 +45,7 @@ def timetable():
 def test_no_runs_without_start_date(timetable):
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=None,
-        restriction=TimeRestriction(earliest=None, latest=None, catchup=False),
+        restriction=TimeRestriction(earliest=None, latest=None, catchup=Catchup.DISABLE),
     )
     assert next_info is None
 

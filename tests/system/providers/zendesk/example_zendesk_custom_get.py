@@ -40,7 +40,7 @@ with DAG(
     dag_id=DAG_ID,
     schedule=None,
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     fetch_organizations()
 

@@ -57,7 +57,7 @@ with DAG(
     dag_id="example_synapse_spark_job",
     start_date=datetime(2022, 1, 1),
     schedule=None,
-    catchup=False,
+    catchup="disable",
     default_args=default_args,
     tags=["example", "synapse"],
 ) as dag:

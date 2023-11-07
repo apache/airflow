@@ -65,7 +65,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     temp_file = create_temp_file()
     temp_file_path = cast(ObjectStoragePath, temp_file)

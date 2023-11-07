@@ -35,7 +35,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_airbyte_synchronous]
     sync_source_destination = AirbyteTriggerSyncOperator(

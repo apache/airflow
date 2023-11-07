@@ -292,7 +292,7 @@ def make_user_defined_macro_filter_dag():
             "next_execution_date": compute_next_execution_date,
         },
         user_defined_filters={"hello": lambda name: f"Hello {name}"},
-        catchup=False,
+        catchup="disable",
     )
     BashOperator(
         task_id="echo",

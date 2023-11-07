@@ -40,7 +40,7 @@ with DAG(
     start_date=START_DATE,
     dagrun_timeout=DAGRUN_TIMEOUT,
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_papermill]
     run_this = PapermillOperator(

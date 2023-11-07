@@ -32,7 +32,7 @@ with DAG(
     default_args={"bucket_name": "your bucket", "region": "your region"},
     max_active_runs=1,
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     create_bucket = OSSCreateBucketOperator(task_id="task1", region=REGION)
 

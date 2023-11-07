@@ -41,7 +41,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     default_args=default_args,
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_databricks_repo_create]
     # Example of creating a Databricks Repo

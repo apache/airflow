@@ -81,7 +81,7 @@ with DAG(
     f"{DAG_ID}_custom",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example", "vertex_ai", "custom_job"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(

@@ -44,7 +44,7 @@ with DAG(
     schedule="@daily",
     start_date=datetime(2021, 1, 1),
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     connection_id = "my_connection"
     sql_endpoint_name = "My Endpoint"

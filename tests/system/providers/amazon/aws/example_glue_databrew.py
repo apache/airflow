@@ -90,7 +90,9 @@ def delete_job(job_name: str):
     client.delete_job(Name=job_name)
 
 
-with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False) as dag:
+with DAG(
+    DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup="disable"
+) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]
     role_arn = test_context[ROLE_ARN_KEY]

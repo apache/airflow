@@ -161,7 +161,7 @@ def equal_time(a: datetime, b: datetime) -> bool:
                 schedule="*/10 * * * *",
                 default_args={"depends_on_past": True},
                 start_date=datetime.utcnow(),
-                catchup=False,
+                catchup="disable",
             ),
             DAT.DAG,
             lambda a, b: a.dag_id == b.dag_id and equal_time(a.start_date, b.start_date),

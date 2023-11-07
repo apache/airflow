@@ -35,7 +35,7 @@ with DAG(
     schedule="@daily",
     start_date=datetime(2021, 1, 1),
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     dag.doc_md = textwrap.dedent(
         """

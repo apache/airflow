@@ -32,10 +32,10 @@ def _catchup_backwards_compatibility(cls, value: str | bool) -> Catchup:
     should_warn = False
     if isinstance(value, bool):
         should_warn = True
-        value = "enabled" if value else "disabled"
+        value = "enable" if value else "disable"
     if value in ("True", "False"):
         should_warn = True
-        value = "enabled" if value == "True" else "disabled"
+        value = "enable" if value == "True" else "disable"
     if should_warn:
         warnings.warn(
             "Passing a boolean to Catchup is deprecated. "

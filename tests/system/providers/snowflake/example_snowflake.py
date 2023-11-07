@@ -46,7 +46,7 @@ with DAG(
     default_args={"snowflake_conn_id": SNOWFLAKE_CONN_ID},
     tags=["example"],
     schedule="@once",
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_snowflake]
     snowflake_op_sql_str = SnowflakeOperator(task_id="snowflake_op_sql_str", sql=CREATE_TABLE_SQL_STRING)

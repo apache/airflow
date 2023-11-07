@@ -78,7 +78,7 @@ class AfterWorkdayTimetable(Timetable):
             if next_start is None:  # No start_date. Don't schedule.
                 return None
             if not restriction.catchup:
-                # If the DAG has catchup=False, today is the earliest to consider.
+                # If the DAG has catchup="disable", today is the earliest to consider.
                 next_start = max(next_start, DateTime.combine(Date.today(), Time.min).replace(tzinfo=UTC))
             elif next_start.time() != Time.min:
                 # If earliest does not fall on midnight, skip to the next day.

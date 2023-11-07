@@ -29,7 +29,7 @@ with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_influxdb]
 

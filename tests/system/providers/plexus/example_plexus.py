@@ -33,7 +33,7 @@ with DAG(
     description="testing plexus operator",
     start_date=datetime(2021, 1, 1),
     schedule="@once",
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START plexus_job_op]
     t1 = PlexusJobOperator(

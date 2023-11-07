@@ -117,6 +117,7 @@ from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.catchup import Catchup
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.db import get_query_count
@@ -2897,7 +2898,7 @@ class Airflow(AirflowBaseView):
             )
 
             year = last_automated_data_interval.end.year
-            restriction = TimeRestriction(dag.start_date, dag.end_date, False, False)
+            restriction = TimeRestriction(dag.start_date, dag.end_date, Catchup.DISABLE)
             dates: dict[datetime.date, int] = collections.Counter()
 
             if isinstance(dag.timetable, CronMixin):

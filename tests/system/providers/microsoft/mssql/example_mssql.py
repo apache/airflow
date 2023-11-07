@@ -43,7 +43,7 @@ with DAG(
     schedule="@daily",
     start_date=datetime(2021, 10, 1),
     tags=["example"],
-    catchup=False,
+    catchup="disable",
 ) as dag:
     # [START howto_operator_mssql]
 

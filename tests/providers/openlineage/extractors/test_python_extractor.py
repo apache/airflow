@@ -39,7 +39,7 @@ dag = DAG(
     description="Test dummy DAG",
     schedule="*/2 * * * *",
     start_date=datetime(2020, 1, 8),
-    catchup=False,
+    catchup="disable",
     max_active_runs=1,
 )
 

@@ -37,7 +37,7 @@ with DAG(
     default_args={"retries": 1},
     schedule=timedelta(days=1),
     start_date=datetime(2018, 11, 1),
-    catchup=False,
+    catchup="disable",
     tags=["example"],
 ) as dag:
     t1 = AzureContainerInstancesOperator(

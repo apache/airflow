@@ -32,7 +32,7 @@ with DAG(
     default_args={"retries": 1},
     schedule=timedelta(minutes=10),
     start_date=datetime(2021, 1, 1),
-    catchup=False,
+    catchup="disable",
 ) as dag:
     t1 = BashOperator(task_id="print_date", bash_command="date")
 
