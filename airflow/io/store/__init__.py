@@ -34,7 +34,7 @@ class ObjectStore:
     conn_id: str | None
     protocol: str
 
-    _fs: AbstractFileSystem = None
+    _fs: AbstractFileSystem | None = None
 
     def __init__(self, protocol: str, conn_id: str | None, fs: AbstractFileSystem | None = None):
         self.conn_id = conn_id
@@ -46,8 +46,7 @@ class ObjectStore:
 
     @property
     def fs(self) -> AbstractFileSystem:
-        self._connect()
-        return self._fs
+        return self._connect()
 
     @property
     def fsid(self) -> str:
@@ -59,9 +58,9 @@ class ObjectStore:
 
         :return: deterministic the filesystem ID
         """
-        self._connect()
+        fs = self._connect()
         try:
-            return self._fs.fsid
+            return fs.fsid
         except NotImplementedError:
             return f"{self.fs.protocol}-{self.conn_id or 'env'}"
 
@@ -82,21 +81,21 @@ class ObjectStore:
 
         alias = f"{protocol}-{conn_id}" if conn_id else protocol
 
-        if store := _STORE_CACHE.get(alias, None):
+        if store := _STORE_CACHE.get(alias):
             return store
 
-        if not has_fs(protocol):
-            if "filesystem" in data and data["filesystem"]:
-                raise ValueError(
-                    f"No attached filesystem found for {data['filesystem']} with "
-                    f"protocol {data['protocol']}. Please use attach() for this protocol and filesystem."
-                )
+        if not has_fs(protocol) and "filesystem" in data and data["filesystem"]:
+            raise ValueError(
+                f"No attached filesystem found for {data['filesystem']} with "
+                f"protocol {data['protocol']}. Please use attach() for this protocol and filesystem."
+            )
 
         return attach(protocol=protocol, conn_id=conn_id)
 
-    def _connect(self):
+    def _connect(self) -> AbstractFileSystem:
         if self._fs is None:
             self._fs = get_fs(self.protocol, self.conn_id)
+        return self._fs
 
     def __eq__(self, other):
         return isinstance(other, type(self)) and other.conn_id == self.conn_id and other._fs == self._fs
@@ -122,7 +121,7 @@ def attach(
     :param fs: the filesystem type to use to connect to the filesystem
     """
     if alias:
-        if store := _STORE_CACHE.get(alias, None):
+        if store := _STORE_CACHE.get(alias):
             return store
         elif not protocol:
             raise ValueError(f"No registered store with alias: {alias}")
@@ -135,7 +134,6 @@ def attach(
         if store := _STORE_CACHE.get(alias, None):
             return store
 
-    store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs)
-    _STORE_CACHE[alias] = store
+    _STORE_CACHE[alias] = store = ObjectStore(protocol=protocol, conn_id=conn_id, fs=fs)
 
     return store
