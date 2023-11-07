@@ -777,7 +777,7 @@ class TestAwsEcsExecutor:
             ],
         }
         patcher = mock.patch(
-            "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor.success", auth_spec=True
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.success", auth_spec=True
         )
         mock_success_function = patcher.start()
         mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
@@ -803,7 +803,7 @@ class TestAwsEcsExecutor:
                 }
             ],
         }
-        patcher = mock.patch("airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor.fail", auth_spec=True)
+        patcher = mock.patch("airflow.providers.amazon.aws.executors.ecs_executor.ecs.AwsEcsExecutor.fail", auth_spec=True)
         mock_failed_function = patcher.start()
         mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
         mock_executor.sync_running_tasks()
