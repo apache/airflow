@@ -381,6 +381,8 @@ class PodManager(LoggingMixin):
         Between when the pod starts and logs being available, there might be a delay due to CSR not approved
         and signed yet. In such situation, ApiException is thrown. This is why we are retrying on this
         specific exception.
+
+        :meta private:
         """
 
         @tenacity.retry(
@@ -476,53 +478,68 @@ class PodManager(LoggingMixin):
             else:  # follow requested, but container is done
                 break
 
-    def fetch_requested_container_logs(
-        self, pod: V1Pod, container_logs: Iterable[str] | str | Literal[True], follow_logs=False
-    ) -> None:
-        """
-        Follow the logs of containers in the specified pod and publish it to airflow logging.
-
-        Returns when all the containers exit.
-        """
-        all_containers = self.get_container_names(pod)
-        if all_containers:
-            if isinstance(container_logs, str):
+    def _reconcile_requested_log_containers(
+        self, requested: Iterable[str] | str | bool, actual: list[str], pod_name
+    ) -> list[str]:
+        """Return actual containers based on requested."""
+        containers_to_log = []
+        if actual:
+            if isinstance(requested, str):
                 # fetch logs only for requested container if only one container is provided
-                if container_logs in all_containers:
-                    self.fetch_container_logs(pod=pod, container_name=container_logs, follow=follow_logs)
+                if requested in actual:
+                    containers_to_log.append(requested)
                 else:
                     self.log.error(
                         "container %s whose logs were requested not found in the pod %s",
-                        container_logs,
-                        pod.metadata.name,
+                        requested,
+                        pod_name,
                     )
-            elif isinstance(container_logs, bool):
+            elif isinstance(requested, bool):
                 # if True is provided, get logs for all the containers
-                if container_logs is True:
-                    for container_name in all_containers:
-                        self.fetch_container_logs(pod=pod, container_name=container_name, follow=follow_logs)
+                if requested is True:
+                    containers_to_log.extend(actual)
                 else:
                     self.log.error(
                         "False is not a valid value for container_logs",
                     )
             else:
                 # if a sequence of containers are provided, iterate for every container in the pod
-                if isinstance(container_logs, Iterable):
-                    for container in container_logs:
-                        if container in all_containers:
-                            self.fetch_container_logs(pod=pod, container_name=container, follow=follow_logs)
+                if isinstance(requested, Iterable):
+                    for container in requested:
+                        if container in actual:
+                            containers_to_log.append(container)
                         else:
                             self.log.error(
                                 "Container %s whose logs were requests not found in the pod %s",
                                 container,
-                                pod.metadata.name,
+                                pod_name,
                             )
                 else:
                     self.log.error(
-                        "Invalid type %s specified for container names input parameter", type(container_logs)
+                        "Invalid type %s specified for container names input parameter", type(requested)
                     )
         else:
-            self.log.error("Could not retrieve containers for the pod: %s", pod.metadata.name)
+            self.log.error("Could not retrieve containers for the pod: %s", pod_name)
+        return containers_to_log
+
+    def fetch_requested_container_logs(
+        self, pod: V1Pod, containers: Iterable[str] | str | Literal[True], follow_logs=False
+    ) -> None:
+        """
+        Follow the logs of containers in the specified pod and publish it to airflow logging.
+
+        Returns when all the containers exit.
+
+        :meta private:
+        """
+        all_containers = self.get_container_names(pod)
+        containers_to_log = self._reconcile_requested_log_containers(
+            requested=containers,
+            actual=all_containers,
+            pod_name=pod.metadata.name,
+        )
+        for c in containers_to_log:
+            self.fetch_container_logs(pod=pod, container_name=c, follow=follow_logs)
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
         """
