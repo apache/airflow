@@ -41,9 +41,10 @@ of the community works and you might need to get some mentorship from other memb
 community - mostly committers. Mentoring new members of the community is part of committers
 job so do not be afraid of asking committers to help you. You can do it
 via comments in your Pull Request, asking on a devlist or via Slack. For your convenience,
-we have a dedicated #newbie-questions Slack channel where you can ask any questions
-you want - it's a safe space where it is expected that people asking questions do not know
-a lot about Airflow (yet!).
+we have a dedicated #development-first-pr-support Slack channel where you can ask any questions
+about making your first pull request contribution to the Airflow codebase - it's a safe space
+where it is expected that people asking questions do not know a lot Airflow (yet!).
+If you need help with Airflow see the Slack channel #troubleshooting.
 
 To check on how mentoring works for the projects under Apache Software Foundation's
 `Apache Community Development - Mentoring <https://community.apache.org/mentoring/>`_.
