@@ -105,7 +105,7 @@ class SqlToS3Operator(BaseOperator):
         s3_key: str,
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
-        parameters: None | Mapping | Iterable = None,
+        parameters: None | Mapping[str, Any] | list | tuple = None,
         replace: bool = False,
         aws_conn_id: str = "aws_default",
         verify: bool | str | None = None,
