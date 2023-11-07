@@ -228,7 +228,6 @@ class BaseAwsLinksTestCase:
     def test_suppress_error_on_xcom_pull(self):
         """Test ignore any error on XCom pull"""
         with mock.patch.object(XCom, "get_value", side_effect=OSError("FakeError")) as m:
-            # m.get_value = mock.MagicMock(name="Foo")
             op, ti = self.create_op_and_ti(
                 self.link_class, dag_id="test_error_on_xcom_pull", task_id=self.task_id
             )
