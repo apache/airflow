@@ -16,11 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from tests.test_utils.mock_operators import MockOperator
+from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
+from tests.providers.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
 
 
-def link_test_operator(*links):
-    class LinkTestOperator(MockOperator):
-        operator_extra_links = tuple(c() for c in links)
+class TestGlueJobRunDetailsLink(BaseAwsLinksTestCase):
+    link_class = GlueJobRunDetailsLink
 
-    return LinkTestOperator
+    def test_extra_link(self):
+        self.assert_extra_link_url(
+            expected_url=(
+                "https://console.aws.amazon.com/gluestudio/home"
+                "?region=ap-southeast-2#/job/test_job_name/run/11111"
+            ),
+            region_name="ap-southeast-2",
+            aws_partition="aws",
+            job_run_id="11111",
+            job_name="test_job_name",
+        )
