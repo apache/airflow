@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import warnings
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.slack.hooks.slack import SlackHook
@@ -74,7 +74,7 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         sql: str,
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
-        parameters: Iterable | Mapping[str, Any] | None = None,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
         slack_conn_id: str = SlackHook.default_conn_name,
         slack_filename: str,
         slack_channels: str | Sequence[str] | None = None,
