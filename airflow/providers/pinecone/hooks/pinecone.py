@@ -138,7 +138,6 @@ class PineconeHook(BaseHook):
     def create_index(
         index_name: str,
         dimension: int,
-        timeout: int | None = None,
         index_type: str | None = "approximated",
         metric: str | None = "cosine",
         replicas: int | None = 1,
@@ -148,6 +147,7 @@ class PineconeHook(BaseHook):
         index_config: dict[str, str] | None = None,
         metadata_config: dict[str, str] | None = None,
         source_collection: str | None = "",
+        timeout: int | None = None,
     ) -> None:
         """
         Create a new index.
