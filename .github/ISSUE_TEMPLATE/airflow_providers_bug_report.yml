@@ -87,6 +87,7 @@ body:
         - oracle
         - pagerduty
         - papermill
+        - pgvector
         - pinecone
         - plexus
         - postgres

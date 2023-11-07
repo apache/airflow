@@ -196,6 +196,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | pagerduty           | ``pip install 'apache-airflow[pagerduty]'``         | Pagerduty hook                                      |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| pgvector            | ``pip install 'apache-airflow[pgvector]'``          | pgvector operators and hook                         |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | pinecone            | ``pip install 'apache-airflow[pinecone]'``          | Pinecone Operators and Hooks                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | plexus              | ``pip install 'apache-airflow[plexus]'``            | Plexus service of CoreScientific.com AI platform    |
