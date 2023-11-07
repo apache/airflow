@@ -383,11 +383,6 @@ class PodManager(LoggingMixin):
         specific exception.
         """
 
-        @tenacity.retry(
-            retry=tenacity.retry_if_exception_type(ApiException),
-            stop=tenacity.stop_after_attempt(10),
-            wait=tenacity.wait_fixed(1),
-        )
         def consume_logs(
             *,
             since_time: DateTime | None = None,
