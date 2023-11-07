@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from importlib import import_module
 
-from flask import g, redirect
+from flask import g, redirect, request
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -69,5 +69,8 @@ def init_api_experimental_auth(app):
 def init_check_user_active(app):
     @app.before_request
     def check_user_active():
+        url_logout = get_auth_manager().get_url_logout()
+        if request.path == url_logout:
+            return
         if get_auth_manager().is_logged_in() and not g.user.is_active:
-            return redirect(get_auth_manager().get_url_logout())
+            return redirect(url_logout)
