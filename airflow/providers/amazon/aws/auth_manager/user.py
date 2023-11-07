@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,16 +16,29 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
+from airflow.auth.managers.models.base_user import BaseUser
 
 
-class BaseUser:
-    """User model interface."""
+class AwsAuthManagerUser(BaseUser):
+    """
+    User model for users managed by the AWS Auth Manager.
 
-    @property
-    def is_active(self) -> bool:
-        return True
+    :param user_id: The user ID.
+    :param groups: The groups the user belongs to.
+    :param username: The username of the user.
+    :param email: The email of the user.
+    """
 
-    @abstractmethod
+    def __init__(
+        self, *, user_id: str, groups: list[str], username: str | None = None, email: str | None = None
+    ) -> None:
+        self.user_id = user_id
+        self.groups = groups
+        self.username = username
+        self.email = email
+
     def get_id(self) -> str:
-        ...
+        return self.user_id
+
+    def get_user_name(self) -> str:
+        return self.username or self.email or self.user_id

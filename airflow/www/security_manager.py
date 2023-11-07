@@ -247,6 +247,10 @@ class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
             return dm.root_dag_id or dm.dag_id
         return dag_id
 
+    def register_views(self):
+        """Allow auth managers to register their own views. By default, do nothing."""
+        pass
+
     @staticmethod
     def get_user_roles(user=None):
         """

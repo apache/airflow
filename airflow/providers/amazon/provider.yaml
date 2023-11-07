@@ -90,6 +90,7 @@ dependencies:
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
   - asgiref
+  - python3-saml
 
 integrations:
   - integration-name: Amazon Athena
@@ -894,6 +895,17 @@ config:
         type: boolean
         example: "True"
         default: "True"
+      #####################################
+      # Config specific to AWS auth manager
+      #####################################
+      auth_manager_saml_metadata_url:
+        description: |
+          SAML metadata XML file provided by AWS Identity Center.
+          This URL can be found in the AWS Identity Center console. Required.
+        version_added: 10.0.0
+        type: string
+        example: ~
+        default: ~
 
 executors:
   - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor

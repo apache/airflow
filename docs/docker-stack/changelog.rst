@@ -50,6 +50,9 @@ Airflow 2.7
 
 * 2.7.3
 
+  * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD
+    image as it is required by ``python3-saml`` library.
+
   * Add experimental feature for select type of MySQL Client libraries during the build custom image via ``INSTALL_MYSQL_CLIENT_TYPE``
     build arg. ``mysql`` for install MySQL client libraries from `Oracle APT repository <https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/>`_,
     ``mariadb`` for install MariaDB client libraries from `MariaDB repository <https://mariadb.com/kb/en/mariadb-package-repository-setup-and-usage/#mariadb-repository>`_.

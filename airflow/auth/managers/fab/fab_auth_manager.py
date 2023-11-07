@@ -186,10 +186,6 @@ class FabAuthManager(BaseAuthManager):
 
         return current_user
 
-    def get_user_id(self) -> str:
-        """Return the user ID associated to the user in session."""
-        return str(self.get_user().get_id())
-
     def init(self) -> None:
         """Run operations when Airflow is initializing."""
         self._sync_appbuilder_roles()

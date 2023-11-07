@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,18 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+# Configuration keys
 from __future__ import annotations
 
-from abc import abstractmethod
-
-
-class BaseUser:
-    """User model interface."""
-
-    @property
-    def is_active(self) -> bool:
-        return True
-
-    @abstractmethod
-    def get_id(self) -> str:
-        ...
+CONF_SECTION_NAME = "aws"
+CONF_SAML_METADATA_URL_KEY = "auth_manager_saml_metadata_url"

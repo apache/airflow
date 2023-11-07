@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,16 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from abc import abstractmethod
+from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 
 
-class BaseUser:
-    """User model interface."""
+# TODO: Extends from  ``AirflowSecurityManagerV2`` instead of ``FabAirflowSecurityManagerOverride``
+#  when the work on the security managers is done.
+class AwsSecurityManagerOverride(FabAirflowSecurityManagerOverride):
+    """This security manager override specific to AWS auth manager."""
 
-    @property
-    def is_active(self) -> bool:
-        return True
-
-    @abstractmethod
-    def get_id(self) -> str:
-        ...
+    def register_views(self):
+        """Register views specific to AWS auth manager."""
+        self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())

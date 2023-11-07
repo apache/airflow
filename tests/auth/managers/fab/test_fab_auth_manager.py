@@ -132,15 +132,6 @@ class TestFabAuthManager:
         assert auth_manager.get_user() == user
 
     @mock.patch.object(FabAuthManager, "get_user")
-    def test_get_user_id(self, mock_get_user, auth_manager):
-        user_id = "test"
-        user = Mock()
-        user.get_id.return_value = user_id
-        mock_get_user.return_value = user
-
-        assert auth_manager.get_user_id() == user_id
-
-    @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in(self, mock_get_user, auth_manager):
         user = Mock()
         user.is_anonymous.return_value = True
