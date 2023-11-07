@@ -25,9 +25,8 @@ from airflow.providers.openai.hooks.openai import OpenAIHook
 
 @pytest.fixture
 def openai_hook():
-    with (
-        patch("airflow.providers.openai.hooks.openai.OpenAIHook._get_api_key"),
-        patch("airflow.providers.openai.hooks.openai.OpenAIHook._get_api_base"),
+    with patch("airflow.providers.openai.hooks.openai.OpenAIHook._get_api_key"), patch(
+        "airflow.providers.openai.hooks.openai.OpenAIHook._get_api_base"
     ):
         yield OpenAIHook(conn_id="test_conn_id")
 
