@@ -312,28 +312,28 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # If we hit the end of the log, remove the actual end_of_log message
         # to prevent it from showing in the UI.
-        def concat_logs(lines):
-            log_range = (len(lines) - 1) if lines[-1].message == self.end_of_log_mark else len(lines)
-            return "\n".join(self._format_msg(lines[i]) for i in range(log_range))
+        def concat_logs(hits: list[Hit]):
+            log_range = (len(hits) - 1) if hits[-1].message == self.end_of_log_mark else len(hits)
+            return "\n".join(self._format_msg(hits[i]) for i in range(log_range))
 
         if logs_by_host:
-            message = [(host, concat_logs(log)) for host, log in logs_by_host.items()]
+            message = [(host, concat_logs(hits)) for host, hits in logs_by_host.items()]
         else:
             message = []
         return message, metadata
 
-    def _format_msg(self, log_line):
+    def _format_msg(self, hit: Hit):
         """Format ES Record to match settings.LOG_FORMAT when used with json_format."""
         # Using formatter._style.format makes it future proof i.e.
         # if we change the formatter style from '%' to '{' or '$', this will still work
         if self.json_format:
             with contextlib.suppress(Exception):
                 return self.formatter._style.format(
-                    logging.makeLogRecord({**LOG_LINE_DEFAULTS, **log_line.to_dict()})
+                    logging.makeLogRecord({**LOG_LINE_DEFAULTS, **hit.to_dict()})
                 )
 
         # Just a safe-guard to preserve backwards-compatibility
-        return log_line.message
+        return hit.message
 
     def _es_read(self, log_id: str, offset: int | str) -> ElasticSearchResponse | None:
         """
