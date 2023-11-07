@@ -236,11 +236,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             return ""
         return value.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
-    def _group_logs_by_host(self, logs: ElasticSearchResponse) -> dict[str, list[Hit]]:
+    def _group_logs_by_host(self, response: ElasticSearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
-        for log in logs:
-            key = getattr_nested(log, self.host_field, None) or "default_host"
-            grouped_logs[key].append(log)
+        for hit in response:
+            key = getattr_nested(hit, self.host_field, None) or "default_host"
+            grouped_logs[key].append(hit)
         return grouped_logs
 
     def _read_grouped_logs(self):
@@ -265,10 +265,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
-        logs = self._es_read(log_id, offset)
-        if logs is not None:
-            logs_by_host = self._group_logs_by_host(logs)
-            next_offset = attrgetter(self.offset_field)(logs[-1])
+        response = self._es_read(log_id, offset)
+        if response is not None:
+            logs_by_host = self._group_logs_by_host(response)
+            next_offset = attrgetter(self.offset_field)(response[-1])
         else:
             logs_by_host = None
             next_offset = offset
