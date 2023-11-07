@@ -20,7 +20,7 @@ from __future__ import annotations
 import enum
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, cast
 
 from typing_extensions import Literal
 
@@ -196,10 +196,12 @@ class SqlToS3Operator(BaseOperator):
         """Partition dataframe using pandas groupby() method."""
         if not self.groupby_kwargs:
             yield "", df
-        else:
-            grouped_df = df.groupby(**self.groupby_kwargs)
-            for group_label in grouped_df.groups:
-                yield group_label, grouped_df.get_group(group_label).reset_index(drop=True)
+            return
+        for group_label in (grouped_df := df.groupby(**self.groupby_kwargs)).groups:
+            yield (
+                cast(str, group_label),
+                cast("pd.DataFrame", grouped_df.get_group(group_label).reset_index(drop=True)),
+            )
 
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
