@@ -198,7 +198,7 @@ class AwsEcsExecutor(BaseExecutor):
             self.__handle_failed_task(task.task_arn, task.stopped_reason)
         if task_state in (State.FAILED, State.SUCCESS):
             self.log.debug(
-                "Task %s marked as %s after running on ECS Task (arn) %s",
+                "Airflow task %s marked as %s after running on ECS Task (arn) %s",
                 task_key,
                 task_state,
                 task.task_arn,
