@@ -14,13 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from tests.test_utils.mock_operators import MockOperator
-
-
-def link_test_operator(*links):
-    class LinkTestOperator(MockOperator):
-        operator_extra_links = tuple(c() for c in links)
-
-    return LinkTestOperator
