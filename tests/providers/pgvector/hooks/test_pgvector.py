@@ -47,28 +47,11 @@ def test_create_extension(pg_vector_hook):
     pg_vector_hook.run.assert_called_with("CREATE EXTENSION IF NOT EXISTS timescaledb")
 
 
-def test_create_index(pg_vector_hook):
-    pg_vector_hook.run = Mock()
-    table_name = "my_table"
-    index_name = "my_index"
-    columns = ["id", "name"]
-    pg_vector_hook.create_index(table_name, index_name, columns, unique=True, if_not_exists=True)
-    expected_sql = "CREATE UNIQUE INDEX IF NOT EXISTS my_index ON my_table (id, name)"
-    pg_vector_hook.run.assert_called_with(expected_sql)
-
-
 def test_drop_table(pg_vector_hook):
     pg_vector_hook.run = Mock()
     table_name = "my_table"
     pg_vector_hook.drop_table(table_name, if_exists=True)
     pg_vector_hook.run.assert_called_with("DROP TABLE IF EXISTS my_table")
-
-
-def test_drop_index(pg_vector_hook):
-    pg_vector_hook.run = Mock()
-    index_name = "my_index"
-    pg_vector_hook.drop_index(index_name, if_exists=True)
-    pg_vector_hook.run.assert_called_with("DROP INDEX IF EXISTS my_index")
 
 
 def test_truncate_table(pg_vector_hook):

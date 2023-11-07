@@ -52,11 +52,6 @@ def example_pgvector_dag():
         extension_name = "vector"
         pg_hook.create_extension(extension_name)
 
-        # Create an index
-        index_name = "my_index"
-        columns_to_index = ["id", "name"]
-        pg_hook.create_index(TABLE_NAME, index_name, columns_to_index)
-
     # [START howto_operator_pgvector_ingest]
     pgvector_ingest = PgVectorIngestOperator(
         task_id="pgvector_ingest",
@@ -73,7 +68,6 @@ def example_pgvector_dag():
         """
         pg_hook = PgVectorHook(postgres_conn_id=POSTGRES_CONN_ID)
         pg_hook.truncate_table(TABLE_NAME)
-        pg_hook.drop_index("my_index")
         pg_hook.drop_table(TABLE_NAME)
 
     create_postgres_objects() >> pgvector_ingest >> cleanup_postgres_objects()

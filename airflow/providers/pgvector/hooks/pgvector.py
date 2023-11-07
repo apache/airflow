@@ -54,32 +54,6 @@ class PgVectorHook(PostgresHook):
         create_extension_sql = f"{create_extension_sql} {extension_name}"
         self.run(create_extension_sql)
 
-    def create_index(
-        self,
-        table_name: str,
-        index_name: str,
-        columns: list[str],
-        unique: bool = False,
-        if_not_exists: bool = True,
-    ) -> None:
-        """
-        Create an index on a table.
-
-        :param table_name: The name of the table on which to create the index.
-        :param index_name: The name of the index to create.
-        :param columns: A list of column names to index.
-        :param unique: If True, create a unique index.
-        :param if_not_exists: If True, only create the index if it does not already exist.
-        """
-        create_index_sql = "CREATE"
-        if unique:
-            create_index_sql = f"{create_index_sql} UNIQUE"
-        create_index_sql = f"{create_index_sql} INDEX"
-        if if_not_exists:
-            create_index_sql = f"{create_index_sql} IF NOT EXISTS"
-        create_index_sql = f"{create_index_sql} {index_name} ON {table_name} ({', '.join(columns)})"
-        self.run(create_index_sql)
-
     def drop_table(self, table_name: str, if_exists: bool = True) -> None:
         """
         Drop a table from the Postgres database.
@@ -92,19 +66,6 @@ class PgVectorHook(PostgresHook):
             drop_table_sql = f"{drop_table_sql} IF EXISTS"
         drop_table_sql = f"{drop_table_sql} {table_name}"
         self.run(drop_table_sql)
-
-    def drop_index(self, index_name: str, if_exists: bool = True) -> None:
-        """
-        Drop an index from the database.
-
-        :param index_name: The name of the index to drop.
-        :param if_exists: If True, only drop the index if it exists.
-        """
-        drop_index_sql = "DROP INDEX"
-        if if_exists:
-            drop_index_sql = f"{drop_index_sql} IF EXISTS"
-        drop_index_sql = f"{drop_index_sql} {index_name}"
-        self.run(drop_index_sql)
 
     def truncate_table(self, table_name: str, restart_identity: bool = True) -> None:
         """
