@@ -18,16 +18,16 @@
 """Hook for Pinecone."""
 from __future__ import annotations
 
+import itertools
 from typing import TYPE_CHECKING, Any
 
 import pinecone
-import itertools
 
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
-    from pinecone.core.client.models import UpsertResponse, DescribeIndexStatsResponse, QueryResponse
     from pinecone.core.client.model.sparse_values import SparseValues
+    from pinecone.core.client.models import DescribeIndexStatsResponse, QueryResponse, UpsertResponse
 
 
 class PineconeHook(BaseHook):
@@ -95,9 +95,7 @@ class PineconeHook(BaseHook):
 
     @staticmethod
     def list_indexes() -> Any:
-        """
-        Retrieve a list of all indexes in your project.
-        """
+        """Retrieve a list of all indexes in your project."""
         return pinecone.list_indexes()
 
     @staticmethod
@@ -244,9 +242,7 @@ class PineconeHook(BaseHook):
 
     @staticmethod
     def list_collections() -> Any:
-        """
-        Retrieve a list of all collections in the current project.
-        """
+        """Retrieve a list of all collections in the current project."""
         return pinecone.list_collections()
 
     @staticmethod
@@ -334,7 +330,9 @@ class PineconeHook(BaseHook):
         **kwargs: Any,
     ) -> DescribeIndexStatsResponse:
         """
-        Describes the index statistics returns statistics about the index's contents. For example: The vector count per
+        Describes the index statistics.
+
+        Returns statistics about the index's contents. For example: The vector count per
         namespace and the number of dimensions.
         API reference: https://docs.pinecone.io/reference/describe_index_stats_post
 

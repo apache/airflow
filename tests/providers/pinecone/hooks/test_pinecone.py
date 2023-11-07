@@ -124,9 +124,7 @@ class TestPineconeHook:
         self.pinecone_hook.upsert_data_async(index_name="test_index", data=data)
         mock_upsert_data_async.assert_called_once_with(index_name="test_index", data=data)
 
-    @patch(
-        "airflow.providers.pinecone.hooks.pinecone.PineconeHook.describe_index_stats"
-    )
+    @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.describe_index_stats")
     def test_describe_index_stats(self, mock_describe_index_stats):
         """
         Test that the describe_index_stats method of PineconeHook is called correctly.
