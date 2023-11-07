@@ -39,6 +39,7 @@ def override(appbuilder):
     return AwsSecurityManagerOverride(appbuilder)
 
 
+@pytest.mark.db_test
 class TestAwsSecurityManagerOverride:
     @patch(
         "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value", return_value="test"
