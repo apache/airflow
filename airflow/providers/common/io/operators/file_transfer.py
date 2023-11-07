@@ -68,12 +68,12 @@ class FileTransferOperator(BaseOperator):
         dst: ObjectStoragePath
 
         if isinstance(self.src, str):
-            src = ObjectStoragePath(self.src, self.source_conn_id)
+            src = ObjectStoragePath(self.src, conn_id=self.source_conn_id)
         else:
             src = self.src
 
         if isinstance(self.dst, str):
-            dst = ObjectStoragePath(self.dst, self.dst_conn_id)
+            dst = ObjectStoragePath(self.dst, conn_id=self.dst_conn_id)
         else:
             dst = self.dst
 
