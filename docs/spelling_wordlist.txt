@@ -496,6 +496,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+dotproduct
 DownloadReportV
 downscaling
 downstreams
@@ -1667,6 +1668,7 @@ updateonly
 Upsert
 upsert
 upserted
+upserting
 upserts
 Upsight
 upstreams
