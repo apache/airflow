@@ -51,7 +51,7 @@ class SlackWebhookNotifier(BaseNotifier):
     :param timeout: The maximum number of seconds the client will wait to connect. Optional
         and receive a response from Slack. Optional
     :param proxy: Proxy to make the Slack Incoming Webhook call. Optional
-    :param attachments: A list of attachments to send with the message. Optional
+    :param attachments: (legacy) A list of attachments to send with the message. Optional
     :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebhookClient``. Optional
     """
 

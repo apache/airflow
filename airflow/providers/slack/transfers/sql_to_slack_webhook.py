@@ -85,7 +85,7 @@ class SqlToSlackWebhookOperator(BaseSqlToSlackOperator):
         slack_channel: str | None = None,
         slack_message: str,
         results_df_name: str = "results_df",
-        parameters: Iterable | Mapping[str, Any] | None = None,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         if slack_conn_id := kwargs.pop("slack_conn_id", None):

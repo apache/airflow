@@ -16,11 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from tests.test_utils.mock_operators import MockOperator
+from unittest.mock import Mock
+
+from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
+from airflow.utils.context import Context
 
 
-def link_test_operator(*links):
-    class LinkTestOperator(MockOperator):
-        operator_extra_links = tuple(c() for c in links)
+def test_execute_with_input_text():
+    operator = OpenAIEmbeddingOperator(
+        task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text="Test input text"
+    )
+    mock_hook_instance = Mock()
+    mock_hook_instance.create_embeddings.return_value = [1.0, 2.0, 3.0]
+    operator.hook = mock_hook_instance
 
-    return LinkTestOperator
+    context = Context()
+    embeddings = operator.execute(context)
+
+    assert embeddings == [1.0, 2.0, 3.0]

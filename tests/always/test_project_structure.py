@@ -65,11 +65,6 @@ class TestProjectStructure:
             "tests/providers/amazon/aws/executors/ecs/test_utils.py",
             "tests/providers/amazon/aws/fs/test_s3.py",
             "tests/providers/amazon/aws/hooks/test_dms.py",
-            "tests/providers/amazon/aws/links/test_base_aws.py",
-            "tests/providers/amazon/aws/links/test_batch.py",
-            "tests/providers/amazon/aws/links/test_emr.py",
-            "tests/providers/amazon/aws/links/test_glue.py",
-            "tests/providers/amazon/aws/links/test_logs.py",
             "tests/providers/amazon/aws/operators/test_dms.py",
             "tests/providers/amazon/aws/operators/test_emr.py",
             "tests/providers/amazon/aws/operators/test_sagemaker.py",
@@ -611,10 +606,7 @@ class TestSlackProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.slack.transfers.base_sql_to_slack.BaseSqlToSlackOperator",
         "airflow.providers.slack.operators.slack.SlackAPIOperator",
     }
-    MISSING_EXAMPLES_FOR_CLASSES = {
-        "airflow.providers.slack.operators.slack.SlackAPIPostOperator",
-        "airflow.providers.slack.operators.slack_webhook.SlackWebhookOperator",
-    }
+    MISSING_EXAMPLES_FOR_CLASSES = set()
     DEPRECATED_CLASSES = {
         "airflow.providers.slack.notifications.slack_notifier.py.",
         "airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator",
