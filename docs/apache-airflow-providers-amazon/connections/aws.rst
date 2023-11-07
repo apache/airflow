@@ -243,7 +243,7 @@ With a AWS IAM key pair
 Reference as Jinja templated fields
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-To render the AWS credentials using Jinja template reference ``AWS_ACCESS_KEY_ID`` as ``login`` and ``AWS_SECRET_ACCESS_KEY`` as ``password``
+Due to `relabeling <https://github.com/apache/airflow/blob/5f4d2b5dee2e98a05124865c6fa855bc26d0af26/airflow/providers/amazon/aws/hooks/base_aws.py#L820-L823>`_ ``AWS Access Key ID`` can be rendered in jinja template using ``login`` field and ``AWS Secret Access Key`` using ``password``.
 
   .. code-block:: bash
 
