@@ -147,6 +147,7 @@ class ProviderPackageDetails(NamedTuple):
     versions: list[str]
     excluded_python_versions: list[str]
     plugins: list[PluginInfo]
+    removed: bool
 
 
 class EntityType(Enum):
@@ -345,9 +346,12 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
             return install_clause + ".dev0"
         return install_clause
 
-    install_requires = [
-        apply_version_suffix(clause) for clause in ALL_DEPENDENCIES[provider_package_id][DEPS]
-    ]
+    if provider_package_id in get_removed_provider_ids():
+        provider_info = get_provider_info_from_provider_yaml(provider_package_id)
+        dependencies = provider_info["dependencies"]
+    else:
+        dependencies = ALL_DEPENDENCIES[provider_package_id][DEPS]
+    install_requires = [apply_version_suffix(clause) for clause in dependencies]
     return "".join(f"\n    {ir}" for ir in install_requires)
 
 
@@ -369,6 +373,8 @@ def get_package_extras(provider_package_id: str) -> dict[str, list[str]]:
     :param provider_package_id: id of the package
     """
     if provider_package_id == "providers":
+        return {}
+    if provider_package_id in get_removed_provider_ids():
         return {}
     extras_dict: dict[str, list[str]] = {
         module: [get_pip_package_name(module)]
@@ -674,6 +680,8 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> list[str]
     :param provider_package_id: package id
     :return: list of cross-provider dependencies
     """
+    if provider_package_id in get_removed_provider_ids():
+        return []
     return ALL_DEPENDENCIES[provider_package_id][CROSS_PROVIDERS_DEPS]
 
 
@@ -1077,6 +1085,7 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
         versions=provider_info["versions"],
         excluded_python_versions=provider_info.get("excluded-python-versions") or [],
         plugins=plugins,
+        removed=provider_info.get("removed", False),
     )
 
 
@@ -1162,6 +1171,7 @@ def get_provider_jinja_context(
         "PLUGINS": provider_details.plugins,
         "MIN_AIRFLOW_VERSION": min_airflow_version,
         "PREINSTALLED_PROVIDER": provider_details.provider_package_id in PREINSTALLED_PROVIDERS,
+        "PROVIDER_REMOVED": provider_details.removed,
     }
     return context
 
@@ -1670,16 +1680,46 @@ def get_all_providers() -> list[str]:
     return list(ALL_PROVIDERS)
 
 
+def get_removed_provider_ids() -> list[str]:
+    """
+    Yields the ids of suspended providers.
+    """
+    import yaml
+
+    removed_provider_ids = []
+    for provider_path in PROVIDERS_PATH.rglob("provider.yaml"):
+        provider_yaml = yaml.safe_load(provider_path.read_text())
+        package_name = provider_yaml.get("package-name")
+        if provider_yaml.get("removed", False):
+            if not provider_yaml.get("suspended"):
+                console.print(
+                    f"[error]The provider {package_name} is marked for removal in provider.yaml, but "
+                    f"not suspended. Please suspend the provider first before removing it.\n"
+                )
+                sys.exit(1)
+            removed_provider_ids.append(package_name[len("apache-airflow-providers-") :].replace("-", "."))
+    return removed_provider_ids
+
+
 def verify_provider_package(provider_package_id: str) -> None:
     """Verifies if the provider package is good.
 
     :param provider_package_id: package id to verify
     """
     if provider_package_id not in get_all_providers():
-        console.print(f"[red]Wrong package name: {provider_package_id}[/]")
-        console.print("Use one of:")
-        console.print(get_all_providers())
-        raise Exception(f"The package {provider_package_id} is not a provider package.")
+        if provider_package_id in get_removed_provider_ids():
+            console.print()
+            console.print(
+                f"[yellow]The package: {provider_package_id} is suspended, but "
+                f"since you asked for it, it will be built [/]"
+            )
+            console.print()
+        else:
+            console.print(f"[red]Wrong package name: {provider_package_id}[/]")
+            console.print("Use one of:")
+            console.print(get_all_providers())
+            console.print(f"[red]The package {provider_package_id} is not a provider package.")
+            sys.exit(1)
 
 
 def verify_changelog_exists(package: str) -> str:

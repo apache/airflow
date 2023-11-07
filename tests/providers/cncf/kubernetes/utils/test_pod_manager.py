@@ -421,7 +421,7 @@ class TestPodManager:
         )
 
         self.pod_manager.fetch_requested_container_logs(
-            pod=mock_pod, container_logs=container_logs, follow_logs=follow
+            pod=mock_pod, containers=container_logs, follow_logs=follow
         )
         calls = {tuple(x[1].values()) for x in container_is_running.call_args_list}
         pod = self.pod_manager.read_pod.return_value
