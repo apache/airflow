@@ -19,6 +19,6 @@ set -euxo pipefail
 
 cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
 
-python -m pip install pipx packaging==23.1
+python -m pip install "pipx>=1.2.1"
 python -m pipx install --editable ./dev/breeze/ --force
 echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"
