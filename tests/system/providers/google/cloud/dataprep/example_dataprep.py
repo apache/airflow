@@ -100,7 +100,7 @@ with models.DAG(
             conn_type="dataprep",
             extra={"token": DATAPREP_TOKEN},
         )
-        session: Session = Session()
+        session = Session()
         if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
             log.warning("Connection %s already exists", CONNECTION_ID)
             return None

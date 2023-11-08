@@ -22,7 +22,11 @@ from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusSend
 from azure.servicebus.management import QueueProperties, ServiceBusAdministrationClient
 
 from airflow.hooks.base import BaseHook
-from airflow.providers.microsoft.azure.utils import get_default_azure_credential, get_field
+from airflow.providers.microsoft.azure.utils import (
+    add_managed_identity_connection_widgets,
+    get_field,
+    get_sync_default_azure_credential,
+)
 
 if TYPE_CHECKING:
     from azure.identity import DefaultAzureCredential
@@ -42,6 +46,7 @@ class BaseAzureServiceBusHook(BaseHook):
     hook_name = "Azure Service Bus"
 
     @staticmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -53,12 +58,6 @@ class BaseAzureServiceBusHook(BaseHook):
                 lazy_gettext("Fully Qualified Namespace"), widget=BS3TextFieldWidget()
             ),
             "credential": PasswordField(lazy_gettext("Credential"), widget=BS3TextFieldWidget()),
-            "managed_identity_client_id": StringField(
-                lazy_gettext("Managed Identity Client ID"), widget=BS3TextFieldWidget()
-            ),
-            "workload_identity_tenant_id": StringField(
-                lazy_gettext("Workload Identity Tenant ID"), widget=BS3TextFieldWidget()
-            ),
         }
 
     @staticmethod
@@ -73,8 +72,6 @@ class BaseAzureServiceBusHook(BaseHook):
                 ),
                 "credential": "credential",
                 "schema": "Endpoint=sb://<Resource group>.servicebus.windows.net/;SharedAccessKeyName=<AccessKeyName>;SharedAccessKey=<SharedAccessKey>",
-                "managed_identity_client_id": "Managed Identity Client ID",
-                "workload_identity_tenant_id": "Workload Identity Tenant ID",
             },
         }
 
@@ -122,8 +119,9 @@ class AdminClientHook(BaseAzureServiceBusHook):
                 workload_identity_tenant_id = self._get_field(
                     extras=extras, field_name="workload_identity_tenant_id"
                 )
-                credential = get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
+                credential = get_sync_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
                 )
             client = ServiceBusAdministrationClient(
                 fully_qualified_namespace=fully_qualified_namespace,
@@ -214,8 +212,9 @@ class MessageHook(BaseAzureServiceBusHook):
                 workload_identity_tenant_id = self._get_field(
                     extras=extras, field_name="workload_identity_tenant_id"
                 )
-                credential = get_default_azure_credential(
-                    managed_identity_client_id, workload_identity_tenant_id
+                credential = get_sync_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
                 )
             client = ServiceBusClient(
                 fully_qualified_namespace=fully_qualified_namespace,

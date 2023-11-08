@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-cd repo || exit 1
+cd constraints || exit 1
 git config --local user.email "dev@airflow.apache.org"
 git config --local user.name "Automated GitHub Actions commit"
 git diff --color --exit-code --ignore-matching-lines="^#.*" || \

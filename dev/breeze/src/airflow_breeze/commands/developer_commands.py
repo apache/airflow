@@ -460,6 +460,10 @@ def build_docs(
         *doc_builder.args_doc_builder,
     ]
     process = run_command(cmd, text=True, env=env, check=False)
+    if process.returncode == 0:
+        get_console().print(
+            "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
+        )
     sys.exit(process.returncode)
 
 
@@ -621,6 +625,11 @@ def static_checks(
         command_to_execute.extend(file)
     if precommit_args:
         command_to_execute.extend(precommit_args)
+    skip_checks = os.environ.get("SKIP")
+    if skip_checks and skip_checks != "identity":
+        get_console().print("\nThis static check run skips those checks:\n")
+        get_console().print(skip_checks.split(","))
+        get_console().print()
     env = os.environ.copy()
     env["GITHUB_REPOSITORY"] = github_repository
     static_checks_result = run_command(

@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# TODO: FIXME - therea are a number of typing issues in those opensearch examples and they should be fixed
+# mypy: disable-error-code="call-arg,attr-defined"
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -96,7 +99,7 @@ with DAG(
 
     add_document_by_class = OpenSearchAddDocumentOperator(
         task_id="add_document_by_class",
-        doc_class=LogDocument(meta={"id": 2}, log_group_id=2, logger="airflow", message="hello airflow"),
+        doc_class=LogDocument(log_group_id=2, logger="airflow", message="hello airflow"),
     )
     # [END howto_operator_opensearch_add_document]
 
@@ -106,9 +109,9 @@ with DAG(
         index_name="system_test",
         query={"query": {"bool": {"must": {"match": {"message": "hello world"}}}}},
     )
-    search_object = (
-        Search().index(INDEX_NAME).filter("term", logger="airflow").query("match", message="hello airflow")
-    )
+    search = Search()
+    search.index = INDEX_NAME
+    search_object = search.filter("term", logger="airflow").query("match", message="hello airflow")
 
     search_high_level = OpenSearchQueryOperator(task_id="high_level_query", search_object=search_object)
     # [END howto_operator_opensearch_query]

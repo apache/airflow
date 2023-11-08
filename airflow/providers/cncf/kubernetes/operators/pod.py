@@ -55,6 +55,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    EMPTY_XCOM_RESULT,
     OnFinishAction,
     PodLaunchFailedException,
     PodManager,
@@ -576,7 +577,7 @@ class KubernetesPodOperator(BaseOperator):
     def extract_xcom(self, pod: k8s.V1Pod):
         """Retrieve xcom value and kill xcom sidecar container."""
         result = self.pod_manager.extract_xcom(pod)
-        if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
+        if isinstance(result, str) and result.rstrip() == EMPTY_XCOM_RESULT:
             self.log.info("xcom result file is empty.")
             return None
         else:
@@ -591,6 +592,7 @@ class KubernetesPodOperator(BaseOperator):
             return self.execute_sync(context)
 
     def execute_sync(self, context: Context):
+        result = None
         try:
             self.pod_request_obj = self.build_pod_request_obj(context)
             self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
@@ -609,7 +611,7 @@ class KubernetesPodOperator(BaseOperator):
             if self.get_logs:
                 self.pod_manager.fetch_requested_container_logs(
                     pod=self.pod,
-                    container_logs=self.container_logs,
+                    containers=self.container_logs,
                     follow_logs=True,
                 )
             if not self.get_logs or (

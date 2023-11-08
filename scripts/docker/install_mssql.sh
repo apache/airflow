@@ -48,6 +48,7 @@ function install_mssql_client() {
     distro=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
     version=$(lsb_release -rs)
     local driver=msodbcsql18
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
     curl --silent https://packages.microsoft.com/keys/microsoft.asc | apt-key add - >/dev/null 2>&1
     curl --silent "https://packages.microsoft.com/config/${distro}/${version}/prod.list" > \
         /etc/apt/sources.list.d/mssql-release.list

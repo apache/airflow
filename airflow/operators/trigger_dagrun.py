@@ -174,15 +174,14 @@ class TriggerDagRunOperator(BaseOperator):
                 self.log.info("Clearing %s on %s", self.trigger_dag_id, parsed_execution_date)
 
                 # Get target dag object and call clear()
-
                 dag_model = DagModel.get_current(self.trigger_dag_id)
                 if dag_model is None:
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
-                dag.clear(start_date=parsed_execution_date, end_date=parsed_execution_date)
                 dag_run = e.dag_run
+                dag.clear(start_date=dag_run.execution_date, end_date=dag_run.execution_date)
             else:
                 raise e
         if dag_run is None:

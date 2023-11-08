@@ -43,7 +43,7 @@ from airflow.providers.google.firebase.operators.firestore import CloudFirestore
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "example_firestore_to_gcp"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"

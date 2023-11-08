@@ -55,7 +55,6 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.auth.managers.fab.fab_auth_manager import MAP_METHOD_NAME_TO_FAB_ACTION_NAME
 from airflow.auth.managers.fab.models import (
     Action,
     Permission,
@@ -66,6 +65,7 @@ from airflow.auth.managers.fab.models import (
 )
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
 from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES
+from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
@@ -735,10 +735,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         )
         if not user_actions:
             user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
-        fab_action_name_to_method_name = {v: k for k, v in MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()}
+        method_from_fab_action_map = get_method_from_fab_action_map()
         user_methods: Container[ResourceMethod] = [
-            fab_action_name_to_method_name[action]
-            for action in fab_action_name_to_method_name
+            method_from_fab_action_map[action]
+            for action in method_from_fab_action_map
             if action in user_actions
         ]
         return get_auth_manager().get_permitted_dag_ids(user=user, methods=user_methods, session=session)
