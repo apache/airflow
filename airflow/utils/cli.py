@@ -269,7 +269,7 @@ def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
     """Fetch DAG from the database using pickling."""
     from airflow.models import DagPickle
 
-    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id)).first()
+    dag_pickle = session.scalar(select(DagPickle).where(DagPickle.id == pickle_id).limit(1))
     if not dag_pickle:
         raise AirflowException(f"pickle_id could not be found in DagPickle.id list: {pickle_id}")
     pickle_dag = dag_pickle.pickle

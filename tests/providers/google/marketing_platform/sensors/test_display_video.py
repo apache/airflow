@@ -77,7 +77,7 @@ class TestGoogleDisplayVideo360Sensor:
     @mock.patch(f"{MODULE_NAME}.GoogleDisplayVideo360Hook")
     @mock.patch(f"{MODULE_NAME}.BaseSensorOperator")
     def test_poke_with_exception(
-        self, mock_base_op, hook_mock, soft_fail: bool, expected_exception: AirflowException
+        self, mock_base_op, hook_mock, soft_fail: bool, expected_exception: type[AirflowException]
     ):
         operation_name = "operation_name"
         op = GoogleDisplayVideo360GetSDFDownloadOperationSensor(
@@ -89,4 +89,4 @@ class TestGoogleDisplayVideo360Sensor:
         hook_mock.return_value.get_sdf_download_operation.return_value = {"error": "error"}
 
         with pytest.raises(expected_exception, match="The operation finished in error with error"):
-            op.poke(context=None)
+            op.poke(context={})

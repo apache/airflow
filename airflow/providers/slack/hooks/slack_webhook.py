@@ -231,7 +231,7 @@ class SlackWebhookHook(BaseHook):
         :param unfurl_links: Option to indicate whether text url should unfurl.
         :param unfurl_media: Option to indicate whether media url should unfurl.
         :param headers: Request headers for this request.
-        :param attachments: A collection of attachments.
+        :param attachments: (legacy) A collection of attachments.
         """
         body = {
             "text": text,

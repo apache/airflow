@@ -35,7 +35,7 @@ from airflow.providers.google.cloud.operators.cloud_batch import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "example_cloud_batch"
 
 region = "us-central1"
