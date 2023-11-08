@@ -131,7 +131,7 @@ const Dag = () => {
 
   // parse value for each key if date or not
   // check "!Number.isNaN(value)" is needed due to 
-  // Date.parse() sometimes returning valid date for numbers.
+  // Date.parse() sometimes returning valid date's timestamp for numbers.
   const parseStringData = (value: string) =>
     Number.isNaN(Date.parse(value)) || !Number.isNaN(value) ? value : <Time dateTime={value} />;
 
