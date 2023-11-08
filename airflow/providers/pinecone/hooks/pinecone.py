@@ -52,8 +52,8 @@ class PineconeHook(BaseHook):
 
         return {
             "log_level": StringField(lazy_gettext("Log Level"), widget=BS3TextFieldWidget(), default=None),
-            "project_name": StringField(
-                lazy_gettext("Project Name"),
+            "project_id": StringField(
+                lazy_gettext("Project ID"),
                 widget=BS3TextFieldWidget(),
             ),
         }
@@ -76,13 +76,13 @@ class PineconeHook(BaseHook):
         pinecone_environment = pinecone_connection.login
         pinecone_host = pinecone_connection.host
         extras = pinecone_connection.extra_dejson
-        pinecone_project_name = extras.get("project_name")
+        pinecone_project_id = extras.get("project_id")
         log_level = extras.get("log_level", None)
         pinecone.init(
             api_key=api_key,
             environment=pinecone_environment,
             host=pinecone_host,
-            project_name=pinecone_project_name,
+            project_name=pinecone_project_id,
             log_level=log_level,
         )
 
