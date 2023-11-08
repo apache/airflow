@@ -129,11 +129,8 @@ const Dag = () => {
   const firstStart = dagRuns[0]?.startDate;
   const lastStart = dagRuns[dagRuns.length - 1]?.startDate;
 
-  console.log(String(1));
-  console.log(Date.parse(String(1)))
-
   // parse value for each key if date or not
-  // Check "!Number.isNaN(value)" is needed due to 
+  // check "!Number.isNaN(value)" is needed due to 
   // Date.parse() sometimes returning valid date for numbers.
   const parseStringData = (value: string) =>
     Number.isNaN(Date.parse(value)) || !Number.isNaN(value) ? value : <Time dateTime={value} />;
