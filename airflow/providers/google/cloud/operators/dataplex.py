@@ -1698,16 +1698,15 @@ class DataplexGetDataProfileScanResultOperator(GoogleCloudBaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-
         if job.state == DataScanJob.State.SUCCEEDED:
             self.log.info("Data Profile job executed successfully")
         else:
             self.log.info("Data Profile job execution returned status: %s", job.state)
 
-        result = DataScanJob.to_dict(job)
-        result["state"] = DataScanJob.State(result["state"]).name
+                result = DataScanJob.to_dict(job)
+                result["state"] = DataScanJob.State(result["state"]).name
 
-        return result
+                return result
 
 
     def execute_complete(self, context, event=None) -> None:
@@ -1730,6 +1729,7 @@ class DataplexGetDataProfileScanResultOperator(GoogleCloudBaseOperator):
             self.log.info("Data Profile job execution returned status: %s", job_state)
 
         return job
+
 
 class DataplexCreateZoneOperator(GoogleCloudBaseOperator):
     """
