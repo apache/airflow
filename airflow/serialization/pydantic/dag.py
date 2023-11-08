@@ -16,12 +16,36 @@
 # under the License.
 from __future__ import annotations
 
+import pathlib
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from pydantic import BaseModel as BaseModelPydantic
+from pydantic import BaseModel as BaseModelPydantic, PlainSerializer, PlainValidator, ValidationInfo
+from typing_extensions import Annotated
 
+from airflow import DAG, settings
 from airflow.configuration import conf as airflow_conf
+
+
+def serialize_operator(x: DAG) -> dict:
+    from airflow.serialization.serialized_objects import SerializedDAG
+
+    return SerializedDAG.serialize_dag(x)
+
+
+def validated_operator(x: DAG | dict[str, Any], _info: ValidationInfo) -> Any:
+    from airflow.serialization.serialized_objects import SerializedDAG
+
+    if isinstance(x, DAG):
+        return x
+    return SerializedDAG.deserialize_dag(x)
+
+
+PydanticDag = Annotated[
+    DAG,
+    PlainValidator(validated_operator),
+    PlainSerializer(serialize_operator, return_type=dict),
+]
 
 
 class DagOwnerAttributesPydantic(BaseModelPydantic):
@@ -75,6 +99,7 @@ class DagModelPydantic(BaseModelPydantic):
     timetable_description: Optional[str]
     tags: List[DagTagPydantic]  # noqa
     dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa
+    parent_dag: Optional[PydanticDag]
 
     max_active_tasks: int
     max_active_runs: Optional[int]
@@ -82,9 +107,25 @@ class DagModelPydantic(BaseModelPydantic):
     has_task_concurrency_limits: bool
     has_import_errors: Optional[bool] = False
 
+    _processor_dags_folder: Optional[str] = None
+
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
         orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
+
+    @property
+    def relative_fileloc(self) -> pathlib.Path:
+        """File location of the importable dag 'file' relative to the configured DAGs folder."""
+        path = pathlib.Path(self.fileloc)
+        try:
+            rel_path = path.relative_to(self._processor_dags_folder or settings.DAGS_FOLDER)
+            if rel_path == pathlib.Path("."):
+                return path
+            else:
+                return rel_path
+        except ValueError:
+            # Not relative to DAGS_FOLDER.
+            return path

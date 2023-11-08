@@ -24,8 +24,11 @@ from typing_extensions import Annotated
 
 from airflow.models import Operator
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -35,7 +38,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
-    from airflow.models.taskinstance import TaskInstance
     from airflow.utils.context import Context
     from airflow.utils.state import DagRunState
 
@@ -101,6 +103,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     task: PydanticOperator
     test_mode: bool
     dag_run: Optional[DagRunPydantic]
+    dag_model: DagModelPydantic
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
@@ -350,6 +353,86 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         from airflow.models.taskinstance import _get_previous_ti
 
         return _get_previous_ti(task_instance=self, state=state, session=session)
+
+    @provide_session
+    def check_and_change_state_before_execution(
+        self,
+        verbose: bool = True,
+        ignore_all_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_ti_state: bool = False,
+        mark_success: bool = False,
+        test_mode: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        external_executor_id: str | None = None,
+        session: Session = NEW_SESSION,
+    ) -> bool:
+        return TaskInstance._check_and_change_state_before_execution(
+            task_instance=self,
+            verbose=verbose,
+            ignore_all_deps=ignore_all_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
+            mark_success=mark_success,
+            test_mode=test_mode,
+            hostname=get_hostname(),
+            job_id=job_id,
+            pool=pool,
+            external_executor_id=external_executor_id,
+            session=session,
+        )
+
+    @provide_session
+    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
+        """
+        Schedule downstream tasks of this task instance.
+
+        :meta: private
+        """
+        return TaskInstance._schedule_downstream_tasks(
+            ti=self, sessions=session, max_tis_per_query=max_tis_per_query
+        )
+
+    def command_as_list(
+        self,
+        mark_success: bool = False,
+        ignore_all_deps: bool = False,
+        ignore_task_deps: bool = False,
+        ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
+        ignore_ti_state: bool = False,
+        local: bool = False,
+        pickle_id: int | None = None,
+        raw: bool = False,
+        job_id: str | None = None,
+        pool: str | None = None,
+        cfg_path: str | None = None,
+    ) -> list[str]:
+        """
+        Return a command that can be executed anywhere where airflow is installed.
+
+        This command is part of the message sent to executors by the orchestrator.
+        """
+        return TaskInstance._command_as_list(
+            ti=self,
+            mark_success=mark_success,
+            ignore_all_deps=ignore_all_deps,
+            ignore_task_deps=ignore_task_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+            ignore_ti_state=ignore_ti_state,
+            local=local,
+            pickle_id=pickle_id,
+            raw=raw,
+            job_id=job_id,
+            pool=pool,
+            cfg_path=cfg_path,
+        )
 
 
 TaskInstancePydantic.model_rebuild()
