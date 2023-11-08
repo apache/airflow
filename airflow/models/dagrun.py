@@ -47,7 +47,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select, true
-from sqlalchemy.ext.hybrid import hybrid_property
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -97,6 +96,7 @@ class TISchedulingDecision(NamedTuple):
     unfinished_tis: list[TI]
     finished_tis: list[TI]
 
+
 class ConfDict(dict):
     """Custom dictionary for storing only JSON serializable values"""
 
@@ -118,6 +118,15 @@ class ConfDict(dict):
             return conf
         else:
             raise AirflowException(f"Object of type {type(conf)} must be a dict")
+    
+    @staticmethod
+    def dump_check(conf: str) -> str:
+        val = json.loads(conf)
+        if isinstance(val, dict):
+            return conf
+        else:
+            raise TypeError(f"Object of type {type(val)} must be a dict")
+
 
 def _creator_note(val):
     """Creator the ``note`` association proxy."""
@@ -251,7 +260,12 @@ class DagRun(Base, LoggingMixin):
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-        self._conf = ConfDict(conf or {})
+        
+        if isinstance(conf, str):
+            self._conf = ConfDict.dump_check(conf)
+        else:
+            self._conf = ConfDict(conf or {})
+        
         if state is not None:
             self.state = state
         if queued_at is NOTSET:
@@ -281,13 +295,15 @@ class DagRun(Base, LoggingMixin):
             )
         return run_id
 
-    @hybrid_property
-    def conf(self):
+    def get_conf(self):
         return self._conf
 
-    @conf.setter
-    def conf(self, value):
+    def set_conf(self, value):
         self._conf = ConfDict(value)
+
+    @declared_attr
+    def conf(self):
+        return synonym("_conf", descriptor=property(self.get_conf, self.set_conf))
 
     @property
     def stats_tags(self) -> dict[str, str]:
