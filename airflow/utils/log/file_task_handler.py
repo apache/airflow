@@ -304,6 +304,16 @@ class FileTaskHandler(logging.Handler):
         executor = ExecutorLoader.get_default_executor()
         return executor.get_task_log
 
+    @cached_property
+    def _test_mode(self) -> bool:
+        """Pulls the unit test mode flag from config.
+
+        This lives in a function here to be cached and only hit the config once.
+        """
+        from airflow.configuration import conf
+
+        return conf.getboolean("core", "unit_test_mode")
+
     def _read(
         self,
         ti: TaskInstance,
@@ -357,7 +367,9 @@ class FileTaskHandler(logging.Handler):
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if is_running and not executor_messages:
+        if ti.task.inherits_from_empty_operator is True and self._test_mode is False:
+            executor_logs.append("Operator inherits from empty operator and thus does not have logs")
+        elif is_running and not executor_messages:
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
