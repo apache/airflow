@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-07T22:16:24Z
+# This constraints file was automatically generated on 2023-11-08T21:36:45Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -48,7 +48,7 @@ JPype1==1.4.1
 JayDeBeApi==1.2.3
 Jinja2==3.1.2
 Js2Py==0.74
-Mako==1.2.4
+Mako==1.3.0
 Markdown==3.5.1
 MarkupSafe==2.1.3
 PyGithub==2.1.1
@@ -86,7 +86,7 @@ alibabacloud-tea==0.3.3
 aliyun-python-sdk-core==2.14.0
 aliyun-python-sdk-kms==2.16.2
 amqp==5.2.0
-analytics-python==1.4.post1
+analytics-python==1.2.9
 annotated-types==0.6.0
 anyascii==0.3.2
 anyio==4.0.0
@@ -115,6 +115,7 @@ apache-airflow-providers-atlassian-jira==2.2.0
 apache-airflow-providers-celery==3.4.1
 apache-airflow-providers-cloudant==3.3.0
 apache-airflow-providers-cncf-kubernetes==7.8.0
+apache-airflow-providers-cohere==1.0.0rc1
 apache-airflow-providers-common-sql==1.8.0
 apache-airflow-providers-daskexecutor==1.1.0
 apache-airflow-providers-databricks==4.7.0
@@ -144,6 +145,7 @@ apache-airflow-providers-mongo==3.4.0
 apache-airflow-providers-mysql==5.4.0
 apache-airflow-providers-neo4j==3.4.0
 apache-airflow-providers-odbc==4.1.0
+apache-airflow-providers-openai==1.0.0rc1
 apache-airflow-providers-openfaas==3.3.0
 apache-airflow-providers-openlineage==1.2.0
 apache-airflow-providers-opensearch==1.0.0
@@ -151,8 +153,10 @@ apache-airflow-providers-opsgenie==5.2.0
 apache-airflow-providers-oracle==3.8.0
 apache-airflow-providers-pagerduty==3.4.0
 apache-airflow-providers-papermill==3.4.0
+apache-airflow-providers-pgvector==1.0.0rc1
+apache-airflow-providers-pinecone==1.0.0rc1
 apache-airflow-providers-plexus==3.3.0
-apache-airflow-providers-postgres==5.7.1
+apache-airflow-providers-postgres==5.8.0rc1
 apache-airflow-providers-presto==5.2.1
 apache-airflow-providers-redis==3.4.0
 apache-airflow-providers-salesforce==5.5.0
@@ -171,6 +175,7 @@ apache-airflow-providers-tabular==1.3.0
 apache-airflow-providers-telegram==4.2.0
 apache-airflow-providers-trino==5.4.0
 apache-airflow-providers-vertica==3.6.0
+apache-airflow-providers-weaviate==1.0.0rc1
 apache-airflow-providers-yandex==3.5.0
 apache-airflow-providers-zendesk==4.4.0
 apache-beam==2.51.0
@@ -209,16 +214,16 @@ azure-mgmt-resource==23.0.1
 azure-mgmt-storage==21.1.0
 azure-nspkg==3.0.2
 azure-servicebus==7.11.3
-azure-storage-blob==12.18.3
-azure-storage-file-datalake==12.13.2
-azure-storage-file-share==12.14.2
+azure-storage-blob==12.19.0
+azure-storage-file-datalake==12.14.0
+azure-storage-file-share==12.15.0
 azure-synapse-spark==0.7.0
-backoff==1.10.0
+backoff==2.2.1
 bcrypt==4.0.1
 beautifulsoup4==4.12.2
 billiard==4.2.0
 bitarray==2.8.2
-black==23.10.1
+black==23.11.0
 blinker==1.7.0
 boto3==1.28.64
 botocore==1.31.64
@@ -243,7 +248,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.32
+cohere==4.33
 colorama==0.4.6
 colorlog==4.8.0
 confluent-kafka==2.3.0
@@ -281,7 +286,7 @@ eventlet==0.33.3
 execnet==2.0.2
 executing==2.0.1
 facebook-business==18.0.4
-fastavro==1.9.0
+fastavro==1.8.2
 fasteners==0.19
 fastjsonschema==2.18.1
 filelock==3.13.1
@@ -423,7 +428,6 @@ mdit-py-plugins==0.4.0
 mdurl==0.1.2
 mmhash3==3.0.1
 mongomock==4.1.2
-monotonic==1.6
 more-itertools==10.1.0
 moto==4.2.7
 mpmath==1.3.0
@@ -435,7 +439,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.28.42
-mypy-boto3-rds==1.28.80
+mypy-boto3-rds==1.28.81
 mypy-boto3-redshift-data==1.28.36
 mypy-boto3-s3==1.28.55
 mypy-extensions==1.0.0
@@ -459,15 +463,15 @@ openlineage-python==1.5.0
 openlineage_sql==1.5.0
 openpyxl==3.1.2
 opensearch-py==2.3.2
-opentelemetry-api==1.20.0
-opentelemetry-exporter-otlp-proto-common==1.20.0
-opentelemetry-exporter-otlp-proto-grpc==1.20.0
-opentelemetry-exporter-otlp-proto-http==1.20.0
-opentelemetry-exporter-otlp==1.20.0
+opentelemetry-api==1.21.0
+opentelemetry-exporter-otlp-proto-common==1.21.0
+opentelemetry-exporter-otlp-proto-grpc==1.21.0
+opentelemetry-exporter-otlp-proto-http==1.21.0
+opentelemetry-exporter-otlp==1.21.0
 opentelemetry-exporter-prometheus==1.12.0rc1
-opentelemetry-proto==1.20.0
-opentelemetry-sdk==1.20.0
-opentelemetry-semantic-conventions==0.41b0
+opentelemetry-proto==1.21.0
+opentelemetry-sdk==1.21.0
+opentelemetry-semantic-conventions==0.42b0
 opsgenie-sdk==2.1.5
 oracledb==1.4.2
 ordered-set==4.1.0
@@ -649,7 +653,7 @@ time-machine==2.13.0
 tomlkit==0.12.2
 toolz==0.12.0
 tornado==6.3.3
-towncrier==23.10.0
+towncrier==23.11.0
 tqdm==4.66.1
 traitlets==5.13.0
 trino==0.327.0
@@ -694,7 +698,7 @@ websocket-client==1.6.4
 wrapt==1.15.0
 xmltodict==0.13.0
 yamllint==1.32.0
-yandexcloud==0.241.0
+yandexcloud==0.242.0
 yarl==1.9.2
 zeep==4.2.1
 zenpy==2.0.41
