@@ -1997,6 +1997,22 @@ class Airflow(AirflowBaseView):
                 ),
                 "warning",
             )
+        if allow_html_in_dag_docs and any("description_html" in p.schema for p in dag.params.values()):
+            flash(
+                Markup(
+                    "The form params use raw HTML in <code>description_html</code> which is deprecated. "
+                    "Please migrate to <code>description_md</code>."
+                ),
+                "warning",
+            )
+        if allow_html_in_dag_docs and any("custom_html_form" in p.schema for p in dag.params.values()):
+            flash(
+                Markup(
+                    "The form params use <code>custom_html_form</code> definition. "
+                    "This is deprecated with Airflow 2.8.0 and will be removed in a next release."
+                ),
+                "warning",
+            )
 
         ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
         show_trigger_form_if_no_params = conf.getboolean("webserver", "show_trigger_form_if_no_params")
