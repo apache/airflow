@@ -62,6 +62,7 @@ Committers
 - James Timmins (@jhtimmins)
 - Jarek Potiuk (@potiuk)
 - Jed Cunningham (@jedcunningham)
+- Jens Scheffler (@jscheffl)
 - Jiajie Zhong (@zhongjiajie)
 - Josh Fell (@josh-fell)
 - Joshua Carp (@jmcarp)
