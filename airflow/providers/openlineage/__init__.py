@@ -39,5 +39,5 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     "2.7.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-openlineage:{__version__}` requires Apache Airflow 2.7.0+"  # NOQA: E501
+        f"The package `apache-airflow-providers-openlineage:{__version__}` requires Apache Airflow 2.7.0+"
     )

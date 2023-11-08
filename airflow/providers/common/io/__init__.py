@@ -39,5 +39,5 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     "2.8.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-common-io:{__version__}` requires Apache Airflow 2.8.0+"  # NOQA: E501
+        f"The package `apache-airflow-providers-common-io:{__version__}` requires Apache Airflow 2.8.0+"
     )
