@@ -28,7 +28,7 @@ from collections import defaultdict, deque
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -42,6 +42,9 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     EcsQueuedTask,
     EcsTaskCollection,
 )
+from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+from airflow.providers.amazon.aws.utils.exponential_backoff_retry import exponential_backoff_retry
+from airflow.utils import timezone
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
@@ -91,15 +94,11 @@ class AwsEcsExecutor(BaseExecutor):
 
         self.cluster = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CLUSTER)
         self.container_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME)
-        aws_conn_id = conf.get(
-            CONFIG_GROUP_NAME,
-            AllEcsConfigKeys.AWS_CONN_ID,
-            fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
-        )
-        region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME)
-        from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+        self.attempts_since_last_successful_connection = 0
 
-        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
+        self.load_ecs_connection(check_connection=False)
+        self.IS_HEALTHY = False
+
         self.run_task_kwargs = self._load_run_kwargs()
 
     def start(self):
@@ -123,7 +122,6 @@ class AwsEcsExecutor(BaseExecutor):
             return
 
         self.log.info("Starting ECS Executor and determining health...")
-
         success_status = "succeeded."
         status = success_status
 
@@ -151,6 +149,8 @@ class AwsEcsExecutor(BaseExecutor):
         finally:
             msg_prefix = "ECS Executor health check has %s"
             if status == success_status:
+                self.attempts_since_last_successful_connection = 0
+                self.IS_HEALTHY = True
                 self.log.info(msg_prefix, status)
             else:
                 msg_error_suffix = (
@@ -159,10 +159,45 @@ class AwsEcsExecutor(BaseExecutor):
                 )
                 raise AirflowException(msg_prefix % status + msg_error_suffix)
 
+    def load_ecs_connection(self, check_connection: bool = True):
+        self.log.info("Loading Connection information")
+        aws_conn_id = conf.get(
+            CONFIG_GROUP_NAME,
+            AllEcsConfigKeys.AWS_CONN_ID,
+            fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
+        )
+        region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME)
+        self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
+        self.attempts_since_last_successful_connection += 1
+        self.last_connection_reload = timezone.utcnow()
+
+        if check_connection:
+            self.start()
+
     def sync(self):
+        if not self.IS_HEALTHY:
+            self.log.warning("Executor is unhealthy. Retrying connection.")
+            exponential_backoff_retry(
+                self.last_connection_reload,
+                self.attempts_since_last_successful_connection,
+                self.load_ecs_connection,
+            )
+            if not self.IS_HEALTHY:
+                return
         try:
             self.sync_running_tasks()
             self.attempt_task_runs()
+        except (ClientError, NoCredentialsError) as error:
+            self.IS_HEALTHY = False
+            self.log.warning(
+                f"From sync: AWS credentials are either missing or expired: {error}.\nRetrying connection"
+            )
+            exponential_backoff_retry(
+                self.last_connection_reload,
+                self.attempts_since_last_successful_connection,
+                self.load_ecs_connection,
+            )
+
         except Exception:
             # We catch any and all exceptions because otherwise they would bubble
             # up and kill the scheduler process
@@ -176,6 +211,8 @@ class AwsEcsExecutor(BaseExecutor):
             return
 
         describe_tasks_response = self.__describe_tasks(all_task_arns)
+
+        self.attempts_since_last_successful_connection = 0
         self.log.debug("Active Workers: %s", describe_tasks_response)
 
         if describe_tasks_response["failures"]:
@@ -288,6 +325,9 @@ class AwsEcsExecutor(BaseExecutor):
             _failure_reasons = []
             try:
                 run_task_response = self._run_task(task_key, cmd, queue, exec_config)
+            except (ClientError, NoCredentialsError):
+                self.pending_tasks.appendleft(ecs_task)
+                raise
             except Exception as e:
                 # Failed to even get a response back from the Boto3 API or something else went
                 # wrong.  For any possible failure we want to add the exception reasons to the
@@ -300,6 +340,7 @@ class AwsEcsExecutor(BaseExecutor):
                 # is added back to the pending list to be retried later.
                 if run_task_response["failures"]:
                     _failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
+                self.attempts_since_last_successful_connection = 0
 
             if _failure_reasons:
                 for reason in _failure_reasons:
