@@ -432,6 +432,10 @@ _devel_only_debuggers = [
     "ipdb",
 ]
 
+_devel_only_deltalake = [
+    "deltalake>=0.12.0",
+]
+
 _devel_only_devscripts = [
     "click>=8.0",
     "gitpython",
@@ -453,6 +457,10 @@ _devel_only_mongo = [
     "mongomock",
 ]
 
+_devel_only_iceberg = [
+    "pyiceberg>=0.5.0",
+]
+
 _devel_only_sentry = [
     "blinker",
 ]
@@ -462,7 +470,6 @@ _devel_only_static_checks = [
     "black",
     "ruff>=0.0.219",
     "yamllint",
-    "bandit",
 ]
 
 _devel_only_tests = [
@@ -490,9 +497,11 @@ devel_only = [
     *_devel_only_azure,
     *_devel_only_breeze,
     *_devel_only_debuggers,
+    *_devel_only_deltalake,
     *_devel_only_devscripts,
     *_devel_only_duckdb,
     *_devel_only_mongo,
+    *_devel_only_iceberg,
     *_devel_only_sentry,
     *_devel_only_static_checks,
     *_devel_only_tests,

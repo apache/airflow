@@ -69,10 +69,10 @@ class TestCloudBatchJobFinishedTrigger:
         """
         Tests the CloudBatchJobFinishedTrigger fires once the job execution reaches a successful state.
         """
-        state = JobStatus.State.SUCCEEDED
+        state = JobStatus.State(JobStatus.State.SUCCEEDED)
         mock_hook.return_value.get_batch_job.return_value = self._mock_job_with_state(state)
         generator = trigger.run()
-        actual = await generator.asend(None)
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
             TriggerEvent(
                 {
@@ -92,10 +92,10 @@ class TestCloudBatchJobFinishedTrigger:
         """
         Tests the CloudBatchJobFinishedTrigger fires once the job execution reaches a successful state.
         """
-        state = JobStatus.State.DELETION_IN_PROGRESS
+        state = JobStatus.State(JobStatus.State.DELETION_IN_PROGRESS)
         mock_hook.return_value.get_batch_job.return_value = self._mock_job_with_state(state)
         generator = trigger.run()
-        actual = await generator.asend(None)
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
             TriggerEvent(
                 {
@@ -116,7 +116,7 @@ class TestCloudBatchJobFinishedTrigger:
         """
         mock_hook.return_value.get_batch_job.side_effect = Exception("Test Exception")
         generator = trigger.run()
-        actual = await generator.asend(None)
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
             TriggerEvent(
                 {
@@ -142,7 +142,7 @@ class TestCloudBatchJobFinishedTrigger:
         mock_hook.return_value.get_batch_job = _mock_job
 
         generator = trigger.run()
-        actual = await generator.asend(None)
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
             TriggerEvent(
                 {

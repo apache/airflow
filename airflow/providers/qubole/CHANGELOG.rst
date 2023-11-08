@@ -27,12 +27,38 @@
 Changelog
 ---------
 
-.. note::
-  This release of provider is only available for Airflow 2.5+ as explained in the
-  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+3.4.3
+.....
+
+.. warning::
+
+   This is the last release of the provider.
+
+   This provider is not maintained anymore by the community. It has been removed and is not going to be
+   updated anymore. The removal was done according to the process described in
+   `Removing community providers <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#removing-community-providers>`_
+
+   Feel free to contact Airflow Development Mailing List if you have any questions.
+
+Misc
+~~~~
+
+* ``Suspend qubole provider (#33889)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add information about Qubole removal and make it possible to release it (#35492)``
+   * ``Switch from Black to Ruff formatter (#35287)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+   * ``Bump min airflow version of providers (#34728)``
 
 3.4.2
 .....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~

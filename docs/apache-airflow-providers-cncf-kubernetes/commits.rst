@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -29,6 +28,25 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+7.9.0
+.....
+
+Latest change: 2023-11-07
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`d6c79ce340 <https://github.com/apache/airflow/commit/d6c79ce340dd4cd088edfa92ed052d643ae3587d>`_  2023-11-07   ``Remove tenancity on KPO logs inner func consume_logs (#35504)``
+`68b3b7b468 <https://github.com/apache/airflow/commit/68b3b7b4683c8e06098dfa8820be18f253d55f47>`_  2023-11-07   ``Simplify KPO multi container log reconciliation logic (#35450)``
+`be2c3b9d9e <https://github.com/apache/airflow/commit/be2c3b9d9ee1140805716efd69eeba066e35bd23>`_  2023-11-05   ``Remove PodLoggingStatus object (#35422)``
+`c67a2b0413 <https://github.com/apache/airflow/commit/c67a2b0413994e799ed3f1969d7f0194683cba13>`_  2023-11-05   ``Use constant for empty xcom result sentinel (#35451)``
+`a61da3cc87 <https://github.com/apache/airflow/commit/a61da3cc8792db9944721874bbc172c2e96b27c0>`_  2023-11-04   ``Add verificationy that provider docs are as expected (#35424)``
+`2023a76037 <https://github.com/apache/airflow/commit/2023a76037f07a2003ace1d1a7497019316db7a6>`_  2023-11-03   ``Remove before_log in KPO retry and add traceback when interrupted (#35423)``
+`2b0bfea837 <https://github.com/apache/airflow/commit/2b0bfea8374ec0f0289763b064d6425df6d4270f>`_  2023-11-01   ``Add startup_check_interval_seconds to PodManager's await_pod_start (#34231)``
+`3724a029da <https://github.com/apache/airflow/commit/3724a029dadf4678d1cc89049b247f6d2bc233e2>`_  2023-11-01   ``Improve clear_not_launched_queued_tasks call duration (#34985)``
+`63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
+=================================================================================================  ===========  ===============================================================================
+
 7.8.0
 .....
 
@@ -37,6 +55,7 @@ Latest change: 2023-10-28
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `85f0ef35b8 <https://github.com/apache/airflow/commit/85f0ef35b831db61a4a6ac83f370cfff5323b842>`_  2023-10-27   ``Added to the rendering of KubernetesOperator V1VolumeMount, sub_path (#35129)``
 `d4002261b5 <https://github.com/apache/airflow/commit/d4002261b57236ffdca9a5790097f295794965cf>`_  2023-10-26   ``Replace blocking IO with async IO in AsyncKubernetesHook (#35162)``

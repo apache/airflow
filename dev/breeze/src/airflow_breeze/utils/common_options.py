@@ -30,6 +30,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MSSQL_VERSIONS,
@@ -131,6 +132,14 @@ option_python = click.option(
     show_default=True,
     help="Python major/minor version used in Airflow image for images.",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
+)
+option_debian_version = click.option(
+    "--debian-version",
+    type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
+    default=ALLOWED_DEBIAN_VERSIONS[0],
+    show_default=True,
+    help="Debian version used in Airflow image as base for building images.",
+    envvar="DEBIAN_VERSION",
 )
 option_backend = click.option(
     "-b",
@@ -449,7 +458,7 @@ argument_packages = click.argument(
     "packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(get_available_documentation_packages(short_version=True)),
+    type=NotVerifiedBetterChoice(get_available_documentation_packages(short_version=True)),
 )
 argument_short_doc_packages = click.argument(
     "short_doc_packages",
@@ -462,7 +471,7 @@ argument_short_doc_packages_with_providers_index = click.argument(
     "short_doc_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(
+    type=NotVerifiedBetterChoice(
         ["all-providers", PROVIDERS_INDEX_KEY, *get_available_documentation_packages(short_version=True)]
     ),
 )
@@ -517,7 +526,7 @@ option_pull = click.option(
 option_python_image = click.option(
     "--python-image",
     help="If specified this is the base python image used to build the image. "
-    "Should be something like: python:VERSION-slim-bullseye.",
+    "Should be something like: python:VERSION-slim-bookworm.",
     envvar="PYTHON_IMAGE",
 )
 option_builder = click.option(
