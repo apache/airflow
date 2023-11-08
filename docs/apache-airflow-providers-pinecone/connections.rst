@@ -39,5 +39,5 @@ Pinecone Environment (required)
 Pinecone API key (required)
     Specify your Pinecone API Key to connect.
 
-Project Name (required)
-    Project Name corresponding to your API Key.
+Project ID (required)
+    Project ID corresponding to your API Key.
