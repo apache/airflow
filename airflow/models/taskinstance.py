@@ -978,7 +978,7 @@ def _get_previous_execution_date(
     """
     log.debug("previous_execution_date was called")
     prev_ti = task_instance.get_previous_ti(state=state, session=session)
-    return prev_ti and pendulum.instance(prev_ti.execution_date)
+    return pendulum.instance(prev_ti.execution_date) if prev_ti and prev_ti.execution_date else None
 
 
 def _email_alert(
@@ -1161,7 +1161,7 @@ def _get_previous_ti(
     task_instance: TaskInstance | TaskInstancePydantic,
     session: Session,
     state: DagRunState | None = None,
-) -> TaskInstance | None:
+) -> TaskInstance | TaskInstancePydantic | None:
     """
     The task instance for the task that ran before this task instance.
 
@@ -1800,7 +1800,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         state: DagRunState | None = None,
         session: Session = NEW_SESSION,
-    ) -> TaskInstance | None:
+    ) -> TaskInstance | TaskInstancePydantic | None:
         """
         Return the task instance for the task that ran before this task instance.
 
@@ -1810,7 +1810,7 @@ class TaskInstance(Base, LoggingMixin):
         return _get_previous_ti(task_instance=self, state=state, session=session)
 
     @property
-    def previous_ti(self) -> TaskInstance | None:
+    def previous_ti(self) -> TaskInstance | TaskInstancePydantic | None:
         """
         This attribute is deprecated.
 
@@ -1827,7 +1827,7 @@ class TaskInstance(Base, LoggingMixin):
         return self.get_previous_ti()
 
     @property
-    def previous_ti_success(self) -> TaskInstance | None:
+    def previous_ti_success(self) -> TaskInstance | TaskInstancePydantic | None:
         """
         This attribute is deprecated.
 
@@ -1870,7 +1870,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("previous_start_date was called")
         prev_ti = self.get_previous_ti(state=state, session=session)
         # prev_ti may not exist and prev_ti.start_date may be None.
-        return prev_ti and prev_ti.start_date and pendulum.instance(prev_ti.start_date)
+        return pendulum.instance(prev_ti.start_date) if prev_ti and prev_ti.start_date else None
 
     @property
     def previous_start_date_success(self) -> pendulum.DateTime | None:
