@@ -74,6 +74,7 @@ def test_delegate_to_runtime_error():
         BigQueryHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
 
 
+@pytest.mark.db_test
 class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryConnection")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook._authorize")
@@ -1010,6 +1011,7 @@ class TestBigQueryTableSplitter:
             split_tablename(table_input, default_project_id, var_name)
 
 
+@pytest.mark.db_test
 class TestTableOperations(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
@@ -1204,6 +1206,7 @@ class TestTableOperations(_BigQueryBaseTestClass):
         )
 
 
+@pytest.mark.db_test
 class TestBigQueryCursor(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
@@ -1449,6 +1452,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         assert bq_cursor.arraysize == 10
 
 
+@pytest.mark.db_test
 class TestDatasetsOperations(_BigQueryBaseTestClass):
     def test_create_empty_dataset_no_dataset_id_err(self):
         with pytest.raises(ValueError, match=r"Please specify `datasetId`"):
@@ -1645,6 +1649,7 @@ class TestDatasetsOperations(_BigQueryBaseTestClass):
         assert result == dataset
 
 
+@pytest.mark.db_test
 class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_default(self, mock_insert):
@@ -1731,6 +1736,7 @@ class TestTimePartitioningInRunJob(_BigQueryBaseTestClass):
         assert tp_out == expect
 
 
+@pytest.mark.db_test
 class TestClusteringInRunJob(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_default(self, mock_insert):
@@ -1776,6 +1782,7 @@ class TestClusteringInRunJob(_BigQueryBaseTestClass):
         assert kwargs["configuration"]["query"]["clustering"] == {"fields": ["field1", "field2"]}
 
 
+@pytest.mark.db_test
 class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
     """Ensure `use_legacy_sql` param in `BigQueryHook` propagates properly."""
 
@@ -1801,6 +1808,7 @@ class TestBigQueryHookLegacySql(_BigQueryBaseTestClass):
         assert kwargs["configuration"]["query"]["useLegacySql"] is False
 
 
+@pytest.mark.db_test
 class TestBigQueryHookRunWithConfiguration(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.LoadJob")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
@@ -1823,6 +1831,7 @@ class TestBigQueryHookRunWithConfiguration(_BigQueryBaseTestClass):
         )
 
 
+@pytest.mark.db_test
 class TestBigQueryWithKMS(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
@@ -2067,6 +2076,7 @@ class TestBigQueryBaseCursorMethodsDeprecationWarning:
         assert re.search(f".*:func:`~{new_path}`.*", func.__doc__)
 
 
+@pytest.mark.db_test
 class TestBigQueryWithLabelsAndDescription(_BigQueryBaseTestClass):
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_run_load_labels(self, mock_insert):
@@ -2131,6 +2141,7 @@ class _BigQueryBaseAsyncTestClass:
 
 
 class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.ClientSession")
     async def test_get_job_instance(self, mock_session):
@@ -2302,6 +2313,7 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
 
         assert BigQueryAsyncHook._convert_to_float_if_possible(test_input) == expected
 
+    @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("aiohttp.client.ClientSession")
     async def test_get_table_client(self, mock_session):

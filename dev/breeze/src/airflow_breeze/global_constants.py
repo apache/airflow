@@ -44,11 +44,14 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
+# Database Backends used when starting Breeze. The "none" value means that invalid configuration
+# Is set and no database started - access to a database will fail.
+ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -68,7 +71,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
@@ -85,7 +88,7 @@ MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
 
 ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
-ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
+ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
 #  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
@@ -94,7 +97,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
 # See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
 MYSQL_LTS_RELEASES: list[str] = []
 MYSQL_OLD_RELEASES = ["8.0"]
-MYSQL_INNOVATION_RELEASE = "8.1"
+MYSQL_INNOVATION_RELEASE = "8.2"
 ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
@@ -122,21 +125,31 @@ def all_selective_test_types() -> tuple[str, ...]:
 class SelectiveUnitTestTypes(Enum):
     ALWAYS = "Always"
     API = "API"
+    BRANCH_PYTHON_VENV = "BranchPythonVenv"
+    EXTERNAL_PYTHON = "ExternalPython"
+    EXTERNAL_BRANCH_PYTHON = "BranchExternalPython"
     CLI = "CLI"
     CORE = "Core"
+    SERIALIZATION = "Serialization"
     OTHER = "Other"
     OPERATORS = "Operators"
+    PLAIN_ASSERTS = "PlainAsserts"
     PROVIDERS = "Providers"
+    PYTHON_VENV = "PythonVenv"
     WWW = "WWW"
 
 
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
+    "Default",
     *all_selective_test_types(),
-    "PlainAsserts",
-    "Postgres",
-    "MySQL",
-    "Quarantine",
+    "All-Postgres",
+    "All-MySQL",
+    "All-Quarantined",
+]
+
+ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
+    *all_selective_test_types(),
 ]
 
 
@@ -214,7 +227,7 @@ PYTHONDONTWRITEBYTECODE = True
 PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
+CURRENT_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 USE_MYSQL_INNOVATION_RELEASE = True
 if USE_MYSQL_INNOVATION_RELEASE:
@@ -282,6 +295,7 @@ COMMITTERS = [
     "XD-DENG",
     "aijamalnk",
     "alexvanboxel",
+    "amoghrajesh",
     "aoen",
     "artwr",
     "ashb",
@@ -313,6 +327,7 @@ COMMITTERS = [
     "msumit",
     "o-nikolas",
     "pankajastro",
+    "pankajkoti",
     "phanikumv",
     "pierrejeambrun",
     "pingzh",

@@ -81,7 +81,7 @@ with DAG(
         )
         conn.set_extra(conn_extra_json)
 
-        session: Session = Session()
+        session = Session()
         if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
             log.warning("Connection %s already exists", CONNECTION_ID)
             return None

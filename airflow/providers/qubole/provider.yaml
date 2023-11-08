@@ -21,12 +21,11 @@ name: Qubole
 description: |
     `Qubole <https://www.qubole.com/>`__
 
-# Qubole has been acquired and seems that maintainers have left the project
-# https://github.com/qubole/qds-sdk-py#where-are-the-maintainers-
-# the package has been unmaintained for a long time and it's likely no-one uses it
-# until someone steps up to maintain it, we suspend it
 suspended: true
+removed: true  # TODO: The provider is marked for removal after it's last release is prepared
+
 versions:
+  - 3.4.3
   - 3.4.2
   - 3.4.1
   - 3.4.0

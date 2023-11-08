@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any
 from unittest import mock
 
+import pytest
 from attrs import Factory, define, field
 from openlineage.client.facet import BaseFacet, ParentRunFacet, SqlJobFacet
 from openlineage.client.run import Dataset
@@ -32,12 +33,15 @@ from airflow.providers.openlineage.extractors.base import (
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 
+pytestmark = pytest.mark.db_test
+
+
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
-RUN_FACETS = {
+RUN_FACETS: dict[str, BaseFacet] = {
     "parent": ParentRunFacet.create("3bb703d1-09c1-4a42-8da5-35a0b3216072", "namespace", "parentjob")
 }
-JOB_FACETS = {"sql": SqlJobFacet(query="SELECT * FROM inputtable")}
+JOB_FACETS: dict[str, BaseFacet] = {"sql": SqlJobFacet(query="SELECT * FROM inputtable")}
 
 
 @define
@@ -45,7 +49,7 @@ class CompleteRunFacet(BaseFacet):
     finished: bool = field(default=False)
 
 
-FINISHED_FACETS = {"complete": CompleteRunFacet(True)}
+FINISHED_FACETS: dict[str, BaseFacet] = {"complete": CompleteRunFacet(True)}
 
 
 class ExampleOperator(BaseOperator):
@@ -138,7 +142,7 @@ class OperatorWrongOperatorLineageClass(BaseOperator):
 
 
 class BrokenOperator(BaseOperator):
-    get_openlineage_facets = []
+    get_openlineage_facets: list[BaseFacet] = []
 
     def execute(self, context) -> Any:
         pass

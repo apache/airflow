@@ -29,6 +29,8 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
+pytestmark = pytest.mark.db_test
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 

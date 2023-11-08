@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Configuration <configurations-ref>
     Connection types <connections/yandexcloud>
     Operators <operators>
 

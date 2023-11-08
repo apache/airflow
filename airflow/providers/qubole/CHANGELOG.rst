@@ -27,12 +27,31 @@
 Changelog
 ---------
 
-.. note::
-  This release of provider is only available for Airflow 2.5+ as explained in the
-  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+3.4.3
+.....
+
+.. warning::
+
+   This is the last release of the provider.
+
+   This provider is not maintained anymore by the community. It has been removed and is not going to be
+   updated anymore. The removal was done according to the process described in
+   `Removing community providers <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#removing-community-providers>`_
+
+   Feel free to contact Airflow Development Mailing List if you have any questions.
+
+Misc
+~~~~
+
+* ``The provider is removed and not maintained anymore by the Airflow Community``
+
 
 3.4.2
 .....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~

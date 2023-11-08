@@ -36,6 +36,8 @@ from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
+pytestmark = pytest.mark.db_test
+
 importlib_metadata_string = "importlib_metadata"
 
 try:
@@ -73,6 +75,7 @@ def clean_plugins():
     get_listener_manager().clear()
 
 
+@pytest.mark.db_test
 class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
     def _set_attrs(self, app):
@@ -143,6 +146,7 @@ class TestPluginsRBAC:
         assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
 
 
+@pytest.mark.db_test
 def test_flaskappbuilder_nomenu_views():
     from tests.plugins.test_plugin import v_nomenu_appbuilder_package
 

@@ -61,6 +61,7 @@ def init_jinja_globals(app):
             "default_ui_timezone": default_ui_timezone,
             "hostname": hostname,
             "navbar_color": conf.get("webserver", "NAVBAR_COLOR"),
+            "navbar_text_color": conf.get("webserver", "NAVBAR_TEXT_COLOR"),
             "log_fetch_delay_sec": conf.getint("webserver", "log_fetch_delay_sec", fallback=2),
             "log_auto_tailing_offset": conf.getint("webserver", "log_auto_tailing_offset", fallback=30),
             "log_animation_speed": conf.getint("webserver", "log_animation_speed", fallback=1000),

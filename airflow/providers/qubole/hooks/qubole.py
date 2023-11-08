@@ -175,12 +175,16 @@ class QuboleHook(BaseHook):
             time.sleep(Qubole.poll_interval)
             self.cmd = self.cls.find(self.cmd.id)  # type: ignore[attr-defined]
             self.log.info(
-                "Command Id: %s and Status: %s", self.cmd.id, self.cmd.status  # type: ignore[attr-defined]
+                "Command Id: %s and Status: %s",
+                self.cmd.id,
+                self.cmd.status,  # type: ignore[attr-defined]
             )
 
         if "fetch_logs" in self.kwargs and self.kwargs["fetch_logs"] is True:
             self.log.info(
-                "Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log()  # type: ignore[attr-defined]
+                "Logs for Command Id: %s \n%s",
+                self.cmd.id,
+                self.cmd.get_log(),  # type: ignore[attr-defined]
             )
 
         if self.cmd.status != "done":  # type: ignore[attr-defined]
@@ -236,9 +240,7 @@ class QuboleHook(BaseHook):
             self.cmd = self.cls.find(cmd_id)
 
         include_headers_str = "true" if include_headers else "false"
-        self.cmd.get_results(
-            fp, inline, delim, fetch, arguments=[include_headers_str]
-        )  # type: ignore[attr-defined]
+        self.cmd.get_results(fp, inline, delim, fetch, arguments=[include_headers_str])  # type: ignore[attr-defined]
         fp.flush()
         fp.close()
         return fp.name

@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 7.8.0
   - 7.7.0
   - 7.6.0
   - 7.5.1
@@ -341,3 +342,6 @@ config:
         type: string
         example: ~
         default: ""
+
+executors:
+  - airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor

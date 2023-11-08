@@ -35,6 +35,8 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
+pytestmark = pytest.mark.db_test
+
 
 class CustomXCom(BaseXCom):
     @classmethod
@@ -145,6 +147,21 @@ class TestGetXComEntry(TestXComEndpoint):
             "timestamp": "TIMESTAMP",
             "value": "TEST_VALUE",
         }
+
+    def test_should_raise_404_for_non_existent_xcom(self):
+        dag_id = "test-dag-id"
+        task_id = "test-task-id"
+        execution_date = "2005-04-02T00:00:00+00:00"
+        xcom_key = "test-xcom-key"
+        execution_date_parsed = parse_execution_date(execution_date)
+        run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+        self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key)
+        response = self.client.get(
+            f"/api/v1/dags/nonexistentdagid/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert 404 == response.status_code
+        assert response.json["title"] == "XCom entry not found"
 
     def test_should_raises_401_unauthenticated(self):
         dag_id = "test-dag-id"
@@ -450,6 +467,48 @@ class TestGetXComEntries(TestXComEndpoint):
         assert_expected_result([expected_entry1], map_index=0)
         assert_expected_result([expected_entry2], map_index=1)
         assert_expected_result([expected_entry1, expected_entry2], map_index=None)
+
+    def test_should_respond_200_with_xcom_key(self):
+        dag_id = "test-dag-id"
+        task_id = "test-task-id"
+        execution_date = "2005-04-02T00:00:00+00:00"
+        execution_date_parsed = parse_execution_date(execution_date)
+        dag_run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+        self._create_xcom_entries(dag_id, dag_run_id, execution_date_parsed, task_id, mapped_ti=True)
+
+        def assert_expected_result(expected_entries, key=None):
+            response = self.client.get(
+                "/api/v1/dags/~/dagRuns/~/taskInstances/~/xcomEntries" f"{('?xcom_key='+key )}",
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+
+            assert 200 == response.status_code
+            response_data = response.json
+            for xcom_entry in response_data["xcom_entries"]:
+                xcom_entry["timestamp"] = "TIMESTAMP"
+            assert response_data == {
+                "xcom_entries": expected_entries,
+                "total_entries": len(expected_entries),
+            }
+
+        expected_entry1 = {
+            "dag_id": dag_id,
+            "execution_date": execution_date,
+            "key": "test-xcom-key",
+            "task_id": task_id,
+            "timestamp": "TIMESTAMP",
+            "map_index": 0,
+        }
+        expected_entry2 = {
+            "dag_id": dag_id,
+            "execution_date": execution_date,
+            "key": "test-xcom-key",
+            "task_id": task_id,
+            "timestamp": "TIMESTAMP",
+            "map_index": 1,
+        }
+        assert_expected_result([expected_entry1, expected_entry2], key="test-xcom-key")
+        assert_expected_result([], key="test-xcom-key-1")
 
     def test_should_raises_401_unauthenticated(self):
         dag_id = "test-dag-id"

@@ -65,6 +65,9 @@ from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags, clear_db_xcom
 
+pytestmark = pytest.mark.db_test
+
+
 TASK_ID = "test-bq-generic-operator"
 TEST_DATASET = "test-dataset"
 TEST_DATASET_LOCATION = "EU"
@@ -507,6 +510,7 @@ class TestBigQueryUpdateDatasetOperator:
         )
 
 
+@pytest.mark.db_test
 class TestBigQueryOperator:
     def teardown_method(self):
         clear_db_xcom()
@@ -905,6 +909,7 @@ class TestBigQueryGetDataOperator:
             f"{TEST_DATASET}.{TEST_TABLE_ID}` limit 100"
         )
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_get_data_operator_async_with_selected_fields(
         self, mock_hook, create_task_instance_of_operator
@@ -933,6 +938,7 @@ class TestBigQueryGetDataOperator:
             exc.value.trigger, BigQueryGetDataTrigger
         ), "Trigger is not a BigQueryGetDataTrigger"
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("as_dict", [True, False])
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_get_data_operator_async_without_selected_fields(
@@ -1432,6 +1438,7 @@ class TestBigQueryInsertJobOperator:
 
         assert str(exc.value) == f"BigQuery job {real_job_id} failed: True"
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_insert_job_operator_async(self, mock_hook, create_task_instance_of_operator):
         """
@@ -1492,6 +1499,7 @@ class TestBigQueryInsertJobOperator:
                 context=None, event={"status": "error", "message": "test failure message"}
             )
 
+    @pytest.mark.db_test
     def test_bigquery_insert_job_operator_execute_complete(self, create_task_instance_of_operator):
         """Asserts that logging occurs as expected"""
         configuration = {
@@ -1522,6 +1530,7 @@ class TestBigQueryInsertJobOperator:
             "%s completed with response %s ", "insert_query_job", "Job completed"
         )
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_insert_job_operator_with_job_id_generate(
         self, mock_hook, create_task_instance_of_operator
@@ -1652,6 +1661,7 @@ class TestBigQueryInsertJobOperator:
 
         assert lineage.run_facets == {"bigQuery_error": BigQueryErrorRunFacet(clientError=mock.ANY)}
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_force_rerun_async(self, mock_hook, create_task_instance_of_operator):
         job_id = "123456"
@@ -1739,6 +1749,7 @@ class TestBigQueryIntervalCheckOperator:
                 context=None, event={"status": "error", "message": "test failure message"}
             )
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_interval_check_operator_async(self, mock_hook, create_task_instance_of_operator):
         """
@@ -1768,6 +1779,7 @@ class TestBigQueryIntervalCheckOperator:
             exc.value.trigger, BigQueryIntervalCheckTrigger
         ), "Trigger is not a BigQueryIntervalCheckTrigger"
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_interval_check_operator_with_project_id(
         self, mock_hook, create_task_instance_of_operator
@@ -1805,6 +1817,7 @@ class TestBigQueryIntervalCheckOperator:
             nowait=True,
         )
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_interval_check_operator_without_project_id(
         self, mock_hook, create_task_instance_of_operator
@@ -1844,6 +1857,7 @@ class TestBigQueryIntervalCheckOperator:
 
 
 class TestBigQueryCheckOperator:
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator.execute")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryCheckOperator.defer")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -1870,6 +1884,7 @@ class TestBigQueryCheckOperator:
         assert not mock_defer.called
         assert mock_execute.called
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_check_operator_async(self, mock_hook, create_task_instance_of_operator):
         """
@@ -1963,6 +1978,7 @@ class TestBigQueryCheckOperator:
 
 
 class TestBigQueryValueCheckOperator:
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_value_check_async(self, mock_hook, create_task_instance_of_operator):
         """
@@ -1989,6 +2005,7 @@ class TestBigQueryValueCheckOperator:
             exc.value.trigger, BigQueryValueCheckTrigger
         ), "Trigger is not a BigQueryValueCheckTrigger"
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.defer")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryValueCheckOperator.check_value")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -2074,6 +2091,7 @@ class TestBigQueryValueCheckOperator:
             )
 
 
+@pytest.mark.db_test
 class TestBigQueryColumnCheckOperator:
     @pytest.mark.parametrize(
         "check_type, check_value, check_result",

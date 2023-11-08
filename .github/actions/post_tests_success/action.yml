@@ -28,14 +28,14 @@ runs:
         path: ./files/warnings-*.txt
         retention-days: 7
     - name: "Move coverage artifacts in separate directory"
-      if: env.COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
+      if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
       shell: bash
       run: |
         mkdir ./files/coverage-reposts
         mv ./files/coverage*.xml ./files/coverage-reposts/ || true
     - name: "Upload all coverage reports to codecov"
       uses: codecov/codecov-action@v3
-      if: env.COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
+      if: env.ENABLE_COVERAGE == 'true' && env.TEST_TYPES != 'Helm'
       with:
         name: coverage-${{env.JOB_ID}}
         flags: python-${{env.PYTHON_MAJOR_MINOR_VERSION}},${{env.BACKEND}}-${{env.BACKEND_VERSION}}

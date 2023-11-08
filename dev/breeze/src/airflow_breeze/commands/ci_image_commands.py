@@ -46,6 +46,7 @@ from airflow_breeze.utils.common_options import (
     option_build_timeout_minutes,
     option_builder,
     option_commit_sha,
+    option_debian_version,
     option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -206,8 +207,23 @@ def kill_process_group(build_process_group_id: int):
         pass
 
 
+def get_exitcode(status: int) -> int:
+    # In Python 3.9+ we will be able to use
+    # os.waitstatus_to_exitcode(status) - see https://github.com/python/cpython/issues/84275
+    # but until then we need to do this ugly conversion
+    if os.WIFSIGNALED(status):
+        return -os.WTERMSIG(status)
+    elif os.WIFEXITED(status):
+        return os.WEXITSTATUS(status)
+    elif os.WIFSTOPPED(status):
+        return -os.WSTOPSIG(status)
+    else:
+        return 1
+
+
 @ci_image.command(name="build")
 @option_python
+@option_debian_version
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
@@ -277,8 +293,13 @@ def build(
             atexit.register(kill_process_group, pid)
             signal.signal(signal.SIGALRM, handler)
             signal.alarm(build_timeout_minutes * 60)
-            os.waitpid(pid, 0)
-            return
+            child_pid, status = os.waitpid(pid, 0)
+            exit_code = get_exitcode(status)
+            if exit_code:
+                get_console().print(f"[error]Exiting with exit code {exit_code}")
+            else:
+                get_console().print(f"[success]Exiting with exit code {exit_code}")
+            sys.exit(exit_code)
         else:
             # turn us into a process group leader
             os.setpgid(0, 0)

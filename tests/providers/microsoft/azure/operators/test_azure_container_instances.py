@@ -73,17 +73,20 @@ def make_mock_cg_with_missing_events(container_state):
     return container_g
 
 
+# TODO: FIXME the assignment here seem wrong byt they do work in these mocks - should likely be better done
+
+
 def make_mock_container(state: str, exit_code: int, detail_status: str, events: Event | None = None):
-    container = Container(name="hello_world", image="test", resources="test")
+    container = Container(name="hello_world", image="test", resources="test")  # type: ignore[arg-type]
     container_prop = ContainerPropertiesInstanceView()
     container_state = ContainerState()
-    container_state.state = state
-    container_state.exit_code = exit_code
-    container_state.detail_status = detail_status
-    container_prop.current_state = container_state
+    container_state.state = state  # type: ignore[assignment]
+    container_state.exit_code = exit_code  # type: ignore[assignment]
+    container_state.detail_status = detail_status  # type: ignore[assignment]
+    container_prop.current_state = container_state  # type: ignore[assignment]
     if events:
-        container_prop.events = events
-    container.instance_view = container_prop
+        container_prop.events = events  # type: ignore[assignment]
+    container.instance_view = container_prop  # type: ignore[assignment]
 
     cg = ContainerGroup(containers=[container], os_type="Linux")
 

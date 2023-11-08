@@ -21,6 +21,7 @@ import os
 import platform
 import subprocess
 import sys
+import warnings
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -28,12 +29,46 @@ from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
+from _pytest.recwarn import WarningsRecorder
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
 from itsdangerous import URLSafeSerializer
 
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
+
+
+DEFAULT_WARNING_OUTPUT_PATH = Path("warnings.txt")
+
+warning_output_path = DEFAULT_WARNING_OUTPUT_PATH
+
+# A bit of a Hack - but we need to check args before they are parsed by pytest in order to
+# configure the DB before Airflow gets initialized (which happens at airflow import time).
+# Using env variables also handles the case, when python-xdist is used - python-xdist spawns separate
+# processes and does not pass all args to them (it's done via env variables) so we are doing the
+# same here and detect whether `--skip-db-tests` or `--run-db-tests-only` is passed to pytest
+# and set env variables so the processes spawned by python-xdist can read the status from there
+skip_db_tests = "--skip-db-tests" in sys.argv or os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true"
+run_db_tests_only = (
+    "--run-db-tests-only" in sys.argv or os.environ.get("_AIRFLOW_RUN_DB_TESTS_ONLY") == "true"
+)
+
+if skip_db_tests:
+    if run_db_tests_only:
+        raise Exception("You cannot specify both --skip-db-tests and --run-db-tests-only together")
+    # Make sure sqlalchemy will not be usable for pure unit tests even if initialized
+    os.environ["AIRFLOW__CORE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
+    os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = "bad_schema:///"
+    # Force database isolation mode for pure unit tests
+    os.environ["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
+    os.environ["_IN_UNIT_TESTS"] = "true"
+    # Set it here to pass the flag to python-xdist spawned processes
+    os.environ["_AIRFLOW_SKIP_DB_TESTS"] = "true"
+
+if run_db_tests_only:
+    # Set it here to pass the flag to python-xdist spawned processes
+    os.environ["_AIRFLOW_RUN_DB_TESTS_ONLY"] = "true"
+
 AIRFLOW_TESTS_DIR = Path(os.path.dirname(os.path.realpath(__file__))).resolve()
 AIRFLOW_SOURCES_ROOT_DIR = AIRFLOW_TESTS_DIR.parent.parent
 
@@ -47,18 +82,6 @@ if platform.system() == "Darwin":
     # mocks from unittest.mock work correctly in subprocesses only if they are created by "fork" method
     # but macOS uses "spawn" by default
     os.environ["AIRFLOW__CORE__MP_START_METHOD"] = "fork"
-
-from airflow import settings  # noqa: E402
-from airflow.models.tasklog import LogTemplate  # noqa: E402
-from tests.test_utils.db import clear_all  # noqa: E402
-
-from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa: E402  # isort: skip
-    count_queries,
-    trace_queries,
-)
-
-if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance
 
 # Ignore files that are really test dags to be ignored by pytest
 collect_ignore = [
@@ -116,8 +139,13 @@ ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count
 
 @pytest.fixture(autouse=True)
 def trace_sql(request):
+    from tests.test_utils.perf.perf_kit.sqlalchemy import (  # isort: skip
+        count_queries,
+        trace_queries,
+    )
+
     """Displays queries from the tests to console."""
-    trace_sql_option = request.config.getoption("trace_sql")
+    trace_sql_option = request.config.option.trace_sql
     if not trace_sql_option:
         yield
         return
@@ -167,36 +195,66 @@ def pytest_addoption(parser):
     group.addoption(
         "--integration",
         action="append",
+        dest="integration",
         metavar="INTEGRATIONS",
         help="only run tests matching integration specified: "
         "[cassandra,kerberos,mongo,celery,statsd,trino]. ",
     )
     group.addoption(
+        "--skip-db-tests",
+        action="store_true",
+        dest="skip_db_tests",
+        help="skip tests that require database",
+    )
+    group.addoption(
+        "--run-db-tests-only",
+        action="store_true",
+        dest="run_db_tests_only",
+        help="only run tests requiring database",
+    )
+    group.addoption(
         "--backend",
         action="store",
+        dest="backend",
         metavar="BACKEND",
         help="only run tests matching the backend: [sqlite,postgres,mysql].",
     )
     group.addoption(
         "--system",
         action="append",
+        dest="system",
         metavar="SYSTEMS",
         help="only run tests matching the system specified [google.cloud, google.marketing_platform]",
     )
     group.addoption(
         "--include-long-running",
         action="store_true",
+        dest="include_long_running",
         help="Includes long running tests (marked with long_running marker). They are skipped by default.",
     )
     group.addoption(
         "--include-quarantined",
         action="store_true",
+        dest="include_quarantined",
         help="Includes quarantined tests (marked with quarantined marker). They are skipped by default.",
+    )
+    group.addoption(
+        "--exclude-virtualenv-operator",
+        action="store_true",
+        dest="exclude_virtualenv_operator",
+        help="Excludes virtualenv operators tests (marked with virtualenv_test marker).",
+    )
+    group.addoption(
+        "--exclude-external-python-operator",
+        action="store_true",
+        dest="exclude_external_python_operator",
+        help="Excludes external python operator tests (marked with external_python_test marker).",
     )
     allowed_trace_sql_columns_list = ",".join(ALLOWED_TRACE_SQL_COLUMNS)
     group.addoption(
         "--trace-sql",
         action="store",
+        dest="trace_sql",
         help=(
             "Trace SQL statements. As an argument, you must specify the columns to be "
             f"displayed as a comma-separated list. Supported values: [f{allowed_trace_sql_columns_list}]"
@@ -209,6 +267,12 @@ def pytest_addoption(parser):
         dest="db_cleanup",
         help="Disable DB clear before each test module.",
     )
+    group.addoption(
+        "--warning-output-path",
+        action="store",
+        dest="warning_output_path",
+        default=DEFAULT_WARNING_OUTPUT_PATH.resolve().as_posix(),
+    )
 
 
 def initial_db_init():
@@ -216,8 +280,8 @@ def initial_db_init():
 
     from airflow.configuration import conf
     from airflow.utils import db
-    from airflow.www.app import sync_appbuilder_roles
     from airflow.www.extensions.init_appbuilder import init_appbuilder
+    from airflow.www.extensions.init_auth_manager import get_auth_manager
 
     db.resetdb()
     db.bootstrap_dagbag()
@@ -225,7 +289,7 @@ def initial_db_init():
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     init_appbuilder(flask_app)
-    sync_appbuilder_roles(flask_app)
+    get_auth_manager().init()
 
 
 @pytest.fixture(autouse=True, scope="session")
@@ -241,23 +305,24 @@ def initialize_airflow_tests(request):
 
     # Initialize Airflow db if required
     lock_file = os.path.join(airflow_home, ".airflow_db_initialised")
-    if request.config.option.db_init:
-        print("Initializing the DB - forced with --with-db-init switch.")
-        initial_db_init()
-    elif not os.path.exists(lock_file):
-        print(
-            "Initializing the DB - first time after entering the container.\n"
-            "You can force re-initialization the database by adding --with-db-init switch to run-tests."
-        )
-        initial_db_init()
-        # Create pid file
-        with open(lock_file, "w+"):
-            pass
-    else:
-        print(
-            "Skipping initializing of the DB as it was initialized already.\n"
-            "You can re-initialize the database by adding --with-db-init flag when running tests."
-        )
+    if not skip_db_tests:
+        if request.config.option.db_init:
+            print("Initializing the DB - forced with --with-db-init switch.")
+            initial_db_init()
+        elif not os.path.exists(lock_file):
+            print(
+                "Initializing the DB - first time after entering the container.\n"
+                "You can force re-initialization the database by adding --with-db-init switch to run-tests."
+            )
+            initial_db_init()
+            # Create pid file
+            with open(lock_file, "w+"):
+                pass
+        else:
+            print(
+                "Skipping initializing of the DB as it was initialized already.\n"
+                "You can re-initialize the database by adding --with-db-init flag when running tests."
+            )
     integration_kerberos = os.environ.get("INTEGRATION_KERBEROS")
     if integration_kerberos == "true":
         # Initialize kerberos
@@ -284,7 +349,25 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "need_serialized_dag: mark tests that require dags in serialized form to be present"
     )
+    config.addinivalue_line(
+        "markers",
+        "db_test: mark tests that require database to be present",
+    )
+    config.addinivalue_line(
+        "markers",
+        "non_db_test_override: you can mark individual tests with this marker to override the db_test marker",
+    )
+    config.addinivalue_line(
+        "markers",
+        "virtualenv_operator: virtualenv operator tests are 'long', we should run them separately",
+    )
+    config.addinivalue_line(
+        "markers",
+        "external_python_operator: external python operator tests are 'long', we should run them separately",
+    )
+
     os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
+    configure_warning_output(config)
 
 
 def pytest_unconfigure(config):
@@ -346,7 +429,58 @@ def skip_quarantined_test(item):
     for _ in item.iter_markers(name="quarantined"):
         pytest.skip(
             f"The test is skipped because it has quarantined marker. "
-            f"And --include-quarantined flag is passed to pytest. {item}"
+            f"And --include-quarantined flag is not passed to pytest. {item}"
+        )
+
+
+def skip_virtualenv_operator_test(item):
+    for _ in item.iter_markers(name="virtualenv_operator"):
+        pytest.skip(
+            f"The test is skipped because it has virtualenv_operator marker. "
+            f"And --exclude-virtualenv-operator flag is not passed to pytest. {item}"
+        )
+
+
+def skip_external_python_operator_test(item):
+    for _ in item.iter_markers(name="external_python_operator"):
+        pytest.skip(
+            f"The test is skipped because it has external_python_operator marker. "
+            f"And --exclude-external-python-operator flag is not passed to pytest. {item}"
+        )
+
+
+def skip_db_test(item):
+    if next(item.iter_markers(name="db_test"), None):
+        if next(item.iter_markers(name="non_db_test_override"), None):
+            # non_db_test can override the db_test set for example on module or class level
+            return
+        else:
+            pytest.skip(
+                f"The test is skipped as it is DB test "
+                f"and --skip-db-tests is flag is passed to pytest. {item}"
+            )
+    if next(item.iter_markers(name="backend"), None):
+        # also automatically skip tests marked with `backend` marker as they are implicitly
+        # db tests
+        pytest.skip(
+            f"The test is skipped as it is DB test "
+            f"and --skip-db-tests is flag is passed to pytest. {item}"
+        )
+
+
+def only_run_db_test(item):
+    if next(item.iter_markers(name="db_test"), None) and not next(
+        item.iter_markers(name="non_db_test_override"), None
+    ):
+        # non_db_test at individual level can override the db_test set for example on module or class level
+        return
+    else:
+        if next(item.iter_markers(name="backend"), None):
+            # Also do not skip the tests marked with `backend` marker - as it is implicitly a db test
+            return
+        pytest.skip(
+            f"The test is skipped as it is not a DB tests "
+            f"and --run-db-tests-only flag is passed to pytest. {item}"
         )
 
 
@@ -389,11 +523,13 @@ def skip_if_credential_file_missing(item):
 
 
 def pytest_runtest_setup(item):
-    selected_integrations_list = item.config.getoption("--integration")
-    selected_systems_list = item.config.getoption("--system")
+    selected_integrations_list = item.config.option.integration
+    selected_systems_list = item.config.option.system
 
-    include_long_running = item.config.getoption("--include-long-running")
-    include_quarantined = item.config.getoption("--include-quarantined")
+    include_long_running = item.config.option.include_long_running
+    include_quarantined = item.config.option.include_quarantined
+    exclude_virtualenv_operator = item.config.option.exclude_virtualenv_operator
+    exclude_external_python_operator = item.config.option.exclude_external_python_operator
 
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
@@ -405,13 +541,21 @@ def pytest_runtest_setup(item):
         skip_system_test(item)
     for marker in item.iter_markers(name="backend"):
         skip_if_wrong_backend(marker, item)
-    selected_backend = item.config.getoption("--backend")
+    selected_backend = item.config.option.backend
     if selected_backend:
         skip_if_not_marked_with_backend(selected_backend, item)
     if not include_long_running:
         skip_long_running_test(item)
     if not include_quarantined:
         skip_quarantined_test(item)
+    if exclude_virtualenv_operator:
+        skip_virtualenv_operator_test(item)
+    if exclude_external_python_operator:
+        skip_external_python_operator_test(item)
+    if skip_db_tests:
+        skip_db_test(item)
+    if run_db_tests_only:
+        only_run_db_test(item)
     skip_if_credential_file_missing(item)
 
 
@@ -754,6 +898,10 @@ def create_dummy_dag(dag_maker):
     return create_dag
 
 
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
+
+
 @pytest.fixture
 def create_task_instance(dag_maker, create_dummy_dag):
     """Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
@@ -857,6 +1005,9 @@ def get_test_dag():
 
 @pytest.fixture()
 def create_log_template(request):
+    from airflow import settings
+    from airflow.models.tasklog import LogTemplate
+
     session = settings.Session()
 
     def _create_log_template(filename_template, elasticsearch_id=""):
@@ -886,8 +1037,12 @@ def reset_logging_config():
 
 @pytest.fixture(scope="module", autouse=True)
 def _clear_db(request):
+    from tests.test_utils.db import clear_all
+
     """Clear DB before each test module run."""
     if not request.config.option.db_cleanup:
+        return
+    if skip_db_tests:
         return
     from airflow.configuration import conf
 
@@ -956,3 +1111,162 @@ def close_all_sqlalchemy_sessions():
     close_all_sessions()
     yield
     close_all_sessions()
+
+
+# The code below is a modified version of capture-warning code from
+# https://github.com/athinkingape/pytest-capture-warnings
+
+# MIT License
+#
+# Portions Copyright (c) 2022 A Thinking Ape Entertainment Ltd.
+# Portions Copyright (c) 2022 Pyschojoker (Github)
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
+captured_warnings: dict[tuple[str, int, type[Warning], str], warnings.WarningMessage] = {}
+captured_warnings_count: dict[tuple[str, int, type[Warning], str], int] = {}
+warnings_recorder = WarningsRecorder()
+default_formatwarning = warnings_recorder._module.formatwarning  # type: ignore[attr-defined]
+default_showwarning = warnings_recorder._module.showwarning  # type: ignore[attr-defined]
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item):
+    """
+    Needed to grab the item.location information
+    """
+    global warnings_recorder
+
+    if os.environ.get("PYTHONWARNINGS") == "ignore":
+        yield
+        return
+
+    warnings_recorder.__enter__()
+    yield
+    warnings_recorder.__exit__(None, None, None)
+
+    for warning in warnings_recorder.list:
+        # this code is adapted from python official warnings module
+
+        # Search the filters
+        for filter in warnings.filters:
+            action, msg, cat, mod, ln = filter
+
+            module = warning.filename or "<unknown>"
+            if module[-3:].lower() == ".py":
+                module = module[:-3]  # XXX What about leading pathname?
+
+            if (
+                (msg is None or msg.match(str(warning.message)))
+                and issubclass(warning.category, cat)
+                and (mod is None or mod.match(module))
+                and (ln == 0 or warning.lineno == ln)
+            ):
+                break
+        else:
+            action = warnings.defaultaction
+
+        # Early exit actions
+        if action == "ignore":
+            continue
+
+        warning.item = item
+        quadruplet: tuple[str, int, type[Warning], str] = (
+            warning.filename,
+            warning.lineno,
+            warning.category,
+            str(warning.message),
+        )
+
+        if quadruplet in captured_warnings:
+            captured_warnings_count[quadruplet] += 1
+            continue
+        else:
+            captured_warnings[quadruplet] = warning
+            captured_warnings_count[quadruplet] = 1
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_terminal_summary(terminalreporter, exitstatus, config=None):
+    pwd = os.path.realpath(os.curdir)
+
+    def cut_path(path):
+        if path.startswith(pwd):
+            path = path[len(pwd) + 1 :]
+        if "/site-packages/" in path:
+            path = path.split("/site-packages/")[1]
+        return path
+
+    def format_test_function_location(item):
+        return f"{item.location[0]}::{item.location[2]}:{item.location[1]}"
+
+    yield
+
+    if captured_warnings:
+        print("\n ======================== Warning summary =============================\n")
+        print(f"   The tests generated {sum(captured_warnings_count.values())} warnings.")
+        print(f"   After removing duplicates, {len(captured_warnings.values())}  of them remained.")
+        print(f"   They are stored in {warning_output_path} file.")
+        print("\n ======================================================================\n")
+        warnings_as_json = []
+
+        for warning in captured_warnings.values():
+            serialized_warning = {
+                x: str(getattr(warning.message, x)) for x in dir(warning.message) if not x.startswith("__")
+            }
+
+            serialized_warning.update(
+                {
+                    "path": cut_path(warning.filename),
+                    "lineno": warning.lineno,
+                    "count": 1,
+                    "warning_message": str(warning.message),
+                }
+            )
+
+            # How we format the warnings: pylint parseable format
+            # {path}:{line}: [{msg_id}({symbol}), {obj}] {msg}
+            # Always:
+            # {path}:{line}: [W0513(warning), ] {msg}
+
+            if "with_traceback" in serialized_warning:
+                del serialized_warning["with_traceback"]
+            warnings_as_json.append(serialized_warning)
+
+        with warning_output_path.open("w") as f:
+            for i in warnings_as_json:
+                f.write(f'{i["path"]}:{i["lineno"]}: [W0513(warning), ] {i["warning_message"]}')
+                f.write("\n")
+    else:
+        # nothing, clear file
+        with warning_output_path.open("w") as f:
+            pass
+
+
+def configure_warning_output(config):
+    global warning_output_path
+    warning_output_path = Path(config.getoption("warning_output_path"))
+    if (
+        "CAPTURE_WARNINGS_OUTPUT" in os.environ
+        and warning_output_path.resolve() != DEFAULT_WARNING_OUTPUT_PATH.resolve()
+    ):
+        warning_output_path = os.environ["CAPTURE_WARNINGS_OUTPUT"]
+
+
+# End of modified code from  https://github.com/athinkingape/pytest-capture-warnings
