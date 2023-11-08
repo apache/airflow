@@ -247,7 +247,7 @@ def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypat
     HTML_DESCRIPTION1 = "HTML <code>raw code</code>."
     HTML_DESCRIPTION2 = "HTML <code>in md text</code>."
     expect_escape = not allow_html
-    with conf_vars({("webserver", "allow_html_in_dag_docs"): str(allow_html)}):
+    with conf_vars({("webserver", "allow_raw_html_descriptions"): str(allow_html)}):
         param1 = Param(
             42,
             description_html=HTML_DESCRIPTION1,

@@ -331,7 +331,7 @@ For examples also please take a look to two example DAGs provided: ``example_par
 .. versionchanged:: 2.8.0
     By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. If you trust your DAG authors
     you can change the trust level of parameter descriptions to allow raw HTML by setting the configuration entry
-    ``webserver.allow_html_in_dag_docs`` to ``True``. With the default setting all HTML will be displayed as plain text.
+    ``webserver.allow_raw_html_descriptions`` to ``True``. With the default setting all HTML will be displayed as plain text.
     This relates to the previous feature to enable rich formatting with the attribute ``description_html`` which is now super-seeded
     with the attribute ``description_md``.
     Custom form elements using the attribute ``custom_html_form`` allow a DAG author to specify raw HTML form templates. These

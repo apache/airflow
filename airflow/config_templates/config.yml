@@ -1821,7 +1821,7 @@ webserver:
       type: boolean
       example: ~
       default: "False"
-    allow_html_in_dag_docs:
+    allow_raw_html_descriptions:
       description: |
         A DAG author is able to provide any raw HTML into ``doc_md`` or params description for text
         formatting. This is including potentially unsafe javascript. Displaying the DAG or trigger

@@ -387,7 +387,7 @@ class TestWrappedMarkdown:
         )
 
     def test_wrapped_markdown_with_collapsible_section(self):
-        with conf_vars({("webserver", "allow_html_in_dag_docs"): "true"}):
+        with conf_vars({("webserver", "allow_raw_html_descriptions"): "true"}):
             rendered = wrapped_markdown(
                 """
 # A collapsible section with markdown
@@ -424,7 +424,7 @@ class TestWrappedMarkdown:
 
     @pytest.mark.parametrize("allow_html", [False, True])
     def test_wrapped_markdown_with_raw_html(self, allow_html):
-        with conf_vars({("webserver", "allow_html_in_dag_docs"): str(allow_html)}):
+        with conf_vars({("webserver", "allow_raw_html_descriptions"): str(allow_html)}):
             HTML = "test <code>raw HTML</code>"
             rendered = wrapped_markdown(HTML)
             if allow_html:
