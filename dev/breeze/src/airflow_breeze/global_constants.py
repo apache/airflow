@@ -317,6 +317,7 @@ COMMITTERS = [
     "jhtimmins",
     "jmcarp",
     "josh-fell",
+    "jscheffl",
     "kaxil",
     "leahecole",
     "malthe",

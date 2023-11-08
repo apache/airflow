@@ -145,6 +145,9 @@ class AwsEcsExecutor(BaseExecutor):
             else:
                 # Catch all for unexpected failures
                 status = f"failed because: {error_message}. "
+        except Exception as e:
+            # Any non-ClientError exceptions. This can include Botocore exceptions for example
+            status = f"failed because: {e}. "
         finally:
             msg_prefix = "ECS Executor health check has %s"
             if status == success_status:
@@ -191,13 +194,14 @@ class AwsEcsExecutor(BaseExecutor):
         # Mark finished tasks as either a success/failure.
         if task_state == State.FAILED:
             self.fail(task_key)
+            self.__log_container_failures(task_arn=task.task_arn)
         elif task_state == State.SUCCESS:
             self.success(task_key)
         elif task_state == State.REMOVED:
             self.__handle_failed_task(task.task_arn, task.stopped_reason)
         if task_state in (State.FAILED, State.SUCCESS):
             self.log.debug(
-                "Airflow task %s marked as %s after running on %s",
+                "Airflow task %s marked as %s after running on ECS Task (arn) %s",
                 task_key,
                 task_state,
                 task.task_arn,
@@ -216,6 +220,21 @@ class AwsEcsExecutor(BaseExecutor):
             all_task_descriptions["tasks"].extend(describe_tasks_response["tasks"])
             all_task_descriptions["failures"].extend(describe_tasks_response["failures"])
         return all_task_descriptions
+
+    def __log_container_failures(self, task_arn: str):
+        """Check if the task failed due to issues with the containers."""
+        message = "The ECS task failed due to the following containers failing: \n"
+        containers = self.active_workers.task_by_arn(task_arn).containers
+        has_exit_codes = all(["exit_code" in x for x in containers])
+        if not has_exit_codes:
+            return ""
+        reasons = [
+            f'{container["container_arn"]} - {container["reason"]}'
+            for container in containers
+            if "reason" in container
+        ]
+
+        self.log.warning(message + "\n".join(reasons)) if reasons else ""
 
     def __handle_failed_task(self, task_arn: str, reason: str):
         """If an API failure occurs, the task is rescheduled."""

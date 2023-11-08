@@ -25,6 +25,7 @@ from typing_extensions import Annotated
 from airflow.models import Operator
 from airflow.models.baseoperator import BaseOperator
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -62,7 +63,7 @@ PydanticOperator = Annotated[
 ]
 
 
-class TaskInstancePydantic(BaseModelPydantic):
+class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     """Serializable representation of the TaskInstance ORM SqlAlchemyModel used by internal API."""
 
     task_id: str
@@ -107,6 +108,11 @@ class TaskInstancePydantic(BaseModelPydantic):
         from_attributes = True
         orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
+
+    def init_run_context(self, raw: bool = False) -> None:
+        """Set the log context."""
+        self.raw = raw
+        self._set_context(self)
 
     def xcom_pull(
         self,
@@ -334,7 +340,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         self,
         state: DagRunState | None = None,
         session: Session = NEW_SESSION,
-    ) -> TaskInstance | None:
+    ) -> TaskInstance | TaskInstancePydantic | None:
         """
         Return the task instance for the task that ran before this task instance.
 

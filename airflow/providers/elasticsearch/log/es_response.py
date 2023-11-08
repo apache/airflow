@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Iterator
+
 
 def _wrap(val):
     if isinstance(val, dict):
@@ -117,7 +119,7 @@ class ElasticSearchResponse(AttributeDict):
         super().__setattr__("_doc_class", doc_class)
         super().__init__(response)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Hit]:
         return iter(self.hits)
 
     def __getitem__(self, key):
@@ -129,7 +131,7 @@ class ElasticSearchResponse(AttributeDict):
         return bool(self.hits)
 
     @property
-    def hits(self):
+    def hits(self) -> list[Hit]:
         """
         This property provides access to the hits (i.e., the results) of the Elasticsearch response.
 

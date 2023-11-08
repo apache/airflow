@@ -731,6 +731,92 @@ class TestAwsEcsExecutor:
         sync_func()
         self.sync_call_count += 1
 
+    @pytest.mark.parametrize(
+        "desired_status, last_status, exit_code, expected_status",
+        [
+            ("RUNNING", "QUEUED", 0, State.QUEUED),
+            ("STOPPED", "RUNNING", 0, State.RUNNING),
+            ("STOPPED", "QUEUED", 0, State.REMOVED),
+        ],
+    )
+    def test_update_running_tasks(
+        self, mock_executor, desired_status, last_status, exit_code, expected_status
+    ):
+        self._add_mock_task(mock_executor, ARN1)
+        test_response_task_json = {
+            "taskArn": ARN1,
+            "desiredStatus": desired_status,
+            "lastStatus": last_status,
+            "containers": [
+                {
+                    "name": "test_container",
+                    "lastStatus": "QUEUED",
+                    "exitCode": exit_code,
+                }
+            ],
+        }
+        mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
+        mock_executor.sync_running_tasks()
+        assert mock_executor.active_workers.tasks["arn1"].get_task_state() == expected_status
+        # The task is not removed from active_workers in these states
+        assert len(mock_executor.active_workers) == 1
+
+    def test_update_running_tasks_success(self, mock_executor):
+        self._add_mock_task(mock_executor, ARN1)
+        test_response_task_json = {
+            "taskArn": ARN1,
+            "desiredStatus": "STOPPED",
+            "lastStatus": "STOPPED",
+            "startedAt": dt.datetime.now(),
+            "containers": [
+                {
+                    "name": "test_container",
+                    "lastStatus": "STOPPED",
+                    "exitCode": 0,
+                }
+            ],
+        }
+        patcher = mock.patch(
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.success", auth_spec=True
+        )
+        mock_success_function = patcher.start()
+        mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
+        mock_executor.sync_running_tasks()
+        assert len(mock_executor.active_workers) == 0
+        mock_success_function.assert_called_once()
+
+    def test_update_running_tasks_failed(self, mock_executor, caplog):
+        caplog.set_level(logging.WARNING)
+        self._add_mock_task(mock_executor, ARN1)
+        test_response_task_json = {
+            "taskArn": ARN1,
+            "desiredStatus": "STOPPED",
+            "lastStatus": "STOPPED",
+            "startedAt": dt.datetime.now(),
+            "containers": [
+                {
+                    "containerArn": "test-container-arn1",
+                    "name": "test_container",
+                    "lastStatus": "STOPPED",
+                    "exitCode": 30,
+                    "reason": "test failure",
+                }
+            ],
+        }
+
+        patcher = mock.patch(
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.fail", auth_spec=True
+        )
+        mock_failed_function = patcher.start()
+        mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
+        mock_executor.sync_running_tasks()
+        assert len(mock_executor.active_workers) == 0
+        mock_failed_function.assert_called_once()
+        assert (
+            "The ECS task failed due to the following containers failing: \ntest-container-arn1 - "
+            "test failure" in caplog.messages[0]
+        )
+
 
 class TestEcsExecutorConfig:
     @pytest.fixture()
