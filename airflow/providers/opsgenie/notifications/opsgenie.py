@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -105,7 +106,11 @@ class OpsgenieNotifier(BaseNotifier):
         self.priority = priority
         self.user = user
         self.note = note
-        self.hook: OpsgenieAlertHook | None = None
+
+    @cached_property
+    def hook(self) -> OpsgenieAlertHook:
+        """Opsgenie alert Hook."""
+        return OpsgenieAlertHook(self.opsgenie_conn_id)
 
     def _build_opsgenie_payload(self) -> dict[str, Any]:
         """
@@ -139,8 +144,7 @@ class OpsgenieNotifier(BaseNotifier):
 
     def notify(self, context: Context) -> None:
         """Call the OpsgenieAlertHook to post message."""
-        self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
-        self.hook.create_alert(self._build_opsgenie_payload())
+        self.hook.get_conn().create_alert(self._build_opsgenie_payload())
 
 
 send_opsgenie_notification = OpsgenieNotifier
