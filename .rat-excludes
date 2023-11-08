@@ -136,3 +136,9 @@ chart/*.iml
 
 # DOAP file
 doap_airflow.rdf
+
+# pyenv
+.python-version
+
+# nvm (Node Version Manager)
+.nvmrc
