@@ -76,6 +76,7 @@ Committers
 - Malthe Borch (@malthe)
 - Maxime "Max" Beauchemin (@mistercrunch)
 - Niko Oliveira (@o-nikolas)
+- Pankaj Koti (@pankajkoti)
 - Pankaj Singh (@pankajastro)
 - Patrick Leo Tardif (@pltardif)
 - Phani Kumar (@phanikumv)
