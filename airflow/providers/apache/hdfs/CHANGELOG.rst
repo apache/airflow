@@ -97,7 +97,7 @@ The 3.* version of the provider is still available and can be used if you need t
 sensors.
 
 The ``HDFSHook``, ``HDFSSensor``, ``HdfsRegexSensor``, ``HdfsRegexSensor`` that have been removed from
-this provider and they are not available any more. If you want to continue using them,
+this provider and they are not available anymore. If you want to continue using them,
 you can use 3.* version of the provider, but the recommendation is to switch to the new
 ``WebHDFSHook`` and ``WebHDFSSensor`` that use the ``WebHDFS`` API.
 

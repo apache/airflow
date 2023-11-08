@@ -65,7 +65,7 @@ def tutorial_taskflow_api_docker_virtualenv():
     # [END extract_virtualenv]
 
     # [START transform_docker]
-    @task.docker(image="python:3.9-slim-bullseye", multiple_outputs=True)
+    @task.docker(image="python:3.9-slim-bookworm", multiple_outputs=True)
     def transform(order_data_dict: dict):
         """
         #### Transform task

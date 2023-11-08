@@ -40,7 +40,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import SlaMiss, errors
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -63,7 +63,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
 

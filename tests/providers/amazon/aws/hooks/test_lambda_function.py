@@ -31,7 +31,7 @@ BYTES_PAYLOAD = b'{"hello": "airflow"}'
 RUNTIME = "python3.9"
 ROLE = "role"
 HANDLER = "handler"
-CODE = {}
+CODE: dict = {}
 LOG_RESPONSE = base64.b64encode(b"FOO\n\nBAR\n\n").decode()
 BAD_LOG_RESPONSE = LOG_RESPONSE[:-3]
 

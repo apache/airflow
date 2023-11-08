@@ -187,11 +187,11 @@ def test_expected_thin_hooks(hook_module: str):
     if not hooks:
         pytest.skip(reason=f"Module {hook_module!r} doesn't contain subclasses of `AwsGenericHook`.")
 
-    errors = []
-    for hook, hook_name in hooks:
-        is_valid, msg = validate_hook(hook, hook_name, hook_module)
-        if not is_valid:
-            errors.append(msg)
+    errors = [
+        message
+        for valid, message in (validate_hook(hook, hook_name, hook_module) for hook, hook_name in hooks)
+        if not valid and message
+    ]
 
     if errors:
         errors_msg = "\n * ".join(errors)

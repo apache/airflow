@@ -51,6 +51,7 @@ ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -294,6 +295,7 @@ COMMITTERS = [
     "XD-DENG",
     "aijamalnk",
     "alexvanboxel",
+    "amoghrajesh",
     "aoen",
     "artwr",
     "ashb",
@@ -315,6 +317,7 @@ COMMITTERS = [
     "jhtimmins",
     "jmcarp",
     "josh-fell",
+    "jscheffl",
     "kaxil",
     "leahecole",
     "malthe",
@@ -325,6 +328,7 @@ COMMITTERS = [
     "msumit",
     "o-nikolas",
     "pankajastro",
+    "pankajkoti",
     "phanikumv",
     "pierrejeambrun",
     "pingzh",

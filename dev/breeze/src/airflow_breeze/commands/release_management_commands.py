@@ -121,7 +121,7 @@ from airflow_breeze.utils.run_utils import (
     run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_forced_answer, get_verbose
-from airflow_breeze.utils.suspended_providers import get_suspended_provider_ids
+from airflow_breeze.utils.suspended_providers import get_removed_provider_ids
 
 option_debug_release_management = click.option(
     "--debug",
@@ -311,13 +311,13 @@ def prepare_provider_packages(
     cleanup_python_generated_files()
     packages_list = list(packages)
 
-    suspended_provider_ids = get_suspended_provider_ids()
+    removed_provider_ids = get_removed_provider_ids()
     if package_list_file:
         packages_list.extend(
             [
                 package.strip()
                 for package in package_list_file.readlines()
-                if package.strip() not in suspended_provider_ids
+                if package.strip() not in removed_provider_ids
             ]
         )
     shell_params = ShellParams(
@@ -1018,7 +1018,7 @@ def release_prod_images(
             slim_build_args = {
                 "AIRFLOW_EXTRAS": "",
                 "AIRFLOW_CONSTRAINTS": "constraints-no-providers",
-                "PYTHON_BASE_IMAGE": f"python:{python}-slim-bullseye",
+                "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
             }
             if commit_sha:
@@ -1050,7 +1050,7 @@ def release_prod_images(
             get_console().print(f"[info]Building regular {airflow_version} image for Python {python}[/]")
             image_name = f"{dockerhub_repo}:{airflow_version}-python{python}"
             regular_build_args = {
-                "PYTHON_BASE_IMAGE": f"python:{python}-slim-bullseye",
+                "PYTHON_BASE_IMAGE": f"python:{python}-slim-bookworm",
                 "AIRFLOW_VERSION": airflow_version,
             }
             if commit_sha:
