@@ -39,6 +39,7 @@ Committers
 - Aizhamal Nurmamat kyzy (@aijamalnk)
 - Alex Guziel (@saguziel)
 - Alex Van Boxel (@alexvanboxel)
+- Amogh Desai (@amoghrajesh)
 - Andrey Anshin (@taragolis)
 - Aneesh Joseph (@aneesh-joseph)
 - Arthur Wiedmer (@artwr)
