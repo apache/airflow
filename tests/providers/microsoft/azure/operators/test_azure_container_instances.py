@@ -110,6 +110,7 @@ class TestACIOperator:
             image="container-image",
             region="region",
             task_id="task",
+            remove_on_error=False,
         )
         aci.execute(None)
 
@@ -150,6 +151,28 @@ class TestACIOperator:
             aci.execute(None)
 
         assert aci_mock.return_value.delete.call_count == 1
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_failures_without_removal(self, aci_mock):
+        expected_cg = make_mock_container(state="Terminated", exit_code=1, detail_status="test")
+        aci_mock.return_value.get_state.return_value = expected_cg
+
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            remove_on_error=False,
+        )
+        with pytest.raises(AirflowException):
+            aci.execute(None)
+
+        assert aci_mock.return_value.delete.call_count == 0
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
     def test_execute_with_tags(self, aci_mock):
