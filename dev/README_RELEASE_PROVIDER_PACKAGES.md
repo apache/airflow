@@ -143,6 +143,10 @@ separately this command:
 breeze release-management prepare-provider-documentation qubole
 ```
 
+In case you want to **just** regenerate the documentation because you fixed something in the templates, add
+`--reapply-templates` flag to the command above. If you want to just update min airflow version for all
+packages, you can use `--only-min-version-update` flag - this will only update the min version in the
+`__init__.py` files of the packages and package documentation without bumping the provider versions.
 
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each

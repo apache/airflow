@@ -23,9 +23,9 @@ from itertools import chain
 from subprocess import DEVNULL
 
 from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.packages import get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
 
 
 def verify_an_image(
@@ -103,7 +103,7 @@ def test_paths(test_type: str, backend: str, helm_test_package: str | None) -> t
 
 def get_suspended_provider_args() -> list[str]:
     pytest_args = []
-    suspended_folders = get_suspended_providers_folders()
+    suspended_folders = get_suspended_provider_folders()
     for providers in suspended_folders:
         pytest_args.extend(
             [
