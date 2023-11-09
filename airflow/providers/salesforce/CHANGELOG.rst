@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+5.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SalesforceHook compatiblity with Pandas 2.x (#35145)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+
 5.5.0
 .....
 

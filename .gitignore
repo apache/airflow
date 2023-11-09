@@ -98,6 +98,9 @@ target/
 # pyenv
 .python-version
 
+# nvm (Node Version Manager)
+.nvmrc
+
 # celery beat schedule file
 celerybeat-schedule
 

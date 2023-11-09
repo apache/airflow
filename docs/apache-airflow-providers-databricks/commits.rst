@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -29,6 +28,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.0
+.....
+
+Latest change: 2023-11-03
+
+=================================================================================================  ===========  =========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================================
+`10bac853d2 <https://github.com/apache/airflow/commit/10bac853d2fb183e673faef6efaeb95a47c80a40>`_  2023-11-03   ``Remove offset-based pagination from 'list_jobs' function in 'DatabricksHook' (#34926)``
+=================================================================================================  ===========  =========================================================================================
+
 4.7.0
 .....
 
@@ -37,6 +47,7 @@ Latest change: 2023-10-28
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `a8784e3c35 <https://github.com/apache/airflow/commit/a8784e3c352aafec697d3778eafcbbd455b7ba1d>`_  2023-10-28   ``Add operator to create jobs in Databricks (#35156)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
