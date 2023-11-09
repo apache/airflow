@@ -49,9 +49,8 @@ from airflow_breeze.utils.add_back_references import (
 )
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.common_options import (
-    argument_packages,
-    argument_short_doc_packages,
-    argument_short_doc_packages_with_providers_index,
+    argument_doc_packages,
+    argument_provider_packages,
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_mode_update,
     option_airflow_constraints_reference,
@@ -88,8 +87,8 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.general_utils import expand_all_providers
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
+from airflow_breeze.utils.packages import convert_to_long_package_names, expand_all_provider_packages
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
     SummarizeAfter,
@@ -109,10 +108,6 @@ from airflow_breeze.utils.provider_dependencies import (
     get_related_providers,
 )
 from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
-from airflow_breeze.utils.publish_docs_helpers import (
-    get_available_packages,
-    process_package_filters,
-)
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
@@ -229,7 +224,6 @@ def prepare_airflow_packages(
     help="Prepare CHANGELOG, README and COMMITS information for providers.",
 )
 @option_debug_release_management
-@argument_packages
 @click.option(
     "--base-branch",
     type=str,
@@ -248,6 +242,7 @@ def prepare_airflow_packages(
     help="Only regenerate missing documentation, do not bump version. Useful if templates were added"
     " and you need to regenerate documentation.",
 )
+@argument_provider_packages
 @option_verbose
 @option_dry_run
 @option_answer
@@ -255,7 +250,7 @@ def prepare_provider_documentation(
     github_repository: str,
     base_branch: str,
     debug: bool,
-    packages: list[str],
+    provider_packages: list[str],
     only_min_version_update: bool,
     regenerate_missing_docs: bool,
 ):
@@ -272,7 +267,10 @@ def prepare_provider_documentation(
         skip_environment_initialization=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh", *packages]
+    cmd_to_run = [
+        "/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh",
+        *provider_packages,
+    ]
     answer = get_forced_answer()
     result_command = run_docker_command_with_debug(
         params=shell_params,
@@ -295,7 +293,7 @@ def prepare_provider_documentation(
     help="Read list of packages from text file (one package per line).",
 )
 @option_debug_release_management
-@argument_packages
+@argument_provider_packages
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -304,12 +302,12 @@ def prepare_provider_packages(
     version_suffix_for_pypi: str,
     package_list_file: IO,
     debug: bool,
-    packages: tuple[str, ...],
+    provider_packages: tuple[str, ...],
     github_repository: str,
 ):
     perform_environment_checks()
     cleanup_python_generated_files()
-    packages_list = list(packages)
+    packages_list = list(provider_packages)
 
     removed_provider_ids = get_removed_provider_ids()
     if package_list_file:
@@ -707,8 +705,8 @@ def install_provider_packages(
 @option_airflow_extras
 @option_airflow_constraints_reference
 @option_skip_constraints
-@option_install_selected_providers
 @option_use_packages_from_dist
+@option_install_selected_providers
 @option_installation_package_format
 @option_debug_release_management
 @option_github_repository
@@ -789,7 +787,7 @@ PUBLISHING_DOCS_PROGRESS_MATCHER = r"Publishing docs|Copy directory"
 
 
 def run_publish_docs_in_parallel(
-    package_list: list[str],
+    package_list: tuple[str, ...],
     airflow_site_directory: str,
     override_versioned: bool,
     include_success_outputs: bool,
@@ -837,7 +835,6 @@ def run_publish_docs_in_parallel(
 )
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @option_airflow_site_directory
-@argument_short_doc_packages_with_providers_index
 @click.option(
     "--package-filter",
     help="List of packages to consider. You can use the full names like apache-airflow-providers-<provider>, "
@@ -851,12 +848,13 @@ def run_publish_docs_in_parallel(
 @option_debug_resources
 @option_include_success_outputs
 @option_skip_cleanup
+@argument_doc_packages
 @option_verbose
 @option_dry_run
 def publish_docs(
     override_versioned: bool,
     airflow_site_directory: str,
-    short_doc_packages: tuple[str, ...],
+    doc_packages: tuple[str, ...],
     package_filter: tuple[str, ...],
     run_in_parallel: bool,
     parallelism: int,
@@ -871,10 +869,9 @@ def publish_docs(
             "Provide the path of cloned airflow-site repo\n"
         )
 
-    current_packages = process_package_filters(
-        get_available_packages(), package_filter, expand_all_providers(short_doc_packages)
+    current_packages = convert_to_long_package_names(
+        package_filters=package_filter, packages_short_form=expand_all_provider_packages(doc_packages)
     )
-
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
         print(f" - {pkg}")
@@ -885,7 +882,7 @@ def publish_docs(
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
-            include_success_outputs=True,
+            include_success_outputs=include_success_outputs,
             airflow_site_directory=airflow_site_directory,
             override_versioned=override_versioned,
         )
@@ -901,12 +898,12 @@ def publish_docs(
     help="Command to add back references for documentation to make it backward compatible.",
 )
 @option_airflow_site_directory
-@argument_short_doc_packages
+@argument_doc_packages
 @option_verbose
 @option_dry_run
 def add_back_references(
     airflow_site_directory: str,
-    short_doc_packages: tuple[str, ...],
+    doc_packages: tuple[str, ...],
 ):
     """Adds back references for documentation generated by build-docs and publish-docs"""
     site_path = Path(airflow_site_directory)
@@ -916,12 +913,12 @@ def add_back_references(
             "Provide the path of cloned airflow-site repo\n"
         )
         sys.exit(1)
-    if not short_doc_packages:
+    if not doc_packages:
         get_console().print(
             "\n[error]You need to specify at least one package to generate back references for\n"
         )
         sys.exit(1)
-    start_generating_back_references(site_path, list(expand_all_providers(short_doc_packages)))
+    start_generating_back_references(site_path, list(expand_all_provider_packages(doc_packages)))
 
 
 @release_management.command(
@@ -1180,9 +1177,9 @@ def get_prs_for_package(package_id: str) -> list[int]:
 )
 @click.option("--excluded-pr-list", type=str, help="Coma-separated list of PRs to exclude from the issue.")
 @click.option("--disable-progress", is_flag=True, help="Disable progress bar")
-@argument_packages
+@argument_provider_packages
 def generate_issue_content_providers(
-    packages: list[str],
+    provider_packages: list[str],
     github_token: str,
     suffix: str,
     only_available_in_dist: bool,
@@ -1199,8 +1196,8 @@ def generate_issue_content_providers(
         version: str
         pr_list: list[PullRequest.PullRequest | Issue.Issue]
 
-    if not packages:
-        packages = list(DEPENDENCIES.keys())
+    if not provider_packages:
+        provider_packages = list(DEPENDENCIES.keys())
     with ci_group("Generates GitHub issue content with people who can test it"):
         if excluded_pr_list:
             excluded_prs = [int(pr) for pr in excluded_pr_list.split(",")]
@@ -1211,7 +1208,7 @@ def generate_issue_content_providers(
         if only_available_in_dist:
             files_in_dist = os.listdir(str(AIRFLOW_SOURCES_ROOT / "dist"))
         prepared_package_ids = []
-        for package_id in packages:
+        for package_id in provider_packages:
             if not only_available_in_dist or is_package_in_dist(files_in_dist, package_id):
                 get_console().print(f"Extracting PRs for provider {package_id}")
                 prepared_package_ids.append(package_id)
