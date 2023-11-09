@@ -1620,7 +1620,7 @@ webserver:
       version_added: 2.8.0
       type: string
       example: ~
-      default: ""
+      default: "#51504f"
     default_dag_run_display_number:
       description: |
         Default dagrun to show in UI
