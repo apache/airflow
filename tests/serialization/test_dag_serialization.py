@@ -2035,6 +2035,7 @@ class TestStringifiedDAGs:
         assert param.description == "hello"
         assert param.schema == {"type": "string"}
 
+    @pytest.mark.db_test
     def test_not_templateable_fields_in_serialized_dag(self):
         """
         Test that when we use not templateable fields, an Airflow exception is raised.
