@@ -126,23 +126,24 @@ class TestHttpOperator:
             if not has_returned:
                 has_returned = True
                 return dict(
-                    endpoint="/",
-                    data={"cursor": "example"},
+                    endpoint="/bar",
+                    data={},
                     headers={},
                     extra_options={},
                 )
             return None
 
-        requests_mock.get("http://www.example.com", json={"value": 5})
+        requests_mock.get("http://www.example.com/foo", json={"value": 5})
+        requests_mock.get("http://www.example.com/bar", json={"value": 10})
         operator = HttpOperator(
             task_id="test_HTTP_op",
             method="GET",
-            endpoint="/",
+            endpoint="/foo",
             http_conn_id="HTTP_EXAMPLE",
             pagination_function=pagination_function,
         )
         result = operator.execute({})
-        assert result == ['{"value": 5}', '{"value": 5}']
+        assert result == ['{"value": 5}', '{"value": 10}']
 
     def test_async_paginated_responses(self, requests_mock):
         """
