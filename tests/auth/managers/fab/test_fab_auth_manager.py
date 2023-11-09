@@ -43,7 +43,6 @@ from airflow.security.permissions import (
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
     RESOURCE_PROVIDER,
-    RESOURCE_SLA_MISS,
     RESOURCE_TASK_INSTANCE,
     RESOURCE_TRIGGER,
     RESOURCE_VARIABLE,
@@ -360,12 +359,6 @@ class TestFabAuthManager:
             (
                 AccessView.TRIGGERS,
                 [(ACTION_CAN_READ, RESOURCE_TRIGGER)],
-                True,
-            ),
-            # With permission (SLA)
-            (
-                AccessView.SLA,
-                [(ACTION_CAN_READ, RESOURCE_SLA_MISS)],
                 True,
             ),
             # With permission (website)

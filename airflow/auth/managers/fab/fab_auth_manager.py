@@ -98,6 +98,7 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
     DagAccessEntity.IMPORT_ERRORS: (RESOURCE_IMPORT_ERROR,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
+    DagAccessEntity.SLA_MISS: (RESOURCE_SLA_MISS,),
     # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
     # AND task instances without making the difference
     # To be backward compatible, we translate DagAccessEntity.TASK_INSTANCE to RESOURCE_TASK_INSTANCE AND
@@ -118,7 +119,6 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.PLUGINS: RESOURCE_PLUGIN,
     AccessView.PROVIDERS: RESOURCE_PROVIDER,
     AccessView.TRIGGERS: RESOURCE_TRIGGER,
-    AccessView.SLA: RESOURCE_SLA_MISS,
     AccessView.WEBSITE: RESOURCE_WEBSITE,
 }
 
