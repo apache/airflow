@@ -69,6 +69,29 @@ class TestDagProcessor:
         )
         assert actual is None
 
+    def test_wait_for_migration_security_contexts_are_configurable(self):
+        docs = render_chart(
+            values={
+                'dagProcessor': {
+                    "enabled": True,
+                    "waitForMigrations": {
+                        "enabled": True,
+                        "securityContexts": {
+                            "container": {
+                                "allowPrivilegeEscalation": False,
+                                "readOnlyRootFilesystem": True,
+                            },
+                        }
+                    },
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True} == jmespath.search(
+            "spec.template.spec.initContainers[0].securityContext", docs[0]
+        )
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
