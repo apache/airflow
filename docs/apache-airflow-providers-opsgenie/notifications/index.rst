@@ -25,5 +25,6 @@ Opsgenie Notifiers
 
 .. toctree::
     :maxdepth: 1
+    :glob:
 
-    opsgenie_notifier
+    *
