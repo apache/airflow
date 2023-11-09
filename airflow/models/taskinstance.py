@@ -2047,10 +2047,11 @@ class TaskInstance(Base, LoggingMixin):
 
         return dr
 
-    @staticmethod
+    @classmethod
     @internal_api_call
     @provide_session
     def _check_and_change_state_before_execution(
+        cls,
         task_instance: TaskInstance | TaskInstancePydantic,
         verbose: bool = True,
         ignore_all_deps: bool = False,
@@ -2080,6 +2081,7 @@ class TaskInstance(Base, LoggingMixin):
         :param ignore_ti_state: Disregards previous task instance state
         :param mark_success: Don't run the task, mark its state as success
         :param test_mode: Doesn't record success or failure in the DB
+        :param hostname: The hostname of the worker running the task instance.
         :param job_id: Job (BackfillJob / LocalTaskJob / SchedulerJob) ID
         :param pool: specifies the pool to use to run the task instance
         :param external_executor_id: The identifier of the celery executor
@@ -2148,7 +2150,7 @@ class TaskInstance(Base, LoggingMixin):
             )
             if not ti.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
                 ti.state = None
-                ti.log.warning(
+                cls.logger().warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
                     "%s. State set to NONE.",
@@ -2161,9 +2163,9 @@ class TaskInstance(Base, LoggingMixin):
                 return False
 
         if ti.next_kwargs is not None:
-            ti.log.info("Resuming after deferral")
+            cls.logger().info("Resuming after deferral")
         else:
-            ti.log.info("Starting attempt %s of %s", ti.try_number, ti.max_tries + 1)
+            cls.logger().info("Starting attempt %s of %s", ti.try_number, ti.max_tries + 1)
         ti._try_number += 1
 
         if not test_mode:
@@ -2182,9 +2184,9 @@ class TaskInstance(Base, LoggingMixin):
         settings.engine.dispose()  # type: ignore
         if verbose:
             if mark_success:
-                ti.log.info("Marking success for %s on %s", ti.task, ti.execution_date)
+                cls.logger().info("Marking success for %s on %s", ti.task, ti.execution_date)
             else:
-                ti.log.info("Executing %s on %s", ti.task, ti.execution_date)
+                cls.logger().info("Executing %s on %s", ti.task, ti.execution_date)
         return True
 
     @provide_session
@@ -3209,11 +3211,12 @@ class TaskInstance(Base, LoggingMixin):
             return filters[0]
         return or_(*filters)
 
-    @staticmethod
+    @classmethod
     @internal_api_call
     @Sentry.enrich_errors
     @provide_session
     def _schedule_downstream_tasks(
+        cls,
         ti: TaskInstance | TaskInstancePydantic,
         session: Session = NEW_SESSION,
         max_tis_per_query: int | None = None,
@@ -3269,13 +3272,13 @@ class TaskInstance(Base, LoggingMixin):
                     schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
 
             num = dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=max_tis_per_query)
-            ti.log.info("%d downstream tasks scheduled from follow-on schedule check", num)
+            cls.logger().info("%d downstream tasks scheduled from follow-on schedule check", num)
 
             session.flush()
 
         except OperationalError as e:
             # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            ti.log.info(
+            cls.logger().info(
                 "Skipping mini scheduling run due to exception: %s",
                 e.statement,
                 exc_info=True,
