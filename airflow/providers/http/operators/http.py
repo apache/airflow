@@ -53,14 +53,15 @@ class HttpOperator(BaseOperator):
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
     :param headers: The HTTP headers to be added to the GET request
-    :param pagination_function: A callable that generates the parameters used to call the API again.
-        Typically used when the API is paginated and returns for e.g a cursor, a 'next page id', or
-        a 'next page URL'. When provided, the Operator will call the API repeatedly until this callable
-        returns None. Also, the result of the Operator will become by default a list of Response.text
-        objects (instead of a single response object). Same with the other injected functions (like
-        response_check, response_filter, ...) which will also receive a list of Response object. This
-        function should return a dict of parameters (`endpoint`, `data`, `headers`, `extra_options`),
-        which will be merged and override the one used in the initial API call.
+    :param pagination_function: A callable that generates the parameters used to call the API again,
+        based on the previous response. Typically used when the API is paginated and returns for e.g a
+        cursor, a 'next page id', or a 'next page URL'. When provided, the Operator will call the API
+        repeatedly until this callable returns None. Also, the result of the Operator will become by
+        default a list of Response.text objects (instead of a single response object). Same with the
+        other injected functions (like response_check, response_filter, ...) which will also receive a
+        list of Response object. This function receives a Response object form previous call, and should
+        return a dict of parameters (`endpoint`, `data`, `headers`, `extra_options`), which will be merged
+        and will override the one used in the initial API call.
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.
