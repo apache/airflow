@@ -25,3 +25,16 @@ Package apache-airflow-providers-pgvector
 
 This is detailed commit list of changes for versions provider package: ``pgvector``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2023-11-07
+
+=================================================================================================  ===========  =================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================
+`fb76f1fa15 <https://github.com/apache/airflow/commit/fb76f1fa156a6e49cc3fd0fa6c3719737a1bb548>`_  2023-11-07   ``Add pgvector provider implementation (#35399)``
+=================================================================================================  ===========  =================================================

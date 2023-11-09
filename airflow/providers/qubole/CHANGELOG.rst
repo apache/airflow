@@ -43,8 +43,15 @@ Changelog
 Misc
 ~~~~
 
-* ``The provider is removed and not maintained anymore by the Airflow Community``
+* ``Suspend qubole provider (#33889)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Add information about Qubole removal and make it possible to release it (#35492)``
+   * ``Switch from Black to Ruff formatter (#35287)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+   * ``Bump min airflow version of providers (#34728)``
 
 3.4.2
 .....

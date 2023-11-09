@@ -61,8 +61,6 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -77,7 +75,7 @@ Package apache-airflow-providers-common-io
 ``Common IO Provider``
 
 
-Release: 1.0.0
+Release: 1.0.1
 
 Provider package
 ----------------

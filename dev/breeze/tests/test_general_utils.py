@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.utils.general_utils import get_docs_filter_name_from_short_hand
+from airflow_breeze.utils.packages import get_long_package_names
 
 
 @pytest.mark.parametrize(
@@ -34,13 +34,13 @@ from airflow_breeze.utils.general_utils import get_docs_filter_name_from_short_h
             ("apache-airflow", "helm-chart", "docker-stack"),
             id="non-providers-docs",
         ),
-        pytest.param(("providers-index",), ("apache-airflow-providers",), id="providers-index"),
+        pytest.param(("apache-airflow-providers",), ("apache-airflow-providers",), id="providers-index"),
         pytest.param(
-            ("docker", "docker-stack", "providers-index"),
+            ("docker", "docker-stack", "apache-airflow-providers"),
             ("apache-airflow-providers-docker", "docker-stack", "apache-airflow-providers"),
             id="mixin",
         ),
     ],
 )
 def test_get_provider_name_from_short_hand(short_form_providers, expected):
-    assert get_docs_filter_name_from_short_hand(short_form_providers) == expected
+    assert get_long_package_names(short_form_providers) == expected

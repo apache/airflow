@@ -26,6 +26,42 @@
 Changelog
 ---------
 
+8.11.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+
+* ``Add support for anonymous access to s3 buckets for objectstorage (#35273)``
+* ``ECS Executor Health Check (#35412)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS RDS hook's DB instance state check (#34773)``
+* ``Fix parameter syntax in Amazon docstrings (#35349)``
+* ``Improve error handling in AWS Links (#35518)``
+* ``Update ECS executor healthcheck with a catchall except (#35512)``
+
+Misc
+~~~~
+
+* ``Move ECS Executor to its own file (#35418)``
+* ``Clarify "task" in ECS Executor log messages (#35304)``
+* ``Make optional 'output_location' attribute in 'AthenaOperator' (#35265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add verificationy that provider docs are as expected (#35424)``
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Improve docs on objectstorage (#35294)``
+
+
 8.10.0
 ......
 

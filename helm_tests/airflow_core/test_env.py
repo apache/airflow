@@ -14,3 +14,29 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+import jmespath
+
+from tests.charts.helm_template_generator import render_chart
+
+
+def test_should_add_airflow_home():
+    exp_path = "/not/even/a/real/path"
+    docs = render_chart(
+        values={"airflowHome": exp_path},
+        show_only=["templates/webserver/webserver-deployment.yaml"],
+    )
+    assert {"name": "AIRFLOW_HOME", "value": exp_path} in jmespath.search(
+        "spec.template.spec.containers[0].env", docs[0]
+    )
+
+
+def test_should_add_airflow_home_notset():
+    docs = render_chart(
+        values={},
+        show_only=["templates/webserver/webserver-deployment.yaml"],
+    )
+    assert {"name": "AIRFLOW_HOME", "value": "/opt/airflow"} in jmespath.search(
+        "spec.template.spec.containers[0].env", docs[0]
+    )

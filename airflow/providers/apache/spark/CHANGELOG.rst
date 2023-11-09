@@ -29,6 +29,20 @@
 Changelog
 ---------
 
+4.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add pyspark decorator (#35247)``
+* ``Add use_krb5ccache option to SparkSubmitOperator (#35331)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add information about Qubole removal and make it possible to release it (#35492)``
+
+
 4.3.0
 .....
 
