@@ -745,6 +745,15 @@ class TestWorker:
             "spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]
         )
 
+    def test_worker_template_storage_class_name(self):
+        docs = render_chart(
+            values={"workers": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert "release-name-storage-class" == jmespath.search(
+            "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
+        )
+
     @pytest.mark.parametrize(
         "globalScope, localScope, precedence",
         [
