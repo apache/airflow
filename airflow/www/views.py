@@ -1993,10 +1993,11 @@ class Airflow(AirflowBaseView):
         if form_trust_problems:
             flash(
                 Markup(
-                    f"At least one field in trigger form uses custom HTML form definition. This is not allowed per "
-                    "configuration for security. Switch to markdown description via <code>description_md</code> "
-                    "or ask your deployment manager to change <code>webserver.allow_raw_html_descriptions</code> "
-                    "configuration parameter to enable HTML. Using plain text as fallback for these fields. "
+                    "At least one field in trigger form uses raw HTML form definition. This is not allowed for "
+                    "security. Please switch to markdown description via <code>description_md</code>. "
+                    "Raw HTML is deprecated and must be enabled via "
+                    "<code>webserver.allow_raw_html_descriptions</code> configuration parameter. Using plain text "
+                    "as fallback for these fields. "
                     f"<ul><li>{'</li><li>'.join(form_trust_problems)}</li></ul>"
                 ),
                 "warning",
