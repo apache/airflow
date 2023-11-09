@@ -41,14 +41,23 @@ def test_execute_with_input_text():
 
 def test_execute_with_invalid_input_empty_string():
     with pytest.raises(AirflowException):
-        OpenAIEmbeddingOperator(task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text="")
+        operator = OpenAIEmbeddingOperator(
+            task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=""
+        )
+        operator.execute()
 
 
 def test_execute_with_invalid_input_none():
     with pytest.raises(AirflowException):
-        OpenAIEmbeddingOperator(task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=None)
+        operator = OpenAIEmbeddingOperator(
+            task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=None
+        )
+        operator.execute()
 
 
 def test_execute_with_invalid_input_wrong_type():
     with pytest.raises(AirflowException):
-        OpenAIEmbeddingOperator(task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=123)
+        operator = OpenAIEmbeddingOperator(
+            task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=123
+        )
+        operator.execute()
