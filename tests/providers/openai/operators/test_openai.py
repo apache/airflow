@@ -44,7 +44,8 @@ def test_execute_with_invalid_input_empty_string():
         operator = OpenAIEmbeddingOperator(
             task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=""
         )
-        operator.execute()
+        context = Context()
+        operator.execute(context)
 
 
 def test_execute_with_invalid_input_none():
@@ -52,7 +53,8 @@ def test_execute_with_invalid_input_none():
         operator = OpenAIEmbeddingOperator(
             task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=None
         )
-        operator.execute()
+        context = Context()
+        operator.execute(context)
 
 
 def test_execute_with_invalid_input_wrong_type():
@@ -60,4 +62,5 @@ def test_execute_with_invalid_input_wrong_type():
         operator = OpenAIEmbeddingOperator(
             task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=123
         )
-        operator.execute()
+        context = Context()
+        operator.execute(context)
