@@ -20,6 +20,7 @@ from unittest.mock import Mock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
 from airflow.utils.context import Context
 
@@ -39,15 +40,15 @@ def test_execute_with_input_text():
 
 
 def test_execute_with_invalid_input_empty_string():
-    with pytest.raises(ValueError):
+    with pytest.raises(AirflowException):
         OpenAIEmbeddingOperator(task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text="")
 
 
 def test_execute_with_invalid_input_none():
-    with pytest.raises(ValueError):
+    with pytest.raises(AirflowException):
         OpenAIEmbeddingOperator(task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=None)
 
 
 def test_execute_with_invalid_input_wrong_type():
-    with pytest.raises(ValueError):
+    with pytest.raises(AirflowException):
         OpenAIEmbeddingOperator(task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=123)
