@@ -126,7 +126,7 @@ class TestHttpOperator:
             if iterations < 2:
                 iterations += 1
                 return dict(
-                    endpoint=response.json()['endpoint'],
+                    endpoint=response.json()["endpoint"],
                     data={},
                     headers={},
                     extra_options={},
@@ -141,7 +141,7 @@ class TestHttpOperator:
             endpoint="/foo",
             http_conn_id="HTTP_EXAMPLE",
             pagination_function=pagination_function,
-            response_filter=lambda resp: [entry.json()['value'] for entry in resp]
+            response_filter=lambda resp: [entry.json()["value"] for entry in resp],
         )
         result = operator.execute({})
         assert result == [5, 10, 5]
