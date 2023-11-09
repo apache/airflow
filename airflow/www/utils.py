@@ -49,6 +49,7 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.json import WebEncoder
 from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State, TaskInstanceState
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
@@ -60,7 +61,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
     from sqlalchemy.sql.operators import ColumnOperators
 
-    from airflow.www.fab_security.sqla.manager import SecurityManager
+    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
+
 
 TI = TaskInstance
 
@@ -927,7 +929,7 @@ class UIAlert:
         self.html = html
         self.message = Markup(message) if html else message
 
-    def should_show(self, securitymanager: SecurityManager) -> bool:
+    def should_show(self, appbuilder: AirflowAppBuilder) -> bool:
         """Determine if the user should see the message.
 
         The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
@@ -935,12 +937,15 @@ class UIAlert:
         ``AUTH_ROLE_PUBLIC`` role.
         """
         if self.roles:
-            current_user = securitymanager.current_user
+            current_user = get_auth_manager().get_user()
             if current_user is not None:
-                user_roles = {r.name for r in securitymanager.current_user.roles}
-            elif "AUTH_ROLE_PUBLIC" in securitymanager.appbuilder.get_app.config:
+                if not hasattr(current_user, "roles"):
+                    # If the user does not contain "roles" in its model, return False
+                    return False
+                user_roles = {r.name for r in current_user.roles}
+            elif "AUTH_ROLE_PUBLIC" in appbuilder.get_app.config:
                 # If the current_user is anonymous, assign AUTH_ROLE_PUBLIC role (if it exists) to them
-                user_roles = {securitymanager.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]}
+                user_roles = {appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]}
             else:
                 # Unable to obtain user role - default to not showing
                 return False
