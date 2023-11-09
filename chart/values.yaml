@@ -637,11 +637,6 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
-    # Detailed default security context for kerberosSidecar for container level
-    securityContexts:
-      container: {}
-    # container level lifecycle hooks
-    containerLifecycleHooks: {}
 
 
   resources: {}

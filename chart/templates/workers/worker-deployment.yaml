@@ -34,11 +34,9 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
-{{- $containerSecurityContextKerberosInitContainer := include "containerSecurityContext" (list . .Values.workers.kerberosInitContainer) }}
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.workers.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
-{{- $containerLifecycleHooksKerberosInitContainer := or .Values.workers.kerberosInitContainer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
 {{- $podAnnotations := mergeOverwrite .Values.airflowPodAnnotations $safeToEvict .Values.workers.podAnnotations }}
 apiVersion: apps/v1
@@ -156,10 +154,6 @@ spec:
         - name: kerberos-init
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          securityContext: {{ $containerLifecycleHooksKerberosInitContainer | nindent 12 }}
-          {{- if $containerLifecycleHooksKerberosSidecar }}
-          lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosInitContainer) . | nindent 12 }}
-          {{- end }}
           args: ["kerberos", "-o"]
           resources: {{- toYaml .Values.workers.kerberosInitContainer.resources | nindent 12 }}
           volumeMounts:
