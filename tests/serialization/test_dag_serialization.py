@@ -2041,11 +2041,25 @@ class TestStringifiedDAGs:
         """
 
         class TestOperator(BaseOperator):
-            template_fields = ("email", "execution_timeout")
+            template_fields = (
+                "email",  # templateable
+                "execution_timeout",  # not templateable
+            )
 
-        dag = DAG("test_not_templateable_fields", start_date=datetime(2019, 8, 1))
+            def execute(self, context: Context):
+                pass
+
+        dag = DAG(dag_id="test_dag", start_date=datetime(2023, 11, 9))
+
         with dag:
-            TestOperator(task_id="test", execution_timeout=timedelta(seconds=10))
+            task = TestOperator(
+                task_id="test_task",
+                email="{{ ','.join(test_email_list) }}",
+                execution_timeout=timedelta(seconds=10),
+            )
+            task.render_template_fields(context={"test_email_list": ["foo@test.com", "bar@test.com"]})
+            assert task.email == "foo@test.com,bar@test.com"
+
         with pytest.raises(AirflowException, match="Cannot template BaseOperator field: 'execution_timeout'"):
             SerializedDAG.to_dict(dag)
 
