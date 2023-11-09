@@ -50,7 +50,7 @@ class OpsgenieNotifier(BaseNotifier):
         For more information on how to use this notifier, take a look at the guide:
         :ref:`howto/notifier:OpsgenieNotifier`
 
-    :param opsgenie_conn_id: The name of the Opsgenie connection to use
+    :param opsgenie_conn_id: Optional. The name of the Opsgenie connection to use. Default conn_id is opsgenie_default
     :param message: The Message of the Opsgenie alert (templated)
     :param alias: Client-defined identifier of the alert (templated)
     :param description: Description field of the alert (templated)
