@@ -86,10 +86,24 @@ div.container {
   align-items: center;
 }
 
-.brand-logo {
-  width: 104px;
+.brand-logo-pinwheel {
+  width: 49px;
   height: 40px;
   overflow: visible !important; /* Allow for animation */
+}
+
+.brand-logo-text {
+  width: 55px;
+  height: 40px;
+  overflow: visible !important; /* Allow for animation */
+}
+
+.brand-logo-divider {
+  width: 0px;
+}
+
+.brand-logo-antidivider {
+  width: 5px;
 }
 
 @keyframes pinSpin {
@@ -105,7 +119,17 @@ div.container {
 @media (prefers-reduced-motion: no-preference) {
   .navbar-brand:hover .brand-logo-pinwheel {
     transform-origin: 17.66px 17.66px;
-    animation: pinSpin 1.5s linear;
+    animation: pinSpin 1.5s linear infinite;
+  }
+
+  .navbar-brand:hover .brand-logo-divider {
+    width: 5px;
+    transition: width 0.5s;
+  }
+
+  .navbar-brand:hover .brand-logo-antidivider {
+    width: 0px;
+    transition: width 0.5s;
   }
 }
 
