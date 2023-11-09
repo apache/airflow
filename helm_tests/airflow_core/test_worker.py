@@ -564,6 +564,35 @@ class TestWorker:
         } in jmespath.search("spec.template.spec.containers[2].volumeMounts", docs[0])
 
     @pytest.mark.parametrize(
+        "airflow_version, expected_init_containers",
+        [
+            ("1.9.0", 2),
+            ("1.10.14", 2),
+            ("2.0.2", 2),
+            ("2.1.0", 2),
+            ("2.8.0", 3),
+        ],
+    )
+    def test_airflow_kerberos_init_container(self, airflow_version, expected_init_containers):
+        docs = render_chart(
+            values={
+                "airflowVersion": airflow_version,
+                "workers": {
+                    "kerberosInitContainer": {"enabled": True},
+                    "persistence": {"fixPermissions": True},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        initContainers = jmespath.search("spec.template.spec.initContainers", docs[0])
+        assert len(initContainers) == expected_init_containers
+
+        if expected_init_containers == 3:
+            assert initContainers[1]["name"] == "kerberos-init"
+            assert initContainers[1]["args"] == ["kerberos", "-o"]
+
+    @pytest.mark.parametrize(
         "airflow_version, expected_arg",
         [
             ("1.9.0", "airflow worker"),
