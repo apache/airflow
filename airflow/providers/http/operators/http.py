@@ -162,16 +162,16 @@ class HttpOperator(BaseOperator):
     def execute_sync(self, context: Context) -> Any:
         self.log.info("Calling HTTP method")
         response = self.hook.run(self.endpoint, self.data, self.headers, self.extra_options)
-        response = self.paginate_sync(first_response=response)
+        response = self.paginate_sync(response=response)
         return self.process_response(context=context, response=response)
 
-    def paginate_sync(self, first_response: Response) -> Response | list[Response]:
+    def paginate_sync(self, response: Response) -> Response | list[Response]:
         if not self.pagination_function:
-            return first_response
+            return response
 
-        all_responses = [first_response]
+        all_responses = [response]
         while True:
-            next_page_params = self.pagination_function(first_response)
+            next_page_params = self.pagination_function(response)
             if not next_page_params:
                 break
             response = self.hook.run(**self._merge_next_page_parameters(next_page_params))
