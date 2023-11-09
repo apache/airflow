@@ -115,9 +115,13 @@ class TestHasAccessNoDetails:
 @pytest.mark.parametrize(
     "decorator_name, is_authorized_method_name, items",
     [
-        ("has_access_connection", "is_authorized_connection", [Connection("conn_1"), Connection("conn_2")]),
-        ("has_access_pool", "is_authorized_pool", [Pool(pool="pool_1"), Pool(pool="pool_2")]),
-        ("has_access_variable", "is_authorized_variable", [Variable("var_1"), Variable("var_2")]),
+        (
+            "has_access_connection",
+            "batch_is_authorized_connection",
+            [Connection("conn_1"), Connection("conn_2")],
+        ),
+        ("has_access_pool", "batch_is_authorized_pool", [Pool(pool="pool_1"), Pool(pool="pool_2")]),
+        ("has_access_variable", "batch_is_authorized_variable", [Variable("var_1"), Variable("var_2")]),
     ],
 )
 class TestHasAccessWithDetails:
@@ -181,7 +185,7 @@ class TestHasAccessDagEntities:
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_dag_entities_when_authorized(self, mock_get_auth_manager, dag_access_entity):
         auth_manager = Mock()
-        auth_manager.is_authorized_dag.return_value = True
+        auth_manager.batch_is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
         items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
 
@@ -194,7 +198,7 @@ class TestHasAccessDagEntities:
     @patch("airflow.www.auth.get_auth_manager")
     def test_has_access_dag_entities_when_unauthorized(self, mock_get_auth_manager, app, dag_access_entity):
         auth_manager = Mock()
-        auth_manager.is_authorized_dag.return_value = False
+        auth_manager.batch_is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
         items = [Mock(dag_id="dag_1"), Mock(dag_id="dag_2")]
 

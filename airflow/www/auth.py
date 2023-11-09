@@ -45,6 +45,12 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.auth.managers.models.batch_apis import (
+        IsAuthorizedConnectionRequest,
+        IsAuthorizedDagRequest,
+        IsAuthorizedPoolRequest,
+        IsAuthorizedVariableRequest,
+    )
     from airflow.models import DagRun, Pool, SlaMiss, TaskInstance, Variable
     from airflow.models.connection import Connection
     from airflow.models.xcom import BaseXCom
@@ -190,15 +196,14 @@ def has_access_connection(method: ResourceMethod) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             connections: set[Connection] = set(args[1])
-            connections_details = [
-                ConnectionDetails(conn_id=connection.conn_id) for connection in connections
+            requests: Sequence[IsAuthorizedConnectionRequest] = [
+                {
+                    "method": method,
+                    "details": ConnectionDetails(conn_id=connection.conn_id),
+                }
+                for connection in connections
             ]
-            is_authorized = all(
-                [
-                    get_auth_manager().is_authorized_connection(method=method, details=connection_details)
-                    for connection_details in connections_details
-                ]
-            )
+            is_authorized = get_auth_manager().batch_is_authorized_connection(requests)
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -265,15 +270,16 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
         @wraps(func)
         def decorated(*args, **kwargs):
             items: set[SlaMiss | BaseXCom | DagRun | TaskInstance] = set(args[1])
-            dags_details = [DagDetails(id=item.dag_id) for item in items if item is not None]
-            is_authorized = all(
-                [
-                    get_auth_manager().is_authorized_dag(
-                        method=method, access_entity=access_entity, details=dag_details
-                    )
-                    for dag_details in dags_details
-                ]
-            )
+            requests: Sequence[IsAuthorizedDagRequest] = [
+                {
+                    "method": method,
+                    "access_entity": access_entity,
+                    "details": DagDetails(id=item.dag_id),
+                }
+                for item in items
+                if item is not None
+            ]
+            is_authorized = get_auth_manager().batch_is_authorized_dag(requests)
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -296,13 +302,14 @@ def has_access_pool(method: ResourceMethod) -> Callable[[T], T]:
         @wraps(func)
         def decorated(*args, **kwargs):
             pools: set[Pool] = set(args[1])
-            pools_details = [PoolDetails(name=pool.pool) for pool in pools]
-            is_authorized = all(
-                [
-                    get_auth_manager().is_authorized_pool(method=method, details=pool_details)
-                    for pool_details in pools_details
-                ]
-            )
+            requests: Sequence[IsAuthorizedPoolRequest] = [
+                {
+                    "method": method,
+                    "details": PoolDetails(name=pool.pool),
+                }
+                for pool in pools
+            ]
+            is_authorized = get_auth_manager().batch_is_authorized_pool(requests)
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,
@@ -324,13 +331,14 @@ def has_access_variable(method: ResourceMethod) -> Callable[[T], T]:
                 is_authorized = get_auth_manager().is_authorized_variable(method=method)
             else:
                 variables: set[Variable] = set(args[1])
-                variables_details = [VariableDetails(key=variable.key) for variable in variables]
-                is_authorized = all(
-                    [
-                        get_auth_manager().is_authorized_variable(method=method, details=variable_details)
-                        for variable_details in variables_details
-                    ]
-                )
+                requests: Sequence[IsAuthorizedVariableRequest] = [
+                    {
+                        "method": method,
+                        "details": VariableDetails(key=variable.key),
+                    }
+                    for variable in variables
+                ]
+                is_authorized = get_auth_manager().batch_is_authorized_variable(requests)
             return _has_access(
                 is_authorized=is_authorized,
                 func=func,

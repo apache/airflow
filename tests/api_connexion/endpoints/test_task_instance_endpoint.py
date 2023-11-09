@@ -994,7 +994,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 403
         assert response.json == {
-            "detail": "User not allowed to access these DAGs: ['example_skip_dag']",
+            "detail": "User not allowed to access some of these DAGs: ['example_python_operator', 'example_skip_dag']",
             "status": 403,
             "title": "Forbidden",
             "type": EXCEPTIONS_LINK_MAP[403],

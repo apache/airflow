@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Literal
+from typing import TYPE_CHECKING, Container, Literal, Sequence
 
 from sqlalchemy import select
 
@@ -37,6 +37,12 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
+    from airflow.auth.managers.models.batch_apis import (
+        IsAuthorizedConnectionRequest,
+        IsAuthorizedDagRequest,
+        IsAuthorizedPoolRequest,
+        IsAuthorizedVariableRequest,
+    )
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         ConfigurationDetails,
@@ -249,6 +255,89 @@ class BaseAuthManager(LoggingMixin):
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
         raise AirflowException(f"The resource `{fab_resource_name}` does not exist in the environment.")
+
+    def batch_is_authorized_dag(
+        self,
+        requests: Sequence[IsAuthorizedDagRequest],
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_dag``.
+
+        By default, calls individually the ``is_authorized_dag`` API on each item in the list of requests.
+        Can lead to some poor performance. It is recommended to override this method in the auth manager
+        implementation to provide a more efficient implementation.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_dag``
+        """
+        return all(
+            self.is_authorized_dag(
+                method=request["method"],
+                access_entity=request.get("access_entity"),
+                details=request.get("details"),
+                user=request.get("user"),
+            )
+            for request in requests
+        )
+
+    def batch_is_authorized_connection(
+        self,
+        requests: Sequence[IsAuthorizedConnectionRequest],
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_connection``.
+
+        By default, calls individually the ``is_authorized_connection`` API on each item in the list of
+        requests. Can lead to some poor performance. It is recommended to override this method in the auth
+        manager implementation to provide a more efficient implementation.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_connection``
+        """
+        return all(
+            self.is_authorized_connection(
+                method=request["method"], details=request.get("details"), user=request.get("user")
+            )
+            for request in requests
+        )
+
+    def batch_is_authorized_pool(
+        self,
+        requests: Sequence[IsAuthorizedPoolRequest],
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_pool``.
+
+        By default, calls individually the ``is_authorized_pool`` API on each item in the list of
+        requests. Can lead to some poor performance. It is recommended to override this method in the auth
+        manager implementation to provide a more efficient implementation.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_pool``
+        """
+        return all(
+            self.is_authorized_pool(
+                method=request["method"], details=request.get("details"), user=request.get("user")
+            )
+            for request in requests
+        )
+
+    def batch_is_authorized_variable(
+        self,
+        requests: Sequence[IsAuthorizedVariableRequest],
+    ) -> bool:
+        """
+        Batch version of ``is_authorized_variable``.
+
+        By default, calls individually the ``is_authorized_variable`` API on each item in the list of
+        requests. Can lead to some poor performance. It is recommended to override this method in the auth
+        manager implementation to provide a more efficient implementation.
+
+        :param requests: a list of requests containing the parameters for ``is_authorized_variable``
+        """
+        return all(
+            self.is_authorized_variable(
+                method=request["method"], details=request.get("details"), user=request.get("user")
+            )
+            for request in requests
+        )
 
     @provide_session
     def get_permitted_dag_ids(
