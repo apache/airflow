@@ -509,7 +509,8 @@ Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
 Example:
 If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
-Note: For building docs for apache-airflow-providers index, use ``providers-index`` as the short hand operator.
+Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers``
+as the short hand operator.
 
 Running static checks
 ---------------------
