@@ -2035,20 +2035,18 @@ class TestStringifiedDAGs:
         assert param.description == "hello"
         assert param.schema == {"type": "string"}
 
-    def test_not_templateable_fields_in_serialized_dag(
-        self,
-    ):
+    def test_not_templateable_fields_in_serialized_dag(self):
         """
-        Test that when we use  not templateable fields, an Airflow exception is raised.
+        Test that when we use not templateable fields, an Airflow exception is raised.
         """
 
         class TestOperator(BaseOperator):
-            template_fields = ("execution_timeout",)
+            template_fields = ("email", "execution_timeout")
 
         dag = DAG("test_not_templateable_fields", start_date=datetime(2019, 8, 1))
         with dag:
             TestOperator(task_id="test", execution_timeout=timedelta(seconds=10))
-        with pytest.raises(AirflowException, match="Cannot template BaseOperator fields: execution_timeout"):
+        with pytest.raises(AirflowException, match="Cannot template BaseOperator field: 'execution_timeout'"):
             SerializedDAG.to_dict(dag)
 
 
