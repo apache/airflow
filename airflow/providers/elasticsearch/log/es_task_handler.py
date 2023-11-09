@@ -345,26 +345,24 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :meta private:
         """
         query: dict[Any, Any] = {
-            "query": {
-                "bool": {
-                    "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
-                    "must": [{"match_phrase": {"log_id": log_id}}],
-                }
+            "bool": {
+                "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
+                "must": [{"match_phrase": {"log_id": log_id}}],
             }
         }
 
         try:
-            max_log_line = self.client.count(index=self.index_patterns, body=query)["count"]  # type: ignore
+            max_log_line = self.client.count(index=self.index_patterns, query=query)["count"]  # type: ignore
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", self.index_patterns)
             raise e
 
         if max_log_line != 0:
             try:
-                query.update({"sort": [self.offset_field]})
-                res = self.client.search(  # type: ignore
+                res = self.client.search(
                     index=self.index_patterns,
-                    body=query,
+                    query=query,
+                    sort=[self.offset_field],
                     size=self.MAX_LINE_PER_PAGE,
                     from_=self.MAX_LINE_PER_PAGE * self.PAGE,
                 )
