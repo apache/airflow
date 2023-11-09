@@ -98,7 +98,7 @@ class TISchedulingDecision(NamedTuple):
 
 
 class ConfDict(dict):
-    """Custom dictionary for storing only JSON serializable values"""
+    """Custom dictionary for storing only JSON serializable values."""
 
     def __init__(self, val=None):
         super().__init__(self.is_jsonable(val))
@@ -109,7 +109,7 @@ class ConfDict(dict):
 
     @staticmethod
     def is_jsonable(conf: dict) -> dict | None:
-        """Prevent setting non-json attributes"""
+        """Prevent setting non-json attributes."""
         try:
             json.dumps(conf)
         except TypeError:
