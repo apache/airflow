@@ -35,9 +35,8 @@ class OpenAIEmbeddingOperator(BaseOperator):
     :param conn_id: The OpenAI connection ID to use.
     :param input_text: The text to generate OpenAI embeddings for. This can be a string, a list of strings,
                     a list of integers, or a list of lists of integers.
-    :param model: The OpenAI model to be used for generating the embeddings. Defaults to 'text-embedding-ada-002'.
+    :param model: The OpenAI model to be used for generating the embeddings.
     :param embedding_kwargs: Additional keyword arguments to pass to the OpenAI `create_embeddings` method.
-    :raises AirflowException: Raises an exception if `input_text` is empty or not a string or list.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
