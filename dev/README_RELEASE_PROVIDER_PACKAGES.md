@@ -143,7 +143,6 @@ separately this command:
 breeze release-management prepare-provider-documentation qubole
 ```
 
-
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
 provider details will be printed on what changes were implemented since the last release including
@@ -175,6 +174,27 @@ branch should be prepared like this:
 breeze release-management prepare-provider-documentation \
  --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
 ```
+
+In case you want to **just** regenerate the documentation because you fixed something in the templates, add
+`--reapply-templates` flag to the command above. This refreshes the content of:
+
+* `__init__.py` in provider's package
+* Provider Commits
+* Provider index for the documentation
+* Provider README file used when publishing package in PyPI
+
+If you want to just update the min airflow version for all packages, you should modify `MIN_AIRFLOW_VERSION`
+in `dev/provider_packages/prepare_provider_packages.py` and run the `prepare-provider-documentation`
+command with the `--only-min-version-update` flag. This will only update the min version in
+the `__init__.py` files and package documentation without bumping the provider versions.
+
+```shell script
+breeze release-management prepare-provider-documentation --only-min-version-update
+```
+
+Note: that this command will only bump the min airflow versions for those providers that do not have it set to
+a higher version. You do not have to skip specific providers - run it for all providers and it will
+handle everything automatically.
 
 ## Open PR with suggested version releases
 

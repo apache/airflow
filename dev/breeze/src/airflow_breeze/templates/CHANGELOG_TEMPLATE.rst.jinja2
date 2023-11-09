@@ -26,17 +26,23 @@
 {{ version }}
 {{ version_header }}
 
+{%- if WITH_BREAKING_CHANGES %}
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 {% for breaking_change in classified_changes.breaking_changes %}
 * ``{{ breaking_change.message_without_backticks | safe }}``
 {%- endfor %}
+{%- endif %}
+
+{%- if MAYBE_WITH_NEW_FEATURES %}
 
 Features
 ~~~~~~~~
 {% for feature in classified_changes.features %}
 * ``{{ feature.message_without_backticks | safe }}``
 {%- endfor %}
+{%- endif %}
 
 Bug Fixes
 ~~~~~~~~~
