@@ -17,19 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from copy import deepcopy
 from unittest import mock
 
 import pytest
 
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.opsgenie.notifications.opsgenie import (
-    OpsgenieNotifier,
-    send_opsgenie_notification
-)
-from airflow.providers.opsgenie.hooks.opsgenie import (
-    OpsgenieAlertHook
-)
+from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
+from airflow.providers.opsgenie.notifications.opsgenie import OpsgenieNotifier, send_opsgenie_notification
 
 pytestmark = pytest.mark.db_test
 

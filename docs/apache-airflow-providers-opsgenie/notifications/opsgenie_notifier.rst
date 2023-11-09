@@ -27,28 +27,5 @@ Using the Notifier
 ^^^^^^^^^^^^^^^^^^
 Send an alert to Opsgenie with a specific message.
 
-.. code-block:: python
+.. exampleinclude:: /../../../tests/system/providers/opsgenie/example_opsgenie_notifier.py
 
-    from datetime import datetime
-    from airflow import DAG
-    from airflow.operators.bash import BashOperator
-    from airflow.providers.opsgenie.notifications.opsgenie import send_opsgenie_notification
-
-    with DAG(
-        "opsgenie_notifier",
-        start_date=datetime(2023, 1, 1),
-        on_failure_callback=[
-            send_opsgenie_notification(
-                message="Something went wrong!"
-            )
-        ],
-    ):
-        BashOperator(
-            task_id="mytask",
-            bash_command="fail",
-            on_failure_callback=[
-                send_opsgenie_notification(
-                    message="Something went wrong!"
-                )
-            ],
-        )

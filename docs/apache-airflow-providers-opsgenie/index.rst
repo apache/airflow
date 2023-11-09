@@ -35,6 +35,7 @@
     :caption: Guides
 
     Operators <operators/index>
+    Notifications <notifications/index>
 
 .. toctree::
     :hidden:
