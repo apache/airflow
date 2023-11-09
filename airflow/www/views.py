@@ -970,7 +970,7 @@ class Airflow(AirflowBaseView):
         )
 
         dashboard_alerts = [
-            fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(get_airflow_app().appbuilder.sm)
+            fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(get_airflow_app().appbuilder)
         ]
 
         def _iter_parsed_moved_data_table_names():

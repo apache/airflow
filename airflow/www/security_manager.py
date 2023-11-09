@@ -67,7 +67,7 @@ from airflow.security.permissions import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
-from airflow.www.fab_security.sqla.manager import SecurityManager
+from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = FAB_EXISTING_ROLES
@@ -78,7 +78,7 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
 
 
-class AirflowSecurityManagerV2(SecurityManager, LoggingMixin):
+class AirflowSecurityManagerV2(BaseSecurityManager, LoggingMixin):
     """Custom security manager, which introduces a permission model adapted to Airflow.
 
     It's named V2 to differentiate it from the obsolete airflow.www.security.AirflowSecurityManager.

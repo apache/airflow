@@ -49,7 +49,7 @@ from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
-from sqlalchemy import and_, func, inspect, or_, select
+from sqlalchemy import and_, func, inspect, literal, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -60,6 +60,7 @@ from airflow.auth.managers.fab.models import (
     RegisterUser,
     Resource,
     Role,
+    User,
     assoc_permission_role,
 )
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
@@ -95,7 +96,6 @@ from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.fab.models import User
     from airflow.www.fab_security.manager import BaseSecurityManager
 
 log = logging.getLogger(__name__)
@@ -126,6 +126,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """ The obj instance for user view """
 
     """ Models """
+    user_model = User
     role_model = Role
     action_model = Action
     resource_model = Resource
@@ -402,6 +403,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 label=lazy_gettext("Permissions"),
                 category="Security",
             )
+
+    @property
+    def get_session(self):
+        return self.appbuilder.get_session
 
     def create_login_manager(self) -> LoginManager:
         """Create the login manager."""
@@ -1122,6 +1127,41 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         sesh.commit()
         if deleted_count:
             self.log.info("Deleted %s faulty permissions", deleted_count)
+
+    def permission_exists_in_one_or_more_roles(
+        self, resource_name: str, action_name: str, role_ids: list[int]
+    ) -> bool:
+        """
+        Efficiently check if a certain permission exists on a list of role ids; used by `has_access`.
+
+        :param resource_name: The view's name to check if exists on one of the roles
+        :param action_name: The permission name to check if exists
+        :param role_ids: a list of Role ids
+        :return: Boolean
+        """
+        q = (
+            self.appbuilder.get_session.query(self.permission_model)
+            .join(
+                assoc_permission_role,
+                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
+            )
+            .join(self.role_model)
+            .join(self.action_model)
+            .join(self.resource_model)
+            .filter(
+                self.resource_model.name == resource_name,
+                self.action_model.name == action_name,
+                self.role_model.id.in_(role_ids),
+            )
+            .exists()
+        )
+        # Special case for MSSQL/Oracle (works on PG and MySQL > 8)
+        if self.appbuilder.get_session.bind.dialect.name in ("mssql", "oracle"):
+            return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
+        return self.appbuilder.get_session.query(q).scalar()
+
+    def perms_include_action(self, perms, action_name):
+        return any(perm.action and perm.action.name == action_name for perm in perms)
 
     def init_role(self, role_name, perms) -> None:
         """
