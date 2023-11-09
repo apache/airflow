@@ -98,20 +98,22 @@ class TestOpsgenieNotifier:
             EmptyOperator(task_id="task1")
 
         template_fields = ("message", "alias", "description", "entity", "priority", "note")
-        templated_config = dict()
+        templated_config = {}
         for key, value in self._config.items():
             if key in template_fields:
                 templated_config[key] = value + " {{dag.dag_id}}"
             else:
                 templated_config[key] = value
-        
-        templated_expected_payload_dict = dict()
+
+        templated_expected_payload_dict = {}
         for key, value in self.expected_payload_dict.items():
             if key in template_fields:
                 templated_expected_payload_dict[key] = value + f" {dag_id}"
             else:
                 templated_expected_payload_dict[key] = value
-                
+
         notifier = OpsgenieNotifier(**templated_config)
         notifier({"dag": dag})
-        mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(templated_expected_payload_dict)
+        mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(
+            templated_expected_payload_dict
+        )

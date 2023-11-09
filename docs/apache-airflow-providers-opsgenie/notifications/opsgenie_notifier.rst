@@ -31,4 +31,3 @@ Send an alert to Opsgenie with a specific message.
     :language: python
     :start-after: [START howto_notifier_opsgenie]
     :end-before: [END howto_notifier_opsgenie]
-
