@@ -64,7 +64,17 @@ hooks:
     python-modules:
       - airflow.providers.jdbc.hooks.jdbc
 
-
 connection-types:
   - hook-class-name: airflow.providers.jdbc.hooks.jdbc.JdbcHook
     connection-type: jdbc
+
+# Add documentation for "allow_driver_path_in_extra" configuration
+configuration:
+  - section: providers.jdbc
+    key: allow_driver_path_in_extra
+    default: false
+    type: bool
+    description: |
+      Whether to allow specifying the driver path in the extra field of the connection.
+      If set to true, the driver path can be provided in the extra field; otherwise, it will be ignored.
+      Default is false.
