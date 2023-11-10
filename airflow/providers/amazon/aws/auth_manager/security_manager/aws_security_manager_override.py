@@ -16,14 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
+from airflow.www.security_manager import AirflowSecurityManagerV2
 
 
-# TODO: Extends from  ``AirflowSecurityManagerV2`` instead of ``FabAirflowSecurityManagerOverride``
-#  when the work on the security managers is done.
-class AwsSecurityManagerOverride(FabAirflowSecurityManagerOverride):
-    """This security manager override specific to AWS auth manager."""
+class AwsSecurityManagerOverride(AirflowSecurityManagerV2):
+    """The security manager override specific to AWS auth manager."""
 
     def register_views(self):
         """Register views specific to AWS auth manager."""

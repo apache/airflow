@@ -61,14 +61,14 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
 
 @pytest.fixture
 def auth_manager():
-    return FabAuthManager(None, None)
+    return FabAuthManager(None)
 
 
 @pytest.fixture
 def auth_manager_with_appbuilder():
     flask_app = Flask(__name__)
     appbuilder = init_appbuilder(flask_app)
-    return FabAuthManager(flask_app, appbuilder)
+    return FabAuthManager(appbuilder)
 
 
 @pytest.mark.db_test

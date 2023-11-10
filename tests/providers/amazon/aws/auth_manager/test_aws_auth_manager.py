@@ -32,7 +32,7 @@ from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 @pytest.fixture
 def auth_manager():
-    return AwsAuthManager(None, None)
+    return AwsAuthManager(None)
 
 
 @pytest.fixture
