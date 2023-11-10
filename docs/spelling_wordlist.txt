@@ -802,6 +802,7 @@ intvl
 Investorise
 io
 ip
+ipc
 iPython
 irreproducible
 IRSA
@@ -1627,6 +1628,7 @@ ui
 uid
 ukey
 ulimit
+ulimits
 Umask
 umask
 Un
