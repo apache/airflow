@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+8.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Reorganize SQL to Slack Operators (#35215)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Add missing examples into Slack Provider (#35495)``
+
 8.3.0
 .....
 

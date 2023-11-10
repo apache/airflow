@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+10.11.1
+.......
+
+Misc
+~~~~
+
+* ``Update Google Ads API version from v14 to v15 (#35295)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch from Black to Ruff formatter (#35287)``
+
 10.11.0
 .......
 

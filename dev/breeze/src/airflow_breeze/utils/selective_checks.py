@@ -805,7 +805,7 @@ class SelectiveChecks:
         if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
             packages.append("apache-airflow")
         if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
-            packages.append("providers-index")
+            packages.append("apache-airflow-providers")
         if any(file.startswith(("chart/", "docs/helm-chart")) for file in self._files):
             packages.append("helm-chart")
         if any(file.startswith("docs/docker-stack/") for file in self._files):
