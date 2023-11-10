@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 5.0.0
+  - 4.7.0
   - 4.6.0
   - 4.5.0
   - 4.4.0
@@ -66,6 +68,7 @@ integrations:
   - integration-name: Databricks
     external-doc-url: https://databricks.com/
     how-to-guide:
+      - /docs/apache-airflow-providers-databricks/operators/jobs_create.rst
       - /docs/apache-airflow-providers-databricks/operators/submit_run.rst
       - /docs/apache-airflow-providers-databricks/operators/run_now.rst
     logo: /integration-logos/databricks/Databricks.png
@@ -123,3 +126,10 @@ connection-types:
 
 extra-links:
   - airflow.providers.databricks.operators.databricks.DatabricksJobRunLink
+
+additional-extras:
+  # pip install apache-airflow-providers-databricks[sdk]
+  - name: sdk
+    description: Install Databricks SDK
+    dependencies:
+      - databricks-sdk==0.10.0

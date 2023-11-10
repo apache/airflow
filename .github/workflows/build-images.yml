@@ -62,11 +62,18 @@ jobs:
       default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
-      image-build: ${{ steps.selective-checks.outputs.image-build }}
+      ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
+      prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      runs-on: ${{ steps.selective-checks.outputs.runs-on }}
+      runs-on: ${{steps.selective-checks.outputs.runs-on}}
+      is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
+      is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
+      is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
+      is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
+      is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
+      is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
       target-commit-sha: "${{steps.discover-pr-merge-commit.outputs.target-commit-sha ||
           github.event.pull_request.head.sha ||
           github.sha
@@ -102,7 +109,7 @@ jobs:
       # we checkout the target commit and its parent to be able to compare them
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
           persist-credentials: false
@@ -141,12 +148,11 @@ jobs:
           print(output, file=sys.stderr)
           EOF
       - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: "target-airflow"
           ref: ${{ github.base_ref }}
           persist-credentials: false
-          submodules: recursive
       - name: >
           Override "scripts/ci", "dev" and ".github/actions" with the target branch
           so that the PR does not override it
@@ -183,33 +189,31 @@ jobs:
     timeout-minutes: 80
     name: >
       Build CI images ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: ${{ needs.build-info.outputs.runs-on }}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info]
     if: |
-      needs.build-info.outputs.image-build == 'true' &&
+      needs.build-info.outputs.ci-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
       github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
+      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       BACKEND: sqlite
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
-          submodules: recursive
       - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: "target-airflow"
           ref: ${{ github.base_ref }}
           persist-credentials: false
-          submodules: recursive
       - name: >
           Override "scripts/ci", "dev" and ".github/actions" with the target branch
           so that the PR does not override it
@@ -256,33 +260,31 @@ jobs:
     name: >
       Build PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-    runs-on: ${{ needs.build-info.outputs.runs-on }}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-ci-images]
     if: |
-      needs.build-info.outputs.image-build == 'true' &&
+      needs.build-info.outputs.prod-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
       github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
+      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       BACKEND: sqlite
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
-          submodules: recursive
       - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: "target-airflow"
           ref: ${{ github.base_ref }}
           persist-credentials: false
-          submodules: recursive
       - name: >
           Override "scripts/ci", "dev" and ".github/actions" with the target branch
           so that the PR does not override it
@@ -297,6 +299,15 @@ jobs:
           mv -v "target-airflow/dev" "."
           rm -rfv ".github/actions"
           mv -v "target-airflow/.github/actions" ".github"
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: >
+          Pull CI image for PROD build:
+          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
+        shell: bash
+        run: breeze ci-image pull --tag-as-latest
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}
@@ -312,36 +323,36 @@ jobs:
   build-ci-images-arm:
     timeout-minutes: 50
     name: "Build ARM CI images ${{needs.build-info.outputs.all-python-versions-list-as-string}}"
-    runs-on: ${{ needs.build-info.outputs.runs-on }}
+    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs: [build-info, build-prod-images]
+    # We can change the job to run on ASF ARM runners and do not start our instance once we enable ASF runners
     if: |
-      needs.build-info.outputs.image-build == 'true' &&
+      needs.build-info.outputs.ci-image-build == 'true' &&
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
-      needs.build-info.outputs.runs-on == 'self-hosted' &&
+      needs.build-info.outputs.is-self-hosted-runner == 'true' &&
+      needs.build-info.outputs.is-airflow-runner == 'true' &&
       github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: ${{ needs.build-info.outputs.runs-on }}
+      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
-          submodules: recursive
       - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: "target-airflow"
           ref: ${{ github.base_ref }}
           persist-credentials: false
-          submodules: recursive
       - name: >
           Override "scripts/ci", "dev" and ".github/actions" with the target branch
           so that the PR does not override it

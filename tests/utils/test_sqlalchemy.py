@@ -44,6 +44,9 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
+pytestmark = pytest.mark.db_test
+
+
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
 
 

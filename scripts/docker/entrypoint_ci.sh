@@ -106,10 +106,22 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
     echo "  * ${COLOR_BLUE}Airflow core SQL connection:${COLOR_RESET} ${AIRFLOW__CORE__SQL_ALCHEMY_CONN:=}"
     echo
 
+    if [[ ${STANDALONE_DAG_PROCESSOR=} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Running forcing scheduler/standalone_dag_processor to be True${COLOR_RESET}"
+        echo
+        export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
+    fi
+    if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
+        echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
+        export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
+        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080
+        export AIRFLOW__WEBSERVER_RUN_INTERNAL_API=True
+    fi
+
     RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
     USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION:=""}"
-    TEST_TIMEOUT=${TEST_TIMEOUT:="60"}
 
     if [[ ${USE_AIRFLOW_VERSION} == "" ]]; then
         export PYTHONPATH=${AIRFLOW_SOURCES}
@@ -332,7 +344,7 @@ if [[ ${UPGRADE_BOTO=} == "true" ]]; then
     echo
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
-    pip uninstall --root-user-action ignore aiobotocore -y || true
+    pip uninstall --root-user-action ignore aiobotocore s3fs -y || true
     pip install --root-user-action ignore --upgrade boto3 botocore
     pip check
 fi
@@ -345,92 +357,15 @@ if [[ ${DOWNGRADE_SQLALCHEMY=} == "true" ]]; then
     pip check
 fi
 
+# Just in case uninstall the pytest-capture-warning which we vendored-in
+pip uninstall --root-user-action ignore "pytest-capture-warnings" -y >/dev/null 2>&1 || true
+
 set +u
 # If we do not want to run tests, we simply drop into bash
 if [[ "${RUN_TESTS}" != "true" ]]; then
     exec /bin/bash "${@}"
 fi
 set -u
-
-if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
-    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.xml"
-    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${HELM_TEST_PACKAGE}-${BACKEND}.txt"
-else
-    export RESULT_LOG_FILE="/files/test_result-${TEST_TYPE/\[*\]/}-${BACKEND}.xml"
-    export WARNINGS_FILE="/files/warnings-${TEST_TYPE/\[*\]/}-${BACKEND}.txt"
-fi
-
-EXTRA_PYTEST_ARGS=(
-    "--verbosity=0"
-    "--strict-markers"
-    "--durations=100"
-    "--maxfail=50"
-    "--color=yes"
-    "--junitxml=${RESULT_LOG_FILE}"
-    # timeouts in seconds for individual tests
-    "--timeouts-order"
-    "moi"
-    "--setup-timeout=${TEST_TIMEOUT}"
-    "--execution-timeout=${TEST_TIMEOUT}"
-    "--teardown-timeout=${TEST_TIMEOUT}"
-    "--output=${WARNINGS_FILE}"
-    "--disable-warnings"
-    # Only display summary for non-expected cases
-    #
-    # f - failed
-    # E - error
-    # X - xpassed (passed even if expected to fail)
-    # s - skipped
-    #
-    # The following cases are not displayed:
-    # x - xfailed (expected to fail and failed)
-    # p - passed
-    # P - passed with output
-    #
-    "-rfEXs"
-)
-
-if [[ ${SUSPENDED_PROVIDERS_FOLDERS=} != "" ]]; then
-    for provider in ${SUSPENDED_PROVIDERS_FOLDERS=}; do
-        echo "Skipping tests for suspended provider: ${provider}"
-        EXTRA_PYTEST_ARGS+=(
-            "--ignore=tests/providers/${provider}"
-            "--ignore=tests/system/providers/${provider}"
-            "--ignore=tests/integration/providers/${provider}"
-        )
-    done
-fi
-
-if [[ "${TEST_TYPE}" == "Helm" ]]; then
-    _cpus="$(grep -c 'cpu[0-9]' /proc/stat)"
-    echo "Running tests with ${_cpus} CPUs in parallel"
-    # Enable parallelism and disable coverage
-    EXTRA_PYTEST_ARGS+=(
-        "-n" "${_cpus}"
-        "--no-cov"
-    )
-else
-    EXTRA_PYTEST_ARGS+=(
-        "--with-db-init"
-    )
-fi
-
-if [[ ${ENABLE_TEST_COVERAGE:="false"} == "true" ]]; then
-    _suffix="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)"
-    EXTRA_PYTEST_ARGS+=(
-        "--cov=airflow"
-        "--cov-config=pyproject.toml"
-        "--cov-report=xml:/files/coverage-${TEST_TYPE/\[*\]/}-${BACKEND}-${_suffix}.xml"
-    )
-fi
-
-if [[ ${COLLECT_ONLY:="false"} == "true" ]]; then
-    EXTRA_PYTEST_ARGS+=(
-        "--collect-only"
-        "-qqqq"
-        "--disable-warnings"
-    )
-fi
 
 if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
     # Test what happens if we do not have ARM packages installed.
@@ -439,180 +374,14 @@ if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
     python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
 fi
 
-declare -a SELECTED_TESTS CLI_TESTS API_TESTS OPERATORS_TESTS ALWAYS_TESTS PROVIDERS_TESTS \
-    CORE_TESTS WWW_TESTS ALL_TESTS ALL_PRESELECTED_TESTS ALL_OTHER_TESTS
-
-# Finds all directories that are not on the list of tests
-# - so that we do not skip any in the future if new directories are added
-function find_all_other_tests() {
-    local all_tests_dirs
-    # The output of the find command should be sorted to make sure that the order is always the same
-    # when we run the tests, to avoid cross-package side effects causing different test results
-    # in different environments. See https://github.com/apache/airflow/pull/30588 for example.
-    all_tests_dirs=$(find "tests" -type d ! -name '__pycache__' | sort)
-    all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests$/d" )
-    all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/tests\/dags/d" )
-    local path
-    for path in "${ALL_PRESELECTED_TESTS[@]}"
-    do
-        escaped_path="${path//\//\\\/}"
-        all_tests_dirs=$(echo "${all_tests_dirs}" | sed "/${escaped_path}/d" )
-    done
-    for path in ${all_tests_dirs}
-    do
-        ALL_OTHER_TESTS+=("${path}")
-    done
-}
-
-if [[ ${#@} -gt 0 && -n "$1" ]]; then
-    SELECTED_TESTS=("${@}")
-else
-    CLI_TESTS=("tests/cli")
-    API_TESTS=("tests/api_experimental" "tests/api_connexion" "tests/api_internal")
-    PROVIDERS_TESTS=("tests/providers")
-    ALWAYS_TESTS=("tests/always")
-    OPERATORS_TESTS=("tests/operators")
-    CORE_TESTS=(
-        "tests/core"
-        "tests/executors"
-        "tests/jobs"
-        "tests/models"
-        "tests/serialization"
-        "tests/ti_deps"
-        "tests/utils"
-    )
-    WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("helm_tests")
-    INTEGRATION_TESTS=("tests/integration")
-    SYSTEM_TESTS=("tests/system")
-    ALL_TESTS=("tests")
-    ALL_PRESELECTED_TESTS=(
-        "${CLI_TESTS[@]}"
-        "${API_TESTS[@]}"
-        "${HELM_CHART_TESTS[@]}"
-        "${INTEGRATION_TESTS[@]}"
-        "${PROVIDERS_TESTS[@]}"
-        "${CORE_TESTS[@]}"
-        "${ALWAYS_TESTS[@]}"
-        "${OPERATORS_TESTS[@]}"
-        "${WWW_TESTS[@]}"
-        "${SYSTEM_TESTS[@]}"
-    )
-
-    NO_PROVIDERS_INTEGRATION_TESTS=(
-        "tests/integration/api_experimental"
-        "tests/integration/cli"
-        "tests/integration/executors"
-        "tests/integration/security"
-    )
-
-    if [[ ${TEST_TYPE:=""} == "CLI" ]]; then
-        SELECTED_TESTS=("${CLI_TESTS[@]}")
-    elif [[ ${TEST_TYPE:=""} == "API" ]]; then
-        SELECTED_TESTS=("${API_TESTS[@]}")
-    elif [[ ${TEST_TYPE:=""} == "Providers" ]]; then
-        SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
-    elif [[ ${TEST_TYPE:=""} == "Core" ]]; then
-        SELECTED_TESTS=("${CORE_TESTS[@]}")
-    elif [[ ${TEST_TYPE:=""} == "Always" ]]; then
-        SELECTED_TESTS=("${ALWAYS_TESTS[@]}")
-    elif [[ ${TEST_TYPE:=""} == "Operators" ]]; then
-        SELECTED_TESTS=("${OPERATORS_TESTS[@]}")
-    elif [[ ${TEST_TYPE:=""} == "WWW" ]]; then
-        SELECTED_TESTS=("${WWW_TESTS[@]}")
-    elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
-        if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
-            SELECTED_TESTS=("helm_tests/${HELM_TEST_PACKAGE}")
-        else
-            SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
-        fi
-    elif [[ ${TEST_TYPE:=""} == "Integration" ]]; then
-        if [[ ${SKIP_PROVIDER_TESTS:=""} == "true" ]]; then
-            SELECTED_TESTS=("${NO_PROVIDERS_INTEGRATION_TESTS[@]}")
-        else
-            SELECTED_TESTS=("${INTEGRATION_TESTS[@]}")
-        fi
-    elif [[ ${TEST_TYPE:=""} == "Other" ]]; then
-        find_all_other_tests
-        SELECTED_TESTS=("${ALL_OTHER_TESTS[@]}")
-    elif [[ ${TEST_TYPE:=""} == "All" || ${TEST_TYPE} == "Quarantined" || \
-            ${TEST_TYPE} == "Always" || \
-            ${TEST_TYPE} == "Postgres" || ${TEST_TYPE} == "MySQL" || \
-            ${TEST_TYPE} == "Long" ]]; then
-        SELECTED_TESTS=("${ALL_TESTS[@]}")
-    elif [[ ${TEST_TYPE} =~ Providers\[\-(.*)\] ]]; then
-        # When providers start with `-` it means that we should run all provider tests except those
-        SELECTED_TESTS=("${PROVIDERS_TESTS[@]}")
-        for provider in ${BASH_REMATCH[1]//,/ }
-        do
-            providers_dir="tests/providers/${provider//./\/}"
-            if [[ -d ${providers_dir} ]]; then
-                echo "${COLOR_BLUE}Ignoring ${providers_dir} as it has been deselected.${COLOR_RESET}"
-                EXTRA_PYTEST_ARGS+=("--ignore=tests/providers/${provider//./\/}")
-            else
-                echo "${COLOR_YELLOW}Skipping ${providers_dir} as the directory does not exist.${COLOR_RESET}"
-            fi
-        done
-    elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
-        SELECTED_TESTS=()
-        for provider in ${BASH_REMATCH[1]//,/ }
-        do
-            providers_dir="tests/providers/${provider//./\/}"
-            if [[ -d ${providers_dir} ]]; then
-                SELECTED_TESTS+=("${providers_dir}")
-            else
-                echo "${COLOR_YELLOW}Skip ${providers_dir} as the directory does not exist.${COLOR_RESET}"
-            fi
-        done
-    elif [[ ${TEST_TYPE} =~ PlainAsserts ]]; then
-        # Those tests fail when --asert=rewrite is set, therefore we run them separately
-        # with --assert=plain to make sure they pass.
-        SELECTED_TESTS=(
-            # this on is mysteriously failing dill serialization. It could be removed once
-            # https://github.com/pytest-dev/pytest/issues/10845 is fixed
-            "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context"
-        )
-        EXTRA_PYTEST_ARGS+=("--assert=plain")
-        export PYTEST_PLAIN_ASSERTS="true"
-    else
-        echo
-        echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
-        echo
-        exit 1
-    fi
-fi
-readonly SELECTED_TESTS CLI_TESTS API_TESTS OPERATORS_TESTS ALWAYS_TESTS PROVIDERS_TESTS \
-    CORE_TESTS WWW_TESTS ALL_TESTS ALL_PRESELECTED_TESTS
-
-if [[ ${TEST_TYPE:=""} == "Long" ]]; then
-    EXTRA_PYTEST_ARGS+=(
-        "-m" "long_running"
-        "--include-long-running"
-    )
-elif [[ ${TEST_TYPE:=""} == "Postgres" ]]; then
-    EXTRA_PYTEST_ARGS+=(
-        "--backend"
-        "postgres"
-    )
-elif [[ ${TEST_TYPE:=""} == "MySQL" ]]; then
-    EXTRA_PYTEST_ARGS+=(
-        "--backend"
-        "mysql"
-    )
-elif [[ ${TEST_TYPE:=""} == "Quarantined" ]]; then
-    EXTRA_PYTEST_ARGS+=(
-        "-m" "quarantined"
-        "--include-quarantined"
-    )
+if [[ ${TEST_TYPE} == "PlainAsserts" ]]; then
+   # Plain asserts should be converted to env variable to make sure they are taken into account
+   # otherwise they will not be effective during test collection when plain assert is breaking collection
+   export PYTEST_PLAIN_ASSERTS="true"
 fi
 
-echo
-echo "Running tests ${SELECTED_TESTS[*]}"
-echo
-
-ARGS=("${EXTRA_PYTEST_ARGS[@]}" "${SELECTED_TESTS[@]}")
 if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
-    "${IN_CONTAINER_DIR}/run_system_tests.sh" "${ARGS[@]}"
+    "${IN_CONTAINER_DIR}/run_system_tests.sh" "${@}"
 else
-    "${IN_CONTAINER_DIR}/run_ci_tests.sh" "${ARGS[@]}"
+    "${IN_CONTAINER_DIR}/run_ci_tests.sh" "${@}"
 fi

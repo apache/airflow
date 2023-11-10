@@ -128,6 +128,9 @@ def init_appbuilder_views(app):
     # add_view_no_menu to change item position.
     # I added link in extensions.init_appbuilder_links.init_appbuilder_links
     appbuilder.add_view_no_menu(views.RedocView)
+    # Development views
+    appbuilder.add_view_no_menu(views.DevView)
+    appbuilder.add_view_no_menu(views.DocsView)
 
 
 def init_plugins(app):

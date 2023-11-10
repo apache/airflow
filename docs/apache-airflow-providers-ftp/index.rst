@@ -68,8 +68,6 @@
     System Tests <_api/tests/system/providers/ftp/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -84,7 +82,7 @@ Package apache-airflow-providers-ftp
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 3.6.0
+Release: 3.6.1
 
 Provider package
 ----------------
@@ -135,5 +133,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-ftp 3.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-ftp-3.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-ftp-3.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-ftp-3.6.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-ftp 3.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.6.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-ftp 3.6.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-ftp-3.6.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-ftp-3.6.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-ftp-3.6.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-ftp 3.6.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.6.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.6.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ftp-3.6.1-py3-none-any.whl.sha512>`__)

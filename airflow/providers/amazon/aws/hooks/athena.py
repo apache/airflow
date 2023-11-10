@@ -91,19 +91,18 @@ class AthenaHook(AwsBaseHook):
         client_request_token: str | None = None,
         workgroup: str = "primary",
     ) -> str:
-        """Run a Presto query on Athena with provided config.
+        """Run a Trino/Presto query on Athena with provided config.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.start_query_execution`
 
-        :param query: Presto query to run.
+        :param query: Trino/Presto query to run.
         :param query_context: Context in which query need to be run.
         :param result_configuration: Dict with path to store results in and
             config related to encryption.
         :param client_request_token: Unique token created by user to avoid
             multiple executions of same query.
-        :param workgroup: Athena workgroup name, when not specified, will be
-            ``'primary'``.
+        :param workgroup: Athena workgroup name, when not specified, will be ``'primary'``.
         :return: Submitted query execution ID.
         """
         params = {

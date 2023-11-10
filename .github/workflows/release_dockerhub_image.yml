@@ -39,7 +39,9 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-22.04' }}
+    # TODO: when we have it properly set-up with labels we should check for
+    #       "airflow-runner" presence in runs_on
+    runs-on: ["self-hosted", "Linux", "X64"]
     outputs:
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
@@ -53,10 +55,9 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
-          submodules: recursive
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: Selective checks
@@ -67,14 +68,16 @@ jobs:
   release-images:
     timeout-minutes: 120
     name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-22.04' }}
+    # TODO: when we have it properly set-up with labels we should check for
+    #       "airflow-runner" presence in runs_on
+    runs-on: ["self-hosted", "Linux", "X64"]
     needs: [build-info]
     strategy:
       fail-fast: false
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
-      RUNS_ON: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-22.04' }}
+      RUNS_ON: '["self-hosted", "Linux", "X64"]'
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -88,7 +91,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: "Install Breeze"

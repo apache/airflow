@@ -41,6 +41,7 @@
     Secrets backends <secrets-backends/index>
     Logging for Tasks <logging/index>
     Configuration <configurations-ref>
+    Executors <executors/index>
 
 .. toctree::
     :hidden:
@@ -67,8 +68,6 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -83,7 +82,7 @@ Package apache-airflow-providers-amazon
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 8.9.0
+Release: 8.11.0
 
 Provider package
 ----------------
@@ -111,6 +110,7 @@ PIP package                              Version required
 ``apache-airflow-providers-http``
 ``boto3``                                ``>=1.28.0``
 ``botocore``                             ``>=1.31.0``
+``inflection``                           ``>=0.5.1``
 ``watchtower``                           ``~=3.0.1``
 ``jsonpath_ng``                          ``>=1.5.3``
 ``redshift_connector``                   ``>=2.0.888``
@@ -155,5 +155,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 8.9.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.9.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.9.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.9.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 8.9.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.9.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.9.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.9.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 8.11.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.11.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.11.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.11.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 8.11.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.11.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.11.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.11.0-py3-none-any.whl.sha512>`__)

@@ -26,6 +26,8 @@ import pytest
 from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 PYTHON_VERSION = sys.version_info[0]
 

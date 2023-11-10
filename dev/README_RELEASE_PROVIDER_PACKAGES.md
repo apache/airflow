@@ -44,6 +44,7 @@
   - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
+  - [Update providers metadata](#update-providers-metadata)
   - [Notify developers of release](#notify-developers-of-release)
   - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
@@ -132,6 +133,17 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 breeze release-management prepare-provider-documentation [packages]
 ```
 
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), documentation for the provider will not be prepared when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
+
+```shell script
+breeze release-management prepare-provider-documentation qubole
+```
+
+
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
 provider details will be printed on what changes were implemented since the last release including
@@ -204,6 +216,18 @@ if you only build few packages, run:
 breeze release-management prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
+
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), package for the provider will not be prepared when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
+
+```shell script
+breeze release-management prepare-provider-packages --package-format both qubole
+```
+
+
 * Sign all your packages
 
 ```shell script
@@ -272,6 +296,17 @@ if you only build few packages, run:
 ```shell script
 breeze release-management prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
+
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), package for the provider will not be prepared when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
+
+```shell script
+breeze release-management prepare-provider-packages --package-format both qubole
+```
+
 
 * Verify the artifacts that would be uploaded:
 
@@ -352,38 +387,31 @@ git pull --rebase
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build --package-filter apache-airflow-providers \
-   --package-filter 'apache-airflow-providers-*'
+breeze build-docs --clean-build providers-index --package-filter 'apache-airflow-providers-*'
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
 means that unless we release just few selected packages or if we need to deliberately skip some packages
 we should release documentation for all provider packages and the above command is the one to use.
 
-If we want to just release some providers you can release them in this way:
+If we want to just release some providers you can release them using package names:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs --clean-build \
-  --package-filter apache-airflow-providers \
-  --package-filter 'apache-airflow-providers-PACKAGE1' \
-  --package-filter 'apache-airflow-providers-PACKAGE2' \
-  ...
+breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 ```
 
-You can also use shorthand names as arguments instead of using the full names
-for airflow providers. Example:
+
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), doc for the provider will not be built when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
 
 ```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs providers-index cncf.kubernetes sftp --clean-build
+breeze build-docs qubole
 ```
 
-If you have providers as list of provider ids because you just released them, you can build them with
-
-```shell script
-./dev/provider_packages/build_provider_documentation.sh amazon apache.beam google ....
-```
 
 - Now you can preview the documentation.
 
@@ -400,9 +428,7 @@ way faster on multi-cpu machines when you are publishing multiple providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs \
-    --package-filter apache-airflow-providers \
-    --package-filter 'apache-airflow-providers-*' \
+breeze release-management publish-docs apache-airflow-providers --package-filter 'apache-airflow-providers-*' \
     --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers
@@ -419,21 +445,20 @@ If you have providers as list of provider ids because you just released them you
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs providers-index amazon cncf.kubernetes --override-versioned --run-in-parallel
-
-breeze release-management add-back-references amazon cncf.kubernetes
+breeze release-management publish-docs amazon apache.beam google ....
+breeze release-management add-back-references all-providers
 ```
 
-or with
+NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
+provider), docs for the provider will not be published when you prepare documentation for
+all providers - you have to specifically use the provider name in a separate command.
+For example to prepare documentation for `qubole` provider marked for removal you need to run
+separately this command:
 
 ```shell script
-cd "${AIRFLOW_REPO_ROOT}"
-
-./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
-
-# No need to add back references as the script has this step as integral part
+breeze release-management publish-docs qubole
+breeze release-management add-back-references all-providers
 ```
-
 
 - If you publish a new package, you must add it to
   [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
@@ -967,6 +992,20 @@ If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false
 ./dev/provider_packages/tag_providers.sh
 ```
 
+## Update providers metadata
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT}
+branch="update-providers-metadata-$(date '+%Y-%m-%d%n')
+git checkout -b "${branch}"
+breeze release-management generate-providers-metadata
+git add -p .
+git commit -m "Update providers metadata $(date '+%Y-%m-%d%n')"
+git push --set-upstream origin "${branch}"
+```
+
+Create PR and get it merged
+
 ## Notify developers of release
 
 Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
@@ -1034,7 +1073,7 @@ If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------
 
-Normally we do not announce on providers in social media other than a new provider added which doesn't happen often.
+As a rule we announce only new providers that were added.
 If you believe there is a reason to announce in social media for another case consult with PMCs about it.
 Example for special case: an exciting new capability that the community waited for and should have big impact.
 

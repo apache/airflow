@@ -18,18 +18,11 @@
 # mypy: disable-error-code=var-annotated
 from __future__ import annotations
 
-import datetime
 import logging
-from typing import TYPE_CHECKING, Any, Callable
-from uuid import uuid4
+from typing import TYPE_CHECKING
 
 import re2
 from flask import g, session, url_for
-from flask_appbuilder.const import (
-    AUTH_DB,
-    AUTH_LDAP,
-    LOGMSG_WAR_SEC_LOGIN_FAILED,
-)
 from flask_appbuilder.security.registerviews import (
     RegisterUserDBView,
     RegisterUserOAuthView,
@@ -57,7 +50,6 @@ from flask_jwt_extended import current_user as current_user_jwt
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from airflow.configuration import conf
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
@@ -70,6 +62,26 @@ if TYPE_CHECKING:
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
 log = logging.getLogger(__name__)
+
+__lazy_imports = {
+    "AUTH_DB": "flask_appbuilder.const",
+    "AUTH_LDAP": "flask_appbuilder.const",
+    "LOGMSG_WAR_SEC_LOGIN_FAILED": "flask_appbuilder.const",
+}
+
+
+def __getattr__(name: str):
+    # PEP-562: Lazy loaded attributes on python modules
+    path = __lazy_imports.get(name)
+    if not path:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    from airflow.utils.module_loading import import_string
+
+    val = import_string(f"{path}.{name}")
+    # Store for next time
+    globals()[name] = val
+    return val
 
 
 def _oauth_tokengetter(token=None):
@@ -92,16 +104,6 @@ class BaseSecurityManager:
     """ The obj instance for registering user view """
     lm = None
     """ Flask-Login LoginManager """
-    jwt_manager = None
-    """ Flask-JWT-Extended """
-    oid = None
-    """ Flask-OpenID OpenID """
-    oauth = None
-    """ Flask-OAuth """
-    oauth_remotes: dict[str, Any]
-    """ OAuth email whitelists """
-
-    oauth_user_info = None
 
     user_model: type[User]
     """ Override to set your own User Model """
@@ -168,36 +170,8 @@ class BaseSecurityManager:
         limiter.init_app(app)
         return limiter
 
-    def get_roles_from_keys(self, role_keys: list[str]) -> set[Role]:
-        """
-        Construct a list of FAB role objects, from a list of keys.
-
-        NOTE:
-        - keys are things like: "LDAP group DNs" or "OAUTH group names"
-        - we use AUTH_ROLES_MAPPING to map from keys, to FAB role names
-
-        :param role_keys: the list of FAB role keys
-        :return: a list of Role
-        """
-        _roles = set()
-        _role_keys = set(role_keys)
-        for role_key, fab_role_names in self.auth_roles_mapping.items():
-            if role_key in _role_keys:
-                for fab_role_name in fab_role_names:
-                    fab_role = self.find_role(fab_role_name)
-                    if fab_role:
-                        _roles.add(fab_role)
-                    else:
-                        log.warning("Can't find role specified in AUTH_ROLES_MAPPING: %s", fab_role_name)
-        return _roles
-
     def add_role(self, name: str) -> Role:
         raise NotImplementedError
-
-    @property
-    def auth_type_provider_name(self):
-        provider_to_auth_type = {AUTH_DB: "db", AUTH_LDAP: "ldap"}
-        return provider_to_auth_type.get(self.auth_type)
 
     @property
     def get_url_for_registeruser(self):
@@ -220,53 +194,14 @@ class BaseSecurityManager:
         return self._builtin_roles
 
     @property
-    def api_login_allow_multiple_providers(self):
-        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
-
-    @property
-    def auth_username_ci(self):
-        """Gets the auth username for CI."""
-        return self.appbuilder.get_app.config.get("AUTH_USERNAME_CI", True)
-
-    @property
     def auth_role_admin(self):
         """Gets the admin role."""
         return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
 
     @property
-    def auth_user_registration(self):
-        """Will user self registration be allowed."""
-        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION"]
-
-    @property
-    def auth_user_registration_role(self):
-        """The default user self registration role."""
-        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE"]
-
-    @property
-    def auth_user_registration_role_jmespath(self) -> str:
-        """The JMESPATH role to use for user registration."""
-        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
-
-    @property
-    def auth_roles_mapping(self) -> dict[str, list[str]]:
-        """The mapping of auth roles."""
-        return self.appbuilder.get_app.config["AUTH_ROLES_MAPPING"]
-
-    @property
     def auth_roles_sync_at_login(self) -> bool:
         """Should roles be synced at login."""
         return self.appbuilder.get_app.config["AUTH_ROLES_SYNC_AT_LOGIN"]
-
-    @property
-    def auth_ldap_bind_first(self):
-        """LDAP bind first."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_BIND_FIRST"]
-
-    @property
-    def openid_providers(self):
-        """Openid providers."""
-        return self.appbuilder.get_app.config["OPENID_PROVIDERS"]
 
     @property
     def current_user(self):
@@ -276,287 +211,13 @@ class BaseSecurityManager:
         elif current_user_jwt:
             return current_user_jwt
 
-    def oauth_user_info_getter(
-        self,
-        func: Callable[[BaseSecurityManager, str, dict[str, Any] | None], dict[str, Any]],
-    ):
-        """
-        Get OAuth user info; used by all providers.
-
-        Receives provider and response return a dict with the information returned from the provider.
-        The returned user info dict should have its keys with the same name as the User Model.
-
-        Use it like this an example for GitHub ::
-
-            @appbuilder.sm.oauth_user_info_getter
-            def my_oauth_user_info(sm, provider, response=None):
-                if provider == 'github':
-                    me = sm.oauth_remotes[provider].get('user')
-                    return {'username': me.data.get('login')}
-                return {}
-        """
-
-        def wraps(provider: str, response: dict[str, Any] | None = None) -> dict[str, Any]:
-            return func(self, provider, response)
-
-        self.oauth_user_info = wraps
-        return wraps
-
-    def get_oauth_token_key_name(self, provider):
-        """
-        Return the token_key name for the oauth provider.
-
-        If none is configured defaults to oauth_token
-        this is configured using OAUTH_PROVIDERS and token_key key.
-        """
-        for _provider in self.oauth_providers:
-            if _provider["name"] == provider:
-                return _provider.get("token_key", "oauth_token")
-
-    def get_oauth_token_secret_name(self, provider):
-        """Gety the ``token_secret`` name for the oauth provider.
-
-        If none is configured, defaults to ``oauth_secret``. This is configured
-        using ``OAUTH_PROVIDERS`` and ``token_secret``.
-        """
-        for _provider in self.oauth_providers:
-            if _provider["name"] == provider:
-                return _provider.get("token_secret", "oauth_token_secret")
-
-    def set_oauth_session(self, provider, oauth_response):
-        """Set the current session with OAuth user secrets."""
-        # Get this provider key names for token_key and token_secret
-        token_key = self.appbuilder.sm.get_oauth_token_key_name(provider)
-        token_secret = self.appbuilder.sm.get_oauth_token_secret_name(provider)
-        # Save users token on encrypted session cookie
-        session["oauth"] = (
-            oauth_response[token_key],
-            oauth_response.get(token_secret, ""),
-        )
-        session["oauth_provider"] = provider
-
-    def update_user_auth_stat(self, user, success=True):
-        """Update user authentication stats.
-
-        This is done upon successful/unsuccessful authentication attempts.
-
-        :param user:
-            The identified (but possibly not successfully authenticated) user
-            model
-        :param success:
-            Defaults to true, if true increments login_count, updates
-            last_login, and resets fail_login_count to 0, if false increments
-            fail_login_count on user model.
-        """
-        if not user.login_count:
-            user.login_count = 0
-        if not user.fail_login_count:
-            user.fail_login_count = 0
-        if success:
-            user.login_count += 1
-            user.last_login = datetime.datetime.now()
-            user.fail_login_count = 0
-        else:
-            user.fail_login_count += 1
-        self.update_user(user)
-
-    def _rotate_session_id(self):
-        """Rotate the session ID.
-
-        We need to do this upon successful authentication when using the
-        database session backend.
-        """
-        if conf.get("webserver", "SESSION_BACKEND") == "database":
-            session.sid = str(uuid4())
-
-    def auth_user_oid(self, email):
-        """
-        Openid user Authentication.
-
-        :param email: user's email to authenticate
-        """
-        user = self.find_user(email=email)
-        if user is None or (not user.is_active):
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, email)
-            return None
-        else:
-            self._rotate_session_id()
-            self.update_user_auth_stat(user)
-            return user
-
-    def auth_user_remote_user(self, username):
-        """
-        REMOTE_USER user Authentication.
-
-        :param username: user's username for remote auth
-        """
-        user = self.find_user(username=username)
-
-        # User does not exist, create one if auto user registration.
-        if user is None and self.auth_user_registration:
-            user = self.add_user(
-                # All we have is REMOTE_USER, so we set
-                # the other fields to blank.
-                username=username,
-                first_name=username,
-                last_name="-",
-                email=username + "@email.notfound",
-                role=self.find_role(self.auth_user_registration_role),
-            )
-
-        # If user does not exist on the DB and not auto user registration,
-        # or user is inactive, go away.
-        elif user is None or (not user.is_active):
-            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
-            return None
-
-        self._rotate_session_id()
-        self.update_user_auth_stat(user)
-        return user
-
-    def _oauth_calculate_user_roles(self, userinfo) -> list[str]:
-        user_role_objects = set()
-
-        # apply AUTH_ROLES_MAPPING
-        if self.auth_roles_mapping:
-            user_role_keys = userinfo.get("role_keys", [])
-            user_role_objects.update(self.get_roles_from_keys(user_role_keys))
-
-        # apply AUTH_USER_REGISTRATION_ROLE
-        if self.auth_user_registration:
-            registration_role_name = self.auth_user_registration_role
-
-            # if AUTH_USER_REGISTRATION_ROLE_JMESPATH is set,
-            # use it for the registration role
-            if self.auth_user_registration_role_jmespath:
-                import jmespath
-
-                registration_role_name = jmespath.search(self.auth_user_registration_role_jmespath, userinfo)
-
-            # lookup registration role in flask db
-            fab_role = self.find_role(registration_role_name)
-            if fab_role:
-                user_role_objects.add(fab_role)
-            else:
-                log.warning("Can't find AUTH_USER_REGISTRATION role: %s", registration_role_name)
-
-        return list(user_role_objects)
-
-    def auth_user_oauth(self, userinfo):
-        """
-        Authenticate user with OAuth.
-
-        :userinfo: dict with user information
-                   (keys are the same as User model columns)
-        """
-        # extract the username from `userinfo`
-        if "username" in userinfo:
-            username = userinfo["username"]
-        elif "email" in userinfo:
-            username = userinfo["email"]
-        else:
-            log.error("OAUTH userinfo does not have username or email %s", userinfo)
-            return None
-
-        # If username is empty, go away
-        if (username is None) or username == "":
-            return None
-
-        # Search the DB for this user
-        user = self.find_user(username=username)
-
-        # If user is not active, go away
-        if user and (not user.is_active):
-            return None
-
-        # If user is not registered, and not self-registration, go away
-        if (not user) and (not self.auth_user_registration):
-            return None
-
-        # Sync the user's roles
-        if user and self.auth_roles_sync_at_login:
-            user.roles = self._oauth_calculate_user_roles(userinfo)
-            log.debug("Calculated new roles for user=%r as: %s", username, user.roles)
-
-        # If the user is new, register them
-        if (not user) and self.auth_user_registration:
-            user = self.add_user(
-                username=username,
-                first_name=userinfo.get("first_name", ""),
-                last_name=userinfo.get("last_name", ""),
-                email=userinfo.get("email", "") or f"{username}@email.notfound",
-                role=self._oauth_calculate_user_roles(userinfo),
-            )
-            log.debug("New user registered: %s", user)
-
-            # If user registration failed, go away
-            if not user:
-                log.error("Error creating a new OAuth user %s", username)
-                return None
-
-        # LOGIN SUCCESS (only if user is now registered)
-        if user:
-            self._rotate_session_id()
-            self.update_user_auth_stat(user)
-            return user
-        else:
-            return None
-
     def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
-        """Check permission on builtin role."""
+        """Checks permission on builtin role."""
         perms = self.builtin_roles.get(role.name, [])
         for _resource_name, _action_name in perms:
             if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
                 return True
         return False
-
-    def _get_user_permission_resources(
-        self, user: User | None, action_name: str, resource_names: list[str] | None = None
-    ) -> set[str]:
-        """
-        Get resource names with a certain action name that a user has access to.
-
-        Mainly used to fetch all menu permissions on a single db call, will also
-        check public permissions and builtin roles
-        """
-        if not resource_names:
-            resource_names = []
-
-        db_role_ids = []
-        if user is None:
-            # include public role
-            roles = [self.get_public_role()]
-        else:
-            roles = user.roles
-        # First check against builtin (statically configured) roles
-        # because no database query is needed
-        result = set()
-        for role in roles:
-            if role.name in self.builtin_roles:
-                for resource_name in resource_names:
-                    if self._has_access_builtin_roles(role, action_name, resource_name):
-                        result.add(resource_name)
-            else:
-                db_role_ids.append(role.id)
-        # Then check against database-stored roles
-        role_resource_names = [
-            perm.resource.name for perm in self.filter_roles_by_perm_with_action(action_name, db_role_ids)
-        ]
-        result.update(role_resource_names)
-        return result
-
-    def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
-        if get_auth_manager().is_logged_in():
-            return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
-        elif current_user_jwt:
-            return self._get_user_permission_resources(
-                # the current_user_jwt is a lazy proxy, so we need to ignore type checking
-                current_user_jwt,  # type: ignore[arg-type]
-                "menu_access",
-                resource_names=menu_names,
-            )
-        else:
-            return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
 
     def add_limit_view(self, baseview):
         if not baseview.limits:
@@ -696,9 +357,6 @@ class BaseSecurityManager:
 
     def get_public_role(self):
         """Return all permissions from public role."""
-        raise NotImplementedError
-
-    def filter_roles_by_perm_with_action(self, permission_name: str, role_ids: list[int]):
         raise NotImplementedError
 
     def permission_exists_in_one_or_more_roles(

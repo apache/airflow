@@ -64,7 +64,7 @@ class AwsBaseOperator(BaseOperator, AwsBaseHookMixin[AwsHookType]):
                 pass
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).

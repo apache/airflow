@@ -39,6 +39,8 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.www import _check_last_log
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
@@ -129,7 +131,7 @@ class TestDagRunEndpoint:
         self.app.dag_bag.bag_dag(dag, root_dag=dag)
         return dag_instance
 
-    def _create_test_dag_run(self, state="running", extra_dag=False, commit=True, idx_start=1):
+    def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
         dag_runs = []
         dags = []
 
@@ -145,6 +147,7 @@ class TestDagRunEndpoint:
                 external_trigger=True,
                 state=state,
             )
+            dagrun_model.updated_at = timezone.parse(self.default_time)
             dag_runs.append(dagrun_model)
 
         if extra_dag:
@@ -551,12 +554,32 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
                     "TEST_START_EXEC_DAY_19",
                 ],
             ),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?updated_at_lte=2020-06-13T18%3A00%3A00%2B00%3A00",
+                [
+                    "TEST_START_EXEC_DAY_10",
+                    "TEST_START_EXEC_DAY_11",
+                    "TEST_START_EXEC_DAY_12",
+                    "TEST_START_EXEC_DAY_13",
+                ],
+            ),
+            (
+                "api/v1/dags/TEST_DAG_ID/dagRuns?updated_at_gte=2020-06-16T18%3A00%3A00%2B00%3A00",
+                [
+                    "TEST_START_EXEC_DAY_16",
+                    "TEST_START_EXEC_DAY_17",
+                    "TEST_START_EXEC_DAY_18",
+                    "TEST_START_EXEC_DAY_19",
+                ],
+            ),
         ],
     )
     @provide_session
     def test_date_filters_gte_and_lte(self, url, expected_dag_run_ids, session):
         dagrun_models = self._create_dag_runs()
         session.add_all(dagrun_models)
+        for d in dagrun_models:
+            d.updated_at = d.execution_date
         session.commit()
 
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
@@ -587,7 +610,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
                 execution_date=timezone.parse(dates[i]),
                 start_date=timezone.parse(dates[i]),
                 external_trigger=True,
-                state="success",
+                state=DagRunState.SUCCESS,
             )
             for i in range(len(dates))
         ]
@@ -597,15 +620,17 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
     @pytest.mark.parametrize(
         "url, expected_dag_run_ids",
         [
-            (
+            pytest.param(
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_gte="
                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
                 [],
+                id="end_date_gte",
             ),
-            (
+            pytest.param(
                 f"api/v1/dags/TEST_DAG_ID/dagRuns?end_date_lte="
                 f"{urllib.parse.quote((timezone.utcnow() + timedelta(days=1)).isoformat())}",
                 ["TEST_DAG_RUN_ID_1", "TEST_DAG_RUN_ID_2"],
+                id="end_date_lte",
             ),
         ],
     )
@@ -663,6 +688,21 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
                 },
             ],
             "total_entries": 2,
+        }
+
+    def test_raises_validation_error_for_invalid_request(self):
+        self._create_test_dag_run()
+        response = self.client.post(
+            "api/v1/dags/~/dagRuns/list",
+            json={"dagids": ["TEST_DAG_ID"]},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            "detail": "{'dagids': ['Unknown field.']}",
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
         }
 
     def test_filter_by_state(self):
@@ -1090,6 +1130,41 @@ class TestPostDagRun(TestDagRunEndpoint):
         }
         _check_last_log(session, dag_id="TEST_DAG_ID", event="dag_run.create", execution_date=None)
 
+    def test_raises_validation_error_for_invalid_request(self):
+        self._create_dag("TEST_DAG_ID")
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={"executiondate": "2020-11-10T08:25:56Z"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            "detail": "{'executiondate': ['Unknown field.']}",
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
+        }
+
+    @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.get_airflow_app")
+    def test_dagrun_creation_exception_is_handled(self, mock_get_app, session):
+        self._create_dag("TEST_DAG_ID")
+        error_message = "Encountered Error"
+        mock_get_app.return_value.dag_bag.get_dag.return_value.create_dagrun.side_effect = ValueError(
+            error_message
+        )
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={"execution_date": "2020-11-10T08:25:56Z"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            "detail": error_message,
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
+        }
+
     def test_should_respond_404_if_a_dag_is_inactive(self, session):
         dm = self._create_dag("TEST_INACTIVE_DAG_ID")
         dm.is_active = False
@@ -1380,6 +1455,27 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             "note": None,
         }
 
+    def test_schema_validation_error_raises(self, dag_maker, session):
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        with dag_maker(dag_id) as dag:
+            EmptyOperator(task_id="task_id", dag=dag)
+        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        dag_maker.create_dagrun(run_id=dag_run_id)
+
+        response = self.client.patch(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
+            json={"states": "success"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            "detail": "{'states': ['Unknown field.']}",
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
+        }
+
     @pytest.mark.parametrize("invalid_state", ["running"])
     @time_machine.travel(TestDagRunEndpoint.default_time)
     def test_should_response_400_for_non_existing_dag_run_state(self, invalid_state, dag_maker):
@@ -1478,6 +1574,26 @@ class TestClearDagRun(TestDagRunEndpoint):
 
         ti.refresh_from_db()
         assert ti.state is None
+
+    def test_schema_validation_error_raises_for_invalid_fields(self, dag_maker, session):
+        dag_id = "TEST_DAG_ID"
+        dag_run_id = "TEST_DAG_RUN_ID"
+        with dag_maker(dag_id) as dag:
+            EmptyOperator(task_id="task_id", dag=dag)
+        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
+        response = self.client.post(
+            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
+            json={"dryrun": False},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            "detail": "{'dryrun': ['Unknown field.']}",
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
+        }
 
     def test_dry_run(self, dag_maker, session):
         """Test that dry_run being True returns TaskInstances without clearing DagRun"""
@@ -1646,11 +1762,10 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
 class TestSetDagRunNote(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
-        dag_runs: list[DagRun] = self._create_test_dag_run("success")
+        dag_runs: list[DagRun] = self._create_test_dag_run(DagRunState.SUCCESS)
         session.add_all(dag_runs)
         session.commit()
         created_dr: DagRun = dag_runs[0]
-
         new_note_value = "My super cool DagRun notes"
         response = self.client.patch(
             f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
@@ -1678,6 +1793,51 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "note": new_note_value,
         }
         assert dr.dag_run_note.user_id is not None
+        # Update the note again
+        new_note_value = "My super cool DagRun notes 2"
+        response = self.client.patch(
+            f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
+            json={"note": new_note_value},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json == {
+            "conf": {},
+            "dag_id": dr.dag_id,
+            "dag_run_id": dr.run_id,
+            "end_date": dr.end_date.isoformat(),
+            "execution_date": self.default_time,
+            "external_trigger": True,
+            "logical_date": self.default_time,
+            "start_date": self.default_time,
+            "state": "success",
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "last_scheduling_decision": None,
+            "run_type": dr.run_type,
+            "note": new_note_value,
+        }
+        assert dr.dag_run_note.user_id is not None
+
+    def test_schema_validation_error_raises(self, dag_maker, session):
+        dag_runs: list[DagRun] = self._create_test_dag_run(DagRunState.SUCCESS)
+        session.add_all(dag_runs)
+        session.commit()
+        created_dr: DagRun = dag_runs[0]
+
+        new_note_value = "My super cool DagRun notes"
+        response = self.client.patch(
+            f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
+            json={"notes": new_note_value},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            "detail": "{'notes': ['Unknown field.']}",
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         response = self.client.patch(

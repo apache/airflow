@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-google
 ------------------------------------------------------
@@ -35,6 +35,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.11.1
+.......
+
+Latest change: 2023-11-03
+
+=================================================================================================  ===========  ==========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================
+`64d1085cb9 <https://github.com/apache/airflow/commit/64d1085cb9003583419fa576392fb087fd950180>`_  2023-11-03   ``Update Google Ads API version from v14 to v15 (#35295)``
+`63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
+=================================================================================================  ===========  ==========================================================
+
+10.11.0
+.......
+
+Latest change: 2023-10-28
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`04e2fbd92b <https://github.com/apache/airflow/commit/04e2fbd92bb6cb2b5abf6f16786b9800a0d49808>`_  2023-10-27   ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+`acff4c79dc <https://github.com/apache/airflow/commit/acff4c79dcbb7926923d86adb4c5115e02cf28e6>`_  2023-10-26   ``Make Dataprep system test self-sufficient (#34880)``
+`0bb56315e6 <https://github.com/apache/airflow/commit/0bb56315e664875cd764486bb2090e0a2ef747d8>`_  2023-10-25   ``Added 'overrides' parameter to CloudRunExecuteJobOperator (#34874)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`63f3712d2e <https://github.com/apache/airflow/commit/63f3712d2e5874ced8b3bf3e79eeaf6eaf059df5>`_  2023-10-18   ``Update gcs.py Create and List comment Examples (#35028)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+=================================================================================================  ===========  ======================================================================
+
 10.10.1
 .......
 
@@ -43,6 +73,9 @@ Latest change: 2023-10-18
 =================================================================================================  ===========  ==============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================
+`39e611b43b <https://github.com/apache/airflow/commit/39e611b43b06df0582f0c69de824c4657c3423eb>`_  2023-10-18   ``Prepare docs 2nd wave of Providers in October 2023 (#35020)``
+`f16906d13b <https://github.com/apache/airflow/commit/f16906d13b5256e30b7126d119fcf383282f7a64>`_  2023-10-18   ``Create operators for VertexAI Pipeline Job (#34915)``
+`86e27c7cd7 <https://github.com/apache/airflow/commit/86e27c7cd7142fc68ff0e01a650d88c8dd786ebe>`_  2023-10-18   ``Fix cloud run operation timeout error (#34755)``
 `e444bca140 <https://github.com/apache/airflow/commit/e444bca140cc38619316ca5f6325ba53d4e8e426>`_  2023-10-18   ``Add links between documentation related to Google Cloud Storage (#34994)``
 `92204b36b0 <https://github.com/apache/airflow/commit/92204b36b08044db4ed958dfaed7672071cd37d4>`_  2023-10-18   ``Migrate legacy version of AI Platform Prediction to VertexAI (#34922)``
 `0b49f338b9 <https://github.com/apache/airflow/commit/0b49f338b9e6fd3264bc0099e8879855bf6c60c9>`_  2023-10-16   ``Cancel workflow in on_kill in DataprocInstantiate{Inline}WorkflowTemplateOperator (#34957)``

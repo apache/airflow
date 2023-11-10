@@ -166,6 +166,11 @@ labelPRBasedOnFilePath:
     - tests/providers/cncf/kubernetes/**/*
     - tests/system/providers/cncf/kubernetes/**/*
 
+  provider:common-io:
+    - airflow/providers/common/io/**/*
+    - docs/apache-airflow-providers-common-io/**/*
+    - tests/system/providers/common/io/**/*
+
   provider:common-sql:
     - airflow/providers/common/sql/**/*
     - docs/apache-airflow-providers-common-sql/**/*

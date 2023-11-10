@@ -36,6 +36,8 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 @patch.dict(os.environ, {"OPENLINEAGE_URL": "http://ol-api:5000", "OPENLINEAGE_API_KEY": "api-key"})
 def test_create_client_from_ol_env():

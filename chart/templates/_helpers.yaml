@@ -60,6 +60,8 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "fernet_key_secret" . }}
         key: fernet-key
   {{- end }}
+  - name: AIRFLOW_HOME
+    value: {{ .Values.airflowHome }}
   # For Airflow <2.3, backward compatibility; moved to [database] in 2.3
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CORE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
@@ -455,10 +457,18 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_dags" -}}
-  {{- if .Values.dags.gitSync.enabled }}
-    {{- printf "%s/dags/repo/%s" .Values.airflowHome .Values.dags.gitSync.subPath }}
+  {{- if .Values.dags.mountPath }}
+    {{- if .Values.dags.gitSync.enabled }}
+      {{- printf "%s/repo/%s" .Values.dags.mountPath .Values.dags.gitSync.subPath }}
+    {{- else }}
+      {{- printf "%s" .Values.dags.mountPath }}
+    {{- end }}
   {{- else }}
-    {{- printf "%s/dags" .Values.airflowHome }}
+    {{- if .Values.dags.gitSync.enabled }}
+      {{- printf "%s/dags/repo/%s" .Values.airflowHome .Values.dags.gitSync.subPath }}
+    {{- else }}
+      {{- printf "%s/dags" .Values.airflowHome }}
+    {{- end }}
   {{- end }}
 {{- end }}
 
@@ -472,7 +482,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{- define "airflow_dags_mount" -}}
 - name: dags
+  {{- if .Values.dags.mountPath }}
+  mountPath: {{ .Values.dags.mountPath }}
+  {{- else }}
   mountPath: {{ printf "%s/dags" .Values.airflowHome }}
+  {{- end }}
   {{- if .Values.dags.persistence.subPath }}
   subPath: {{ .Values.dags.persistence.subPath }}
   {{- end }}

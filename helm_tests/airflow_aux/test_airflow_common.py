@@ -68,6 +68,22 @@ class TestAirflowCommon:
                     "readOnly": False,
                 },
             ),
+            (
+                {"mountPath": "/opt/airflow/dags/custom", "gitSync": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags/custom",
+                    "name": "dags",
+                    "readOnly": True,
+                },
+            ),
+            (
+                {"mountPath": "/opt/airflow/dags/custom", "persistence": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags/custom",
+                    "name": "dags",
+                    "readOnly": False,
+                },
+            ),
         ],
     )
     def test_dags_mount(self, dag_values, expected_mount):
@@ -315,6 +331,7 @@ class TestAirflowCommon:
         )
         expected_vars = [
             "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_HOME",
             "AIRFLOW_CONN_AIRFLOW_DB",
             "AIRFLOW__CELERY__BROKER_URL",
         ]
@@ -339,6 +356,7 @@ class TestAirflowCommon:
         )
         expected_vars = [
             "AIRFLOW__CORE__FERNET_KEY",
+            "AIRFLOW_HOME",
             "AIRFLOW__CORE__SQL_ALCHEMY_CONN",
             "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN",
             "AIRFLOW_CONN_AIRFLOW_DB",

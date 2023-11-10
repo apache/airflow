@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.jobs.scheduler_job_runner import TI
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.state import TaskInstanceState
 
 
@@ -61,7 +62,6 @@ class DagRunPydantic(BaseModelPydantic):
     dag_id: str
     queued_at: Optional[datetime]
     execution_date: datetime
-    logical_date: datetime
     start_date: Optional[datetime]
     end_date: Optional[datetime]
     state: str
@@ -74,7 +74,7 @@ class DagRunPydantic(BaseModelPydantic):
     data_interval_end: Optional[datetime]
     last_scheduling_decision: Optional[datetime]
     dag_hash: Optional[str]
-    updated_at: datetime
+    updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
     consumed_dataset_events: List[DatasetEventPydantic]  # noqa
 
@@ -84,6 +84,10 @@ class DagRunPydantic(BaseModelPydantic):
         from_attributes = True
         orm_mode = True  # Pydantic 1.x compatibility.
         arbitrary_types_allowed = True
+
+    @property
+    def logical_date(self) -> datetime:
+        return self.execution_date
 
     @provide_session
     def get_task_instances(
@@ -105,7 +109,7 @@ class DagRunPydantic(BaseModelPydantic):
         session: Session = NEW_SESSION,
         *,
         map_index: int = -1,
-    ) -> TI | None:
+    ) -> TI | TaskInstancePydantic | None:
         """
         Return the task instance specified by task_id for this dag run.
 

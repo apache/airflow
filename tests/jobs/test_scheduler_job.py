@@ -83,6 +83,8 @@ from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.mock_operators import CustomOperator
 from tests.utils.test_timezone import UTC
 
+pytestmark = pytest.mark.db_test
+
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
@@ -3110,6 +3112,9 @@ class TestSchedulerJob:
             "test_invalid_dup_task.py",
             "test_ignore_this.py",
             "test_invalid_param.py",
+            "test_invalid_param2.py",
+            "test_invalid_param3.py",
+            "test_invalid_param4.py",
             "test_nested_dag.py",
             "test_imports.py",
             "__init__.py",
@@ -3146,7 +3151,7 @@ class TestSchedulerJob:
 
     @pytest.mark.parametrize(
         "adoptable_state",
-        State.adoptable_states,
+        list(sorted(State.adoptable_states)),
     )
     def test_adopt_or_reset_resettable_tasks(self, dag_maker, adoptable_state):
         dag_id = "test_adopt_or_reset_adoptable_tasks_" + adoptable_state.name
@@ -5116,6 +5121,31 @@ class TestSchedulerJob:
             .order_by(DatasetModel.uri)
         ]
         assert orphaned_datasets == ["ds2", "ds4"]
+
+    def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
+        """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""
+
+        with dag_maker("testdag1", serialized=True):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        dm1 = dag_maker.dag_model
+        # Here, the next_dagrun is set to None, which will cause an exception
+        dm1.next_dagrun = None
+        session.add(dm1)
+        session.flush()
+
+        with dag_maker("testdag2", serialized=True):
+            BashOperator(task_id="task", bash_command="echo 1")
+        dm2 = dag_maker.dag_model
+
+        scheduler_job = Job()
+        job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        # In the dagmodel list, the first dag should fail, but the second one should succeed
+        job_runner._create_dag_runs([dm1, dm2], session)
+        assert "Failed creating DagRun for testdag1" in caplog.text
+        assert not DagRun.find(dag_id="testdag1", session=session)
+        # Check if the second dagrun was created
+        assert DagRun.find(dag_id="testdag2", session=session)
 
 
 @pytest.mark.need_serialized_dag
