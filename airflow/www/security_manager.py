@@ -25,6 +25,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from sqlalchemy import select
 
+from airflow.auth.managers.fab.models import Action, Resource
 from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES as FAB_EXISTING_ROLES
 from airflow.auth.managers.models.resource_details import (
     AccessView,
@@ -172,6 +173,12 @@ class AirflowSecurityManagerV2(LoggingMixin):
 
     def add_permissions_menu(self, resource_name):
         raise NotImplementedError("Sync FAB permissions is only available with the FAB auth manager")
+
+    def get_action(self, name: str) -> Action:
+        raise NotImplementedError("Only available when FAB auth manager is used")
+
+    def get_resource(self, name: str) -> Resource:
+        raise NotImplementedError("Only available when FAB auth manager is used")
 
     @cached_property
     @provide_session
