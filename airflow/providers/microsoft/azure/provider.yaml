@@ -82,7 +82,7 @@ dependencies:
   - azure-storage-file-share
   - azure-servicebus>=7.6.1
   - azure-synapse-spark
-  - azure-synapse-artifacts>=17.0.0
+  - azure-synapse-artifacts>=0.17.0
   - adal>=1.2.7
   - azure-storage-file-datalake>=12.9.1
   - azure-kusto-data>=4.1.0
@@ -235,6 +235,7 @@ hooks:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
+      - airflow.providers.microsoft.azure.hooks.synapse_pipeline
 
 triggers:
   - integration-name: Microsoft Azure Data Factory
