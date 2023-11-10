@@ -27,6 +27,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
+pytestmark = pytest.mark.db_test
+
+
 # connection_string has a format
 CONN_STRING = (
     "DefaultEndpointsProtocol=https;AccountName=testname;AccountKey=wK7BOz;EndpointSuffix=core.windows.net"
@@ -44,7 +47,7 @@ def mocked_blob_service_client():
 
 @pytest.fixture
 def mocked_default_azure_credential():
-    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.DefaultAzureCredential") as m:
+    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.get_sync_default_azure_credential") as m:
         yield m
 
 
@@ -184,6 +187,7 @@ class TestWasbHook:
         )
 
     def test_managed_identity(self, mocked_default_azure_credential, mocked_blob_service_client):
+        assert mocked_default_azure_credential.called_with(None, None)
         mocked_default_azure_credential.return_value = "foo-bar"
         WasbHook(wasb_conn_id=self.managed_identity_conn_id).get_conn()
         mocked_blob_service_client.assert_called_once_with(
@@ -196,9 +200,9 @@ class TestWasbHook:
         mocked_client_secret_credential.return_value = "spam-egg"
         WasbHook(wasb_conn_id=self.ad_conn_id).get_conn()
         mocked_client_secret_credential.assert_called_once_with(
-            "token",
-            "appID",
-            "appsecret",
+            tenant_id="token",
+            client_id="appID",
+            client_secret="appsecret",
             proxies=self.client_secret_auth_config["proxies"],
             connection_verify=self.client_secret_auth_config["connection_verify"],
             authority=self.client_secret_auth_config["authority"],

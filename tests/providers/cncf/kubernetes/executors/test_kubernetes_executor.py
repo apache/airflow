@@ -159,6 +159,7 @@ class TestAirflowKubernetesScheduler:
 
         assert datetime_obj == new_datetime_obj
 
+    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -181,6 +182,7 @@ class TestAirflowKubernetesScheduler:
         finally:
             kube_executor.end()
 
+    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -204,6 +206,7 @@ class TestAirflowKubernetesScheduler:
             kube_executor.kube_scheduler.delete_pod(pod_name, namespace)
             mock_delete_namespace.assert_called_with(pod_name, namespace, body=mock_client.V1DeleteOptions())
 
+    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -252,6 +255,7 @@ class TestKubernetesExecutor:
         self.kubernetes_executor = KubernetesExecutor()
         self.kubernetes_executor.job_id = 5
 
+    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -330,6 +334,7 @@ class TestKubernetesExecutor:
             finally:
                 kubernetes_executor.end()
 
+    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -369,6 +374,7 @@ class TestKubernetesExecutor:
         finally:
             kubernetes_executor.end()
 
+    @pytest.mark.db_test
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )
@@ -432,6 +438,7 @@ class TestKubernetesExecutor:
         ]
         mock_stats_gauge.assert_has_calls(calls)
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_invalid_executor_config(self, mock_get_kube_client, mock_kubernetes_job_watcher):
@@ -454,6 +461,7 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
+    @pytest.mark.db_test
     @pytest.mark.execution_timeout(10)
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
@@ -545,6 +553,7 @@ class TestKubernetesExecutor:
             finally:
                 executor.end()
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_change_state_running(self, mock_get_kube_client, mock_kubernetes_job_watcher):
@@ -559,6 +568,7 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @mock.patch(
@@ -577,6 +587,7 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @mock.patch(
@@ -602,6 +613,7 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "ti_state", [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.DEFERRED]
     )
@@ -632,6 +644,7 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "multi_namespace_mode_namespace_list, watchers_keys",
         [
@@ -655,6 +668,7 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @mock.patch(
@@ -681,6 +695,7 @@ class TestKubernetesExecutor:
         finally:
             executor.end()
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @mock.patch(
@@ -941,6 +956,7 @@ class TestKubernetesExecutor:
         assert not mock_kube_client.patch_namespaced_pod.called
         assert tis_to_flush_by_key == {"foobar": {}}
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @mock.patch(
         "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
@@ -985,6 +1001,7 @@ class TestKubernetesExecutor:
 
         assert executor.kube_config.multi_namespace_mode_namespace_list == expected_value_in_kube_config
 
+    @pytest.mark.db_test
     def test_clear_not_launched_queued_tasks_not_launched(self, dag_maker, create_dummy_dag, session):
         """If a pod isn't found for a TI, reset the state to scheduled"""
         mock_kube_client = mock.MagicMock()
@@ -1005,19 +1022,12 @@ class TestKubernetesExecutor:
 
         ti.refresh_from_db()
         assert ti.state == State.SCHEDULED
-        assert mock_kube_client.list_namespaced_pod.call_count == 2
-        mock_kube_client.list_namespaced_pod.assert_any_call(
-            namespace="default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
-        )
-        # also check that we fall back to execution_date if we didn't find the pod with run_id
-        execution_date_label = pod_generator.datetime_to_label_safe_datestring(ti.execution_date)
+        assert mock_kube_client.list_namespaced_pod.call_count == 1
         mock_kube_client.list_namespaced_pod.assert_called_with(
-            namespace="default",
-            label_selector=(
-                f"dag_id=test_clear,task_id=task1,airflow-worker=1,execution_date={execution_date_label}"
-            ),
+            namespace="default", label_selector="airflow-worker=1"
         )
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "task_queue, kubernetes_queue",
         [
@@ -1031,7 +1041,22 @@ class TestKubernetesExecutor:
     ):
         """Leave the state alone if a pod already exists"""
         mock_kube_client = mock.MagicMock()
-        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=["something"])
+        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(
+            items=[
+                k8s.V1Pod(
+                    metadata=k8s.V1ObjectMeta(
+                        labels={
+                            "role": "airflow-worker",
+                            "dag_id": "test_clear",
+                            "task_id": "task1",
+                            "airflow-worker": 1,
+                            "run_id": "test",
+                        },
+                    ),
+                    status=k8s.V1PodStatus(phase="Pending"),
+                )
+            ]
+        )
 
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
@@ -1051,17 +1076,31 @@ class TestKubernetesExecutor:
         ti.refresh_from_db()
         assert ti.state == State.QUEUED
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
-            namespace="default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
+            namespace="default", label_selector="airflow-worker=1"
         )
 
+    @pytest.mark.db_test
     def test_clear_not_launched_queued_tasks_mapped_task(self, dag_maker, session):
         """One mapped task has a launched pod - other does not."""
 
         def list_namespaced_pod(*args, **kwargs):
-            if "map_index=0" in kwargs["label_selector"]:
-                return k8s.V1PodList(items=["something"])
-            else:
-                return k8s.V1PodList(items=[])
+            return k8s.V1PodList(
+                items=[
+                    k8s.V1Pod(
+                        metadata=k8s.V1ObjectMeta(
+                            labels={
+                                "role": "airflow-worker",
+                                "dag_id": "test_clear",
+                                "task_id": "bash",
+                                "airflow-worker": 1,
+                                "map_index": 0,
+                                "run_id": "test",
+                            },
+                        ),
+                        status=k8s.V1PodStatus(phase="Pending"),
+                    )
+                ]
+            )
 
         mock_kube_client = mock.MagicMock()
         mock_kube_client.list_namespaced_pod.side_effect = list_namespaced_pod
@@ -1090,27 +1129,13 @@ class TestKubernetesExecutor:
         assert ti0.state == State.QUEUED
         assert ti1.state == State.SCHEDULED
 
-        assert mock_kube_client.list_namespaced_pod.call_count == 3
-        execution_date_label = pod_generator.datetime_to_label_safe_datestring(dag_run.execution_date)
-        mock_kube_client.list_namespaced_pod.assert_has_calls(
-            [
-                mock.call(
-                    namespace="default",
-                    label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=0,run_id=test",
-                ),
-                mock.call(
-                    namespace="default",
-                    label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,run_id=test",
-                ),
-                mock.call(
-                    namespace="default",
-                    label_selector=f"dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,"
-                    f"execution_date={execution_date_label}",
-                ),
-            ],
-            any_order=True,
+        assert mock_kube_client.list_namespaced_pod.call_count == 1
+        mock_kube_client.list_namespaced_pod.assert_called_with(
+            namespace="default",
+            label_selector="airflow-worker=1",
         )
 
+    @pytest.mark.db_test
     def test_clear_not_launched_queued_tasks_not_launched_other_queue(
         self, dag_maker, create_dummy_dag, session
     ):
@@ -1137,6 +1162,7 @@ class TestKubernetesExecutor:
         assert ti.state == State.QUEUED
         assert mock_kube_client.list_namespaced_pod.call_count == 0
 
+    @pytest.mark.db_test
     def test_clear_not_launched_queued_tasks_clear_only_by_job_id(self, dag_maker, create_dummy_dag, session):
         """clear only not launched queued  tasks which are queued by the same executor job"""
         mock_kube_client = mock.MagicMock()
@@ -1168,6 +1194,7 @@ class TestKubernetesExecutor:
         assert ti0.state == State.SCHEDULED
         assert ti1.state == State.QUEUED
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_get_task_log(self, mock_get_kube_client, create_task_instance_of_operator):
         """fetch task log from pod"""

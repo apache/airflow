@@ -269,12 +269,29 @@ see in CI in your local environment.
 Setting up Breeze
 -----------------
 
-1. Install ``pipx`` - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
-
+1. Install ``pipx`` (>=1.2.1) - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
+   It is important to install version of pipx > 1.2.1 to workaround ``packaging`` breaking change introduced
+   in September 2023.
 
 2. Run ``pipx install -e ./dev/breeze`` in your checked-out repository. Make sure to follow any instructions
    printed by ``pipx`` during the installation - this is needed to make sure that ``breeze`` command is
    available in your PATH.
+
+.. warning::
+
+  If you see below warning - it means that you hit `known issue <https://github.com/pypa/pipx/issues/1092>`_
+  with ``packaging`` version 23.2:
+  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
+  to avoid having to create a new src/ directory.
+
+  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
+  by running ``pip install "packaging<23.2"``.
+
+  .. code-block::bash
+
+     pip install "packaging==23.1"
+     pipx install -e ./dev/breeze --force
+
 
 3. Initialize breeze autocomplete
 
@@ -302,18 +319,27 @@ Setting up Breeze
 5. When you enter Breeze environment you should see prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command.
-   Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
+
+.. code-block:: bash
+
+  root@b76fcb399bb6:/opt/airflow# airflow db reset
+
+
+6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
    tests, however - the test database will be initialized automatically for you.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
-  root@b76fcb399bb6:/opt/airflow# airflow users create --role Admin --username admin --password admin \
-    --email admin@example.com --firstname foo --lastname bar
+        root@b76fcb399bb6:/opt/airflow# airflow users create \
+                --username admin \
+                --firstname FIRST_NAME \
+                --lastname LAST_NAME \
+                --role Admin \
+                --email admin@example.org
 
 
-6. Exiting Breeze environment. After successfully finishing above command will leave you in container,
+7. Exiting Breeze environment. After successfully finishing above command will leave you in container,
    type ``exit`` to exit the container. The database created before will remain and servers will be
    running though, until you stop breeze environment completely.
 
@@ -322,7 +348,7 @@ Setting up Breeze
   root@b76fcb399bb6:/opt/airflow#
   root@b76fcb399bb6:/opt/airflow# exit
 
-6. You can stop the environment (which means deleting the databases and database servers running in the
+8. You can stop the environment (which means deleting the databases and database servers running in the
    background) via ``breeze down`` command.
 
 .. code-block:: bash
@@ -683,7 +709,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All
+   $ breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All
 
 - Running specific type of test
 
@@ -693,7 +719,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-    $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type Core
+    $ breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
@@ -702,7 +728,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All --integration mongo
+   $ breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All --integration mongo
 
 
 - For more information on Testing visit : |TESTING.rst|

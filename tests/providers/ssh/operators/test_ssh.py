@@ -31,6 +31,9 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
+
 TEST_DAG_ID = "unit_tests_ssh_test_op"
 TEST_CONN_ID = "conn_id_for_testing"
 DEFAULT_TIMEOUT = 10
@@ -49,7 +52,6 @@ class SSHClientSideEffect:
 
 class TestSSHOperator:
     def setup_method(self):
-
         hook = SSHHook(ssh_conn_id="ssh_default")
         hook.no_host_key_check = True
 

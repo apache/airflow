@@ -99,7 +99,6 @@ class AirflowHelpFormatter(RichHelpFormatter):
 
     def _iter_indented_subactions(self, action: Action):
         if isinstance(action, argparse._SubParsersAction):
-
             self._indent()
             subactions = action._get_subactions()
             action_subcommands, group_subcommands = partition(

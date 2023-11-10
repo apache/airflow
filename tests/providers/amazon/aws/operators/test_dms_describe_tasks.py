@@ -19,6 +19,8 @@ from __future__ import annotations
 import json
 from unittest import mock
 
+import pytest
+
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.dms import DmsDescribeTasksOperator
@@ -78,6 +80,7 @@ class TestDmsDescribeTasksOperator:
 
         mock_describe_replication_tasks.assert_called_once_with(**describe_tasks_kwargs)
 
+    @pytest.mark.db_test
     @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, "get_conn")
     def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks):

@@ -31,7 +31,6 @@ from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 class TestDockerSwarmOperator:
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     def test_execute(self, types_mock, docker_api_client_patcher):
-
         mock_obj = mock.Mock()
 
         def _client_tasks_side_effect():
@@ -114,7 +113,6 @@ class TestDockerSwarmOperator:
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     def test_auto_remove(self, types_mock, docker_api_client_patcher):
-
         mock_obj = mock.Mock()
 
         client_mock = mock.Mock(spec=APIClient)
@@ -138,7 +136,6 @@ class TestDockerSwarmOperator:
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     def test_no_auto_remove(self, types_mock, docker_api_client_patcher):
-
         mock_obj = mock.Mock()
 
         client_mock = mock.Mock(spec=APIClient)
@@ -165,7 +162,6 @@ class TestDockerSwarmOperator:
     @pytest.mark.parametrize("status", ["failed", "shutdown", "rejected", "orphaned", "remove"])
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     def test_non_complete_service_raises_error(self, types_mock, docker_api_client_patcher, status):
-
         mock_obj = mock.Mock()
 
         client_mock = mock.Mock(spec=APIClient)

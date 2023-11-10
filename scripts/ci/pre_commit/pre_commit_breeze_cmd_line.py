@@ -19,6 +19,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 from subprocess import call
@@ -76,11 +78,40 @@ def is_regeneration_needed() -> bool:
 
 
 if __name__ == "__main__":
+    return_code = 0
     verify_all_commands_described_in_docs()
     if is_regeneration_needed():
-        console.print("\n[bright_blue]Some of the commands changed since last time images were generated.\n")
-        console.print(
-            "\n[red]Image generation is needed. Please run this command:\n\n"
-            "[magenta]breeze setup regenerate-command-images\n"
+        return_code = 1
+        if shutil.which("breeze") is None:
+            console.print("\n[red]Breeze command configuration has changed.\n")
+            console.print(
+                "[yellow]The `breeze` command is not on path. "
+                "Skipping regeneration of images and consistency check."
+            )
+            console.print(
+                "\n[bright_blue]Some of the commands changed since last time images were generated.\n"
+            )
+            console.print("\n[yellow]You should install it and run those commands manually:\n")
+            console.print("\n[magenta]breeze setup regenerate-command images\n")
+            console.print("\n[magenta]breeze setup check-all-params-in-groups\n")
+            sys.exit(return_code)
+        res = subprocess.run(
+            ["breeze", "setup", "regenerate-command-images"],
+            check=False,
         )
-        sys.exit(1)
+        if res.returncode != 0:
+            console.print("\n[red]Breeze command configuration has changed.\n")
+            console.print("\n[bright_blue]Images have been regenerated.\n")
+            console.print("\n[bright_blue]You might want to run it manually:\n")
+            console.print("\n[magenta]breeze setup regenerate-command images\n")
+    res = subprocess.run(
+        ["breeze", "setup", "check-all-params-in-groups"],
+        check=False,
+    )
+    if res.returncode != 0:
+        return_code = 1
+        console.print("\n[red]Breeze command configuration has changed.\n")
+        console.print("\n[yellow]Please fix it in the appropriate command_*_config.py file\n")
+        console.print("\n[bright_blue]You can run consistency check manually by running:\n")
+        console.print("\nbreeze setup check-all-params-in-groups\n")
+    sys.exit(return_code)

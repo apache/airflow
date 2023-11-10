@@ -37,6 +37,9 @@ from airflow.utils.session import create_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 

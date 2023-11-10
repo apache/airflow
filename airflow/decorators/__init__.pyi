@@ -26,7 +26,9 @@ from typing import Any, Callable, Collection, Container, Iterable, Mapping, over
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
+from airflow.decorators.branch_external_python import branch_external_python_task
 from airflow.decorators.branch_python import branch_task
+from airflow.decorators.branch_virtualenv import branch_virtualenv_task
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -47,6 +49,8 @@ __all__ = [
     "virtualenv_task",
     "external_python_task",
     "branch_task",
+    "branch_virtualenv_task",
+    "branch_external_python_task",
     "short_circuit_task",
     "sensor_task",
     "setup",
@@ -110,6 +114,7 @@ class TaskDecoratorCollection:
         pip_install_options: list[str] | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
+        venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -119,13 +124,13 @@ class TaskDecoratorCollection:
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         :param requirements: Either a list of requirement strings, or a (templated)
             "requirements file" as specified by pip.
-        :param python_version: The Python version to run the virtualenv with. Note that
+        :param python_version: The Python version to run the virtual environment with. Note that
             both 2 and 2.7 are acceptable forms.
         :param use_dill: Whether to use dill to serialize
             the args and result (pickle is default). This allow more complex types
             but requires you to include dill in your requirements.
         :param system_site_packages: Whether to include
-            system_site_packages in your virtualenv.
+            system_site_packages in your virtual environment.
             See virtualenv documentation for more information.
         :param pip_install_options: a list of pip install options when installing requirements
             See 'pip install -h' for available options
@@ -134,6 +139,10 @@ class TaskDecoratorCollection:
             exit code will be treated as a failure.
         :param index_urls: an optional list of index urls to load Python packages from.
             If not provided the system pip conf will be used to source packages from.
+        :param venv_cache_path: Optional path to the virtual environment parent folder in which the
+            virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be
+            replaced with a checksum of requirements. If not provided the virtual environment will be
+            created and deleted in a temp folder for every execution.
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
@@ -160,7 +169,7 @@ class TaskDecoratorCollection:
         """Create a decorator to convert the decorated callable to a virtual environment task.
 
         :param python: Full path string (file-system specific) that points to a Python binary inside
-            a virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path
+            a virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path
             (so usually start with "/" or "X:/" depending on the filesystem/os used).
         :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
@@ -188,6 +197,99 @@ class TaskDecoratorCollection:
         """
     @overload
     def branch(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def branch_virtualenv(
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
+        # _PythonVirtualenvDecoratedOperator.
+        requirements: None | Iterable[str] | str = None,
+        python_version: None | str | int | float = None,
+        use_dill: bool = False,
+        system_site_packages: bool = True,
+        templates_dict: Mapping[str, Any] | None = None,
+        pip_install_options: list[str] | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
+        index_urls: None | Collection[str] | str = None,
+        venv_cache_path: None | str = None,
+        show_return_value_in_logs: bool = True,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
+
+        For more information on how to use this decorator, see :ref:`concepts:branching`.
+        Accepts arbitrary for operator kwarg. Can be reused in a single DAG.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param requirements: Either a list of requirement strings, or a (templated)
+            "requirements file" as specified by pip.
+        :param python_version: The Python version to run the virtual environment with. Note that
+            both 2 and 2.7 are acceptable forms.
+        :param use_dill: Whether to use dill to serialize
+            the args and result (pickle is default). This allow more complex types
+            but requires you to include dill in your requirements.
+        :param system_site_packages: Whether to include
+            system_site_packages in your virtual environment.
+            See virtualenv documentation for more information.
+        :param pip_install_options: a list of pip install options when installing requirements
+            See 'pip install -h' for available options
+        :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
+            in ``skipped`` state (default: None). If set to ``None``, any non-zero
+            exit code will be treated as a failure.
+        :param index_urls: an optional list of index urls to load Python packages from.
+            If not provided the system pip conf will be used to source packages from.
+        :param venv_cache_path: Optional path to the virtual environment parent folder in which the
+            virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
+            with a checksum of requirements. If not provided the virtual environment will be created and
+            deleted in a temp folder for every execution.
+        :param show_return_value_in_logs: a bool value whether to show return_value
+            logs. Defaults to True, which allows return value log output.
+            It can be set to False to prevent log output of return value when you return huge data
+            such as transmission a large amount of XCom to TaskAPI.
+        """
+    @overload
+    def branch_virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def branch_external_python(
+        self,
+        *,
+        python: str,
+        multiple_outputs: bool | None = None,
+        # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
+        # _PythonVirtualenvDecoratedOperator.
+        use_dill: bool = False,
+        templates_dict: Mapping[str, Any] | None = None,
+        show_return_value_in_logs: bool = True,
+        **kwargs,
+    ) -> TaskDecorator:
+        """Create a decorator to wrap the decorated callable into a BranchExternalPythonOperator.
+
+        For more information on how to use this decorator, see :ref:`concepts:branching`.
+        Accepts arbitrary for operator kwarg. Can be reused in a single DAG.
+
+        :param python: Full path string (file-system specific) that points to a Python binary inside
+            a virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path
+            (so usually start with "/" or "X:/" depending on the filesystem/os used).
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param use_dill: Whether to use dill to serialize
+            the args and result (pickle is default). This allow more complex types
+            but requires you to include dill in your requirements.
+        :param templates_dict: a dictionary where the values are templates that
+            will get templated by the Airflow engine sometime between
+            ``__init__`` and ``execute`` takes place and are made available
+            in your callable's context after the template has been applied.
+        :param show_return_value_in_logs: a bool value whether to show return_value
+            logs. Defaults to True, which allows return value log output.
+            It can be set to False to prevent log output of return value when you return huge data
+            such as transmission a large amount of XCom to TaskAPI.
+        """
+    @overload
+    def branch_external_python(
+        self, python_callable: Callable[FParams, FReturn]
+    ) -> Task[FParams, FReturn]: ...
     @overload
     def short_circuit(
         self,
@@ -464,6 +566,28 @@ class TaskDecoratorCollection:
         """
     @overload
     def sensor(self, python_callable: Callable[FParams, FReturn] | None = None) -> Task[FParams, FReturn]: ...
+    @overload
+    def pyspark(
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        conn_id: str | None = None,
+        config_kwargs: dict[str, str] | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """
+        Wraps a Python function that is to be injected with a SparkSession.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param conn_id: The connection ID to use for the SparkSession.
+        :param config_kwargs: Additional kwargs to pass to the SparkSession builder. This overrides
+            the config from the connection.
+        """
+    @overload
+    def pyspark(
+        self, python_callable: Callable[FParams, FReturn] | None = None
+    ) -> Task[FParams, FReturn]: ...
 
 task: TaskDecoratorCollection
 setup: Callable

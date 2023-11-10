@@ -267,29 +267,42 @@ class TestPodTemplateFile:
             "spec.volumes", docs[0]
         )
 
-    def test_should_use_empty_dir_for_gitsync_without_persistence(self):
+    @pytest.mark.parametrize(
+        "dags_gitsync_values, expected",
+        [
+            ({"enabled": True}, {"emptyDir": {}}),
+            ({"enabled": True, "emptyDirConfig": {"sizeLimit": "10Gi"}}, {"emptyDir": {"sizeLimit": "10Gi"}}),
+        ],
+    )
+    def test_should_use_empty_dir_for_gitsync_without_persistence(self, dags_gitsync_values, expected):
         docs = render_chart(
-            values={"dags": {"gitSync": {"enabled": True}}},
+            values={"dags": {"gitSync": dags_gitsync_values}},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-
-        assert {"name": "dags", "emptyDir": {}} in jmespath.search("spec.volumes", docs[0])
+        assert {"name": "dags", **expected} in jmespath.search("spec.volumes", docs[0])
 
     @pytest.mark.parametrize(
-        "log_persistence_values, expected",
+        "log_values, expected",
         [
-            ({"enabled": False}, {"emptyDir": {}}),
-            ({"enabled": True}, {"persistentVolumeClaim": {"claimName": "release-name-logs"}}),
+            ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
             (
-                {"enabled": True, "existingClaim": "test-claim"},
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
+            ),
+            (
+                {"persistence": {"enabled": True}},
+                {"persistentVolumeClaim": {"claimName": "release-name-logs"}},
+            ),
+            (
+                {"persistence": {"enabled": True, "existingClaim": "test-claim"}},
                 {"persistentVolumeClaim": {"claimName": "test-claim"}},
             ),
         ],
     )
-    def test_logs_persistence_changes_volume(self, log_persistence_values, expected):
+    def test_logs_persistence_changes_volume(self, log_values, expected):
         docs = render_chart(
-            values={"logs": {"persistence": log_persistence_values}},
+            values={"logs": log_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )

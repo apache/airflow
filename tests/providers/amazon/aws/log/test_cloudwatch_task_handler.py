@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import logging
 import time
 from datetime import datetime as dt, timedelta
 from unittest import mock
-from unittest.mock import call
+from unittest.mock import ANY, Mock, call
 
 import boto3
 import moto
@@ -49,6 +51,7 @@ def logmock():
         yield
 
 
+@pytest.mark.db_test
 class TestCloudwatchTaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
@@ -170,6 +173,52 @@ class TestCloudwatchTaskHandler:
             log_stream_name=self.remote_log_stream,
             end_time=expected_end_time,
         )
+
+    @pytest.mark.parametrize(
+        "conf_json_serialize, expected_serialized_output",
+        [
+            (None, '{"datetime": "2023-01-01T00:00:00+00:00", "customObject": null}'),
+            (
+                "airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize",
+                '{"datetime": "2023-01-01T00:00:00+00:00", "customObject": "SomeCustomSerialization(...)"}',
+            ),
+        ],
+    )
+    @mock.patch.object(AwsLogsHook, "get_log_events")
+    def test_write_json_logs(self, mock_get_log_events, conf_json_serialize, expected_serialized_output):
+        class ToSerialize:
+            def __init__(self):
+                pass
+
+            def __repr__(self):
+                return "SomeCustomSerialization(...)"
+
+        with contextlib.ExitStack() as stack:
+            if conf_json_serialize:
+                stack.enter_context(
+                    conf_vars({("aws", "cloudwatch_task_handler_json_serializer"): conf_json_serialize})
+                )
+
+            handler = self.cloudwatch_task_handler
+            handler.set_context(self.ti)
+            message = logging.LogRecord(
+                name="test_log_record",
+                level=logging.DEBUG,
+                pathname="fake.path",
+                lineno=42,
+                args=None,
+                exc_info=None,
+                msg={
+                    "datetime": datetime(2023, 1, 1),
+                    "customObject": ToSerialize(),
+                },
+            )
+            stack.enter_context(mock.patch("watchtower.threading.Thread"))
+            mock_queue = Mock()
+            stack.enter_context(mock.patch("watchtower.queue.Queue", return_value=mock_queue))
+            handler.handle(message)
+
+            mock_queue.put.assert_called_once_with({"message": expected_serialized_output, "timestamp": ANY})
 
     def test_close_prevents_duplicate_calls(self):
         with mock.patch("watchtower.CloudWatchLogHandler.close") as mock_log_handler_close:

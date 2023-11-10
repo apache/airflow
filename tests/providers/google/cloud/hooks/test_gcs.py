@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import copy
-import io
 import logging
 import os
 import re
 from datetime import datetime, timedelta
+from io import BytesIO
 from unittest import mock
 
 import dateutil
@@ -299,7 +299,9 @@ class TestGCSHook:
 
         # When
         response = self.gcs_hook.is_older_than(
-            bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
+            bucket_name=test_bucket,
+            object_name=test_object,
+            seconds=86400,  # 24hr
         )
 
         # Then
@@ -318,7 +320,9 @@ class TestGCSHook:
 
         # When
         response = self.gcs_hook.is_older_than(
-            bucket_name=test_bucket, object_name=test_object, seconds=86400  # 24hr
+            bucket_name=test_bucket,
+            object_name=test_object,
+            seconds=86400,  # 24hr
         )
         # Then
         assert not response
@@ -504,6 +508,7 @@ class TestGCSHook:
         mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
+    @pytest.mark.db_test
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_nonexisting_bucket(self, mock_service, caplog):
         mock_service.return_value.bucket.return_value.delete.side_effect = exceptions.NotFound(
@@ -699,7 +704,7 @@ class TestGCSHook:
     def test_download_as_bytes(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        test_object_bytes = io.BytesIO(b"input")
+        test_object_bytes = BytesIO(b"input")
 
         download_method = mock_service.return_value.bucket.return_value.blob.return_value.download_as_bytes
         download_method.return_value = test_object_bytes
@@ -713,7 +718,7 @@ class TestGCSHook:
     def test_download_to_file(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        test_object_bytes = io.BytesIO(b"input")
+        test_object_bytes = BytesIO(b"input")
         test_file = "test_file"
 
         download_filename_method = (
@@ -737,7 +742,7 @@ class TestGCSHook:
     def test_provide_file(self, mock_service, mock_temp_file):
         test_bucket = "test_bucket"
         test_object = "test_object"
-        test_object_bytes = io.BytesIO(b"input")
+        test_object_bytes = BytesIO(b"input")
         test_file = "test_file"
 
         download_filename_method = (
@@ -753,7 +758,6 @@ class TestGCSHook:
         mock_temp_file.return_value.__enter__.return_value.name = test_file
 
         with self.gcs_hook.provide_file(bucket_name=test_bucket, object_name=test_object) as response:
-
             assert test_file == response.name
         download_filename_method.assert_called_once_with(test_file, timeout=60)
         mock_temp_file.assert_has_calls(

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import os
 from contextlib import closing, contextmanager
-from functools import wraps
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
@@ -46,31 +45,6 @@ def _try_to_boolean(value: Any):
     if isinstance(value, (str, type(None))):
         return to_boolean(value)
     return value
-
-
-# TODO: Remove this when provider min airflow version >= 2.5.0 since this is
-# handled by provider manager from that version.
-def _ensure_prefixes(conn_type):
-    def dec(func):
-        @wraps(func)
-        def inner():
-            field_behaviors = func()
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
 
 
 class SnowflakeHook(DbApiHook):
@@ -139,7 +113,6 @@ class SnowflakeHook(DbApiHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="snowflake")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         import json
@@ -467,6 +440,7 @@ class SnowflakeHook(DbApiHook):
                 "column_name",
                 "ordinal_position",
                 "data_type",
+                "table_catalog",
             ],
             database=database,
             is_information_schema_cross_db=True,

@@ -760,22 +760,6 @@ notacommand = OK
         )
         assert message == exception
 
-    @mock.patch.dict(
-        "os.environ",
-        {
-            "AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY": "200",
-            "AIRFLOW__CORE__PARALLELISM": "100",
-        },
-    )
-    def test_max_tis_per_query_too_high(self):
-        test_conf = AirflowConfigParser()
-
-        with pytest.warns(UserWarning) as ctx:
-            test_conf._validate_max_tis_per_query()
-
-        captured_warnings_msg = str(ctx.pop().message)
-        assert "max_tis_per_query" in captured_warnings_msg and "core.parallelism" in captured_warnings_msg
-
     def test_as_dict_works_without_sensitive_cmds(self):
         conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
         conf_maintain_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
@@ -1149,7 +1133,6 @@ sql_alchemy_conn=sqlite://test
 
     def test_deprecated_funcs(self):
         for func in [
-            "load_test_config",
             "get",
             "getboolean",
             "getfloat",
@@ -1616,6 +1599,7 @@ def test_sensitive_values():
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
     exclude_list = {
         ("kubernetes_executor", "delete_option_kwargs"),
+        ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
     }
     suspected_sensitive -= exclude_list
     sensitive_values.update(suspected_sensitive)

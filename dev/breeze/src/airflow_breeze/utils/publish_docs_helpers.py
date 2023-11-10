@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import fnmatch
 import json
 import os
 from glob import glob
@@ -25,8 +24,6 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-
-from airflow_breeze.utils.general_utils import get_provider_name_from_short_hand
 
 CONSOLE_WIDTH = 180
 
@@ -59,7 +56,7 @@ def get_provider_yaml_paths():
     return sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
 
 
-def load_package_data() -> list[dict[str, Any]]:
+def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
     """
     Load all data from providers files
 
@@ -76,7 +73,7 @@ def load_package_data() -> list[dict[str, Any]]:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
             raise Exception(f"Unable to parse: {provider_yaml_path}.")
-        if provider["suspended"]:
+        if provider["suspended"] and not include_suspended:
             continue
         provider_yaml_dir = os.path.dirname(provider_yaml_path)
         provider["python-module"] = _filepath_to_module(provider_yaml_dir)
@@ -84,45 +81,6 @@ def load_package_data() -> list[dict[str, Any]]:
         provider["system-tests-dir"] = _filepath_to_system_tests(provider_yaml_dir)
         result.append(provider)
     return result
-
-
-def get_available_packages():
-    """Get list of all available packages to build."""
-    all_providers_yaml = load_package_data()
-    provider_package_names = [
-        provider["package-name"] for provider in all_providers_yaml if not provider.get("suspended")
-    ]
-    return [
-        "apache-airflow",
-        "docker-stack",
-        *provider_package_names,
-        "apache-airflow-providers",
-        "helm-chart",
-    ]
-
-
-def process_package_filters(
-    available_packages: list[str], package_filters: list[str] | None, packages_short_form: tuple[str]
-):
-    """Filters the package list against a set of filters.
-
-    A packet is returned if it matches at least one filter. The function keeps the order of the packages.
-    """
-    if not package_filters and not packages_short_form:
-        return available_packages
-
-    expanded_short_form_packages = get_provider_name_from_short_hand(packages_short_form)
-    package_filters = list(package_filters + expanded_short_form_packages)
-
-    invalid_filters = [
-        f for f in package_filters if not any(fnmatch.fnmatch(p, f) for p in available_packages)
-    ]
-    if invalid_filters:
-        raise SystemExit(
-            f"Some filters did not find any package: {invalid_filters}, Please check if they are correct."
-        )
-
-    return [p for p in available_packages if any(fnmatch.fnmatch(p, f) for f in package_filters)]
 
 
 def pretty_format_path(path: str, start: str) -> str:

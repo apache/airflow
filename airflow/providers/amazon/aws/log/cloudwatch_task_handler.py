@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import watchtower
 
@@ -31,6 +31,35 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
+
+
+def json_serialize_legacy(value: Any) -> str | None:
+    """
+    JSON serializer replicating legacy watchtower behavior.
+
+    The legacy `watchtower@2.0.1` json serializer function that serialized
+    datetime objects as ISO format and all other non-JSON-serializable to `null`.
+
+    :param value: the object to serialize
+    :return: string representation of `value` if it is an instance of datetime or `None` otherwise
+    """
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    else:
+        return None
+
+
+def json_serialize(value: Any) -> str | None:
+    """
+    JSON serializer replicating current watchtower behavior.
+
+    This provides customers with an accessible import,
+    `airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize`
+
+    :param value: the object to serialize
+    :return: string representation of `value`
+    """
+    return watchtower._json_serialize_default(value)
 
 
 class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
@@ -69,11 +98,13 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     def set_context(self, ti):
         super().set_context(ti)
+        self.json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer")
         self.handler = watchtower.CloudWatchLogHandler(
             log_group_name=self.log_group,
             log_stream_name=self._render_filename(ti, ti.try_number),
             use_queues=not getattr(ti, "is_trigger_log_context", False),
             boto3_client=self.hook.get_conn(),
+            json_serialize_default=self.json_serialize,
         )
 
     def close(self):

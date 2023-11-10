@@ -641,7 +641,7 @@ class TaskGroupContext:
 
     @classmethod
     def pop_context_managed_task_group(cls) -> TaskGroup | None:
-        """Pops the last TaskGroup from the list of manged TaskGroups and update the current TaskGroup."""
+        """Pops the last TaskGroup from the list of managed TaskGroups and update the current TaskGroup."""
         old_task_group = cls._context_managed_task_group
         if cls._previous_context_managed_task_groups:
             cls._context_managed_task_group = cls._previous_context_managed_task_groups.pop()

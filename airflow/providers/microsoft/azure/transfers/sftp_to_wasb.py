@@ -138,7 +138,6 @@ class SFTPToWasbOperator(BaseOperator):
         self.check_wildcards_limit()
 
         if self.source_path_contains_wildcard:
-
             prefix, delimiter = self.sftp_source_path.split(WILDCARD, 1)
 
             sftp_complete_path = os.path.dirname(prefix)
@@ -163,7 +162,7 @@ class SFTPToWasbOperator(BaseOperator):
 
     @cached_property
     def sftp_hook(self) -> SFTPHook:
-        """Property of sftp hook to be re-used."""
+        """Property of sftp hook to be reused."""
         return SFTPHook(self.sftp_conn_id)
 
     def get_full_path_blob(self, file: str) -> str:

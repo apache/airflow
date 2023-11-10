@@ -23,7 +23,6 @@ import pytest
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
-from tests.test_utils.providers import get_provider_min_airflow_version
 
 
 class TestAzureContainerVolumeHook:
@@ -87,7 +86,7 @@ class TestAzureContainerVolumeHook:
         indirect=True,
     )
     @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.StorageManagementClient")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.DefaultAzureCredential")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.get_sync_default_azure_credential")
     def test_get_file_volume_default_azure_credential(
         self, mocked_default_azure_credential, mocked_client, mocked_connection
     ):
@@ -113,23 +112,6 @@ class TestAzureContainerVolumeHook:
         assert volume.azure_file.storage_account_name == "storage"
         assert volume.azure_file.read_only is True
 
-        mocked_default_azure_credential.assert_called_with()
-
-    def test_get_ui_field_behaviour_placeholders(self):
-        """
-        Check that ensure_prefixes decorator working properly
-
-        Note: remove this test and the _ensure_prefixes decorator after min airflow version >= 2.5.0
-        """
-        assert list(AzureContainerVolumeHook.get_ui_field_behaviour()["placeholders"].keys()) == [
-            "login",
-            "password",
-            "connection_string",
-            "subscription_id",
-            "resource_group",
-        ]
-        if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
-            raise Exception(
-                "You must now remove `_ensure_prefixes` from azure utils."
-                " The functionality is now taken care of by providers manager."
-            )
+        assert mocked_default_azure_credential.called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )

@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.3.1
+    rev: v1.5.4
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -155,13 +155,6 @@ repos:
           - --fuzzy-match-generates-todo
         files: >
           \.cfg$|\.conf$|\.ini$|\.ldif$|\.properties$|\.readthedocs$|\.service$|\.tf$|Dockerfile.*$
-  - repo: https://github.com/psf/black
-    rev: 22.12.0
-    hooks:
-      - id: black
-        name: Run black (Python formatter)
-        args: [--config=./pyproject.toml]
-        exclude: ^.*/.*_vendor/|^airflow/contrib/
   - repo: local
     hooks:
       - id: update-common-sql-api-stubs
@@ -169,7 +162,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==22.12.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==23.10.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
@@ -180,19 +173,20 @@ repos:
         additional_dependencies: ['pyyaml']
         pass_filenames: false
         require_serial: true
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.4
+    hooks:
+      # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
+      # host CPU to it's fullest
       - id: ruff
-        name: ruff
-        language: python
-        require_serial: true
-        pass_filenames: true
-        # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
-        # host CPU to it's fullest
-        entry: ruff --fix --force-exclude
-        additional_dependencies: ['ruff==0.0.282']
-        files: \.pyi?$
+        name: ruff-lint
+        args: [--fix]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+      - id: ruff-format
+        name: ruff-format
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^airflow/contrib/
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.13.0
+    rev: 1.16.0
     hooks:
       - id: blacken-docs
         name: Run black on Python code blocks in documentation files
@@ -202,10 +196,10 @@ repos:
           - --target-version=py38
           - --target-version=py39
           - --target-version=py310
-        alias: black
-        additional_dependencies: [black==22.12.0]
+        alias: blacken-docs
+        additional_dependencies: [black==23.10.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: check-merge-conflict
         name: Check that merge conflicts are not being committed
@@ -256,7 +250,7 @@ repos:
         name: Check if there are no deprecate log warn
         exclude: ^.*/.*_vendor/
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.29.0
+    rev: v1.32.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
@@ -264,7 +258,7 @@ repos:
         types: [yaml]
         exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$
   - repo: https://github.com/ikamensh/flynt
-    rev: '0.77'
+    rev: '1.0.1'
     hooks:
       - id: flynt
         name: Run flynt string format converter for Python
@@ -278,7 +272,7 @@ repos:
          - --line-length
          - '99999'
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.2
+    rev: v2.2.6
     hooks:
       - id: codespell
         name: Run codespell to check for common misspellings in files
@@ -287,13 +281,13 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$
+        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.14
+    rev: v0.15
     hooks:
       - id: validate-pyproject
         name: Validate pyproject.toml
@@ -511,6 +505,7 @@ repos:
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^airflow/auth/managers/fab/security_manager/|
           ^airflow/cli/commands/webserver_command.py$|
+          ^airflow/cli/commands/internal_api_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
@@ -519,6 +514,7 @@ repos:
           ^airflow/providers/apache/cassandra/hooks/cassandra.py$|
           ^airflow/providers/apache/hive/operators/hive_stats.py$|
           ^airflow/providers/apache/hive/transfers/vertica_to_hive.py$|
+          ^airflow/providers/apache/spark/decorators/|
           ^airflow/providers/apache/spark/hooks/|
           ^airflow/providers/apache/spark/operators/|
           ^airflow/providers/exasol/hooks/exasol.py$|
@@ -547,6 +543,7 @@ repos:
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
           ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
+          ^docs/apache-airflow-providers-apache-spark/decorators/pyspark.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/conf.py$|
@@ -671,7 +668,7 @@ repos:
         name: Sort alphabetically and uniquify installed_providers.txt
         entry: ./scripts/ci/pre_commit/pre_commit_sort_installed_providers.py
         language: python
-        files: ^\.pre-commit-config\.yaml$|^scripts/ci/installed_providers\.txt$
+        files: ^\.pre-commit-config\.yaml$|^airflow/providers/installed_providers\.txt$
         pass_filenames: false
         require_serial: true
       - id: update-spelling-wordlist-to-be-sorted
@@ -740,7 +737,7 @@ repos:
           - --max-length=60
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.12.0', 'tabulate', 'rich>=12.4.4']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==23.10.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
       - id: update-breeze-readme-config-hash
@@ -916,7 +913,7 @@ repos:
           ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout', 'pyyaml', 'packaging']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.7.0', 'inputimeout', 'pyyaml', 'packaging']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -975,6 +972,13 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_deferrable_default.py
         pass_filenames: false
         files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
+      - id: check-provider-docs-valid
+        name: Validate provider doc files
+        entry: ./scripts/ci/pre_commit/pre_commit_check_provider_docs.py
+        language: python
+        files: ^airflow/providers/.*/provider\.yaml|^docs/.*
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'jinja2']
+        require_serial: true
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -996,7 +1000,7 @@ repos:
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
-        files: ^airflow/providers/.*\.py$|^tests/providers/\*\.py$|^tests/system/providers/\*\.py$
+        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
         exclude: ^.*/.*_vendor/
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']

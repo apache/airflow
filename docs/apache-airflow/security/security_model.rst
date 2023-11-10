@@ -90,7 +90,9 @@ capabilities authenticated users may have:
    create a Webserver Denial of Service situation and should be trusted
    not to misuse this capability.
 
-4. **Normal Users**: They can view and interact with the UI and API.
+4. **Audit log users**: They can view audit events for the whole Airflow installation.
+
+5. **Normal Users**: They can view and interact with the UI and API.
    They are able to view and edit DAGs, task instances, and DAG runs, and view task logs.
 
 For more information on the capabilities of authenticated UI users, see :doc:`/security/access-control`.
@@ -108,6 +110,7 @@ Airflow is deployed. This includes but is not limited to:
 * applying authentication and authorization to the web application so that only known and authorized
   users can have access to Airflow
 * any kind of detection of unusual activity and protection against it
+* choosing the right session backend and configuring it properly including timeouts for the session
 
 Airflow does not implement any of those feature natively, and delegates it to the deployment managers
 to deploy all the necessary infrastructure to protect the deployment - as external infrastructure components.

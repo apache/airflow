@@ -205,9 +205,9 @@ class EmrStartNotebookExecutionOperator(BaseOperator):
     :param notebook_execution_name: Optional name for the notebook execution.
     :param notebook_params: Input parameters in JSON format passed to the EMR notebook at
         runtime for execution.
-    :param: notebook_instance_security_group_id: The unique identifier of the Amazon EC2
+    :param notebook_instance_security_group_id: The unique identifier of the Amazon EC2
         security group to associate with the EMR notebook for this notebook execution.
-    :param: master_instance_security_group_id: Optional unique ID of an EC2 security
+    :param master_instance_security_group_id: Optional unique ID of an EC2 security
         group to associate with the master instance of the EMR cluster for this notebook execution.
     :param tags: Optional list of key value pair to associate with the notebook execution.
     :param waiter_max_attempts: Maximum number of tries before failing.
@@ -1241,7 +1241,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
-
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.log.info("Application state is %s", app_state)

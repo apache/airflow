@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Auto ML operations.
@@ -90,7 +88,6 @@ with DAG(
     catchup=False,
     tags=["example", "vertex_ai", "auto_ml"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=FORECAST_GCS_BUCKET_NAME,

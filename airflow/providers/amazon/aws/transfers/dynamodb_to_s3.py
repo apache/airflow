@@ -92,6 +92,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
      the Unix epoch. The table export will be a snapshot of the table's state at this point in time.
     :param export_format: The format for the exported data. Valid values for ExportFormat are DYNAMODB_JSON
      or ION.
+    :param check_interval: The amount of time in seconds to wait between attempts. Only if ``export_time`` is
+        provided.
+    :param max_attempts: The maximum number of attempts to be made. Only if ``export_time`` is provided.
     """
 
     template_fields: Sequence[str] = (
@@ -104,6 +107,8 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         "process_func",
         "export_time",
         "export_format",
+        "check_interval",
+        "max_attempts",
     )
 
     template_fields_renderers = {
@@ -121,6 +126,8 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         process_func: Callable[[dict[str, Any]], bytes] = _convert_item_to_json_bytes,
         export_time: datetime | None = None,
         export_format: str = "DYNAMODB_JSON",
+        check_interval: int = 30,
+        max_attempts: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -132,6 +139,8 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.s3_key_prefix = s3_key_prefix
         self.export_time = export_time
         self.export_format = export_format
+        self.check_interval = check_interval
+        self.max_attempts = max_attempts
 
     @cached_property
     def hook(self):
@@ -164,7 +173,10 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         )
         waiter = self.hook.get_waiter("export_table")
         export_arn = response.get("ExportDescription", {}).get("ExportArn")
-        waiter.wait(ExportArn=export_arn)
+        waiter.wait(
+            ExportArn=export_arn,
+            WaiterConfig={"Delay": self.check_interval, "MaxAttempts": self.max_attempts},
+        )
 
     def _export_entire_data(self):
         """Export all data from the table."""

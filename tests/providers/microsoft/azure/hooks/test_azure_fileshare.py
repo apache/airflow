@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import io
+from io import StringIO
 from unittest import mock
 
 import pytest
@@ -25,6 +25,8 @@ from azure.storage.fileshare import DirectoryProperties, FileProperties, ShareSe
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
+
+MODULE = "airflow.providers.microsoft.azure.hooks.fileshare"
 
 
 class TestAzureFileshareHook:
@@ -58,20 +60,18 @@ class TestAzureFileshareHook:
         )
 
     def test_key_and_connection(self):
-
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_test_key")
         assert hook._conn_id == "azure_fileshare_test_key"
         share_client = hook.share_service_client
         assert isinstance(share_client, ShareServiceClient)
 
     def test_sas_token(self):
-
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras")
         assert hook._conn_id == "azure_fileshare_extras"
         share_client = hook.share_service_client
         assert isinstance(share_client, ShareServiceClient)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareDirectoryClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareDirectoryClient", autospec=True)
     def test_check_for_directory(self, mock_service):
         mock_instance = mock_service.return_value
         mock_instance.exists.return_value = True
@@ -81,7 +81,7 @@ class TestAzureFileshareHook:
         assert hook.check_for_directory()
         mock_instance.exists.assert_called_once_with()
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareFileClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareFileClient", autospec=True)
     def test_load_data(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
@@ -90,7 +90,7 @@ class TestAzureFileshareHook:
         hook.load_data("big string")
         mock_instance.upload_file.assert_called_once_with("big string")
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareDirectoryClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareDirectoryClient", autospec=True)
     def test_list_directories_and_files(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
@@ -99,7 +99,7 @@ class TestAzureFileshareHook:
         hook.list_directories_and_files()
         mock_instance.list_directories_and_files.assert_called_once_with()
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareDirectoryClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareDirectoryClient", autospec=True)
     def test_list_files(self, mock_service):
         mock_instance = mock_service.return_value
         mock_instance.list_directories_and_files.return_value = [
@@ -115,7 +115,7 @@ class TestAzureFileshareHook:
         assert files == ["file1", "file2"]
         mock_instance.list_directories_and_files.assert_called_once_with()
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareDirectoryClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareDirectoryClient", autospec=True)
     def test_create_directory(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
@@ -124,7 +124,7 @@ class TestAzureFileshareHook:
         hook.create_directory()
         mock_instance.create_directory.assert_called_once_with()
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareFileClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareFileClient", autospec=True)
     def test_get_file(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
@@ -133,31 +133,31 @@ class TestAzureFileshareHook:
         hook.get_file("path")
         mock_instance.download_file.assert_called_once_with()
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareFileClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareFileClient", autospec=True)
     def test_get_file_to_stream(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(
             azure_fileshare_conn_id="azure_fileshare_extras", share_name="share", file_path="file"
         )
-        data = io.StringIO("stream")
+        data = StringIO("stream")
         hook.get_file_to_stream(stream=data)
         mock_instance.download_file.assert_called_once_with()
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareServiceClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareServiceClient", autospec=True)
     def test_create_share(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras")
         hook.create_share(share_name="my_share")
         mock_instance.create_share.assert_called_once_with("my_share")
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareServiceClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareServiceClient", autospec=True)
     def test_delete_share(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras")
         hook.delete_share("my_share")
         mock_instance.delete_share.assert_called_once_with("my_share")
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareServiceClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareServiceClient", autospec=True)
     def test_connection_success(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras")
@@ -166,7 +166,7 @@ class TestAzureFileshareHook:
         assert status is True
         assert msg == "Successfully connected to Azure File Share."
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.fileshare.ShareServiceClient", autospec=True)
+    @mock.patch(f"{MODULE}.ShareServiceClient", autospec=True)
     def test_connection_failure(self, mock_service):
         mock_instance = mock_service.return_value
         hook = AzureFileShareHook(azure_fileshare_conn_id="azure_fileshare_extras")

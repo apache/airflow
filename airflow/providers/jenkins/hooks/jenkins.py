@@ -17,42 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-from functools import wraps
 from typing import Any
 
 import jenkins
 
 from airflow.hooks.base import BaseHook
-
-
-def _ensure_prefixes(conn_type):
-    """
-    Deprecated.
-
-    Remove when provider min airflow version >= 2.5.0 since
-    this is handled by provider manager from that version.
-    """
-
-    def dec(func):
-        @wraps(func)
-        def inner():
-            field_behaviors = func()
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
 
 
 class JenkinsHook(BaseHook):
@@ -77,7 +46,6 @@ class JenkinsHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="jenkins")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {

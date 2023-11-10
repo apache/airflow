@@ -89,7 +89,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         command = "placeholder command"
         self.python_command = python_command
         self.expect_airflow = expect_airflow
-        self.pickling_library = dill if use_dill else pickle
+        self.use_dill = use_dill
         super().__init__(
             command=command, retrieve_output=True, retrieve_output_path="/tmp/script.out", **kwargs
         )
@@ -142,6 +142,12 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         res = textwrap.dedent(raw_source)
         res = remove_task_decorator(res, self.custom_operator_name)
         return res
+
+    @property
+    def pickling_library(self):
+        if self.use_dill:
+            return dill
+        return pickle
 
 
 def docker_task(

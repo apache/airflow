@@ -107,7 +107,7 @@ class TestKubernetesPodTrigger:
                 "message": "All containers inside pod have started successfully.",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 
@@ -132,7 +132,7 @@ class TestKubernetesPodTrigger:
                 "message": FAILED_RESULT_MSG,
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        actual_event = await trigger.run().asend(None)
 
         assert actual_event == expected_event
 

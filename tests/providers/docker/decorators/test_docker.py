@@ -25,6 +25,9 @@ from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 
@@ -129,7 +132,7 @@ class TestDockerDecorator:
         ],
     )
     def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
-        @task.docker(image="python:3.9-slim", auto_remove="force", **(extra_kwargs if extra_kwargs else {}))
+        @task.docker(image="python:3.9-slim", auto_remove="force", **(extra_kwargs or {}))
         def f(exit_code):
             raise SystemExit(exit_code)
 
@@ -187,3 +190,46 @@ class TestDockerDecorator:
         teardown_task = dag.task_group.children["f"]
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
+
+    @pytest.mark.parametrize("use_dill", [True, False])
+    def test_deepcopy_with_python_operator(self, dag_maker, use_dill):
+        import copy
+
+        from airflow.providers.docker.decorators.docker import _DockerDecoratedOperator
+
+        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=use_dill)
+        def f():
+            import logging
+
+            logger = logging.getLogger("airflow.task")
+            logger.info("info log in docker")
+
+        @task.python()
+        def g():
+            import logging
+
+            logger = logging.getLogger("airflow.task")
+            logger.info("info log in python")
+
+        with dag_maker() as dag:
+            docker_task = f()
+            python_task = g()
+            _ = python_task >> docker_task
+
+        docker_operator = getattr(docker_task, "operator", None)
+        assert isinstance(docker_operator, _DockerDecoratedOperator)
+        task_id = docker_operator.task_id
+
+        assert isinstance(dag, DAG)
+        assert hasattr(dag, "task_dict")
+        assert isinstance(dag.task_dict, dict)
+        assert task_id in dag.task_dict
+
+        some_task = dag.task_dict[task_id]
+        clone_of_docker_operator = copy.deepcopy(docker_operator)
+        assert isinstance(some_task, _DockerDecoratedOperator)
+        assert isinstance(clone_of_docker_operator, _DockerDecoratedOperator)
+        assert some_task.command == clone_of_docker_operator.command
+        assert some_task.expect_airflow == clone_of_docker_operator.expect_airflow
+        assert some_task.use_dill == clone_of_docker_operator.use_dill
+        assert some_task.pickling_library is clone_of_docker_operator.pickling_library

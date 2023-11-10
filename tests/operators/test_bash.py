@@ -38,6 +38,7 @@ INTERVAL = timedelta(hours=12)
 
 
 class TestBashOperator:
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "append_env,user_defined_env,expected_airflow_home",
         [
@@ -78,12 +79,12 @@ class TestBashOperator:
         task = BashOperator(
             task_id="echo_env_vars",
             dag=dag,
-            bash_command="echo $AIRFLOW_HOME>> {0};"
-            "echo $PYTHONPATH>> {0};"
-            "echo $AIRFLOW_CTX_DAG_ID >> {0};"
-            "echo $AIRFLOW_CTX_TASK_ID>> {0};"
-            "echo $AIRFLOW_CTX_EXECUTION_DATE>> {0};"
-            "echo $AIRFLOW_CTX_DAG_RUN_ID>> {0};".format(tmp_file),
+            bash_command=f"echo $AIRFLOW_HOME>> {tmp_file};"
+            f"echo $PYTHONPATH>> {tmp_file};"
+            f"echo $AIRFLOW_CTX_DAG_ID >> {tmp_file};"
+            f"echo $AIRFLOW_CTX_TASK_ID>> {tmp_file};"
+            f"echo $AIRFLOW_CTX_EXECUTION_DATE>> {tmp_file};"
+            f"echo $AIRFLOW_CTX_DAG_RUN_ID>> {tmp_file};",
             append_env=append_env,
             env=user_defined_env,
         )
@@ -197,6 +198,7 @@ class TestBashOperator:
         )
         op.execute(context={})
 
+    @pytest.mark.db_test
     def test_bash_operator_kill(self, dag_maker):
         import psutil
 

@@ -159,7 +159,10 @@ PIPELINE = {
 }
 # [END howto_data_fusion_env_variables]
 
-CloudDataFusionCreatePipelineOperator.template_fields += ("pipeline",)
+CloudDataFusionCreatePipelineOperator.template_fields = (
+    *CloudDataFusionCreatePipelineOperator.template_fields,
+    "pipeline",
+)
 
 
 with DAG(
@@ -316,7 +319,7 @@ with DAG(
         # TEST BODY
         >> create_instance
         >> get_instance
-        >> get_artifacts_versions()
+        >> get_artifacts_versions()  # type: ignore[call-arg]
         >> restart_instance
         >> update_instance
         >> create_pipeline

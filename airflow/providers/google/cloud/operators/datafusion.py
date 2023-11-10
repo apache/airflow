@@ -17,14 +17,14 @@
 """This module contains Google DataFusion operators."""
 from __future__ import annotations
 
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
@@ -34,16 +34,25 @@ from airflow.providers.google.cloud.links.datafusion import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
+from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
 class DataFusionPipelineLinkHelper:
-    """Helper class for Pipeline links."""
+    """
+    Helper class for Pipeline links.
+
+    .. warning::
+        This class is deprecated. Consider using ``resource_path_to_dict()`` instead.
+    """
 
     @staticmethod
     def get_project_id(instance):
+        raise AirflowProviderDeprecationWarning(
+            "DataFusionPipelineLinkHelper is deprecated. Consider using resource_path_to_dict() instead."
+        )
         instance = instance["name"]
         project_id = next(x for x in instance.split("/") if x.startswith("airflow"))
         return project_id
@@ -114,7 +123,7 @@ class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
         instance = hook.wait_for_operation(operation)
         self.log.info("Instance %s restarted successfully", self.instance_name)
 
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
             task_instance=self,
@@ -267,12 +276,12 @@ class CloudDataFusionCreateInstanceOperator(GoogleCloudBaseOperator):
             for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
                 if instance["state"] != "CREATING":
                     break
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
                 instance = hook.get_instance(
                     instance_name=self.instance_name, location=self.location, project_id=self.project_id
                 )
 
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
             task_instance=self,
@@ -361,7 +370,7 @@ class CloudDataFusionUpdateInstanceOperator(GoogleCloudBaseOperator):
         instance = hook.wait_for_operation(operation)
         self.log.info("Instance %s updated successfully", self.instance_name)
 
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
             task_instance=self,
@@ -432,7 +441,7 @@ class CloudDataFusionGetInstanceOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
         )
 
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
+        project_id = resource_path_to_dict(resource_name=instance["name"])["projects"]
         DataFusionInstanceLink.persist(
             context=context,
             task_instance=self,

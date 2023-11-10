@@ -195,39 +195,46 @@ def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
     )
 
 
-def _fake_ctx(name: str) -> dict[str, str]:
-    return {
-        "Name": name,
-        "DockerEndpoint": f"unix://{name}",
-    }
+def _fake_ctx_output(*names: str) -> str:
+    return "\n".join(json.dumps({"Name": name, "DockerEndpoint": f"unix://{name}"}) for name in names)
 
 
 @pytest.mark.parametrize(
     "context_output, selected_context, console_output",
     [
         (
-            json.dumps([_fake_ctx("default")]),
+            _fake_ctx_output("default"),
             "default",
             "[info]Using default as context",
         ),
-        ("[]", "default", "[warning]Could not detect docker builder"),
+        ("\n", "default", "[warning]Could not detect docker builder"),
         (
-            json.dumps([_fake_ctx("a"), _fake_ctx("b")]),
+            _fake_ctx_output("a", "b"),
             "a",
             "[warning]Could not use any of the preferred docker contexts",
         ),
         (
-            json.dumps([_fake_ctx("a"), _fake_ctx("desktop-linux")]),
+            _fake_ctx_output("a", "desktop-linux"),
             "desktop-linux",
             "[info]Using desktop-linux as context",
         ),
         (
-            json.dumps([_fake_ctx("a"), _fake_ctx("default")]),
+            _fake_ctx_output("a", "default"),
             "default",
             "[info]Using default as context",
         ),
         (
-            json.dumps([_fake_ctx("a"), _fake_ctx("default"), _fake_ctx("desktop-linux")]),
+            _fake_ctx_output("a", "default", "desktop-linux"),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
+        (
+            _fake_ctx_output("a", "default", "desktop-linux"),
+            "desktop-linux",
+            "[info]Using desktop-linux as context",
+        ),
+        (
+            '[{"Name": "desktop-linux", "DockerEndpoint": "unix://desktop-linux"}]',
             "desktop-linux",
             "[info]Using desktop-linux as context",
         ),

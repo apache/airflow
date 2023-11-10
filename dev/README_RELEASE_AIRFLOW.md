@@ -129,9 +129,7 @@ branch you can run:
 ./dev/airflow-github compare 2.1.2 --unmerged
 ```
 
-Be careful and verify the hash commit specified. This is a 'best effort' to find it, and
-could be inaccurate if the PR was referenced in other commits after it was merged. You can start
-cherry picking from the bottom of the list. (older commits first)
+You can start cherry picking from the bottom of the list. (older commits first)
 
 When you cherry-pick, pick in chronological order onto the `vX-Y-test` release branch.
 You'll move them over to be on `vX-Y-stable` once the release is cut. Use the `-x` option
@@ -241,6 +239,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     ```shell script
     pipx install -e ./dev/breeze
     ```
+
+
 
 - For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
 

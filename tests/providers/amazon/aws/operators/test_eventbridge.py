@@ -59,7 +59,7 @@ class TestEventBridgePutEventsOperator:
             entries=ENTRIES,
         )
 
-        result = operator.execute(None)
+        result = operator.execute(context={})
 
         assert result == ["foobar"]
 
@@ -78,7 +78,7 @@ class TestEventBridgePutEventsOperator:
         )
 
         with pytest.raises(AirflowException):
-            operator.execute(None)
+            operator.execute(context={})
 
 
 class TestEventBridgePutRuleOperator:
@@ -100,7 +100,7 @@ class TestEventBridgePutRuleOperator:
             event_pattern=EVENT_PATTERN,
         )
 
-        result = operator.execute(None)
+        result = operator.execute(context={})
 
         assert result == hook_response
 
@@ -126,13 +126,12 @@ class TestEventBridgeEnableRuleOperator:
 
     @mock.patch.object(EventBridgeHook, "conn")
     def test_enable_rule(self, mock_conn: MagicMock):
-
         enable_rule = EventBridgeEnableRuleOperator(
             task_id="events_enable_rule_job",
             name=RULE_NAME,
         )
 
-        enable_rule.execute(None)
+        enable_rule.execute(context={})
         mock_conn.enable_rule.assert_called_with(Name=RULE_NAME)
 
 
@@ -147,11 +146,10 @@ class TestEventBridgeDisableRuleOperator:
 
     @mock.patch.object(EventBridgeHook, "conn")
     def test_disable_rule(self, mock_conn: MagicMock):
-
         disable_rule = EventBridgeDisableRuleOperator(
             task_id="events_disable_rule_job",
             name=RULE_NAME,
         )
 
-        disable_rule.execute(None)
+        disable_rule.execute(context={})
         mock_conn.disable_rule.assert_called_with(Name=RULE_NAME)

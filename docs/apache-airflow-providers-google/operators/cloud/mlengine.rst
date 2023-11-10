@@ -26,6 +26,11 @@ in the cloud, and use models to make predictions for new data. AI Platform is a 
 of tools for training, evaluating, and tuning machine learning models. AI Platform can also
 be used to deploy a trained model, make predictions, and manage various model versions.
 
+The legacy versions of AI Platform Training, AI Platform Prediction, AI Platform Pipelines,
+and AI Platform Data Labeling Service are deprecated and will no longer be available on
+Google Cloud after their shutdown date. All the functionality of legacy AI Platform and new
+features are available on the Vertex AI platform.
+
 Prerequisite tasks
 ^^^^^^^^^^^^^^^^^^
 
@@ -40,19 +45,15 @@ This creates a virtual machine that can run code specified in the trainer file, 
 contains the main application code. A job can be initiated with the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator`.
 
+This operator is deprecated. Please, use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
+instead.
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_training]
-    :end-before: [END howto_operator_gcp_mlengine_training]
-
-Also for all this action you can use operator in the deferrable mode:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine_async.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_training_async]
-    :end-before: [END howto_operator_gcp_mlengine_training_async]
+    :start-after: [START howto_operator_create_custom_python_training_job_v1]
+    :end-before: [END howto_operator_create_custom_python_training_job_v1]
 
 .. _howto/operator:MLEngineCreateModelOperator:
 
@@ -63,11 +64,16 @@ A model is a container that can hold multiple model versions. A new model can be
 The ``model`` field should be defined with a dictionary containing the information about the model.
 ``name`` is a required field in this dictionary.
 
+This operator is deprecated. The model is created as a result of running Vertex AI operators that create training jobs
+of any types. For example, you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`.
+The result of running this operator will be ready-to-use model saved in Model Registry.
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_create_model]
-    :end-before: [END howto_operator_gcp_mlengine_create_model]
+    :start-after: [START howto_operator_create_custom_python_training_job_v1]
+    :end-before: [END howto_operator_create_custom_python_training_job_v1]
 
 .. _howto/operator:MLEngineGetModelOperator:
 
@@ -76,6 +82,10 @@ Getting a model
 The :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineGetModelOperator`
 can be used to obtain a model previously created. To obtain the correct model, ``model_name``
 must be defined in the operator.
+
+This operator is deprecated. Please, use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator`
+instead.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -104,20 +114,26 @@ The model must be specified by ``model_name``, and the ``version`` parameter sho
 all the information about the version. Within the ``version`` parameter's dictionary, the ``name`` field is
 required.
 
+This operator is deprecated. Please, use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
+instead. In this case, the new version of specific model could be created by specifying existing model id in
+``parent_model`` parameter when running Training Job. This will ensure that new version of model will be trained except
+of creating new model.
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_create_version1]
-    :end-before: [END howto_operator_gcp_mlengine_create_version1]
+    :start-after: [START howto_operator_create_custom_python_training_job_v1]
+    :end-before: [END howto_operator_create_custom_python_training_job_v1]
 
-The :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineCreateVersionOperator`
+The :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
 can also be used to create more versions with varying parameters.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_create_version2]
-    :end-before: [END howto_operator_gcp_mlengine_create_version2]
+    :start-after: [START howto_operator_create_custom_python_training_job_v2]
+    :end-before: [END howto_operator_create_custom_python_training_job_v2]
 
 .. _howto/operator:MLEngineSetDefaultVersionOperator:
 .. _howto/operator:MLEngineListVersionsOperator:
@@ -127,6 +143,13 @@ Managing model versions
 By default, the model code will run using the default model version. You can set the model version through the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineSetDefaultVersionOperator`
 by specifying the ``model_name`` and ``version_name`` parameters.
+
+This operator is deprecated. Please, use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.SetDefaultVersionOnModelOperator`
+instead. The desired model version to be set as default could be passed with the model ID in ``model_id`` parameter
+in format ``projects/{project}/locations/{location}/models/{model_id}@{version_id}`` or
+``projects/{project}/locations/{location}/models/{model_id}@{version_alias}``. By default, the first model version
+created will be marked as default.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -138,22 +161,16 @@ To list the model versions available, use the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineListVersionsOperator`
 while specifying the ``model_name`` parameter.
 
+This operator is deprecated. Please, use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.ListModelVersionsOperator`
+instead. You can pass the name of the desired model in ``model_id`` parameter. If the model ID is passed
+with version aliases, the operator will output all the versions available for this model.
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_list_versions]
     :end-before: [END howto_operator_gcp_mlengine_list_versions]
-
-You can use :ref:`Jinja templating <concepts:jinja-templating>` with the ``project_id`` and ``model``
-fields to dynamically determine their values. The result are saved to :ref:`XCom <concepts:xcom>`,
-allowing them to be used by other operators. In this case, the
-:class:`~airflow.operators.bash.BashOperator` is used to print the version information.
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_print_versions]
-    :end-before: [END howto_operator_gcp_mlengine_print_versions]
 
 .. _howto/operator:MLEngineStartBatchPredictionJobOperator:
 
@@ -164,11 +181,15 @@ A Google Cloud AI Platform prediction job can be started with the
 For specifying the model origin, you need to provide either the ``model_name``, ``uri``, or ``model_name`` and
 ``version_name``. If you do not provide the ``version_name``, the operator will use the default model version.
 
+This operator is deprecated. Please, use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`
+instead.
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_get_prediction]
-    :end-before: [END howto_operator_gcp_mlengine_get_prediction]
+    :start-after: [START howto_operator_start_batch_prediction]
+    :end-before: [END howto_operator_start_batch_prediction]
 
 .. _howto/operator:MLEngineDeleteVersionOperator:
 .. _howto/operator:MLEngineDeleteModelOperator:
@@ -178,6 +199,10 @@ Cleaning up
 A model version can be deleted with the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteVersionOperator` by
 the ``version_name`` and ``model_name`` parameters.
+
+This operator is deprecated. Please, use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelVersionOperator`
+instead. The default version could not be deleted on the model.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
@@ -189,6 +214,10 @@ You can also delete a model with the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteModelOperator`
 by providing the ``model_name`` parameter.
 
+This operator is deprecated. Please, use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator`
+instead.
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
@@ -197,36 +226,12 @@ by providing the ``model_name`` parameter.
 
 Evaluating a model
 ^^^^^^^^^^^^^^^^^^
-To evaluate a prediction and model, specify a metric function to generate a summary and customize
-the evaluation of the model. This function receives a dictionary derived from a json in the batch
-prediction result, then returns a tuple of metrics.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_get_metric]
-    :end-before: [END howto_operator_gcp_mlengine_get_metric]
-
-To evaluate a prediction and model, it's useful to have a function to validate the summary result.
-This function receives a dictionary of the averaged metrics the function above generated. It then
-raises an exception if a task fails or should not proceed.
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_validate_error]
-    :end-before: [END howto_operator_gcp_mlengine_validate_error]
-
-Prediction results and a model summary can be generated through a function such as
-:class:`~airflow.providers.google.cloud.utils.mlengine_operator_utils.create_evaluate_ops`.
-It makes predictions using the specified inputs and then summarizes and validates the result. The
-functions created above should be passed in through the ``metric_fn_and_keys`` and ``validate_fn`` fields.
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_gcp_mlengine_evaluate]
-    :end-before: [END howto_operator_gcp_mlengine_evaluate]
+This function is deprecated. All the functionality of legacy MLEngine and new features are available on
+the Vertex AI platform.
+To create and view Model Evaluation, please check the documentation:
+`Evaluate models using Vertex AI
+<https://cloud.google.com/vertex-ai/docs/evaluation/using-model-evaluation#create_an_evaluation>`__
 
 Reference
 ^^^^^^^^^

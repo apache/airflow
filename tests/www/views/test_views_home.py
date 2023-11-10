@@ -32,6 +32,8 @@ from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
+pytestmark = pytest.mark.db_test
+
 
 def clean_db():
     clear_db_dags()
@@ -67,6 +69,25 @@ def test_home(capture_templates, admin_client):
     state_color_mapping = State.state_color.copy()
     state_color_mapping["null"] = state_color_mapping.pop(None)
     assert templates[0].local_context["state_color"] == state_color_mapping
+
+
+@mock.patch("airflow.www.views.AirflowBaseView.render_template")
+def test_home_dags_count(render_template_mock, admin_client, working_dags, session):
+    from sqlalchemy import update
+
+    from airflow.models.dag import DagModel
+
+    def call_kwargs():
+        return render_template_mock.call_args.kwargs
+
+    admin_client.get("home", follow_redirects=True)
+    assert call_kwargs()["status_count_all"] == 4
+
+    update_stmt = update(DagModel).where(DagModel.dag_id == "filter_test_1").values(is_active=False)
+    session.execute(update_stmt)
+
+    admin_client.get("home", follow_redirects=True)
+    assert call_kwargs()["status_count_all"] == 3
 
 
 def test_home_status_filter_cookie(admin_client):

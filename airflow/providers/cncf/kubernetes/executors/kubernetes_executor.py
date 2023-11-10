@@ -224,6 +224,36 @@ class KubernetesExecutor(BaseExecutor):
             if time.time() - timestamp > allowed_age:
                 del self.last_handled[key]
 
+        if not queued_tis:
+            return
+
+        # airflow worker label selector batch call
+        kwargs = {"label_selector": f"airflow-worker={self._make_safe_label_value(str(self.job_id))}"}
+        if self.kube_config.kube_client_request_args:
+            kwargs.update(self.kube_config.kube_client_request_args)
+        pod_list = self._list_pods(kwargs)
+
+        # create a set against pod query label fields
+        label_search_set = set()
+        for pod in pod_list:
+            dag_id = pod.metadata.labels.get("dag_id", None)
+            task_id = pod.metadata.labels.get("task_id", None)
+            airflow_worker = pod.metadata.labels.get("airflow-worker", None)
+            map_index = pod.metadata.labels.get("map_index", None)
+            run_id = pod.metadata.labels.get("run_id", None)
+            execution_date = pod.metadata.labels.get("execution_date", None)
+            if dag_id is None or task_id is None or airflow_worker is None:
+                continue
+            label_search_base_str = f"dag_id={dag_id},task_id={task_id},airflow-worker={airflow_worker}"
+            if map_index is not None:
+                label_search_base_str += f",map_index={map_index}"
+            if run_id is not None:
+                label_search_str = f"{label_search_base_str},run_id={run_id}"
+                label_search_set.add(label_search_str)
+            if execution_date is not None:
+                label_search_str = f"{label_search_base_str},execution_date={execution_date}"
+                label_search_set.add(label_search_str)
+
         for ti in queued_tis:
             self.log.debug("Checking task instance %s", ti)
 
@@ -240,21 +270,16 @@ class KubernetesExecutor(BaseExecutor):
             if ti.map_index >= 0:
                 # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
                 base_label_selector += f",map_index={ti.map_index}"
-            kwargs = {"label_selector": base_label_selector}
-            if self.kube_config.kube_client_request_args:
-                kwargs.update(**self.kube_config.kube_client_request_args)
 
             # Try run_id first
-            kwargs["label_selector"] += ",run_id=" + self._make_safe_label_value(ti.run_id)
-            pod_list = self._list_pods(kwargs)
-            if pod_list:
+            label_search_str = f"{base_label_selector},run_id={self._make_safe_label_value(ti.run_id)}"
+            if label_search_str in label_search_set:
                 continue
             # Fallback to old style of using execution_date
-            kwargs[
-                "label_selector"
-            ] = f"{base_label_selector},execution_date={self._make_safe_label_value(ti.execution_date)}"
-            pod_list = self._list_pods(kwargs)
-            if pod_list:
+            label_search_str = (
+                f"{base_label_selector},execution_date={self._make_safe_label_value(ti.execution_date)}"
+            )
+            if label_search_str in label_search_set:
                 continue
             self.log.info("TaskInstance: %s found in queued state but was not launched, rescheduling", ti)
             session.execute(
@@ -269,7 +294,7 @@ class KubernetesExecutor(BaseExecutor):
             )
 
     def start(self) -> None:
-        """Starts the executor."""
+        """Start the executor."""
         self.log.info("Start Kubernetes executor")
         self.scheduler_job_id = str(self.job_id)
         self.log.debug("Start with scheduler_job_id: %s", self.scheduler_job_id)
@@ -302,7 +327,7 @@ class KubernetesExecutor(BaseExecutor):
         queue: str | None = None,
         executor_config: Any | None = None,
     ) -> None:
-        """Executes task asynchronously."""
+        """Execute task asynchronously."""
         if TYPE_CHECKING:
             assert self.task_queue
 
@@ -469,7 +494,6 @@ class KubernetesExecutor(BaseExecutor):
         messages = []
         log = []
         try:
-
             from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
@@ -603,7 +627,6 @@ class KubernetesExecutor(BaseExecutor):
         from kubernetes.client.rest import ApiException
 
         try:
-
             kube_client.patch_namespaced_pod(
                 name=pod.metadata.name,
                 namespace=pod.metadata.namespace,
@@ -639,7 +662,6 @@ class KubernetesExecutor(BaseExecutor):
             from kubernetes.client.rest import ApiException
 
             try:
-
                 kube_client.patch_namespaced_pod(
                     name=pod.metadata.name,
                     namespace=pod.metadata.namespace,
@@ -689,7 +711,7 @@ class KubernetesExecutor(BaseExecutor):
                     self.result_queue.task_done()
 
     def end(self) -> None:
-        """Called when the executor shuts down."""
+        """Shut down the executor."""
         if TYPE_CHECKING:
             assert self.task_queue
             assert self.result_queue
@@ -725,7 +747,8 @@ class KubernetesExecutor(BaseExecutor):
 
 
 def _get_parser() -> argparse.ArgumentParser:
-    """This method is used by Sphinx to generate documentation.
+    """
+    Generate documentation; used by Sphinx.
 
     :meta private:
     """

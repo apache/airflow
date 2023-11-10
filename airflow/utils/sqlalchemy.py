@@ -252,7 +252,6 @@ class ExecutorConfigType(PickleType):
     cache_ok = True
 
     def bind_processor(self, dialect):
-
         from airflow.serialization.serialized_objects import BaseSerialization
 
         super_process = super().bind_processor(dialect)

@@ -911,7 +911,9 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         select(
             log_template_table.c.filename,
             log_template_table.c.elasticsearch_id,
-        ).order_by(log_template_table.c.id.desc()),
+        )
+        .order_by(log_template_table.c.id.desc())
+        .limit(1)
     ).first()
 
     # If we have an empty table, and the default values exist, we will seed the
@@ -946,6 +948,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
                 )
             )
             .order_by(log_template_table.c.id.desc())
+            .limit(1)
         ).first()
         if not row:
             session.add(
@@ -1446,7 +1449,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
 
         dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version, "dangling")
         if dangling_table_name in existing_table_names:
-            invalid_row_count = bad_rows_query.count()
+            invalid_row_count = get_query_count(bad_rows_query, session=session)
             if invalid_row_count:
                 yield _format_dangling_error(
                     source_table=source_table.name,

@@ -328,7 +328,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.6",
+    "flask-appbuilder[oauth]==4.3.9",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -363,7 +363,9 @@ rabbitmq = [
 ]
 sentry = [
     "blinker>=1.1",
-    "sentry-sdk>=0.8.0",
+    # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
+    # See https://github.com/getsentry/sentry-python/issues/2473
+    "sentry-sdk>=1.32.0,!=1.33.0",
 ]
 statsd = [
     "statsd>=3.3.0",
@@ -385,6 +387,7 @@ mypy_dependencies = [
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
     "mypy==1.2.0",
+    "types-aiofiles",
     "types-certifi",
     "types-croniter",
     "types-Deprecated",
@@ -410,11 +413,7 @@ _MIN_BOTO3_VERSION = "1.28.0"
 
 _devel_only_amazon = [
     "aws_xray_sdk",
-    "moto[glue]>=4.0",
-    # TODO: Remove the two below after https://github.com/aws/serverless-application-model/pull/3282
-    # gets released and add back "cloudformation" extra to moto above
-    "openapi-spec-validator >=0.2.8",
-    "jsonschema>=3.0",
+    "moto[cloudformation,glue]>=4.2.5",
     f"mypy-boto3-rds>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-redshift-data>={_MIN_BOTO3_VERSION}",
     f"mypy-boto3-s3>={_MIN_BOTO3_VERSION}",
@@ -433,20 +432,33 @@ _devel_only_debuggers = [
     "ipdb",
 ]
 
+_devel_only_deltalake = [
+    "deltalake>=0.12.0",
+]
+
 _devel_only_devscripts = [
     "click>=8.0",
     "gitpython",
     "pipdeptree",
     "pygithub",
-    "rich-click>=1.5",
+    "rich-click>=1.7.0",
+    "restructuredtext-lint",
     "semver",
     "towncrier",
     "twine",
     "wheel",
 ]
 
+_devel_only_duckdb = [
+    "duckdb>=0.9.0",
+]
+
 _devel_only_mongo = [
     "mongomock",
+]
+
+_devel_only_iceberg = [
+    "pyiceberg>=0.5.0",
 ]
 
 _devel_only_sentry = [
@@ -462,13 +474,14 @@ _devel_only_static_checks = [
 
 _devel_only_tests = [
     "aioresponses",
+    "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
     "coverage>=7.2",
     "pytest",
     "pytest-asyncio",
-    "pytest-capture-warnings",
     "pytest-cov",
     "pytest-httpx",
+    "pytest-icdiff",
     "pytest-instafail",
     "pytest-mock",
     "pytest-rerunfailures",
@@ -484,8 +497,11 @@ devel_only = [
     *_devel_only_azure,
     *_devel_only_breeze,
     *_devel_only_debuggers,
+    *_devel_only_deltalake,
     *_devel_only_devscripts,
+    *_devel_only_duckdb,
     *_devel_only_mongo,
+    *_devel_only_iceberg,
     *_devel_only_sentry,
     *_devel_only_static_checks,
     *_devel_only_tests,
@@ -497,6 +513,12 @@ aiobotocore = [
     # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
     # boto3 have native aync support and we move away from aio aiobotocore
     "aiobotocore>=2.1.1",
+]
+
+s3fs = [
+    # This is required for support of S3 file system which uses aiobotocore
+    # which can have a conflict with boto3 as mentioned above
+    "s3fs>=2023.9.2",
 ]
 
 
@@ -525,6 +547,7 @@ devel = get_unique_dependency_list(
         get_provider_dependencies("mysql"),
         pandas,
         password,
+        s3fs,
     ]
 )
 
@@ -570,6 +593,7 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "pandas": pandas,
     "password": password,
     "rabbitmq": rabbitmq,
+    "s3fs": s3fs,
     "sentry": sentry,
     "statsd": statsd,
     "virtualenv": virtualenv,
@@ -798,9 +822,11 @@ def sort_extras_dependencies() -> dict[str, list[str]]:
 EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 
 # Those providers are pre-installed always when airflow is installed.
-# Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
-# This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
+    #   Until we cut-off the 2.8.0 branch and bump current airflow version to 2.9.0, we should
+    #   Keep common.io commented out in order ot be able to generate PyPI constraints because
+    #   The version from PyPI has requirement of apache-airflow>=2.8.0
+    #   "common.io",
     "common.sql",
     "ftp",
     "http",
@@ -1045,4 +1071,4 @@ def do_setup() -> None:
 
 
 if __name__ == "__main__":
-    do_setup()  # comment
+    do_setup()  # comment to trigger upgrade to newer dependencies when setup.py is changed

@@ -144,7 +144,6 @@ class TestGCPTransferServiceHookWithPassedName:
         )
 
         with pytest.raises(HttpError):
-
             # check status DELETED generates new job name
             get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
             self.gct_hook.create_transfer_job(body=body)

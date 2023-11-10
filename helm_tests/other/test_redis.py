@@ -340,6 +340,34 @@ class TestRedis:
         )
         assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])
 
+    @pytest.mark.parametrize(
+        "redis_values, expected",
+        [
+            ({"persistence": {"enabled": False}}, {"emptyDir": {}}),
+            (
+                {"persistence": {"enabled": False}, "emptyDirConfig": {"sizeLimit": "10Gi"}},
+                {"emptyDir": {"sizeLimit": "10Gi"}},
+            ),
+        ],
+    )
+    def test_should_use_empty_dir_on_persistence_disabled(self, redis_values, expected):
+        docs = render_chart(
+            values={"redis": redis_values},
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert {"name": "redis-db", **expected} in jmespath.search("spec.template.spec.volumes", docs[0])
+
+    def test_priority_class_name(self):
+        docs = render_chart(
+            values={"redis": {"priorityClassName": "airflow-priority-class-name"}},
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+
+        assert "airflow-priority-class-name" == jmespath.search(
+            "spec.template.spec.priorityClassName",
+            docs[0],
+        )
+
 
 class TestRedisServiceAccount:
     """Tests redis service account."""
@@ -355,7 +383,7 @@ class TestRedisServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "redis": {

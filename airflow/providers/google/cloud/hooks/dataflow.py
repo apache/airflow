@@ -202,7 +202,6 @@ class _DataflowJobsController(LoggingMixin):
         wait_until_finished: bool | None = None,
         expected_terminal_state: str | None = None,
     ) -> None:
-
         super().__init__()
         self._dataflow = dataflow
         self._project_number = project_number

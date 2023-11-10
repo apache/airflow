@@ -186,7 +186,6 @@ class SqoopHook(BaseHook):
         direct: bool | None,
         driver: Any,
     ) -> list[str]:
-
         cmd = self._prepare_command(export=False)
 
         if target_dir:
@@ -299,7 +298,6 @@ class SqoopHook(BaseHook):
         relaxed_isolation: bool = False,
         schema: str | None = None,
     ) -> list[str]:
-
         cmd = self._prepare_command(export=True)
 
         if input_null_string:

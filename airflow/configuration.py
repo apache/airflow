@@ -314,7 +314,11 @@ class AirflowConfigParser(ConfigParser):
             for s, s_c in self.configuration_description.items()
             for k, item in s_c.get("options").items()  # type: ignore[union-attr]
         }
-        sensitive = {(section, key) for (section, key), v in flattened.items() if v.get("sensitive") is True}
+        sensitive = {
+            (section.lower(), key.lower())
+            for (section, key), v in flattened.items()
+            if v.get("sensitive") is True
+        }
         depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
         depr_section = {
             (self.deprecated_sections[s][0], k) for s, k in sensitive if s in self.deprecated_sections
@@ -717,7 +721,6 @@ class AirflowConfigParser(ConfigParser):
     def validate(self):
         self._validate_sqlite3_version()
         self._validate_enums()
-        self._validate_max_tis_per_query()
 
         for section, replacement in self.deprecated_values.items():
             for name, info in replacement.items():
@@ -738,26 +741,6 @@ class AirflowConfigParser(ConfigParser):
         self._upgrade_auth_backends()
         self._upgrade_postgres_metastore_conn()
         self.is_validated = True
-
-    def _validate_max_tis_per_query(self) -> None:
-        """
-        Check if config ``scheduler.max_tis_per_query`` is not greater than ``core.parallelism``.
-
-        If not met, a warning message is printed to guide the user to correct it.
-
-        More info: https://github.com/apache/airflow/pull/32572
-        """
-        max_tis_per_query = self.getint("scheduler", "max_tis_per_query")
-        parallelism = self.getint("core", "parallelism")
-
-        if max_tis_per_query > parallelism:
-            warnings.warn(
-                f"Config scheduler.max_tis_per_query (value: {max_tis_per_query}) "
-                f"should NOT be greater than core.parallelism (value: {parallelism}). "
-                "Will now use core.parallelism as the max task instances per query "
-                "instead of specified value.",
-                UserWarning,
-            )
 
     def _upgrade_auth_backends(self):
         """
@@ -2077,19 +2060,6 @@ def make_group_other_inaccessible(file_path: str):
             "Continuing with original permissions: %s",
             e,
         )
-
-
-# Historical convenience functions to access config entries
-def load_test_config():
-    """Historical load_test_config."""
-    warnings.warn(
-        "Accessing configuration method 'load_test_config' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.load_test_config'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    conf.load_test_config()
 
 
 def get(*args, **kwargs) -> ConfigType | None:
