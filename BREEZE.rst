@@ -175,11 +175,14 @@ The pipx tool
 We are using ``pipx`` tool to install and manage Breeze. The ``pipx`` tool is created by the creators
 of ``pip`` from `Python Packaging Authority <https://www.pypa.io/en/latest/>`_
 
+Note that ``pipx`` >= 1.2.1 is needed in order to deal with breaking ``packaging`` release in September
+2023 that broke earlier versions of ``pipx``.
+
 Install pipx
 
 .. code-block:: bash
 
-    pip install --user pipx
+    pip install --user "pipx>=1.2.1"
 
 Breeze, is not globally accessible until your PATH is updated. Add <USER FOLDER>\.local\bin as a variable
 environments. This can be done automatically by the following command (follow instructions printed).
@@ -506,7 +509,8 @@ Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
 Example:
 If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
-Note: For building docs for apache-airflow-providers index, use ``providers-index`` as the short hand operator.
+Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers``
+as the short hand operator.
 
 Running static checks
 ---------------------

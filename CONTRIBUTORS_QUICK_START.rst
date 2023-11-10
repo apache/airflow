@@ -269,7 +269,9 @@ see in CI in your local environment.
 Setting up Breeze
 -----------------
 
-1. Install ``pipx`` - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
+1. Install ``pipx`` (>=1.2.1) - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
+   It is important to install version of pipx > 1.2.1 to workaround ``packaging`` breaking change introduced
+   in September 2023.
 
 2. Run ``pipx install -e ./dev/breeze`` in your checked-out repository. Make sure to follow any instructions
    printed by ``pipx`` during the installation - this is needed to make sure that ``breeze`` command is

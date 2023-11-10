@@ -20,8 +20,8 @@
 SqlToSlackWebhookOperator
 =========================
 
-Use the :class:`~airflow.providers.slack.transfers.sql_to_slack_webhook.SqlToSlackWebhookOperator` to post messages
-to predefined Slack channel through `Incoming Webhook <https://api.slack.com/messaging/webhooks>`__.
+Use the :class:`~airflow.providers.slack.transfers.sql_to_slack_webhook.SqlToSlackWebhookOperator` to post query result
+as message to predefined Slack channel through `Incoming Webhook <https://api.slack.com/messaging/webhooks>`__.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^

@@ -832,7 +832,7 @@ def test_task_instance_delete_permission_denied(session, client_ti_without_dag_e
 
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
     resp = client_ti_without_dag_edit.post(f"/taskinstance/delete/{composite_key}", follow_redirects=True)
-    check_content_in_response(f"Access denied for dag_id {task_instance_to_delete.dag_id}", resp)
+    check_content_in_response("Access is Denied", resp)
     assert session.query(TaskInstance).filter(TaskInstance.task_id == task_id).count() == 1
 
 
@@ -862,7 +862,9 @@ def test_task_instance_clear(session, request, client_fixture, should_succeed):
         data={"action": "clear", "rowid": rowid},
         follow_redirects=True,
     )
-    assert resp.status_code == (200 if should_succeed else 404)
+    assert resp.status_code == 200
+    if not should_succeed and client_fixture != "anonymous_client":
+        check_content_in_response("Access is Denied", resp)
 
     # Now the state should be None.
     state = session.query(TaskInstance.state).filter(TaskInstance.task_id == task_id).scalar()

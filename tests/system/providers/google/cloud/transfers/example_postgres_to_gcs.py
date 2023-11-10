@@ -197,7 +197,7 @@ with DAG(
             schema=DB_NAME,
             port=DB_PORT,
         )
-        session: Session = Session()
+        session = Session()
         if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
             log.warning("Connection %s already exists", CONNECTION_ID)
             return None

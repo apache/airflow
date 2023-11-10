@@ -131,6 +131,7 @@ class TestHttpOperator:
                     headers={},
                     extra_options={},
                 )
+            return None
 
         requests_mock.get("http://www.example.com", json={"value": 5})
         operator = HttpOperator(
@@ -173,6 +174,7 @@ class TestHttpOperator:
             if not has_returned:
                 has_returned = True
                 return dict(endpoint="/")
+            return None
 
         operator = HttpOperator(
             task_id="test_HTTP_op",

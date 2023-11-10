@@ -299,6 +299,15 @@ jobs:
           mv -v "target-airflow/dev" "."
           rm -rfv ".github/actions"
           mv -v "target-airflow/.github/actions" ".github"
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: >
+          Pull CI image for PROD build:
+          ${{ steps.selective-checks.outputs.default-python-version }}:${{ env.IMAGE_TAG }}"
+        shell: bash
+        run: breeze ci-image pull --tag-as-latest
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ steps.selective-checks.outputs.default-python-version }}
       - name: >
           Build PROD Images
           ${{needs.build-info.outputs.all-python-versions-list-as-string}}:${{env.IMAGE_TAG}}

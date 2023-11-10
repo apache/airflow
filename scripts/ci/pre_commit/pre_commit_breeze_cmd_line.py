@@ -103,7 +103,7 @@ if __name__ == "__main__":
             console.print("\n[red]Breeze command configuration has changed.\n")
             console.print("\n[bright_blue]Images have been regenerated.\n")
             console.print("\n[bright_blue]You might want to run it manually:\n")
-            console.print("\n[magenta]]breeze setup regenerate-command images\n")
+            console.print("\n[magenta]breeze setup regenerate-command images\n")
     res = subprocess.run(
         ["breeze", "setup", "check-all-params-in-groups"],
         check=False,

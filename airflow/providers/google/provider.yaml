@@ -30,6 +30,7 @@ description: |
 
 suspended: false
 versions:
+  - 10.11.1
   - 10.11.0
   - 10.10.1
   - 10.10.0

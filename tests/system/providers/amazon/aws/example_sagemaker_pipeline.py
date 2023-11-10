@@ -104,7 +104,7 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
-        create_pipeline,
+        create_pipeline,  # type: ignore[arg-type]
         # TEST BODY
         start_pipeline1,
         start_pipeline2,

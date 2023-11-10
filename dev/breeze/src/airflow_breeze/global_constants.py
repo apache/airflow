@@ -26,7 +26,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
@@ -106,15 +106,13 @@ ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
 PIP_VERSION = "23.3.1"
 
-# key used for generating providers index
-PROVIDERS_INDEX_KEY = "providers-index"
-# keys for generated non providers docs
-NON_PROVIDERS_DOC_KEYS = ["apache-airflow", "docker-stack", "helm-chart"]
-# Mapping which store short-key:full-key
-ALL_SPECIAL_DOC_KEYS = {
-    PROVIDERS_INDEX_KEY: "apache-airflow-providers",
-    **dict(zip(NON_PROVIDERS_DOC_KEYS, NON_PROVIDERS_DOC_KEYS)),
-}
+# packages that  providers docs
+REGULAR_DOC_PACKAGES = [
+    "apache-airflow",
+    "docker-stack",
+    "helm-chart",
+    "apache-airflow-providers",
+]
 
 
 @lru_cache(maxsize=None)
@@ -182,24 +180,6 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
 
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
-
-
-def get_available_documentation_packages(short_version=False, only_providers: bool = False) -> list[str]:
-    provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
-    doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
-    available_packages = []
-    if not only_providers:
-        available_packages.extend(NON_PROVIDERS_DOC_KEYS)
-    all_providers = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
-    all_providers.sort()
-    available_packages.extend(all_providers)
-    if short_version:
-        prefix_len = len("apache-airflow-providers-")
-        available_packages = [
-            package[prefix_len:].replace("-", ".") if len(package) > prefix_len else package
-            for package in available_packages
-        ]
-    return available_packages
 
 
 def get_default_platform_machine() -> str:
@@ -295,6 +275,7 @@ COMMITTERS = [
     "XD-DENG",
     "aijamalnk",
     "alexvanboxel",
+    "amoghrajesh",
     "aoen",
     "artwr",
     "ashb",
@@ -316,6 +297,7 @@ COMMITTERS = [
     "jhtimmins",
     "jmcarp",
     "josh-fell",
+    "jscheffl",
     "kaxil",
     "leahecole",
     "malthe",
@@ -326,6 +308,7 @@ COMMITTERS = [
     "msumit",
     "o-nikolas",
     "pankajastro",
+    "pankajkoti",
     "phanikumv",
     "pierrejeambrun",
     "pingzh",
