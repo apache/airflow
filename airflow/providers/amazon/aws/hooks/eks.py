@@ -556,20 +556,10 @@ class EksHook(AwsBaseHook):
                     "user": {
                         "exec": {
                             "apiVersion": AUTHENTICATION_API_VERSION,
-                            "command": sys.executable,
+                            "command": "aws",
                             "args": [
-                                "-m",
-                                "airflow.providers.amazon.aws.utils.eks_get_token",
-                                *(
-                                    ["--region-name", self.region_name]
-                                    if self.region_name is not None
-                                    else []
-                                ),
-                                *(
-                                    ["--aws-conn-id", self.aws_conn_id]
-                                    if self.aws_conn_id is not None
-                                    else []
-                                ),
+                                "eks",
+                                "get-token",
                                 "--cluster-name",
                                 eks_cluster_name,
                             ],
