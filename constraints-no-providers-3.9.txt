@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-10T05:49:25Z
+# This constraints file was automatically generated on 2023-11-10T19:35:16Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -55,7 +55,7 @@ blinker==1.7.0
 botocore==1.31.64
 cachelib==0.9.0
 cachetools==5.3.2
-celery==5.3.4
+celery==5.3.5
 certifi==2023.7.22
 cffi==1.16.0
 cgroupspy==0.2.2
@@ -97,7 +97,7 @@ grpcio==1.59.2
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
-httpcore==1.0.1
+httpcore==1.0.2
 httpx==0.25.1
 humanize==4.8.0
 idna==3.4
@@ -139,7 +139,7 @@ opentelemetry-sdk==1.21.0
 opentelemetry-semantic-conventions==0.42b0
 ordered-set==4.1.0
 packaging==23.2
-pandas==2.1.2
+pandas==2.1.3
 partd==1.4.1
 pathspec==0.11.2
 pendulum==2.1.2
@@ -148,7 +148,7 @@ pluggy==1.3.0
 plyvel==1.5.0
 prison==0.2.1
 prometheus-client==0.18.0
-prompt-toolkit==3.0.39
+prompt-toolkit==3.0.40
 protobuf==4.25.0
 psutil==5.9.6
 pure-sasl==0.6.2
