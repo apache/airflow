@@ -979,6 +979,23 @@ repos:
         files: ^airflow/providers/.*/provider\.yaml|^docs/.*
         additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'jinja2']
         require_serial: true
+      - id: bandit
+        name: bandit
+        description: "Bandit is a tool for finding common security issues in Python code"
+        entry: bandit
+        language: python
+        language_version: python3
+        types: [ python ]
+        additional_dependencies: ['bandit>=1.7.5']
+        require_serial: true
+        files: ^airflow/.*
+        exclude:
+          airflow/example_dags/.*
+        args:
+          - "--skip"
+          - "B301,B324,B403,B404,B603"
+          - "--severity-level"
+          - "high"  # TODO: remove this line when we fix all the issues
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
