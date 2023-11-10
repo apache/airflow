@@ -33,10 +33,6 @@ class stat_result(dict):
     See os.stat for more information.
     """
 
-    def __init__(self, *arg, **kwargs):
-        super().__init__(**kwargs)
-        self.update(*arg, **kwargs)
-
     st_dev = property(lambda self: 0)
     """device"""
 

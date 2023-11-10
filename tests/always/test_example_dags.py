@@ -77,6 +77,7 @@ def relative_path(path):
     return os.path.relpath(path, AIRFLOW_SOURCES_ROOT.as_posix())
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_suspended_dags(), ids=relative_path)
 def test_should_be_importable(example):
     dagbag = DagBag(
@@ -87,6 +88,7 @@ def test_should_be_importable(example):
     assert len(dagbag.dag_ids) >= 1
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize("example", example_dags_except_db_exception(), ids=relative_path)
 def test_should_not_do_database_queries(example):
     with assert_queries_count(0):

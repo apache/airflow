@@ -91,6 +91,7 @@ class TestAwsBaseOperator:
         assert hook._config.read_timeout == 777
         assert hook._config.connect_timeout == 42
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "op_kwargs",
         [

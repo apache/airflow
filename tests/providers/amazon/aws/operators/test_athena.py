@@ -59,12 +59,13 @@ class TestAthenaOperator:
             task_id="test_athena_operator",
             query="SELECT * FROM TEST_TABLE",
             database="TEST_DATABASE",
-            output_location="s3://test_s3_bucket/",
             client_request_token="eac427d0-1c6d-4dfb-96aa-2835d3ac6595",
             sleep_time=0,
             max_polling_attempts=3,
         )
-        self.athena = AthenaOperator(**self.default_op_kwargs, aws_conn_id=None, dag=self.dag)
+        self.athena = AthenaOperator(
+            **self.default_op_kwargs, output_location="s3://test_s3_bucket/", aws_conn_id=None, dag=self.dag
+        )
 
     def test_base_aws_op_attributes(self):
         op = AthenaOperator(**self.default_op_kwargs)
@@ -190,6 +191,7 @@ class TestAthenaOperator:
             MOCK_DATA["workgroup"],
         )
 
+    @pytest.mark.db_test
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
@@ -200,6 +202,21 @@ class TestAthenaOperator:
         ti.dag_run = dag_run
 
         assert self.athena.execute(ti.get_template_context()) == ATHENA_QUERY_ID
+
+    @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
+    @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_optional_output_location(self, mock_conn, mock_run_query, mock_check_query_status):
+        op = AthenaOperator(**self.default_op_kwargs, aws_conn_id=None)
+
+        op.execute({})
+        mock_run_query.assert_called_once_with(
+            MOCK_DATA["query"],
+            query_context,
+            {},  # Should be an empty dict since we do not provide output_location
+            MOCK_DATA["client_request_token"],
+            MOCK_DATA["workgroup"],
+        )
 
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     def test_is_deferred(self, mock_run_query):

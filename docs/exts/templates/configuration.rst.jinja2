@@ -16,6 +16,6 @@
  specific language governing permissions and limitations
  under the License.
 #}
-{%for provider_package_name in items %}
-* :doc:`Configuration for {{ provider_package_name }} <{{ provider_package_name }}:configurations-ref>`
+{%for name, provider_package in items %}
+* :doc:`Configuration for {{ name }} ({{ provider_package }})<{{ provider_package }}:configurations-ref>`
 {% endfor %}

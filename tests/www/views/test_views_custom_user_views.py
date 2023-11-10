@@ -30,6 +30,8 @@ from airflow.www import app as application
 from tests.test_utils.api_connexion_utils import create_user, delete_role
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
+pytestmark = pytest.mark.db_test
+
 PERMISSIONS_TESTS_PARAMS = [
     (
         "/resetpassword/form?pk={user.id}",

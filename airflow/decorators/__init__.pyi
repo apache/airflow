@@ -566,6 +566,28 @@ class TaskDecoratorCollection:
         """
     @overload
     def sensor(self, python_callable: Callable[FParams, FReturn] | None = None) -> Task[FParams, FReturn]: ...
+    @overload
+    def pyspark(
+        self,
+        *,
+        multiple_outputs: bool | None = None,
+        conn_id: str | None = None,
+        config_kwargs: dict[str, str] | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """
+        Wraps a Python function that is to be injected with a SparkSession.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
+        :param conn_id: The connection ID to use for the SparkSession.
+        :param config_kwargs: Additional kwargs to pass to the SparkSession builder. This overrides
+            the config from the connection.
+        """
+    @overload
+    def pyspark(
+        self, python_callable: Callable[FParams, FReturn] | None = None
+    ) -> Task[FParams, FReturn]: ...
 
 task: TaskDecoratorCollection
 setup: Callable

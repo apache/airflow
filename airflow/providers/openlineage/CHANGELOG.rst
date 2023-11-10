@@ -26,6 +26,19 @@
 Changelog
 ---------
 
+1.2.1
+.....
+
+Misc
+~~~~
+
+* ``Make schema filter uppercase in 'create_filter_clauses' (#35428)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix bad regexp in mypy-providers specification in pre-commits (#35465)``
+   * ``Switch from Black to Ruff formatter (#35287)``
+
 1.2.0
 .....
 

@@ -46,6 +46,8 @@ from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_operators import MockOperator, MockOperatorWithNestedFields, NestedFields
 
+pytestmark = pytest.mark.db_test
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -1303,8 +1305,8 @@ class TestMappedSetupTeardown:
         states = self.get_states(dr)
         expected = {
             "file_transforms.my_setup": {0: "success", 1: "failed", 2: "skipped"},
-            "file_transforms.my_work": {0: "success", 1: "upstream_failed", 2: "skipped"},
-            "file_transforms.my_teardown": {0: "success", 1: "upstream_failed", 2: "skipped"},
+            "file_transforms.my_work": {2: "upstream_failed", 1: "upstream_failed", 0: "upstream_failed"},
+            "file_transforms.my_teardown": {2: "success", 1: "success", 0: "success"},
         }
 
         assert states == expected

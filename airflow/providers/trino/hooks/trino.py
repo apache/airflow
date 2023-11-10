@@ -177,9 +177,7 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(
-        self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
-    ):  # type: ignore[override]
+    def get_pandas_df(self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):  # type: ignore[override]
         import pandas as pd
 
         cursor = self.get_cursor()
@@ -191,7 +189,7 @@ class TrinoHook(DbApiHook):
         column_descriptions = cursor.description
         if data:
             df = pd.DataFrame(data, **kwargs)
-            df.columns = [c[0] for c in column_descriptions]
+            df.rename(columns={n: c[0] for n, c in zip(df.columns, column_descriptions)}, inplace=True)
         else:
             df = pd.DataFrame(**kwargs)
         return df

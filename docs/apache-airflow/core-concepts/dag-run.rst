@@ -49,7 +49,7 @@ Cron Presets
 
 You may set your DAG to run on a simple schedule by setting its ``schedule`` argument to either a
 `cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_, a ``datetime.timedelta`` object,
-or one of the following cron "presets". For more elaborate scheduling requirements, you can implement a :doc:`custom timetable <../authoring-and-scheduling/timetable>`
+or one of the following cron "presets". For more elaborate scheduling requirements, you can implement a :doc:`custom timetable <../authoring-and-scheduling/timetable>`. Note that Airflow parses cron expressions with the croniter library which supports an extended syntax for cron strings. See their documentation `in github <https://github.com/kiorky/croniter>`_. For example, you can create a DAG schedule to run at 12AM on the first Monday of the month with their extended cron syntax: ``0 0 * * MON#1``.
 
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_

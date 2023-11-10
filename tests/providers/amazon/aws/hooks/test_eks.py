@@ -22,7 +22,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
-from urllib.parse import ParseResult, urlsplit
+from urllib.parse import urlsplit
 
 import pytest
 import time_machine
@@ -274,7 +274,8 @@ class TestEksHooks:
 
         with pytest.raises(ClientError) as raised_exception:
             eks_hook.create_cluster(
-                name=generated_test_data.existing_cluster_name, **dict(ClusterInputs.REQUIRED)  # type: ignore
+                name=generated_test_data.existing_cluster_name,
+                **dict(ClusterInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -1350,7 +1351,7 @@ def assert_result_matches_expected_list(
 
 
 def assert_is_valid_uri(value: str) -> None:
-    result: ParseResult = urlsplit(value)
+    result = urlsplit(value)
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value
