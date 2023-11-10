@@ -753,6 +753,24 @@ class TestWorker:
         assert "release-name-storage-class" == jmespath.search(
             "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
         )
+    @pytest.mark.parametrize(
+        "globalScope, localScope, precedence",
+        [
+            ({"scope": "global"}, {"podAnnotations": {}}, "global"),
+            ({}, {"podAnnotations": {"scope": "local"}}, "local"),
+            ({"scope": "global"}, {"podAnnotations": {"scope": "local"}}, "local"),
+            ({}, {}, None),
+        ],
+    )
+    def test_podannotations_precedence(self, globalScope, localScope, precedence):
+        docs = render_chart(
+            values={"airflowPodAnnotations": globalScope, "workers": localScope},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        if precedence:
+            assert jmespath.search("spec.template.metadata.annotations", docs[0])["scope"] == precedence
+        else:
+            assert jmespath.search("spec.template.metadata.annotations.scope", docs[0]) is None
 
     @pytest.mark.parametrize(
         "globalScope, localScope, precedence",
