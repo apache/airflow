@@ -481,7 +481,8 @@
                         "hostnames": {
                             "description": "The hostnames for the web HTTPRoute.",
                             "type": "array",
-                            "default": []
+                            "default": [],
+                            "items": {}
                         },
                         "gateway": {
                             "description": "The Gateway API configuration",
@@ -529,7 +530,8 @@
                         "hostnames": {
                             "description": "The hostnames for the flower HTTPRoute.",
                             "type": "array",
-                            "default": []
+                            "default": [],
+                            "items": {}
                         },
                         "gateway": {
                             "description": "The Gateway API configuration",
