@@ -46,7 +46,7 @@ crd_lookup = {
     "networking.k8s.io/v1beta1::Ingress": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json",
     # The next two CRD are for Gateway API
     "gateway.networking.k8s.io/v1beta1::HTTPRoute": "https://raw.githubusercontent.com/kubernetes-sigs/gateway-api/main/config/crd/standard/gateway.networking.k8s.io_httproutes.yaml",  # noqa: E501
-    "networking.gke.io/v1::HealthCheckPolicy": "https://raw.githubusercontent.com/GoogleCloudPlatform/gke-networking-recipes/main/gateway-api/config/servicepolicies/crd/standard/healthcheckpolicy.yaml"  # noqa: E501
+    "networking.gke.io/v1::HealthCheckPolicy": "https://raw.githubusercontent.com/GoogleCloudPlatform/gke-networking-recipes/main/gateway-api/config/servicepolicies/crd/standard/healthcheckpolicy.yaml",  # noqa: E501
 }
 
 
