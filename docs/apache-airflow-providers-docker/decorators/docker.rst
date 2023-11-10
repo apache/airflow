@@ -70,7 +70,7 @@ network_mode
     Network mode for the container. It can be one of the following
 
     - ``"bridge"``: Create new network stack for the container with default docker bridge network
-    - ``None``: No networking for this container
+    - ``"none"``: No networking for this container
     - ``"container:<name>"`` or ``"container:<id>"``: Use the network stack of another container specified via <name> or <id>
     - ``"host"``: Use the host network stack. Incompatible with **port_bindings**
     - ``"<network-name>"`` or ``"<network-id>"``: Connects the container to user created network (using ``docker network create`` command)
