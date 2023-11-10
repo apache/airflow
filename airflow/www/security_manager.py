@@ -25,7 +25,6 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from sqlalchemy import select
 
-from airflow.auth.managers.fab.models import Action, Resource
 from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES as FAB_EXISTING_ROLES
 from airflow.auth.managers.models.resource_details import (
     AccessView,
@@ -77,6 +76,7 @@ EXISTING_ROLES = FAB_EXISTING_ROLES
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.auth.managers.fab.models import Action, Resource
     from airflow.auth.managers.models.base_user import BaseUser
 
 
@@ -109,7 +109,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
 
     def create_limiter(self) -> Limiter:
         limiter = Limiter(key_func=get_remote_address)
-        limiter.init_app(self.appbuilder.getapp)
+        limiter.init_app(self.appbuilder.get_app)
         return limiter
 
     def has_access(
