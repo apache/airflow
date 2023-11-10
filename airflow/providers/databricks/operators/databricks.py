@@ -720,7 +720,7 @@ class DatabricksRunNowOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("json", "databricks_conn_id")
+    template_fields: Sequence[str] = ("json", "databricks_conn_id", "job_id")
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
