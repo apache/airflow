@@ -33,7 +33,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from connexion import FlaskApi
-    from flask import Flask
     from sqlalchemy.orm import Session
 
     from airflow.auth.managers.models.base_user import BaseUser
@@ -59,13 +58,11 @@ class BaseAuthManager(LoggingMixin):
 
     Auth managers are responsible for any user management related operation such as login, logout, authz, ...
 
-    :param app: the flask app
     :param appbuilder: the flask app builder
     """
 
-    def __init__(self, app: Flask, appbuilder: AirflowAppBuilder) -> None:
+    def __init__(self, appbuilder: AirflowAppBuilder) -> None:
         super().__init__()
-        self.app = app
         self.appbuilder = appbuilder
 
     @staticmethod

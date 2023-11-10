@@ -20,7 +20,7 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from flask import Flask, session, url_for
+from flask import session, url_for
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.exceptions import AirflowException
@@ -51,12 +51,11 @@ class AwsAuthManager(BaseAuthManager):
     Leverages AWS services such as Amazon Identity Center and Amazon Verified Permissions to perform
     authentication and authorization in Airflow.
 
-    :param app: the flask app
     :param appbuilder: the flask app builder
     """
 
-    def __init__(self, app: Flask, appbuilder: AirflowAppBuilder) -> None:
-        super().__init__(app, appbuilder)
+    def __init__(self, appbuilder: AirflowAppBuilder) -> None:
+        super().__init__(appbuilder)
         warnings.warn(
             "The AWS auth manager is currently being built. It is not finalized. "
             "It is not intended to be used yet."

@@ -347,7 +347,7 @@ class FabAuthManager(BaseAuthManager):
         from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
         from airflow.www.security import AirflowSecurityManager
 
-        sm_from_config = self.app.config.get("SECURITY_MANAGER_CLASS")
+        sm_from_config = self.appbuilder.get_app.config.get("SECURITY_MANAGER_CLASS")
         if sm_from_config:
             if not issubclass(sm_from_config, AirflowSecurityManager):
                 raise Exception(
