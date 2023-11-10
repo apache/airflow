@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-09T16:30:20Z
+# This constraints file was automatically generated on 2023-11-10T05:43:55Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -140,7 +140,7 @@ click==8.1.7
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.2.1
-cohere==4.33
+cohere==4.34
 colorama==0.4.6
 colorlog==4.8.0
 confluent-kafka==2.3.0
@@ -194,7 +194,7 @@ geomet==0.2.1.post1
 gevent==23.9.1
 gitdb==4.0.11
 google-ads==22.1.0
-google-api-core==2.13.0
+google-api-core==2.14.0
 google-api-python-client==2.107.0
 google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.1.0
@@ -248,7 +248,7 @@ googleapis-common-protos==1.61.0
 graphql-core==3.2.3
 graphviz==0.20.1
 greenlet==3.0.1
-grpc-google-iam-v1==0.12.6
+grpc-google-iam-v1==0.12.7
 grpcio-gcp==0.2.2
 grpcio-status==1.59.2
 grpcio==1.59.2
@@ -386,7 +386,7 @@ pexpect==4.8.0
 pgvector==0.2.3
 pinecone-client==2.2.4
 pinotdb==5.1.0
-pipdeptree==2.13.0
+pipdeptree==2.13.1
 pipx==1.2.1
 pkginfo==1.9.6
 platformdirs==3.11.0
@@ -500,7 +500,7 @@ smbprotocol==1.12.0
 smmap==5.0.1
 sniffio==1.3.0
 snowballstemmer==2.2.0
-snowflake-connector-python==3.4.0
+snowflake-connector-python==3.4.1
 snowflake-sqlalchemy==1.5.1
 sortedcontainers==2.4.0
 soupsieve==2.5
