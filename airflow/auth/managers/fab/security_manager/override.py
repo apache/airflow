@@ -27,6 +27,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
 
 import jwt
+import re2
 from flask import flash, g, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -44,6 +45,19 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_appbuilder.security.registerviews import (
+    RegisterUserDBView,
+    RegisterUserOAuthView,
+    RegisterUserOIDView,
+)
+from flask_appbuilder.security.views import (
+    AuthDBView,
+    AuthLDAPView,
+    AuthOAuthView,
+    AuthOIDView,
+    AuthRemoteUserView,
+    RegisterUserModelView,
+)
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
@@ -96,7 +110,6 @@ from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.www.fab_security.manager import BaseSecurityManager
 
 log = logging.getLogger(__name__)
 
@@ -122,6 +135,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     auth_view = None
     """ The obj instance for authentication view """
+    registeruser_view = None
+    """ The obj instance for registering user view """
     user_view = None
     """ The obj instance for user view """
 
@@ -131,10 +146,29 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     action_model = Action
     resource_model = Resource
     permission_model = Permission
-    registeruser_model = RegisterUser
+
+    """ Views """
+    authdbview = AuthDBView
+    """ Override if you want your own Authentication DB view """
+    authldapview = AuthLDAPView
+    """ Override if you want your own Authentication LDAP view """
+    authoidview = AuthOIDView
+    """ Override if you want your own Authentication OID view """
+    authoauthview = AuthOAuthView
+    """ Override if you want your own Authentication OAuth view """
+    authremoteuserview = AuthRemoteUserView
+    """ Override if you want your own Authentication REMOTE_USER view """
+    registeruserdbview = RegisterUserDBView
+    """ Override if you want your own register user db view """
+    registeruseroidview = RegisterUserOIDView
+    """ Override if you want your own register user OpenID view """
+    registeruseroauthview = RegisterUserOAuthView
+    """ Override if you want your own register user OAuth view """
     actionmodelview = ActionModelView
     permissionmodelview = PermissionPairModelView
     rolemodelview = CustomRoleModelView
+    registeruser_model = RegisterUser
+    registerusermodelview = RegisterUserModelView
     resourcemodelview = ResourceModelView
     userdbmodelview = CustomUserDBModelView
     resetmypasswordview = CustomResetMyPasswordView
@@ -645,6 +679,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE"]
 
     @property
+    def auth_roles_sync_at_login(self) -> bool:
+        """Should roles be synced at login."""
+        return self.appbuilder.get_app.config["AUTH_ROLES_SYNC_AT_LOGIN"]
+
+    @property
+    def auth_role_admin(self):
+        """Gets the admin role."""
+        return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
+
+    @property
     def oauth_whitelists(self):
         warnings.warn(
             "The 'oauth_whitelists' property is deprecated. Please use 'oauth_allow_list' instead.",
@@ -656,6 +700,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def create_builtin_roles(self):
         """Returns FAB builtin roles."""
         return self.appbuilder.app.config.get("FAB_ROLES", {})
+
+    @property
+    def builtin_roles(self):
+        """Get the builtin roles."""
+        return self._builtin_roles
 
     def create_admin_standalone(self) -> tuple[str | None, str | None]:
         """Create an Admin user with a random password so that users can access airflow."""
@@ -1049,6 +1098,92 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 dag_perm = _get_or_create_dag_permission(action_name)
                 if dag_perm:
                     self.add_permission_to_role(role, dag_perm)
+
+    def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
+        """
+        Add an action on a resource to the backend.
+
+        :param base_action_names:
+            list of permissions from view (all exposed methods):
+             'can_add','can_edit' etc...
+        :param resource_name:
+            name of the resource to add
+        """
+        resource = self.create_resource(resource_name)
+        perms = self.get_resource_permissions(resource)
+
+        if not perms:
+            # No permissions yet on this view
+            for action_name in base_action_names:
+                action = self.create_permission(action_name, resource_name)
+                if self.auth_role_admin not in self.builtin_roles:
+                    admin_role = self.find_role(self.auth_role_admin)
+                    self.add_permission_to_role(admin_role, action)
+        else:
+            # Permissions on this view exist but....
+            admin_role = self.find_role(self.auth_role_admin)
+            for action_name in base_action_names:
+                # Check if base view permissions exist
+                if not self.perms_include_action(perms, action_name):
+                    action = self.create_permission(action_name, resource_name)
+                    if self.auth_role_admin not in self.builtin_roles:
+                        self.add_permission_to_role(admin_role, action)
+            for perm in perms:
+                if perm.action is None:
+                    # Skip this perm, it has a null permission
+                    continue
+                if perm.action.name not in base_action_names:
+                    # perm to delete
+                    roles = self.get_all_roles()
+                    # del permission from all roles
+                    for role in roles:
+                        # TODO: An action can't be removed from a role.
+                        # This is a bug in FAB. It has been reported.
+                        self.remove_permission_from_role(role, perm)
+                    self.delete_permission(perm.action.name, resource_name)
+                elif self.auth_role_admin not in self.builtin_roles and perm not in admin_role.permissions:
+                    # Role Admin must have all permissions
+                    self.add_permission_to_role(admin_role, perm)
+
+    def add_permissions_menu(self, resource_name):
+        """
+        Add menu_access to resource on permission_resource.
+
+        :param resource_name:
+            The resource name
+        """
+        self.create_resource(resource_name)
+        perm = self.get_permission("menu_access", resource_name)
+        if not perm:
+            perm = self.create_permission("menu_access", resource_name)
+        if self.auth_role_admin not in self.builtin_roles:
+            role_admin = self.find_role(self.auth_role_admin)
+            self.add_permission_to_role(role_admin, perm)
+
+    def security_cleanup(self, baseviews, menus):
+        """
+        Cleanup all unused permissions from the database.
+
+        :param baseviews: A list of BaseViews class
+        :param menus: Menu class
+        """
+        resources = self.get_all_resources()
+        roles = self.get_all_roles()
+        for resource in resources:
+            found = False
+            for baseview in baseviews:
+                if resource.name == baseview.class_permission_name:
+                    found = True
+                    break
+            if menus.find(resource.name):
+                found = True
+            if not found:
+                permissions = self.get_resource_permissions(resource)
+                for permission in permissions:
+                    for role in roles:
+                        self.remove_permission_from_role(role, permission)
+                    self.delete_permission(permission.action.name, resource.name)
+                self.delete_resource(resource.name)
 
     def sync_roles(self) -> None:
         """
@@ -1944,7 +2079,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def oauth_user_info_getter(
         self,
-        func: Callable[[BaseSecurityManager, str, dict[str, Any] | None], dict[str, Any]],
+        func: Callable[[AirflowSecurityManagerV2, str, dict[str, Any] | None], dict[str, Any]],
     ):
         """
         Decorator function to be the OAuth user info getter for all the providers.
@@ -2451,6 +2586,14 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         ]
         result.update(role_resource_names)
         return result
+
+    def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
+        """Checks permission on builtin role."""
+        perms = self.builtin_roles.get(role.name, [])
+        for _resource_name, _action_name in perms:
+            if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
+                return True
+        return False
 
     def _merge_perm(self, action_name: str, resource_name: str) -> None:
         """

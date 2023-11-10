@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import json
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Callable
 
 from flask import g
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sqlalchemy import select
 
 from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES as FAB_EXISTING_ROLES
@@ -36,9 +37,8 @@ from airflow.auth.managers.models.resource_details import (
 from airflow.auth.managers.utils.fab import (
     get_method_from_fab_action_map,
 )
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.models import Connection, DagModel, DagRun, Pool, TaskInstance, Variable
-from airflow.security import permissions
+from airflow.exceptions import AirflowException
+from airflow.models import Connection, DagRun, Pool, TaskInstance, Variable
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_READ,
@@ -69,7 +69,6 @@ from airflow.security.permissions import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
-from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = FAB_EXISTING_ROLES
@@ -77,17 +76,22 @@ EXISTING_ROLES = FAB_EXISTING_ROLES
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.auth.managers.fab.models import Action, Resource
     from airflow.auth.managers.models.base_user import BaseUser
 
 
-class AirflowSecurityManagerV2(BaseSecurityManager, LoggingMixin):
+class AirflowSecurityManagerV2(LoggingMixin):
     """Custom security manager, which introduces a permission model adapted to Airflow.
 
     It's named V2 to differentiate it from the obsolete airflow.www.security.AirflowSecurityManager.
     """
 
     def __init__(self, appbuilder) -> None:
-        super().__init__(appbuilder=appbuilder)
+        super().__init__()
+        self.appbuilder = appbuilder
+
+        # Setup Flask-Limiter
+        self.limiter = self.create_limiter()
 
         # Go and fix up the SQLAInterface used from the stock one to our subclass.
         # This is needed to support the "hack" where we had to edit
@@ -98,46 +102,19 @@ class AirflowSecurityManagerV2(BaseSecurityManager, LoggingMixin):
                 if view and getattr(view, "datamodel", None):
                     view.datamodel = CustomSQLAInterface(view.datamodel.obj)
 
-    def _get_root_dag_id(self, dag_id: str) -> str:
-        if "." in dag_id:
-            dm = self.appbuilder.get_session.execute(
-                select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id)
-            ).one()
-            return dm.root_dag_id or dm.dag_id
-        return dag_id
+    @staticmethod
+    def before_request():
+        """Run hook before request."""
+        g.user = get_auth_manager().get_user()
+
+    def create_limiter(self) -> Limiter:
+        limiter = Limiter(key_func=get_remote_address)
+        limiter.init_app(self.appbuilder.get_app)
+        return limiter
 
     def register_views(self):
         """Allow auth managers to register their own views. By default, do nothing."""
         pass
-
-    @staticmethod
-    def get_user_roles(user=None):
-        """
-        Get all the roles associated with the user.
-
-        :param user: the ab_user in FAB model.
-        :return: a list of roles associated with the user.
-        """
-        if user is None:
-            user = g.user
-        return user.roles
-
-    def prefixed_dag_id(self, dag_id: str) -> str:
-        """Return the permission name for a DAG id."""
-        warnings.warn(
-            "`prefixed_dag_id` has been deprecated. "
-            "Please use `airflow.security.permissions.resource_name_for_dag` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        root_dag_id = self._get_root_dag_id(dag_id)
-        return permissions.resource_name_for_dag(root_dag_id)
-
-    def is_dag_resource(self, resource_name: str) -> bool:
-        """Determine if a resource belongs to a DAG or all DAGs."""
-        if resource_name == permissions.RESOURCE_DAG:
-            return True
-        return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
 
     def has_access(
         self, action_name: str, resource_name: str, user=None, resource_pk: str | None = None
@@ -176,6 +153,36 @@ class AirflowSecurityManagerV2(BaseSecurityManager, LoggingMixin):
         If necessary, returns the username and password to be printed in the console for users to log in.
         """
         return None, None
+
+    def add_limit_view(self, baseview):
+        if not baseview.limits:
+            return
+
+        for limit in baseview.limits:
+            self.limiter.limit(
+                limit_value=limit.limit_value,
+                key_func=limit.key_func,
+                per_method=limit.per_method,
+                methods=limit.methods,
+                error_message=limit.error_message,
+                exempt_when=limit.exempt_when,
+                override_defaults=limit.override_defaults,
+                deduct_when=limit.deduct_when,
+                on_breach=limit.on_breach,
+                cost=limit.cost,
+            )(baseview.blueprint)
+
+    def add_permissions_view(self, base_action_names, resource_name):
+        raise NotImplementedError("Sync FAB permissions is only available with the FAB auth manager")
+
+    def add_permissions_menu(self, resource_name):
+        raise NotImplementedError("Sync FAB permissions is only available with the FAB auth manager")
+
+    def get_action(self, name: str) -> Action:
+        raise NotImplementedError("Only available when FAB auth manager is used")
+
+    def get_resource(self, name: str) -> Resource:
+        raise NotImplementedError("Only available when FAB auth manager is used")
 
     @cached_property
     @provide_session
