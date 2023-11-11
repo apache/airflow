@@ -99,7 +99,7 @@ div.container {
 }
 
 .brand-logo-divider {
-  width: 0px;
+  width: 0;
 }
 
 .brand-logo-antidivider {
@@ -128,7 +128,7 @@ div.container {
   }
 
   .navbar-brand:hover .brand-logo-antidivider {
-    width: 0px;
+    width: 0;
     transition: width 0.5s;
   }
 }
