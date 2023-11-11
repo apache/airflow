@@ -69,7 +69,7 @@ class TestLogsPersistentVolumeClaim:
             "storageClassName": "MyStorageClass",
         } == jmespath.search("spec", docs[0])
 
-    def test_logs_persistent_volume_claim_template_storage_class_name(self):
+    def test_logs_persistent_volume_claim_template_storage_class_name1(self):
         docs = render_chart(
             values={"logs": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
             show_only=["templates/logs-persistent-volume-claim.yaml"],
