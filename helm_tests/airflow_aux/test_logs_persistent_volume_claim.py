@@ -75,5 +75,5 @@ class TestLogsPersistentVolumeClaim:
             show_only=["templates/logs-persistent-volume-claim.yaml"],
         )
         assert "release-name-storage-class" == jmespath.search(
-            "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
+            "spec.storageClassName", docs[0]
         )
