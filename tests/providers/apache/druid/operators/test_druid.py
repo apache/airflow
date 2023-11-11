@@ -20,6 +20,8 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from airflow.providers.apache.druid.hooks.druid import IngestionType
 from airflow.providers.apache.druid.operators.druid import DruidOperator
 from airflow.utils import timezone
@@ -48,6 +50,7 @@ RENDERED_INDEX = {
 }
 
 
+@pytest.mark.db_test
 def test_render_template(dag_maker):
     with dag_maker("test_druid_render_template", default_args={"start_date": DEFAULT_DATE}):
         operator = DruidOperator(
@@ -60,6 +63,7 @@ def test_render_template(dag_maker):
     assert RENDERED_INDEX == json.loads(operator.json_index_file)
 
 
+@pytest.mark.db_test
 def test_render_template_from_file(tmp_path, dag_maker):
     json_index_file = tmp_path.joinpath("json_index.json")
     json_index_file.write_text(JSON_INDEX_STR)

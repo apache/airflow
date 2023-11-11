@@ -175,11 +175,14 @@ The pipx tool
 We are using ``pipx`` tool to install and manage Breeze. The ``pipx`` tool is created by the creators
 of ``pip`` from `Python Packaging Authority <https://www.pypa.io/en/latest/>`_
 
+Note that ``pipx`` >= 1.2.1 is needed in order to deal with breaking ``packaging`` release in September
+2023 that broke earlier versions of ``pipx``.
+
 Install pipx
 
 .. code-block:: bash
 
-    pip install --user pipx
+    pip install --user "pipx>=1.2.1"
 
 Breeze, is not globally accessible until your PATH is updated. Add <USER FOLDER>\.local\bin as a variable
 environments. This can be done automatically by the following command (follow instructions printed).
@@ -506,7 +509,8 @@ Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
 Example:
 If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
 
-Note: For building docs for apache-airflow-providers index, use ``providers-index`` as the short hand operator.
+Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers``
+as the short hand operator.
 
 Running static checks
 ---------------------
@@ -970,12 +974,14 @@ Here is the detailed set of options for the ``breeze testing`` command.
 Iterate on tests interactively via ``shell`` command
 ....................................................
 
-You can simply enter the ``breeze`` container and run ``pytest`` command there. You can enter the
-container via just ``breeze`` command or ``breeze shell`` command (the latter has more options
-useful when you run integration or system tests). This is the best way if you want to interactively
-run selected tests and iterate with the tests. Once you enter ``breeze`` environment it is ready
-out-of-the-box to run your tests by running the right ``pytest`` command (autocomplete should help
-you with autocompleting test name if you start typing ``pytest tests<TAB>``).
+You can simply enter the ``breeze`` container in interactive shell (via ``breeze`` or more comprehensive
+``breeze shell`` command) or use your local virtualenv and run ``pytest`` command there.
+This is the best way if you want to interactively run selected tests and iterate with the tests.
+
+The good thing about ``breeze`` interactive shell is that it has all the dependencies to run all the tests
+and it has the running and configured backed database started for you when you decide to run DB tests.
+It also has auto-complete enabled for ``pytest`` command so that you can easily run the tests you want.
+(autocomplete should help you with autocompleting test name if you start typing ``pytest tests<TAB>``).
 
 Here are few examples:
 
@@ -991,25 +997,30 @@ To run the whole test class:
 
     pytest tests/core/test_core.py::TestCore
 
-You can re-run the tests interactively, add extra parameters to pytest and modify the files before
+You can re-run the tests interactively, add extra parameters to pytest  and modify the files before
 re-running the test to iterate over the tests. You can also add more flags when starting the
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
 in the `testing doc <TESTING.rst>`_ where all the test types and information on how to run them are explained.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
-Running unit tests
-..................
+Running unit tests with ``breeze testing`` commands
+...................................................
 
-Another option you have is that you can also run tests via built-in ``breeze testing tests`` command.
-The iterative ``pytest`` command allows to run test individually, or by class or in any other way
-pytest allows to test them and run them interactively, but ``breeze testing tests`` command allows to
-run the tests in the same test "types" that are used to run the tests in CI: for example Core, Always
-API, Providers. This how our CI runs them - running each group in parallel to other groups and you can
-replicate this behaviour.
+An option you have is that you can also run tests via built-in ``breeze testing tests`` command - which
+is a "swiss-army-knife" of unit testing with Breeze. This command has a lot of parameters and is very
+flexible thus might be a bit overwhelming.
 
-Another interesting use of the ``breeze testing tests`` command is that you can easily specify sub-set of the
-tests for Providers.
+In most cases if you want to run tess you want to use dedicated ``breeze testing db-tests``
+or ``breeze testing non-db-tests`` commands that automatically run groups of tests that allow you to choose
+subset of tests to run (with ``--parallel-test-types`` flag)
+
+
+Using ``breeze testing tests`` command
+......................................
+
+The ``breeze testing tests`` command is that you can easily specify sub-set of the tests -- including
+selecting specific Providers tests to run.
 
 For example this will only run provider tests for airbyte and http providers:
 
@@ -1025,7 +1036,6 @@ For example this will run tests for all providers except amazon and google provi
 
    breeze testing tests --test-type "Providers[-amazon,google]"
 
-
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test
 types passed to ``--parallel-test-types`` flag.
@@ -1039,12 +1049,9 @@ For example this will run API and WWW tests in parallel:
 There are few special types of tests that you can run:
 
 * ``All`` - all tests are run in single pytest run.
-* ``PlainAsserts`` - some tests of ours fail when ``--assert=rewrite`` feature of pytest is used. This
-  is in order to get better output of ``assert`` statements This is a special test type that runs those
-  select tests tests with ``--assert=plain`` flag.
-* ``Postgres`` - runs all tests that require Postgres database
-* ``MySQL`` - runs all tests that require MySQL database
-* ``Quarantine`` - runs all tests that are in quarantine (marked with ``@pytest.mark.quarantined``
+* ``All-Postgres`` - runs all tests that require Postgres database
+* ``All-MySQL`` - runs all tests that require MySQL database
+* ``All-Quarantine`` - runs all tests that are in quarantine (marked with ``@pytest.mark.quarantined``
   decorator)
 
 Here is the detailed set of options for the ``breeze testing tests`` command.
@@ -1053,6 +1060,86 @@ Here is the detailed set of options for the ``breeze testing tests`` command.
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_tests.svg
   :width: 100%
   :alt: Breeze testing tests
+
+Using ``breeze testing db-tests`` command
+.........................................
+
+The ``breeze testing db-tests`` command is simplified version of the ``breeze testing tests`` command
+that only allows you to run tests that are not bound to a database - in parallel utilising all your CPUS.
+The DB-bound tests are the ones that require a database to be started and configured separately for
+each test type run and they are run in parallel containers/parallel docker compose projects to
+utilise multiple CPUs your machine has - thus allowing you to quickly run few groups of tests in parallel.
+This command is used in CI to run DB tests.
+
+By default this command will run complete set of test types we have, thus allowing you to see result
+of all DB tests we have but you can choose a subset of test types to run by ``--parallel-test-types``
+flag or exclude some test types by specifying ``--excluded-parallel-test-types`` flag.
+
+Run all DB tests:
+
+.. code-block:: bash
+
+   breeze testing db-tests
+
+Only run DB tests from "API CLI WWW" test types:
+
+.. code-block:: bash
+
+   breeze testing db-tests --parallel-test-types "API CLI WWW"
+
+Run all DB tests excluding those in CLI and WWW test types:
+
+.. code-block:: bash
+
+   breeze testing db-tests --excluded-parallel-test-types "CLI WWW"
+
+Here is the detailed set of options for the ``breeze testing db-tests`` command.
+
+.. image:: ./images/breeze/output_testing_db-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_db-tests.svg
+  :width: 100%
+  :alt: Breeze testing db-tests
+
+
+Using ``breeze testing non-db-tests`` command
+.........................................
+
+The ``breeze testing non-db-tests`` command is simplified version of the ``breeze testing tests`` command
+that only allows you to run tests that are not bound to a database - in parallel utilising all your CPUS.
+The non-DB-bound tests are the ones that do not expect a database to be started and configured and we can
+utilise multiple CPUs your machine has via ``pytest-xdist`` plugin - thus allowing you to quickly
+run few groups of tests in parallel using single container rather than many of them as it is the case for
+DB-bound tests. This command is used in CI to run Non-DB tests.
+
+By default this command will run complete set of test types we have, thus allowing you to see result
+of all DB tests we have but you can choose a subset of test types to run by ``--parallel-test-types``
+flag or exclude some test types by specifying ``--excluded-parallel-test-types`` flag.
+
+Run all non-DB tests:
+
+.. code-block:: bash
+
+   breeze testing non-db-tests
+
+Only run non-DB tests from "API CLI WWW" test types:
+
+.. code-block:: bash
+
+   breeze testing non-db-tests --parallel-test-types "API CLI WWW"
+
+Run all non-DB tests excluding those in CLI and WWW test types:
+
+.. code-block:: bash
+
+   breeze testing non-db-tests --excluded-parallel-test-types "CLI WWW"
+
+Here is the detailed set of options for the ``breeze testing non-db-tests`` command.
+
+.. image:: ./images/breeze/output_testing_non-db-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_non-db-tests.svg
+  :width: 100%
+  :alt: Breeze testing non-db-tests
+
 
 Running integration tests
 .........................
@@ -1076,11 +1163,14 @@ Here is the detailed set of options for the ``breeze testing integration-tests``
   :alt: Breeze testing integration-tests
 
 
-Running Helm tests
-..................
+Running Helm unit tests
+.......................
 
-You can use Breeze to run all Helm tests. Those tests are run inside the breeze image as there are all
-necessary tools installed there.
+You can use Breeze to run all Helm unit tests. Those tests are run inside the breeze image as there are all
+necessary tools installed there. Those tests are merely checking if the Helm chart of ours renders properly
+as expected when given a set of configuration parameters. The tests can be run in parallel if you have
+multiple CPUs by specifying ``--run-in-parallel`` flag - in which case they will run separate containers
+(one per helm-test package) and they will run in parallel.
 
 .. image:: ./images/breeze/output_testing_helm-tests.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_helm-tests.svg
@@ -2477,8 +2567,8 @@ Mounting Local Sources to Breeze
 
 Important sources of Airflow are mounted inside the ``airflow`` container that you enter.
 This means that you can continue editing your changes on the host in your favourite IDE and have them
-visible in the Docker immediately and ready to test without rebuilding images. You can disable mounting
-by specifying ``--skip-mounting-local-sources`` flag when running Breeze. In this case you will have sources
+visible in the Docker immediately and ready to test without rebuilding images. You can modify mounting
+options by specifying ``--mount-sources`` flag when running Breeze. For example, in the case of ``--mount-sources skip`` you will have sources
 embedded in the container and changes to these sources will not be persistent.
 
 

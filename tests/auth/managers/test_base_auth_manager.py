@@ -17,17 +17,21 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, Mock
 
 import pytest
+from flask import Flask
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.exceptions import AirflowException
-from airflow.www.security_appless import ApplessAirflowSecurityManager
+from airflow.security import permissions
+from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.security_manager import AirflowSecurityManagerV2
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
+        AccessView,
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
@@ -39,6 +43,9 @@ if TYPE_CHECKING:
 
 
 class EmptyAuthManager(BaseAuthManager):
+    def get_user_display_name(self) -> str:
+        raise NotImplementedError()
+
     def get_user_name(self) -> str:
         raise NotImplementedError()
 
@@ -94,7 +101,7 @@ class EmptyAuthManager(BaseAuthManager):
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_website(self, *, user: BaseUser | None = None) -> bool:
+    def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
         raise NotImplementedError()
 
     def is_logged_in(self) -> bool:
@@ -112,18 +119,83 @@ class EmptyAuthManager(BaseAuthManager):
 
 @pytest.fixture
 def auth_manager():
-    return EmptyAuthManager(None)
+    return EmptyAuthManager(None, None)
+
+
+@pytest.fixture
+def auth_manager_with_appbuilder():
+    flask_app = Flask(__name__)
+    appbuilder = init_appbuilder(flask_app)
+    return EmptyAuthManager(flask_app, appbuilder)
 
 
 class TestBaseAuthManager:
-    def test_get_security_manager_override_class_return_empty_class(self, auth_manager):
-        assert auth_manager.get_security_manager_override_class() is AirflowSecurityManagerV2
+    def test_get_cli_commands_return_empty_list(self, auth_manager):
+        assert auth_manager.get_cli_commands() == []
 
-    def test_get_security_manager_not_defined(self, auth_manager):
-        with pytest.raises(AirflowException, match="Security manager not defined."):
-            _security_manager = auth_manager.security_manager
+    def test_get_api_endpoints_return_none(self, auth_manager):
+        assert auth_manager.get_api_endpoints() is None
 
-    def test_get_security_manager_defined(self, auth_manager):
-        auth_manager.security_manager = ApplessAirflowSecurityManager()
-        _security_manager = auth_manager.security_manager
-        assert type(_security_manager) is ApplessAirflowSecurityManager
+    def test_is_authorized_custom_view_throws_exception(self, auth_manager):
+        with pytest.raises(AirflowException, match="The resource `.*` does not exist in the environment."):
+            auth_manager.is_authorized_custom_view(
+                fab_action_name=permissions.ACTION_CAN_READ,
+                fab_resource_name=permissions.RESOURCE_MY_PASSWORD,
+            )
+
+    @pytest.mark.db_test
+    def test_security_manager_return_default_security_manager(self, auth_manager_with_appbuilder):
+        assert isinstance(auth_manager_with_appbuilder.security_manager, AirflowSecurityManagerV2)
+
+    @pytest.mark.parametrize(
+        "access_all, access_per_dag, dag_ids, expected",
+        [
+            # Access to all dags
+            (
+                True,
+                {},
+                ["dag1", "dag2"],
+                {"dag1", "dag2"},
+            ),
+            # No access to any dag
+            (
+                False,
+                {},
+                ["dag1", "dag2"],
+                set(),
+            ),
+            # Access to specific dags
+            (
+                False,
+                {"dag1": True},
+                ["dag1", "dag2"],
+                {"dag1"},
+            ),
+        ],
+    )
+    def test_get_permitted_dag_ids(
+        self, auth_manager, access_all: bool, access_per_dag: dict, dag_ids: list, expected: set
+    ):
+        def side_effect_func(
+            *,
+            method: ResourceMethod,
+            access_entity: DagAccessEntity | None = None,
+            details: DagDetails | None = None,
+            user: BaseUser | None = None,
+        ):
+            if not details:
+                return access_all
+            else:
+                return access_per_dag.get(details.id, False)
+
+        auth_manager.is_authorized_dag = MagicMock(side_effect=side_effect_func)
+        user = Mock()
+        session = Mock()
+        dags = []
+        for dag_id in dag_ids:
+            mock = Mock()
+            mock.dag_id = dag_id
+            dags.append(mock)
+        session.execute.return_value = dags
+        result = auth_manager.get_permitted_dag_ids(user=user, session=session)
+        assert result == expected

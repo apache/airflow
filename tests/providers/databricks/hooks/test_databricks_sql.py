@@ -28,6 +28,8 @@ from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.utils.session import provide_session
 
+pytestmark = pytest.mark.db_test
+
 TASK_ID = "databricks-sql-operator"
 DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"

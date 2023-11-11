@@ -113,11 +113,11 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 | Image        | Name:tag (both cases latest version and per-build)       | Description                                              |
 +==============+==========================================================+==========================================================+
-| Python image | python:<X.Y>-slim-bullseye                               | Base Python image used by both production and CI image.  |
+| Python image | python:<X.Y>-slim-bookworm                               | Base Python image used by both production and CI image.  |
 | (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
 |              |                                                          | with security fixes every few weeks in DockerHub.        |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bullseye              | Version of python base image used in Airflow Builds      |
+| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bookworm              | Version of python base image used in Airflow Builds      |
 | python base  |                                                          | We keep the "latest" version only to mark last "good"    |
 | image        |                                                          | python base that went through testing and was pushed.    |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
@@ -394,7 +394,9 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Tests airflow release commands  | Tests if airflow release command works                   | -        | Yes      | Yes       | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Tests (Backend/Python matrix)   | Run the Pytest unit tests (Backend/Python matrix)        | Yes      | Yes      | Yes       | Yes (8)           |
+| Tests (Backend/Python matrix)   | Run the Pytest unit DB tests (Backend/Python matrix)     | Yes      | Yes      | Yes       | Yes (8)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| No DB tests                     | Run the Pytest unit Non-DB tests (with pytest-xdist)     | Yes      | Yes      | Yes       | Yes (8)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Integration tests               | Runs integration tests (Postgres/Mysql)                  | Yes      | Yes      | Yes       | Yes (9)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+

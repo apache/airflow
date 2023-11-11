@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import logging
 import os
 import re
 import time
@@ -27,17 +28,19 @@ from unittest import mock
 
 import pytest
 import yaml
+from botocore.exceptions import ClientError
 from inflection import camelize
 
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.amazon.aws.executors.ecs import (
+from airflow.providers.amazon.aws.executors.ecs import ecs_executor_config
+from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
+from airflow.providers.amazon.aws.executors.ecs.ecs_executor import (
     CONFIG_GROUP_NAME,
     AllEcsConfigKeys,
     AwsEcsExecutor,
     EcsTaskCollection,
-    ecs_executor_config,
 )
-from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_DEFAULTS,
     EcsExecutorTask,
@@ -45,7 +48,9 @@ from airflow.providers.amazon.aws.executors.ecs.utils import (
     parse_assign_public_ip,
 )
 from airflow.utils.helpers import convert_camel_to_snake
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
+
+pytestmark = pytest.mark.db_test
 
 ARN1 = "arn1"
 ARN2 = "arn2"
@@ -96,8 +101,7 @@ def mock_config():
 
 
 @pytest.fixture
-def mock_executor() -> AwsEcsExecutor:
-    """Mock ECS to a repeatable starting state.."""
+def set_env_vars():
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.REGION_NAME}".upper()] = "us-west-1"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
@@ -108,6 +112,11 @@ def mock_executor() -> AwsEcsExecutor:
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
     os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS}".upper()] = "3"
+
+
+@pytest.fixture
+def mock_executor(set_env_vars) -> AwsEcsExecutor:
+    """Mock ECS to a repeatable starting state.."""
     executor = AwsEcsExecutor()
 
     # Replace boto3 ECS client with mock.
@@ -684,8 +693,8 @@ class TestAwsEcsExecutor:
     def _mock_sync(
         self,
         executor: AwsEcsExecutor,
-        expected_state: State = State.SUCCESS,
-        set_task_state: State = State.RUNNING,
+        expected_state=TaskInstanceState.SUCCESS,
+        set_task_state=TaskInstanceState.RUNNING,
     ) -> None:
         """Mock ECS to the expected state."""
         self._add_mock_task(executor, ARN1, set_task_state)
@@ -709,9 +718,9 @@ class TestAwsEcsExecutor:
         executor.ecs.describe_tasks.return_value = {"tasks": [response_task_json], "failures": []}
 
     @staticmethod
-    def _add_mock_task(executor: AwsEcsExecutor, arn: str, state: State = State.RUNNING):
+    def _add_mock_task(executor: AwsEcsExecutor, arn: str, state=TaskInstanceState.RUNNING):
         task = mock_task(arn, state)
-        executor.active_workers.add_task(task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config, 1)
+        executor.active_workers.add_task(task, mock.Mock(spec=tuple), mock_queue, mock_cmd, mock_config, 1)  # type:ignore[arg-type]
 
     def _sync_mock_with_call_counts(self, sync_func: Callable):
         """Mock won't work here, because we actually want to call the 'sync' func."""
@@ -721,6 +730,92 @@ class TestAwsEcsExecutor:
 
         sync_func()
         self.sync_call_count += 1
+
+    @pytest.mark.parametrize(
+        "desired_status, last_status, exit_code, expected_status",
+        [
+            ("RUNNING", "QUEUED", 0, State.QUEUED),
+            ("STOPPED", "RUNNING", 0, State.RUNNING),
+            ("STOPPED", "QUEUED", 0, State.REMOVED),
+        ],
+    )
+    def test_update_running_tasks(
+        self, mock_executor, desired_status, last_status, exit_code, expected_status
+    ):
+        self._add_mock_task(mock_executor, ARN1)
+        test_response_task_json = {
+            "taskArn": ARN1,
+            "desiredStatus": desired_status,
+            "lastStatus": last_status,
+            "containers": [
+                {
+                    "name": "test_container",
+                    "lastStatus": "QUEUED",
+                    "exitCode": exit_code,
+                }
+            ],
+        }
+        mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
+        mock_executor.sync_running_tasks()
+        assert mock_executor.active_workers.tasks["arn1"].get_task_state() == expected_status
+        # The task is not removed from active_workers in these states
+        assert len(mock_executor.active_workers) == 1
+
+    def test_update_running_tasks_success(self, mock_executor):
+        self._add_mock_task(mock_executor, ARN1)
+        test_response_task_json = {
+            "taskArn": ARN1,
+            "desiredStatus": "STOPPED",
+            "lastStatus": "STOPPED",
+            "startedAt": dt.datetime.now(),
+            "containers": [
+                {
+                    "name": "test_container",
+                    "lastStatus": "STOPPED",
+                    "exitCode": 0,
+                }
+            ],
+        }
+        patcher = mock.patch(
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.success", auth_spec=True
+        )
+        mock_success_function = patcher.start()
+        mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
+        mock_executor.sync_running_tasks()
+        assert len(mock_executor.active_workers) == 0
+        mock_success_function.assert_called_once()
+
+    def test_update_running_tasks_failed(self, mock_executor, caplog):
+        caplog.set_level(logging.WARNING)
+        self._add_mock_task(mock_executor, ARN1)
+        test_response_task_json = {
+            "taskArn": ARN1,
+            "desiredStatus": "STOPPED",
+            "lastStatus": "STOPPED",
+            "startedAt": dt.datetime.now(),
+            "containers": [
+                {
+                    "containerArn": "test-container-arn1",
+                    "name": "test_container",
+                    "lastStatus": "STOPPED",
+                    "exitCode": 30,
+                    "reason": "test failure",
+                }
+            ],
+        }
+
+        patcher = mock.patch(
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.fail", auth_spec=True
+        )
+        mock_failed_function = patcher.start()
+        mock_executor.ecs.describe_tasks.return_value = {"tasks": [test_response_task_json], "failures": []}
+        mock_executor.sync_running_tasks()
+        assert len(mock_executor.active_workers) == 0
+        mock_failed_function.assert_called_once()
+        assert (
+            "The ECS task failed due to the following containers failing: \ntest-container-arn1 - "
+            "test failure" in caplog.messages[0]
+        )
 
 
 class TestEcsExecutorConfig:
@@ -786,9 +881,13 @@ class TestEcsExecutorConfig:
         found_keys = {convert_camel_to_snake(key): key for key in task_kwargs.keys()}
 
         for expected_key, expected_value in CONFIG_DEFAULTS.items():
-            # "conn_id" and max_run_task_attempts are used by the executor, but are not expected to appear
-            # in the task_kwargs.
-            if expected_key in [AllEcsConfigKeys.AWS_CONN_ID, AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS]:
+            # conn_id, max_run_task_attempts, and check_health_on_startup are used by the executor,
+            # but are not expected to appear in the task_kwargs.
+            if expected_key in [
+                AllEcsConfigKeys.AWS_CONN_ID,
+                AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
+                AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP,
+            ]:
                 assert expected_key not in found_keys.keys()
             else:
                 assert expected_key in found_keys.keys()
@@ -917,3 +1016,72 @@ class TestEcsExecutorConfig:
                 assert run_task_kwargs_network_config[camelized_key] == "ENABLED"
             else:
                 assert run_task_kwargs_network_config[camelized_key] == value.split(",")
+
+    def test_start_failure_with_invalid_permissions(self, set_env_vars):
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {
+            "Error": {
+                "Code": "AccessDeniedException",
+                "Message": "no identity-based policy allows the ecs:StopTask action",
+            }
+        }
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+
+        executor.ecs = ecs_mock
+
+        with pytest.raises(AirflowException, match=mock_resp["Error"]["Message"]):
+            executor.start()
+
+    def test_start_failure_with_invalid_cluster_name(self, set_env_vars):
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {"Error": {"Code": "ClusterNotFoundException", "Message": "Cluster not found."}}
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+
+        executor.ecs = ecs_mock
+
+        with pytest.raises(AirflowException, match=mock_resp["Error"]["Message"]):
+            executor.start()
+
+    def test_start_success(self, set_env_vars, caplog):
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {
+            "Error": {"Code": "InvalidParameterException", "Message": "The referenced task was not found."}
+        }
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+
+        executor.ecs = ecs_mock
+
+        caplog.set_level(logging.DEBUG)
+
+        executor.start()
+
+        assert "succeeded" in caplog.text
+
+    def test_start_health_check_config(self, set_env_vars):
+        executor = AwsEcsExecutor()
+
+        # Replace boto3 ECS client with mock.
+        ecs_mock = mock.Mock(spec=executor.ecs)
+        mock_resp = {
+            "Error": {"Code": "InvalidParameterException", "Message": "The referenced task was not found."}
+        }
+        ecs_mock.stop_task.side_effect = ClientError(mock_resp, "StopTask")
+
+        executor.ecs = ecs_mock
+
+        os.environ[
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP}".upper()
+        ] = "False"
+
+        executor.start()
+
+        ecs_mock.stop_task.assert_not_called()

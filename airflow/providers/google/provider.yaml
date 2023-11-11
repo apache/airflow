@@ -30,6 +30,7 @@ description: |
 
 suspended: false
 versions:
+  - 10.11.1
   - 10.11.0
   - 10.10.1
   - 10.10.0
@@ -85,7 +86,7 @@ dependencies:
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
   - gcsfs>=2023.9.2
-  - google-ads>=21.2.0
+  - google-ads>=22.1.0
   - google-api-core>=2.11.0
   - google-api-python-client>=1.6.0
   - google-auth>=1.0.0

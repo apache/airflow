@@ -23,6 +23,12 @@ Object Storage
 
 .. versionadded:: 2.8.0
 
+All major cloud providers offer persistent data storage in object stores. These are not classic
+"POSIX" file systems. In order to store hundreds of petabytes of data without any single points
+of failure, object stores replace the classic file system directory tree with a simpler model
+of object-name => data. To enable remote access, operations on objects are usually offered as
+(slow) HTTP REST operations.
+
 Airflow provides a generic abstraction on top of object stores, like s3, gcs, and azure blob storage.
 This abstraction allows you to use a variety of object storage systems in your DAGs without having to
 change you code to deal with every different object storage system. In addition, it allows you to use
@@ -37,6 +43,21 @@ scheme.
     Support for s3 requires you to install ``apache-airflow-providers-amazon[s3fs]``. This is because
     it depends on ``aiobotocore``, which is not installed by default as it can create dependency
     challenges with ``botocore``.
+
+Cloud Object Stores are not real file systems
+---------------------------------------------
+Object stores are not real file systems although they can appear so. They do not support all the
+operations that a real file system does. Key differences are:
+
+* No guaranteed atomic rename operation. This means that if you move a file from one location to another, it
+  will be copied and then deleted. If the copy fails, you will lose the file.
+* Directories are emulated and might make working with them slow. For example, listing a directory might
+  require listing all the objects in the bucket and filtering them by prefix.
+* Seeking within a file may require significant call overhead hurting performance or might not be supported at all.
+
+Airflow relies on `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`_ to provide a consistent
+experience across different object storage systems. It  implements local file caching to speed up access.
+However, you should be aware of the limitations of object storage when designing your DAGs.
 
 
 .. _concepts:basic-use:
@@ -108,6 +129,38 @@ Leveraging XCOM, you can pass paths between tasks:
       write = write_file(new_file, b"data")
 
       read >> write
+
+
+Configuration
+-------------
+
+In its basic use, the object storage abstraction does not require much configuration and relies upon the
+standard Airflow connection mechanism. This means that you can use the ``conn_id`` argument to specify
+the connection to use. Any settings by the connection are pushed down to the underlying implementation.
+For example, if you are using s3, you can specify the ``aws_access_key_id`` and ``aws_secret_access_key``
+but also add extra arguments like ``endpoint_url`` to specify a custom endpoint.
+
+Alternative backends
+^^^^^^^^^^^^^^^^^^^^
+
+It is possible to configure an alternative backend for a scheme or protocol. This is done by attaching
+a ``backend`` to the scheme. For example, to enable the databricks backend for the ``dbfs`` scheme, you
+would do the following:
+
+.. code-block:: python
+
+    from airflow.io.store.path import ObjectStoragePath
+    from airflow.io.store import attach
+
+    from fsspec.implementations.dbfs import DBFSFileSystem
+
+    attach(protocol="dbfs", fs=DBFSFileSystem(instance="myinstance", token="mytoken"))
+    base = ObjectStoragePath("dbfs://my-location/")
+
+
+.. note::
+    To reuse the registration across tasks make sure to attach the backend at the top-level of your DAG.
+    Otherwise, the backend will not be available across multiple tasks.
 
 
 .. _concepts:api:
@@ -222,6 +275,25 @@ Copying and Moving
 This documents the expected behavior of the ``copy`` and ``move`` operations, particularly for cross object store (e.g.
 file -> s3) behavior. Each method copies or moves files or directories from a ``source`` to a ``target`` location.
 The intended behavior is the same as specified by
-`fsspec <https://filesystem-spec.readthedocs.io/en/latest/copying.html>`_. For cross object store directory copying,
+``fsspec``. For cross object store directory copying,
 Airflow needs to walk the directory tree and copy each file individually. This is done by streaming each file from the
 source to the target.
+
+
+External Integrations
+---------------------
+
+Many other projects, like DuckDB, Apache Iceberg etc, can make use of the object storage abstraction. Often this is
+done by passing the underlying ``fsspec`` implementation. For this this purpose ``ObjectStoragePath`` exposes
+the ``fs`` property. For example, the following works with ``duckdb`` so that the connection details from Airflow
+are used to connect to s3 and a parquet file, indicated by a ``ObjectStoragePath``, is read:
+
+.. code-block:: python
+
+    import duckdb
+    from airflow.io.store.path import ObjectStoragePath
+
+    path = ObjectStoragePath("s3://my-bucket/my-table.parquet", conn_id="aws_default")
+    conn = duckdb.connect(database=":memory:")
+    conn.register_filesystem(path.fs)
+    conn.execute(f"CREATE OR REPLACE TABLE my_table AS SELECT * FROM read_parquet('{path}")

@@ -48,6 +48,8 @@ from airflow.utils.types import DagRunType
 from tests.core.test_logging_config import reset_logging
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
+pytestmark = pytest.mark.db_test
+
 
 class TimeDeltaTrigger_(TimeDeltaTrigger):
     def __init__(self, delta, filename):
@@ -110,7 +112,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     return dag_model, run, trigger_orm, task_instance
 
 
-def test_trigger_logging_sensitive_info(session, capsys):
+def test_trigger_logging_sensitive_info(session, caplog):
     """
     Checks that when a trigger fires, it doesn't log any sensitive
     information from arguments
@@ -148,10 +150,9 @@ def test_trigger_logging_sensitive_info(session, capsys):
     # Since we have now an in-memory process of forwarding the logs to stdout,
     # give it more time for the trigger event to write the log.
     time.sleep(0.5)
-    stdout = capsys.readouterr().out
 
-    assert "test_dag/test_run/sensitive_arg_task/-1/1 (ID 1) starting" in stdout
-    assert "some_password" not in stdout
+    assert "test_dag/test_run/sensitive_arg_task/-1/1 (ID 1) starting" in caplog.text
+    assert "some_password" not in caplog.text
 
 
 def test_is_alive():

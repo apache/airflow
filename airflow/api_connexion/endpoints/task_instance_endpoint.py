@@ -43,6 +43,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 )
 from airflow.api_connexion.security import get_readable_dags
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
+from airflow.exceptions import TaskNotFound
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.operator import needs_expansion
@@ -192,8 +193,9 @@ def get_mapped_task_instances(
         if not dag:
             error_message = f"DAG {dag_id} not found"
             raise NotFound(error_message)
-        task = dag.get_task(task_id)
-        if not task:
+        try:
+            task = dag.get_task(task_id)
+        except TaskNotFound:
             error_message = f"Task id {task_id} not found"
             raise NotFound(error_message)
         if not needs_expansion(task):

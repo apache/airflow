@@ -68,6 +68,7 @@ class TestGoogleDisplayVideo360DeleteReportOperator:
         hook_mock.return_value.delete_query.assert_called_once_with(query_id=QUERY_ID)
 
 
+@pytest.mark.db_test
 class TestGoogleDisplayVideo360DownloadReportV2Operator:
     def setup_method(self):
         with create_session() as session:

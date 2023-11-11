@@ -32,6 +32,8 @@ from airflow.providers.dbt.cloud.operators.dbt import (
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.utils import db, timezone
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 TASK_ID = "run_job_op"
 ACCOUNT_ID_CONN = "account_id_conn"

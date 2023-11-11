@@ -18,15 +18,16 @@
 from __future__ import annotations
 
 import datetime
+import itertools
 import logging
 import os
 import random
 import uuid
 import warnings
-from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
 
 import jwt
+import re2
 from flask import flash, g, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -44,28 +45,63 @@ from flask_appbuilder.const import (
 )
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
+from flask_appbuilder.security.registerviews import (
+    RegisterUserDBView,
+    RegisterUserOAuthView,
+    RegisterUserOIDView,
+)
+from flask_appbuilder.security.views import (
+    AuthDBView,
+    AuthLDAPView,
+    AuthOAuthView,
+    AuthOIDView,
+    AuthRemoteUserView,
+    RegisterUserModelView,
+)
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
-from sqlalchemy import and_, func, inspect, select
+from sqlalchemy import and_, func, inspect, literal, or_, select
 from sqlalchemy.exc import MultipleResultsFound
+from sqlalchemy.orm import Session, joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.auth.managers.fab.fab_auth_manager import MAP_METHOD_NAME_TO_FAB_ACTION_NAME
 from airflow.auth.managers.fab.models import (
     Action,
     Permission,
     RegisterUser,
     Resource,
     Role,
+    User,
     assoc_permission_role,
 )
 from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
+from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES
+from airflow.auth.managers.fab.views.permissions import (
+    ActionModelView,
+    PermissionPairModelView,
+    ResourceModelView,
+)
+from airflow.auth.managers.fab.views.roles_list import CustomRoleModelView
+from airflow.auth.managers.fab.views.user import (
+    CustomUserDBModelView,
+    CustomUserLDAPModelView,
+    CustomUserOAuthModelView,
+    CustomUserOIDModelView,
+    CustomUserRemoteUserModelView,
+)
+from airflow.auth.managers.fab.views.user_edit import (
+    CustomResetMyPasswordView,
+    CustomResetPasswordView,
+    CustomUserInfoEditView,
+)
+from airflow.auth.managers.fab.views.user_stats import CustomUserStatsChartView
+from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.models import DagModel
+from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -73,11 +109,7 @@ from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.auth.managers.base_auth_manager import ResourceMethod
-    from airflow.auth.managers.fab.models import User
-    from airflow.www.fab_security.manager import BaseSecurityManager
 
 log = logging.getLogger(__name__)
 
@@ -103,15 +135,50 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     auth_view = None
     """ The obj instance for authentication view """
+    registeruser_view = None
+    """ The obj instance for registering user view """
     user_view = None
     """ The obj instance for user view """
 
     """ Models """
+    user_model = User
     role_model = Role
     action_model = Action
     resource_model = Resource
     permission_model = Permission
+
+    """ Views """
+    authdbview = AuthDBView
+    """ Override if you want your own Authentication DB view """
+    authldapview = AuthLDAPView
+    """ Override if you want your own Authentication LDAP view """
+    authoidview = AuthOIDView
+    """ Override if you want your own Authentication OID view """
+    authoauthview = AuthOAuthView
+    """ Override if you want your own Authentication OAuth view """
+    authremoteuserview = AuthRemoteUserView
+    """ Override if you want your own Authentication REMOTE_USER view """
+    registeruserdbview = RegisterUserDBView
+    """ Override if you want your own register user db view """
+    registeruseroidview = RegisterUserOIDView
+    """ Override if you want your own register user OpenID view """
+    registeruseroauthview = RegisterUserOAuthView
+    """ Override if you want your own register user OAuth view """
+    actionmodelview = ActionModelView
+    permissionmodelview = PermissionPairModelView
+    rolemodelview = CustomRoleModelView
     registeruser_model = RegisterUser
+    registerusermodelview = RegisterUserModelView
+    resourcemodelview = ResourceModelView
+    userdbmodelview = CustomUserDBModelView
+    resetmypasswordview = CustomResetMyPasswordView
+    resetpasswordview = CustomResetPasswordView
+    userinfoeditview = CustomUserInfoEditView
+    userldapmodelview = CustomUserLDAPModelView
+    useroauthmodelview = CustomUserOAuthModelView
+    userremoteusermodelview = CustomUserRemoteUserModelView
+    useroidmodelview = CustomUserOIDModelView
+    userstatschartview = CustomUserStatsChartView
 
     jwt_manager = None
     """ Flask-JWT-Extended """
@@ -125,6 +192,126 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     oauth_allow_list: dict[str, list] = {}
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
+
+    # global resource for dag-level access
+    DAG_RESOURCES = {permissions.RESOURCE_DAG}
+
+    ###########################################################################
+    #                               PERMISSIONS
+    ###########################################################################
+
+    # [START security_viewer_perms]
+    VIEWER_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PASSWORD),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_BROWSE_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CLUSTER_ACTIVITY),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_AUDIT_LOG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
+    ]
+    # [END security_viewer_perms]
+
+    # [START security_user_perms]
+    USER_PERMISSIONS = [
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_TASK_INSTANCE),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+    ]
+    # [END security_user_perms]
+
+    # [START security_op_perms]
+    OP_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PROVIDER),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_XCOM),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
+    ]
+    # [END security_op_perms]
+
+    ADMIN_PERMISSIONS = [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_RESCHEDULE),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_RESCHEDULE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_TRIGGER),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TRIGGER),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PASSWORD),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_PASSWORD),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE),
+    ]
+
+    ###########################################################################
+    #                     DEFAULT ROLE CONFIGURATIONS
+    ###########################################################################
+
+    ROLE_CONFIGS: list[dict[str, Any]] = [
+        {"role": "Public", "perms": []},
+        {"role": "Viewer", "perms": VIEWER_PERMISSIONS},
+        {
+            "role": "User",
+            "perms": VIEWER_PERMISSIONS + USER_PERMISSIONS,
+        },
+        {
+            "role": "Op",
+            "perms": VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS,
+        },
+        {
+            "role": "Admin",
+            "perms": VIEWER_PERMISSIONS + USER_PERMISSIONS + OP_PERMISSIONS + ADMIN_PERMISSIONS,
+        },
+    ]
+
+    # global resource for dag-level access
+    DAG_ACTIONS = permissions.DAG_ACTIONS
 
     def __init__(self, appbuilder):
         # done in super, but we need it before we can call super.
@@ -251,6 +438,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 category="Security",
             )
 
+    @property
+    def get_session(self):
+        return self.appbuilder.get_session
+
     def create_login_manager(self) -> LoginManager:
         """Create the login manager."""
         lm = LoginManager(self.appbuilder.app)
@@ -337,13 +528,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def auth_rate_limit(self) -> str:
         """Get the auth rate limit."""
         return self.appbuilder.app.config["AUTH_RATE_LIMIT"]
-
-    @cached_property
-    def resourcemodelview(self):
-        """Return the resource model view."""
-        from airflow.auth.managers.fab.views.permissions import ResourceModelView
-
-        return ResourceModelView
 
     @property
     def auth_role_public(self):
@@ -495,6 +679,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE"]
 
     @property
+    def auth_roles_sync_at_login(self) -> bool:
+        """Should roles be synced at login."""
+        return self.appbuilder.get_app.config["AUTH_ROLES_SYNC_AT_LOGIN"]
+
+    @property
+    def auth_role_admin(self):
+        """Gets the admin role."""
+        return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
+
+    @property
     def oauth_whitelists(self):
         warnings.warn(
             "The 'oauth_whitelists' property is deprecated. Please use 'oauth_allow_list' instead.",
@@ -506,6 +700,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def create_builtin_roles(self):
         """Returns FAB builtin roles."""
         return self.appbuilder.app.config.get("FAB_ROLES", {})
+
+    @property
+    def builtin_roles(self):
+        """Get the builtin roles."""
+        return self._builtin_roles
 
     def create_admin_standalone(self) -> tuple[str | None, str | None]:
         """Create an Admin user with a random password so that users can access airflow."""
@@ -731,10 +930,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         )
         if not user_actions:
             user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
-        fab_action_name_to_method_name = {v: k for k, v in MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()}
+        method_from_fab_action_map = get_method_from_fab_action_map()
         user_methods: Container[ResourceMethod] = [
-            fab_action_name_to_method_name[action]
-            for action in fab_action_name_to_method_name
+            method_from_fab_action_map[action]
+            for action in method_from_fab_action_map
             if action in user_actions
         ]
         return get_auth_manager().get_permitted_dag_ids(user=user, methods=user_methods, session=session)
@@ -759,6 +958,386 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if action == permissions.ACTION_CAN_READ:
             return any(self.get_readable_dag_ids(user))
         return any(self.get_editable_dag_ids(user))
+
+    def get_all_permissions(self) -> set[tuple[str, str]]:
+        """Return all permissions as a set of tuples with the action and resource names."""
+        return set(
+            self.appbuilder.get_session.execute(
+                select(self.action_model.name, self.resource_model.name)
+                .join(self.permission_model.action)
+                .join(self.permission_model.resource)
+            )
+        )
+
+    def create_dag_specific_permissions(self) -> None:
+        """
+        Add permissions to all DAGs.
+
+        Creates 'can_read', 'can_edit', and 'can_delete' permissions for all
+        DAGs, along with any `access_control` permissions provided in them.
+
+        This does iterate through ALL the DAGs, which can be slow. See `sync_perm_for_dag`
+        if you only need to sync a single DAG.
+        """
+        perms = self.get_all_permissions()
+        dagbag = DagBag(read_dags_from_db=True)
+        dagbag.collect_dags_from_db()
+        dags = dagbag.dags.values()
+
+        for dag in dags:
+            root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
+            dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
+            for action_name in self.DAG_ACTIONS:
+                if (action_name, dag_resource_name) not in perms:
+                    self._merge_perm(action_name, dag_resource_name)
+
+            if dag.access_control is not None:
+                self.sync_perm_for_dag(dag_resource_name, dag.access_control)
+
+    def prefixed_dag_id(self, dag_id: str) -> str:
+        """Return the permission name for a DAG id."""
+        warnings.warn(
+            "`prefixed_dag_id` has been deprecated. "
+            "Please use `airflow.security.permissions.resource_name_for_dag` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        root_dag_id = self._get_root_dag_id(dag_id)
+        return permissions.resource_name_for_dag(root_dag_id)
+
+    def is_dag_resource(self, resource_name: str) -> bool:
+        """Determine if a resource belongs to a DAG or all DAGs."""
+        if resource_name == permissions.RESOURCE_DAG:
+            return True
+        return resource_name.startswith(permissions.RESOURCE_DAG_PREFIX)
+
+    def sync_perm_for_dag(
+        self,
+        dag_id: str,
+        access_control: dict[str, Collection[str]] | None = None,
+    ) -> None:
+        """
+        Sync permissions for given dag id.
+
+        The dag id surely exists in our dag bag as only / refresh button or DagBag will call this function.
+
+        :param dag_id: the ID of the DAG whose permissions should be updated
+        :param access_control: a dict where each key is a rolename and
+            each value is a set() of action names (e.g.,
+            {'can_read'}
+        :return:
+        """
+        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+        for dag_action_name in self.DAG_ACTIONS:
+            self.create_permission(dag_action_name, dag_resource_name)
+
+        if access_control is not None:
+            self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
+            self._sync_dag_view_permissions(dag_resource_name, access_control)
+        else:
+            self.log.debug(
+                "Not syncing DAG-level permissions for DAG '%s' as access control is unset.",
+                dag_resource_name,
+            )
+
+    def _sync_dag_view_permissions(self, dag_id: str, access_control: dict[str, Collection[str]]) -> None:
+        """
+        Set the access policy on the given DAG's ViewModel.
+
+        :param dag_id: the ID of the DAG whose permissions should be updated
+        :param access_control: a dict where each key is a rolename and
+            each value is a set() of action names (e.g. {'can_read'})
+        """
+        dag_resource_name = permissions.resource_name_for_dag(dag_id)
+
+        def _get_or_create_dag_permission(action_name: str) -> Permission | None:
+            perm = self.get_permission(action_name, dag_resource_name)
+            if not perm:
+                self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
+                perm = self.create_permission(action_name, dag_resource_name)
+
+            return perm
+
+        def _revoke_stale_permissions(resource: Resource):
+            existing_dag_perms = self.get_resource_permissions(resource)
+            for perm in existing_dag_perms:
+                non_admin_roles = [role for role in perm.role if role.name != "Admin"]
+                for role in non_admin_roles:
+                    target_perms_for_role = access_control.get(role.name, ())
+                    if perm.action.name not in target_perms_for_role:
+                        self.log.info(
+                            "Revoking '%s' on DAG '%s' for role '%s'",
+                            perm.action,
+                            dag_resource_name,
+                            role.name,
+                        )
+                        self.remove_permission_from_role(role, perm)
+
+        resource = self.get_resource(dag_resource_name)
+        if resource:
+            _revoke_stale_permissions(resource)
+
+        for rolename, action_names in access_control.items():
+            role = self.find_role(rolename)
+            if not role:
+                raise AirflowException(
+                    f"The access_control mapping for DAG '{dag_id}' includes a role named "
+                    f"'{rolename}', but that role does not exist"
+                )
+
+            action_names = set(action_names)
+            invalid_action_names = action_names - self.DAG_ACTIONS
+            if invalid_action_names:
+                raise AirflowException(
+                    f"The access_control map for DAG '{dag_resource_name}' includes "
+                    f"the following invalid permissions: {invalid_action_names}; "
+                    f"The set of valid permissions is: {self.DAG_ACTIONS}"
+                )
+
+            for action_name in action_names:
+                dag_perm = _get_or_create_dag_permission(action_name)
+                if dag_perm:
+                    self.add_permission_to_role(role, dag_perm)
+
+    def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
+        """
+        Add an action on a resource to the backend.
+
+        :param base_action_names:
+            list of permissions from view (all exposed methods):
+             'can_add','can_edit' etc...
+        :param resource_name:
+            name of the resource to add
+        """
+        resource = self.create_resource(resource_name)
+        perms = self.get_resource_permissions(resource)
+
+        if not perms:
+            # No permissions yet on this view
+            for action_name in base_action_names:
+                action = self.create_permission(action_name, resource_name)
+                if self.auth_role_admin not in self.builtin_roles:
+                    admin_role = self.find_role(self.auth_role_admin)
+                    self.add_permission_to_role(admin_role, action)
+        else:
+            # Permissions on this view exist but....
+            admin_role = self.find_role(self.auth_role_admin)
+            for action_name in base_action_names:
+                # Check if base view permissions exist
+                if not self.perms_include_action(perms, action_name):
+                    action = self.create_permission(action_name, resource_name)
+                    if self.auth_role_admin not in self.builtin_roles:
+                        self.add_permission_to_role(admin_role, action)
+            for perm in perms:
+                if perm.action is None:
+                    # Skip this perm, it has a null permission
+                    continue
+                if perm.action.name not in base_action_names:
+                    # perm to delete
+                    roles = self.get_all_roles()
+                    # del permission from all roles
+                    for role in roles:
+                        # TODO: An action can't be removed from a role.
+                        # This is a bug in FAB. It has been reported.
+                        self.remove_permission_from_role(role, perm)
+                    self.delete_permission(perm.action.name, resource_name)
+                elif self.auth_role_admin not in self.builtin_roles and perm not in admin_role.permissions:
+                    # Role Admin must have all permissions
+                    self.add_permission_to_role(admin_role, perm)
+
+    def add_permissions_menu(self, resource_name):
+        """
+        Add menu_access to resource on permission_resource.
+
+        :param resource_name:
+            The resource name
+        """
+        self.create_resource(resource_name)
+        perm = self.get_permission("menu_access", resource_name)
+        if not perm:
+            perm = self.create_permission("menu_access", resource_name)
+        if self.auth_role_admin not in self.builtin_roles:
+            role_admin = self.find_role(self.auth_role_admin)
+            self.add_permission_to_role(role_admin, perm)
+
+    def security_cleanup(self, baseviews, menus):
+        """
+        Cleanup all unused permissions from the database.
+
+        :param baseviews: A list of BaseViews class
+        :param menus: Menu class
+        """
+        resources = self.get_all_resources()
+        roles = self.get_all_roles()
+        for resource in resources:
+            found = False
+            for baseview in baseviews:
+                if resource.name == baseview.class_permission_name:
+                    found = True
+                    break
+            if menus.find(resource.name):
+                found = True
+            if not found:
+                permissions = self.get_resource_permissions(resource)
+                for permission in permissions:
+                    for role in roles:
+                        self.remove_permission_from_role(role, permission)
+                    self.delete_permission(permission.action.name, resource.name)
+                self.delete_resource(resource.name)
+
+    def sync_roles(self) -> None:
+        """
+        Initialize default and custom roles with related permissions.
+
+        1. Init the default role(Admin, Viewer, User, Op, public)
+           with related permissions.
+        2. Init the custom role(dag-user) with related permissions.
+        """
+        # Create global all-dag permissions
+        self.create_perm_vm_for_all_dag()
+
+        # Sync the default roles (Admin, Viewer, User, Op, public) with related permissions
+        self.bulk_sync_roles(self.ROLE_CONFIGS)
+
+        self.add_homepage_access_to_custom_roles()
+        # init existing roles, the rest role could be created through UI.
+        self.update_admin_permission()
+        self.clean_perms()
+
+    def create_perm_vm_for_all_dag(self) -> None:
+        """Create perm-vm if not exist and insert into FAB security model for all-dags."""
+        # create perm for global logical dag
+        for resource_name, action_name in itertools.product(self.DAG_RESOURCES, self.DAG_ACTIONS):
+            self._merge_perm(action_name, resource_name)
+
+    def add_homepage_access_to_custom_roles(self) -> None:
+        """Add Website.can_read access to all custom roles."""
+        website_permission = self.create_permission(permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE)
+        custom_roles = [role for role in self.get_all_roles() if role.name not in EXISTING_ROLES]
+        for role in custom_roles:
+            self.add_permission_to_role(role, website_permission)
+
+        self.appbuilder.get_session.commit()
+
+    def update_admin_permission(self) -> None:
+        """
+        Add missing permissions to the table for admin.
+
+        Admin should get all the permissions, except the dag permissions
+        because Admin already has Dags permission.
+        Add the missing ones to the table for admin.
+        """
+        session = self.appbuilder.get_session
+        dag_resources = session.scalars(
+            select(Resource).where(Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+        )
+        resource_ids = [resource.id for resource in dag_resources]
+
+        perms = session.scalars(select(Permission).where(~Permission.resource_id.in_(resource_ids)))
+        perms = [p for p in perms if p.action and p.resource]
+
+        admin = self.find_role("Admin")
+        admin.permissions = list(set(admin.permissions) | set(perms))
+
+        session.commit()
+
+    def clean_perms(self) -> None:
+        """FAB leaves faulty permissions that need to be cleaned up."""
+        self.log.debug("Cleaning faulty perms")
+        sesh = self.appbuilder.get_session
+        perms = sesh.query(Permission).filter(
+            or_(
+                Permission.action == None,  # noqa
+                Permission.resource == None,  # noqa
+            )
+        )
+        # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
+        # to delete the _object_ so that SQLA knows to delete the many-to-many
+        # relationship object too. :(
+
+        deleted_count = 0
+        for perm in perms:
+            sesh.delete(perm)
+            deleted_count += 1
+        sesh.commit()
+        if deleted_count:
+            self.log.info("Deleted %s faulty permissions", deleted_count)
+
+    def permission_exists_in_one_or_more_roles(
+        self, resource_name: str, action_name: str, role_ids: list[int]
+    ) -> bool:
+        """
+        Efficiently check if a certain permission exists on a list of role ids; used by `has_access`.
+
+        :param resource_name: The view's name to check if exists on one of the roles
+        :param action_name: The permission name to check if exists
+        :param role_ids: a list of Role ids
+        :return: Boolean
+        """
+        q = (
+            self.appbuilder.get_session.query(self.permission_model)
+            .join(
+                assoc_permission_role,
+                and_(self.permission_model.id == assoc_permission_role.c.permission_view_id),
+            )
+            .join(self.role_model)
+            .join(self.action_model)
+            .join(self.resource_model)
+            .filter(
+                self.resource_model.name == resource_name,
+                self.action_model.name == action_name,
+                self.role_model.id.in_(role_ids),
+            )
+            .exists()
+        )
+        # Special case for MSSQL/Oracle (works on PG and MySQL > 8)
+        if self.appbuilder.get_session.bind.dialect.name in ("mssql", "oracle"):
+            return self.appbuilder.get_session.query(literal(True)).filter(q).scalar()
+        return self.appbuilder.get_session.query(q).scalar()
+
+    def perms_include_action(self, perms, action_name):
+        return any(perm.action and perm.action.name == action_name for perm in perms)
+
+    def init_role(self, role_name, perms) -> None:
+        """
+        Initialize the role with actions and related resources.
+
+        :param role_name:
+        :param perms:
+        """
+        warnings.warn(
+            "`init_role` has been deprecated. Please use `bulk_sync_roles` instead.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+        self.bulk_sync_roles([{"role": role_name, "perms": perms}])
+
+    def bulk_sync_roles(self, roles: Iterable[dict[str, Any]]) -> None:
+        """Sync the provided roles and permissions."""
+        existing_roles = self._get_all_roles_with_permissions()
+        non_dag_perms = self._get_all_non_dag_permissions()
+
+        for config in roles:
+            role_name = config["role"]
+            perms = config["perms"]
+            role = existing_roles.get(role_name) or self.add_role(role_name)
+
+            for action_name, resource_name in perms:
+                perm = non_dag_perms.get((action_name, resource_name)) or self.create_permission(
+                    action_name, resource_name
+                )
+
+                if perm not in role.permissions:
+                    self.add_permission_to_role(role, perm)
+
+    def sync_resource_permissions(self, perms: Iterable[tuple[str, str]] | None = None) -> None:
+        """Populate resource-based permissions."""
+        if not perms:
+            return
+
+        for action_name, resource_name in perms:
+            self.create_resource(resource_name)
+            self.create_permission(action_name, resource_name)
 
     """
     -----------
@@ -833,7 +1412,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         - we use AUTH_ROLES_MAPPING to map from keys, to FAB role names
 
         :param role_keys: the list of FAB role keys
-        :return: a list of Role
         """
         _roles = set()
         _role_keys = set(role_keys)
@@ -1021,7 +1599,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Gets an existing action record.
 
         :param name: name
-        :return: Action record, if it exists
         """
         return self.get_session.query(self.action_model).filter_by(name=name).one_or_none()
 
@@ -1091,7 +1668,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Create a resource with the given name.
 
         :param name: The name of the resource to create created.
-        :return: The FAB resource created.
         """
         resource = self.get_resource(name)
         if resource is None:
@@ -1107,11 +1683,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return resource
 
     def get_all_resources(self) -> list[Resource]:
-        """
-        Gets all existing resource records.
-
-        :return: List of all resources
-        """
+        """Gets all existing resource records."""
         return self.get_session.query(self.resource_model).all()
 
     def delete_resource(self, name: str) -> bool:
@@ -1158,7 +1730,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param action_name: Name of action
         :param resource_name: Name of resource
-        :return: The existing permission
         """
         action = self.get_action(action_name)
         resource = self.get_resource(resource_name)
@@ -1175,7 +1746,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Retrieve permission pairs associated with a specific resource object.
 
         :param resource: Object representing a single resource.
-        :return: Action objects representing resource->action pair
         """
         return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
@@ -1215,7 +1785,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource
-        :return: None
         """
         if not (action_name and resource_name):
             return
@@ -1246,7 +1815,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param role: The role about to get a new permission.
         :param permission: The permission pair to add to a role.
-        :return: None
         """
         if permission and permission not in role.permissions:
             try:
@@ -1274,6 +1842,18 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE, e)
                 self.get_session.rollback()
+
+    @staticmethod
+    def get_user_roles(user=None):
+        """
+        Get all the roles associated with the user.
+
+        :param user: the ab_user in FAB model.
+        :return: a list of roles associated with the user.
+        """
+        if user is None:
+            user = g.user
+        return user.roles
 
     """
     --------------------
@@ -1499,7 +2079,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def oauth_user_info_getter(
         self,
-        func: Callable[[BaseSecurityManager, str, dict[str, Any] | None], dict[str, Any]],
+        func: Callable[[AirflowSecurityManagerV2, str, dict[str, Any] | None], dict[str, Any]],
     ):
         """
         Decorator function to be the OAuth user info getter for all the providers.
@@ -1778,21 +2358,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         self.update_user_auth_stat(user)
         return user
 
-    def _rotate_session_id(self):
-        """Rotate the session ID.
-
-        We need to do this upon successful authentication when using the
-        database session backend.
-        """
-        if conf.get("webserver", "SESSION_BACKEND") == "database":
-            session.sid = str(uuid.uuid4())
-
-    """
-    ---------------
-    Private methods
-    ---------------
-    """
-
     def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
         if get_auth_manager().is_logged_in():
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
@@ -1823,6 +2388,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     Private methods
     ---------------
     """
+
+    def _rotate_session_id(self):
+        """Rotate the session ID.
+
+        We need to do this upon successful authentication when using the
+        database session backend.
+        """
+        if conf.get("webserver", "SESSION_BACKEND") == "database":
+            session.sid = str(uuid.uuid4())
 
     def _get_microsoft_jwks(self) -> list[dict[str, Any]]:
         import requests
@@ -2013,6 +2587,61 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         result.update(role_resource_names)
         return result
 
+    def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
+        """Checks permission on builtin role."""
+        perms = self.builtin_roles.get(role.name, [])
+        for _resource_name, _action_name in perms:
+            if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
+                return True
+        return False
+
+    def _merge_perm(self, action_name: str, resource_name: str) -> None:
+        """
+        Add the new (action, resource) to assoc_permission_role if it doesn't exist.
+
+        It will add the related entry to ab_permission and ab_resource two meta tables as well.
+
+        :param action_name: Name of the action
+        :param resource_name: Name of the resource
+        """
+        action = self.get_action(action_name)
+        resource = self.get_resource(resource_name)
+        perm = None
+        if action and resource:
+            perm = self.appbuilder.get_session.scalar(
+                select(self.permission_model).filter_by(action=action, resource=resource).limit(1)
+            )
+        if not perm and action_name and resource_name:
+            self.create_permission(action_name, resource_name)
+
+    def _get_all_roles_with_permissions(self) -> dict[str, Role]:
+        """Return a dict with a key of role name and value of role with early loaded permissions."""
+        return {
+            r.name: r
+            for r in self.appbuilder.get_session.scalars(
+                select(self.role_model).options(joinedload(self.role_model.permissions))
+            ).unique()
+        }
+
+    def _get_all_non_dag_permissions(self) -> dict[tuple[str, str], Permission]:
+        """
+        Get permissions except those that are for specific DAGs.
+
+        Returns a dict with a key of (action_name, resource_name) and value of permission
+        with all permissions except those that are for specific DAGs.
+        """
+        return {
+            (action_name, resource_name): viewmodel
+            for action_name, resource_name, viewmodel in (
+                self.appbuilder.get_session.execute(
+                    select(self.action_model.name, self.resource_model.name, self.permission_model)
+                    .join(self.permission_model.action)
+                    .join(self.permission_model.resource)
+                    .where(~self.resource_model.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+                )
+            )
+        }
+
     def filter_roles_by_perm_with_action(self, action_name: str, role_ids: list[int]):
         """Find roles with permission."""
         return (
@@ -2029,3 +2658,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.role_model.id.in_(role_ids),
             )
         ).all()
+
+    def _get_root_dag_id(self, dag_id: str) -> str:
+        if "." in dag_id:
+            dm = self.appbuilder.get_session.execute(
+                select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id)
+            ).one()
+            return dm.root_dag_id or dm.dag_id
+        return dag_id

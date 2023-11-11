@@ -22,6 +22,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Generator,
     Iterable,
     Mapping,
     Protocol,
@@ -41,6 +42,8 @@ from airflow.hooks.base import BaseHook
 from airflow.version import version
 
 if TYPE_CHECKING:
+    from pandas import DataFrame
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -198,7 +201,12 @@ class DbApiHook(BaseForDbApiHook):
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_pandas_df(self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):
+    def get_pandas_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> DataFrame:
         """
         Execute the sql and returns a pandas dataframe.
 
@@ -218,14 +226,19 @@ class DbApiHook(BaseForDbApiHook):
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
     def get_pandas_df_by_chunks(
-        self, sql, parameters: Iterable | Mapping[str, Any] | None = None, *, chunksize: int | None, **kwargs
-    ):
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        **kwargs,
+    ) -> Generator[DataFrame, None, None]:
         """
         Execute the sql and return a generator.
 
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with
-        :param chunksize: number of rows to include in  each chunk
+        :param chunksize: number of rows to include in each chunk
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         """
         try:

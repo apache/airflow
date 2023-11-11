@@ -22,7 +22,7 @@
  IF YOU WANT TO MODIFY IT, YOU SHOULD MODIFY THE TEMPLATE
  `PROVIDER_INDEX_TEMPLATE.rst.jinja2` IN the `dev/provider_packages` DIRECTORY
 
-#}
+-#}
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -57,6 +57,17 @@ are in ``{{FULL_PACKAGE_NAME}}`` python package.
 You can find package information and changelog for the provider
 in the `documentation <https://airflow.apache.org/docs/{{ PACKAGE_PIP_NAME }}/{{RELEASE}}/>`_.
 
+{%- if PROVIDER_REMOVED %}
+
+    .. warning::
+
+        This provider is not maintained anymore by the community. It has been removed and is not going to be
+        updated anymore. The removal was done according to the process described in
+        `Removing community providers <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#removing-community-providers>`_
+
+        Feel free to contact Airflow Development Mailing List if you have any questions.
+
+{%- endif %}
 
 Installation
 ------------

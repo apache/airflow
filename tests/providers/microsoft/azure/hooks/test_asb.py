@@ -31,6 +31,7 @@ from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, Message
 
 MESSAGE = "Test Message"
 MESSAGE_LIST = [f"{MESSAGE} {n}" for n in range(10)]
+MODULE = "airflow.providers.microsoft.azure.hooks.asb"
 
 
 class TestAdminClientHook:
@@ -60,18 +61,20 @@ class TestAdminClientHook:
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusAdministrationClient)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.DefaultAzureCredential")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_connection")
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential")
+    @mock.patch(f"{MODULE}.AdminClientHook.get_connection")
     def test_get_conn_fallback_to_default_azure_credential_when_schema_is_not_provided(
         self, mock_connection, mock_default_azure_credential
     ):
         mock_connection.return_value = self.mock_conn_without_schema
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusAdministrationClient)
-        mock_default_azure_credential.assert_called_once()
+        assert mock_default_azure_credential.called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
 
     @mock.patch("azure.servicebus.management.QueueProperties")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
+    @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
     def test_create_queue(self, mock_sb_admin_client, mock_queue_properties):
         """
         Test `create_queue` hook function with mocking connection, queue properties value and
@@ -85,14 +88,14 @@ class TestAdminClientHook:
         response = hook.create_queue(self.queue_name)
         assert response == mock_queue_properties
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.ServiceBusAdministrationClient")
+    @mock.patch(f"{MODULE}.ServiceBusAdministrationClient")
     def test_create_queue_exception(self, mock_sb_admin_client):
         """Test `create_queue` functionality to raise ValueError by passing queue name as None"""
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         with pytest.raises(TypeError):
             hook.create_queue(None)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
+    @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
     def test_delete_queue(self, mock_sb_admin_client):
         """
         Test Delete queue functionality by passing queue name, assert the function with values,
@@ -103,14 +106,14 @@ class TestAdminClientHook:
         expected_calls = [mock.call().__enter__().delete_queue(self.queue_name)]
         mock_sb_admin_client.assert_has_calls(expected_calls)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.ServiceBusAdministrationClient")
+    @mock.patch(f"{MODULE}.ServiceBusAdministrationClient")
     def test_delete_queue_exception(self, mock_sb_admin_client):
         """Test `delete_queue` functionality to raise ValueError, by passing queue name as None"""
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
         with pytest.raises(TypeError):
             hook.delete_queue(None)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
+    @mock.patch(f"{MODULE}.AdminClientHook.get_conn")
     def test_delete_subscription(self, mock_sb_admin_client):
         """
         Test Delete subscription functionality by passing subscription name and topic name,
@@ -127,7 +130,7 @@ class TestAdminClientHook:
         "mock_subscription_name, mock_topic_name",
         [("subscription_1", None), (None, "topic_1")],
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook")
+    @mock.patch(f"{MODULE}.AdminClientHook")
     def test_delete_subscription_exception(
         self, mock_sb_admin_client, mock_subscription_name, mock_topic_name
     ):
@@ -171,15 +174,17 @@ class TestMessageHook:
         hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusClient)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.DefaultAzureCredential")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_connection")
+    @mock.patch(f"{MODULE}.get_sync_default_azure_credential")
+    @mock.patch(f"{MODULE}.MessageHook.get_connection")
     def test_get_conn_fallback_to_default_azure_credential_when_schema_is_not_provided(
         self, mock_connection, mock_default_azure_credential
     ):
         mock_connection.return_value = self.mock_conn_without_schema
         hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusClient)
-        mock_default_azure_credential.assert_called_once()
+        assert mock_default_azure_credential.called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
 
     @pytest.mark.parametrize(
         "mock_message, mock_batch_flag",
@@ -190,9 +195,9 @@ class TestMessageHook:
             (MESSAGE_LIST, False),
         ],
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.send_list_messages")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.send_batch_message")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
+    @mock.patch(f"{MODULE}.MessageHook.send_list_messages")
+    @mock.patch(f"{MODULE}.MessageHook.send_batch_message")
+    @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_send_message(
         self, mock_sb_client, mock_batch_message, mock_list_message, mock_message, mock_batch_flag
     ):
@@ -225,7 +230,7 @@ class TestMessageHook:
         ]
         mock_sb_client.assert_has_calls(expected_calls, any_order=False)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
+    @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_send_message_exception(self, mock_sb_client):
         """
         Test `send_message` functionality to raise AirflowException in Azure MessageHook
@@ -236,7 +241,7 @@ class TestMessageHook:
             hook.send_message(queue_name=None, messages="", batch_message_flag=False)
 
     @mock.patch("azure.servicebus.ServiceBusMessage")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
+    @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_receive_message(self, mock_sb_client, mock_service_bus_message):
         """
         Test `receive_message` hook function and assert the function with mock value,
@@ -260,7 +265,7 @@ class TestMessageHook:
         ]
         mock_sb_client.assert_has_calls(expected_calls)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
+    @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_receive_message_exception(self, mock_sb_client):
         """
         Test `receive_message` functionality to raise AirflowException in Azure MessageHook
@@ -270,7 +275,7 @@ class TestMessageHook:
         with pytest.raises(TypeError):
             hook.receive_message(None)
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
+    @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_receive_subscription_message(self, mock_sb_client):
         """
         Test `receive_subscription_message` hook function and assert the function with mock value,
@@ -299,7 +304,7 @@ class TestMessageHook:
         "mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time",
         [("subscription_1", None, None, None), (None, "topic_1", None, None)],
     )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
+    @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_receive_subscription_message_exception(
         self, mock_sb_client, mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time
     ):
