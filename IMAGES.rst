@@ -33,7 +33,7 @@ Airflow has two main images (build from Dockerfiles):
 PROD image
 -----------
 
-The PROD image is a multi-segment image. The first segment "airflow-build-image" contains all the
+The PROD image is a multi-segment image. The first segment ``airflow-build-image`` contains all the
 build essentials and related dependencies that allow to install airflow locally. By default the image is
 built from a released version of Airflow from GitHub, but by providing some extra arguments you can also
 build it from local sources. This is particularly useful in CI environment where we are using the image
@@ -41,7 +41,7 @@ to run Kubernetes tests. See below for the list of arguments that should be prov
 production image from the local sources.
 
 The image is primarily optimised for size of the final image, but also for speed of rebuilds - the
-'airflow-build-image' segment uses the same technique as the CI jobs for pre-installing dependencies.
+``airflow-build-image`` segment uses the same technique as the CI jobs for pre-installing dependencies.
 It first pre-installs them from the right GitHub branch and only after that final airflow installation is
 done from either local sources or remote location (PyPI or GitHub repository).
 
@@ -54,7 +54,7 @@ CI image
 The CI image is used by `Breeze <BREEZE.rst>`_ as the shell image but it is also used during CI tests.
 The image is single segment image that contains Airflow installation with "all" dependencies installed.
 It is optimised for rebuild speed. It installs PIP dependencies from the current branch first -
-so that any changes in setup.py do not trigger reinstalling of all dependencies.
+so that any changes in ``setup.py`` do not trigger reinstalling of all dependencies.
 There is a second step of installation that re-installs the dependencies
 from the latest sources so that we are sure that latest dependencies are installed.
 
