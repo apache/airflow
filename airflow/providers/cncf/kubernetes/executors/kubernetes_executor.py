@@ -196,7 +196,6 @@ class KubernetesExecutor(BaseExecutor):
         Clear tasks that were not yet launched, but were previously queued.
 
         Tasks can end up in a "Queued" state when a rescheduled/deferred operator
-
         comes back up for execution (with the same try_number) before the
         pod of its previous incarnation has been fully removed (we think).
 
