@@ -1838,7 +1838,7 @@ webserver:
         support in markdown by setting this option to True.
 
         This parameter also enables the deprecated fields ``description_html`` and
-        ``custom_html_form`` in DAG params until the feature is removed in a next version.
+        ``custom_html_form`` in DAG params until the feature is removed in a future version.
       version_added: 2.8.0
       type: boolean
       example: "False"
