@@ -47,11 +47,12 @@ CONN_EXTRAS = {
 }
 SYNAPSE_PIPELINE_CONN_EXTRAS = {"tenantId": TENANT_ID}
 JOB_RUN_RESPONSE = {"id": 123}
-PIPELINE_NAME = "pipeline_name"
+PIPELINE_NAME = "Pipeline 1"
 AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT = "azure_synapse_workspace_dev_endpoint"
-PIPELINE_RUN_RESPONSE = {"run_id": "run_id"}
 RESOURCE_GROUP = "op-resource-group"
 WORKSPACE_NAME = "workspace-test"
+AZURE_SYNAPSE_WORKSPACE_URL = f"https://web.azuresynapse.net?workspace=%2fsubscriptions%{SUBSCRIPTION_ID}%2fresourceGroups%2f{RESOURCE_GROUP}%2fproviders%2fMicrosoft.Synapse%2fworkspaces%2f{WORKSPACE_NAME}"
+PIPELINE_RUN_RESPONSE = {"run_id": "run_id"}
 
 
 class TestAzureSynapseRunSparkBatchOperator:
@@ -127,7 +128,7 @@ class TestAzureSynapseRunPipelineOperator:
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.config = {
-            "task_id": TASK_ID,
+            "task_id": AZURE_SYNAPSE_PIPELINE_TASK_ID,
             "azure_synapse_conn_id": AZURE_SYNAPSE_CONN_ID,
             "pipeline_name": PIPELINE_NAME,
             "azure_synapse_workspace_dev_endpoint": AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT,
@@ -139,9 +140,9 @@ class TestAzureSynapseRunPipelineOperator:
             Connection(
                 conn_id=AZURE_SYNAPSE_CONN_ID,
                 conn_type="azure_synapse_pipeline",
-                host="azure-synapse-workspace-url",
-                login="client-id",
-                password="client-secret",
+                host=AZURE_SYNAPSE_WORKSPACE_URL,
+                login="client_id",
+                password="client_secret",
                 extra=SYNAPSE_PIPELINE_CONN_EXTRAS,
             )
         )
@@ -273,16 +274,18 @@ class TestAzureSynapseRunPipelineOperator:
             # Checking the pipeline run status should _not_ be called when ``wait_for_termination`` is False.
             mock_get_pipeline_run.assert_not_called()
 
+    @pytest.mark.db_test
     def test_run_pipeline_operator_link(self, create_task_instance_of_operator):
         ti = create_task_instance_of_operator(
             AzureSynapseRunPipelineOperator,
             dag_id="test_synapse_run_pipeline_op_link",
             execution_date=DEFAULT_DATE,
-            task_id=TASK_ID,
+            task_id=AZURE_SYNAPSE_PIPELINE_TASK_ID,
             azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
             pipeline_name=PIPELINE_NAME,
             azure_synapse_workspace_dev_endpoint=AZURE_SYNAPSE_WORKSPACE_DEV_ENDPOINT,
         )
+
         ti.xcom_push(key="run_id", value=PIPELINE_RUN_RESPONSE["run_id"])
 
         url = ti.task.get_extra_links(ti, "Monitor Pipeline Run")
