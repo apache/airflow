@@ -113,7 +113,15 @@ class TestDagsPersistentVolumeClaim:
 
     def test_dags_persistent_volume_claim_template_storage_class_name(self):
         docs = render_chart(
-            values={"dags": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            values={
+                "dags": {
+                    "persistence": {
+                        "existingClaim": None,
+                        "enabled": True,
+                        "storageClassName": "{{ .Release.Name }}-storage-class"
+                    }
+                }
+            },
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
         assert "release-name-storage-class" == jmespath.search(
