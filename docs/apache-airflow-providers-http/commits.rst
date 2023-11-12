@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.7.0
 .....
 
-Latest change: 2023-11-03
+Latest change: 2023-11-11
 
 =================================================================================================  ===========  ======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================
+`1f76986b7b <https://github.com/apache/airflow/commit/1f76986b7ba19737aba77d63bbec1ce29aff55fc>`_  2023-11-11   ``Fix: Paginate on lastest Response (#35560)``
+`1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 `fd78908097 <https://github.com/apache/airflow/commit/fd789080971a49496da0a79f3c8489cc0c1424f0>`_  2023-11-03   ``json data for async PUTs fixed (#35405)``
 `70b3bd3fb9 <https://github.com/apache/airflow/commit/70b3bd3fb960e8b052f31b4acb59961357548e3a>`_  2023-11-03   ``Add pagination to 'HttpOperator' and make it more modular (#34669)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
