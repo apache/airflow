@@ -30,11 +30,12 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.models.operator import Operator
     from airflow.utils.context import Context
 
 
 @dataclass(frozen=True)
-class LiteralValue:
+class LiteralValue(ResolveMixin):
     """
     A wrapper for a value that should be rendered as-is, without applying jinja templating to its contents.
 
@@ -42,6 +43,12 @@ class LiteralValue:
     """
 
     value: Any
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return ()
+
+    def resolve(self, context: Context) -> Any:
+        return self.value
 
 
 class Templater(LoggingMixin):
@@ -167,8 +174,6 @@ class Templater(LoggingMixin):
             return self._render(template, context)
         if isinstance(value, ResolveMixin):
             return value.resolve(context)
-        if isinstance(value, LiteralValue):
-            return value.value
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:
