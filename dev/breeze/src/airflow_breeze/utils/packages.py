@@ -20,6 +20,9 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import re
+import subprocess
+import sys
 from enum import Enum
 from functools import lru_cache
 from pathlib import Path
@@ -34,18 +37,20 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT,
+    BREEZE_SOURCES_ROOT,
+    DIST_DIR,
     DOCS_ROOT,
     PROVIDER_DEPENDENCIES_JSON_FILE_PATH,
 )
 from airflow_breeze.utils.publish_docs_helpers import (
-    _filepath_to_module,
-    _filepath_to_system_tests,
     _load_schema,
     get_provider_yaml_paths,
 )
-from airflow_breeze.utils.versions import strip_leading_zeros_from_version
+from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
 MIN_AIRFLOW_VERSION = "2.5.0"
+HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
 
@@ -93,6 +98,10 @@ class ProviderPackageDetails(NamedTuple):
     removed: bool
 
 
+class PackageSuspendedException(Exception):
+    """Exception raised when package is suspended."""
+
+
 @lru_cache
 def get_provider_packages_metadata() -> dict[str, dict[str, Any]]:
     """
@@ -112,10 +121,6 @@ def get_provider_packages_metadata() -> dict[str, dict[str, Any]]:
             jsonschema.validate(provider, schema=schema)
         except jsonschema.ValidationError:
             raise Exception(f"Unable to parse: {provider_yaml_path}.")
-        provider_yaml_dir = os.path.dirname(provider_yaml_path)
-        provider["python-module"] = _filepath_to_module(provider_yaml_dir)
-        provider["package-dir"] = provider_yaml_dir
-        provider["system-tests-dir"] = _filepath_to_system_tests(provider_yaml_dir)
         result[get_short_package_name(provider["package-name"])] = provider
     return result
 
@@ -300,6 +305,10 @@ def get_documentation_package_path(provider_id: str) -> Path:
     return DOCS_ROOT / f"apache-airflow-providers-{provider_id.replace('.', '-')}"
 
 
+def get_target_root_for_copied_provider_sources(provider_id: str) -> Path:
+    return (DIST_DIR / "provider_packages").joinpath(*provider_id.split("."))
+
+
 def get_pip_package_name(provider_id: str) -> str:
     """
     Returns PIP package name for the package id.
@@ -346,7 +355,7 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
     else:
         dependencies = PROVIDER_DEPENDENCIES.get(provider_id)["deps"]
     install_requires = [apply_version_suffix(clause) for clause in dependencies]
-    return "".join(f"\n    {ir}" for ir in install_requires)
+    return "".join(f'\n    "{ir}",' for ir in install_requires)
 
 
 def get_package_extras(provider_id: str) -> dict[str, list[str]]:
@@ -436,12 +445,43 @@ def get_python_requires(provider_id: str) -> str:
     return python_requires
 
 
+def convert_cross_package_dependencies_to_table(
+    cross_package_dependencies: list[str],
+    markdown: bool = True,
+) -> str:
+    """
+    Converts cross-package dependencies to a Markdown table
+    :param cross_package_dependencies: list of cross-package dependencies
+    :param markdown: if True, Markdown format is used else rst
+    :return: formatted table
+    """
+    from tabulate import tabulate
+
+    headers = ["Dependent package", "Extra"]
+    table_data = []
+    prefix = "apache-airflow-providers-"
+    base_url = "https://airflow.apache.org/docs/"
+    for dependency in cross_package_dependencies:
+        pip_package_name = f"{prefix}{dependency.replace('.','-')}"
+        url_suffix = f"{dependency.replace('.','-')}"
+        if markdown:
+            url = f"[{pip_package_name}]({base_url}{url_suffix})"
+        else:
+            url = f"`{pip_package_name} <{base_url}{prefix}{url_suffix}>`_"
+        table_data.append((url, f"`{dependency}`" if markdown else f"``{dependency}``"))
+    return tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
+
+
+def get_cross_provider_dependent_packages(provider_package_id: str) -> list[str]:
+    if provider_package_id in get_removed_provider_ids():
+        return []
+    return PROVIDER_DEPENDENCIES[provider_package_id]["cross-providers-deps"]
+
+
 def get_provider_jinja_context(
     provider_id: str,
     current_release_version: str,
     version_suffix: str,
-    with_breaking_changes: bool,
-    maybe_with_new_features: bool,
 ):
     provider_details = get_provider_details(provider_id=provider_id)
     release_version_no_leading_zeros = strip_leading_zeros_from_version(current_release_version)
@@ -449,30 +489,20 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
+    cross_providers_dependencies = get_cross_provider_dependent_packages(provider_package_id=provider_id)
     context: dict[str, Any] = {
-        "WITH_BREAKING_CHANGES": with_breaking_changes,
-        "MAYBE_WITH_NEW_FEATURES": maybe_with_new_features,
-        "ENTITY_TYPES": list(EntityType),
-        "README_FILE": "README.rst",
         "PROVIDER_ID": provider_details.provider_id,
         "PACKAGE_PIP_NAME": get_pip_package_name(provider_details.provider_id),
         "PACKAGE_WHEEL_NAME": get_wheel_package_name(provider_details.provider_id),
         "FULL_PACKAGE_NAME": provider_details.full_package_name,
-        "PROVIDER_PATH": provider_details.full_package_name.replace(".", "/"),
         "RELEASE": current_release_version,
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
         "VERSION_SUFFIX": version_suffix or "",
         "PIP_REQUIREMENTS": get_provider_requirements(provider_details.provider_id),
-        "PROVIDER_TYPE": "Provider",
-        "PROVIDERS_FOLDER": "providers",
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
         "INSTALL_REQUIREMENTS": get_install_requirements(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
         ),
-        "SETUP_REQUIREMENTS": """
-    setuptools
-    wheel
-""",
         "EXTRAS_REQUIREMENTS": get_package_extras(provider_id=provider_details.provider_id),
         "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.source_provider_package_path,
@@ -480,11 +510,149 @@ def get_provider_jinja_context(
         ),
         "CHANGELOG": changelog,
         "SUPPORTED_PYTHON_VERSIONS": supported_python_versions,
-        "PYTHON_REQUIRES": get_python_requires(provider_id),
         "PLUGINS": provider_details.plugins,
         "MIN_AIRFLOW_VERSION": get_min_airflow_version(provider_id),
-        "PREINSTALLED_PROVIDER": provider_details.provider_id in PREINSTALLED_PROVIDERS,
         "PROVIDER_REMOVED": provider_details.removed,
         "PROVIDER_INFO": get_provider_info_dict(provider_id),
+        "CROSS_PROVIDERS_DEPENDENCIES": get_cross_provider_dependent_packages(provider_id),
+        "CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST": convert_cross_package_dependencies_to_table(
+            cross_providers_dependencies, markdown=False
+        ),
+        "PIP_REQUIREMENTS_TABLE_RST": convert_pip_requirements_to_table(
+            get_provider_requirements(provider_id), markdown=False
+        ),
     }
     return context
+
+
+def render_template(
+    template_name: str,
+    context: dict[str, Any],
+    extension: str,
+    autoescape: bool = True,
+    keep_trailing_newline: bool = False,
+) -> str:
+    """
+    Renders template based on its name. Reads the template from <name>_TEMPLATE.md.jinja2 in current dir.
+    :param template_name: name of the template to use
+    :param context: Jinja2 context
+    :param extension: Target file extension
+    :param autoescape: Whether to autoescape HTML
+    :param keep_trailing_newline: Whether to keep the newline in rendered output
+    :return: rendered template
+    """
+    import jinja2
+
+    template_loader = jinja2.FileSystemLoader(
+        searchpath=BREEZE_SOURCES_ROOT / "src" / "airflow_breeze" / "templates"
+    )
+    template_env = jinja2.Environment(
+        loader=template_loader,
+        undefined=jinja2.StrictUndefined,
+        autoescape=autoescape,
+        keep_trailing_newline=keep_trailing_newline,
+    )
+    template = template_env.get_template(f"{template_name}_TEMPLATE{extension}.jinja2")
+    content: str = template.render(context)
+    return content
+
+
+def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/airflow"):
+    """Make sure that apache remote exist in git.
+
+    We need to take a log from the apache repository main branch - not locally because we might
+    not have the latest version. Also, the local repo might be shallow, so we need to
+    un-shallow it to see all the history.
+
+    This will:
+    * check if the remote exists and add if it does not
+    * check if the local repo is shallow, mark it to un-shallow in this case
+    * fetch from the remote including all tags and overriding local tags in case
+      they are set differently
+
+    """
+    try:
+        run_command(["git", "remote", "get-url", HTTPS_REMOTE], text=True, capture_output=True)
+    except subprocess.CalledProcessError as ex:
+        if ex.returncode == 128 or ex.returncode == 2:
+            run_command(
+                [
+                    "git",
+                    "remote",
+                    "add",
+                    HTTPS_REMOTE,
+                    f"https://github.com/{github_repository}.git",
+                ],
+                check=True,
+            )
+        else:
+            get_console().print(
+                f"[error]Error {ex}[/]\n" f"[error]When checking if {HTTPS_REMOTE} is set.[/]\n\n"
+            )
+            sys.exit(1)
+    get_console().print("[info]Fetching full history and tags from remote.")
+    get_console().print("[info]This might override your local tags!")
+    result = run_command(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    is_shallow_repo = result.stdout.strip() == "true"
+    fetch_command = ["git", "fetch", "--tags", "--force", HTTPS_REMOTE]
+    if is_shallow_repo:
+        fetch_command.append("--unshallow")
+    try:
+        run_command(fetch_command)
+    except subprocess.CalledProcessError as e:
+        get_console().print(
+            f"[error]Error {e}[/]\n"
+            f"[error]When fetching tags from remote. Your tags might not be refreshed.[/]\n\n"
+            f'[warning]Please refresh the tags manually via:[/]\n\n"'
+            f'{" ".join(fetch_command)}\n\n'
+        )
+        sys.exit(1)
+
+
+def convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool = True) -> str:
+    """
+    Converts PIP requirement list to a Markdown table.
+    :param requirements: requirements list
+    :param markdown: if True, Markdown format is used else rst
+    :return: formatted table
+    """
+    from tabulate import tabulate
+
+    headers = ["PIP package", "Version required"]
+    table_data = []
+    for dependency in requirements:
+        found = re.match(r"(^[^<=>~]*)([^<=>~]?.*)$", dependency)
+        if found:
+            package = found.group(1)
+            version_required = found.group(2)
+            if version_required != "":
+                version_required = f"`{version_required}`" if markdown else f"``{version_required}``"
+            table_data.append((f"`{package}`" if markdown else f"``{package}``", version_required))
+        else:
+            table_data.append((dependency, ""))
+    return tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
+
+
+def tag_exists_for_provider(provider_id: str, current_tag: str) -> bool:
+    """Return true if the tag exists in the provider repository."""
+    provider_details = get_provider_details(provider_id)
+    result = run_command(
+        ["git", "rev-parse", current_tag],
+        cwd=provider_details.source_provider_package_path,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def get_latest_provider_tag(provider_id: str, suffix: str) -> str:
+    """Returns latest tag for the provider."""
+    provider_details = get_provider_details(provider_id)
+    current_version = provider_details.versions[0]
+    return get_version_tag(current_version, provider_id, suffix)

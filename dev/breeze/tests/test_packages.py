@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Iterable
+
 import pytest
 
 from airflow_breeze.global_constants import REGULAR_DOC_PACKAGES
 from airflow_breeze.utils.packages import (
+    convert_pip_requirements_to_table,
     expand_all_provider_packages,
     find_matching_long_package_names,
     get_available_packages,
@@ -27,6 +30,7 @@ from airflow_breeze.utils.packages import (
     get_install_requirements,
     get_long_package_name,
     get_package_extras,
+    get_pip_package_name,
     get_provider_details,
     get_provider_requirements,
     get_removed_provider_ids,
@@ -34,6 +38,7 @@ from airflow_breeze.utils.packages import (
     get_source_package_path,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
+    get_wheel_package_name,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, AIRFLOW_SOURCES_ROOT, DOCS_ROOT
 
@@ -151,8 +156,8 @@ def test_get_install_requirements():
     assert (
         get_install_requirements("asana", "").strip()
         == """
-    apache-airflow>=2.5.0
-    asana>=0.10,<4.0.0
+    "apache-airflow>=2.5.0",
+    "asana>=0.10,<4.0.0",
 """.strip()
     )
 
@@ -198,3 +203,55 @@ def test_get_provider_details():
     assert provider_details.plugins == []
     assert provider_details.changelog_path == provider_details.source_provider_package_path / "CHANGELOG.rst"
     assert not provider_details.removed
+
+
+@pytest.mark.parametrize(
+    "provider_id, pip_package_name",
+    [
+        ("asana", "apache-airflow-providers-asana"),
+        ("apache.hdfs", "apache-airflow-providers-apache-hdfs"),
+    ],
+)
+def test_get_pip_package_name(provider_id: str, pip_package_name: str):
+    assert get_pip_package_name(provider_id) == pip_package_name
+
+
+@pytest.mark.parametrize(
+    "provider_id, wheel_package_name",
+    [
+        ("asana", "apache_airflow_providers_asana"),
+        ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
+    ],
+)
+def test_get_wheel_package_name(provider_id: str, wheel_package_name: str):
+    assert get_wheel_package_name(provider_id) == wheel_package_name
+
+
+@pytest.mark.parametrize(
+    "requirements, markdown, table",
+    [
+        (
+            ["apache-airflow>2.5.0"],
+            False,
+            """
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>2.5.0``
+==================  ==================
+""",
+        ),
+        (
+            ["apache-airflow>2.5.0"],
+            True,
+            """
+| PIP package      | Version required   |
+|:-----------------|:-------------------|
+| `apache-airflow` | `>2.5.0`           |
+""",
+        ),
+    ],
+)
+def test_convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool, table: str):
+    print(convert_pip_requirements_to_table(requirements, markdown))
+    assert convert_pip_requirements_to_table(requirements, markdown).strip() == table.strip()
