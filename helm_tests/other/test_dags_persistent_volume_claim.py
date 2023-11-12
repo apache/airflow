@@ -118,7 +118,7 @@ class TestDagsPersistentVolumeClaim:
                     "persistence": {
                         "existingClaim": None,
                         "enabled": True,
-                        "storageClassName": "{{ .Release.Name }}-storage-class"
+                        "storageClassName": "{{ .Release.Name }}-storage-class",
                     }
                 }
             },

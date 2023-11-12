@@ -71,9 +71,15 @@ class TestLogsPersistentVolumeClaim:
 
     def test_logs_persistent_volume_claim_template_storage_class_name(self):
         docs = render_chart(
-            values={"logs": {"persistence": {"existingClaim": None,
-                                             "enabled": True,
-                                             "storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            values={
+                "logs": {
+                    "persistence": {
+                        "existingClaim": None,
+                        "enabled": True,
+                        "storageClassName": "{{ .Release.Name }}-storage-class",
+                    }
+                }
+            },
             show_only=["templates/logs-persistent-volume-claim.yaml"],
         )
         assert "release-name-storage-class" == jmespath.search(
