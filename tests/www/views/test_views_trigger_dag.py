@@ -275,13 +275,13 @@ def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypat
             check_content_in_response(escape(HTML_DESCRIPTION1), resp)
             check_content_in_response(escape(HTML_DESCRIPTION2), resp)
             check_content_in_response(
-                "At least one field in trigger form uses custom HTML form definition.", resp
+                "At least one field in the trigger form uses a raw HTML form definition.", resp
             )
         else:
             check_content_in_response(HTML_DESCRIPTION1, resp)
             check_content_in_response(HTML_DESCRIPTION2, resp)
             check_content_not_in_response(
-                "At least one field in trigger form uses custom HTML form definition.", resp
+                "At least one field in the trigger form uses a raw HTML form definition.", resp
             )
 
 
