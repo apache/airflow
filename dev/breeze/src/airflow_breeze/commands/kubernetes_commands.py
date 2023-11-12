@@ -1002,9 +1002,11 @@ def _deploy_helm_chart(
             "config.logging.logging_level=DEBUG",
             "--set",
             f"executor={executor}",
-            "--set",
-            f"multiNamespaceMode={'true' if multi_namespace_mode else 'false'}",
         ]
+        if multi_namespace_mode:
+            helm_command.extend(
+                ["--set", "multiNamespaceMode=true", "--set", "airflowNamespaces[0]=test-namespace"]
+            )
         if upgrade:
             # force upgrade
             helm_command.append("--force")

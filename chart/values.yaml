@@ -2362,6 +2362,10 @@ config:
 # If true, it creates ClusterRole/ClusterRolebinding (with access to entire cluster)
 multiNamespaceMode: false
 
+# The list of the namespaces that will be used to create workers in multi namespace mode.
+# A service account will be created in each namespace, and the cluster role will be bound to it.
+airflowNamespaces: []
+
 # `podTemplate` is a templated string containing the contents of `pod_template_file.yaml` used for
 # KubernetesExecutor workers. The default `podTemplate` will use normal `workers` configuration parameters
 # (e.g. `workers.resources`). As such, you normally won't need to override this directly, however,
