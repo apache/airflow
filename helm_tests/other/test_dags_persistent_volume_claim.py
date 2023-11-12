@@ -124,6 +124,4 @@ class TestDagsPersistentVolumeClaim:
             },
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
-        assert "release-name-storage-class" == jmespath.search(
-            "spec.storageClassName", docs[0]
-        )
+        assert "release-name-storage-class" == jmespath.search("spec.storageClassName", docs[0])
