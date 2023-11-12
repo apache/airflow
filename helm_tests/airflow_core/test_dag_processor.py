@@ -72,7 +72,7 @@ class TestDagProcessor:
     def test_wait_for_migration_security_contexts_are_configurable(self):
         docs = render_chart(
             values={
-                'dagProcessor': {
+                "dagProcessor": {
                     "enabled": True,
                     "waitForMigrations": {
                         "enabled": True,
@@ -81,7 +81,7 @@ class TestDagProcessor:
                                 "allowPrivilegeEscalation": False,
                                 "readOnlyRootFilesystem": True,
                             },
-                        }
+                        },
                     },
                 },
             },
