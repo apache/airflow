@@ -60,6 +60,11 @@ def get_airflow_connection_with_login_and_password(unused_conn_id=None):
     )
 
 
+class CustomAuthBase(HTTPBasicAuth):
+    def __init__(self, username: str, password: str, endpoint: str):
+        super().__init__(username, password)
+
+
 class TestHttpHook:
     """Test get, post and raise_for_status"""
 
@@ -267,6 +272,25 @@ class TestHttpHook:
         hook = HttpHook()
         hook.get_conn({})
         assert hook.base_url == "http://"
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    @mock.patch("tests.providers.http.hooks.test_http.CustomAuthBase.__init__")
+    def test_connection_with_extra_header_and_auth_kwargs(self, auth, mock_get_connection):
+        auth.return_value = None
+        conn = Connection(
+            conn_id="http_default",
+            conn_type="http",
+            login="username",
+            password="pass",
+            extra='{"auth_kwargs": {"endpoint": "http://localhost"}}',
+        )
+        mock_get_connection.return_value = conn
+
+        hook = HttpHook(auth_type=CustomAuthBase)
+        session = hook.get_conn({})
+
+        auth.assert_called_once_with("username", "pass", endpoint="http://localhost")
+        assert "auth_kwargs" not in session.headers
 
     @pytest.mark.parametrize("method", ["GET", "POST"])
     def test_json_request(self, method, requests_mock):

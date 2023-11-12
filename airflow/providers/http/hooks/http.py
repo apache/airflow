@@ -48,7 +48,6 @@ class HttpHook(BaseHook):
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
-    :param auth_args: extra arguments used to initialize the auth_type if different than default HTTPBasicAuth
     """
 
     conn_name_attr = "http_conn_id"
@@ -107,13 +106,19 @@ class HttpHook(BaseHook):
 
             if conn.port:
                 self.base_url += f":{conn.port}"
-            if conn.login:
-                session.auth = self.auth_type(conn.login, conn.password)
+
+            conn_extra: dict = conn.extra_dejson.copy()
+            auth_args: list[str | None] = [conn.login, conn.password]
+            auth_kwargs: dict[str, Any] = conn_extra.pop("auth_kwargs", {})
+
+            if any(auth_args) or auth_kwargs:
+                session.auth = self.auth_type(*auth_args, **auth_kwargs)
             elif self._auth_type:
                 session.auth = self.auth_type()
+
             if conn.extra:
                 try:
-                    session.headers.update(conn.extra_dejson)
+                    session.headers.update(conn_extra)
                 except TypeError:
                     self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
