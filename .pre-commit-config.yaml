@@ -19,7 +19,7 @@ default_stages: [commit, push]
 default_language_version:
   python: python3
   node: 18.6.0
-minimum_pre_commit_version: '2.0.0'
+minimum_pre_commit_version: '3.2.0'
 repos:
   - repo: meta
     hooks:
