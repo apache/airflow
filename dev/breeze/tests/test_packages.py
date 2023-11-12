@@ -16,24 +16,35 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Iterable
+
 import pytest
 
 from airflow_breeze.global_constants import REGULAR_DOC_PACKAGES
 from airflow_breeze.utils.packages import (
+    convert_cross_package_dependencies_to_table,
+    convert_pip_requirements_to_table,
     expand_all_provider_packages,
     find_matching_long_package_names,
     get_available_packages,
+    get_cross_provider_dependent_packages,
     get_documentation_package_path,
     get_install_requirements,
     get_long_package_name,
+    get_min_airflow_version,
     get_package_extras,
+    get_pip_package_name,
     get_provider_details,
+    get_provider_info_dict,
+    get_provider_jinja_context,
     get_provider_requirements,
     get_removed_provider_ids,
     get_short_package_name,
     get_source_package_path,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
+    get_wheel_package_name,
+    validate_provider_info_with_runtime_schema,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, AIRFLOW_SOURCES_ROOT, DOCS_ROOT
 
@@ -151,8 +162,8 @@ def test_get_install_requirements():
     assert (
         get_install_requirements("asana", "").strip()
         == """
-    apache-airflow>=2.5.0
-    asana>=0.10,<4.0.0
+    "apache-airflow>=2.5.0",
+    "asana>=0.10,<4.0.0",
 """.strip()
     )
 
@@ -198,3 +209,139 @@ def test_get_provider_details():
     assert provider_details.plugins == []
     assert provider_details.changelog_path == provider_details.source_provider_package_path / "CHANGELOG.rst"
     assert not provider_details.removed
+
+
+@pytest.mark.parametrize(
+    "provider_id, pip_package_name",
+    [
+        ("asana", "apache-airflow-providers-asana"),
+        ("apache.hdfs", "apache-airflow-providers-apache-hdfs"),
+    ],
+)
+def test_get_pip_package_name(provider_id: str, pip_package_name: str):
+    assert get_pip_package_name(provider_id) == pip_package_name
+
+
+@pytest.mark.parametrize(
+    "provider_id, wheel_package_name",
+    [
+        ("asana", "apache_airflow_providers_asana"),
+        ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
+    ],
+)
+def test_get_wheel_package_name(provider_id: str, wheel_package_name: str):
+    assert get_wheel_package_name(provider_id) == wheel_package_name
+
+
+@pytest.mark.parametrize(
+    "requirements, markdown, table",
+    [
+        (
+            ["apache-airflow>2.5.0"],
+            False,
+            """
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>2.5.0``
+==================  ==================
+""",
+        ),
+        (
+            ["apache-airflow>2.5.0"],
+            True,
+            """
+| PIP package      | Version required   |
+|:-----------------|:-------------------|
+| `apache-airflow` | `>2.5.0`           |
+""",
+        ),
+    ],
+)
+def test_convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool, table: str):
+    print(convert_pip_requirements_to_table(requirements, markdown))
+    assert convert_pip_requirements_to_table(requirements, markdown).strip() == table.strip()
+
+
+def test_validate_provider_info_with_schema():
+    for provider in get_available_packages():
+        validate_provider_info_with_runtime_schema(get_provider_info_dict(provider))
+
+
+@pytest.mark.parametrize(
+    "provider_id, min_version",
+    [
+        ("amazon", "2.5.0"),
+        ("common.io", "2.8.0"),
+    ],
+)
+def test_get_min_airflow_version(provider_id: str, min_version: str):
+    assert get_min_airflow_version(provider_id) == min_version
+
+
+def test_convert_cross_package_dependencies_to_table():
+    EXPECTED = """
+| Dependent package                                                                   | Extra         |
+|:------------------------------------------------------------------------------------|:--------------|
+| [apache-airflow-providers-common-sql](https://airflow.apache.org/docs/common-sql)   | `common.sql`  |
+| [apache-airflow-providers-google](https://airflow.apache.org/docs/google)           | `google`      |
+| [apache-airflow-providers-openlineage](https://airflow.apache.org/docs/openlineage) | `openlineage` |
+"""
+    assert (
+        convert_cross_package_dependencies_to_table(get_cross_provider_dependent_packages("trino")).strip()
+        == EXPECTED.strip()
+    )
+
+
+def test_get_provider_info_dict():
+    provider_info_dict = get_provider_info_dict("amazon")
+    assert provider_info_dict["name"] == "Amazon"
+    assert provider_info_dict["package-name"] == "apache-airflow-providers-amazon"
+    assert "Amazon" in provider_info_dict["description"]
+    assert provider_info_dict["suspended"] is False
+    assert provider_info_dict["filesystems"] == ["airflow.providers.amazon.aws.fs.s3"]
+    assert len(provider_info_dict["versions"]) > 45
+    assert len(provider_info_dict["dependencies"]) > 10
+    assert len(provider_info_dict["integrations"]) > 35
+    assert len(provider_info_dict["hooks"]) > 30
+    assert len(provider_info_dict["triggers"]) > 15
+    assert len(provider_info_dict["operators"]) > 20
+    assert len(provider_info_dict["sensors"]) > 15
+    assert len(provider_info_dict["transfers"]) > 15
+    assert len(provider_info_dict["extra-links"]) > 5
+    assert len(provider_info_dict["connection-types"]) > 3
+    assert len(provider_info_dict["notifications"]) > 2
+    assert len(provider_info_dict["secrets-backends"]) > 1
+    assert len(provider_info_dict["logging"]) > 1
+    assert len(provider_info_dict["additional-extras"]) > 3
+    assert len(provider_info_dict["config"].keys()) > 1
+    assert len(provider_info_dict["executors"]) > 0
+
+
+def test_provider_jinja_context():
+    provider_info = get_provider_info_dict("amazon")
+    version = provider_info["versions"][0]
+    context = get_provider_jinja_context(
+        provider_id="amazon", current_release_version=version, version_suffix="rc1"
+    )
+    expected = {
+        "PROVIDER_ID": "amazon",
+        "PACKAGE_PIP_NAME": "apache-airflow-providers-amazon",
+        "PACKAGE_WHEEL_NAME": "apache_airflow_providers_amazon",
+        "FULL_PACKAGE_NAME": "airflow.providers.amazon",
+        "RELEASE": version,
+        "RELEASE_NO_LEADING_ZEROS": version,
+        "VERSION_SUFFIX": ".rc1",
+        "PROVIDER_DESCRIPTION": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
+        "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
+        "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11"],
+        "PLUGINS": [],
+        "MIN_AIRFLOW_VERSION": "2.5.0",
+        "PROVIDER_REMOVED": False,
+        "PROVIDER_INFO": provider_info,
+    }
+
+    for key, value in expected.items():
+        assert context[key] == value
+    assert context["EXTRAS_REQUIREMENTS"]["google"] == ["apache-airflow-providers-google"]
+    assert len(context["PIP_REQUIREMENTS"]) > 10

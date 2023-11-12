@@ -16,22 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable
-
 import pytest
 
 from airflow_breeze.prepare_providers.provider_documentation import (
     Change,
     _convert_git_changes_to_table,
-    _convert_pip_requirements_to_table,
     _find_insertion_index_for_version,
     _get_change_from_line,
     _get_changes_classified,
     _get_git_log_command,
-    _get_version_tag,
     _verify_changelog_exists,
+    get_version_tag,
 )
-from airflow_breeze.utils.packages import get_pip_package_name, get_wheel_package_name
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 CHANGELOG_CONTENT = """
@@ -93,7 +89,7 @@ def test_find_insertion_index_insert_new_changelog():
     ],
 )
 def test_get_version_tag(version: str, provider_id: str, suffix: str, tag: str):
-    assert _get_version_tag(version, provider_id, suffix) == tag
+    assert get_version_tag(version, provider_id, suffix) == tag
 
 
 @pytest.mark.parametrize(
@@ -119,28 +115,6 @@ def test_get_git_log_command(from_commit: str | None, to_commit: str | None, git
 def test_get_git_log_command_wrong():
     with pytest.raises(ValueError, match=r"to_commit without from_commit"):
         _get_git_log_command(None, "to_commit")
-
-
-@pytest.mark.parametrize(
-    "provider_id, pip_package_name",
-    [
-        ("asana", "apache-airflow-providers-asana"),
-        ("apache.hdfs", "apache-airflow-providers-apache-hdfs"),
-    ],
-)
-def test_get_pip_package_name(provider_id: str, pip_package_name: str):
-    assert get_pip_package_name(provider_id) == pip_package_name
-
-
-@pytest.mark.parametrize(
-    "provider_id, wheel_package_name",
-    [
-        ("asana", "apache_airflow_providers_asana"),
-        ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
-    ],
-)
-def test_get_wheel_package_name(provider_id: str, wheel_package_name: str):
-    assert get_wheel_package_name(provider_id) == wheel_package_name
 
 
 @pytest.mark.parametrize(
@@ -234,36 +208,6 @@ def test_convert_git_changes_to_table(input: str, output: str, markdown: bool, c
     assert list_of_changes[0].pr is None
     assert list_of_changes[1].pr == "12345"
     assert list_of_changes[2].pr == "12346"
-
-
-@pytest.mark.parametrize(
-    "requirements, markdown, table",
-    [
-        (
-            ["apache-airflow>2.5.0"],
-            False,
-            """
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>2.5.0``
-==================  ==================
-""",
-        ),
-        (
-            ["apache-airflow>2.5.0"],
-            True,
-            """
-| PIP package      | Version required   |
-|:-----------------|:-------------------|
-| `apache-airflow` | `>2.5.0`           |
-""",
-        ),
-    ],
-)
-def test_convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool, table: str):
-    print(_convert_pip_requirements_to_table(requirements, markdown))
-    assert _convert_pip_requirements_to_table(requirements, markdown).strip() == table.strip()
 
 
 def test_verify_changelog_exists():
