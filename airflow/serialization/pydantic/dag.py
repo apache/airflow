@@ -60,7 +60,7 @@ class DagModelPydantic(BaseModelPydantic):
     is_paused_at_creation: bool = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused: bool = is_paused_at_creation
     is_subdag: Optional[bool] = False
-    is_active: bool = False
+    is_active: Optional[bool] = False
     last_parsed_time: Optional[datetime]
     last_pickled: Optional[datetime]
     last_expired: Optional[datetime]

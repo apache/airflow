@@ -27,6 +27,7 @@
       "asgiref",
       "boto3>=1.28.0",
       "botocore>=1.31.0",
+      "inflection>=0.5.1",
       "jsonpath_ng>=1.5.3",
       "redshift_connector>=2.0.888",
       "sqlalchemy_redshift>=0.8.6",
@@ -257,12 +258,28 @@
   },
   "cncf.kubernetes": {
     "deps": [
+      "aiofiles>=23.2.0",
       "apache-airflow>=2.5.0",
       "asgiref>=3.5.2",
       "cryptography>=2.0.0",
       "google-re2>=1.0",
       "kubernetes>=21.7.0,<24",
       "kubernetes_asyncio>=18.20.1,<25"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
+  "cohere": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "cohere>=4.27"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
+  "common.io": {
+    "deps": [
+      "apache-airflow>=2.8.0"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
@@ -354,7 +371,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.5.0",
-      "elasticsearch>8,<9"
+      "elasticsearch>=8.10,<9"
     ],
     "cross-providers-deps": [
       "common.sql"
@@ -407,7 +424,8 @@
       "gcloud-aio-auth>=4.0.0,<5.0.0",
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage",
-      "google-ads>=21.2.0",
+      "gcsfs>=2023.9.2",
+      "google-ads>=22.1.0",
       "google-api-core>=2.11.0",
       "google-api-python-client>=1.6.0",
       "google-auth-httplib2>=0.0.1",
@@ -548,6 +566,7 @@
   "microsoft.azure": {
     "deps": [
       "adal>=1.2.7",
+      "adlfs>=2023.9.2",
       "apache-airflow>=2.5.0",
       "azure-batch>=8.0.0",
       "azure-cosmos>=4.0.0",
@@ -647,6 +666,14 @@
     ],
     "excluded-python-versions": []
   },
+  "openai": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "openai[datalib]>=0.28.1,<1.0"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "openfaas": {
     "deps": [
       "apache-airflow>=2.5.0"
@@ -707,6 +734,26 @@
       "apache-airflow>=2.5.0",
       "papermill[all]>=1.2.1",
       "scrapbook[all]"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
+  "pgvector": {
+    "deps": [
+      "apache-airflow-providers-postgres>=5.7.1",
+      "apache-airflow>=2.5.0",
+      "pgvector>=0.2.3"
+    ],
+    "cross-providers-deps": [
+      "common.sql",
+      "postgres"
+    ],
+    "excluded-python-versions": []
+  },
+  "pinecone": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "pinecone-client>=2.2.4"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
@@ -830,7 +877,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.5.0",
-      "snowflake-connector-python>=2.4.1",
+      "snowflake-connector-python>=2.7.8",
       "snowflake-sqlalchemy>=1.1.0"
     ],
     "cross-providers-deps": [
@@ -904,6 +951,14 @@
     "cross-providers-deps": [
       "common.sql"
     ],
+    "excluded-python-versions": []
+  },
+  "weaviate": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "weaviate-client>=3.24.2"
+    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": []
   },
   "yandex": {

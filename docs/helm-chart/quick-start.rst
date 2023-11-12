@@ -91,6 +91,13 @@ The Apache Airflow community, releases Docker Images which are ``reference image
 However, when you try it out you want to add your own DAGs, custom dependencies,
 packages, or even custom providers.
 
+.. note::
+   Creating custom images means that you need to maintain also a level of automation as you need to re-create the images
+   when either the packages you want to install or Airflow is upgraded. Please do not forget about keeping these scripts.
+   Also keep in mind, that in cases when you run pure Python tasks, you can use the
+   `Python Virtualenv functions <https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html#pythonvirtualenvoperator>`_
+   which will dynamically source and install python dependencies during runtime. With Airflow 2.8.0 Virtualenvs can also be cached.
+
 The best way to achieve it, is to build your own, custom image.
 
 Adding DAGs to your image

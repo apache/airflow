@@ -53,6 +53,7 @@ class TestSparkJDBCOperator:
         "upper_bound": "20",
         "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),"
         "comments VARCHAR(1024)",
+        "use_krb5ccache": True,
     }
 
     def setup_method(self):
@@ -95,6 +96,7 @@ class TestSparkJDBCOperator:
             "upper_bound": "20",
             "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),"
             "comments VARCHAR(1024)",
+            "use_krb5ccache": True,
         }
 
         assert spark_conn_id == operator._spark_conn_id
@@ -125,3 +127,4 @@ class TestSparkJDBCOperator:
         assert expected_dict["lower_bound"] == operator._lower_bound
         assert expected_dict["upper_bound"] == operator._upper_bound
         assert expected_dict["create_table_column_types"] == operator._create_table_column_types
+        assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache

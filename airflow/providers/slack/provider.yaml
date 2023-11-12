@@ -19,10 +19,15 @@
 package-name: apache-airflow-providers-slack
 name: Slack
 description: |
-    `Slack <https://slack.com/>`__
+    `Slack <https://slack.com/>`__ services integration including:
+
+      - `Slack API <https://api.slack.com/>`__
+      - `Slack Incoming Webhook <https://api.slack.com/messaging/webhooks>`__
 
 suspended: false
 versions:
+  - 8.4.0
+  - 8.3.0
   - 8.2.0
   - 8.1.0
   - 8.0.0
@@ -55,28 +60,49 @@ dependencies:
 integrations:
   - integration-name: Slack
     external-doc-url: https://slack.com/
+    logo: /integration-logos/slack/Slack.png
+    tags: [service]
+  - integration-name: Slack API
+    external-doc-url: https://api.slack.com/
     how-to-guide:
-      - /docs/apache-airflow-providers-slack/operators/slack_operator_howto_guide.rst
+      - /docs/apache-airflow-providers-slack/operators/slack_api.rst
+    logo: /integration-logos/slack/Slack.png
+    tags: [service]
+  - integration-name: Slack Incoming Webhook
+    external-doc-url: https://api.slack.com/messaging/webhooks
+    how-to-guide:
+      - /docs/apache-airflow-providers-slack/operators/slack_webhook.rst
     logo: /integration-logos/slack/Slack.png
     tags: [service]
 
 operators:
-  - integration-name: Slack
+  - integration-name: Slack API
     python-modules:
       - airflow.providers.slack.operators.slack
+  - integration-name: Slack Incoming Webhook
+    python-modules:
       - airflow.providers.slack.operators.slack_webhook
 
 hooks:
-  - integration-name: Slack
+  - integration-name: Slack API
     python-modules:
       - airflow.providers.slack.hooks.slack
+  - integration-name: Slack Incoming Webhook
+    python-modules:
       - airflow.providers.slack.hooks.slack_webhook
 
 transfers:
   - source-integration-name: Common SQL
     target-integration-name: Slack
+    python-module: airflow.providers.slack.transfers.base_sql_to_slack
+  - source-integration-name: Common SQL
+    target-integration-name: Slack API
     python-module: airflow.providers.slack.transfers.sql_to_slack
     how-to-guide: /docs/apache-airflow-providers-slack/operators/sql_to_slack.rst
+  - source-integration-name: Common SQL
+    target-integration-name: Slack Incoming Webhook
+    python-module: airflow.providers.slack.transfers.sql_to_slack_webhook
+    how-to-guide: /docs/apache-airflow-providers-slack/operators/sql_to_slack_webhook.rst
 
 connection-types:
   - hook-class-name: airflow.providers.slack.hooks.slack.SlackHook

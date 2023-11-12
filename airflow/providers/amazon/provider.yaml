@@ -19,10 +19,12 @@
 package-name: apache-airflow-providers-amazon
 name: Amazon
 description: |
-    Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
+  Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 suspended: false
 versions:
+  - 8.11.0
+  - 8.10.0
   - 8.9.0
   - 8.8.0
   - 8.7.1
@@ -83,6 +85,7 @@ dependencies:
   # NOTE!!! BOTOCORE version is always shifted by 3 MINOR VERSIONS from boto3
   # See https://github.com/boto/boto3/issues/2702
   - botocore>=1.31.0
+  - inflection>=0.5.1
   - watchtower~=3.0.1
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.888
@@ -443,6 +446,9 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
 
+filesystems:
+  - airflow.providers.amazon.aws.fs.s3
+
 hooks:
   - integration-name: Amazon Athena
     python-modules:
@@ -627,6 +633,10 @@ transfers:
     target-integration-name: Amazon DynamoDB
     how-to-guide: /docs/apache-airflow-providers-amazon/transfer/hive_to_dynamodb.rst
     python-module: airflow.providers.amazon.aws.transfers.hive_to_dynamodb
+  - source-integration-name: Hypertext Transfer Protocol (HTTP)
+    target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/transfer/http_to_s3.rst
+    python-module: airflow.providers.amazon.aws.transfers.http_to_s3
   - source-integration-name: Internet Message Access Protocol (IMAP)
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/transfer/imap_attachment_to_s3.rst
@@ -731,6 +741,9 @@ additional-extras:
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
+  - name: s3fs
+    dependencies:
+      - s3fs>=2023.9.2
 
 config:
   aws:
@@ -763,3 +776,125 @@ config:
         version_added: 8.7.2
         example: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize
         default: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy
+  aws_ecs_executor:
+    description: |
+      This section only applies if you are using the AwsEcsExecutor in
+      Airflow's ``[core]`` configuration.
+      For more information on any of these execution parameters, see the link below:
+      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs/client/run_task.html
+      For boto3 credential management, see
+      https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+    options:
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the ECS executor to make API calls to AWS ECS.
+        version_added: "8.10"
+        type: string
+        example: "aws_default"
+        default: "aws_default"
+      region_name:
+        description: |
+          The name of the AWS Region where Amazon ECS is configured. Required.
+        version_added: "8.10"
+        type: string
+        example: "us-east-1"
+        default: ~
+      assign_public_ip:
+        description: |
+          Whether to assign a public IP address to the containers launched by the ECS executor.
+          For more info see url to Boto3 docs above.
+        version_added: "8.10"
+        type: boolean
+        example: "True"
+        default: "False"
+      cluster:
+        description: |
+          Name of the Amazon ECS Cluster. Required.
+        version_added: "8.10"
+        type: string
+        example: "ecs_executor_cluster"
+        default: ~
+      container_name:
+        description: |
+          Name of the container that will be used to execute Airflow tasks via the ECS executor.
+          The container should be specified in the ECS Task Definition and will receive an airflow
+          CLI command as an additional parameter to its entrypoint. For more info see url to Boto3
+          docs above. Required.
+        version_added: "8.10"
+        type: string
+        example: "ecs_executor_container"
+        default: ~
+      launch_type:
+        description: |
+          Launch type can either be 'FARGATE' OR 'EC2'. For more info see url to
+          Boto3 docs above.
+
+          If the launch type is EC2, the executor will attempt to place tasks on
+          empty EC2 instances. If there are no EC2 instances available, no task
+          is placed and this function will be called again in the next heart-beat.
+
+          If the launch type is FARGATE, this will run the tasks on new AWS Fargate
+          instances.
+        version_added: "8.10"
+        type: string
+        example: "FARGATE"
+        default: "FARGATE"
+      platform_version:
+        description: |
+          The platform version the task uses. A platform version is only specified
+          for tasks hosted on Fargate. If one isn't specified, the LATEST platform
+          version is used.
+        version_added: "8.10"
+        type: string
+        example: "1.4.0"
+        default: "LATEST"
+      security_groups:
+        description: |
+          The comma-separated IDs of the security groups associated with the task. If you
+          don't specify a security group, the default security group for the VPC is used.
+          There's a limit of 5 security groups. For more info see url to Boto3 docs above.
+        version_added: "8.10"
+        type: string
+        example: "sg-XXXX,sg-YYYY"
+        default: ~
+      subnets:
+        description: |
+          The comma-separated IDs of the subnets associated with the task or service.
+          There's a limit of 16 subnets. For more info see url to Boto3 docs above.
+        version_added: "8.10"
+        type: string
+        example: "subnet-XXXXXXXX,subnet-YYYYYYYY"
+        default: ~
+      task_definition:
+        description: |
+          The family and revision (family:revision) or full ARN of the task definition
+          to run. If a revision isn't specified, the latest ACTIVE revision is used.
+          For more info see url to Boto3 docs above.
+        version_added: "8.10"
+        type: string
+        example: executor_task_definition:LATEST
+        default: ~
+      max_run_task_attempts:
+        description: |
+          The maximum number of times the ECS Executor should attempt to run a task.
+        version_added: "8.10"
+        type: integer
+        example: "3"
+        default: "3"
+      run_task_kwargs:
+        description: |
+          A JSON string containing arguments to provide the ECS `run_task` API (see url above).
+        version_added: "8.10"
+        type: string
+        example: '{"tags": {"key": "schema", "value": "1.0"}}'
+        default: ~
+      check_health_on_startup:
+        description: |
+          Whether or not to check the ECS Executor health on startup.
+        version_added: "8.11"
+        type: boolean
+        example: "True"
+        default: "True"
+
+executors:
+  - airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor

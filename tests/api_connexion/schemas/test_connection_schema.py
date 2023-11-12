@@ -32,6 +32,8 @@ from airflow.models import Connection
 from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
+pytestmark = pytest.mark.db_test
+
 
 class TestConnectionCollectionItemSchema:
     def setup_method(self) -> None:

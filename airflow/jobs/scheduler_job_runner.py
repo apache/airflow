@@ -815,7 +815,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
-        if not self._standalone_dag_processor:
+        if not self._standalone_dag_processor and not self.processor_agent:
             self.processor_agent = DagFileProcessorAgent(
                 dag_directory=Path(self.subdir),
                 max_runs=self.num_times_parse_dags,

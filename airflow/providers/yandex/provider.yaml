@@ -22,6 +22,7 @@ description: |
     Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
 suspended: false
 versions:
+  - 3.6.0
   - 3.5.0
   - 3.4.0
   - 3.3.0
@@ -70,3 +71,15 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook
     connection-type: yandexcloud
+
+config:
+  yandex:
+    description: This section contains settings for Yandex Cloud integration.
+    options:
+      sdk_user_agent_prefix:
+        description: |
+          Prefix for User-Agent header in Yandex.Cloud SDK requests
+        version_added: 3.6.0
+        type: string
+        example: ~
+        default: ""

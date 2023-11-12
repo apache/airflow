@@ -86,7 +86,7 @@ class TestAzureContainerVolumeHook:
         indirect=True,
     )
     @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.StorageManagementClient")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.DefaultAzureCredential")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.container_volume.get_sync_default_azure_credential")
     def test_get_file_volume_default_azure_credential(
         self, mocked_default_azure_credential, mocked_client, mocked_connection
     ):
@@ -112,4 +112,6 @@ class TestAzureContainerVolumeHook:
         assert volume.azure_file.storage_account_name == "storage"
         assert volume.azure_file.read_only is True
 
-        mocked_default_azure_credential.assert_called_with()
+        assert mocked_default_azure_credential.called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )

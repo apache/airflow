@@ -774,6 +774,24 @@ class TestScheduler:
         assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
 
+    def test_scheduler_template_storage_class_name(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "persistence": {
+                        "storageClassName": "{{ .Release.Name }}-storage-class",
+                        "enabled": True,
+                    }
+                },
+                "logs": {"persistence": {"enabled": False}},
+                "executor": "LocalExecutor",
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert "release-name-storage-class" == jmespath.search(
+            "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
+        )
+
 
 class TestSchedulerNetworkPolicy:
     """Tests scheduler network policy."""
@@ -873,7 +891,7 @@ class TestSchedulerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "scheduler": {

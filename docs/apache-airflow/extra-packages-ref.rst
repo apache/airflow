@@ -68,6 +68,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | sentry              | ``pip install 'apache-airflow[sentry]'``            | Sentry service for application logging and monitoring                      |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| s3fs                | ``pip install 'apache-airflow[s3fs]'``              | Support for S3 as Airflow FS                                               |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                   |
@@ -170,6 +172,8 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | cloudant            | ``pip install 'apache-airflow[cloudant]'``          | Cloudant hook                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| cohere              | ``pip install 'apache-airflow[cohere]'``            | Cohere hook and operators                           |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | databricks          | ``pip install 'apache-airflow[databricks]'``        | Databricks hooks and operators                      |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                           |
@@ -188,9 +192,15 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | hashicorp           | ``pip install 'apache-airflow[hashicorp]'``         | Hashicorp Services (Vault)                          |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| openai              | ``pip install 'apache-airflow[openai]'``            | Open AI hooks and operators                         |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | opsgenie            | ``pip install 'apache-airflow[opsgenie]'``          | OpsGenie hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | pagerduty           | ``pip install 'apache-airflow[pagerduty]'``         | Pagerduty hook                                      |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| pgvector            | ``pip install 'apache-airflow[pgvector]'``          | pgvector operators and hook                         |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| pinecone            | ``pip install 'apache-airflow[pinecone]'``          | Pinecone Operators and Hooks                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | plexus              | ``pip install 'apache-airflow[plexus]'``            | Plexus service of CoreScientific.com AI platform    |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -211,6 +221,8 @@ These are extras that add dependencies needed for integration with external serv
 | telegram            | ``pip install 'apache-airflow[telegram]'``          | Telegram hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend          |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| weaviate            | ``pip install 'apache-airflow[weaviate]'``          | Weaviate hook and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | yandex              | ``pip install 'apache-airflow[yandex]'``            | Yandex.cloud hooks and operators                    |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -283,6 +295,8 @@ These are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | extra               | install command                                     | enables                              | Preinstalled |
 +=====================+=====================================================+======================================+==============+
+| common.io           | ``pip install 'apache-airflow[common.io]'``         | Core IO Operators                    |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | common.sql          | ``pip install 'apache-airflow[common.sql]'``        | Core SQL Operators                   |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators              |      *       |

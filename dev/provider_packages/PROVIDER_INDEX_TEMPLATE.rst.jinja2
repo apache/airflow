@@ -22,7 +22,7 @@
  IF YOU WANT TO MODIFY IT, YOU SHOULD MODIFY THE TEMPLATE
  `PROVIDER_INDEX_TEMPLATE.rst.jinja2` IN the `dev/provider_packages` DIRECTORY
 
-#}
+-#}
 
 .. toctree::
     :hidden:
@@ -44,6 +44,18 @@ Provider package
 
 This is a provider package for ``{{PROVIDER_PACKAGE_ID}}`` provider. All classes for this provider package
 are in ``{{FULL_PACKAGE_NAME}}`` python package.
+
+{%- if PROVIDER_REMOVED %}
+
+    .. warning::
+
+        This provider is not maintained anymore by the community. It has been removed and is not going to be
+        updated anymore. The removal was done according to the process described in
+        `Removing community providers <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#removing-community-providers>`_
+
+        Feel free to contact Airflow Development Mailing List if you have any questions.
+
+{%- endif %}
 
 Installation
 ------------

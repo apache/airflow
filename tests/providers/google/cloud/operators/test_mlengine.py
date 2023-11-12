@@ -939,7 +939,7 @@ TEST_PYTHON_VERSION = "3.8"
 TEST_JOB_DIR = "gs://example_mlengine_bucket/job-dir"
 TEST_PACKAGE_URIS = ["gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"]
 TEST_TRAINING_PYTHON_MODULE = "trainer.task"
-TEST_TRAINING_ARGS = []
+TEST_TRAINING_ARGS: list[str] = []
 TEST_LABELS = {"job_type": "training", "***-version": "v2-5-0-dev0"}
 
 

@@ -40,7 +40,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models import SlaMiss, errors
-from airflow.models.dag import DagModel
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -63,7 +63,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
 
@@ -830,7 +829,7 @@ class DagFileProcessor(LoggingMixin):
             return 0, 0
 
         if dagbag.dags:
-            self.log.info("DAG(s) %s retrieved from %s", dagbag.dags.keys(), file_path)
+            self.log.info("DAG(s) %s retrieved from %s", ", ".join(map(repr, dagbag.dags)), file_path)
         else:
             self.log.warning("No viable dags retrieved from %s", file_path)
             DagFileProcessor.update_import_errors(

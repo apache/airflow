@@ -141,6 +141,9 @@ def start_generating_back_references(airflow_site_directory: Path, short_provide
     if "docker-stack" in short_provider_package_ids:
         get_console().print("[info]Skipping docker-stack package. No back-reference needed.")
         short_provider_package_ids.remove("docker-stack")
+    if "apache-airflow-providers" in short_provider_package_ids:
+        get_console().print("[info]Skipping apache-airflow-providers package. No back-reference needed.")
+        short_provider_package_ids.remove("apache-airflow-providers")
     if short_provider_package_ids:
         all_providers = [
             f"apache-airflow-providers-{package.replace('.','-')}" for package in short_provider_package_ids

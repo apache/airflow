@@ -189,7 +189,7 @@ sequenceDiagram
             par
                 opt
                     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
-                    Note over Tests: Unit Tests<br>Python/DB matrix
+                    Note over Tests: Unit Tests<br>Python/DB matrix/No DB
                 end
             and
                 opt

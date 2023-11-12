@@ -26,6 +26,8 @@ from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 log = logging.getLogger(__name__)
 
 

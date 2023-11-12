@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 7.9.0
+  - 7.8.0
   - 7.7.0
   - 7.6.0
   - 7.5.1
@@ -69,6 +71,7 @@ versions:
   - 1.0.0
 
 dependencies:
+  - aiofiles>=23.2.0
   - apache-airflow>=2.5.0
   - asgiref>=3.5.2
   - cryptography>=2.0.0
@@ -340,3 +343,6 @@ config:
         type: string
         example: ~
         default: ""
+
+executors:
+  - airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor

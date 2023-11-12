@@ -122,6 +122,7 @@ Avro
 avro
 aws
 awsbatch
+awslogs
 Azkaban
 Azri
 backcompat
@@ -495,6 +496,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+dotproduct
 DownloadReportV
 downscaling
 downstreams
@@ -509,6 +511,7 @@ Dsn
 dsn
 dttm
 dtypes
+du
 durations
 dylib
 Dynamodb
@@ -516,6 +519,7 @@ dynamodb
 dynload
 ec
 ecb
+ecs
 EdgeModifier
 EdgeModifiers
 EDITMSG
@@ -634,6 +638,7 @@ ga
 Gantt
 gantt
 gapic
+gapped
 gbq
 gcc
 gcloud
@@ -797,6 +802,7 @@ intvl
 Investorise
 io
 ip
+ipc
 iPython
 irreproducible
 IRSA
@@ -1019,6 +1025,7 @@ natively
 navbar
 nd
 ndjson
+nearText
 neighbours
 neo
 Neo4j
@@ -1067,6 +1074,7 @@ onboarded
 OnFailure
 onkill
 Oozie
+openai
 openapi
 openfaas
 openlineage
@@ -1116,6 +1124,7 @@ paramiko
 Params
 params
 passwd
+pathlib
 pathType
 Paxos
 PEM
@@ -1126,10 +1135,12 @@ permalinks
 personalizations
 pformat
 PgBouncer
+pgvector
 picklable
 pid
 pidbox
 pigcmd
+pinecone
 pinodb
 Pinot
 pinot
@@ -1615,13 +1626,16 @@ tzinfo
 UA
 ui
 uid
+ukey
 ulimit
+ulimits
 Umask
 umask
 Un
 un
 unarchived
 unassigns
+uncomment
 uncommenting
 Undead
 undead
@@ -1657,6 +1671,8 @@ updateMask
 updateonly
 Upsert
 upsert
+upserted
+upserting
 upserts
 Upsight
 upstreams
@@ -1686,6 +1702,8 @@ validator
 vals
 vCPU
 ve
+vectorizer
+vectorizers
 vendored
 Vendorize
 venv
@@ -1708,6 +1726,7 @@ wape
 warmup
 Wasb
 wasb
+weaviate
 WebClient
 webhdfs
 Webhook

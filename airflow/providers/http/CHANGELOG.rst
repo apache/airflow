@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+4.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add pagination to 'HttpOperator' and make it more modular (#34669)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix json data for async PUTs (#35405)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+
 4.6.0
 .....
 

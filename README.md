@@ -62,6 +62,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who maintains Apache Airflow?](#who-maintains-apache-airflow)
+- [What goes into the next release?](#what-goes-into-the-next-release)
 - [Can I use the Apache Airflow logo in my presentation?](#can-i-use-the-apache-airflow-logo-in-my-presentation)
 - [Airflow merchandise](#airflow-merchandise)
 - [Links](#links)
@@ -89,15 +90,15 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)           | Stable version (2.7.1) |
-|-------------|------------------------------|------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11   |
-| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
-| Kubernetes  | 1.24, 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27 |
-| PostgreSQL  | 11, 12, 13, 14, 15, 16       | 11, 12, 13, 14, 15     |
-| MySQL       | 5.7, 8.0, 8.1                | 5.7, 8.0               |
-| SQLite      | 3.15.0+                      | 3.15.0+                |
-| MSSQL       | 2017(\*\*), 2019(\*\*)       | 2017(\*\*), 2019(\*\*) |
+|             | Main version (dev)     | Stable version (2.7.3)       |
+|-------------|------------------------|------------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11         |
+| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)              |
+| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27, 1.28 |
+| PostgreSQL  | 11, 12, 13, 14, 15, 16 | 11, 12, 13, 14, 15           |
+| MySQL       | 8.0, Innovation        | 5.7, 8.0                     |
+| SQLite      | 3.15.0+                | 3.15.0+                      |
+| MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*)       |
 
 \* Experimental
 
@@ -117,7 +118,9 @@ The work to add Windows support is tracked via [#10388](https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
-`Debian Bullseye`.
+`Debian Bookworm`. We also have support for legacy ``Debian Bullseye`` base image if you want to build a
+custom image but it is deprecated and option to do it will be removed in the Dockerfile that
+will accompany Airflow 2.9.0 so you are advised to switch to ``Debian Bookworm`` for your custom images.
 
 <!-- END Requirements, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Getting started, please keep comment here to allow auto update of PyPI readme.md -->
@@ -172,15 +175,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.7.1' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.8.txt"
+pip install 'apache-airflow==2.7.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.7.1' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.7.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
@@ -292,7 +295,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.7.2                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.7.3                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -343,20 +346,21 @@ we publish an Apache Airflow release. Those images contain:
 
 The version of the base OS image is the stable version of Debian. Airflow supports using all currently active
 stable versions - as soon as all Airflow dependencies support building, and we set up the CI pipeline for
-building and testing the OS version. Approximately 6 months before the end-of-life of a previous stable
-version of the OS, Airflow switches the images released to use the latest supported version of the OS.
+building and testing the OS version. Approximately 6 months before the end-of-regular support of a
+previous stable version of the OS, Airflow switches the images released to use the latest supported
+version of the OS.
+
 For example since ``Debian Buster`` end-of-life was August 2022, Airflow switched the images in `main` branch
 to use ``Debian Bullseye`` in February/March 2022. The version was used in the next MINOR release after
 the switch happened. In case of the Bullseye switch - 2.3.0 version used ``Debian Bullseye``.
 The images released  in the previous MINOR version continue to use the version that all other releases
-for the MINOR version used.
+for the MINOR version used. Similar switch from ``Debian Bullseye`` to ``Debian Bookworm`` has been implemented
+before 2.8.0 release in October 2023 and ``Debian Bookworm`` will be the only option supported as of
+Airflow 2.9.0.
 
-Support for ``Debian Buster`` image was dropped in August 2022 completely and everyone is expected to
-stop building their images using ``Debian Buster``.
-
-Users will continue to be able to build their images using stable Debian releases until the end of life and
-building and verifying of the images happens in our CI but no unit tests were executed using this image in
-the `main` branch.
+Users will continue to be able to build their images using stable Debian releases until the end of regular
+support and building and verifying of the images happens in our CI but no unit tests were executed using
+this image in the `main` branch.
 
 ## Approach to dependencies of Airflow
 
@@ -422,6 +426,7 @@ By default, we should not upper-bound dependencies for providers, however each p
 might decide to add additional limits (and justify them with comment).
 
 <!-- START Contributing, please keep comment here to allow auto update of PyPI readme.md -->
+
 ## Contributing
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
@@ -430,13 +435,17 @@ Official Docker (container) images for Apache Airflow are described in [IMAGES.r
 
 <!-- END Contributing, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
+
 ## Who uses Apache Airflow?
 
-More than 400 organizations are using Apache Airflow
+We know about around 500 organizations that are using Apache Airflow (but there are likely many more)
 [in the wild](https://github.com/apache/airflow/blob/main/INTHEWILD.md).
+
+If you use Airflow - feel free to make a PR to add your organisation to the list.
 
 <!-- END Who uses Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Who maintains Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
+
 ## Who maintains Apache Airflow?
 
 Airflow is the work of the [community](https://github.com/apache/airflow/graphs/contributors),
@@ -446,6 +455,49 @@ If you would like to become a maintainer, please review the Apache Airflow
 [committer requirements](https://github.com/apache/airflow/blob/main/COMMITTERS.rst#guidelines-to-become-an-airflow-committer).
 
 <!-- END Who maintains Apache Airflow, please keep comment here to allow auto update of PyPI readme.md -->
+
+## What goes into the next release?
+
+Often you will see an issue that is assigned to specific milestone with Airflow version, or PR that gets merged
+to the main branch and you might wonder which release the merged PR will be released in or which release the
+issue will be fixed in. The answer to it is as usual - it depends. The answer is different for PRs and Issues.
+
+To add a bit of context, ee are following the [Semver](https://semver.org/) versioning scheme as described in
+[Airflow release process](https://airflow.apache.org/docs/apache-airflow/stable/release-process.html). More
+details are explained in detail in this README in [Semantic versioning](#semantic-versioning) chapter, but
+in short, we have `MAJOR.MINOR.PATCH` versions of Airflow, where `MAJOR` version is incremented when there
+are breaking changes, `MINOR` version is incremented when there are new features added, and `PATCH` version
+is incremented when there are only bug-fixes and doc-only changes.
+
+Generally we release `MINOR` versions of Airflow from a branch that is named after the MINOR version. For example
+`2.7.*` releases are released from `v2-7-stable` branch, `2.8.*` releases are released from `v2-8-stable`
+branch, etc.
+
+Most of the time in our release cycle, when the branch for next `MINOR` branch is not yet created, all
+PRs merged to `main` (unless they get reverted), will find their way to the next `MINOR` release. For example
+if the last release is `2.7.0` or `2.7.3` and `v2-8-stable` branch is not created yet, the next `MINOR` release
+is `2.8.0` and all PRs merged to main will be released in `2.8.0`. There is a brief period of time when we
+cut a new `MINOR` release branch and prepare alpha, beta, RC candidates for the `2.NEXT_MINOR.0` version
+where PRs merged to main will only be released in the following `MINOR` release.
+
+However, some PRs (bug-fixes and doc-only changes) when merged, can be cherry-picked to current `MINOR` branch
+and released in the next `PATCHLEVEL` release - for example when the last released version from `v2-7-stable`
+branch is `2.7.2`. Some of the PRs from main can be marked as `2.7.3` milestone by committers and attempt by the
+release manager to cherry-pick them is made. If successful, they will be released in `2.7.3`. The final
+decision about cherry-picking is made by the release manager.
+
+Marking issues with a milestone is a bit different. Maintainers do not mark issues with a milestone usually,
+normally they are only marked in PRs. If PR linked to the issue (and "fixing it") gets merged and released
+in a specific version following the process described above, the issue will be automatically closed, no
+milestone will be set for the issue, you need to check the PR that fixed the issue to see which version
+it was released in. However sometimes maintainers mark issues with specific milestone, which means that the
+issue is important to become a candidate to take a look when the release is being prepared. Since this is an
+Open-Source project, where basically all contributors volunteer their time, there is no guarantee that specific
+issue will be fixed in specific version. We do not want to hold the release because some issue is not fixed,
+so in such case release manager will reassign such unfixed issues to the next milestone in case they are not
+fixed in time for the current release. Therefore, the milestone for issue is more of an intent that it should be
+looked at, than promise it will be fixed in the version.
+
 ## Can I use the Apache Airflow logo in my presentation?
 
 Yes! Be sure to abide by the Apache Foundation [trademark policies](https://www.apache.org/foundation/marks/#books) and the Apache Airflow [Brandbook](https://cwiki.apache.org/confluence/display/AIRFLOW/Brandbook). The most up-to-date logos are found in [this repo](https://github.com/apache/airflow/tree/main/docs/apache-airflow/img/logos/) and on the Apache Software Foundation [website](https://www.apache.org/logos/about.html).

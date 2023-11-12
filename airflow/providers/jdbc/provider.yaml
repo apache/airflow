@@ -64,7 +64,29 @@ hooks:
     python-modules:
       - airflow.providers.jdbc.hooks.jdbc
 
-
 connection-types:
   - hook-class-name: airflow.providers.jdbc.hooks.jdbc.JdbcHook
     connection-type: jdbc
+
+config:
+  providers.jdbc:
+    description: This section applies for the JDBC provider and connection type.
+    options:
+      allow_driver_path_in_extra:
+        description: |
+          Whether to allow using ``driver_path`` set in the connection's ``extra`` field. If set to False,
+          ``driver_path`` will be ignored. If enabling this functionality, you should make sure that you
+          trust the users who can edit connections to not use it maliciously.
+        version_added: "4.0.0"
+        type: boolean
+        example: ~
+        default: "False"
+      allow_driver_class_in_extra:
+        description: |
+          Whether to allow using ``driver_class`` set in the connection's ``extra`` field. If set to False,
+          ``driver_class`` will be ignored. If enabling this functionality, you should make sure that you
+          trust the users who can edit connections to not use it maliciously.
+        version_added: "4.0.0"
+        type: boolean
+        example: ~
+        default: "False"

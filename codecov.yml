@@ -17,15 +17,16 @@
 ---
 codecov:
   branch: main
-  max_report_age: off  # yamllint disable-line rule:truthy
+  max_report_age: 6h
   require_ci_to_pass: true
   notify:
     wait_for_ci: false
+    after_n_builds: 10
 
 coverage:
-  precision: 2
+  precision: 1
   round: down
-  range: 60..85
+  range: 65..90
   status:
     project:
       default:
