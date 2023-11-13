@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-13T12:28:57Z
+# This constraints file was automatically generated on 2023-11-13T15:28:34Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -279,7 +279,7 @@ docutils==0.20.1
 duckdb==0.9.1
 ecdsa==0.18.0
 elastic-transport==8.10.0
-elasticsearch==8.10.1
+elasticsearch==8.11.0
 email-validator==1.3.1
 entrypoints==0.4
 eralchemy2==1.3.8
