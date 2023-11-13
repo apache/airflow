@@ -38,28 +38,11 @@ def test_execute_with_input_text():
     assert embeddings == [1.0, 2.0, 3.0]
 
 
-def test_execute_with_invalid_input_empty_string():
+@pytest.mark.parametrize("invalid_input", ["", None, 123])
+def test_execute_with_invalid_input(invalid_input):
     with pytest.raises(ValueError):
         operator = OpenAIEmbeddingOperator(
-            task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=""
-        )
-        context = Context()
-        operator.execute(context)
-
-
-def test_execute_with_invalid_input_none():
-    with pytest.raises(ValueError):
-        operator = OpenAIEmbeddingOperator(
-            task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=None
-        )
-        context = Context()
-        operator.execute(context)
-
-
-def test_execute_with_invalid_input_wrong_type():
-    with pytest.raises(ValueError):
-        operator = OpenAIEmbeddingOperator(
-            task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=123
+            task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=invalid_input
         )
         context = Context()
         operator.execute(context)
