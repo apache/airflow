@@ -38,6 +38,7 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
+from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
 from airflow.models.dagrun import DagRun
@@ -154,16 +155,16 @@ def get_mapped_summary(parent_instance, task_instances):
 def get_dag_run_conf(
     dag_run_conf: Any, *, json_encoder: type[json.JSONEncoder] = json.JSONEncoder
 ) -> tuple[str | None, bool]:
-    conf: str | None = None
+    result: str | None = None
 
     conf_is_json: bool = False
     if isinstance(dag_run_conf, str):
-        conf = dag_run_conf
+        result = dag_run_conf
     elif isinstance(dag_run_conf, (dict, list)) and any(dag_run_conf):
-        conf = json.dumps(dag_run_conf, sort_keys=True, cls=json_encoder, ensure_ascii=False)
+        result = json.dumps(dag_run_conf, sort_keys=True, cls=json_encoder, ensure_ascii=False)
         conf_is_json = True
 
-    return conf, conf_is_json
+    return result, conf_is_json
 
 
 def encode_dag_run(
@@ -172,7 +173,7 @@ def encode_dag_run(
     if not dag_run:
         return None
 
-    conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
+    dag_run_conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
 
     return {
         "run_id": dag_run.run_id,
@@ -186,7 +187,7 @@ def encode_dag_run(
         "run_type": dag_run.run_type,
         "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
         "external_trigger": dag_run.external_trigger,
-        "conf": conf,
+        "conf": dag_run_conf,
         "conf_is_json": conf_is_json,
         "note": dag_run.note,
     }
@@ -613,7 +614,7 @@ def json_render(obj, lexer):
 
 def wrapped_markdown(s, css_class="rich_doc"):
     """Convert a Markdown string to HTML."""
-    md = MarkdownIt("gfm-like")
+    md = MarkdownIt("gfm-like", {"html": conf.getboolean("webserver", "allow_raw_html_descriptions")})
     if s is None:
         return None
     s = textwrap.dedent(s)

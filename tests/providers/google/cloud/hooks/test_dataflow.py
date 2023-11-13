@@ -1417,6 +1417,10 @@ class TestDataflowJob:
     @pytest.mark.parametrize(
         "job_state, wait_until_finished, expected_result",
         [
+            # DONE
+            (DataflowJobStatus.JOB_STATE_DONE, None, True),
+            (DataflowJobStatus.JOB_STATE_DONE, True, True),
+            (DataflowJobStatus.JOB_STATE_DONE, False, True),
             # RUNNING
             (DataflowJobStatus.JOB_STATE_RUNNING, None, False),
             (DataflowJobStatus.JOB_STATE_RUNNING, True, False),

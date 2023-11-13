@@ -21,6 +21,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Callable
 
 from flask import g
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sqlalchemy import select
 
 from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES as FAB_EXISTING_ROLES
@@ -67,7 +69,6 @@ from airflow.security.permissions import (
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
-from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = FAB_EXISTING_ROLES
@@ -75,17 +76,22 @@ EXISTING_ROLES = FAB_EXISTING_ROLES
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.auth.managers.fab.models import Action, Resource
     from airflow.auth.managers.models.base_user import BaseUser
 
 
-class AirflowSecurityManagerV2(BaseSecurityManager, LoggingMixin):
+class AirflowSecurityManagerV2(LoggingMixin):
     """Custom security manager, which introduces a permission model adapted to Airflow.
 
     It's named V2 to differentiate it from the obsolete airflow.www.security.AirflowSecurityManager.
     """
 
     def __init__(self, appbuilder) -> None:
-        super().__init__(appbuilder=appbuilder)
+        super().__init__()
+        self.appbuilder = appbuilder
+
+        # Setup Flask-Limiter
+        self.limiter = self.create_limiter()
 
         # Go and fix up the SQLAInterface used from the stock one to our subclass.
         # This is needed to support the "hack" where we had to edit
@@ -95,6 +101,16 @@ class AirflowSecurityManagerV2(BaseSecurityManager, LoggingMixin):
                 view = getattr(self, attr, None)
                 if view and getattr(view, "datamodel", None):
                     view.datamodel = CustomSQLAInterface(view.datamodel.obj)
+
+    @staticmethod
+    def before_request():
+        """Run hook before request."""
+        g.user = get_auth_manager().get_user()
+
+    def create_limiter(self) -> Limiter:
+        limiter = Limiter(key_func=get_remote_address)
+        limiter.init_app(self.appbuilder.get_app)
+        return limiter
 
     def has_access(
         self, action_name: str, resource_name: str, user=None, resource_pk: str | None = None
@@ -133,6 +149,36 @@ class AirflowSecurityManagerV2(BaseSecurityManager, LoggingMixin):
         If necessary, returns the username and password to be printed in the console for users to log in.
         """
         return None, None
+
+    def add_limit_view(self, baseview):
+        if not baseview.limits:
+            return
+
+        for limit in baseview.limits:
+            self.limiter.limit(
+                limit_value=limit.limit_value,
+                key_func=limit.key_func,
+                per_method=limit.per_method,
+                methods=limit.methods,
+                error_message=limit.error_message,
+                exempt_when=limit.exempt_when,
+                override_defaults=limit.override_defaults,
+                deduct_when=limit.deduct_when,
+                on_breach=limit.on_breach,
+                cost=limit.cost,
+            )(baseview.blueprint)
+
+    def add_permissions_view(self, base_action_names, resource_name):
+        raise NotImplementedError("Sync FAB permissions is only available with the FAB auth manager")
+
+    def add_permissions_menu(self, resource_name):
+        raise NotImplementedError("Sync FAB permissions is only available with the FAB auth manager")
+
+    def get_action(self, name: str) -> Action:
+        raise NotImplementedError("Only available when FAB auth manager is used")
+
+    def get_resource(self, name: str) -> Resource:
+        raise NotImplementedError("Only available when FAB auth manager is used")
 
     @cached_property
     @provide_session
