@@ -1211,7 +1211,7 @@ class TaskInstance(Base, LoggingMixin):
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
-    pool = Column(String(256), nullable=False)
+    _pool = Column("pool", String(256), nullable=False)
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
@@ -1256,7 +1256,7 @@ class TaskInstance(Base, LoggingMixin):
         # rows have to be fetched in order to retrieve the start_date column. With this index, INDEX ONLY SCAN
         # is performed and that query runs within milliseconds.
         Index("ti_state_incl_start_date", dag_id, task_id, state, postgresql_include=["start_date"]),
-        Index("ti_pool", pool, state, priority_weight),
+        Index("ti_pool", _pool, state, priority_weight),
         Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
         PrimaryKeyConstraint(
@@ -1371,6 +1371,16 @@ class TaskInstance(Base, LoggingMixin):
 
     def __hash__(self):
         return hash((self.task_id, self.dag_id, self.run_id, self.map_index))
+
+    @property
+    def pool(self):
+        context = self.get_template_context()
+        self.task.render_pool(context)
+        return self.task.pool
+
+    @pool.setter
+    def pool(self, value):
+        self._pool = value
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -2780,6 +2790,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("Updating task params (%s) with DagRun.conf (%s)", params, dag_run.conf)
             params.update(dag_run.conf)
 
+
     def render_templates(self, context: Context | None = None) -> Operator:
         """Render templates in the operator fields.
 
@@ -2795,6 +2806,7 @@ class TaskInstance(Base, LoggingMixin):
         # unmapped BaseOperator created by this function! This is because the
         # MappedOperator is useless for template rendering, and we need to be
         # able to access the unmapped task instead.
+        # original_task.render_template_args(context)
         original_task.render_template_fields(context)
 
         return original_task

@@ -669,7 +669,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     ui_color: str = "#fff"
     ui_fgcolor: str = "#000"
 
-    pool: str = ""
+    pool: str | XComArg = ""
 
     # base list which includes all the attrs that don't need deep copy.
     _base_operator_shallow_copy_attrs: tuple[str, ...] = (
@@ -760,7 +760,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
         weight_rule: str = DEFAULT_WEIGHT_RULE,
         queue: str = DEFAULT_QUEUE,
-        pool: str | None = None,
+        pool: str | XComArg | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: timedelta | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
@@ -791,6 +791,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     ):
         from airflow.models.dag import DagContext
         from airflow.utils.task_group import TaskGroupContext
+        from airflow.models.xcom_arg import XComArg
 
         self.__init_kwargs = {}
 
@@ -849,7 +850,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.run_as_user = run_as_user
         self.retries = parse_retries(retries)
         self.queue = queue
-        self.pool = Pool.DEFAULT_POOL_NAME if pool is None else pool
+        if isinstance(pool, XComArg):
+            # How to render the value?
+            self.pool = pool
+        else:
+            self.pool = Pool.DEFAULT_POOL_NAME if pool is None else pool
         self.pool_slots = pool_slots
         if self.pool_slots < 1:
             dag_str = f" in dag {dag.dag_id}" if dag else ""
@@ -1250,6 +1255,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if not jinja_env:
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
+
+    def render_pool(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None
+        ) -> None:
+        if not jinja_env:
+            jinja_env = self.get_template_env()
+        self._do_render_template_fields(self, ("pool",), context, jinja_env, set())
 
     @provide_session
     def clear(

@@ -732,6 +732,40 @@ def test_task_mapping_with_explicit_task_group():
     assert finish.upstream_list == [mapped]
     assert mapped.downstream_list == [finish]
 
+def test_task_with_explicit_pool_name(dag_maker, session):
+    custom_pool_name = "custom-pool-name"
+    class MyOperator(BaseOperator):
+        def __init__(self, arg1, **kwargs):
+            kwargs["pool"] = custom_pool_name
+            self.arg1 = arg1
+            super().__init__(**kwargs)
+
+        def execute(self, context):
+            pass
+
+    with dag_maker(session=session) as dag:
+        task1 = BaseOperator(task_id="op1")
+        finish = MockOperator(task_id="finish")
+
+        literals = ["a", "b", "c"]
+        mapped = MyOperator.partial(
+            task_id="my_task"
+        ).expand(arg1=literals)
+
+        task1 >> mapped >> finish
+
+    assert task1.downstream_list == [mapped]
+    assert mapped.upstream_list == [task1]
+
+    assert mapped in dag.tasks
+
+    assert mapped.expand_input.value == {"arg1": literals}
+    # assert mapped.pool == "test"
+    operator = mapped.unmap({"arg1": literals})
+    assert isinstance(operator, MyOperator)
+    assert operator.arg1 == literals
+    assert operator.pool == custom_pool_name
+
 
 class TestMappedSetupTeardown:
     @staticmethod

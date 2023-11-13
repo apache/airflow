@@ -15,8 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+from re import L
 
 import pytest
+from airflow.models.baseoperator import BaseOperator
 
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
@@ -183,6 +185,34 @@ class TestXComArgRuntime:
             )
             op1 >> op2
         dag.run()
+
+def test_xcom_pool(dag_maker, session):
+    with dag_maker(session=session) as dag:
+        class MyOperator(BaseOperator):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+
+            def execute(self):
+                print(self.pool)
+
+        @dag.task
+        def push_letters():
+            return {"pool": "test_pool"}
+
+        my_task = MyOperator(
+            task_id="my_task",
+            pool="{{ task_instance.xcom_pull(task_ids='push_letters') }}"
+        )
+
+        push_letters() >> my_task
+
+    dr = dag_maker.create_dagrun()
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert sorted([ti.task_id for ti in decision.unfinished_tis], reverse=True) == ["push_letters", "my_task"]
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+    session.commit()
+    assert dr.get_task_instances()[1].pool == "test_pool"
 
 
 @pytest.mark.parametrize(

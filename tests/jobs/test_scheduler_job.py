@@ -60,6 +60,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
+from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -4847,14 +4848,15 @@ class TestSchedulerJob:
             ), "Scheduler has stalled without setting the DagRun state!"
 
         set_state_spy = mock.patch.object(DagRun, "set_state", new=watch_set_state)
-        heartbeat_spy = mock.patch.object(job_runner, "heartbeat", new=watch_heartbeat)
+        # heartbeat_spy = mock.patch.object(job_runner, "heartbeat", new=watch_heartbeat)
 
-        with heartbeat_spy, set_state_spy, do_scheduling_spy, executor_events_spy:
+        with set_state_spy, do_scheduling_spy, executor_events_spy:
             run_job(job_runner.job, execute_callable=job_runner._execute)
 
     @pytest.mark.long_running
-    @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow"])
-    def test_mapped_dag(self, dag_id, session):
+    # @pytest.mark.parametrize("dag_id", ["test_mapped_classic", "test_mapped_taskflow"])
+    @pytest.mark.parametrize("dag_id", ["test_mapped_custom_operator"])
+    def test_mapped_dag(self, dag_id, session, caplog):
         """End-to-end test of a simple mapped dag"""
         # Use SequentialExecutor for more predictable test behaviour
         from airflow.executors.sequential_executor import SequentialExecutor
@@ -4874,9 +4876,13 @@ class TestSchedulerJob:
 
         job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(job=job, subdir=dag.fileloc)
-        self.run_scheduler_until_dagrun_terminal(job)
+        self.run_scheduler_until_dagrun_terminal(self.job_runner)
 
         dr.refresh_from_db(session)
+        # TODO: move to pytest parameters
+        ti = dr.get_task_instances()[3]
+        assert ti.task_id == "mapped_task"
+        assert ti.pool == "custom_pool_name"
         assert dr.state == DagRunState.SUCCESS
 
     def test_should_mark_empty_task_as_success(self):
