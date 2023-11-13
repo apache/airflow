@@ -56,7 +56,7 @@ def get_components(principal) -> list[str] | None:
 def replace_hostname_pattern(components, host=None):
     """Replace hostname with the right pattern including lowercase of the name."""
     fqdn = host
-    if not fqdn or fqdn == "0.0.0.0":
+    if not fqdn or fqdn == "0.0.0.0":  # nosec
         fqdn = get_hostname()
     return f"{components[0]}/{fqdn.lower()}@{components[2]}"
 

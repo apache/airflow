@@ -51,7 +51,7 @@ class LevelDBHook(BaseHook):
         self.connection = self.get_connection(leveldb_conn_id)
         self.db: plyvel.DB | None = None
 
-    def get_conn(self, name: str = "/tmp/testdb/", create_if_missing: bool = False, **kwargs) -> DB:
+    def get_conn(self, name: str = "/tmp/testdb/", create_if_missing: bool = False, **kwargs) -> DB:  # nosec
         """
         Creates `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__.
 
