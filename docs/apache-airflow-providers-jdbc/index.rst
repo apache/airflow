@@ -34,8 +34,9 @@
     :maxdepth: 1
     :caption: Guides
 
-    Operators <operators>
+    Configuration <configurations-ref>
     Connection types <connections/jdbc>
+    Operators <operators>
 
 .. toctree::
     :hidden:

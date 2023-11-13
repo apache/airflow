@@ -24,7 +24,7 @@ from __future__ import annotations
 
 PRE_COMMIT_LIST = [
     "all",
-    "black",
+    "bandit",
     "blacken-docs",
     "check-aiobotocore-optional",
     "check-airflow-k8s-not-used",
@@ -62,6 +62,7 @@ PRE_COMMIT_LIST = [
     "check-persist-credentials-disabled-in-github-workflows",
     "check-pre-commit-information-consistent",
     "check-provide-create-sessions-imports",
+    "check-provider-docs-valid",
     "check-provider-yaml-valid",
     "check-providers-init-file-missing",
     "check-providers-subpackages-init-file-exist",
@@ -106,6 +107,7 @@ PRE_COMMIT_LIST = [
     "replace-bad-characters",
     "rst-backticks",
     "ruff",
+    "ruff-format",
     "shellcheck",
     "trailing-whitespace",
     "ts-compile-format-lint-www",

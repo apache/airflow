@@ -27,6 +27,8 @@ from airflow.models import Connection
 from airflow.providers.datadog.sensors.datadog import DatadogSensor
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 at_least_one_event = [
     {
         "alert_type": "info",

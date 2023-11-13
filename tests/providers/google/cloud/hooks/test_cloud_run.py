@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook, Cl
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 
+@pytest.mark.db_test
 class TestCloudRunHook:
     def dummy_get_credentials(self):
         pass

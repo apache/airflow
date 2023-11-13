@@ -27,6 +27,8 @@ from airflow.providers.slack.notifications.slack_webhook import (
     send_slack_webhook_notification,
 )
 
+pytestmark = pytest.mark.db_test
+
 DEFAULT_HOOKS_PARAMETERS = {"timeout": None, "proxy": None, "retry_handlers": None}
 
 

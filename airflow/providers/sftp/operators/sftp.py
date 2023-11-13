@@ -210,7 +210,7 @@ class SFTPOperator(BaseOperator):
             local_host = socket.gethostbyname(local_host)
         except Exception as e:
             self.log.warning(
-                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",  # noqa: E501
+                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",
                 exc_info=True,
             )
 

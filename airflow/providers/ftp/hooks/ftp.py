@@ -18,8 +18,7 @@
 from __future__ import annotations
 
 import datetime
-import ftplib
-import os
+import ftplib  # nosec: B402
 from typing import Any, Callable
 
 from airflow.hooks.base import BaseHook
@@ -59,7 +58,7 @@ class FTPHook(BaseHook):
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
-            self.conn = ftplib.FTP(params.host, params.login, params.password)
+            self.conn = ftplib.FTP(params.host, params.login, params.password)  # nosec: B321
             self.conn.set_pasv(pasv)
 
         return self.conn
@@ -77,9 +76,7 @@ class FTPHook(BaseHook):
         :param path: full path to the remote directory
         """
         conn = self.get_conn()
-        conn.cwd(path)
-        files = dict(conn.mlsd())
-        return files
+        return dict(conn.mlsd(path))
 
     def list_directory(self, path: str) -> list[str]:
         """
@@ -88,10 +85,7 @@ class FTPHook(BaseHook):
         :param path: full path to the remote directory to list
         """
         conn = self.get_conn()
-        conn.cwd(path)
-
-        files = conn.nlst()
-        return files
+        return conn.nlst(path)
 
     def create_directory(self, path: str) -> None:
         """
@@ -181,10 +175,8 @@ class FTPHook(BaseHook):
 
             callback = output_handle.write
 
-        remote_path, remote_file_name = os.path.split(remote_full_path)
-        conn.cwd(remote_path)
         self.log.info("Retrieving file from FTP: %s", remote_full_path)
-        conn.retrbinary(f"RETR {remote_file_name}", callback, block_size)
+        conn.retrbinary(f"RETR {remote_full_path}", callback, block_size)
         self.log.info("Finished retrieving file from FTP: %s", remote_full_path)
 
         if is_path and output_handle:
@@ -213,9 +205,8 @@ class FTPHook(BaseHook):
             input_handle = open(local_full_path_or_buffer, "rb")
         else:
             input_handle = local_full_path_or_buffer
-        remote_path, remote_file_name = os.path.split(remote_full_path)
-        conn.cwd(remote_path)
-        conn.storbinary(f"STOR {remote_file_name}", input_handle, block_size)
+
+        conn.storbinary(f"STOR {remote_full_path}", input_handle, block_size)
 
         if is_path:
             input_handle.close()
@@ -286,7 +277,7 @@ class FTPSHook(FTPHook):
             if params.port:
                 ftplib.FTP_TLS.port = params.port
 
-            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password)
+            self.conn = ftplib.FTP_TLS(params.host, params.login, params.password)  # nosec: B321
             self.conn.set_pasv(pasv)
 
         return self.conn

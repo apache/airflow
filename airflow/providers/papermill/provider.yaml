@@ -44,6 +44,7 @@ dependencies:
   - apache-airflow>=2.5.0
   - papermill[all]>=1.2.1
   - scrapbook[all]
+  - ipykernel
 
 integrations:
   - integration-name: Papermill
@@ -57,3 +58,12 @@ operators:
   - integration-name: Papermill
     python-modules:
       - airflow.providers.papermill.operators.papermill
+
+hooks:
+  - integration-name: Papermill
+    python-modules:
+      - airflow.providers.papermill.hooks.kernel
+
+connection-types:
+  - hook-class-name: airflow.providers.papermill.hooks.kernel.KernelHook
+    connection-type: jupyter_kernel

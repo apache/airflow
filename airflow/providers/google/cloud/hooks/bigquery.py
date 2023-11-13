@@ -1725,7 +1725,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # we check to make sure the passed source format is valid
         # if it's not, we raise a ValueError
         # Refer to this link for more details:
-        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat # noqa
+        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat
 
         if schema_fields is None and not autodetect:
             raise ValueError("You must either pass a schema or autodetect=True.")
@@ -2137,7 +2137,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # BigQuery also allows you to define how you want a table's schema to change
         # as a side effect of a query job
         # for more details:
-        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.schemaUpdateOptions  # noqa
+        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.schemaUpdateOptions
 
         allowed_schema_update_options = ["ALLOW_FIELD_ADDITION", "ALLOW_FIELD_RELAXATION"]
 

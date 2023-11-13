@@ -31,6 +31,8 @@ from airflow.cli.commands import celery_command
 from airflow.configuration import conf
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.db_test
+
 
 class TestWorkerPrecheck:
     @mock.patch("airflow.settings.validate_session")

@@ -59,9 +59,8 @@
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-qubole/>
     Installing from sources <installing-providers-from-sources>
 
+
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -76,13 +75,21 @@ Package apache-airflow-providers-qubole
 `Qubole <https://www.qubole.com/>`__
 
 
-Release: 3.4.2
+Release: 3.4.3
 
 Provider package
 ----------------
 
 This is a provider package for ``qubole`` provider. All classes for this provider package
 are in ``airflow.providers.qubole`` python package.
+
+    .. warning::
+
+        This provider is not maintained anymore by the community. It has been removed and is not going to be
+        updated anymore. The removal was done according to the process described in
+        `Removing community providers <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#removing-community-providers>`_
+
+        Feel free to contact Airflow Development Mailing List if you have any questions.
 
 Installation
 ------------
@@ -94,40 +101,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
 
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.4.0``
+``apache-airflow``                       ``>=2.5.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``qds-sdk``                              ``>=1.10.4``
 =======================================  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-qubole[common.sql]
-
-
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
-
-Downloading official packages
------------------------------
-
-You can download officially released packages and verify their checksums and signatures from the
-`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
-
-* `The apache-airflow-providers-qubole 3.4.2 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-qubole-3.4.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-qubole-3.4.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-qubole-3.4.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-qubole 3.4.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qubole-3.4.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qubole-3.4.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_qubole-3.4.2-py3-none-any.whl.sha512>`__)

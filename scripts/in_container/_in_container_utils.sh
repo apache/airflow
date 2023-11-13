@@ -88,7 +88,7 @@ function in_container_fix_ownership() {
             echo "${COLOR_BLUE}Fixing ownership of ${count_matching} root owned files on ${HOST_OS}${COLOR_RESET}"
             echo
             find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -print0 2> /dev/null |
-                xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
+                xargs --null chown "${HOST_USER_ID}:${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
             echo "${COLOR_BLUE}Fixed ownership of generated files${COLOR_RESET}."
             echo
         fi
@@ -185,9 +185,9 @@ function install_airflow_from_wheel() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -224,9 +224,9 @@ function install_airflow_from_sdist() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -301,16 +301,11 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     local res
     for provider_package in ${ALL_PROVIDERS_PACKAGES}
     do
-        # Until we release "yandex" provider with protobuf support we need to remove it from the list of providers
-        # to install, because it is impossible to find common requirements for already released yandex provider
-        # and current airflow
-        if [[ ${provider_package} == "apache-airflow-providers-yandex" ]]; then
-            continue
-        fi
-        # Until we release latest `hive` provider with pure-sasl support, we need to remove it from the
-        # list of providers to install for Python 3.11 because we cannot build sasl it for Python 3.11
-        if [[ ${provider_package} == "apache-airflow-providers-apache-hive" \
-            && ${PYTHON_MAJOR_MINOR_VERSION} == "3.11" ]]; then
+        # Remove common.io provider in main branch until we cut-off v2-8-test branch and change
+        # version in main to 2.9.0 - otherwise we won't be able to generate PyPI constraints as
+        # released common-io provider has apache-airflow>2.8.0 as dependency and we cannot install
+        # the provider from PyPI
+        if [[ ${provider_package} == "apache-airflow-providers-common-io" ]]; then
             continue
         fi
         echo -n "Checking if ${provider_package} is available in PyPI: "

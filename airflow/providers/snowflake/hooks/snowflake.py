@@ -440,6 +440,7 @@ class SnowflakeHook(DbApiHook):
                 "column_name",
                 "ordinal_position",
                 "data_type",
+                "table_catalog",
             ],
             database=database,
             is_information_schema_cross_db=True,

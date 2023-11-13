@@ -1133,7 +1133,6 @@ sql_alchemy_conn=sqlite://test
 
     def test_deprecated_funcs(self):
         for func in [
-            "load_test_config",
             "get",
             "getboolean",
             "getfloat",

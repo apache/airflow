@@ -25,6 +25,10 @@
             "description": "If set to true, the provider is suspended and it's not a candidate for release nor contributes dependencies to constraint calculations/CI image. Tests are excluded.",
             "type:": "boolean"
         },
+        "removed": {
+            "description": "If set to true, the provider is also removed and will be soon removed from the code",
+            "type:": "boolean"
+        },
         "dependencies": {
             "description": "Dependencies that should be added to the provider",
             "type": "array",
@@ -167,6 +171,13 @@
                     "integration-name",
                     "python-modules"
                 ]
+            }
+        },
+        "filesystems": {
+            "type": "array",
+            "description": "Filesystem module names",
+            "items": {
+                "type": "string"
             }
         },
         "transfers": {

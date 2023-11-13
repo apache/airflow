@@ -24,6 +24,9 @@ from google.api_core.gapic_v1.method import DEFAULT
 from airflow.providers.google.cloud.hooks.dataform import DataformHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
+pytestmark = pytest.mark.db_test
+
+
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAFORM_STRING = "airflow.providers.google.cloud.hooks.dataform.{}"
 
@@ -52,7 +55,7 @@ FILEPATH = "path/to/file.txt"
 FILE_CONTENTS = b"test content"
 
 
-class TestDataflowHook:
+class TestDataformHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
             DataformHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")

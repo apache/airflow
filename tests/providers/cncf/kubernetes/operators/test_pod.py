@@ -40,6 +40,9 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
@@ -132,6 +135,13 @@ class TestKubernetesPodOperator:
                 requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
                 limits={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
             ),
+            volume_mounts=[
+                k8s.V1VolumeMount(
+                    name="{{ dag.dag_id }}",
+                    mount_path="mount_path",
+                    sub_path="{{ dag.dag_id }}",
+                )
+            ],
             pod_template_file="{{ dag.dag_id }}",
             config_file="{{ dag.dag_id }}",
             labels="{{ dag.dag_id }}",
@@ -147,6 +157,8 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.container_resources.limits["cpu"]
         assert dag_id == rendered.container_resources.requests["memory"]
         assert dag_id == rendered.container_resources.requests["cpu"]
+        assert dag_id == rendered.volume_mounts[0].name
+        assert dag_id == rendered.volume_mounts[0].sub_path
         assert dag_id == ti.task.image
         assert dag_id == ti.task.cmds
         assert dag_id == ti.task.namespace
@@ -1359,9 +1371,7 @@ class TestKubernetesPodOperator:
         pod = self.run_pod(k)
 
         # check that the base container is not included in the logs
-        mock_fetch_log.assert_called_once_with(
-            pod=pod, container_logs=["some_init_container"], follow_logs=True
-        )
+        mock_fetch_log.assert_called_once_with(pod=pod, containers=["some_init_container"], follow_logs=True)
         # check that KPO waits for the base container to complete before proceeding to extract XCom
         mock_await_container_completion.assert_called_once_with(pod=pod, container_name="base")
         # check that we wait for the xcom sidecar to start before extracting XCom

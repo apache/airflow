@@ -202,6 +202,7 @@ class TestPinotAdminHook:
         )
 
 
+@pytest.mark.db_test
 class TestPinotAdminHookCreation:
     def test_exception_when_overriding_cmd_path(self):
         with pytest.raises(RuntimeError):

@@ -55,6 +55,8 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
 
+pytestmark = pytest.mark.db_test
+
 READ_WRITE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
 READ_ONLY = {permissions.ACTION_CAN_READ}
 
@@ -226,7 +228,9 @@ def sample_dags(security_manager):
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
         root_dag_id = security_manager._get_root_dag_id(dag_id)
-        return security_manager.has_access(perm, permissions.resource_name_for_dag(root_dag_id), user)
+        return get_auth_manager().is_authorized_dag(
+            method=perm, details=DagDetails(id=root_dag_id), user=user
+        )
 
     return _has_dag_perm
 
@@ -356,8 +360,8 @@ def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, se
 
             assert _can_read_dag(dag_id, user) is False
             assert _can_edit_dag(dag_id, user) is False
-            assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is False
-            assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is False
+            assert has_dag_perm("GET", dag_id, user) is False
+            assert has_dag_perm("PUT", dag_id, user) is False
 
 
 @patch.object(FabAuthManager, "is_logged_in")
@@ -401,8 +405,8 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
 
                 assert _can_read_dag(dag_id, user) is True
                 assert _can_edit_dag(dag_id, user) is True
-                assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is True
-                assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is True
+                assert has_dag_perm("GET", dag_id, user) is True
+                assert has_dag_perm("PUT", dag_id, user) is True
 
 
 def test_get_user_roles(app_builder, security_manager):
@@ -798,7 +802,7 @@ def test_access_control_is_set_on_init(
                 access_control={role_name: [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
             )
             assert_user_has_dag_perms(
-                perms=[permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ],
+                perms=["PUT", "GET"],
                 dag_id="access_control_test",
                 user=user,
             )
@@ -806,7 +810,7 @@ def test_access_control_is_set_on_init(
             security_manager.bulk_sync_roles([{"role": negated_role, "perms": []}])
             set_user_single_role(app, user, role_name=negated_role)
             assert_user_does_not_have_dag_perms(
-                perms=[permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ],
+                perms=["PUT", "GET"],
                 dag_id="access_control_test",
                 user=user,
             )
@@ -831,19 +835,15 @@ def test_access_control_stale_perms_are_revoked(
             security_manager._sync_dag_view_permissions(
                 "access_control_test", access_control={"team-a": READ_WRITE}
             )
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id="access_control_test", user=user)
+            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id="access_control_test", user=user)
 
             security_manager._sync_dag_view_permissions(
                 "access_control_test", access_control={"team-a": READ_ONLY}
             )
             # Clear the cache, to make it pick up new rol perms
             user._perms = None
-            assert_user_has_dag_perms(
-                perms=[permissions.ACTION_CAN_READ], dag_id="access_control_test", user=user
-            )
-            assert_user_does_not_have_dag_perms(
-                perms=[permissions.ACTION_CAN_EDIT], dag_id="access_control_test", user=user
-            )
+            assert_user_has_dag_perms(perms=["GET"], dag_id="access_control_test", user=user)
+            assert_user_does_not_have_dag_perms(perms=["PUT"], dag_id="access_control_test", user=user)
 
 
 def test_no_additional_dag_permission_views_created(db, security_manager):
@@ -890,7 +890,9 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     dagbag_class_mock.return_value = dagbag_mock
     import airflow.www.security
 
-    monkeypatch.setitem(airflow.www.security_manager.__dict__, "DagBag", dagbag_class_mock)
+    monkeypatch.setitem(
+        airflow.auth.managers.fab.security_manager.override.__dict__, "DagBag", dagbag_class_mock
+    )
     security_manager._sync_dag_view_permissions = mock.Mock()
 
     for dag in sample_dags:
@@ -999,10 +1001,10 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
                     parent_dag_name, access_control={role_name: READ_WRITE}
                 )
 
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag", user=user)
+            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=parent_dag_name, user=user)
+            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=parent_dag_name + ".subdag", user=user)
             assert_user_has_dag_perms(
-                perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
+                perms=["GET", "PUT"], dag_id=parent_dag_name + ".subdag.subsubdag", user=user
             )
             session.query(DagModel).delete()
 
@@ -1036,8 +1038,8 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             security_manager.bulk_sync_roles(mock_roles)
             security_manager.sync_perm_for_dag(dag1.dag_id, access_control={role_name: READ_WRITE})
             security_manager.sync_perm_for_dag(dag2.dag_id, access_control={role_name: READ_WRITE})
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=dag_id, user=user)
-            assert_user_does_not_have_dag_perms(perms=READ_WRITE, dag_id=dag_id_2, user=user)
+            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
+            assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
             session.query(DagModel).delete()
 
 

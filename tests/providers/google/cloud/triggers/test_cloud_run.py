@@ -82,7 +82,7 @@ class TestCloudBatchJobFinishedTrigger:
             done, name, error_code, error_message
         )
         generator = trigger.run()
-        actual = await generator.asend(None)
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
         assert (
             TriggerEvent(
                 {
@@ -113,7 +113,7 @@ class TestCloudBatchJobFinishedTrigger:
         generator = trigger.run()
 
         with pytest.raises(expected_exception=AirflowException):
-            await generator.asend(None)
+            await generator.asend(None)  # type:ignore[attr-defined]
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.cloud_run.CloudRunAsyncHook")
@@ -133,7 +133,7 @@ class TestCloudBatchJobFinishedTrigger:
         mock_hook.return_value.get_operation = _mock_operation
 
         generator = trigger.run()
-        actual = await generator.asend(None)
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
 
         assert (
             TriggerEvent(

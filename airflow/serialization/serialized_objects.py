@@ -80,9 +80,9 @@ if TYPE_CHECKING:
 
     HAS_KUBERNETES: bool
     try:
-        from kubernetes.client import models as k8s
+        from kubernetes.client import models as k8s  # noqa: TCH004
 
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TCH004
     except ImportError:
         pass
 
@@ -447,7 +447,7 @@ class BaseSerialization:
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DAG):
-            return SerializedDAG.serialize_dag(var)
+            return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
@@ -878,10 +878,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # If not, store them as strings
         # And raise an exception if the field is not templateable
         forbidden_fields = set(inspect.signature(BaseOperator.__init__).parameters.keys())
+        # Though allow some of the BaseOperator fields to be templated anyway
+        forbidden_fields.difference_update({"email"})
         if op.template_fields:
             for template_field in op.template_fields:
                 if template_field in forbidden_fields:
-                    raise AirflowException(f"Cannot template BaseOperator fields: {template_field}")
+                    raise AirflowException(f"Cannot template BaseOperator field: {template_field!r}")
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
                     serialize_op[template_field] = serialize_template_field(value)

@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+5.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Refactor cursor retrieval in PostgresHook. (#35498)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
 5.7.1
 .....
 

@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 4.4.0
+  - 4.3.0
   - 4.2.0
   - 4.1.5
   - 4.1.4
@@ -81,6 +83,10 @@ connection-types:
     connection-type: spark_sql
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
     connection-type: spark
+
+task-decorators:
+  - class-name: airflow.providers.apache.spark.decorators.pyspark.pyspark_task
+    name: pyspark
 
 additional-extras:
   - name: cncf.kubernetes
