@@ -1476,7 +1476,7 @@ class TestBigQueryInsertJobOperator:
         ), "Trigger is not a BigQueryInsertJobTrigger"
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_insert_job_operator_async_project_id_matches_hook(
+    def test_bigquery_insert_job_operator_async_inherits_hook_project_id_when_non_given(
         self, mock_hook, create_task_instance_of_operator
     ):
         """
@@ -1506,6 +1506,7 @@ class TestBigQueryInsertJobOperator:
             location=TEST_DATASET_LOCATION,
             job_id=job_id,
             deferrable=True,
+            project_id=None,
         )
 
         with pytest.raises(TaskDeferred) as exc:
