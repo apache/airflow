@@ -210,10 +210,6 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
     # open pseudo-terminal to interact with subprocess
     primary_fd, secondary_fd = pty.openpty()
 
-    def handle_signal(sig, frame):
-        proc.send_signal(sig)
-
-    signal.signal(signal.SIGINT, handle_signal)
     try:
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
         with subprocess.Popen(
@@ -224,6 +220,7 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
             universal_newlines=True,
             **kwargs,
         ) as proc:
+            signal.signal(signal.SIGINT, lambda sig, frame: proc.send_signal(sig))
             while proc.poll() is None:
                 readable_fbs, _, _ = select.select([sys.stdin, primary_fd], [], [])
                 if sys.stdin in readable_fbs:
