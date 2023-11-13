@@ -2130,6 +2130,14 @@ scheduler:
       type: boolean
       example: ~
       default: "False"
+    scheduler_health_check_server_host:
+      description: |
+        When you start a scheduler, airflow starts a tiny web server
+        subprocess to serve a health check on this host
+      version_added: 2.8.0
+      type: string
+      example: ~
+      default: "0.0.0.0"
     scheduler_health_check_server_port:
       description: |
         When you start a scheduler, airflow starts a tiny web server
