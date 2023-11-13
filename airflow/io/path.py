@@ -26,11 +26,9 @@ from urllib.parse import SplitResult, urlsplit
 
 from fsspec.core import split_protocol
 from fsspec.utils import stringify_path
-from upath import UPath
-from upath.implementations.cloud import _CloudAccessor
+from upath.implementations.cloud import CloudPath, _CloudAccessor
 from upath.registry import get_upath_class
 
-from airflow.io.registry import get_path_class
 from airflow.io.store import attach
 from airflow.io.utils.stat import stat_result
 
@@ -65,7 +63,7 @@ class _AirflowCloudAccessor(_CloudAccessor):
         return isinstance(other, _AirflowCloudAccessor) and self._store == other._store
 
 
-class ObjectStoragePath(UPath):
+class ObjectStoragePath(CloudPath):
     """A path-like object for object storage."""
 
     __version__: typing.ClassVar[int] = 1
@@ -128,8 +126,6 @@ class ObjectStoragePath(UPath):
         else:
             protocol = kwargs.get("scheme", protocol)
 
-        path_cls = get_path_class(protocol, default="_default_")
-
         for key in ["scheme", "netloc"]:
             val = kwargs.get(key)
             if val:
@@ -143,7 +139,7 @@ class ObjectStoragePath(UPath):
         else:
             args_list.insert(0, parsed_url.path)
 
-        return path_cls._from_parts(args_list, url=parsed_url, **kwargs)  # type: ignore
+        return cls._from_parts(args_list, url=parsed_url, **kwargs)  # type: ignore
 
     @functools.lru_cache
     def __hash__(self) -> int:
