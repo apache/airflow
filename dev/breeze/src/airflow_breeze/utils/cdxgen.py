@@ -23,6 +23,7 @@ import os
 import signal
 import sys
 import time
+from abc import abstractmethod
 from dataclasses import dataclass
 from multiprocessing.pool import Pool
 from pathlib import Path
@@ -38,7 +39,7 @@ from airflow_breeze.utils.github import (
     download_constraints_file,
     download_file_from_github,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_SBOM_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -130,7 +131,9 @@ def get_all_airflow_versions_image_name(python_version: str) -> str:
 
 
 TARGET_DIR_NAME = "provider_requirements"
-DOCKER_FILE_PREFIX = f"/files/{TARGET_DIR_NAME}/"
+
+PROVIDER_REQUIREMENTS_DIR_PATH = FILES_SBOM_DIR / TARGET_DIR_NAME
+DOCKER_FILE_PREFIX = f"/files/sbom/{TARGET_DIR_NAME}/"
 
 
 def get_requirements_for_provider(
@@ -148,19 +151,23 @@ def get_requirements_for_provider(
         ) / "provider.yaml"
         provider_version = yaml.safe_load(provider_file.read_text())["versions"][0]
 
-    target_dir = FILES_DIR / TARGET_DIR_NAME
     airflow_core_file_name = f"airflow-{airflow_version}-python{python_version}-requirements.txt"
-    airflow_core_path = target_dir / airflow_core_file_name
-
-    provider_with_core_file_name = f"python{python_version}-with-core-requirements.txt"
-    provider_without_core_file_name = f"python{python_version}-without-core-requirements.txt"
+    airflow_core_path = PROVIDER_REQUIREMENTS_DIR_PATH / airflow_core_file_name
 
     provider_folder_name = f"provider-{provider_id}-{provider_version}"
-    provider_folder_path = target_dir / provider_folder_name
-    provider_with_core_path = provider_folder_path / provider_with_core_file_name
-    provider_without_core_file = provider_folder_path / provider_without_core_file_name
+    provider_folder_path = PROVIDER_REQUIREMENTS_DIR_PATH / provider_folder_name
 
-    docker_file_provider_folder_prefix = f"{DOCKER_FILE_PREFIX}/{provider_folder_name}/"
+    provider_with_core_folder_path = provider_folder_path / f"python{python_version}" / "with-core"
+    provider_with_core_folder_path.mkdir(exist_ok=True, parents=True)
+    provider_with_core_path = provider_with_core_folder_path / "requirements.txt"
+
+    provider_without_core_folder_path = provider_folder_path / f"python{python_version}" / "without-core"
+    provider_without_core_folder_path.mkdir(exist_ok=True, parents=True)
+    provider_without_core_file = provider_without_core_folder_path / "requirements.txt"
+
+    docker_file_provider_with_core_folder_prefix = (
+        f"{DOCKER_FILE_PREFIX}{provider_folder_name}/python{python_version}/with-core/"
+    )
 
     if (
         os.path.exists(provider_with_core_path)
@@ -185,8 +192,8 @@ mkdir -pv {DOCKER_FILE_PREFIX}
 /opt/airflow/airflow-{airflow_version}/bin/pip install apache-airflow=={airflow_version} \
     apache-airflow-providers-{provider_id}=={provider_version}
 /opt/airflow/airflow-{airflow_version}/bin/pip freeze | sort > \
-    {docker_file_provider_folder_prefix}{provider_with_core_file_name}
-chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_with_core_file_name}
+    {docker_file_provider_with_core_folder_prefix}requirements.txt
+chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_folder_name}
 """
     provider_command_result = run_command(
         [
@@ -223,20 +230,19 @@ chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}{provider_with
     get_console(output=output).print(provider_packages)
     provider_without_core_file.write_text("".join(f"{p}\n" for p in provider_packages))
     get_console(output=output).print(
-        f"[success]Generated {provider_id}:{provider_version}:{python_version} requirements in "
+        f"[success]Generated {provider_id}:{provider_version}:python{python_version} requirements in "
         f"{provider_without_core_file}"
     )
 
     return (
         provider_command_result.returncode,
-        f"Provider requirements generated for {provider_id}:{provider_version}:{python_version}",
+        f"Provider requirements generated for {provider_id}:{provider_version}:python{python_version}",
     )
 
 
 def build_all_airflow_versions_base_image(
     python_version: str,
     output: Output | None,
-    confirm: bool = True,
 ) -> tuple[int, str]:
     """
     Build an image with all airflow versions pre-installed in separate virtualenvs.
@@ -288,11 +294,127 @@ constraints-{airflow_version}/constraints-{python_version}.txt
 
 @dataclass
 class SbomApplicationJob:
-    airflow_version: str
     python_version: str
+    target_path: Path
+
+    @abstractmethod
+    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+        pass
+
+    @abstractmethod
+    def get_job_name(self) -> str:
+        pass
+
+
+@dataclass
+class SbomCoreJob(SbomApplicationJob):
+    airflow_version: str
     application_root_path: Path
     include_provider_dependencies: bool
-    target_path: Path
+
+    def get_job_name(self) -> str:
+        return f"{self.airflow_version}:python{self.python_version}"
+
+    def download_dependency_files(self, output: Output | None) -> None:
+        source_dir = self.application_root_path / self.airflow_version / f"python{self.python_version}"
+        source_dir.mkdir(parents=True, exist_ok=True)
+        lock_file_relative_path = "airflow/www/yarn.lock"
+        download_file_from_github(
+            tag=self.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
+        )
+        if not download_constraints_file(
+            airflow_version=self.airflow_version,
+            python_version=self.python_version,
+            include_provider_dependencies=self.include_provider_dependencies,
+            output_file=source_dir / "requirements.txt",
+        ):
+            get_console(output=output).print(
+                f"[warning]Failed to download constraints file for "
+                f"{self.airflow_version} and {self.python_version}. Skipping"
+            )
+
+    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+        import requests
+
+        get_console(output=output).print(
+            f"[info]Updating sbom for Airflow {self.airflow_version} and python {self.python_version}"
+        )
+        self.download_dependency_files(output)
+        get_console(output=output).print(
+            f"[info]Generating sbom for Airflow {self.airflow_version} and python {self.python_version} with cdxgen"
+        )
+        url = (
+            f"http://127.0.0.1:{port}/sbom?path=/app/{self.airflow_version}/python{self.python_version}&"
+            f"project-name=apache-airflow&project-version={self.airflow_version}&multiProject=true"
+        )
+
+        get_console(output=output).print(
+            f"[info]Triggering sbom generation in {self.airflow_version} via {url}"
+        )
+        if not get_dry_run():
+            response = requests.get(url)
+            if response.status_code != 200:
+                get_console(output=output).print(
+                    f"[error]Generation for Airflow {self.airflow_version}:python{self.python_version} "
+                    f"failed. Status code {response.status_code}"
+                )
+                return (
+                    response.status_code,
+                    f"SBOM Generate {self.airflow_version}:python{self.python_version}",
+                )
+            self.target_path.write_bytes(response.content)
+            get_console(output=output).print(
+                f"[success]Generated SBOM for {self.airflow_version}:python{self.python_version}"
+            )
+
+        return 0, f"SBOM Generate {self.airflow_version}:python{self.python_version}"
+
+
+@dataclass
+class SbomProviderJob(SbomApplicationJob):
+    provider_id: str
+    provider_version: str
+    folder_name: str
+
+    def get_job_name(self) -> str:
+        return f"{self.provider_id}:{self.provider_version}:python{self.python_version}"
+
+    def produce(self, output: Output | None, port: int) -> tuple[int, str]:
+        import requests
+
+        get_console(output=output).print(
+            f"[info]Updating sbom for provider {self.provider_id} version {self.provider_version} and python "
+            f"{self.python_version}"
+        )
+        get_console(output=output).print(
+            f"[info]Generating sbom for provider {self.provider_id} version {self.provider_version} and "
+            f"python {self.python_version}"
+        )
+        url = (
+            f"http://127.0.0.1:{port}/sbom?path=/app/{TARGET_DIR_NAME}/{self.folder_name}/python{self.python_version}/without-core&"
+            f"project-name={self.provider_version}&project-version={self.provider_version}&multiProject=true"
+        )
+
+        get_console(output=output).print(f"[info]Triggering sbom generation via {url}")
+
+        if not get_dry_run():
+            response = requests.get(url)
+            if response.status_code != 200:
+                get_console(output=output).print(
+                    f"[error]Generation for Airflow {self.provider_id}:{self.provider_version}:"
+                    f"{self.python_version} failed. Status code {response.status_code}"
+                )
+                return (
+                    response.status_code,
+                    f"SBOM Generate {self.provider_id}:{self.provider_version}:{self.python_version}",
+                )
+            self.target_path.write_bytes(response.content)
+            get_console(output=output).print(
+                f"[success]Generated SBOM for {self.provider_id}:{self.provider_version}:"
+                f"{self.python_version}"
+            )
+
+        return 0, f"SBOM Generate {self.provider_id}:{self.provider_version}:{self.python_version}"
 
 
 def produce_sbom_for_application_via_cdxgen_server(
@@ -306,52 +428,10 @@ def produce_sbom_for_application_via_cdxgen_server(
          in case parallel processing is used
     :return: tuple with exit code and output
     """
-    import requests
 
     if port_map is None:
         port = 9090
     else:
         port = port_map[multiprocessing.current_process().name]
         get_console(output=output).print(f"[info]Using port {port}")
-    get_console(output=output).print(
-        f"[info]Updating sbom for Airflow {job.airflow_version} and python {job.python_version}"
-    )
-    source_dir = job.application_root_path / job.airflow_version / job.python_version
-    source_dir.mkdir(parents=True, exist_ok=True)
-    lock_file_relative_path = "airflow/www/yarn.lock"
-    download_file_from_github(
-        tag=job.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
-    )
-    if not download_constraints_file(
-        airflow_version=job.airflow_version,
-        python_version=job.python_version,
-        include_provider_dependencies=job.include_provider_dependencies,
-        output_file=source_dir / "requirements.txt",
-    ):
-        get_console(output=output).print(
-            f"[warning]Failed to download constraints file for "
-            f"{job.airflow_version} and {job.python_version}. Skipping"
-        )
-        return 0, f"SBOM Generate {job.airflow_version}:{job.python_version}"
-    get_console(output=output).print(
-        f"[info]Generating sbom for Airflow {job.airflow_version} and python {job.python_version} with cdxgen"
-    )
-    url = (
-        f"http://127.0.0.1:{port}/sbom?path=/app/{job.airflow_version}/{job.python_version}&"
-        f"project-name=apache-airflow&project-version={job.airflow_version}&multiProject=true"
-    )
-    get_console(output=output).print(f"[info]Triggering sbom generation in {job.airflow_version} via {url}")
-    if not get_dry_run():
-        response = requests.get(url)
-        if response.status_code != 200:
-            get_console(output=output).print(
-                f"[error]Generation for Airflow {job.airflow_version}:{job.python_version} failed. "
-                f"Status code {response.status_code}"
-            )
-            return response.status_code, f"SBOM Generate {job.airflow_version}:{job.python_version}"
-        job.target_path.write_bytes(response.content)
-        get_console(output=output).print(
-            f"[success]Generated SBOM for {job.airflow_version}:{job.python_version}"
-        )
-
-    return 0, f"SBOM Generate {job.airflow_version}:{job.python_version}"
+    return job.produce(output, port)

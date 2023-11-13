@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -29,7 +30,10 @@ from airflow_breeze.global_constants import (
     PROVIDER_DEPENDENCIES,
 )
 from airflow_breeze.utils.cdxgen import (
+    PROVIDER_REQUIREMENTS_DIR_PATH,
     SbomApplicationJob,
+    SbomCoreJob,
+    SbomProviderJob,
     build_all_airflow_versions_base_image,
     get_cdxgen_port_mapping,
     get_requirements_for_provider,
@@ -57,7 +61,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_TMP_DIR_PATH, PROVIDER_METADATA_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import FILES_SBOM_DIR, PROVIDER_METADATA_JSON_FILE_PATH
 from airflow_breeze.utils.shared_options import get_dry_run
 
 
@@ -71,10 +75,11 @@ def sbom():
 
 
 SBOM_INDEX_TEMPLATE = """
+{% set project_name = " " + provider_id + " " if provider_id else " " -%}
 <html>
-<head><title>CycloneDX SBOMs for Apache Airflow {{ version }}</title></head>
+<head><title>CycloneDX SBOMs for Apache Airflow{{project_name}}{{ version }}</title></head>
 <body>
-    <h1>CycloneDX SBOMs for Apache Airflow {{ version }}</h1>
+    <h1>CycloneDX SBOMs for Apache Airflow{{project_name}}{{ version }}</h1>
     <ul>
     {% for sbom_file in sbom_files %}
         <li><a href="{{ sbom_file.name }}">{{ sbom_file.name }}</a></li>
@@ -119,6 +124,15 @@ SBOM_INDEX_TEMPLATE = """
 @option_verbose
 @option_dry_run
 @option_answer
+@click.option(
+    "--package-filter",
+    help="List of packages to consider. You can use `apache-airflow` for core "
+    "or `apache-airflow-providers` to consider all the providers.",
+    type=BetterChoice(["apache-airflow-providers", "apache-airflow"]),
+    multiple=True,
+    required=False,
+    default=["apache-airflow"],
+)
 def update_sbom_information(
     airflow_site_directory: Path,
     airflow_version: str | None,
@@ -130,6 +144,7 @@ def update_sbom_information(
     include_success_outputs: bool,
     skip_cleanup: bool,
     force: bool,
+    package_filter: tuple[str, ...],
 ):
     import jinja2
     from jinja2 import StrictUndefined
@@ -148,55 +163,123 @@ def update_sbom_information(
         python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
     else:
         python_versions = [python]
-    application_root_path = AIRFLOW_TMP_DIR_PATH
+    application_root_path = FILES_SBOM_DIR
     start_cdxgen_server(application_root_path, run_in_parallel, parallelism)
 
     jobs_to_run: list[SbomApplicationJob] = []
 
-    apache_airflow_directory = airflow_site_directory / "docs-archive" / "apache-airflow"
+    airflow_site_archive_directory = airflow_site_directory / "docs-archive"
 
-    for airflow_v in airflow_versions:
-        airflow_version_dir = apache_airflow_directory / airflow_v
-        if not airflow_version_dir.exists():
-            get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
-            continue
-        destination_dir = airflow_version_dir / "sbom"
-        if destination_dir.exists():
-            if not force:
-                get_console().print(f"[warning]The {destination_dir} already exists. Skipping")
+    if "apache-airflow" in package_filter:
+        # Create core jobs
+        apache_airflow_documentation_directory = airflow_site_archive_directory / "apache-airflow"
+
+        for airflow_v in airflow_versions:
+            airflow_version_dir = apache_airflow_documentation_directory / airflow_v
+            if not airflow_version_dir.exists():
+                get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
                 continue
-            else:
-                get_console().print(f"[warning]The {destination_dir} already exists. Forcing update")
-
-        destination_dir.mkdir(parents=True, exist_ok=True)
-
-        get_console().print(f"[info]Attempting to update sbom for {airflow_v}.")
-        get_console().print(f"[success]The {destination_dir} exists. Proceeding.")
-        for python_version in python_versions:
-            target_sbom_file_name = f"apache-airflow-sbom-{airflow_v}-python{python_version}.json"
-            target_sbom_path = destination_dir / target_sbom_file_name
-            if target_sbom_path.exists():
+            destination_dir = airflow_version_dir / "sbom"
+            if destination_dir.exists():
                 if not force:
-                    get_console().print(f"[warning]The {target_sbom_path} already exists. Skipping")
+                    get_console().print(f"[warning]The {destination_dir} already exists. Skipping")
                     continue
                 else:
-                    get_console().print(f"[warning]The {target_sbom_path} already exists. Forcing update")
-            jobs_to_run.append(
-                SbomApplicationJob(
-                    airflow_version=airflow_v,
-                    python_version=python_version,
-                    application_root_path=application_root_path,
-                    include_provider_dependencies=include_provider_dependencies,
-                    target_path=target_sbom_path,
+                    get_console().print(f"[warning]The {destination_dir} already exists. Forcing update")
+
+            destination_dir.mkdir(parents=True, exist_ok=True)
+
+            get_console().print(f"[info]Attempting to update sbom for {airflow_v}.")
+            for python_version in python_versions:
+                target_sbom_file_name = f"apache-airflow-sbom-{airflow_v}-python{python_version}.json"
+                target_sbom_path = destination_dir / target_sbom_file_name
+                if target_sbom_path.exists():
+                    if not force:
+                        get_console().print(f"[warning]The {target_sbom_path} already exists. Skipping")
+                        continue
+                    else:
+                        get_console().print(f"[warning]The {target_sbom_path} already exists. Forcing update")
+                jobs_to_run.append(
+                    SbomCoreJob(
+                        airflow_version=airflow_v,
+                        python_version=python_version,
+                        application_root_path=application_root_path,
+                        include_provider_dependencies=include_provider_dependencies,
+                        target_path=target_sbom_path,
+                    )
                 )
+    elif "apache-airflow-providers" in package_filter:
+        # Create providers jobs
+        user_confirm(
+            "You are about to update sbom information for providers, did you refresh the "
+            "providers requirements with the command `breeze sbom generate-providers-requirements`?",
+            quit_allowed=False,
+            default_answer=Answer.YES,
+        )
+        for node_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH):
+            if not node_name.startswith("provider"):
+                continue
+
+            provider_id, provider_version = node_name.rsplit("-", 1)
+
+            provider_documentation_directory = (
+                airflow_site_archive_directory
+                / f"apache-airflow-providers-{provider_id.replace('provider-', '').replace('.', '-')}"
             )
+
+            provider_version_documentation_directory = provider_documentation_directory / provider_version
+            if not provider_version_documentation_directory.exists():
+                get_console().print(
+                    f"[warning]The {provider_version_documentation_directory} does not exist. Skipping"
+                )
+                continue
+
+            destination_dir = provider_version_documentation_directory / "sbom"
+
+            if destination_dir.exists():
+                if not force:
+                    get_console().print(f"[warning]The {destination_dir} already exists. Skipping")
+                    continue
+                else:
+                    get_console().print(f"[warning]The {destination_dir} already exists. Forcing update")
+
+            destination_dir.mkdir(parents=True, exist_ok=True)
+
+            get_console().print(
+                f"[info]Attempting to update sbom for {provider_id} version {provider_version}."
+            )
+
+            python_versions = set(
+                dir_name.replace("python", "")
+                for dir_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH / node_name)
+            )
+
+            for python_version in python_versions:
+                target_sbom_file_name = (
+                    f"apache-airflow-sbom-{provider_id}-{provider_version}-python{python_version}.json"
+                )
+                target_sbom_path = destination_dir / target_sbom_file_name
+                if target_sbom_path.exists():
+                    if not force:
+                        get_console().print(f"[warning]The {target_sbom_path} already exists. Skipping")
+                        continue
+                    else:
+                        get_console().print(f"[warning]The {target_sbom_path} already exists. Forcing update")
+                jobs_to_run.append(
+                    SbomProviderJob(
+                        provider_id=provider_id,
+                        provider_version=provider_version,
+                        python_version=python_version,
+                        target_path=target_sbom_path,
+                        folder_name=node_name,
+                    )
+                )
+
     if run_in_parallel:
         parallelism = min(parallelism, len(jobs_to_run))
         get_console().print(f"[info]Running {len(jobs_to_run)} jobs in parallel")
-        with ci_group(f"Generating SBoMs for {airflow_versions}:{python_versions}"):
-            all_params = [
-                f"Generate SBoMs for {job.airflow_version}:{job.python_version}" for job in jobs_to_run
-            ]
+        with ci_group(f"Generating SBOMs for {jobs_to_run}"):
+            all_params = [f"Generate SBOMs for {job.get_job_name()}" for job in jobs_to_run]
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=all_params,
@@ -217,7 +300,7 @@ def update_sbom_information(
                 ]
         check_async_run_results(
             results=results,
-            success="All SBoMs were generated successfully",
+            success="All SBOMs were generated successfully",
             outputs=outputs,
             include_success_outputs=include_success_outputs,
             skip_cleanup=skip_cleanup,
@@ -226,19 +309,45 @@ def update_sbom_information(
         for job in jobs_to_run:
             produce_sbom_for_application_via_cdxgen_server(job, output=None)
 
-    for airflow_v in airflow_versions:
-        airflow_version_dir = apache_airflow_directory / airflow_v
-        destination_dir = airflow_version_dir / "sbom"
-        destination_index_path = destination_dir / "index.html"
-        get_console().print(f"[info]Generating index for {destination_dir}")
-        sbom_files = sorted(destination_dir.glob("apache-airflow-sbom-*"))
-        html_template = SBOM_INDEX_TEMPLATE
-        if not get_dry_run():
-            destination_index_path.write_text(
-                jinja2.Template(html_template, autoescape=True, undefined=StrictUndefined).render(
-                    version=airflow_v, sbom_files=sbom_files
+    if "apache-airflow" in package_filter:
+        for airflow_v in airflow_versions:
+            airflow_version_dir = apache_airflow_documentation_directory / airflow_v
+            destination_dir = airflow_version_dir / "sbom"
+            destination_index_path = destination_dir / "index.html"
+            get_console().print(f"[info]Generating index for {destination_dir}")
+            sbom_files = sorted(destination_dir.glob("apache-airflow-sbom-*"))
+            html_template = SBOM_INDEX_TEMPLATE
+            if not get_dry_run():
+                destination_index_path.write_text(
+                    jinja2.Template(html_template, autoescape=True, undefined=StrictUndefined).render(
+                        provider_id=None,
+                        version=airflow_v,
+                        sbom_files=sbom_files,
+                    )
                 )
+    elif "apache-airflow-providers" in package_filter:
+        for node_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH):
+            if not node_name.startswith("provider"):
+                continue
+            provider_id, provider_version = node_name.rsplit("-", 1)
+
+            provider_documentation_directory = (
+                airflow_site_archive_directory
+                / f"apache-airflow-providers-{provider_id.replace('provider-', '').replace('.', '-')}"
             )
+
+            provider_version_documentation_directory = provider_documentation_directory / provider_version
+            destination_dir = provider_version_documentation_directory / "sbom"
+            destination_index_path = destination_dir / "index.html"
+            get_console().print(f"[info]Generating index for {destination_dir}")
+            sbom_files = sorted(destination_dir.glob("apache-airflow-sbom-*"))
+            html_template = SBOM_INDEX_TEMPLATE
+            if not get_dry_run():
+                destination_index_path.write_text(
+                    jinja2.Template(html_template, autoescape=True, undefined=StrictUndefined).render(
+                        provider_id=provider_id, version=provider_version, sbom_files=sbom_files
+                    )
+                )
 
 
 @sbom.command(name="build-all-airflow-images", help="Generate images with airflow versions pre-installed")
@@ -283,7 +392,6 @@ def build_all_airflow_images(
                         build_all_airflow_versions_base_image,
                         kwds={
                             "python_version": python_version,
-                            "confirm": False,
                             "output": outputs[index],
                         },
                     )
@@ -300,7 +408,6 @@ def build_all_airflow_images(
         for python_version in python_versions:
             build_all_airflow_versions_base_image(
                 python_version=python_version,
-                confirm=False,
                 output=None,
             )
 

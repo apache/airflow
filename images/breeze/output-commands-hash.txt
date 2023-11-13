@@ -54,8 +54,8 @@ release-management:verify-provider-packages:96dce5644aad6b37080acf77b3d8de3a
 release-management:59d956e45fccf55e47f16e33cfc5d04a
 sbom:build-all-airflow-images:32f8acade299c2b112e986bae99846db
 sbom:generate-providers-requirements:3926848718283cf2ef00310a0892e867
-sbom:update-sbom-information:653be48be70b4b7ff5172d491aadc694
-sbom:386048e0c00c0de30cf181eb9f3862ea
+sbom:update-sbom-information:cbd64e9fc1e484556087c0f0d81f7b2e
+sbom:b78d2731fe8d2e5b7d57747f4bb09d89
 setup:autocomplete:fffcd49e102e09ccd69b3841a9e3ea8e
 setup:check-all-params-in-groups:5c5e3c382fc8ce84899d224448b3f48a
 setup:config:53a0aeec6237da4d46bde68fafa29dc3
