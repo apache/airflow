@@ -269,7 +269,9 @@ see in CI in your local environment.
 Setting up Breeze
 -----------------
 
-1. Install ``pipx`` - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
+1. Install ``pipx`` (>=1.2.1) - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
+   It is important to install version of pipx > 1.2.1 to workaround ``packaging`` breaking change introduced
+   in September 2023.
 
 2. Run ``pipx install -e ./dev/breeze`` in your checked-out repository. Make sure to follow any instructions
    printed by ``pipx`` during the installation - this is needed to make sure that ``breeze`` command is
@@ -707,7 +709,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All
+   $ breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All
 
 - Running specific type of test
 
@@ -717,7 +719,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-    $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type Core
+    $ breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type Core
 
 
 - Running Integration test for specific test type
@@ -726,7 +728,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset testing tests --test-type All --integration mongo
+   $ breeze --backend postgres --postgres-version 15 --python 3.8 --db-reset testing tests --test-type All --integration mongo
 
 
 - For more information on Testing visit : |TESTING.rst|

@@ -161,11 +161,19 @@ JSON Schema Validation
     ):
 
 .. note::
+    If ``schedule`` is defined for a DAG, params with defaults must be valid. This is validated during DAG parsing.
+    If ``schedule=None`` then params are not validated during DAG parsing but before triggering a DAG.
+    This is useful in cases where the DAG author does not want to provide defaults but wants to force users provide valid parameters
+    at time of trigger.
+
+.. note::
     As of now, for security reasons, one can not use :class:`~airflow.models.param.Param` objects derived out of custom classes. We are
     planning to have a registration system for custom :class:`~airflow.models.param.Param` classes, just like we've for Operator ExtraLinks.
 
 Use Params to Provide a Trigger UI Form
 ---------------------------------------
+
+.. versionadded:: 2.6.0
 
 :class:`~airflow.models.dag.DAG` level params are used to render a user friendly trigger form.
 This form is provided when a user clicks on the "Trigger DAG" button.
@@ -183,8 +191,8 @@ The following features are supported in the Trigger UI Form:
   - The :class:`~airflow.models.param.Param` attribute ``title`` is used to render the form field label of the entry box.
     If no ``title`` is defined the parameter name/key is used instead.
   - The :class:`~airflow.models.param.Param` attribute ``description`` is rendered below an entry field as help text in gray color.
-    If you want to provide HTML tags for special formatting or links you need to use the Param attribute
-    ``description_html``, see tutorial DAG ``example_params_ui_tutorial`` for an example.
+    If you want to provide special formatting or links you need to use the Param attribute
+    ``description_md``. See tutorial DAG ``example_params_ui_tutorial`` for an example.
   - The :class:`~airflow.models.param.Param` attribute ``type`` influences how a field is rendered. The following types are supported:
 
       .. list-table::
@@ -298,7 +306,6 @@ The following features are supported in the Trigger UI Form:
           -
           - ``Param(None, type=["null", "string"])``
 
-
 - If a form field is left empty, it is passed as ``None`` value to the params dict.
 - Form fields are rendered in the order of definition of ``params`` in the DAG.
 - If you want to add sections to the Form, add the attribute ``section`` to each field. The text will be used as section label.
@@ -308,16 +315,27 @@ The following features are supported in the Trigger UI Form:
   The ``const`` value must match the default value to pass `JSON Schema validation <https://json-schema.org/understanding-json-schema/reference/generic.html#constant-values>`_.
 - On the bottom of the form the generated JSON configuration can be expanded.
   If you want to change values manually, the JSON configuration can be adjusted. Changes are overridden when form fields change.
-- If you want to render custom HTML as form on top of the provided features, you can use the ``custom_html_form`` attribute.
+
+.. note::
+    If the field is required the default value must be valid according to the schema as well. If the DAG is defined with
+    ``schedule=None`` the parameter value validation is made at time of trigger.
 
 For examples also please take a look to two example DAGs provided: ``example_params_trigger_ui`` and ``example_params_ui_tutorial``.
 
 .. image:: ../img/trigger-dag-tutorial-form.png
 
 .. versionadded:: 2.7.0
+    The trigger form can also be forced to be displayed also if no params are defined using the configuration switch
+    ``webserver.show_trigger_form_if_no_params``.
 
-The trigger form can also be forced to be displayed also if no params are defined using the configuration switch
-``webserver.show_trigger_form_if_no_params``.
+.. versionchanged:: 2.8.0
+    By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. If you trust your DAG authors
+    you can change the trust level of parameter descriptions to allow raw HTML by setting the configuration entry
+    ``webserver.allow_raw_html_descriptions`` to ``True``. With the default setting all HTML will be displayed as plain text.
+    This relates to the previous feature to enable rich formatting with the attribute ``description_html`` which is now super-seeded
+    with the attribute ``description_md``.
+    Custom form elements using the attribute ``custom_html_form`` allow a DAG author to specify raw HTML form templates. These
+    custom HTML form elements are deprecated as of version 2.8.0.
 
 Disabling Runtime Param Modification
 ------------------------------------

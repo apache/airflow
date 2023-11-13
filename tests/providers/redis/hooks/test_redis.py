@@ -19,8 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.redis.hooks.redis import RedisHook
+
+pytestmark = pytest.mark.db_test
 
 
 class TestRedisHook:

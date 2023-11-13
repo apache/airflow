@@ -19,10 +19,11 @@
 package-name: apache-airflow-providers-common-io
 name: Common IO
 description: |
-  `Common IO Provider`
+  ``Common IO Provider``
 
 suspended: false
 versions:
+  - 1.0.1
   - 1.0.0
 
 dependencies:

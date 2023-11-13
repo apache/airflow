@@ -61,8 +61,6 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -77,7 +75,7 @@ Package apache-airflow-providers-salesforce
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.5.0
+Release: 5.5.1
 
 Provider package
 ----------------

@@ -111,13 +111,16 @@ class PostgresHook(DbApiHook):
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
-        if _cursor == "dictcursor":
-            return psycopg2.extras.DictCursor
-        if _cursor == "realdictcursor":
-            return psycopg2.extras.RealDictCursor
-        if _cursor == "namedtuplecursor":
-            return psycopg2.extras.NamedTupleCursor
-        raise ValueError(f"Invalid cursor passed {_cursor}")
+        cursor_types = {
+            "dictcursor": psycopg2.extras.DictCursor,
+            "realdictcursor": psycopg2.extras.RealDictCursor,
+            "namedtuplecursor": psycopg2.extras.NamedTupleCursor,
+        }
+        if _cursor in cursor_types:
+            return cursor_types[_cursor]
+        else:
+            valid_cursors = ", ".join(cursor_types.keys())
+            raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
     def get_conn(self) -> connection:
         """Establishes a connection to a postgres database."""

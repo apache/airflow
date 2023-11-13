@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-microsoft-azure
 ------------------------------------------------------
@@ -28,6 +28,51 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.2.0
+.....
+
+Latest change: 2023-11-08
+
+=================================================================================================  ===========  ====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================
+`22d583403b <https://github.com/apache/airflow/commit/22d583403b79356d7ff604e8f3a3bad924764029>`_  2023-11-08   ``Fix AzureContainerInstanceOperator remove_on_error (#35212)``
+`1addff5511 <https://github.com/apache/airflow/commit/1addff55112107f42612a4ac0c1a4e9f37429412>`_  2023-11-06   ``Remove empty TYPE_CHECKING block into the Azure provider (#35477)``
+`2980eb137d <https://github.com/apache/airflow/commit/2980eb137d518d071aaec4f849a6dbbe5e1724cb>`_  2023-11-05   ``fix(providers/microsoft): setting use_async=True for get_async_default_azure_credential (#35432)``
+`13865ab05a <https://github.com/apache/airflow/commit/13865ab05a26bc4923f00a734889d03aa3b8d2b2>`_  2023-11-03   ``add managed identity support to AsyncDefaultAzureCredential (#35394)``
+`b27047430f <https://github.com/apache/airflow/commit/b27047430fa49538a737138e3c2e57368c4d33b0>`_  2023-11-02   ``Refactor azure managed identity (#35367)``
+`f84c45827e <https://github.com/apache/airflow/commit/f84c45827e6d743d58fd01b0511bcd1b3be85f5a>`_  2023-11-01   ``feat(provider/azure): add managed identity support to container_registry hook (#35320)``
+`2e8ce5d778 <https://github.com/apache/airflow/commit/2e8ce5d77882122c344ddac6da4a6009c46b5dc4>`_  2023-11-01   ``feat(provider/azure): add managed identity support to wasb hook (#35326)``
+`20afbf8036 <https://github.com/apache/airflow/commit/20afbf8036f1310393c51ded69d4ed9032adf425>`_  2023-11-01   ``feat(provider/azure): add managed identity support to asb hook (#35324)``
+`a13c091f2d <https://github.com/apache/airflow/commit/a13c091f2d7177e54de023ae3ab3e4b3fda4d695>`_  2023-11-01   ``feat(provider/azure): add managed identity support to cosmos hook (#35323)``
+`a2658368ba <https://github.com/apache/airflow/commit/a2658368bac3597504440c97bf7c0051bd6d110b>`_  2023-11-01   ``feat(provider/azure): add managed identity support to container_volume hook (#35321)``
+`9114256fd3 <https://github.com/apache/airflow/commit/9114256fd3ecf77fa293194e6c5b8ede71554240>`_  2023-11-01   ``feat(provider/azure): add managed identity support to container_instance hook (#35319)``
+`8d2364bb25 <https://github.com/apache/airflow/commit/8d2364bb256db0c723e045d27857bed9503b412d>`_  2023-11-01   ``feat(provider/azure): add managed identity support to adx hook (#35325)``
+`309f8363fd <https://github.com/apache/airflow/commit/309f8363fd8f7836915f1945e6bf12bb0859afba>`_  2023-11-01   ``feat(provider/azure): add managed identity support to batch hook (#35327)``
+`15c952f449 <https://github.com/apache/airflow/commit/15c952f44990b39d98a311d82ce219f0aec7ceb4>`_  2023-11-01   ``feat(provider/azure): add managed identity support to data_factory hook (#35328)``
+`0652038c09 <https://github.com/apache/airflow/commit/0652038c09a79420f46570e9ca5713eb4f2f6552>`_  2023-11-01   ``feat(provider/azure): add managed identity support to synapse hook (#35329)``
+`7689db2cc0 <https://github.com/apache/airflow/commit/7689db2cc03cae80993a32c55df68a259eaffa52>`_  2023-11-01   ``feat(provider/azure): add managed identity support to fileshare hook (#35330)``
+`e22f961071 <https://github.com/apache/airflow/commit/e22f96107198f9afbbfce2b7e1913ae598f1813a>`_  2023-11-01   ``Reuse get_default_azure_credential method from Azure utils method (#35318)``
+`63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
+`ebcb16201a <https://github.com/apache/airflow/commit/ebcb16201af08f9815124f27e2fba841c2b9cd9f>`_  2023-10-30   `` make DefaultAzureCredential configurable in AzureKeyVaultBackend (#35052)``
+`2b011b28ad <https://github.com/apache/airflow/commit/2b011b28adf95ec8c686cdb69630c28b74049cf4>`_  2023-10-30   ``Make DefaultAzureCredential in AzureBaseHook configuration (#35051)``
+=================================================================================================  ===========  ====================================================================================================
+
+8.1.0
+.....
+
+Latest change: 2023-10-28
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`04e2fbd92b <https://github.com/apache/airflow/commit/04e2fbd92bb6cb2b5abf6f16786b9800a0d49808>`_  2023-10-27   ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+=================================================================================================  ===========  ==================================================================
+
 8.0.0
 .....
 
@@ -36,6 +81,7 @@ Latest change: 2023-10-13
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
 `8e383e87e1 <https://github.com/apache/airflow/commit/8e383e87e1e4d6076f92fd3bce298e32607d43c5>`_  2023-10-13   ``Fix hardcoded container name in remote logging option for Azure Blob Storage (#32779)``
 `546c850a43 <https://github.com/apache/airflow/commit/546c850a43d8b00fafc11e02e63fa5caa56b4c07>`_  2023-10-13   ``Error handling for when Azure container log cannot be read in properly. (#34627)``
 `434f571915 <https://github.com/apache/airflow/commit/434f5719153a9202c3de7555c96e185a17415d80>`_  2023-10-10   ``Add subnet_ids param in AzureContainerInstancesOperator (#34850)``

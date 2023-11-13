@@ -17,11 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.providers.papermill.operators.papermill import NoteBook, PapermillOperator
+from airflow.providers.papermill.hooks.kernel import (
+    JUPYTER_KERNEL_CONTROL_PORT,
+    JUPYTER_KERNEL_HB_PORT,
+    JUPYTER_KERNEL_IOPUB_PORT,
+    JUPYTER_KERNEL_SHELL_PORT,
+    JUPYTER_KERNEL_STDIN_PORT,
+)
+from airflow.providers.papermill.operators.papermill import REMOTE_KERNEL_ENGINE, NoteBook, PapermillOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
@@ -96,8 +103,54 @@ class TestPapermillOperator:
             language=language_name,
             progress_bar=False,
             report_mode=True,
+            engine_name=None,
         )
 
+    @patch("airflow.providers.papermill.hooks.kernel.KernelHook.get_connection")
+    @patch("airflow.providers.papermill.operators.papermill.pm")
+    def test_execute_remote_kernel(self, mock_papermill, kernel_hook):
+        in_nb = "/tmp/does_not_exist"
+        out_nb = "/tmp/will_not_exist"
+        kernel_name = "python3"
+        language_name = "python"
+        parameters = {"msg": "hello_world", "train": 1}
+        conn = MagicMock()
+        conn.host = "127.0.0.1"
+        conn.extra_dejson = {"session_key": "notebooks"}
+        kernel_hook.return_value = conn
+
+        op = PapermillOperator(
+            input_nb=in_nb,
+            output_nb=out_nb,
+            parameters=parameters,
+            task_id="papermill_operator_test",
+            kernel_name=kernel_name,
+            language_name=language_name,
+            kernel_conn_id="jupyter_kernel_default",
+            dag=None,
+        )
+
+        op.execute(context={})
+
+        mock_papermill.execute_notebook.assert_called_once_with(
+            in_nb,
+            out_nb,
+            parameters=parameters,
+            kernel_name=kernel_name,
+            language=language_name,
+            progress_bar=False,
+            report_mode=True,
+            engine_name=REMOTE_KERNEL_ENGINE,
+            kernel_session_key="notebooks",
+            kernel_shell_port=JUPYTER_KERNEL_SHELL_PORT,
+            kernel_iopub_port=JUPYTER_KERNEL_IOPUB_PORT,
+            kernel_stdin_port=JUPYTER_KERNEL_STDIN_PORT,
+            kernel_control_port=JUPYTER_KERNEL_CONTROL_PORT,
+            kernel_hb_port=JUPYTER_KERNEL_HB_PORT,
+            kernel_ip="127.0.0.1",
+        )
+
+    @pytest.mark.db_test
     def test_render_template(self, create_task_instance_of_operator):
         """Test rendering fields."""
         ti = create_task_instance_of_operator(

@@ -21,6 +21,8 @@ description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 suspended: false
 versions:
+  - 8.2.0
+  - 8.1.0
   - 8.0.0
   - 7.0.0
   - 6.3.0

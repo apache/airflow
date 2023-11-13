@@ -33,7 +33,7 @@ Airflow has two main images (build from Dockerfiles):
 PROD image
 -----------
 
-The PROD image is a multi-segment image. The first segment "airflow-build-image" contains all the
+The PROD image is a multi-segment image. The first segment ``airflow-build-image`` contains all the
 build essentials and related dependencies that allow to install airflow locally. By default the image is
 built from a released version of Airflow from GitHub, but by providing some extra arguments you can also
 build it from local sources. This is particularly useful in CI environment where we are using the image
@@ -41,7 +41,7 @@ to run Kubernetes tests. See below for the list of arguments that should be prov
 production image from the local sources.
 
 The image is primarily optimised for size of the final image, but also for speed of rebuilds - the
-'airflow-build-image' segment uses the same technique as the CI jobs for pre-installing dependencies.
+``airflow-build-image`` segment uses the same technique as the CI jobs for pre-installing dependencies.
 It first pre-installs them from the right GitHub branch and only after that final airflow installation is
 done from either local sources or remote location (PyPI or GitHub repository).
 
@@ -54,7 +54,7 @@ CI image
 The CI image is used by `Breeze <BREEZE.rst>`_ as the shell image but it is also used during CI tests.
 The image is single segment image that contains Airflow installation with "all" dependencies installed.
 It is optimised for rebuild speed. It installs PIP dependencies from the current branch first -
-so that any changes in setup.py do not trigger reinstalling of all dependencies.
+so that any changes in ``setup.py`` do not trigger reinstalling of all dependencies.
 There is a second step of installation that re-installs the dependencies
 from the latest sources so that we are sure that latest dependencies are installed.
 
@@ -320,7 +320,7 @@ you have ``buildx`` plugin installed.
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
     --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
@@ -343,7 +343,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
     --build-arg ADDITIONAL_PYTHON_DEPS="apache-airflow-providers-odbc \
@@ -356,7 +356,7 @@ based on example in `this comment <https://github.com/apache/airflow/issues/8605
         rocketchat_API \
         typeform" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="msodbcsql17 unixodbc-dev g++" \
-    --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
+    --build-arg ADDITIONAL_DEV_APT_COMMAND="curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add --no-tty - && curl https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-release.list" \
     --build-arg ADDITIONAL_DEV_ENV_VARS="ACCEPT_EULA=Y"
     --tag my-image:0.0.1
 
@@ -368,7 +368,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
 +==========================================+==========================================+==========================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.8-slim-bullseye``             | Base Python image                        |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.8-slim-bookworm``             | Base Python image                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.8``                                  | major/minor version of Python (should    |
 |                                          |                                          | match base image)                        |
@@ -475,7 +475,7 @@ This builds the CI image in version 3.8 with default extras ("all").
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
      --pull \
-     --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" --tag my-image:0.0.1
+     --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" --tag my-image:0.0.1
 
 
 This builds the CI image in version 3.8 with "gcp" extra only.
@@ -484,7 +484,7 @@ This builds the CI image in version 3.8 with "gcp" extra only.
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
     --build-arg AIRFLOW_EXTRAS=gcp --tag my-image:0.0.1
 
 
@@ -494,7 +494,7 @@ This builds the CI image in version 3.8 with "apache-beam" extra added.
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam" --tag my-image:0.0.1
 
 This builds the CI image in version 3.8 with "mssql" additional package added.
@@ -503,7 +503,7 @@ This builds the CI image in version 3.8 with "mssql" additional package added.
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mssql" --tag my-image:0.0.1
 
 This builds the CI image in version 3.8 with "gcc" and "g++" additional apt dev dependencies added.
@@ -512,7 +512,7 @@ This builds the CI image in version 3.8 with "gcc" and "g++" additional apt dev 
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" --tag my-image:0.0.1
 
 This builds the CI image in version 3.8 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
@@ -521,7 +521,7 @@ This builds the CI image in version 3.8 with "jdbc" extra and "default-jre-headl
 
   DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
     --build-arg AIRFLOW_EXTRAS=jdbc \
     --tag my-image:0.0.1
 

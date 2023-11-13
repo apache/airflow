@@ -27,6 +27,7 @@
 
     Home <self>
     Changelog <changelog>
+    Security <security>
 
 .. toctree::
     :hidden:
@@ -60,11 +61,42 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Commits
 
     Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-common-io
+------------------------------------------------------
+
+``Common IO Provider``
+
+
+Release: 1.0.1
+
+Provider package
+----------------
+
+This is a provider package for ``common.io`` provider. All classes for this provider package
+are in ``airflow.providers.common.io`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
+``pip install apache-airflow-providers-common-io``
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.8.0``
+==================  ==================
