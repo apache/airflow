@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import asyncio
 import collections
-import collections.abc
 import copy
 import functools
 import itertools
