@@ -49,6 +49,7 @@ from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.auth.managers.fab.models import User
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
@@ -1489,7 +1490,7 @@ class DagRunNote(Base):
 
     user_id = Column(
         Integer,
-        ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
+        ForeignKey(User.id, name="dag_run_note_user_fkey"),
         nullable=True,
     )
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
