@@ -71,7 +71,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
             raise AirflowException(
                 "The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers."
             )
-        self.log.info("Generating embeddings for the input text: %s", self.input_text)
+        self.log.info("Generating embeddings for the input text of length: %d", len(self.input_text))
         embeddings = self.hook.create_embeddings(self.input_text, model=self.model, **self.embedding_kwargs)
         self.log.info("Generated embeddings: %s", embeddings)
         return embeddings
