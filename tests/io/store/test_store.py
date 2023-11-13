@@ -24,8 +24,8 @@ import pytest
 from fsspec.implementations.local import LocalFileSystem
 from fsspec.utils import stringify_path
 
+from airflow.io.path import ObjectStoragePath
 from airflow.io.store import _STORE_CACHE, ObjectStore, attach
-from airflow.io.store.path import ObjectStoragePath
 from airflow.utils.module_loading import qualname
 
 FAKE = "file:///fake"

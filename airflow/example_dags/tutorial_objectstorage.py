@@ -23,7 +23,7 @@ import pendulum
 import requests
 
 from airflow.decorators import dag, task
-from airflow.io.store.path import ObjectStoragePath
+from airflow.io.path import ObjectStoragePath
 
 # [END import_module]
 

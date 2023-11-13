@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from upath.implementations.cloud import CloudPath
 
-from airflow.io.store.path import ObjectStoragePath, _AirflowCloudAccessor
+from airflow.io.path import ObjectStoragePath, _AirflowCloudAccessor
 
 
 class AirflowCloudPath(ObjectStoragePath, CloudPath):

@@ -27,12 +27,12 @@ from typing import TYPE_CHECKING, MutableMapping
 import upath
 
 if TYPE_CHECKING:
-    import airflow.io.store.path
+    import airflow.io.path
 
 _ENTRY_POINT_GROUP = "airflow_pathlib.implementations"
 
 
-class _Registry(MutableMapping[str, "type[airflow.io.store.path.ObjectStoragePath]"]):
+class _Registry(MutableMapping[str, "type[airflow.io.path.ObjectStoragePath]"]):
     """Registry for ObjectStoragePath subclasses."""
 
     # _default_ set for serialization
@@ -46,7 +46,7 @@ class _Registry(MutableMapping[str, "type[airflow.io.store.path.ObjectStoragePat
         self._entries = {ep.name: ep for ep in eps}
         self._m = ChainMap({}, self.known_implementations)  # type: ignore
 
-    def __getitem__(self, item: str) -> type[airflow.io.store.path.ObjectStoragePath]:
+    def __getitem__(self, item: str) -> type[airflow.io.path.ObjectStoragePath]:
         fqn = self._m.get(item)
         if fqn is None:
             if item in self._entries:
@@ -82,7 +82,7 @@ registry = _Registry()
 @lru_cache
 def get_path_class(
     protocol: str, *, default: str | None = None
-) -> type[upath.core.UPath | airflow.io.store.path.ObjectStoragePath]:
+) -> type[upath.core.UPath | airflow.io.path.ObjectStoragePath]:
     """Return the path cls for the given protocol.
 
     Returns `None` or ``default`` if no matching protocol can be found.
