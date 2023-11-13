@@ -32,7 +32,7 @@ from upath.registry import get_upath_class
 
 from airflow.io.registry import get_path_class
 from airflow.io.store import attach
-from airflow.io.store.stat import stat_result
+from airflow.io.utils.stat import stat_result
 
 if typing.TYPE_CHECKING:
     from fsspec import AbstractFileSystem
