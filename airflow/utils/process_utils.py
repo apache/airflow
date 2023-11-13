@@ -205,10 +205,15 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
 
     old_tty = termios.tcgetattr(sys.stdin)
-    tty.setraw(sys.stdin.fileno())
+    tty.setcbreak(sys.stdin.fileno())
 
     # open pseudo-terminal to interact with subprocess
     primary_fd, secondary_fd = pty.openpty()
+
+    def handle_signal(sig, frame):
+        proc.send_signal(sig)
+
+    signal.signal(signal.SIGINT, handle_signal)
     try:
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
         with subprocess.Popen(
