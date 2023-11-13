@@ -209,7 +209,6 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
 
     # open pseudo-terminal to interact with subprocess
     primary_fd, secondary_fd = pty.openpty()
-
     try:
         # use os.setsid() make it run in a new process group, or bash job control will not be enabled
         with subprocess.Popen(
