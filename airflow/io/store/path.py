@@ -21,41 +21,66 @@ import functools
 import os
 import shutil
 import typing
-from io import UnsupportedOperation
-from stat import S_ISLNK
+from pathlib import PurePath
+from urllib.parse import SplitResult, urlsplit
 
+from fsspec.core import split_protocol
 from fsspec.utils import stringify_path
+from upath import UPath
+from upath.implementations.cloud import _CloudAccessor
+from upath.registry import get_upath_class
 
-from airflow.io.store import ObjectStore, attach
+from airflow.io.registry import get_path_class
+from airflow.io.store import attach
 from airflow.io.store.stat import stat_result
 
 if typing.TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
 
-def _rewrite_info(info: dict, store: ObjectStore) -> dict:
-    info["name"] = ObjectStoragePath(info["name"], store=store)
-    return info
+PT = typing.TypeVar("PT", bound="ObjectStoragePath")
+
+default = "file"
 
 
-@functools.total_ordering
-class ObjectStoragePath(os.PathLike):
+class _AirflowCloudAccessor(_CloudAccessor):
+    __slots__ = ("_store", "_conn_id")
+
+    def __init__(self, parsed_url: SplitResult | None, **kwargs: typing.Any) -> None:
+        _store = kwargs.pop("store", None)
+        conn_id = kwargs.pop("conn_id", None)
+        if _store:
+            self._store = _store
+        elif parsed_url and parsed_url.scheme:
+            self._store = attach(parsed_url.scheme, conn_id)  # todo add kwargs as storage_options
+        else:
+            self._store = attach(default, conn_id)
+        self._conn_id = conn_id
+
+    @property
+    def _fs(self) -> AbstractFileSystem:
+        return self._store.fs
+
+    def __eq__(self, other):
+        return isinstance(other, _AirflowCloudAccessor) and self._store == other._store
+
+
+class ObjectStoragePath(UPath):
     """A path-like object for object storage."""
 
     __version__: typing.ClassVar[int] = 1
 
+    _default_accessor = _AirflowCloudAccessor
+
     sep: typing.ClassVar[str] = "/"
     root_marker: typing.ClassVar[str] = "/"
 
-    _store: ObjectStore | None
     _bucket: str
     _key: str
-    _conn_id: str | None
     _protocol: str
     _hash: int | None
 
     __slots__ = (
-        "_store",
         "_bucket",
         "_key",
         "_conn_id",
@@ -63,171 +88,85 @@ class ObjectStoragePath(os.PathLike):
         "_hash",
     )
 
-    def __init__(
-        self,
-        path: str | ObjectStoragePath,
-        *,
-        conn_id: str | None = None,
-        store: ObjectStore | None = None,
-    ) -> None:
-        self._conn_id = conn_id
-        self._store = store
-
-        if isinstance(path, ObjectStoragePath):
-            self._protocol = path._protocol
-            self._bucket = path._bucket
-            self._key = path._key
-            self._store = path._store
+    def __new__(cls: type[PT], *args: str | os.PathLike, **kwargs: typing.Any) -> PT:
+        args_list = list(args)
+        try:
+            other = args_list.pop(0)
+        except IndexError:
+            other = "."
         else:
-            self._protocol, self._bucket, self._key = self._split_path(path)
+            other = other or "."
 
-        if store:
-            self._conn_id = store.conn_id
-            self._protocol = self._protocol if self._protocol else store.protocol
-        elif self._protocol and not self._store:
-            self._store = attach(self._protocol, conn_id)
+        if isinstance(other, PurePath):
+            _cls: type[typing.Any] = type(other)
+            drv, root, parts = _cls._parse_args(args_list)
+            drv, root, parts = _cls._flavour.join_parsed_parts(
+                other._drv,  # type: ignore[attr-defined]
+                other._root,  # type: ignore[attr-defined]
+                other._parts,  # type: ignore[attr-defined]
+                drv,
+                root,
+                parts,  # type: ignore
+            )
 
-    @classmethod
-    def _split_path(cls, p: typing.Any) -> tuple[str, str, str]:
-        protocol, _, path = str(stringify_path(p)).rpartition("://")
+            _kwargs = getattr(other, "_kwargs", {})
+            _url = getattr(other, "_url", None)
+            other_kwargs = _kwargs.copy()
+            if _url and _url.scheme:
+                other_kwargs["url"] = _url
+            new_kwargs = _kwargs.copy()
+            new_kwargs.update(kwargs)
 
-        if cls.sep not in path:
-            bucket = path
-            key = ""
+            return _cls(_cls._format_parsed_parts(drv, root, parts, **other_kwargs), **new_kwargs)
+
+        url = stringify_path(other)
+        protocol, _ = split_protocol(url)
+        parsed_url = urlsplit(url)
+
+        if protocol is None:
+            protocol = kwargs.get("scheme", parsed_url.scheme)
         else:
-            bucket, key = path.split(cls.sep, 1)
+            protocol = kwargs.get("scheme", protocol)
 
-        # we don't care about versions etc
-        return protocol, bucket, key
+        path_cls = get_path_class(protocol, default="_default_")
 
-    def __repr__(self) -> str:
-        return f"<{type(self).__name__}('{self}')>"
+        for key in ["scheme", "netloc"]:
+            val = kwargs.get(key)
+            if val:
+                parsed_url = parsed_url._replace(**{key: val})
 
-    def __str__(self) -> str:
-        return (
-            f"{self._protocol}://{self._bucket}/{self._key}"
-            if self._protocol
-            else f"{self._bucket}/{self._key}"
-        )
+        if not parsed_url.path:
+            parsed_url = parsed_url._replace(path="/")  # ensure path has root
 
-    __fspath__ = __str__
+        if not protocol:
+            args_list.insert(0, url)
+        else:
+            args_list.insert(0, parsed_url.path)
 
-    def __lt__(self, other: typing.Any) -> bool:
-        if not isinstance(other, ObjectStoragePath):
-            return NotImplemented
-        return self._bucket < other._bucket
-
-    def __eq__(self, other: typing.Any) -> bool:
-        if not isinstance(other, ObjectStoragePath):
-            return NotImplemented
-        return self._bucket == other._bucket
-
-    def __ne__(self, other: typing.Any) -> bool:
-        if not isinstance(other, ObjectStoragePath):
-            return NotImplemented
-        return self._bucket != other._bucket
+        return path_cls._from_parts(args_list, url=parsed_url, **kwargs)  # type: ignore
 
     @functools.lru_cache
     def __hash__(self) -> int:
         return hash(self._bucket)
 
-    def __truediv__(self, other: typing.Any) -> ObjectStoragePath:
-        o_protocol, o_bucket, _ = self._split_path(other)
-        if isinstance(other, ObjectStoragePath) and o_bucket and self._bucket != o_bucket:
-            raise ValueError("Cannot combine paths from different buckets / containers")
-
-        if o_protocol and self._protocol != o_protocol:
-            raise ValueError("Cannot combine paths from different protocols")
-
-        self_path = str(stringify_path(self))
-        other_path = str(stringify_path(other))
-
-        path = f"{self_path.rstrip(self.sep)}/{other_path.lstrip(self.sep)}"
-        return ObjectStoragePath(path, conn_id=self._conn_id)
-
-    def _unsupported(self, method_name: str) -> typing.NoReturn:
-        msg = f"{type(self).__name__}.{method_name}() is unsupported"
-        raise UnsupportedOperation(msg)
-
     def samestore(self, other: typing.Any) -> bool:
-        return isinstance(other, ObjectStoragePath) and self._store == other._store
+        return isinstance(other, ObjectStoragePath) and self._accessor == other._accessor
 
     @property
     def container(self) -> str:
-        return self._bucket
+        return self.bucket
 
     @property
     def bucket(self) -> str:
-        return self._bucket
+        return self._url.netloc
 
     @property
     def key(self) -> str:
-        return self._key
-
-    @property
-    def store(self) -> ObjectStore:
-        if not self._store:
-            raise ValueError("Cannot do operations. No store attached.")
-
-        return self._store
-
-    @property
-    def protocol(self) -> str:
-        return self._protocol
-
-    @property
-    def fs(self) -> AbstractFileSystem:
-        return self.store.fs
-
-    @property
-    def parent(self) -> ObjectStoragePath:
-        return ObjectStoragePath(self.store.fs._parent(str(self)), store=self.store)
+        return self._url.path
 
     def stat(self, *, follow_symlinks: bool = True) -> stat_result:
         """Return the result of the `stat()` call."""  # noqa: D402
-        return stat_result(self.store.fs.stat(self), protocol=self.store.protocol, conn_id=self.store.conn_id)
-
-    def lstat(self) -> stat_result:
-        """Like stat() except that it doesn't follow symlinks."""
-        return self.stat(follow_symlinks=False)
-
-    def exists(self) -> bool:
-        """Whether this path exists."""
-        return self.store.fs.exists(self)
-
-    def is_dir(self) -> bool:
-        """Return True if this path is directory like."""
-        return self.store.fs.isdir(self)
-
-    def is_file(self) -> bool:
-        """Return True if this path is a regular file."""
-        return self.store.fs.isfile(self)
-
-    def is_mount(self) -> bool:
-        self._unsupported("is_mount")
-
-    def is_symlink(self) -> bool:
-        """Whether this path is a symbolic link."""
-        try:
-            return S_ISLNK(self.lstat().st_mode)
-        except OSError:
-            # Path doesn't exist
-            return False
-        except ValueError:
-            # Non-encodable path
-            return False
-
-    def is_block_device(self) -> bool:
-        self._unsupported("is_block_device")
-
-    def is_char_device(self) -> bool:
-        self._unsupported("is_char_device")
-
-    def is_fifo(self) -> bool:
-        self._unsupported("is_fifo")
-
-    def is_socket(self) -> bool:
-        self._unsupported("is_socket")
+        return stat_result(self._accessor.stat(self), protocol=self.protocol, conn_id=self._accessor.conn_id)
 
     def samefile(self, other_path: typing.Any) -> bool:
         """Return whether other_path is the same or not as this file."""
@@ -243,249 +182,10 @@ class ObjectStoragePath(os.PathLike):
             and st["ino"] == other_st["ino"]
         )
 
-    def checksum(self) -> int:
-        """Return the checksum of the file at this path."""
-        return self.store.fs.checksum(self)
-
-    def open(
-        self,
-        mode="rb",
-        block_size=None,
-        cache_options=None,
-        compression=None,
-        encoding=None,
-        errors=None,
-        newline=None,
-        **kwargs,
-    ) -> typing.IO:
-        """
-        Return a file-like object from the filesystem.
-
-        The resultant instance must function correctly in a context 'with' block.
-
-        :param mode: str like 'rb', 'w'
-                  See builtin 'open()'.
-        :param block_size: int
-                        Some indication of buffering - this is a value in bytes.
-        :param cache_options: dict, optional
-                           Extra arguments to pass through to the cache.
-        :param compression: string or None
-                        If given, open file using a compression codec. Can either be a compression
-                        name (a key in 'fsspec.compression.compr') or 'infer' to guess the
-                        compression from the filename suffix.
-        :param encoding: passed on to TextIOWrapper for text mode
-        :param errors: passed on to TextIOWrapper for text mode
-        :param newline: passed on to TextIOWrapper for text mode
-
-        kwargs: Additional keyword arguments to be passed on.
-        """
-        return self.store.fs.open(
-            str(self),
-            mode=mode,
-            block_size=block_size,
-            cache_options=cache_options,
-            compression=compression,
-            encoding=encoding,
-            errors=errors,
-            newline=newline,
-            **kwargs,
-        )
-
-    def read_bytes(self, start: int | None = None, end: int | None = None) -> bytes:
-        """Open the file in bytes mode, read it, and close the file."""
-        return self.store.fs.read_bytes(str(self), start=start, end=end)
-
-    def read_text(self, encoding=None, errors=None, newline=None, **kwargs) -> str:
-        """Open the file in text mode, read it, and close the file."""
-        return self.store.fs.read_text(str(self), encoding=encoding, errors=errors, newline=newline, **kwargs)
-
-    def write_bytes(self, data, **kwargs) -> int:
-        """Open the file in bytes mode, write to it, and close the file."""
-        return self.store.fs.pipe_file(self, value=data, **kwargs)
-
-    def write_text(self, data, encoding=None, errors=None, newline=None, **kwargs) -> int:
-        """Open the file in text mode, write to it, and close the file."""
-        return self.store.fs.write_text(
-            str(self), value=data, encoding=encoding, errors=errors, newline=newline, **kwargs
-        )
-
-    def iterdir(self):
-        """Iterate over the files in this directory."""
-        self._unsupported("iterdir")
-
     def _scandir(self):
         # Emulate os.scandir(), which returns an object that can be used as a
         # context manager.
         return contextlib.nullcontext(self.iterdir())
-
-    def glob(self, pattern: str, maxdepth: int | None = None, **kwargs):
-        """
-        Find files by glob-matching.
-
-        If the path ends with '/', only folders are returned.
-
-        We support ``"**"``,
-        ``"?"`` and ``"[..]"``. We do not support ^ for pattern negation.
-
-        The `maxdepth` option is applied on the first `**` found in the path.
-
-        Search path names that contain embedded characters special to this
-        implementation of glob may not produce expected results;
-        e.g., 'foo/bar/*starredfilename*'.
-
-        :param pattern: str
-                       The glob pattern to match against.
-        :param maxdepth: int or None
-                         The maximum depth to search. If None, there is no depth limit.
-
-        kwargs: Additional keyword arguments to be passed on.
-        """
-        path = os.path.join(self._bucket, pattern)
-
-        detail = kwargs.get("detail", False)
-        items = self.store.fs.glob(path, maxdepth=maxdepth, **kwargs)
-        if detail:
-            t = {
-                ObjectStoragePath(k, store=self.store): _rewrite_info(v, self.store) for k, v in items.items()
-            }
-            return t
-        else:
-            return [ObjectStoragePath(c, store=self.store) for c in items]
-
-    def rglob(self, maxdepth: int | None = None, **kwargs):
-        self._unsupported("rglob")
-
-    def walk(self, maxdepth: int | None = None, topdown: bool = True, on_error: str = "omit", **kwargs):
-        """
-        Return all files belows path.
-
-        List all files, recursing into subdirectories; output is iterator-style,
-        like ``os.walk()``. For a simple list of files, ``find()`` is available.
-
-        When topdown is True, the caller can modify the dirnames list in-place (perhaps
-        using del or slice assignment), and walk() will
-        only recurse into the subdirectories whose names remain in dirnames;
-        this can be used to prune the search, impose a specific order of visiting,
-        or even to inform walk() about directories the caller creates or renames before
-        it resumes walk() again.
-        Modifying dirnames when topdown is False has no effect. (see os.walk)
-
-        Note that the "files" outputted will include anything that is not
-        a directory, such as links.
-
-        :param maxdepth: int or None
-                        Maximum recursion depth. None means limitless, but not recommended
-                        on link-based file-systems.
-        :param topdown: bool (True)
-                        Whether to walk the directory tree from the top downwards or from
-                        the bottom upwards.
-        :param on_error: "omit", "raise", a collable
-                        if omit (default), path with exception will simply be empty;
-                        If raise, an underlying exception will be raised;
-                        if callable, it will be called with a single OSError instance as argument
-        kwargs: Additional keyword arguments to be passed on.
-        """
-        detail = kwargs.get("detail", False)
-        items = self.store.fs.walk(str(self), maxdepth=maxdepth, topdown=topdown, on_error=on_error, **kwargs)
-        if not detail:
-            for path, dirs, files in items:
-                yield ObjectStoragePath(path, store=self.store), dirs, files
-        else:
-            for path, dirs, files in items:
-                yield (
-                    ObjectStoragePath(path, store=self.store),
-                    {k: _rewrite_info(v, self.store) for k, v in dirs.items()},
-                    {k: _rewrite_info(v, self.store) for k, v in files.items()},
-                )
-
-    def ls(self, detail: bool = True, **kwargs) -> list[ObjectStoragePath] | list[dict]:
-        """
-        List files at path.
-
-        :param detail: bool
-                       If True, return a dict containing details about each entry, otherwise
-                       return a list of paths.
-
-        kwargs: Additional keyword arguments to be passed on.
-        """
-        items = self.store.fs.ls(str(self), detail=detail, **kwargs)
-
-        if detail:
-            return [_rewrite_info(c, self.store) for c in items]
-        else:
-            return [ObjectStoragePath(c, store=self.store) for c in items]
-
-    def absolute(self) -> ObjectStoragePath:
-        """Return an absolute version of this path. Resolving any aliases."""
-        return ObjectStoragePath(f"{self.store.protocol}://{self._key}")
-
-    def touch(self, truncate: bool = True) -> None:
-        """Create an empty file, or update the timestamp.
-
-        :param truncate: bool (True)
-                         If True, always set the file size to 0; if False, update the timestamp and
-                         leave the file unchanged, if the backend allows this.
-        """
-        self.store.fs.touch(str(self), truncate=truncate)
-
-    def mkdir(self, create_parents: bool = True, exists_ok: bool = False, **kwargs) -> None:
-        """
-        Create a directory entry at the specified path or within a bucket/container.
-
-        For systems that don't have true directories, it may create a directory entry
-        for this instance only and not affect the real filesystem.
-
-        :param create_parents: bool
-                              if True, this is equivalent to 'makedirs'.
-        :param exists_ok: bool
-                            if True, do not raise an error if the target directory already exists.
-
-        kwargs: Additional keyword arguments, which may include permissions, etc.
-        """
-        if not exists_ok and self.exists():
-            raise FileExistsError(f"Target {self} exists")
-        with contextlib.suppress(FileExistsError):
-            self.store.fs.mkdir(str(self), create_parents=create_parents, **kwargs)
-
-    def unlink(self, recursive: bool = False, maxdepth: int | None = None) -> None:
-        """
-        Remove this file or link.
-
-        If the path is a directory, use rmdir() instead.
-        """
-        self.store.fs.rm(str(self), recursive=recursive, maxdepth=maxdepth)
-
-    rm = unlink
-    """
-    Remove this file or link.
-
-    Alias of unlink
-    """
-
-    def rmdir(self) -> None:
-        """Remove this directory.  The directory must be empty."""
-        self.store.fs.rmdir(str(self))
-
-    def rename(self, target: str | ObjectStoragePath, overwrite=False) -> ObjectStoragePath:
-        """
-        Rename this path to the target path.
-
-        The target path may be absolute or relative. Relative paths are
-        interpreted relative to the current working directory, *not* the
-        directory of the Path object.
-
-        Returns the new Path instance pointing to the target path.
-        """
-        if isinstance(target, str):
-            target = ObjectStoragePath(target, store=self.store)
-
-        if not self.samestore(target):
-            raise ValueError("You can only rename within the same store")
-
-        if not overwrite and self.store.fs.exists(target):
-            raise FileExistsError(f"Target {target} exists")
-
-        return ObjectStoragePath(self.store.fs.mv(str(self), target), store=self._store)
 
     def replace(self, target: str | ObjectStoragePath) -> ObjectStoragePath:
         """
@@ -499,11 +199,30 @@ class ObjectStoragePath(os.PathLike):
         """
         return self.rename(target, overwrite=True)
 
+    @classmethod
+    def cwd(cls):
+        if cls is ObjectStoragePath:
+            return get_upath_class("").cwd()
+        else:
+            raise NotImplementedError
+
+    @classmethod
+    def home(cls):
+        if cls is ObjectStoragePath:
+            return get_upath_class("").home()
+        else:
+            raise NotImplementedError
+
     # EXTENDED OPERATIONS
 
     def ukey(self) -> str:
         """Hash of file properties, to tell if it has changed."""
-        return self.store.fs.ukey(str(self))
+        return self.fs.ukey(self.path)
+
+    def checksum(self) -> int:
+        """Return the checksum of the file at this path."""
+        # we directly access the fs here to avoid changing the abstract interface
+        return self.fs.checksum(self.path)
 
     def read_block(self, offset: int, length: int, delimiter=None):
         r"""Read a block of bytes.
@@ -538,7 +257,7 @@ class ObjectStoragePath(os.PathLike):
         --------
         :func:`fsspec.utils.read_block`
         """
-        return self.store.fs.read_block(str(self), offset, length, delimiter=delimiter)
+        return self.fs.read_block(self.path, offset, length, delimiter=delimiter)
 
     def sign(self, expiration: int = 100, **kwargs):
         """Create a signed URL representing the given path.
@@ -556,68 +275,17 @@ class ObjectStoragePath(os.PathLike):
 
         :raises NotImplementedError: if the method is not implemented for a store
         """
-        return self.store.fs.sign(str(self), expiration=expiration, **kwargs)
+        return self.fs.sign(self.path, expiration=expiration, **kwargs)
 
     def size(self) -> int:
         """Size in bytes of the file at this path."""
-        return self.store.fs.size(self)
+        return self.fs.size(self.path)
 
-    def du(self, total: bool = True, maxdepth: int | None = None, withdirs: bool = False, **kwargs):
-        """Space used by files and optionally directories within a path.
-
-        Directory size does not include the size of its contents.
-
-        :param total: bool
-                     Whether to sum all the file sizes
-        :param maxdepth: int or None
-                         Maximum number of directory levels to descend, None for unlimited.
-        :param withdirs: bool
-                         Whether to include directory paths in the output.
-
-        kwargs: Additional keyword arguments to be passed on.
-
-        :returns: Dict of {path: size} if total=False, or int otherwise, where numbers
-                  refer to bytes used.
-        """
-        return self.store.fs.du(str(self), total=total, maxdepth=maxdepth, withdirs=withdirs, **kwargs)
-
-    def find(
-        self, path: str, maxdepth: int | None = None, withdirs: bool = False, detail: bool = False, **kwargs
-    ):
-        """List all files below the specified path.
-
-        Like posix ``find`` command without conditions.
-
-        :param path: str
-                     Path pattern to search.
-        :param maxdepth: int or None
-                         If not None, the maximum number of levels to descend.
-        :param withdirs: bool
-                         Whether to include directory paths in the output. This is True
-                         when used by glob, but users usually only want files.
-        :param detail: bool
-                       Whether to include file info.
-
-        kwargs: Additional keyword arguments to be passed to ``ls``.
-        """
-        path = self.sep.join([str(self), path.lstrip("/")])
-        items = self.store.fs.find(path, maxdepth=maxdepth, withdirs=withdirs, detail=detail, **kwargs)
-
-        if detail:
-            return {
-                ObjectStoragePath(k, store=self.store): _rewrite_info(v, self.store) for k, v in items.items()
-            }
-        else:
-            return [ObjectStoragePath(c, store=self.store) for c in items]
-
-    def _cp_file(self, dst: str | ObjectStoragePath, **kwargs):
+    def _cp_file(self, dst: ObjectStoragePath, **kwargs):
         """Copy a single file from this path to another location by streaming the data."""
-        if isinstance(dst, str):
-            dst = ObjectStoragePath(dst)
-
         # create the directory or bucket if required
         if dst.key.endswith(self.sep) or not dst.key:
-            dst.mkdir(exists_ok=True, create_parents=True)
+            dst.mkdir(exist_ok=True, parents=True)
             dst = dst / self.key
         elif dst.is_dir():
             dst = dst / self.key
@@ -644,18 +312,16 @@ class ObjectStoragePath(os.PathLike):
 
         # same -> same
         if self.samestore(dst):
-            self.store.fs.copy(str(self), dst, recursive=recursive, **kwargs)
+            self.fs.copy(self.path, dst.path, recursive=recursive, **kwargs)
             return
 
         # use optimized path for local -> remote or remote -> local
-        if self.store.protocol == "file":
-            lpath = self.store.fs._strip_protocol(str(self))
-            dst.store.fs.put(lpath, str(dst), recursive=recursive, **kwargs)
+        if self.protocol == "file":
+            dst.fs.put(self.path, dst.path, recursive=recursive, **kwargs)
             return
 
-        if dst.store.protocol == "file":
-            rpath = dst.store.fs._strip_protocol(str(dst))
-            self.store.fs.get(str(self), rpath, recursive=recursive, **kwargs)
+        if dst.protocol == "file":
+            self.fs.get(self.path, dst.path, recursive=recursive, **kwargs)
             return
 
         if not self.exists():
@@ -666,18 +332,17 @@ class ObjectStoragePath(os.PathLike):
             if dst.is_file():
                 raise ValueError("Cannot copy directory to a file.")
 
-            dst.mkdir(exists_ok=True, create_parents=True)
+            dst.mkdir(exist_ok=True, parents=True)
 
-            out = self.store.fs.expand_path(str(self), recursive=True, **kwargs)
-            source_stripped = self.store.fs._strip_protocol(str(self))
+            out = self.fs.expand_path(self.path, recursive=True, **kwargs)
 
             for path in out:
                 # this check prevents one extra call to is_dir() as
                 # glob returns self as well
-                if path == source_stripped:
+                if path == self.path:
                     continue
 
-                src_obj = ObjectStoragePath(path, store=self.store)
+                src_obj = ObjectStoragePath(path, store=self._accessor._store)
 
                 # skip directories, empty directories will not be created
                 if src_obj.is_dir():
@@ -705,16 +370,16 @@ class ObjectStoragePath(os.PathLike):
             path = ObjectStoragePath(path)
 
         if self.samestore(path):
-            return self.store.fs.move(str(self), str(path), recursive=recursive, **kwargs)
+            return self.fs.move(self.path, path.path, recursive=recursive, **kwargs)
 
         # non-local copy
         self.copy(path, recursive=recursive, **kwargs)
-        self.unlink(recursive=recursive)
+        self.unlink()
 
-    def serialize(self) -> dict[str, str | ObjectStore]:
+    def serialize(self) -> dict[str, str]:
         return {
             "path": str(self),
-            "store": self.store,
+            **self._kwargs,
         }
 
     @classmethod
@@ -722,4 +387,5 @@ class ObjectStoragePath(os.PathLike):
         if version > cls.__version__:
             raise ValueError(f"Cannot deserialize version {version} with version {cls.__version__}.")
 
-        return ObjectStoragePath(**data)
+        path = data.pop("path")
+        return ObjectStoragePath(path, **data)

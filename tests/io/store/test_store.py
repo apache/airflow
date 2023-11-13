@@ -58,19 +58,18 @@ class TestFs:
     def test_init_objectstoragepath(self):
         path = ObjectStoragePath("file://bucket/key/part1/part2")
         assert path.bucket == "bucket"
-        assert path.key == "key/part1/part2"
-        assert path._protocol == "file"
+        assert path.key == "/key/part1/part2"
+        assert path.protocol == "file"
 
         path2 = ObjectStoragePath(path / "part3")
         assert path2.bucket == "bucket"
-        assert path2.key == "key/part1/part2/part3"
-        assert path2._protocol == "file"
+        assert path2.key == "/key/part1/part2/part3"
+        assert path2.protocol == "file"
 
-        # check if we can append a non string to the path
-        path3 = ObjectStoragePath(path2 / 2023)
+        path3 = ObjectStoragePath(path2 / "2023")
         assert path3.bucket == "bucket"
-        assert path3.key == "key/part1/part2/part3/2023"
-        assert path3._protocol == "file"
+        assert path3.key == "/key/part1/part2/part3/2023"
+        assert path3.protocol == "file"
 
     def test_read_write(self):
         o = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
@@ -87,69 +86,27 @@ class TestFs:
         filename = str(uuid.uuid4())
 
         d = ObjectStoragePath(f"file:///tmp/{dirname}")
-        d.mkdir(create_parents=True)
+        d.mkdir(parents=True)
         o = d / filename
         o.touch()
 
-        data = d.ls()
+        data = list(d.iterdir())
         assert len(data) == 1
-        assert data[0]["name"] == o
+        assert data[0] == o
 
-        data = d.ls(detail=False)
-        assert data == [o]
-
-        d.unlink(recursive=True)
+        d.rmdir(recursive=True)
 
         assert not o.exists()
-
-    def test_find(self):
-        dirname = str(uuid.uuid4())
-        filename = str(uuid.uuid4())
-
-        d = ObjectStoragePath(f"file:///tmp/{dirname}")
-        d.mkdir(create_parents=True)
-        o = d / filename
-        o.touch()
-
-        data = d.find("")
-        assert len(data) == 1
-        assert data == [o]
-
-        data = d.ls(detail=True)
-        assert len(data) == 1
-        assert data[0]["name"] == o
-
-        d.unlink(recursive=True)
 
     @pytest.mark.parametrize(
         "fn, args, fn2, path, expected_args, expected_kwargs",
         [
-            ("du", {}, "du", FOO, BAR, {"total": True, "maxdepth": None, "withdirs": False}),
-            ("exists", {}, "exists", FOO, ObjectStoragePath(BAR), {}),
-            ("checksum", {}, "checksum", FOO, ObjectStoragePath(BAR), {}),
-            ("size", {}, "size", FOO, ObjectStoragePath(BAR), {}),
-            ("is_dir", {}, "isdir", FOO, ObjectStoragePath(BAR), {}),
-            ("is_file", {}, "isfile", FOO, ObjectStoragePath(BAR), {}),
-            # ("is_symlink", {}, "islink", FOO, ObjectStoragePath(BAR), {}),
-            ("touch", {}, "touch", FOO, BAR, {"truncate": True}),
-            ("mkdir", {"exists_ok": True}, "mkdir", FOO, BAR, {"create_parents": True}),
-            ("read_text", {}, "read_text", FOO, BAR, {"encoding": None, "errors": None, "newline": None}),
-            ("read_bytes", {}, "read_bytes", FOO, BAR, {"start": None, "end": None}),
-            ("rm", {}, "rm", FOO, BAR, {"maxdepth": None, "recursive": False}),
-            ("rmdir", {}, "rmdir", FOO, BAR, {}),
-            ("write_bytes", {"data": b"foo"}, "pipe_file", FOO, ObjectStoragePath(BAR), {"value": b"foo"}),
-            (
-                "write_text",
-                {"data": "foo"},
-                "write_text",
-                FOO,
-                BAR,
-                {"value": "foo", "encoding": None, "errors": None, "newline": None},
-            ),
-            ("ukey", {}, "ukey", FOO, BAR, {}),
+            ("checksum", {}, "checksum", FOO, FakeRemoteFileSystem._strip_protocol(BAR), {}),
+            ("size", {}, "size", FOO, FakeRemoteFileSystem._strip_protocol(BAR), {}),
+            ("ukey", {}, "ukey", FOO, FakeRemoteFileSystem._strip_protocol(BAR), {}),
         ],
     )
-    def test_standard_api(self, fn, args, fn2, path, expected_args, expected_kwargs):
+    def test_standard_extended_api(self, fn, args, fn2, path, expected_args, expected_kwargs):
         _fs = mock.Mock()
         _fs._strip_protocol.return_value = "/"
         _fs.conn_id = "fake"
@@ -210,16 +167,18 @@ class TestFs:
         assert (_to / _from.key / key).exists()
         assert (_to / _from.key / key).is_file()
 
-        _from.unlink(recursive=True)
-        _to.unlink(recursive=True)
+        _from.rmdir(recursive=True)
+        _to.rmdir(recursive=True)
 
     def test_serde_objectstoragepath(self):
         path = "file://bucket/key/part1/part2"
         o = ObjectStoragePath(path)
+
         s = o.serialize()
+        assert s["path"] == path
+
         d = ObjectStoragePath.deserialize(s, 1)
 
-        assert s["path"] == path
         assert o == d
 
     def test_serde_store(self):
