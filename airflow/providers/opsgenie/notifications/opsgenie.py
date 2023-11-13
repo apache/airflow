@@ -55,7 +55,7 @@ class OpsgenieNotifier(BaseNotifier):
     :param payload: The payload necessary for creating an alert.
     """
 
-    template_fields: Sequence[str] = "payload"
+    template_fields: Sequence[str] = ("payload",)
 
     def __init__(
         self,
