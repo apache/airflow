@@ -1095,7 +1095,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     ],
 )
 def test_upgrade_to_newer_dependencies(
-    files: tuple[str, ...], expected_outputs: dict[str, str], pr_labels: tuple[str]
+    files: tuple[str, ...], expected_outputs: dict[str, str], pr_labels: tuple[str, ...]
 ):
     stderr = SelectiveChecks(
         files=files,
@@ -1151,7 +1151,7 @@ def test_upgrade_to_newer_dependencies(
                 "docs/apache-airflow-providers/docs.rst",
             ),
             {
-                "docs-list-as-string": "apache-airflow providers-index airbyte http",
+                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte http",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),

@@ -88,7 +88,7 @@ function in_container_fix_ownership() {
             echo "${COLOR_BLUE}Fixing ownership of ${count_matching} root owned files on ${HOST_OS}${COLOR_RESET}"
             echo
             find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -print0 2> /dev/null |
-                xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
+                xargs --null chown "${HOST_USER_ID}:${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
             echo "${COLOR_BLUE}Fixed ownership of generated files${COLOR_RESET}."
             echo
         fi

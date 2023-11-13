@@ -627,6 +627,18 @@ workers:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+  kerberosInitContainer:
+    # Enable kerberos init container
+    enabled: false
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -2161,6 +2173,7 @@ elasticsearch:
   # Or an object representing the connection
   # Example:
   # connection:
+  #   scheme: ~
   #   user: ~
   #   pass: ~
   #   host: ~
