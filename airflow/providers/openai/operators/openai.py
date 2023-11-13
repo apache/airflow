@@ -20,7 +20,6 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.openai.hooks.openai import OpenAIHook
 
@@ -60,6 +59,10 @@ class OpenAIEmbeddingOperator(BaseOperator):
         self.input_text = input_text
         self.model = model
         self.embedding_kwargs = embedding_kwargs or {}
+        if not self.input_text or not isinstance(self.input_text, (str, list)):
+            raise ValueError(
+                "The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers."
+            )
 
     @cached_property
     def hook(self) -> OpenAIHook:
@@ -67,11 +70,7 @@ class OpenAIEmbeddingOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> list[float]:
-        if not self.input_text or not isinstance(self.input_text, (str, list)):
-            raise AirflowException(
-                "The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers."
-            )
         self.log.info("Generating embeddings for the input text of length: %d", len(self.input_text))
         embeddings = self.hook.create_embeddings(self.input_text, model=self.model, **self.embedding_kwargs)
-        self.log.info("Generated embeddings: %s", embeddings)
+        self.log.info("Generated embeddings for %d items", len(embeddings))
         return embeddings
