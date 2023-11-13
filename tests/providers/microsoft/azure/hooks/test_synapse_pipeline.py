@@ -23,7 +23,7 @@ from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.synapse.artifacts import ArtifactsClient
 
 from airflow.models.connection import Connection
-from airflow.providers.microsoft.azure.hooks.synapse_pipeline import (
+from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineHook,
     AzureSynapsePipelineRunException,
     AzureSynapsePipelineRunStatus,

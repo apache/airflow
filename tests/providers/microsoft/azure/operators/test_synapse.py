@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.synapse_pipeline import (
+from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineHook,
     AzureSynapsePipelineRunException,
     AzureSynapsePipelineRunStatus,

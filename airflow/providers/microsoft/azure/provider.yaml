@@ -235,7 +235,6 @@ hooks:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
-      - airflow.providers.microsoft.azure.hooks.synapse_pipeline
 
 triggers:
   - integration-name: Microsoft Azure Data Factory
@@ -293,8 +292,6 @@ connection-types:
     connection-type: azure_service_bus
   - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook
     connection-type: azure_synapse
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.synapse_pipeline.AzureSynapsePipelineHook
-    connection-type: azure_synapse_pipeline
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
     connection-type: adls
 

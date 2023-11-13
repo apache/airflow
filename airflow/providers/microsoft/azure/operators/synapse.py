@@ -23,11 +23,12 @@ from urllib.parse import urlencode
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
-from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, AzureSynapseSparkBatchRunStatus
-from airflow.providers.microsoft.azure.hooks.synapse_pipeline import (
+from airflow.providers.microsoft.azure.hooks.synapse import (
+    AzureSynapseHook,
     AzureSynapsePipelineHook,
     AzureSynapsePipelineRunException,
     AzureSynapsePipelineRunStatus,
+    AzureSynapseSparkBatchRunStatus,
 )
 
 if TYPE_CHECKING:
