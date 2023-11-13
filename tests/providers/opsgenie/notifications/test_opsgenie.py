@@ -79,7 +79,7 @@ class TestOpsgenieNotifier:
     def test_notifier(self, mock_opsgenie_alert_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
-        notifier = send_opsgenie_notification(**self._config)
+        notifier = send_opsgenie_notification(payload=self._config)
         notifier({"dag": dag})
         mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(self.expected_payload_dict)
 
@@ -87,7 +87,7 @@ class TestOpsgenieNotifier:
     def test_notifier_with_notifier_class(self, mock_opsgenie_alert_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
-        notifier = OpsgenieNotifier(**self._config)
+        notifier = OpsgenieNotifier(payload=self._config)
         notifier({"dag": dag})
         mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(self.expected_payload_dict)
 
@@ -112,7 +112,7 @@ class TestOpsgenieNotifier:
             else:
                 templated_expected_payload_dict[key] = value
 
-        notifier = OpsgenieNotifier(**templated_config)
+        notifier = OpsgenieNotifier(payload=templated_config)
         notifier({"dag": dag})
         mock_opsgenie_alert_hook.return_value.create_alert.assert_called_once_with(
             templated_expected_payload_dict
