@@ -39,7 +39,7 @@ def auth_manager():
 def auth_manager_with_appbuilder():
     flask_app = Flask(__name__)
     appbuilder = init_appbuilder(flask_app)
-    return AwsAuthManager(flask_app, appbuilder)
+    return AwsAuthManager(appbuilder)
 
 
 @pytest.fixture
