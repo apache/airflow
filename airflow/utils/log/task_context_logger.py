@@ -41,8 +41,10 @@ logging_levels = {
 
 class TaskContextLogger:
     """
-    TaskContextLogger relays messages, typically in exceptional circumstances, to the task instance logs
-    from Airflow components e.g. the executor or scheduler.
+    Class for sending messages to task instance logs from outside task execution context.
+
+    This is intended to be used mainly in exceptional circumstances, to give visibility into
+    events related to task execution when otherwise there would be none.
 
     :meta private:
     """
@@ -77,26 +79,24 @@ class TaskContextLogger:
 
     def _log(
         self,
-        ti: TaskInstance,
-        caller_logger: logging.Logger,
-        message: str,
+        level: str,
+        msg: str,
         *args,
-        level: str = "info",
-        **kwargs,
+        ti: TaskInstance,
     ):
         """
-        ß task log message for the task instance to the task handler.
+        Emit a log message to the task instance logs.
 
-        :param ti: the task instance
-        :param message: the message to relay to task context log
-        :param caller_logger: configured logging.Logger instance of the caller
         :param level: the log level
+        :param message: the message to relay to task context log
+        :param ti: the task instance
         """
-        if caller_logger.isEnabledFor(logging_levels[level]):
+        caller_logger = self.log
+        if caller_logger.isEnabledFor(logging_levels[level.lower()]):
             caller_log_level_callable = getattr(caller_logger, level, None)
             if callable(caller_log_level_callable):
                 # This logs the message using the calling method's configured logger
-                caller_log_level_callable(message % args)
+                caller_log_level_callable(msg % args)
 
         if not self.should_log:
             return
@@ -108,7 +108,7 @@ class TaskContextLogger:
             task_handler.set_context(ti, identifier=self.component_name)
             filename, lineno, func, stackinfo = logger.findCaller()
             record = logging.LogRecord(
-                self.component_name, logging_levels[level], filename, lineno, message, args, None, func=func
+                self.component_name, logging_levels[level], filename, lineno, msg, args, None, func=func
             )
             task_handler.emit(record)
         finally:
