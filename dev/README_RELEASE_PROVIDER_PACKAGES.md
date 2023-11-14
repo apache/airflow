@@ -136,11 +136,11 @@ breeze release-management prepare-provider-documentation [packages]
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), documentation for the provider will not be prepared when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze release-management prepare-provider-documentation qubole
+breeze release-management prepare-provider-documentation removed.provider
 ```
 
 
@@ -220,11 +220,11 @@ breeze release-management prepare-provider-packages --package-format both PACKAG
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), package for the provider will not be prepared when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both qubole
+breeze release-management prepare-provider-packages --package-format both removed.provider
 ```
 
 
@@ -300,11 +300,11 @@ breeze release-management prepare-provider-packages --version-suffix-for-pypi rc
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), package for the provider will not be prepared when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze release-management prepare-provider-packages --package-format both qubole
+breeze release-management prepare-provider-packages --package-format both removed.provider
 ```
 
 
@@ -405,11 +405,11 @@ breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), doc for the provider will not be built when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze build-docs qubole
+breeze build-docs removed.provider
 ```
 
 
@@ -452,11 +452,11 @@ breeze release-management add-back-references all-providers
 NOTE! When you want to release a provider marked for removal (needed in order to prepare last release of the
 provider), docs for the provider will not be published when you prepare documentation for
 all providers - you have to specifically use the provider name in a separate command.
-For example to prepare documentation for `qubole` provider marked for removal you need to run
+For example to prepare documentation for `removed.provider` provider marked for removal you need to run
 separately this command:
 
 ```shell script
-breeze release-management publish-docs qubole
+breeze release-management publish-docs removed.provider
 breeze release-management add-back-references all-providers
 ```
 
