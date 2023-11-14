@@ -199,29 +199,3 @@ metadata:
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
         expected_folder_config = f"dags_folder = {expected_default_dag_folder}"
         assert expected_folder_config in cfg.splitlines()
-
-    @pytest.mark.parametrize(
-        "namespaces", [["airflow-1", "airflow-2"], ["default", "airflow-1", "airflow-2"]]
-    )
-    def test_multi_namespace_mode(self, namespaces):
-        docs = render_chart(
-            values={
-                "executor": "KubernetesExecutor",
-                "multiNamespaceMode": True,
-                "airflowNamespaces": namespaces,
-                "workers": {
-                    "serviceAccount": {"create": True},
-                },
-            },
-            show_only=["templates/configmaps/configmap.yaml"],
-        )
-        assert len(docs) == 3
-        assert (
-            jmespath.search("metadata.name", docs[0])
-            == jmespath.search("metadata.name", docs[1])
-            == jmespath.search("metadata.name", docs[2])
-            == "release-name-config"
-        )
-        assert jmespath.search("metadata.namespace", docs[0]) == "default"
-        assert jmespath.search("metadata.namespace", docs[1]) == "airflow-1"
-        assert jmespath.search("metadata.namespace", docs[2]) == "airflow-2"

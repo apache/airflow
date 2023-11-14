@@ -20,68 +20,55 @@
 ################################
 ## Airflow ConfigMap
 #################################
-{{- $workersNamespaces := list }}
-{{- if .Values.multiNamespaceMode }}
-  {{- range $namespace := .Values.airflowNamespaces }}
-    {{- $workersNamespaces = mustAppend $workersNamespaces ($namespace | quote) }}
-  {{- end }}
-{{- end }}
-{{- if not (has (.Release.Namespace | quote) $workersNamespaces) }}
-    {{ $workersNamespaces = mustPrepend $workersNamespaces (.Release.Namespace | quote) }}
-{{- end }}
-{{- range $namespace := $workersNamespaces }}
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ template "airflow_config" $ }}
-  namespace: {{ $namespace }}
+  name: {{ template "airflow_config" . }}
   labels:
     tier: airflow
     component: config
-    release: {{ $.Release.Name }}
-    chart: "{{ $.Chart.Name }}-{{ $.Chart.Version }}"
-    heritage: {{ $.Release.Service }}
-    {{- with $.Values.labels }}
+    release: {{ .Release.Name }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    heritage: {{ .Release.Service }}
+    {{- with .Values.labels }}
       {{- toYaml . | nindent 4 }}
     {{- end -}}
-  {{- if $.Values.airflowConfigAnnotations }}
-  annotations: {{- toYaml $.Values.airflowConfigAnnotations | nindent 4 }}
+  {{- if .Values.airflowConfigAnnotations }}
+  annotations: {{- toYaml .Values.airflowConfigAnnotations | nindent 4 }}
   {{- end }}
-{{- $Global := $ }}
+{{- $Global := . }}
 data:
   # These are system-specified config overrides.
   airflow.cfg: |-
-    {{- range $section, $settings := $.Values.config }}
+    {{- range $section, $settings := .Values.config }}
     [{{ $section }}]
     {{- range $key, $val := $settings }}
     {{ $key }} = {{ tpl ($val | toString) $Global }}
     {{- end }}
     {{ end }}
 
-  {{- if $.Values.airflowLocalSettings }}
+  {{- if .Values.airflowLocalSettings }}
   airflow_local_settings.py: |-
-    {{- tpl $.Values.airflowLocalSettings $ | nindent 4 }}
+    {{- tpl .Values.airflowLocalSettings . | nindent 4 }}
   {{- end }}
 
-  {{- if and $.Values.dags.gitSync.enabled $.Values.dags.gitSync.knownHosts }}
+  {{- if and .Values.dags.gitSync.enabled .Values.dags.gitSync.knownHosts }}
   known_hosts: |-
-    {{- $.Values.dags.gitSync.knownHosts | nindent 4 }}
+    {{- .Values.dags.gitSync.knownHosts | nindent 4 }}
   {{- end }}
 
 {{- if or (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
-{{- if semverCompare ">=1.10.12" $.Values.airflowVersion }}
+{{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
   pod_template_file.yaml: |-
-    {{- if $.Values.podTemplate }}
-      {{- tpl $.Values.podTemplate $ | nindent 4 }}
+    {{- if .Values.podTemplate }}
+      {{- tpl .Values.podTemplate . | nindent 4 }}
     {{- else }}
-      {{- tpl ($.Files.Get "files/pod-template-file.kubernetes-helm-yaml") $ | nindent 4 }}
+      {{- tpl (.Files.Get "files/pod-template-file.kubernetes-helm-yaml") . | nindent 4 }}
     {{- end }}
 {{- end }}
 {{- end }}
 
-  {{- if $.Values.kerberos.enabled }}
+  {{- if .Values.kerberos.enabled }}
   krb5.conf: |-
-    {{- tpl $.Values.kerberos.config $ | nindent 4 }}
+    {{- tpl .Values.kerberos.config . | nindent 4 }}
   {{- end }}
-{{- end }}
