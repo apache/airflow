@@ -201,10 +201,6 @@ but also acts like a dictionary that can provide additional metadata about the o
 return the additional keys like: ``['ETag', 'ContentType']``. If your code needs to be portable across different object
 stores do not rely on the extended metadata.
 
-.. note::
-    While ``stat`` does accept the ``follow_symlinks`` argument, it is not passed on to the object storage backend as
-    not all object storage does not support symlinks.
-
 
 .. _concepts:extended-operations:
 

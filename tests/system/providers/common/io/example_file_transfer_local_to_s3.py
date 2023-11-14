@@ -57,7 +57,7 @@ def delete_temp_file(path: ObjectStoragePath):
 
 @task
 def remove_bucket():
-    AWS_BUCKET.unlink(recursive=True)
+    AWS_BUCKET.rmdir(recursive=True)
 
 
 with DAG(

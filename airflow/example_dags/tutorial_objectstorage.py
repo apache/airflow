@@ -93,7 +93,7 @@ def tutorial_objectstorage():
         response.raise_for_status()
 
         # ensure the bucket exists
-        base.mkdir(exists_ok=True)
+        base.mkdir(exist_ok=True)
 
         formatted_date = execution_date.format("YYYYMMDD")
         path = base / f"air_quality_{formatted_date}.parquet"

@@ -29,7 +29,7 @@ from fsspec.utils import stringify_path
 from upath.implementations.cloud import CloudPath, _CloudAccessor
 from upath.registry import get_upath_class
 
-from airflow.io.store import attach
+from airflow.io.store import ObjectStore, attach
 from airflow.io.utils.stat import stat_result
 
 if typing.TYPE_CHECKING:
@@ -42,6 +42,9 @@ default = "file"
 
 
 class _AirflowCloudAccessor(_CloudAccessor):
+    _store: ObjectStore
+    _conn_id: str | None
+
     __slots__ = ("_store", "_conn_id")
 
     def __init__(self, parsed_url: SplitResult | None, **kwargs: typing.Any) -> None:
@@ -154,15 +157,21 @@ class ObjectStoragePath(CloudPath):
 
     @property
     def bucket(self) -> str:
-        return self._url.netloc
+        if self._url:
+            return self._url.netloc
+        else:
+            return ""
 
     @property
     def key(self) -> str:
-        return self._url.path
+        if self._url:
+            return self._url.path
+        else:
+            return ""
 
-    def stat(self, *, follow_symlinks: bool = True) -> stat_result:
+    def stat(self) -> stat_result:
         """Return the result of the `stat()` call."""  # noqa: D402
-        return stat_result(self._accessor.stat(self), protocol=self.protocol, conn_id=self._accessor.conn_id)
+        return stat_result(self._accessor.stat(self), protocol=self.protocol, conn_id=self._accessor._conn_id)
 
     def samefile(self, other_path: typing.Any) -> bool:
         """Return whether other_path is the same or not as this file."""
@@ -183,7 +192,7 @@ class ObjectStoragePath(CloudPath):
         # context manager.
         return contextlib.nullcontext(self.iterdir())
 
-    def replace(self, target: str | ObjectStoragePath) -> ObjectStoragePath:
+    def replace(self, target) -> ObjectStoragePath:
         """
         Rename this path to the target path, overwriting if that path exists.
 
