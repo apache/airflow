@@ -930,13 +930,13 @@ logging:
       default: "False"
     enable_task_context_logger:
       description: |
-        If enabled, Airflow will relay logs for a task instance from components like the scheduler,
-        executor, etc. to the configured log store. These logs are then available in the UI and are useful
-        for identifying task failures and other issues that might be caused by the scheduler or other
-        components that are not captured by the task logs from the worker or triggerer.
+        If enabled, Airflow may ship messages to task logs from outside the task run context, e.g. from
+        the scheduler, executor, or callback execution context. This can help in circumstances such as
+        when there's something blocking the execution of the task and ordinarily there may be no task
+        logs at all.
         This is set to True by default. If you encounter issues with this feature
-        (e.g. scheduler performance issues), you can set this to False.
-      version_added: 2.7.0
+        (e.g. scheduler performance issues) it can be disabled.
+      version_added: 2.8.0
       type: boolean
       example: ~
       default: "True"
