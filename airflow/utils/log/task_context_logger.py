@@ -91,7 +91,7 @@ class TaskContextLogger:
         :param message: the message to relay to task context log
         :param ti: the task instance
         """
-        caller_logger = self.log
+        caller_logger = ti.log
         if caller_logger.isEnabledFor(logging_levels[level.lower()]):
             caller_log_level_callable = getattr(caller_logger, level, None)
             if callable(caller_log_level_callable):
