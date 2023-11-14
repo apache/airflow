@@ -16,7 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.auth.managers.models.base_user import BaseUser
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from airflow.auth.managers.models.base_user import BaseUser
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import BaseUser. This feature is only available in Airflow versions >= 2.8.0"
+    )
 
 
 class AwsAuthManagerUser(BaseUser):
