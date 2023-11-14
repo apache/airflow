@@ -2618,6 +2618,7 @@ def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
             with pytest.raises(AirflowException):
                 dag_maker.create_dagrun(run_id=run_id)
 
+
 def test_dagrun_conf():
     dag_run = DagRun(conf={"test": 1234})
     assert dag_run.conf == {"test": 1234}
