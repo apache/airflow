@@ -118,7 +118,7 @@ class ConfDict(dict):
             return conf
         else:
             raise AirflowException(f"Object of type {type(conf)} must be a dict")
-    
+
     @staticmethod
     def dump_check(conf: str) -> str:
         val = json.loads(conf)
@@ -260,12 +260,12 @@ class DagRun(Base, LoggingMixin):
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-        
+
         if isinstance(conf, str):
             self._conf = ConfDict.dump_check(conf)
         else:
             self._conf = ConfDict(conf or {})
-        
+
         if state is not None:
             self.state = state
         if queued_at is NOTSET:
