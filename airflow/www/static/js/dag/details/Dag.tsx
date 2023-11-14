@@ -130,8 +130,14 @@ const Dag = () => {
   const lastStart = dagRuns[dagRuns.length - 1]?.startDate;
 
   // parse value for each key if date or not
+  // check "!Number.isNaN(value)" is needed due to
+  // Date.parse() sometimes returning valid date's timestamp for numbers.
   const parseStringData = (value: string) =>
-    Number.isNaN(Date.parse(value)) ? value : <Time dateTime={value} />;
+    Number.isNaN(Date.parse(value)) || !Number.isNaN(value) ? (
+      value
+    ) : (
+      <Time dateTime={value} />
+    );
 
   // render dag and dag_details data
   const renderDagDetailsData = (
