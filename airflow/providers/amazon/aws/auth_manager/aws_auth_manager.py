@@ -22,11 +22,17 @@ from typing import TYPE_CHECKING
 
 from flask import session, url_for
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
+
+try:
+    from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import BaseUser. This feature is only available in Airflow versions >= 2.8.0"
+    )
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
