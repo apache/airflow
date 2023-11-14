@@ -65,7 +65,7 @@ However, you should be aware of the limitations of object storage when designing
 Basic Use
 ---------
 
-To use object storage, you need to instantiate a Path-like (see below) object with the URI of the
+To use object storage, you need to instantiate a Path (see below) object with the URI of the
 object you want to interact with. For example, to point to a bucket in s3, you would do the following:
 
 .. code-block:: python
@@ -165,27 +165,15 @@ would do the following:
 
 .. _concepts:api:
 
-Path-like API
+Path API
 -------------
 
-The object storage abstraction is implemented as a `Path-like API <https://docs.python.org/3/library/pathlib.html>`_.
-This means that you can mostly use the same API to interact with object storage as you would with a local filesystem.
-In this section we only list the differences between the two APIs. Extended operations beyond the standard Path API
-, like copying and moving, are listed in the next section. For details about each operation, like what arguments
-they take, see the documentation of the :class:`~airflow.io.path.ObjectStoragePath` class.
-
-
-stat
-^^^^
-
-Returns a ``stat_result`` like object that supports the following attributes: ``st_size``, ``st_mtime``, ``st_mode``,
-but also acts like a dictionary that can provide additional metadata about the object. For example, for s3 it will,
-return the additional keys like: ``['ETag', 'ContentType']``. If your code needs to be portable across different object
-store do not rely on the extended metadata.
-
-.. note::
-    While ``stat`` does accept the ``follow_symlinks`` argument, it is not passed on to the object storage backend as
-    not all object storage does not support symlinks.
+The object storage abstraction is implemented as a `Path API <https://docs.python.org/3/library/pathlib.html>`_.
+and builds upon `Universal Pathlib <https://github.com/fsspec/universal_pathlib>`_ This means that you can mostly use
+the same API to interact with object storage as you would with a local filesystem. In this section we only list the
+differences between the two APIs. Extended operations beyond the standard Path API, like copying and moving, are listed
+in the next section. For details about each operation, like what arguments they take, see the documentation of
+the :class:`~airflow.io.path.ObjectStoragePath` class.
 
 
 mkdir
@@ -194,57 +182,89 @@ mkdir
 Create a directory entry at the specified path or within a bucket/container. For systems that don't have true
 directories, it may create a directory entry for this instance only and not affect the real filesystem.
 
-If ``create_parents`` is ``True`` (the default), any missing parents of this path are created as needed.
+If ``parents`` is ``True``, any missing parents of this path are created as needed.
 
 
 touch
 ^^^^^
 
-Create an empty file, or update the timestamp. If ``truncate`` is ``True``, the file is truncated, which is the
-default.
+Create a file at this given path, or update the timestamp. If ``truncate`` is ``True``, the file is truncated, which is
+the default.  If the file already exists, the function succeeds if ``exists_ok`` is true (and its modification time is
+updated to the current time), otherwise ``FileExistsError`` is raised.
+
+
+stat
+^^^^
+
+Returns a ``stat_result`` like object that supports the following attributes: ``st_size``, ``st_mtime``, ``st_mode``,
+but also acts like a dictionary that can provide additional metadata about the object. For example, for s3 it will,
+return the additional keys like: ``['ETag', 'ContentType']``. If your code needs to be portable across different object
+stores do not rely on the extended metadata.
+
+.. note::
+    While ``stat`` does accept the ``follow_symlinks`` argument, it is not passed on to the object storage backend as
+    not all object storage does not support symlinks.
 
 
 .. _concepts:extended-operations:
 
-Extended Operations
--------------------
+Extensions
+----------
 
 The following operations are not part of the standard Path API, but are supported by the object storage abstraction.
 
-ukey
-^^^^
+bucket
+^^^^^^
 
-Hash of file properties, to tell if it has changed.
+Returns the bucket name.
 
 
 checksum
 ^^^^^^^^
 
-Return the checksum of the file.
+Returns the checksum of the file.
+
+
+container
+^^^^^^^^^
+
+Alias of bucket
+
+
+fs
+^^
+
+Convenience attribute to access an instantiated filesystem
+
+
+key
+^^^
+
+Returns the object key.
+
+
+path
+^^^^
+the ``fsspec`` compatible path for use with filesystem instances
+
+
+protocol
+^^^^^^^^
+
+the filesystem_spec protocol.
 
 
 read_block
 ^^^^^^^^^^
 
-Read a block of bytes from the file. This is useful for reading large files in chunks.
+Read a block of bytes from the file at this given path.
 
+Starting at offset of the file, read length bytes. If delimiter is set then we ensure
+that the read starts and stops at delimiter boundaries that follow the locations offset
+and offset + length. If offset is zero then we start at zero. The bytestring returned
+WILL include the end delimiter string.
 
-du
-^^
-
-Space used by files and optionally directories within a path.
-
-
-find
-^^^^
-
-Find files and optionally directories within a path.
-
-
-ls
-^^
-
-List files within a path.
+If offset+length is beyond the eof, reads to eof.
 
 
 sign
@@ -254,17 +274,22 @@ Create a signed URL representing the given path. Some implementations allow temp
 way of delegating credentials.
 
 
-copy
+size
 ^^^^
 
-Copy a file from one path to another. If the destination is a directory, the file will be copied into it. If the
-destination is a file, it will be overwritten.
+Returns the size in bytes of the file at the given path.
 
-move
+
+storage_options
+^^^^^^^^^^^^^^^
+
+The storage options for instantiating the underlying filesystem.
+
+
+ukey
 ^^^^
 
-Move a file from one path to another. If the destination is a directory, the file will be moved into it. If the
-destination is a file, it will be overwritten.
+Hash of file properties, to tell if it has changed.
 
 
 .. _concepts:copying-and-moving:
