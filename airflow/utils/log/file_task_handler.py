@@ -133,7 +133,10 @@ def _interleave_logs(*logs):
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
-    """Given ti_key, get the TaskInstance."""
+    """Given TI | TIKey, return a TI object.
+
+    Will raise exception if no TI is found in the database.
+    """
     from airflow.models.taskinstance import TaskInstance
 
     if isinstance(ti, TaskInstance):
