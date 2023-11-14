@@ -1671,6 +1671,9 @@ dagProcessor:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
 
   env: []
 
@@ -2173,6 +2176,7 @@ elasticsearch:
   # Or an object representing the connection
   # Example:
   # connection:
+  #   scheme: ~
   #   user: ~
   #   pass: ~
   #   host: ~

@@ -895,6 +895,8 @@ class AirflowDistribution(Distribution):
                     provider_yaml_file, str(AIRFLOW_SOURCES_ROOT / "airflow")
                 )
                 self.package_data["airflow"].append(provider_relative_path)
+            # Add python_kubernetes_script.jinja2 to package data
+            self.package_data["airflow"].append("providers/cncf/kubernetes/python_kubernetes_script.jinja2")
         else:
             self.install_requires.extend(
                 [

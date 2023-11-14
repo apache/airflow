@@ -24,6 +24,7 @@ from __future__ import annotations
 
 PRE_COMMIT_LIST = [
     "all",
+    "bandit",
     "blacken-docs",
     "check-aiobotocore-optional",
     "check-airflow-k8s-not-used",
