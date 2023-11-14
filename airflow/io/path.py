@@ -169,9 +169,9 @@ class ObjectStoragePath(CloudPath):
         else:
             return ""
 
-    def stat(self) -> stat_result:
+    def stat(self) -> stat_result:  # type: ignore[override]
         """Return the result of the `stat()` call."""  # noqa: D402
-        return stat_result(self._accessor.stat(self), protocol=self.protocol, conn_id=self._accessor._conn_id)
+        return stat_result(self._accessor.stat(self), protocol=self.protocol, conn_id=self._accessor._conn_id)  # type: ignore[attr-defined]
 
     def samefile(self, other_path: typing.Any) -> bool:
         """Return whether other_path is the same or not as this file."""
@@ -347,7 +347,7 @@ class ObjectStoragePath(CloudPath):
                 if path == self.path:
                     continue
 
-                src_obj = ObjectStoragePath(path, store=self._accessor._store)
+                src_obj = ObjectStoragePath(path, store=self._accessor._store)  # type: ignore[attr-defined]
 
                 # skip directories, empty directories will not be created
                 if src_obj.is_dir():
