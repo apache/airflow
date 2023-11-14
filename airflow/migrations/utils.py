@@ -35,15 +35,15 @@ def get_mssql_table_constraints(conn, table_name) -> dict[str, dict[str, list[st
     :return: a dictionary of ((constraint name, constraint type), column name) of table
     """
     query = text(
-        f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
+        """SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-     WHERE tc.TABLE_NAME = '{table_name}' AND
+     WHERE tc.TABLE_NAME = :table_name AND
      (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE'
      or UPPER(tc.CONSTRAINT_TYPE) = 'FOREIGN KEY')
     """
     )
-    result = conn.execute(query).fetchall()
+    result = conn.execute(query, {"table_name": table_name}).fetchall()
     constraint_dict = defaultdict(lambda: defaultdict(list))
     for constraint, constraint_type, col_name in result:
         constraint_dict[constraint_type][constraint].append(col_name)

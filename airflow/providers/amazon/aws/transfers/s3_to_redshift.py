@@ -161,9 +161,11 @@ class S3ToRedshiftOperator(BaseOperator):
         )
 
         sql: str | Iterable[str]
+        parameters: list[dict] = []
 
         if self.method == "REPLACE":
-            sql = ["BEGIN;", f"DELETE FROM {destination};", copy_statement, "COMMIT"]
+            sql = ["BEGIN;", "DELETE FROM :destination;", copy_statement, "COMMIT"]
+            parameters = [{"name": "destination", "value": {"stringValue": destination}}]
         elif self.method == "UPSERT":
             if isinstance(redshift_hook, RedshiftDataHook):
                 keys = self.upsert_keys or redshift_hook.get_table_primary_key(
@@ -178,12 +180,17 @@ class S3ToRedshiftOperator(BaseOperator):
             where_statement = " AND ".join([f"{self.table}.{k} = {copy_destination}.{k}" for k in keys])
 
             sql = [
-                f"CREATE TABLE {copy_destination} (LIKE {destination} INCLUDING DEFAULTS);",
+                "CREATE TABLE :copy_destination (LIKE :destination INCLUDING DEFAULTS);",
                 copy_statement,
                 "BEGIN;",
-                f"DELETE FROM {destination} USING {copy_destination} WHERE {where_statement};",
-                f"INSERT INTO {destination} SELECT * FROM {copy_destination};",
+                "DELETE FROM :destination USING :copy_destination WHERE :where_statement;",
+                "INSERT INTO :destination SELECT * FROM :copy_destination;",
                 "COMMIT",
+            ]
+            parameters = [
+                {"name": "copy_destination", "value": {"stringValue": copy_destination}},
+                {"name": "destination", "value": {"stringValue": destination}},
+                {"name": "where_statement", "value": {"stringValue": where_statement}},
             ]
 
         else:
@@ -191,7 +198,7 @@ class S3ToRedshiftOperator(BaseOperator):
 
         self.log.info("Executing COPY command...")
         if isinstance(redshift_hook, RedshiftDataHook):
-            redshift_hook.execute_query(sql=sql, **self.redshift_data_api_kwargs)
+            redshift_hook.execute_query(sql=sql, parameters=parameters, **self.redshift_data_api_kwargs)
         else:
-            redshift_hook.run(sql, autocommit=self.autocommit)
+            redshift_hook.run(sql, parameters=parameters, autocommit=self.autocommit)
         self.log.info("COPY command complete...")

@@ -162,7 +162,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :return: Primary key columns list
         """
-        sql = f"""
+        sql = """
             select kcu.column_name
             from information_schema.table_constraints tco
                     join information_schema.key_column_usage kcu
@@ -170,15 +170,20 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                             and kcu.constraint_schema = tco.constraint_schema
                             and kcu.constraint_name = tco.constraint_name
             where tco.constraint_type = 'PRIMARY KEY'
-            and kcu.table_schema = {schema}
-            and kcu.table_name = {table}
+            and kcu.table_schema = :schema
+            and kcu.table_name = :table
         """
+        parameters = [
+            {"name": "schema", "value": {"stringValue": schema}},
+            {"name": "table", "value": {"stringValue": table}},
+        ]
         stmt_id = self.execute_query(
             sql=sql,
             database=database,
             cluster_identifier=cluster_identifier,
             workgroup_name=workgroup_name,
             db_user=db_user,
+            parameters=parameters,
             secret_arn=secret_arn,
             statement_name=statement_name,
             with_event=with_event,

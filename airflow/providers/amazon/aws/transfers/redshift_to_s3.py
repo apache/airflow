@@ -124,7 +124,11 @@ class RedshiftToS3Operator(BaseOperator):
         if select_query:
             self.select_query = select_query
         elif self.schema and self.table:
-            self.select_query = f"SELECT * FROM {self.schema}.{self.table}"
+            self.select_query = "SELECT * FROM :select_query_schema.:select_query_table"
+            self.parameters = list(self.parameters) + [
+                {"name": "select_query_schema", "value": {"stringValue": schema}},
+                {"name": "select_query_table", "value": {"stringValue": table}},
+            ]
         else:
             raise ValueError(
                 "Please provide both `schema` and `table` params or `select_query` to fetch the data."
@@ -141,12 +145,16 @@ class RedshiftToS3Operator(BaseOperator):
     def _build_unload_query(
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
     ) -> str:
+        self.parameters = list(self.parameters) + [
+            {"name": "unload_query_credentials_block", "value": {"stringValue": credentials_block}},
+            {"name": "unload_query_options", "value": {"stringValue": unload_options}},
+        ]
         return f"""
                     UNLOAD ('{select_query}')
                     TO 's3://{self.s3_bucket}/{s3_key}'
                     credentials
-                    '{credentials_block}'
-                    {unload_options};
+                    :unload_query_credentials_block
+                    :unload_query_options;
         """
 
     def execute(self, context: Context) -> None:

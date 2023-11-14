@@ -49,7 +49,7 @@ def is_table_empty(conn, table_name):
     :param table_name: table name
     :return: Booelan indicating if the table is present
     """
-    return conn.execute(text(f"select TOP 1 * from {table_name}")).first() is None
+    return conn.execute(text("select TOP 1 * from :table_name"), {"table_name": table_name}).first() is None
 
 
 def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
@@ -68,11 +68,11 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
         f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-     WHERE tc.TABLE_NAME = '{table_name}' AND
+     WHERE tc.TABLE_NAME = :table_name AND
      (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE')
     """
     )
-    result = conn.execute(query).fetchall()
+    result = conn.execute(query, {"table_name": table_name}).fetchall()
     constraint_dict = defaultdict(list)
     for constraint, constraint_type, column in result:
         constraint_dict[(constraint, constraint_type)].append(column)
@@ -111,15 +111,15 @@ def create_constraints(operator, column_name, constraint_dict):
 
 def _is_timestamp(conn, table_name, column_name):
     query = text(
-        f"""SELECT
+        """SELECT
     TYPE_NAME(C.USER_TYPE_ID) AS DATA_TYPE
     FROM SYS.COLUMNS C
     JOIN SYS.TYPES T
     ON C.USER_TYPE_ID=T.USER_TYPE_ID
-    WHERE C.OBJECT_ID=OBJECT_ID('{table_name}') and C.NAME='{column_name}';
+    WHERE C.OBJECT_ID=OBJECT_ID(:table_name) and C.NAME=:column_name';
     """
     )
-    column_type = conn.execute(query).fetchone()[0]
+    column_type = conn.execute(query, {"table_name": table_name, "column_name": column_name}).fetchone()[0]
     return column_type == "timestamp"
 
 

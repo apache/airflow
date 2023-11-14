@@ -69,15 +69,20 @@ def upgrade():
 
     # Set it to true here as it makes us take the slow/more complete path, and when it's next parsed by the
     # DagParser it will get set to correct value.
-
-    op.execute(
-        f"""
+    query = sa.text(
+        """
         UPDATE dag SET
-            concurrency={concurrency},
-            has_task_concurrency_limits={1 if is_sqlite or is_mssql else sa.true()}
+            concurrency=:concurrency,
+            has_task_concurrency_limits=:has_task_concurrency_limits
         where concurrency IS NULL
         """
+    ).bindparams(
+        {
+            "concurrency": concurrency,
+            "has_task_concurrency_limits": (1 if is_sqlite or is_mssql else sa.true()),
+        }
     )
+    op.execute(query)
 
     with op.batch_alter_table("dag", schema=None) as batch_op:
         batch_op.alter_column("concurrency", type_=sa.Integer(), nullable=False)
