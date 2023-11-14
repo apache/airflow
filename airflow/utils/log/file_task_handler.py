@@ -253,7 +253,7 @@ class FileTaskHandler(logging.Handler):
                 if val:  # this is for mypy, which doesn't like assigning TI | TIKey to TI | None
                     ti = val
                 else:
-                    raise AirflowException("TaskInstance not found")
+                    raise AirflowException(f"Could not find TaskInstance for {ti}")
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
             str_tpl, jinja_tpl = parse_template_string(template)
