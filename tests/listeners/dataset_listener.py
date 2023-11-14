@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,12 +17,29 @@
 # under the License.
 from __future__ import annotations
 
-from airflow_breeze.global_constants import get_available_documentation_packages
+import copy
+import typing
 
-AVAILABLE_PACKAGES_STARTING_LIST = ("apache-airflow", "helm-chart", "docker-stack")
+from airflow.listeners import hookimpl
+
+if typing.TYPE_CHECKING:
+    from airflow.datasets import Dataset
 
 
-def test_get_available_packages():
-    assert len(get_available_documentation_packages()) > 70
-    for package in get_available_documentation_packages():
-        assert package.startswith(AVAILABLE_PACKAGES_STARTING_LIST)
+changed: list[Dataset] = []
+created: list[Dataset] = []
+
+
+@hookimpl
+def on_dataset_changed(dataset):
+    changed.append(copy.deepcopy(dataset))
+
+
+@hookimpl
+def on_dataset_created(dataset):
+    created.append(copy.deepcopy(dataset))
+
+
+def clear():
+    global changed, created
+    changed, created = [], []

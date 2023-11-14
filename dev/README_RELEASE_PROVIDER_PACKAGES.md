@@ -398,7 +398,7 @@ If we want to just release some providers you can release them using package nam
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-breeze build-docs providers-index cncf.kubernetes sftp --clean-build
+breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 ```
 
 
@@ -428,7 +428,7 @@ way faster on multi-cpu machines when you are publishing multiple providers:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 
-breeze release-management publish-docs providers-index --package-filter 'apache-airflow-providers-*' \
+breeze release-management publish-docs apache-airflow-providers --package-filter 'apache-airflow-providers-*' \
     --override-versioned --run-in-parallel
 
 breeze release-management add-back-references all-providers

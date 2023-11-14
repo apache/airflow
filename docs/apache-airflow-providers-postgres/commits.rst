@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-postgres
 ------------------------------------------------------
@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.8.0
+.....
+
+Latest change: 2023-11-07
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`a777bf89e2 <https://github.com/apache/airflow/commit/a777bf89e2a1a3a19fbb5e8c879fa26697efc38a>`_  2023-11-07   ``Refactor cursor retrieval in PostgresHook. (#35498)``
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+=================================================================================================  ===========  ==================================================================
+
 5.7.1
 .....
 
-Latest change: 2023-10-16
+Latest change: 2023-10-18
 
 =================================================================================================  ===========  ==============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================
+`39e611b43b <https://github.com/apache/airflow/commit/39e611b43b06df0582f0c69de824c4657c3423eb>`_  2023-10-18   ``Prepare docs 2nd wave of Providers in October 2023 (#35020)``
 `6bb6ae8f9f <https://github.com/apache/airflow/commit/6bb6ae8f9fa02c7b7c6d3fe0c6efe09c7cfb3294>`_  2023-10-16   ``'PostgresOperator' should not overwrite 'SQLExecuteQueryOperator.template_fields' (#34969)``
 =================================================================================================  ===========  ==============================================================================================
 

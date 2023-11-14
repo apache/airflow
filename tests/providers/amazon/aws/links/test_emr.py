@@ -68,7 +68,7 @@ class TestEmrLogsLink(BaseAwsLinksTestCase):
     @pytest.mark.parametrize(
         "log_url_extra",
         [
-            pytest.param({}, id="no-log-uri", marks=pytest.mark.xfail),
+            pytest.param({}, id="no-log-uri"),
             pytest.param({"log_uri": None}, id="log-uri-none"),
             pytest.param({"log_uri": ""}, id="log-uri-empty"),
         ],
