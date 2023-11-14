@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 import uuid
+from stat import S_ISDIR, S_ISREG
+from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import pytest
@@ -103,7 +105,23 @@ class TestFs:
         [
             ("checksum", {}, "checksum", FOO, FakeRemoteFileSystem._strip_protocol(BAR), {}),
             ("size", {}, "size", FOO, FakeRemoteFileSystem._strip_protocol(BAR), {}),
+            (
+                "sign",
+                {"expiration": 200, "extra": "xtra"},
+                "sign",
+                FOO,
+                FakeRemoteFileSystem._strip_protocol(BAR),
+                {"expiration": 200, "extra": "xtra"},
+            ),
             ("ukey", {}, "ukey", FOO, FakeRemoteFileSystem._strip_protocol(BAR), {}),
+            (
+                "read_block",
+                {"offset": 0, "length": 1},
+                "read_block",
+                FOO,
+                FakeRemoteFileSystem._strip_protocol(BAR),
+                {"delimiter": None, "length": 1, "offset": 0},
+            ),
         ],
     )
     def test_standard_extended_api(self, fn, args, fn2, path, expected_args, expected_kwargs):
@@ -116,6 +134,46 @@ class TestFs:
 
         getattr(o, fn)(**args)
         getattr(store.fs, fn2).assert_called_once_with(expected_args, **expected_kwargs)
+
+    def test_stat(self):
+        with NamedTemporaryFile() as f:
+            o = ObjectStoragePath(f"file://{f.name}")
+            assert o.stat().st_size == 0
+            assert S_ISREG(o.stat().st_mode)
+            assert S_ISDIR(o.parent.stat().st_mode)
+
+    def test_bucket_key_protocol(self):
+        bucket = "bkt"
+        key = "yek"
+        protocol = "s3"
+
+        o = ObjectStoragePath(f"{protocol}://{bucket}/{key}")
+        assert o.bucket == bucket
+        assert o.container == bucket
+        assert o.key == f"/{key}"
+        assert o.protocol == protocol
+
+    def test_cwd_home(self):
+        assert ObjectStoragePath.cwd()
+        assert ObjectStoragePath.home()
+
+    def test_replace(self):
+        o = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
+        i = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
+
+        o.touch()
+        i.touch()
+
+        assert i.size() == 0
+
+        txt = "foo"
+        o.write_text(txt)
+        e = o.replace(i)
+        assert o.exists() is False
+        assert i == e
+        assert e.size() == len(txt)
+
+        e.unlink()
 
     def test_move_local(self):
         _from = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")

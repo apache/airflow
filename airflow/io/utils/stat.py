@@ -36,19 +36,19 @@ class stat_result(dict):
     st_dev = property(lambda self: 0)
     """device"""
 
-    st_size = property(lambda self: self._info.get("size", 0))
+    st_size = property(lambda self: self.get("size", 0))
     """total size, in bytes"""
 
-    st_gid = property(lambda self: self._info.get("gid", 0))
+    st_gid = property(lambda self: self.get("gid", 0))
     """group ID of owner"""
 
-    st_uid = property(lambda self: self._info.get("uid", 0))
+    st_uid = property(lambda self: self.get("uid", 0))
     """user ID of owner"""
 
-    st_ino = property(lambda self: self._info.get("ino", 0))
+    st_ino = property(lambda self: self.get("ino", 0))
     """inode"""
 
-    st_nlink = property(lambda self: self._info.get("nlink", 0))
+    st_nlink = property(lambda self: self.get("nlink", 0))
     """number of hard links"""
 
     @property

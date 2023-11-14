@@ -262,7 +262,7 @@ class ObjectStoragePath(CloudPath):
         --------
         :func:`fsspec.utils.read_block`
         """
-        return self.fs.read_block(self.path, offset, length, delimiter=delimiter)
+        return self.fs.read_block(self.path, offset=offset, length=length, delimiter=delimiter)
 
     def sign(self, expiration: int = 100, **kwargs):
         """Create a signed URL representing the given path.
