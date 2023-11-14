@@ -7038,6 +7038,15 @@
             "type": "boolean",
             "default": false
         },
+        "airflowNamespaces": {
+            "description": "The list of the namespaces that will be used to create workers in multi namespace mode. A service account will be created in each namespace, and the cluster role will be bound to it.",
+            "x-docsSection": "Airflow",
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "default": []
+        },
         "podTemplate": {
             "description": "The contents of ``pod_template_file.yaml`` used for KubernetesExecutor workers (templated). The default (see ``files/pod-template-file.kubernetes-helm-yaml``) already takes into account normal ``workers`` configuration parameters (e.g. ``workers.resources``), so you normally won't need to override this directly.",
             "type": [

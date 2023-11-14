@@ -1062,6 +1062,60 @@ class TestWorkerServiceAccount:
         else:
             assert docs == []
 
+    @pytest.mark.parametrize(
+        "namespaces", [["airflow-1", "airflow-2"], ["default", "airflow-1", "airflow-2"]]
+    )
+    def test_multi_namespace_configuration_service_account(self, namespaces):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "multiNamespaceMode": True,
+                "airflowNamespaces": namespaces,
+                "workers": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/workers/worker-serviceaccount.yaml"],
+        )
+        assert len(docs) == 3
+        assert (
+            jmespath.search("metadata.name", docs[0])
+            == jmespath.search("metadata.name", docs[1])
+            == jmespath.search("metadata.name", docs[2])
+            == "release-name-airflow-worker"
+        )
+        assert jmespath.search("metadata.namespace", docs[0]) == "default"
+        assert jmespath.search("metadata.namespace", docs[1]) == "airflow-1"
+        assert jmespath.search("metadata.namespace", docs[2]) == "airflow-2"
+
+    @pytest.mark.parametrize(
+        "namespaces", [["airflow-1", "airflow-2"], ["default", "airflow-1", "airflow-2"]]
+    )
+    def test_multi_namespace_configuration_role_bindings(self, namespaces):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "multiNamespaceMode": True,
+                "airflowNamespaces": namespaces,
+                "workers": {
+                    "serviceAccount": {"create": True},
+                },
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+        assert jmespath.search("subjects[*].name", docs[0]) == [
+            "release-name-airflow-scheduler",
+            "release-name-airflow-worker",
+            "release-name-airflow-worker",
+            "release-name-airflow-worker",
+        ]
+        assert jmespath.search("subjects[*].namespace", docs[0]) == [
+            "default",
+            "default",
+            "airflow-1",
+            "airflow-2",
+        ]
+
     def test_default_automount_service_account_token(self):
         docs = render_chart(
             values={
