@@ -6143,6 +6143,11 @@
                     "x-docsSection": "PgBouncer",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable PgBouncer metric exporter sidecar.",
+                            "type": "boolean",
+                            "default": false
+                        },
                         "resources": {
                             "description": "Resources for the PgBouncer metric exporter.",
                             "type": "object",
