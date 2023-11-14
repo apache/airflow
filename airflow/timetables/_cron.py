@@ -26,7 +26,7 @@ from pendulum.tz.timezone import Timezone
 
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
-from airflow.utils.timezone import convert_to_utc, make_aware, make_naive
+from airflow.utils.timezone import convert_to_utc, make_naive
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -101,21 +101,15 @@ class CronMixin:
         """Get the first schedule after specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
-        scheduled = cron.get_next(datetime.datetime)
-        if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = scheduled - naive
-        return convert_to_utc(current.in_timezone(self._timezone) + delta)
+        scheduled = cron.get_next(datetime.datetime).replace(tzinfo=self._timezone)
+        return convert_to_utc(scheduled)
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the first schedule before specified time, with DST fixed."""
         naive = make_naive(current, self._timezone)
         cron = croniter(self._expression, start_time=naive)
-        scheduled = cron.get_prev(datetime.datetime)
-        if not self._should_fix_dst:
-            return convert_to_utc(make_aware(scheduled, self._timezone))
-        delta = naive - scheduled
-        return convert_to_utc(current.in_timezone(self._timezone) - delta)
+        scheduled = cron.get_prev(datetime.datetime).replace(tzinfo=self._timezone)
+        return convert_to_utc(scheduled)
 
     def _align_to_next(self, current: DateTime) -> DateTime:
         """Get the next scheduled time.
