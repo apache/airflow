@@ -273,7 +273,7 @@ Setting up Breeze
    It is important to install version of pipx > 1.2.1 to workaround ``packaging`` breaking change introduced
    in September 2023.
 
-2. Run ``pipx install -e ./dev/breeze`` in your checked-out repository. Make sure to follow any instructions
+2. Run ``pipx install -e ./dev/breeze --python $(which python)`` in your checked-out repository. Make sure to follow any instructions
    printed by ``pipx`` during the installation - this is needed to make sure that ``breeze`` command is
    available in your PATH.
 
