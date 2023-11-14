@@ -110,14 +110,14 @@ class EmptyAuthManager(BaseAuthManager):
 
 @pytest.fixture
 def auth_manager():
-    return EmptyAuthManager(None, None)
+    return EmptyAuthManager(None)
 
 
 @pytest.fixture
 def auth_manager_with_appbuilder():
     flask_app = Flask(__name__)
     appbuilder = init_appbuilder(flask_app)
-    return EmptyAuthManager(flask_app, appbuilder)
+    return EmptyAuthManager(appbuilder)
 
 
 class TestBaseAuthManager:
