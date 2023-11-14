@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from typing_extensions import NotRequired  # For compat with Python < 3.11
+from typing_extensions import NotRequired, Required  # For compat with Python < 3.11
 
 
 class CreateAlertPayload(TypedDict):
@@ -44,16 +44,16 @@ class CreateAlertPayload(TypedDict):
     :param note: Additional note that will be added while creating the alert.
     """
 
-    message: str
-    alias: NotRequired[str]
-    description: NotRequired[str]
-    responders: NotRequired[list[dict]]
-    visible_to: NotRequired[list[dict]]
-    actions: NotRequired[list[str]]
-    tags: NotRequired[list[str]]
-    details: NotRequired[dict]
-    entity: NotRequired[str]
-    source: NotRequired[str]
-    priority: NotRequired[str]
-    user: NotRequired[str]
-    note: NotRequired[str]
+    message: Required[str]
+    alias: NotRequired[str | None]
+    description: NotRequired[str | None]
+    responders: NotRequired[list[dict] | None]
+    visible_to: NotRequired[list[dict] | None]
+    actions: NotRequired[list[str] | None]
+    tags: NotRequired[list[str] | None]
+    details: NotRequired[dict | None]
+    entity: NotRequired[str | None]
+    source: NotRequired[str | None]
+    priority: NotRequired[str | None]
+    user: NotRequired[str | None]
+    note: NotRequired[str | None]

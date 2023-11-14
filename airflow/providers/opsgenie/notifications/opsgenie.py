@@ -51,8 +51,8 @@ class OpsgenieNotifier(BaseNotifier):
         For more information on how to use this notifier, take a look at the guide:
         :ref:`howto/notifier:OpsgenieNotifier`
 
-    :param opsgenie_conn_id: Optional. The name of the Opsgenie connection to use. Default conn_id is opsgenie_default
     :param payload: The payload necessary for creating an alert.
+    :param opsgenie_conn_id: Optional. The name of the Opsgenie connection to use. Default conn_id is opsgenie_default
     """
 
     template_fields: Sequence[str] = ("payload",)
@@ -60,7 +60,7 @@ class OpsgenieNotifier(BaseNotifier):
     def __init__(
         self,
         *,
-        payload: CreateAlertPayload | None = None,
+        payload: CreateAlertPayload,
         opsgenie_conn_id: str = "opsgenie_default",
     ) -> None:
         super().__init__()
