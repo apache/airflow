@@ -84,6 +84,8 @@ def in_timezone(datetime: DateTime, tz: Timezone, dst_rule: str = pendulum.PRE_T
     :param tz: pendulum Timezone
     :param dst_rule: pendulum.PRE_TRANSITION or pendulum.POST_TRANSITION
     :return: localized datetime in timezone
+
+    :meta private:
     """
     tz = pendulum._safe_timezone(tz)
     return tz.convert(datetime, dst_rule=dst_rule)
