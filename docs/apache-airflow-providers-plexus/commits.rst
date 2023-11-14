@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ==================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+=================================================================================================  ===========  ==================================================
+
 3.2.2
 .....
 
-Latest change: 2023-08-21
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  ====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `1cdd82391e <https://github.com/apache/airflow/commit/1cdd82391e0f7a24ab7f0badbe8f44a54f51d757>`_  2023-08-21   ``Simplify conditions on len() in other providers (#33569)``
 `b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``

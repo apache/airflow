@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-yandex
 ------------------------------------------------------
@@ -28,14 +28,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.6.0
+.....
+
+Latest change: 2023-11-03
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`0b850a97e8 <https://github.com/apache/airflow/commit/0b850a97e8972f9c2cef9cb5ab520b6018033cdb>`_  2023-11-03   ``Yandex dataproc deduce default service account (#35059)``
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+=================================================================================================  ===========  ==================================================================
+
+3.5.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+=================================================================================================  ===========  ===============================================================
+
 3.4.0
 .....
 
-Latest change: 2023-08-23
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  ======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `2ae1c10bfa <https://github.com/apache/airflow/commit/2ae1c10bfa59d1b2b5d8d453cd64d9858cb18c0b>`_  2023-08-23   ``add support for Yandex Dataproc cluster labels (#29811)``
 `2b43fa473f <https://github.com/apache/airflow/commit/2b43fa473f02cfe58c9af25c861187a7712a78ef>`_  2023-08-22   ``Resume yandex provider (#33574)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``

@@ -28,6 +28,7 @@ The following code shows how to add extra links to an operator via Plugins:
 .. code-block:: python
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.plugins_manager import AirflowPlugin
 
 
@@ -39,7 +40,6 @@ The following code shows how to add extra links to an operator via Plugins:
 
 
     class MyFirstOperator(BaseOperator):
-
         operator_extra_links = (GoogleLink(),)
 
         def __init__(self, **kwargs):
@@ -80,8 +80,9 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
 
 .. code-block:: python
 
+  from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+  from airflow.models.taskinstancekey import TaskInstanceKey
   from airflow.plugins_manager import AirflowPlugin
-  from airflow.models.baseoperator import BaseOperatorLink
   from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
 
@@ -117,9 +118,10 @@ Console, but if we wanted to change that link we could:
 
 .. code-block:: python
 
-    from airflow.plugins_manager import AirflowPlugin
-    from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperatorLink, BaseOperator
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom import XCom
+    from airflow.plugins_manager import AirflowPlugin
     from airflow.providers.google.cloud.operators.bigquery import BigQueryOperator
 
     # Change from https to http just to display the override

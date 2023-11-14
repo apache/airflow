@@ -77,7 +77,7 @@ def test_tooltip_derived_from_function_docstring():
     assert _.task_group_dict["tg"].tooltip == "Function docstring."
 
 
-def test_tooltip_not_overriden_by_function_docstring():
+def test_tooltip_not_overridden_by_function_docstring():
     """
     Test that the tooltip for TaskGroup is the explicitly set value even if the decorated function has a
     docstring.
@@ -191,6 +191,7 @@ def test_expand_kwargs_create_mapped():
     assert saved == {"a": 1, "b": MappedArgument(input=tg._expand_input, key="b")}
 
 
+@pytest.mark.db_test
 def test_task_group_expand_kwargs_with_upstream(dag_maker, session, caplog):
     with dag_maker() as dag:
 
@@ -214,6 +215,7 @@ def test_task_group_expand_kwargs_with_upstream(dag_maker, session, caplog):
     assert "missing upstream values: ['expand_kwargs() argument']" not in caplog.text
 
 
+@pytest.mark.db_test
 def test_task_group_expand_with_upstream(dag_maker, session, caplog):
     with dag_maker() as dag:
 

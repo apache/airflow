@@ -21,9 +21,9 @@ from operator import itemgetter
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.ec2 import (
     EC2CreateInstanceOperator,
     EC2StartInstanceOperator,

@@ -18,10 +18,11 @@
 
 from __future__ import annotations
 
-from time import sleep
+import time
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
+from airflow.providers.google.cloud.triggers.dataplex import DataplexDataQualityJobTrigger
 
 if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
@@ -34,6 +35,7 @@ from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataplex_v1.types import Asset, DataScan, DataScanJob, Lake, Task, Zone
 from googleapiclient.errors import HttpError
 
+from airflow.configuration import conf
 from airflow.providers.google.cloud.hooks.dataplex import AirflowDataQualityScanException, DataplexHook
 from airflow.providers.google.cloud.links.dataplex import (
     DataplexLakeLink,
@@ -163,7 +165,7 @@ class DataplexCreateTaskOperator(GoogleCloudBaseOperator):
                 )
                 if task["state"] != "CREATING":
                     break
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
 
         return Task.to_dict(task)
 
@@ -532,7 +534,7 @@ class DataplexCreateLakeOperator(GoogleCloudBaseOperator):
                 )
                 if lake["state"] != "CREATING":
                     break
-                sleep(time_to_wait)
+                time.sleep(time_to_wait)
         DataplexLakeLink.persist(
             context=context,
             task_instance=self,
@@ -581,7 +583,6 @@ class DataplexDeleteLakeOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -831,7 +832,6 @@ class DataplexDeleteDataQualityScanOperator(GoogleCloudBaseOperator):
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -895,6 +895,9 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
     :param result_timeout: Value in seconds for which operator will wait for the Data Quality scan result
         when the flag `asynchronous = False`.
         Throws exception if there is no result found after specified amount of seconds.
+    :param polling_interval_seconds: time in seconds between polling for job completion.
+        The value is considered only when running in deferrable mode. Must be greater than 0.
+    :param deferrable: Run operator in the deferrable mode.
 
     :return: Dataplex Data Quality scan job id.
     """
@@ -915,10 +918,11 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         asynchronous: bool = False,
         fail_on_dq_failure: bool = False,
         result_timeout: float = 60.0 * 10,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        polling_interval_seconds: int = 10,
         *args,
         **kwargs,
     ) -> None:
-
         super().__init__(*args, **kwargs)
         self.project_id = project_id
         self.region = region
@@ -932,6 +936,8 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         self.asynchronous = asynchronous
         self.fail_on_dq_failure = fail_on_dq_failure
         self.result_timeout = result_timeout
+        self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context) -> str:
         hook = DataplexHook(
@@ -949,6 +955,24 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         job_id = result.job.name.split("/")[-1]
+
+        if self.deferrable:
+            if self.asynchronous:
+                raise AirflowException(
+                    "Both asynchronous and deferrable parameters were passed. Please, provide only one."
+                )
+            self.defer(
+                trigger=DataplexDataQualityJobTrigger(
+                    job_id=job_id,
+                    data_scan_id=self.data_scan_id,
+                    project_id=self.project_id,
+                    region=self.region,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    polling_interval_seconds=self.polling_interval_seconds,
+                ),
+                method_name="execute_complete",
+            )
         if not self.asynchronous:
             job = hook.wait_for_data_scan_job(
                 job_id=job_id,
@@ -972,6 +996,31 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
             else:
                 self.log.info("Data Quality job execution returned status: %s", job.status)
 
+        return job_id
+
+    def execute_complete(self, context, event=None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        job_state = event["job_state"]
+        job_id = event["job_id"]
+        if job_state == DataScanJob.State.FAILED:
+            raise AirflowException(f"Job failed:\n{job_id}")
+        if job_state == DataScanJob.State.CANCELLED:
+            raise AirflowException(f"Job was cancelled:\n{job_id}")
+        if job_state == DataScanJob.State.SUCCEEDED:
+            job = event["job"]
+            if not job["data_quality_result"]["passed"]:
+                if self.fail_on_dq_failure:
+                    raise AirflowDataQualityScanException(
+                        f"Data Quality job {job_id} execution failed due to failure of its scanning "
+                        f"rules: {self.data_scan_id}"
+                    )
+            else:
+                self.log.info("Data Quality job executed successfully.")
         return job_id
 
 
@@ -1001,11 +1050,14 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
     :param fail_on_dq_failure: If set to true and not all Data Quality scan rules have been passed,
         an exception is thrown. If set to false and not all Data Quality scan rules have been passed,
         execution will finish with success.
-    :param wait_for_result: Flag indicating whether to wait for the result of a job execution
+    :param wait_for_results: Flag indicating whether to wait for the result of a job execution
         or to return the job in its current state.
     :param result_timeout: Value in seconds for which operator will wait for the Data Quality scan result
-        when the flag `wait_for_result = True`.
+        when the flag `wait_for_results = True`.
         Throws exception if there is no result found after specified amount of seconds.
+    :param polling_interval_seconds: time in seconds between polling for job completion.
+        The value is considered only when running in deferrable mode. Must be greater than 0.
+    :param deferrable: Run operator in the deferrable mode.
 
     :return: Dict representing DataScanJob.
         When the job completes with a successful status, information about the Data Quality result
@@ -1029,6 +1081,8 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         fail_on_dq_failure: bool = False,
         wait_for_results: bool = True,
         result_timeout: float = 60.0 * 10,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        polling_interval_seconds: int = 10,
         *args,
         **kwargs,
     ) -> None:
@@ -1046,6 +1100,8 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         self.fail_on_dq_failure = fail_on_dq_failure
         self.wait_for_results = wait_for_results
         self.result_timeout = result_timeout
+        self.deferrable = deferrable
+        self.polling_interval_seconds = polling_interval_seconds
 
     def execute(self, context: Context) -> dict:
         hook = DataplexHook(
@@ -1070,13 +1126,27 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
             self.job_id = job_id.split("/")[-1]
 
         if self.wait_for_results:
-            job = hook.wait_for_data_scan_job(
-                job_id=self.job_id,
-                data_scan_id=self.data_scan_id,
-                project_id=self.project_id,
-                region=self.region,
-                result_timeout=self.result_timeout,
-            )
+            if self.deferrable:
+                self.defer(
+                    trigger=DataplexDataQualityJobTrigger(
+                        job_id=self.job_id,
+                        data_scan_id=self.data_scan_id,
+                        project_id=self.project_id,
+                        region=self.region,
+                        gcp_conn_id=self.gcp_conn_id,
+                        impersonation_chain=self.impersonation_chain,
+                        polling_interval_seconds=self.polling_interval_seconds,
+                    ),
+                    method_name="execute_complete",
+                )
+            else:
+                job = hook.wait_for_data_scan_job(
+                    job_id=self.job_id,
+                    data_scan_id=self.data_scan_id,
+                    project_id=self.project_id,
+                    region=self.region,
+                    result_timeout=self.result_timeout,
+                )
         else:
             job = hook.get_data_scan_job(
                 project_id=self.project_id,
@@ -1104,6 +1174,34 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         result["state"] = DataScanJob.State(result["state"]).name
 
         return result
+
+    def execute_complete(self, context, event=None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        job_state = event["job_state"]
+        job_id = event["job_id"]
+        job = event["job"]
+        if job_state == DataScanJob.State.FAILED:
+            raise AirflowException(f"Job failed:\n{job_id}")
+        if job_state == DataScanJob.State.CANCELLED:
+            raise AirflowException(f"Job was cancelled:\n{job_id}")
+        if job_state == DataScanJob.State.SUCCEEDED:
+            if not job["data_quality_result"]["passed"]:
+                if self.fail_on_dq_failure:
+                    raise AirflowDataQualityScanException(
+                        f"Data Quality job {self.job_id} execution failed due to failure of its scanning "
+                        f"rules: {self.data_scan_id}"
+                    )
+            else:
+                self.log.info("Data Quality job executed successfully")
+        else:
+            self.log.info("Data Quality job execution returned status: %s", job_state)
+
+        return job
 
 
 class DataplexCreateZoneOperator(GoogleCloudBaseOperator):

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
 from airflow.sensors.base import BaseSensorOperator
 
@@ -90,5 +90,14 @@ class CloudComposerEnvironmentSensor(BaseSensorOperator):
         if event:
             if event.get("operation_done"):
                 return event["operation_done"]
+
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
-        raise AirflowException("No event received in trigger callback")
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = "No event received in trigger callback"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)

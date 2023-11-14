@@ -101,7 +101,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
             return endpoint
 
     def get_conn(self) -> Connection:
-        """Returns a Databricks SQL connection object."""
+        """Return a Databricks SQL connection object."""
         if not self._http_path:
             if self._sql_endpoint_name:
                 endpoint = self._get_sql_endpoint_by_name(self._sql_endpoint_name)
@@ -178,7 +178,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         split_statements: bool = True,
         return_last: bool = True,
     ) -> T | list[T] | None:
-        """Runs a command or a list of commands.
+        """
+        Run a command or a list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
         execute sequentially.

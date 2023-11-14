@@ -25,10 +25,10 @@ import os
 
 import pendulum
 
-from airflow import DAG
 from airflow.configuration import conf
 from airflow.decorators import task
 from airflow.example_dags.libs.helper import print_stuff
+from airflow.models.dag import DAG
 
 log = logging.getLogger(__name__)
 

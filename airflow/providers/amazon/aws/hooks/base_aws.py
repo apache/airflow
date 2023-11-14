@@ -29,11 +29,9 @@ import inspect
 import json
 import logging
 import os
-import uuid
 import warnings
 from copy import deepcopy
 from functools import cached_property, wraps
-from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
 
@@ -56,6 +54,8 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
+from airflow.providers.amazon.aws.utils.suppress import return_on_error
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -246,7 +246,11 @@ class BaseSessionFactory(LoggingMixin):
         if assume_role_method not in ("assume_role", "assume_role_with_saml"):
             raise NotImplementedError(f"assume_role_method={assume_role_method} not expected")
 
-        sts_client = self.basic_session.client("sts", config=self.config)
+        sts_client = self.basic_session.client(
+            "sts",
+            config=self.config,
+            endpoint_url=self.conn.get_service_endpoint_url("sts", sts_connection_assume=True),
+        )
 
         if assume_role_method == "assume_role":
             sts_response = self._assume_role(sts_client=sts_client)
@@ -459,7 +463,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         region_name: str | None = None,
         client_type: str | None = None,
         resource_type: str | None = None,
-        config: Config | None = None,
+        config: Config | dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.aws_conn_id = aws_conn_id
@@ -467,28 +471,26 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self.resource_type = resource_type
 
         self._region_name = region_name
+        if isinstance(config, dict):
+            config = Config(**config)
         self._config = config
         self._verify = verify
 
     @classmethod
+    @return_on_error("Unknown")
     def _get_provider_version(cls) -> str:
         """Check the Providers Manager for the package version."""
-        try:
-            manager = ProvidersManager()
-            hook = manager.hooks[cls.conn_type]
-            if not hook:
-                # This gets caught immediately, but without it MyPy complains
-                # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
-                # on the following line and static checks fail.
-                raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
-            provider = manager.providers[hook.package_name]
-            return provider.version
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "Unknown"
+        manager = ProvidersManager()
+        hook = manager.hooks[cls.conn_type]
+        if not hook:
+            # This gets caught immediately, but without it MyPy complains
+            # Item "None" of "Optional[HookInfo]" has no attribute "package_name"
+            # on the following line and static checks fail.
+            raise ValueError(f"Hook info for {cls.conn_type} not found in the Provider Manager.")
+        return manager.providers[hook.package_name].version
 
     @staticmethod
-    def _find_class_name(target_function_name: str) -> str:
+    def _find_operator_class_name(target_function_name: str) -> str | None:
         """Given a frame off the stack, return the name of the class that made the call.
 
         This method may raise a ValueError or an IndexError. The caller is
@@ -497,7 +499,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         stack = inspect.stack()
         # Find the index of the most recent frame which called the provided function name
         # and pull that frame off the stack.
-        target_frame = next(frame for frame in stack if frame.function == target_function_name)[0]
+        target_frames = [frame for frame in stack if frame.function == target_function_name]
+        if target_frames:
+            target_frame = target_frames[0][0]
+        else:
+            return None
         # Get the local variables for that frame.
         frame_variables = target_frame.f_locals["self"]
         # Get the class object for that frame.
@@ -505,19 +511,35 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         # Return the name of the class object.
         return frame_class_object.__name__
 
+    @staticmethod
+    def _find_executor_class_name() -> str | None:
+        """Inspect the call stack looking for any executor classes and returning the first found."""
+        stack = inspect.stack()
+        # Fetch class objects on all frames, looking for one containing an executor (since it
+        # will inherit from BaseExecutor)
+        for frame in stack:
+            classes = []
+            for name, obj in frame[0].f_globals.items():
+                if inspect.isclass(obj):
+                    classes.append(name)
+            if "BaseExecutor" in classes:
+                return classes[-1]
+        return None
+
+    @return_on_error("Unknown")
     def _get_caller(self, target_function_name: str = "execute") -> str:
-        """Given a function name, walk the stack and return the name of the class which called it last."""
-        try:
-            caller = self._find_class_name(target_function_name)
-            if caller == "BaseSensorOperator":
-                # If the result is a BaseSensorOperator, then look for whatever last called "poke".
-                return self._get_caller("poke")
-            return caller
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "Unknown"
+        """Try to determine the caller of this hook. Whether that be an AWS Operator, Sensor or Executor."""
+        caller = self._find_operator_class_name(target_function_name)
+        if caller == "BaseSensorOperator":
+            # If the result is a BaseSensorOperator, then look for whatever last called "poke".
+            caller = self._find_operator_class_name("poke")
+        if not caller:
+            # Check if we can find an executor
+            caller = self._find_executor_class_name()
+        return caller if caller else "Unknown"
 
     @staticmethod
+    @return_on_error("00000000-0000-0000-0000-000000000000")
     def _generate_dag_key() -> str:
         """Generate a DAG key.
 
@@ -526,25 +548,17 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         can not (reasonably) be reversed.  No personal data can be inferred or
         extracted from the resulting UUID.
         """
-        try:
-            dag_id = os.environ["AIRFLOW_CTX_DAG_ID"]
-            return str(uuid.uuid5(uuid.NAMESPACE_OID, dag_id))
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "00000000-0000-0000-0000-000000000000"
+        return generate_uuid(os.environ.get("AIRFLOW_CTX_DAG_ID"))
 
     @staticmethod
+    @return_on_error("Unknown")
     def _get_airflow_version() -> str:
         """Fetch and return the current Airflow version."""
-        try:
-            # This can be a circular import under specific configurations.
-            # Importing locally to either avoid or catch it if it does happen.
-            from airflow import __version__ as airflow_version
+        # This can be a circular import under specific configurations.
+        # Importing locally to either avoid or catch it if it does happen.
+        from airflow import __version__ as airflow_version
 
-            return airflow_version
-        except Exception:
-            # Under no condition should an error here ever cause an issue for the user.
-            return "Unknown"
+        return airflow_version
 
     def _generate_user_agent_extra_field(self, existing_user_agent_extra: str) -> str:
         user_agent_extra_values = [
@@ -572,10 +586,33 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             conn=connection, region_name=self._region_name, botocore_config=self._config, verify=self._verify
         )
 
+    def _resolve_service_name(self, is_resource_type: bool = False) -> str:
+        """Resolve service name based on type or raise an error."""
+        if exactly_one(self.client_type, self.resource_type):
+            # It is possible to write simple conditions, however it make mypy unhappy.
+            if self.client_type:
+                if is_resource_type:
+                    raise LookupError("Requested `resource_type`, but `client_type` was set instead.")
+                return self.client_type
+            elif self.resource_type:
+                if not is_resource_type:
+                    raise LookupError("Requested `client_type`, but `resource_type` was set instead.")
+                return self.resource_type
+
+        raise ValueError(
+            f"Either client_type={self.client_type!r} or "
+            f"resource_type={self.resource_type!r} must be provided, not both."
+        )
+
+    @property
+    def service_name(self) -> str:
+        """Extracted botocore/boto3 service name from hook parameters."""
+        return self._resolve_service_name(is_resource_type=bool(self.resource_type))
+
     @property
     def service_config(self) -> dict:
-        service_name = self.client_type or self.resource_type
-        return self.conn_config.get_service_config(service_name)
+        """Config for hook-specific service from AWS Connection."""
+        return self.conn_config.get_service_config(service_name=self.service_name)
 
     @property
     def region_name(self) -> str | None:
@@ -623,19 +660,20 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         deferrable: bool = False,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session."""
-        client_type = self.client_type
+        service_name = self._resolve_service_name(is_resource_type=False)
         session = self.get_session(region_name=region_name, deferrable=deferrable)
+        endpoint_url = self.conn_config.get_service_endpoint_url(service_name=service_name)
         if not isinstance(session, boto3.session.Session):
             return session.create_client(
-                client_type,
-                endpoint_url=self.conn_config.endpoint_url,
+                service_name=service_name,
+                endpoint_url=endpoint_url,
                 config=self._get_config(config),
                 verify=self.verify,
             )
 
         return session.client(
-            client_type,
-            endpoint_url=self.conn_config.endpoint_url,
+            service_name=service_name,
+            endpoint_url=endpoint_url,
             config=self._get_config(config),
             verify=self.verify,
         )
@@ -646,11 +684,11 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         config: Config | None = None,
     ) -> boto3.resource:
         """Get the underlying boto3 resource using boto3 session."""
-        resource_type = self.resource_type
+        service_name = self._resolve_service_name(is_resource_type=True)
         session = self.get_session(region_name=region_name)
         return session.resource(
-            resource_type,
-            endpoint_url=self.conn_config.endpoint_url,
+            service_name=service_name,
+            endpoint_url=self.conn_config.get_service_endpoint_url(service_name=service_name),
             config=self._get_config(config),
             verify=self.verify,
         )
@@ -662,15 +700,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
         :return: boto3.client or boto3.resource
         """
-        if not exactly_one(self.client_type, self.resource_type):
-            raise ValueError(
-                f"Either client_type={self.client_type!r} or "
-                f"resource_type={self.resource_type!r} must be provided, not both."
-            )
-        elif self.client_type:
+        if self.client_type:
             return self.get_client_type(region_name=self.region_name)
-        else:
-            return self.get_resource_type(region_name=self.region_name)
+        return self.get_resource_type(region_name=self.region_name)
 
     @property
     def async_conn(self):
@@ -744,7 +776,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         else:
             session = self.get_session(region_name=region_name)
             _client = session.client(
-                "iam", endpoint_url=self.conn_config.endpoint_url, config=self.config, verify=self.verify
+                service_name="iam",
+                endpoint_url=self.conn_config.get_service_endpoint_url("iam"),
+                config=self.config,
+                verify=self.verify,
             )
             return _client.get_role(RoleName=role)["Role"]["Arn"]
 
@@ -813,10 +848,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """
         try:
             session = self.get_session()
-            test_endpoint_url = self.conn_config.extra_config.get("test_endpoint_url")
             conn_info = session.client(
-                "sts",
-                endpoint_url=test_endpoint_url,
+                service_name="sts",
+                endpoint_url=self.conn_config.get_service_endpoint_url("sts", sts_test_connection=True),
             ).get_caller_identity()
             metadata = conn_info.pop("ResponseMetadata", {})
             if metadata.get("HTTPStatusCode") != 200:
@@ -829,10 +863,10 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return True, ", ".join(f"{k}={v!r}" for k, v in conn_info.items())
 
         except Exception as e:
-            return False, str(f"{type(e).__name__!r} error occurred while testing connection: {e}")
+            return False, f"{type(e).__name__!r} error occurred while testing connection: {e}"
 
     @cached_property
-    def waiter_path(self) -> PathLike[str] | None:
+    def waiter_path(self) -> os.PathLike[str] | None:
         filename = self.client_type if self.client_type else self.resource_type
         path = Path(__file__).parents[1].joinpath(f"waiters/{filename}.json").resolve()
         return path if path.exists() else None

@@ -25,7 +25,214 @@
 
 Changelog
 ---------
-* ``A bug intoduced in provider-amazon version 8.0.0 caused all 'EcsRunTaskOperator' tasks to detach from the ECS task after 10 minutes and fail - even if the ECS task was still running. In this version we are fixing it by returning the default 'waiter_max_attempts' value to 'sys.maxsize'``
+
+8.11.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+Features
+~~~~~~~~
+
+
+* ``Add support for anonymous access to s3 buckets for objectstorage (#35273)``
+* ``ECS Executor Health Check (#35412)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AWS RDS hook's DB instance state check (#34773)``
+* ``Fix parameter syntax in Amazon docstrings (#35349)``
+* ``Improve error handling in AWS Links (#35518)``
+* ``Update ECS executor healthcheck with a catchall except (#35512)``
+
+Misc
+~~~~
+
+* ``Move ECS Executor to its own file (#35418)``
+* ``Clarify "task" in ECS Executor log messages (#35304)``
+* ``Make optional 'output_location' attribute in 'AthenaOperator' (#35265)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add verificationy that provider docs are as expected (#35424)``
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Improve docs on objectstorage (#35294)``
+
+
+8.10.0
+......
+
+.. note::
+  This release introduce experimental feature: AWS ECS Executor.
+
+Features
+~~~~~~~~
+
+* ``Add AWS ECS Executor (#34381)``
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+* ``Add Http to s3 operator (#35176)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Enable encryption in S3 download_files() hook. (#35037)``
+
+Misc
+~~~~
+
+* ``Use base aws classes in Amazon AppFlow Operators (#35082)``
+* ``Use base aws classes in Amazon Athena Operators/Sensors/Triggers (#35133)``
+* ``Use base aws classes in Amazon Lambda Operators/Sensors (#34890)``
+* ``Use base aws classes in Amazon S3 Glacier Operators/Sensors (#35108)``
+* ``Expose catalog parameter in 'AthenaOperator' (#35103)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor string splitting (#34185)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
+8.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Glue 'DataBrew' operator (#34807)``
+* ``Add 'check_interval' and 'max_attempts' as parameter of 'DynamoDBToS3Operator' (#34972)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set 'EcsRunTaskOperator' default waiter duration to 70 days (#34928)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+
+8.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Implements 'AwsBaseOperator' and 'AwsBaseSensor' (#34784)``
+* ``Extend hooks arguments into 'AwsBaseWaiterTrigger' (#34884)``
+* ``Allow setup 'endpoint_url' per-service in AWS Connection (#34593)``
+* ``Include AWS Lambda execution logs to task logs (#34692)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/amazon): respect soft_fail argument when exception is raised (#34134)``
+* ``do not fail operator if we cannot find logs (#34570)``
+* ``Respect 'soft_fail' argument when running 'BatchSensors' (#34592)``
+* ``Respect 'soft_fail' argument when running 'SqsSensor' (#34569)``
+* ``Respect 'soft_fail' argument when running 'EcsBaseSensor' (#34596)``
+* ``Respect 'soft_fail' argument when running 'SageMakerBaseSensor' (#34565)``
+* ``Respect 'soft_fail' parameter in 'S3KeysUnchangedSensor' and 'S3KeySensor' (#34550)``
+* ``Respect 'soft_fail' parameter in 'LambdaFunctionStateSensor' (#34551)``
+* ``Respect 'soft_fail' parameter in 'AthenaSensor' (#34553)``
+* ``Respect 'soft_fail' parameter in 'QuickSightSensor' (#34555)``
+* ``Respect 'soft_fail' parameter in 'GlacierJobOperationSensor' (#34557)``
+* ``Respect 'soft_fail' parameter in 'GlueJobSensor', 'GlueCatalogPartitionSensor' and 'GlueCrawlerSensor' (#34559)``
+* ``Respect 'soft_fail' parameter in 'StepFunctionExecutionSensor' (#34560)``
+
+Misc
+~~~~
+
+* ``Refactor consolidate import from io in providers (#34378)``
+* ``Upgrade watchtower to 3.0.1 (#25019) (#34747)``
+* ``Bump min airflow version of providers (#34728)``
+* ``Refactor: consolidate import time in providers (#34402)``
+* ``Refactor usage of str() in providers (#34320)``
+* ``Refactor import from collections (#34406)``
+* ``Clarify Amazon Lambda invocation and sensing (#34653)``
+* ``Refactor multiple equals to contains in providers (#34441)``
+* ``Rename 'bucket' to 'gcs_bucket' in 'GCSToS3Operator' (#33031)``
+* ``Remove duplicate 'asgiref' dependency in Amazon Provider (#34580)``
+* ``Update 'BatchOperator' operator_extra_links property (#34506)``
+* ``sagemaker.py spell error fix (#34445)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+* ``Use 'AirflowProviderDeprecationWarning' in the deprecated decorator in Amazon provider (#34488)``
+* ``Use 'AirflowProviderDeprecationWarning' in EMR Operators (#34453)``
+* ``Deprecate get_hook in DataSyncOperator and use hook instead (#34427)``
+* ``Refactor shorter defaults in providers (#34347)``
+
+8.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix: Fix RDS triggers parameters so that they handle serialization/deserialization (#34222)``
+* ``Use a AwsBaseWaiterTrigger-based trigger in EmrAddStepsOperator deferred mode (#34216)``
+
+Misc
+~~~~
+
+* ``Refactor: Think positively in providers (#34279)``
+* ``Remove unused parameter 'cluster_role_arn' from 'EksPodOperator''s docstring (#34300)``
+* ``Correct parameter names in docstring for 'S3CreateObjectOperator' (#34263)``
+* ``Refactor: Simplify comparisons (#34181)``
+* ``Simplify  to bool(...) (#34258)``
+
+8.7.0
+.....
+
+.. warning:: A bug introduced in version 8.0.0 caused all ``EcsRunTaskOperator`` tasks to detach from the ECS task
+  and fail after 10 minutes, even if the ECS task was still running.
+  In this version we are fixing it by returning the default ``waiter_max_attempts`` value to ``sys.maxsize``.
+
+Features
+~~~~~~~~
+
+* ``Add Amazon SQS Notifier (#33962)``
+* ``Add Amazon SNS Notifier (#33828)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Increase 'waiter_max_attempts' default value in 'EcsRunTaskOperator' (#33712)``
+* ``Fix AWS 'EmrStepSensor' ignoring the specified 'aws_conn_id' in deferred mode  (#33952)``
+* ``Fix type annotation in AppflowHook (#33881)``
+* ``Make Amazon Chime connection lazy loaded and consistent with docs (#34000)``
+* ``respect "soft_fail" argument when running BatchSensor in deferrable mode (#33405)``
+
+Misc
+~~~~
+
+ * ``Refactor: Consolidate import and usage of random (#34108)``
+ * ``Consolidate importing of os.path.* (#34060)``
+ * ``Refactor regex in providers (#33898)``
+ * ``Refactor: Simplify loop in aws/triggers/batch.py (#34052)``
+ * ``Combine similar if logics in providers (#33987)``
+ * ``Replace single quotes by double quotes in tests (#33864)``
+ * ``Remove useless string join from providers (#33968)``
+ * ``Make 'aws.session_factory' part of Amazon provider configuration documentation (#33960)``
+ * ``Refactor unneeded  jumps in providers (#33833)``
+ * ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+ * ``Remove some useless try/except from providers code (#33967)``
+ * ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+ * ``Replace sequence concatenation by unpacking in Airflow providers (#33933)``
+ * ``Reorganize devel_only extra in airflow's setup.py (#33907)``
+ * ``Remove explicit str concat from Airflow providers package and tests (#33860)``
+ * ``Improve modules import in AWS provider by move some of them into a type-checking block (#33780)``
+ * ``Always use 'Literal' from 'typing_extensions' (#33794)``
+ * ``Use literal dict instead of calling dict() in providers (#33761)``
+ * ``remove unnecessary and rewrite it using list in providers (#33763)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add decorator for suppress optional internal methods in Amazon Provider (#34034)``
 
 8.6.0
 .....

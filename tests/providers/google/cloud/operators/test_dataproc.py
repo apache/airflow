@@ -139,7 +139,7 @@ VIRTUAL_CLUSTER_CONFIG = {
             "gke_cluster_target": "projects/project_id/locations/region/clusters/gke_cluster_name",
             "node_pool_target": [
                 {
-                    "node_pool": "projects/project_id/locations/region/clusters/gke_cluster_name/nodePools/dp",  # noqa
+                    "node_pool": "projects/project_id/locations/region/clusters/gke_cluster_name/nodePools/dp",
                     "roles": ["DEFAULT"],
                 }
             ],
@@ -744,6 +744,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
@@ -843,6 +844,7 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
         )
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
@@ -1199,6 +1201,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             op.execute(context=self.mock_context)
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
@@ -1356,6 +1359,7 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_operator):
     ti = create_task_instance_of_operator(
@@ -1399,7 +1403,7 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     assert ti.task.get_extra_links(ti, DataprocClusterLink.name) == DATAPROC_CLUSTER_LINK_EXPECTED
 
 
-class TestDataprocWorkflowTemplateInstantiateOperator:
+class TestDataprocInstantiateWorkflowTemplateOperator:
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
         version = 6
@@ -1463,7 +1467,39 @@ class TestDataprocWorkflowTemplateInstantiateOperator:
         assert isinstance(exc.value.trigger, DataprocWorkflowTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_on_kill(self, mock_hook):
+        operation_name = "operation_name"
+        mock_hook.return_value.instantiate_workflow_template.return_value.operation.name = operation_name
+        op = DataprocInstantiateWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            template_id=TEMPLATE_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            version=2,
+            parameters={},
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            cancel_on_kill=False,
+        )
 
+        op.execute(context=mock.MagicMock())
+
+        op.on_kill()
+        mock_hook.return_value.get_operations_client.return_value.cancel_operation.assert_not_called()
+
+        op.cancel_on_kill = True
+        op.on_kill()
+        mock_hook.return_value.get_operations_client.return_value.cancel_operation.assert_called_once_with(
+            name=operation_name
+        )
+
+
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):
@@ -1561,7 +1597,39 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         assert isinstance(exc.value.trigger, DataprocWorkflowTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_on_kill(self, mock_hook):
+        operation_name = "operation_name"
+        mock_hook.return_value.instantiate_inline_workflow_template.return_value.operation.name = (
+            operation_name
+        )
+        op = DataprocInstantiateInlineWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            template={},
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            cancel_on_kill=False,
+        )
 
+        op.execute(context=mock.MagicMock())
+
+        op.on_kill()
+        mock_hook.return_value.get_operations_client.return_value.cancel_operation.assert_not_called()
+
+        op.cancel_on_kill = True
+        op.on_kill()
+        mock_hook.return_value.get_operations_client.return_value.cancel_operation.assert_called_once_with(
+            name=operation_name
+        )
+
+
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_instantiate_inline_workflow_operator_extra_links(
@@ -1882,6 +1950,7 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
         self.extra_links_manager_mock.assert_has_calls(self.extra_links_expected_calls, any_order=False)
 
 
+@pytest.mark.db_test
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
 def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task_instance_of_operator):

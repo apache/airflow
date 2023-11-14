@@ -28,7 +28,6 @@ import warnings
 from contextlib import contextmanager
 from functools import partial
 from io import BytesIO
-from os import path
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
@@ -331,11 +330,16 @@ class GCSHook(GoogleBaseHook):
         # TODO: future improvement check file size before downloading,
         #  to check for local space availability
 
-        num_file_attempts = 0
+        if num_max_attempts is None:
+            num_max_attempts = 3
 
-        while True:
+        for attempt in range(num_max_attempts):
+            if attempt:
+                # Wait with exponential backoff scheme before retrying.
+                timeout_seconds = 2**attempt
+                time.sleep(timeout_seconds)
+
             try:
-                num_file_attempts += 1
                 client = self.get_conn()
                 bucket = client.bucket(bucket_name, user_project=user_project)
                 blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
@@ -348,19 +352,17 @@ class GCSHook(GoogleBaseHook):
                     return blob.download_as_bytes()
 
             except GoogleCloudError:
-                if num_file_attempts == num_max_attempts:
+                if attempt == num_max_attempts - 1:
                     self.log.error(
                         "Download attempt of object: %s from %s has failed. Attempt: %s, max %s.",
                         object_name,
                         bucket_name,
-                        num_file_attempts,
+                        attempt,
                         num_max_attempts,
                     )
                     raise
-
-                # Wait with exponential backoff scheme before retrying.
-                timeout_seconds = 2 ** (num_file_attempts - 1)
-                time.sleep(timeout_seconds)
+        else:
+            raise NotImplementedError  # should not reach this, but makes mypy happy
 
     def download_as_byte_array(
         self,
@@ -827,15 +829,10 @@ class GCSHook(GoogleBaseHook):
                     versions=versions,
                 )
 
-            blob_names = []
-            for blob in blobs:
-                blob_names.append(blob.name)
-
-            prefixes = blobs.prefixes
-            if prefixes:
-                ids += list(prefixes)
+            if blobs.prefixes:
+                ids.extend(blobs.prefixes)
             else:
-                ids += blob_names
+                ids.extend(blob.name for blob in blobs)
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -943,16 +940,14 @@ class GCSHook(GoogleBaseHook):
                     versions=versions,
                 )
 
-            blob_names = []
-            for blob in blobs:
-                if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end:
-                    blob_names.append(blob.name)
-
-            prefixes = blobs.prefixes
-            if prefixes:
-                ids += list(prefixes)
+            if blobs.prefixes:
+                ids.extend(blobs.prefixes)
             else:
-                ids += blob_names
+                ids.extend(
+                    blob.name
+                    for blob in blobs
+                    if timespan_start <= blob.updated.replace(tzinfo=timezone.utc) < timespan_end
+                )
 
             page_token = blobs.next_page_token
             if page_token is None:
@@ -1290,7 +1285,7 @@ class GCSHook(GoogleBaseHook):
         self, blob: storage.Blob, destination_object: str | None, source_object_prefix_len: int
     ) -> str:
         return (
-            path.join(destination_object, blob.name[source_object_prefix_len:])
+            os.path.join(destination_object, blob.name[source_object_prefix_len:])
             if destination_object
             else blob.name[source_object_prefix_len:]
         )

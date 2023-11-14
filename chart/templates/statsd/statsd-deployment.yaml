@@ -78,6 +78,9 @@ spec:
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "statsd.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}

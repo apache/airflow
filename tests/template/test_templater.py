@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import jinja2
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.template.templater import Templater
 from airflow.utils.context import Context
 

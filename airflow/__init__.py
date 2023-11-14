@@ -76,21 +76,31 @@ PY39 = sys.version_info >= (3, 9)
 PY310 = sys.version_info >= (3, 10)
 PY311 = sys.version_info >= (3, 11)
 
-# Things to lazy import in form {local_name: ('target_module', 'target_name')}
-__lazy_imports: dict[str, tuple[str, str]] = {
-    "DAG": (".models.dag", "DAG"),
-    "Dataset": (".datasets", "Dataset"),
-    "XComArg": (".models.xcom_arg", "XComArg"),
-    "AirflowException": (".exceptions", "AirflowException"),
-    "version": (".version", ""),
+# Things to lazy import in form {local_name: ('target_module', 'target_name', 'deprecated')}
+__lazy_imports: dict[str, tuple[str, str, bool]] = {
+    "DAG": (".models.dag", "DAG", False),
+    "Dataset": (".datasets", "Dataset", False),
+    "XComArg": (".models.xcom_arg", "XComArg", False),
+    "version": (".version", "", False),
+    # Deprecated lazy imports
+    "AirflowException": (".exceptions", "AirflowException", True),
 }
 
 
 def __getattr__(name: str):
     # PEP-562: Lazy loaded attributes on python modules
-    module_path, attr_name = __lazy_imports.get(name, ("", ""))
+    module_path, attr_name, deprecated = __lazy_imports.get(name, ("", "", False))
     if not module_path:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    elif deprecated:
+        import warnings
+
+        warnings.warn(
+            f"Import {name!r} directly from the airflow module is deprecated and "
+            f"will be removed in the future. Please import it from 'airflow{module_path}.{attr_name}'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     import importlib
 

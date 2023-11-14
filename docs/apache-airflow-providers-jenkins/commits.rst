@@ -28,6 +28,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.4.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`43f5d13535 <https://github.com/apache/airflow/commit/43f5d1353592fe0fba15dc497775e9ddebf0ff88>`_  2023-09-20   ``fix(providers/jenkins): respect soft_fail argument when exception is raised (#34475)``
+`0d1f2d9ba8 <https://github.com/apache/airflow/commit/0d1f2d9ba88b1730f7c234f19e43b5e1f9a36c4c>`_  2023-09-18   ``Consolidate hook management in JenkinsJobTriggerOperator (#34433)``
+=================================================================================================  ===========  ========================================================================================
+
+3.3.2
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`a6a7a89fda <https://github.com/apache/airflow/commit/a6a7a89fda258dfa68e67c00828a3550d66efd7f>`_  2023-09-04   ``Refactor attempting loops in jenkins (#34057)``
+`794bd43aa8 <https://github.com/apache/airflow/commit/794bd43aa870c08d68488ad7597576f6ad0ed02c>`_  2023-09-01   ``Move the try outside the loop when this is possible in jenkins provider (#33979)``
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`1240dcc167 <https://github.com/apache/airflow/commit/1240dcc167c4b47331db81deff61fc688df118c2>`_  2023-07-05   ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+=================================================================================================  ===========  ====================================================================================
+
 3.3.1
 .....
 
@@ -36,6 +69,7 @@ Latest change: 2023-06-20
 =================================================================================================  ===========  =============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
 `8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `9276310a43 <https://github.com/apache/airflow/commit/9276310a43d17a9e9e38c2cb83686a15656896b2>`_  2023-06-05   ``Improve docstrings in providers (#31681)``
 `a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``

@@ -43,9 +43,9 @@ This can be achieved in various ways - you can change USER when you extend or cu
 you can dynamically pass the user to  ``docker run`` command, by adding ``--user`` flag in one of
 those formats (See `Docker Run reference <https://docs.docker.com/engine/reference/run/#user>`_ for details):
 
-```
-[ user | user:group | uid | uid:gid | user:gid | uid:group ]
-```
+.. code-block:: text
+
+    [ user | user:group | uid | uid:gid | user:gid | uid:group ]
 
 In case of Docker Compose environment it can be changed via ``user:`` entry in the ``docker-compose.yaml``.
 See `Docker compose reference <https://docs.docker.com/compose/compose-file/compose-file-v3/#domainname-hostname-ipc-mac_address-privileged-read_only-shm_size-stdin_open-tty-user-working_dir>`_

@@ -82,7 +82,7 @@ class BaseExtractor(ABC, LoggingMixin):
             self.operator.__class__.__module__ + "." + self.operator.__class__.__name__
         )
         if fully_qualified_class_name in self.disabled_operators:
-            self.log.warning(
+            self.log.debug(
                 f"Skipping extraction for operator {self.operator.task_type} "
                 "due to its presence in [openlineage] openlineage_disabled_for_operators."
             )
@@ -116,7 +116,7 @@ class DefaultExtractor(BaseExtractor):
             )
             return None
         except AttributeError:
-            self.log.warning(
+            self.log.debug(
                 f"Operator {self.operator.task_type} does not have the "
                 "get_openlineage_facets_on_start method."
             )
@@ -149,5 +149,5 @@ class DefaultExtractor(BaseExtractor):
                 "This should not happen."
             )
         except Exception:
-            self.log.exception("OpenLineage provider method failed to extract data from provider. ")
+            self.log.warning("OpenLineage provider method failed to extract data from provider. ")
         return None

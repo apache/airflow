@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models.dag import DagModel
@@ -31,12 +33,16 @@ from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 
+pytestmark = pytest.mark.db_test
 
+
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_task_instance(session, create_task_instance):
     dag_id = "test-dag"
     ti = create_task_instance(dag_id=dag_id, session=session)
@@ -57,6 +63,7 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
     assert deserialized_model.next_kwargs == {"foo": "bar"}
 
 
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_dagrun(session, create_task_instance):
     dag_id = "test-dag"
     ti = create_task_instance(dag_id=dag_id, session=session)
@@ -112,6 +119,7 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
     assert deserialized_model.state == State.RUNNING
 
 
+@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_dataset_event(session, create_task_instance, create_dummy_dag):
     ds1 = DatasetModel(id=1, uri="one", extra={"foo": "bar"})
     ds2 = DatasetModel(id=2, uri="two")

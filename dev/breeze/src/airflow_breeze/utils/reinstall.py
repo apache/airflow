@@ -51,6 +51,9 @@ def warn_non_editable():
         "\n[error]It should only be installed in editable mode[/]\n\n"
         "[info]Please go to Airflow sources and run[/]\n\n"
         f"     {NAME} setup self-upgrade --use-current-airflow-sources\n"
+        '[warning]If during installation, you see warning with "Ignoring --editable install",[/]\n'
+        '[warning]make sure you first downgrade "packaging" package to <23.2, for example by:[/]\n\n'
+        f'     pip install "packaging<23.2"\n\n'
     )
 
 

@@ -40,10 +40,10 @@ from __future__ import annotations
 import os
 import subprocess
 from datetime import datetime
-from os.path import expanduser
+from pathlib import Path
 from urllib.parse import quote_plus
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_sql import CloudSQLExecuteQueryOperator
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
@@ -87,17 +87,14 @@ SQL = [
 
 # [START howto_operator_cloudsql_query_connections]
 
-HOME_DIR = expanduser("~")
+HOME_DIR = Path.home()
 
 
 def get_absolute_path(path):
     """
     Returns absolute path.
     """
-    if path.startswith("/"):
-        return path
-    else:
-        return os.path.join(HOME_DIR, path)
+    return os.fspath(HOME_DIR / path)
 
 
 postgres_kwargs = {
@@ -268,7 +265,7 @@ connection_names = [
 tasks = []
 
 
-with models.DAG(
+with DAG(
     dag_id="example_gcp_sql_query",
     start_date=datetime(2021, 1, 1),
     catchup=False,

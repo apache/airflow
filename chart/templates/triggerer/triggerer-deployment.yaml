@@ -35,7 +35,6 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.triggerer.waitForMigrations) }}
 {{- $containerSecurityContextLogGroomer := include "containerSecurityContext" (list . .Values.triggerer.logGroomerSidecar) }}
 {{- $containerLifecycleHooks := or .Values.triggerer.containerLifecycleHooks .Values.containerLifecycleHooks }}
-{{- $containerLifecycleHooksWaitForMigrations := or .Values.triggerer.waitForMigrations.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.triggerer.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
@@ -103,6 +102,9 @@ spec:
       priorityClassName: {{ .Values.triggerer.priorityClassName }}
       {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       affinity:
         {{- if $affinity }}
           {{- toYaml $affinity | nindent 8 }}
@@ -134,9 +136,6 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
-          {{- if $containerLifecycleHooksWaitForMigrations }}
-          lifecycle: {{- tpl (toYaml $containerLifecycleHooksWaitForMigrations) . | nindent 12 }}
-          {{- end }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
@@ -271,7 +270,7 @@ spec:
             claimName: {{ template "airflow_dags_volume_claim" . }}
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
-          emptyDir: {}
+          emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
         {{- if .Values.dags.gitSync.sshKeySecret }}
           {{- include "git_sync_ssh_key_volume" . | nindent 8 }}
         {{- end }}
@@ -288,7 +287,7 @@ spec:
             claimName: {{ template "airflow_logs_volume_claim" . }}
   {{- else if not $persistence }}
         - name: logs
-          emptyDir: {}
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
     - metadata:
@@ -298,7 +297,7 @@ spec:
         {{- end }}
       spec:
       {{- if .Values.triggerer.persistence.storageClassName }}
-        storageClassName: {{ .Values.triggerer.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.triggerer.persistence.storageClassName . | quote }}
       {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:

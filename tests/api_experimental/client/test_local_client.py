@@ -29,12 +29,17 @@ import time_machine
 from airflow.api.client.local_client import Client
 from airflow.example_dags import example_bash_operator
 from airflow.exceptions import AirflowBadRequest, AirflowException, PoolNotFound
-from airflow.models import DAG, DagBag, DagModel, DagRun, Pool
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
+from airflow.models.pool import Pool
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_pools
+
+pytestmark = pytest.mark.db_test
 
 EXECDATE = timezone.utcnow()
 EXECDATE_NOFRACTIONS = EXECDATE.replace(microsecond=0)

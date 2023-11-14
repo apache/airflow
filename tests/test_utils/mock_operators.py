@@ -142,7 +142,6 @@ class CustomOpLink(BaseOperatorLink):
 
 
 class CustomOperator(BaseOperator):
-
     template_fields = ["bash_command"]
     custom_operator_name = "@custom"
 

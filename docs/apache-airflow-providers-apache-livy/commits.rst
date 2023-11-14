@@ -28,14 +28,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.6.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ===========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`99f320354b <https://github.com/apache/airflow/commit/99f320354b075fb780e54057d223d2d16ddf08b8>`_  2023-10-04   ``Refactor: consolidate import time in providers (#34402)``
+`c95aa7863f <https://github.com/apache/airflow/commit/c95aa7863f3efb5b9acebe3d2c5c3a146c6de1bf>`_  2023-09-18   ``Consolidate hook management in LivyOperator (#34431)``
+=================================================================================================  ===========  ===========================================================
+
+3.5.4
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+=================================================================================================  ===========  ===================================================================================================
+
 3.5.3
 .....
 
-Latest change: 2023-08-24
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
 `32feab4100 <https://github.com/apache/airflow/commit/32feab41006897de182bfa684813be230027aca1>`_  2023-08-22   ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
 `af0a4a0698 <https://github.com/apache/airflow/commit/af0a4a0698040c1b61cdeafc135d99dcb182c9ef>`_  2023-08-21   ``Simplify conditions on len() in providers/apache (#33564)``

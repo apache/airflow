@@ -20,8 +20,8 @@ import inspect
 import json
 import logging
 import os
-from os.path import basename, splitext
-from time import sleep
+import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -40,7 +40,7 @@ ENV_ID_ENVIRON_KEY: str = "SYSTEM_TESTS_ENV_ID"
 ENV_ID_KEY: str = "ENV_ID"
 DEFAULT_ENV_ID_PREFIX: str = "env"
 DEFAULT_ENV_ID_LEN: int = 8
-DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{str(uuid4())[:DEFAULT_ENV_ID_LEN]}"
+DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{uuid4()!s:.{DEFAULT_ENV_ID_LEN}}"
 PURGE_LOGS_INTERVAL_PERIOD = 5
 
 # All test file names will contain this string.
@@ -70,7 +70,7 @@ def _get_test_name() -> str:
     test_filename: str = next(
         frame.filename for frame in inspect.stack() if TEST_FILE_IDENTIFIER in frame.filename
     )
-    return splitext(basename(test_filename))[0]
+    return Path(test_filename).stem
 
 
 def _validate_env_id(env_id: str) -> str:
@@ -97,7 +97,7 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     :param key: The key to search for within the returned Parameter Value.
     :return: The value of the provided key from SSM
     """
-    _test_name: str = test_name if test_name else _get_test_name()
+    _test_name: str = test_name or _get_test_name()
     hook = SsmHook(aws_conn_id=None)
     value: str = ""
 
@@ -106,6 +106,8 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
     except NoCredentialsError as e:
         log.info("No boto credentials found: %s", e)
+    except ClientError as e:
+        log.info("Client error when connecting to SSM: %s", e)
     except hook.conn.exceptions.ParameterNotFound as e:
         log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
@@ -157,7 +159,7 @@ class Variable:
 
     def _format_value(self, value):
         if self.to_split:
-            if type(value) is not str:
+            if not isinstance(value, str):
                 raise TypeError(f"{self.name} is type {type(value)} and can not be split as requested.")
             return value.split(self.delimiter)
         return value
@@ -331,7 +333,7 @@ def _purge_logs(
             if not retry or retry_times == 0 or e.response["Error"]["Code"] != "ResourceNotFoundException":
                 raise e
 
-            sleep(PURGE_LOGS_INTERVAL_PERIOD)
+            time.sleep(PURGE_LOGS_INTERVAL_PERIOD)
             _purge_logs(
                 test_logs=test_logs,
                 force_delete=force_delete,

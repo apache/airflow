@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
-from re import match
 from typing import Any, Sequence
 
 import click
@@ -221,6 +221,6 @@ class UseAirflowVersionType(BetterChoice):
         self.all_choices = [*self.choices, "<airflow_version>"]
 
     def convert(self, value, param, ctx):
-        if match(r"^\d*\.\d*\.\d*\S*$", value):
+        if re.match(r"^\d*\.\d*\.\d*\S*$", value):
             return value
         return super().convert(value, param, ctx)

@@ -50,7 +50,6 @@ class QuboleSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context: Context) -> bool:
-
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)
 

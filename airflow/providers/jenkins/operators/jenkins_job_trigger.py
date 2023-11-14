@@ -21,14 +21,16 @@ import ast
 import json
 import socket
 import time
+from functools import cached_property
 from typing import Any, Iterable, Mapping, Sequence, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
+from deprecated.classic import deprecated
 from jenkins import Jenkins, JenkinsException
 from requests import Request
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
@@ -149,12 +151,14 @@ class JenkinsJobTriggerOperator(BaseOperator):
         :param jenkins_server: The jenkins server to poll
         :return: The build_number corresponding to the triggered job
         """
-        try_count = 0
         location += "/api/json"
         # TODO Use get_queue_info instead
         # once it will be available in python-jenkins (v > 0.4.15)
         self.log.info("Polling jenkins queue at the url %s", location)
-        while try_count < self.max_try_before_job_appears:
+        for attempt in range(self.max_try_before_job_appears):
+            if attempt:
+                time.sleep(self.sleep_time)
+
             try:
                 location_answer = jenkins_request_with_headers(
                     jenkins_server, Request(method="POST", url=location)
@@ -163,30 +167,32 @@ class JenkinsJobTriggerOperator(BaseOperator):
             # until max_try_before_job_appears reached
             except (HTTPError, JenkinsException):
                 self.log.warning("polling failed, retrying", exc_info=True)
-                try_count += 1
-                time.sleep(self.sleep_time)
-                continue
+            else:
+                if location_answer is not None:
+                    json_response = json.loads(location_answer["body"])
+                    if (
+                        "executable" in json_response
+                        and json_response["executable"] is not None
+                        and "number" in json_response["executable"]
+                    ):
+                        build_number = json_response["executable"]["number"]
+                        self.log.info("Job executed on Jenkins side with the build number %s", build_number)
+                        return build_number
+        else:
+            raise AirflowException(
+                f"The job hasn't been executed after polling the queue "
+                f"{self.max_try_before_job_appears} times"
+            )
 
-            if location_answer is not None:
-                json_response = json.loads(location_answer["body"])
-                if (
-                    "executable" in json_response
-                    and json_response["executable"] is not None
-                    and "number" in json_response["executable"]
-                ):
-                    build_number = json_response["executable"]["number"]
-                    self.log.info("Job executed on Jenkins side with the build number %s", build_number)
-                    return build_number
-            try_count += 1
-            time.sleep(self.sleep_time)
-
-        raise AirflowException(
-            f"The job hasn't been executed after polling the queue {self.max_try_before_job_appears} times"
-        )
-
-    def get_hook(self) -> JenkinsHook:
+    @cached_property
+    def hook(self) -> JenkinsHook:
         """Instantiate the Jenkins hook."""
         return JenkinsHook(self.jenkins_connection_id)
+
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    def get_hook(self) -> JenkinsHook:
+        """Instantiate the Jenkins hook."""
+        return self.hook
 
     def execute(self, context: Mapping[Any, Any]) -> str | None:
         self.log.info(
@@ -195,7 +201,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
             self.jenkins_connection_id,
             self.parameters,
         )
-        jenkins_server = self.get_hook().get_jenkins_server()
+        jenkins_server = self.hook.get_jenkins_server()
         jenkins_response = self.build_job(jenkins_server, self.parameters)
         if jenkins_response:
             build_number = self.poll_job_in_queue(jenkins_response["headers"]["Location"], jenkins_server)

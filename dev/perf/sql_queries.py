@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import statistics
+import textwrap
 from time import monotonic, sleep
 from typing import NamedTuple
 
@@ -85,8 +86,7 @@ class Query(NamedTuple):
     time: float
 
     def __str__(self):
-        sql = self.sql if len(self.sql) < 110 else f"{self.sql[:111]}..."
-        return f"{self.function} in {self.file}:{self.location}: {sql}"
+        return f"{self.function} in {self.file}:{self.location}: {textwrap.shorten(self.sql, 110)}"
 
     def __eq__(self, other):
         """

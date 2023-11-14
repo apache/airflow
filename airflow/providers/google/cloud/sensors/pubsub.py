@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -174,6 +174,9 @@ class PubSubPullSensor(BaseSensorOperator):
             self.log.info("Sensor pulls messages: %s", event["message"])
             return event["message"]
         self.log.info("Sensor failed: %s", event["message"])
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        if self.soft_fail:
+            raise AirflowSkipException(event["message"])
         raise AirflowException(event["message"])
 
     def _default_message_callback(

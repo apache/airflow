@@ -24,7 +24,6 @@ github:
     - airflow
     - apache
     - apache-airflow
-    - hacktoberfest
     - python
     - scheduler
     - workflow
@@ -75,12 +74,9 @@ github:
 
   collaborators:
     - mhenc
-    - pankajkoti
     - utkarsharma2
     - Lee-W
     - sunank200
-    - amoghrajesh
-    - jens-scheffler-bosch
     - nathadfield
     - RNHTTR
 

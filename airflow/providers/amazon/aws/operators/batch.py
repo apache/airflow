@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.links.batch import (
     BatchJobDefinitionLink,
@@ -126,9 +127,21 @@ class BatchOperator(BaseOperator):
     @property
     def operator_extra_links(self):
         op_extra_links = [BatchJobDetailsLink()]
-        if self.wait_for_completion:
+
+        if isinstance(self, MappedOperator):
+            wait_for_completion = self.partial_kwargs.get(
+                "wait_for_completion"
+            ) or self.expand_input.value.get("wait_for_completion")
+            array_properties = self.partial_kwargs.get("array_properties") or self.expand_input.value.get(
+                "array_properties"
+            )
+        else:
+            wait_for_completion = self.wait_for_completion
+            array_properties = self.array_properties
+
+        if wait_for_completion:
             op_extra_links.extend([BatchJobDefinitionLink(), BatchJobQueueLink()])
-        if not self.array_properties:
+        if not array_properties:
             # There is no CloudWatch Link to the parent Batch Job available.
             op_extra_links.append(CloudWatchEventsLink())
 
@@ -346,7 +359,12 @@ class BatchOperator(BaseOperator):
             else:
                 self.hook.wait_for_job(self.job_id)
 
-        awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
+        awslogs = []
+        try:
+            awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
+        except AirflowException as ae:
+            self.log.warning("Cannot determine where to find the AWS logs for this Batch job: %s", ae)
+
         if awslogs:
             self.log.info("AWS Batch job (%s) CloudWatch Events details found. Links to logs:", self.job_id)
             link_builder = CloudWatchEventsLink()

@@ -28,7 +28,7 @@ import packaging.version
 
 __all__ = ["__version__"]
 
-__version__ = "3.4.2"
+__version__ = "3.4.3"
 
 try:
     from airflow import __version__ as airflow_version
@@ -36,8 +36,8 @@ except ImportError:
     from airflow.version import version as airflow_version
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.4.0"
+    "2.5.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-qubole:{__version__}` requires Apache Airflow 2.4.0+"  # NOQA: E501
+        f"The package `apache-airflow-providers-qubole:{__version__}` requires Apache Airflow 2.5.0+"
     )

@@ -23,10 +23,11 @@ import os
 from datetime import datetime
 
 from google.cloud import dataplex_v1
+from google.cloud.dataplex_v1 import DataQualitySpec
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCreateEmptyDatasetOperator,
     BigQueryCreateEmptyTableOperator,
@@ -50,7 +51,7 @@ from airflow.providers.google.cloud.sensors.dataplex import DataplexDataQualityJ
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 DAG_ID = "example_dataplex_data_quality"
 
@@ -109,18 +110,20 @@ EXAMPLE_DATA_SCAN.data.entity = (
 EXAMPLE_DATA_SCAN.data.resource = (
     f"//bigquery.googleapis.com/projects/{PROJECT_ID}/datasets/{DATASET}/tables/{TABLE_1}"
 )
-EXAMPLE_DATA_SCAN.data_quality_spec = {
-    "rules": [
-        {
-            "range_expectation": {
-                "min_value": "0",
-                "max_value": "10000",
-            },
-            "column": "value",
-            "dimension": "VALIDITY",
-        }
-    ],
-}
+EXAMPLE_DATA_SCAN.data_quality_spec = DataQualitySpec(
+    {
+        "rules": [
+            {
+                "range_expectation": {
+                    "min_value": "0",
+                    "max_value": "10000",
+                },
+                "column": "value",
+                "dimension": "VALIDITY",
+            }
+        ],
+    }
+)
 # [END howto_dataplex_data_quality_configuration]
 UPDATE_MASK = FieldMask(paths=["data_quality_spec"])
 ENTITY = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/zones/{ZONE_ID}/entities/{TABLE_1}"
@@ -144,7 +147,7 @@ EXAMPLE_DATA_SCAN_UPDATE = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule="@once",
@@ -261,6 +264,31 @@ with models.DAG(
         data_scan_id=DATA_SCAN_ID,
     )
     # [END howto_dataplex_get_data_quality_job_operator]
+    # [START howto_dataplex_run_data_quality_def_operator]
+    run_data_scan_def = DataplexRunDataQualityScanOperator(
+        task_id="run_data_scan_def",
+        project_id=PROJECT_ID,
+        region=REGION,
+        data_scan_id=DATA_SCAN_ID,
+        deferrable=True,
+    )
+    # [END howto_dataplex_run_data_quality_def_operator]
+    run_data_scan_async_2 = DataplexRunDataQualityScanOperator(
+        task_id="run_data_scan_async_2",
+        project_id=PROJECT_ID,
+        region=REGION,
+        data_scan_id=DATA_SCAN_ID,
+        asynchronous=True,
+    )
+    # [START howto_dataplex_get_data_quality_job_def_operator]
+    get_data_scan_job_result_def = DataplexGetDataQualityScanResultOperator(
+        task_id="get_data_scan_job_result_def",
+        project_id=PROJECT_ID,
+        region=REGION,
+        data_scan_id=DATA_SCAN_ID,
+        deferrable=True,
+    )
+    # [END howto_dataplex_get_data_quality_job_def_operator]
     # [START howto_dataplex_delete_asset_operator]
     delete_asset = DataplexDeleteAssetOperator(
         task_id="delete_asset",
@@ -323,6 +351,9 @@ with models.DAG(
         run_data_scan_async,
         get_data_scan_job_status,
         get_data_scan_job_result_2,
+        run_data_scan_def,
+        run_data_scan_async_2,
+        get_data_scan_job_result_def,
         # TEST TEARDOWN
         delete_asset,
         delete_zone,

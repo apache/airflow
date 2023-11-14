@@ -19,20 +19,20 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.models import BaseOperator
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.lambda_function import LambdaCreateFunctionCompleteTrigger
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class LambdaCreateFunctionOperator(BaseOperator):
+class LambdaCreateFunctionOperator(AwsBaseOperator[LambdaHook]):
     """
     Creates an AWS Lambda function.
 
@@ -62,7 +62,8 @@ class LambdaCreateFunctionOperator(BaseOperator):
     :param aws_conn_id: The AWS connection ID to use
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = LambdaHook
+    template_fields: Sequence[str] = aws_template_fields(
         "function_name",
         "runtime",
         "role",
@@ -82,12 +83,11 @@ class LambdaCreateFunctionOperator(BaseOperator):
         code: dict,
         description: str | None = None,
         timeout: int | None = None,
-        config: dict = {},
+        config: dict | None = None,
         wait_for_completion: bool = False,
         waiter_max_attempts: int = 60,
         waiter_delay: int = 15,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -98,16 +98,11 @@ class LambdaCreateFunctionOperator(BaseOperator):
         self.code = code
         self.description = description
         self.timeout = timeout
-        self.config = config
+        self.config = config or {}
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-        self.aws_conn_id = aws_conn_id
-
-    @cached_property
-    def hook(self) -> LambdaHook:
-        return LambdaHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context):
         self.log.info("Creating AWS Lambda function: %s", self.function_name)
@@ -131,6 +126,9 @@ class LambdaCreateFunctionOperator(BaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
@@ -152,7 +150,7 @@ class LambdaCreateFunctionOperator(BaseOperator):
         return event["function_arn"]
 
 
-class LambdaInvokeFunctionOperator(BaseOperator):
+class LambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
     """
     Invokes an AWS Lambda function.
 
@@ -165,7 +163,10 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         :ref:`howto/operator:LambdaInvokeFunctionOperator`
 
     :param function_name: The name of the AWS Lambda function, version, or alias.
-    :param log_type: Set to Tail to include the execution log in the response. Otherwise, set to "None".
+    :param log_type: Set to Tail to include the execution log in the response and task logs.
+        Otherwise, set to "None". Applies to synchronously invoked functions only,
+        and returns the last 4 KB of the execution log.
+    :param keep_empty_log_lines: Whether or not keep empty lines in the execution log.
     :param qualifier: Specify a version or alias to invoke a published version of the function.
     :param invocation_type: AWS Lambda invocation type (RequestResponse, Event, DryRun)
     :param client_context: Data about the invoking client to pass to the function in the context object
@@ -173,7 +174,13 @@ class LambdaInvokeFunctionOperator(BaseOperator):
     :param aws_conn_id: The AWS connection ID to use
     """
 
-    template_fields: Sequence[str] = ("function_name", "payload", "qualifier", "invocation_type")
+    aws_hook_class = LambdaHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "function_name",
+        "payload",
+        "qualifier",
+        "invocation_type",
+    )
     ui_color = "#ff7300"
 
     def __init__(
@@ -181,25 +188,21 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         *,
         function_name: str,
         log_type: str | None = None,
+        keep_empty_log_lines: bool = True,
         qualifier: str | None = None,
         invocation_type: str | None = None,
         client_context: str | None = None,
         payload: bytes | str | None = None,
-        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.function_name = function_name
         self.payload = payload
         self.log_type = log_type
+        self.keep_empty_log_lines = keep_empty_log_lines
         self.qualifier = qualifier
         self.invocation_type = invocation_type
         self.client_context = client_context
-        self.aws_conn_id = aws_conn_id
-
-    @cached_property
-    def hook(self) -> LambdaHook:
-        return LambdaHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context):
         """
@@ -218,6 +221,20 @@ class LambdaInvokeFunctionOperator(BaseOperator):
             qualifier=self.qualifier,
         )
         self.log.info("Lambda response metadata: %r", response.get("ResponseMetadata"))
+
+        if log_result := response.get("LogResult"):
+            log_records = self.hook.encode_log_result(
+                log_result,
+                keep_empty_lines=self.keep_empty_log_lines,
+            )
+            if log_records:
+                self.log.info(
+                    "The last 4 KB of the Lambda execution log (keep_empty_log_lines=%s).",
+                    self.keep_empty_log_lines,
+                )
+                for log_record in log_records:
+                    self.log.info(log_record)
+
         if response.get("StatusCode") not in success_status_codes:
             raise ValueError("Lambda function did not execute", json.dumps(response.get("ResponseMetadata")))
         payload_stream = response.get("Payload")

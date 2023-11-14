@@ -28,6 +28,47 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Remove useless print from dbt operator (#34322)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OpenLineage support for DBT Cloud. (#33959)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/redis): respect soft_fail argument when exception is raised (#34164)``
+* ``dbt, openlineage: set run_id after defer, do not log error if operator has no run_id set (#34270)``
+
+Misc
+~~~~
+
+* ``Remove some useless try/except from providers code (#33967)``
+* ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+
 3.2.3
 .....
 

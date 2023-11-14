@@ -19,9 +19,13 @@ from __future__ import annotations
 
 import os
 import re
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated.classic import deprecated
+
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.utils import operator_helpers
@@ -116,13 +120,8 @@ class HiveOperator(BaseOperator):
         )
         self.mapred_job_name_template: str = job_name_template
 
-        # assigned lazily - just for consistency we can create the attribute with a
-        # `None` initial value, later it will be populated by the execute method.
-        # This also makes `on_kill` implementation consistent since it assumes `self.hook`
-        # is defined.
-        self.hook: HiveCliHook | None = None
-
-    def get_hook(self) -> HiveCliHook:
+    @cached_property
+    def hook(self) -> HiveCliHook:
         """Get Hive cli hook."""
         return HiveCliHook(
             hive_cli_conn_id=self.hive_cli_conn_id,
@@ -134,6 +133,11 @@ class HiveOperator(BaseOperator):
             auth=self.auth,
         )
 
+    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
+    def get_hook(self) -> HiveCliHook:
+        """Get Hive cli hook."""
+        return self.hook
+
     def prepare_template(self) -> None:
         if self.hiveconf_jinja_translate:
             self.hql = re.sub(r"(\$\{(hiveconf:)?([ a-zA-Z0-9_]*)\})", r"{{ \g<3> }}", self.hql)
@@ -142,7 +146,6 @@ class HiveOperator(BaseOperator):
 
     def execute(self, context: Context) -> None:
         self.log.info("Executing: %s", self.hql)
-        self.hook = self.get_hook()
 
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
@@ -169,7 +172,6 @@ class HiveOperator(BaseOperator):
         # existing env vars from impacting behavior.
         self.clear_airflow_vars()
 
-        self.hook = self.get_hook()
         self.hook.test_hql(hql=self.hql)
 
     def on_kill(self) -> None:

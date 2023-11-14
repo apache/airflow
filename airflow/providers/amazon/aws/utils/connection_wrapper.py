@@ -122,12 +122,48 @@ class AwsConnectionWrapper(LoggingMixin):
     assume_role_method: str | None = field(init=False, default=None)
     assume_role_kwargs: dict[str, Any] = field(init=False, default_factory=dict)
 
+    # Per AWS Service configuration dictionary where key is name of boto3 ``service_name``
+    service_config: dict[str, dict[str, Any]] = field(init=False, default_factory=dict)
+
     @cached_property
     def conn_repr(self):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
 
-    def get_service_config(self, service_name):
-        return self.extra_dejson.get("service_config", {}).get(service_name, {})
+    def get_service_config(self, service_name: str) -> dict[str, Any]:
+        """Get AWS Service related config dictionary.
+
+        :param service_name: Name of botocore/boto3 service.
+        """
+        return self.service_config.get(service_name, {})
+
+    def get_service_endpoint_url(
+        self, service_name: str, *, sts_connection_assume: bool = False, sts_test_connection: bool = False
+    ) -> str | None:
+        service_config = self.get_service_config(service_name=service_name)
+        global_endpoint_url = self.endpoint_url
+
+        if service_name == "sts" and True in (sts_connection_assume, sts_test_connection):
+            # There are different logics exists historically for STS Client
+            # 1. For assume role we never use global endpoint_url
+            # 2. For test connection we also use undocumented `test_endpoint`\
+            # 3. For STS as service we might use endpoint_url (default for other services)
+            global_endpoint_url = None
+            if sts_connection_assume and sts_test_connection:
+                raise AirflowException(
+                    "Can't resolve STS endpoint when both "
+                    "`sts_connection` and `sts_test_connection` set to True."
+                )
+            elif sts_test_connection:
+                if "test_endpoint_url" in self.extra_config:
+                    warnings.warn(
+                        "extra['test_endpoint_url'] is deprecated and will be removed in a future release."
+                        " Please set `endpoint_url` in `service_config.sts` within `extras`.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                    global_endpoint_url = self.extra_config["test_endpoint_url"]
+
+        return service_config.get("endpoint_url", global_endpoint_url)
 
     def __post_init__(self, conn: Connection):
         if isinstance(conn, type(self)):
@@ -182,6 +218,8 @@ class AwsConnectionWrapper(LoggingMixin):
             )
 
         extra = deepcopy(conn.extra_dejson)
+        self.service_config = extra.get("service_config", {})
+
         session_kwargs = extra.get("session_kwargs", {})
         if session_kwargs:
             warnings.warn(

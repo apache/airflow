@@ -340,7 +340,7 @@ def check_correctness_of_list_of_sensors_operators_hook_trigger_modules(
                 f"Currently configured list of {resource_type} modules in {yaml_file_path}",
                 extra_message="[yellow]Additional check[/]: If there are deprecated modules in the list,"
                 "please add them to DEPRECATED_MODULES in "
-                f"{pathlib.Path(__file__).relative_to(ROOT_DIR)}[/]",
+                f"{pathlib.Path(__file__).relative_to(ROOT_DIR)}",
             )
         except AssertionError as ex:
             nested_error = textwrap.indent(str(ex), "  ")
@@ -680,6 +680,26 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
     return num_providers, num_errors
 
 
+@run_check("Checking remove flag only set for suspended providers")
+def check_removed_flag_only_set_for_suspended_providers(yaml_files: dict[str, dict]):
+    num_errors = 0
+    num_providers = 0
+    for package_info in yaml_files.values():
+        num_providers += 1
+        package_name = package_info["package-name"]
+        suspended = package_info["suspended"]
+        removed = package_info.get("removed", False)
+        if removed and not suspended:
+            errors.append(
+                f"The provider {package_name} has removed set to True in their provider.yaml file "
+                f"but suspended flag is set to false. You should only set removed flag in order to "
+                f"prepare last release for a provider that has been previously suspended. "
+                f"[yellow]How to fix it[/]: Please suspend the provider first before removing it."
+            )
+            num_errors += 1
+    return num_providers, num_errors
+
+
 if __name__ == "__main__":
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
@@ -706,6 +726,7 @@ if __name__ == "__main__":
     check_notification_classes(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)
     check_providers_have_all_documentation_files(all_parsed_yaml_files)
+    check_removed_flag_only_set_for_suspended_providers(all_parsed_yaml_files)
 
     if all_files_loaded:
         # Only check those if all provider files are loaded

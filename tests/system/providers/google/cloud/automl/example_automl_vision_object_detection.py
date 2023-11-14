@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 from typing import cast
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
@@ -67,7 +67,7 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 
 
 # Example DAG for AutoML Vision Object Detection
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),

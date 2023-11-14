@@ -21,16 +21,12 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-
-from airflow import settings
+from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 log = logging.getLogger(__name__)
@@ -66,23 +62,9 @@ def dag_processor(args):
 
     job_runner = _create_dag_processor_job_runner(args)
 
-    if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations(
-            "dag-processor", args.pid, args.stdout, args.stderr, args.log_file
-        )
-        handle = setup_logging(log_file)
-        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
-            stdout_handle.truncate(0)
-            stderr_handle.truncate(0)
-
-            ctx = daemon.DaemonContext(
-                pidfile=TimeoutPIDLockFile(pid, -1),
-                files_preserve=[handle],
-                stdout=stdout_handle,
-                stderr=stderr_handle,
-                umask=int(settings.DAEMON_UMASK, 8),
-            )
-            with ctx:
-                run_job(job=job_runner.job, execute_callable=job_runner._execute)
-    else:
-        run_job(job=job_runner.job, execute_callable=job_runner._execute)
+    run_command_with_daemon_option(
+        args=args,
+        process_name="dag-processor",
+        callback=lambda: run_job(job=job_runner.job, execute_callable=job_runner._execute),
+        should_setup_logging=True,
+    )

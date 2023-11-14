@@ -100,7 +100,6 @@ class TestQuboleValueCheckOperator:
         self.conn_id = "default_conn"
 
     def __construct_operator(self, query, pass_value, tolerance=None, results_parser_callable=None):
-
         dag = DAG("test_dag", start_date=datetime(2017, 1, 1))
 
         return QuboleValueCheckOperator(
@@ -124,7 +123,6 @@ class TestQuboleValueCheckOperator:
 
     @mock.patch.object(QuboleValueCheckOperator, "get_hook")
     def test_execute_pass(self, mock_get_hook):
-
         mock_hook = mock.Mock()
         mock_hook.get_first.return_value = [10]
         mock_get_hook.return_value = mock_hook
@@ -139,7 +137,6 @@ class TestQuboleValueCheckOperator:
 
     @mock.patch.object(QuboleValueCheckOperator, "get_hook")
     def test_execute_assertion_fail(self, mock_get_hook):
-
         mock_cmd = mock.Mock()
         mock_cmd.status = "done"
         mock_cmd.id = 123
@@ -159,7 +156,6 @@ class TestQuboleValueCheckOperator:
 
     @mock.patch.object(QuboleValueCheckOperator, "get_hook")
     def test_execute_assert_query_fail(self, mock_get_hook):
-
         mock_cmd = mock.Mock()
         mock_cmd.status = "error"
         mock_cmd.id = 123
@@ -181,7 +177,6 @@ class TestQuboleValueCheckOperator:
     @mock.patch.object(QuboleCheckHook, "get_query_results")
     @mock.patch.object(QuboleHook, "execute")
     def test_results_parser_callable(self, mock_execute, mock_get_query_results):
-
         mock_execute.return_value = None
 
         pass_value = "pass_value"

@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+
+4.1.1
+.....
+
+Misc
+~~~~
+
+* ``Fix package name in exception message for hdfs provider (#33813)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use correct headings in HDFS Provider changelog (#33809)``
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+   * ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Fix typos (double words and it's/its) (#33623)``
+
 4.1.0
 .....
 
@@ -62,7 +97,7 @@ The 3.* version of the provider is still available and can be used if you need t
 sensors.
 
 The ``HDFSHook``, ``HDFSSensor``, ``HdfsRegexSensor``, ``HdfsRegexSensor`` that have been removed from
-this provider and they are not available any more. If you want to continue using them,
+this provider and they are not available anymore. If you want to continue using them,
 you can use 3.* version of the provider, but the recommendation is to switch to the new
 ``WebHDFSHook`` and ``WebHDFSSensor`` that use the ``WebHDFS`` API.
 

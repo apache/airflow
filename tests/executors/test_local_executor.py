@@ -21,14 +21,17 @@ import datetime
 import subprocess
 from unittest import mock
 
+import pytest
+
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.executors.local_executor import LocalExecutor
 from airflow.utils.state import State
 
+pytestmark = pytest.mark.db_test
+
 
 class TestLocalExecutor:
-
     TEST_SUCCESS_COMMANDS = 5
 
     def test_supports_pickling(self):
@@ -72,7 +75,6 @@ class TestLocalExecutor:
         self._test_execute(parallelism, success_command, fail_command)
 
     def _test_execute(self, parallelism, success_command, fail_command):
-
         executor = LocalExecutor(parallelism=parallelism)
         executor.start()
 

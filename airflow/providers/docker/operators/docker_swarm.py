@@ -143,7 +143,7 @@ class DockerSwarmOperator(DockerOperator):
         )
         if self.service is None:
             raise Exception("Service should be set here")
-        self.log.info("Service started: %s", str(self.service))
+        self.log.info("Service started: %s", self.service)
 
         # wait for the service to start the task
         while not self.cli.tasks(filters={"service": self.service["ID"]}):

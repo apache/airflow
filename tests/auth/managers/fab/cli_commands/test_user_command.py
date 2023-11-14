@@ -16,18 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-import io
 import json
 import os
 import re
 import tempfile
 from contextlib import redirect_stdout
+from io import StringIO
 
 import pytest
 
 from airflow.auth.managers.fab.cli_commands import user_command
 from airflow.cli import cli_parser
 from tests.test_utils.api_connexion_utils import delete_users
+
+pytestmark = pytest.mark.db_test
 
 TEST_USER1_EMAIL = "test-user1@example.com"
 TEST_USER2_EMAIL = "test-user2@example.com"
@@ -121,7 +123,7 @@ class TestCliUsers:
                 "test3",
             ]
         )
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             user_command.users_delete(args)
         assert 'User "test3" deleted' in stdout.getvalue()
 
@@ -152,7 +154,7 @@ class TestCliUsers:
                 "jdoe2@example.com",
             ]
         )
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             user_command.users_delete(args)
         assert 'User "test4" deleted' in stdout.getvalue()
 
@@ -225,7 +227,7 @@ class TestCliUsers:
                 ]
             )
             user_command.users_create(args)
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             user_command.users_list(self.parser.parse_args(["users", "list"]))
             stdout = stdout.getvalue()
         for i in range(3):
@@ -368,7 +370,7 @@ class TestCliUsers:
         ), "User should not yet be a member of role 'Op'"
 
         args = self.parser.parse_args(["users", "add-role", "--username", "test4", "--role", "Op"])
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             user_command.users_manage_role(args, remove=False)
         assert 'User "test4" added to role "Op"' in stdout.getvalue()
 
@@ -382,7 +384,7 @@ class TestCliUsers:
         ), "User should have been created with role 'Viewer'"
 
         args = self.parser.parse_args(["users", "remove-role", "--username", "test4", "--role", "Viewer"])
-        with redirect_stdout(io.StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout:
             user_command.users_manage_role(args, remove=True)
         assert 'User "test4" removed from role "Viewer"' in stdout.getvalue()
 

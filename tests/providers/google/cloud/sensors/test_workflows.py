@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 from google.cloud.workflows.executions_v1beta import Execution
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.sensors.workflows import WorkflowExecutionSensor
 
 BASE_PATH = "airflow.providers.google.cloud.sensors.workflows.{}"
@@ -90,8 +90,11 @@ class TestWorkflowExecutionSensor:
 
         assert result is False
 
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
     @mock.patch(BASE_PATH.format("WorkflowsHook"))
-    def test_poke_failure(self, mock_hook):
+    def test_poke_failure(self, mock_hook, soft_fail, expected_exception):
         mock_hook.return_value.get_execution.return_value = mock.MagicMock(state=Execution.State.FAILED)
         op = WorkflowExecutionSensor(
             task_id="test_task",
@@ -104,6 +107,7 @@ class TestWorkflowExecutionSensor:
             metadata=METADATA,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
+            soft_fail=soft_fail,
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             op.poke({})

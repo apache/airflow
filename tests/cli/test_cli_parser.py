@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import io
 import os
 import re
 import subprocess
@@ -28,6 +27,7 @@ import sys
 import timeit
 from collections import Counter
 from importlib import reload
+from io import StringIO
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -135,6 +135,7 @@ class TestCli:
                     f"short option flags {conflict_short_option}"
                 )
 
+    @pytest.mark.db_test
     @patch.object(LocalExecutor, "get_cli_commands")
     def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock):
         core_commands.append(
@@ -171,7 +172,7 @@ class TestCli:
     def test_commands_and_command_group_sections(self):
         parser = cli_parser.get_parser()
 
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             with pytest.raises(SystemExit):
                 parser.parse_args(["--help"])
             stdout = stdout.getvalue()
@@ -181,7 +182,7 @@ class TestCli:
     def test_dag_parser_commands_and_comamnd_group_sections(self):
         parser = cli_parser.get_parser(dag_parser=True)
 
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             with pytest.raises(SystemExit):
                 parser.parse_args(["--help"])
             stdout = stdout.getvalue()
@@ -237,7 +238,7 @@ class TestCli:
     )
     def test_executor_specific_commands_not_accessible(self, command):
         with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
-            io.StringIO()
+            StringIO()
         ) as stderr:
             reload(cli_parser)
             parser = cli_parser.get_parser()
@@ -267,7 +268,7 @@ class TestCli:
         """Test that CLI commands for the configured executor are present"""
         for expected_arg in expected_args:
             with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(
-                io.StringIO()
+                StringIO()
             ) as stderr:
                 reload(cli_parser)
                 parser = cli_parser.get_parser()
@@ -279,7 +280,7 @@ class TestCli:
 
     def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
         """Test that the error message is correct when the directory does not exist."""
-        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+        with contextlib.redirect_stderr(StringIO()) as stderr:
             with pytest.raises(SystemExit):
                 parser = cli_parser.get_parser()
                 parser.parse_args(["db", "export-archived", "--output-path", "/non/existing/directory"])
@@ -296,7 +297,7 @@ class TestCli:
         self, mock_isdir, export_format
     ):
         """Test that invalid choice raises for export-format in db export-cleaned command."""
-        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+        with contextlib.redirect_stderr(StringIO()) as stderr:
             with pytest.raises(SystemExit):
                 parser = cli_parser.get_parser()
                 parser.parse_args(
@@ -342,6 +343,7 @@ class TestCliSubprocess:
     than from provider packages which might not be installed in the test environment.
     """
 
+    @pytest.mark.quarantined
     def test_cli_run_time(self):
         setup_code = "import subprocess"
         command = [sys.executable, "-m", "airflow", "--help"]

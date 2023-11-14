@@ -192,7 +192,7 @@ def import_all_classes(
                     console.print(f"Skipping module: {modinfo.name}")
                 continue
             if print_imports:
-                package_to_print = ".".join(modinfo.name.split(".")[:-1])
+                package_to_print = modinfo.name.rpartition(".")[0]
                 if package_to_print not in printed_packages:
                     printed_packages.add(package_to_print)
                     console.print(f"Importing package: {package_to_print}")
@@ -247,7 +247,7 @@ def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
     :param imported_name: name of the imported class
     :return: true if the class was imported from another module
     """
-    return ".".join(imported_name.split(".")[:-1]) == the_class.__module__
+    return imported_name.rpartition(":")[0] == the_class.__module__
 
 
 def is_example_dag(imported_name: str) -> bool:
@@ -360,7 +360,7 @@ def convert_class_name_to_url(base_url: str, class_name) -> str:
     :param class_name: name of the class
     :return: URL to the class
     """
-    return base_url + os.path.sep.join(class_name.split(".")[:-1]) + ".py"
+    return base_url + class_name.rpartition(".")[0].replace(".", "/") + ".py"
 
 
 def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str:
@@ -426,7 +426,6 @@ def find_all_entities(
             and not inherits_from(the_class=the_class, expected_ancestor=exclude_class_type)
             and package_name_matches(the_class=the_class, expected_pattern=sub_package_pattern_match)
         ):
-
             if not false_positive_class_names or class_name not in false_positive_class_names:
                 if not re.match(expected_class_name_pattern, class_name):
                     wrong_entities.append(
@@ -447,7 +446,6 @@ def find_all_entities(
                                     f"It should not match {unexpected_class_name_pattern}",
                                 )
                             )
-                        continue
             found_entities.add(imported_name)
     return VerifiedEntities(all_entities=found_entities, wrong_entities=wrong_entities)
 
@@ -576,7 +574,7 @@ def is_camel_case_with_acronyms(s: str):
         s = s[1:]
     if not s:
         return True
-    return s != s.lower() and s != s.upper() and "_" not in s and s[0].upper() == s[0]
+    return s[0].isupper() and not (s.islower() or s.isupper() or "_" in s)
 
 
 def check_if_classes_are_properly_named(

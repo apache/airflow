@@ -37,7 +37,6 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_airbyte_synchronous]
     sync_source_destination = AirbyteTriggerSyncOperator(
         task_id="airbyte_sync_source_dest_example",

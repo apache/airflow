@@ -23,7 +23,7 @@ PROJECT BY THE `generate-pypi-readme` PRE-COMMIT. YOUR CHANGES HERE WILL BE AUTO
 # Apache Airflow
 
 [![PyPI version](https://badge.fury.io/py/apache-airflow.svg)](https://badge.fury.io/py/apache-airflow)
-[![GitHub Build](https://github.com/apache/airflow/workflows/CI%20Build/badge.svg)](https://github.com/apache/airflow/actions)
+[![GitHub Build](https://github.com/apache/airflow/workflows/Tests/badge.svg)](https://github.com/apache/airflow/actions)
 [![Coverage Status](https://codecov.io/gh/apache/airflow/graph/badge.svg?token=WdLKlKHOAU)](https://codecov.io/gh/apache/airflow)
 [![License](https://img.shields.io/:license-Apache%202-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0.txt)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/apache-airflow.svg)](https://pypi.org/project/apache-airflow/)
@@ -47,17 +47,19 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)           | Stable version (2.7.0)    |
-|-------------|------------------------------|---------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11         | 3.8, 3.9, 3.10, 3.11      |
-| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)           |
-| Kubernetes  | 1.24, 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27    |
-| PostgreSQL  | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15        |
-| MySQL       | 5.7, 8.0, 8.1                | 5.7, 8.0                  |
-| SQLite      | 3.15.0+                      | 3.15.0+                   |
-| MSSQL       | 2017(\*), 2019(\*)           | 2017(\*), 2019(\*)        |
+|             | Main version (dev)     | Stable version (2.7.3)       |
+|-------------|------------------------|------------------------------|
+| Python      | 3.8, 3.9, 3.10, 3.11   | 3.8, 3.9, 3.10, 3.11         |
+| Platform    | AMD64/ARM64(\*)        | AMD64/ARM64(\*)              |
+| Kubernetes  | 1.25, 1.26, 1.27, 1.28 | 1.24, 1.25, 1.26, 1.27, 1.28 |
+| PostgreSQL  | 11, 12, 13, 14, 15, 16 | 11, 12, 13, 14, 15           |
+| MySQL       | 8.0, Innovation        | 5.7, 8.0                     |
+| SQLite      | 3.15.0+                | 3.15.0+                      |
+| MSSQL       | 2017(\*\*), 2019(\*\*) | 2017(\*\*), 2019(\*\*)       |
 
 \* Experimental
+
+\*\* **Discontinued soon**, not recommended for the new installation
 
 **Note**: MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).
@@ -73,7 +75,9 @@ The work to add Windows support is tracked via [#10388](https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
-`Debian Bullseye`.
+`Debian Bookworm`. We also have support for legacy ``Debian Bullseye`` base image if you want to build a
+custom image but it is deprecated and option to do it will be removed in the Dockerfile that
+will accompany Airflow 2.9.0 so you are advised to switch to ``Debian Bookworm`` for your custom images.
 
 ## Getting started
 
@@ -124,15 +128,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.7.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.0/constraints-3.8.txt"
+pip install 'apache-airflow==2.7.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.7.0' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.0/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.7.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.3/constraints-3.8.txt"
 ```
 
 For information on installing provider packages, check
@@ -152,16 +156,21 @@ and our official source code releases:
 Following the ASF rules, the source packages released must be sufficient for a user to build and test the
 release provided they have access to the appropriate platform and tools.
 
+
 ## Contributing
 
 Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst).
 
 Official Docker (container) images for Apache Airflow are described in [IMAGES.rst](https://github.com/apache/airflow/blob/main/IMAGES.rst).
 
+
 ## Who uses Apache Airflow?
 
-More than 400 organizations are using Apache Airflow
+We know about around 500 organizations that are using Apache Airflow (but there are likely many more)
 [in the wild](https://github.com/apache/airflow/blob/main/INTHEWILD.md).
+
+If you use Airflow - feel free to make a PR to add your organisation to the list.
+
 
 ## Who maintains Apache Airflow?
 

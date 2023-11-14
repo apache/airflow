@@ -92,6 +92,6 @@ def add_deprecated_classes(
             imports,
             full_module_name,
             override_deprecated_classes_for_module,
-            extra_message if extra_message else "",
+            extra_message or "",
         )
         sys.modules.setdefault(full_module_name, module_type)

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:

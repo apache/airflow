@@ -20,7 +20,7 @@ from __future__ import annotations
 import enum
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, cast
 
 from typing_extensions import Literal
 
@@ -105,7 +105,7 @@ class SqlToS3Operator(BaseOperator):
         s3_key: str,
         sql_conn_id: str,
         sql_hook_params: dict | None = None,
-        parameters: None | Mapping | Iterable = None,
+        parameters: None | Mapping[str, Any] | list | tuple = None,
         replace: bool = False,
         aws_conn_id: str = "aws_default",
         verify: bool | str | None = None,
@@ -151,7 +151,6 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowOptionalProviderFeatureException(e)
 
         for col in df:
-
             if df[col].dtype.name == "object" and file_format == "parquet":
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
@@ -159,7 +158,7 @@ class SqlToS3Operator(BaseOperator):
 
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
-                notna_series = df[col].dropna().values
+                notna_series: Any = df[col].dropna().values
                 if np.equal(notna_series, notna_series.astype(int)).all():
                     # set to dtype that retains integers and supports NaNs
                     # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
@@ -184,7 +183,6 @@ class SqlToS3Operator(BaseOperator):
 
         for group_name, df in self._partition_dataframe(df=data_df):
             with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
-
                 self.log.info("Writing data to temp file")
                 getattr(df, file_options.function)(tmp_file.name, **self.pd_kwargs)
 
@@ -198,10 +196,12 @@ class SqlToS3Operator(BaseOperator):
         """Partition dataframe using pandas groupby() method."""
         if not self.groupby_kwargs:
             yield "", df
-        else:
-            grouped_df = df.groupby(**self.groupby_kwargs)
-            for group_label in grouped_df.groups:
-                yield group_label, grouped_df.get_group(group_label).reset_index(drop=True)
+            return
+        for group_label in (grouped_df := df.groupby(**self.groupby_kwargs)).groups:
+            yield (
+                cast(str, group_label),
+                cast("pd.DataFrame", grouped_df.get_group(group_label).reset_index(drop=True)),
+            )
 
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)

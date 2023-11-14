@@ -18,12 +18,15 @@
 from __future__ import annotations
 
 import datetime
+import random
 
 import pytest
 
 from airflow import settings
-from airflow.models import DAG, TaskInstance as TI, TaskReschedule, clear_task_instances
+from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.python import PythonSensor
 from airflow.utils.session import create_session
@@ -31,6 +34,8 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
+
+pytestmark = pytest.mark.db_test
 
 
 class TestClearTasks:
@@ -580,25 +585,23 @@ class TestClearTasks:
             assert tis[i].max_tries == 1
 
         # test only_failed
-        from random import randint
-
-        failed_dag_idx = randint(0, len(tis) - 1)
-        tis[failed_dag_idx].state = State.FAILED
-        session.merge(tis[failed_dag_idx])
+        failed_dag = random.choice(tis)
+        failed_dag.state = State.FAILED
+        session.merge(failed_dag)
         session.commit()
 
         DAG.clear_dags(dags, only_failed=True)
 
-        for i in range(num_of_dags):
-            tis[i].refresh_from_db()
-            if i != failed_dag_idx:
-                assert tis[i].state == State.SUCCESS
-                assert tis[i].try_number == 3
-                assert tis[i].max_tries == 1
+        for ti in tis:
+            ti.refresh_from_db()
+            if ti is failed_dag:
+                assert ti.state == State.NONE
+                assert ti.try_number == 3
+                assert ti.max_tries == 2
             else:
-                assert tis[i].state == State.NONE
-                assert tis[i].try_number == 3
-                assert tis[i].max_tries == 2
+                assert ti.state == State.SUCCESS
+                assert ti.try_number == 3
+                assert ti.max_tries == 1
 
     def test_operator_clear(self, dag_maker):
         with dag_maker(

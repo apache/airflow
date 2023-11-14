@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 4.3.0
+  - 4.2.2
   - 4.2.1
   - 4.2.0
   - 4.1.0
@@ -42,7 +44,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - tableauserverclient
 
 integrations:

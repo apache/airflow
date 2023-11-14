@@ -22,7 +22,7 @@ from datetime import datetime
 
 from google.cloud.datacatalog import FieldType, TagTemplateField
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datacatalog import (
@@ -49,7 +49,7 @@ FIELD_NAME_1 = "first"
 FIELD_NAME_2 = "second"
 FIELD_NAME_3 = "first-rename"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

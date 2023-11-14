@@ -27,8 +27,8 @@ A client for AWS Batch services.
 from __future__ import annotations
 
 import itertools
-from random import uniform
-from time import sleep
+import random
+import time
 from typing import TYPE_CHECKING, Callable
 
 import botocore.client
@@ -529,7 +529,7 @@ class BatchClientHook(AwsBaseHook):
         minima = abs(minima)
         lower = max(minima, delay - width)
         upper = delay + width
-        return uniform(lower, upper)
+        return random.uniform(lower, upper)
 
     @staticmethod
     def delay(delay: int | float | None = None) -> None:
@@ -546,10 +546,10 @@ class BatchClientHook(AwsBaseHook):
             when many concurrent tasks request job-descriptions.
         """
         if delay is None:
-            delay = uniform(BatchClientHook.DEFAULT_DELAY_MIN, BatchClientHook.DEFAULT_DELAY_MAX)
+            delay = random.uniform(BatchClientHook.DEFAULT_DELAY_MIN, BatchClientHook.DEFAULT_DELAY_MAX)
         else:
             delay = BatchClientHook.add_jitter(delay)
-        sleep(delay)
+        time.sleep(delay)
 
     @staticmethod
     def exponential_delay(tries: int) -> float:
@@ -594,4 +594,4 @@ class BatchClientHook(AwsBaseHook):
         max_interval = 600.0  # results in 3 to 10 minute delay
         delay = 1 + pow(tries * 0.6, 2)
         delay = min(max_interval, delay)
-        return uniform(delay / 3, delay)
+        return random.uniform(delay / 3, delay)

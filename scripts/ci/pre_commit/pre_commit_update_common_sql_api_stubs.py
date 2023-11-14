@@ -186,8 +186,7 @@ def read_pyi_file_content(
     for line in lines_no_comments:
         if line.strip().startswith('"""'):
             remove_docstring = not remove_docstring
-            continue
-        if not remove_docstring:
+        elif not remove_docstring:
             lines.append(line)
     if (pyi_file_path.name == "__init__.pyi") and lines == []:
         console.print(f"[yellow]Skip {pyi_file_path} as it is an empty stub for __init__.py file")

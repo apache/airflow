@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,11 +15,15 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-slack
 ------------------------------------------------------
 
-`Slack <https://slack.com/>`__
+`Slack <https://slack.com/>`__ services integration including:
+
+  - `Slack API <https://api.slack.com/>`__
+  - `Slack Incoming Webhook <https://api.slack.com/messaging/webhooks>`__
 
 
 This is detailed commit list of changes for versions provider package: ``slack``.
@@ -28,14 +31,71 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-8.0.0
+8.4.0
 .....
 
-Latest change: 2023-08-24
+Latest change: 2023-11-07
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`3fbd9d6b18 <https://github.com/apache/airflow/commit/3fbd9d6b18021faa08550532241515d75fbf3b83>`_  2023-11-07   ``Add missing examples into Slack Provider (#35495)``
+`11bdfe4c12 <https://github.com/apache/airflow/commit/11bdfe4c12efa2f5d256cc49916a20beaa5487eb>`_  2023-11-07   ``Work around typing issue in examples and providers (#35494)``
+`850e1947a6 <https://github.com/apache/airflow/commit/850e1947a6691e3c0664e59bbb36debc3ab19f48>`_  2023-11-05   ``Reorganize SQL to Slack Operators (#35215)``
+=================================================================================================  ===========  ===============================================================
+
+8.3.0
+.....
+
+Latest change: 2023-10-28
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`e6f445129a <https://github.com/apache/airflow/commit/e6f445129a998eab62d71bd91b4a5f46cd77c1de>`_  2023-10-19   ``Pass additional arguments from Slack's Operators/Notifiers to Hooks (#35039)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+=================================================================================================  ===========  ================================================================================
+
+8.2.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`6ba2c4485c <https://github.com/apache/airflow/commit/6ba2c4485cb8ff2cf3c2e4d8043e4c7fe5008b15>`_  2023-10-12   ``Docstring correction for 'SlackAPIOperator' (#34871)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`faa32f23e8 <https://github.com/apache/airflow/commit/faa32f23e824ec8dd00b296ce9d8bd239ac0437f>`_  2023-09-23   ``Slack: use default_conn_name by default (#34548)``
+=================================================================================================  ===========  ===============================================================
+
+8.1.0
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`e357f7b531 <https://github.com/apache/airflow/commit/e357f7b531e50981faa1199595c0e92a23a714b5>`_  2023-09-01   ``Add Slack Incoming Webhook Notifier (#33966)``
+`b4d4f55b47 <https://github.com/apache/airflow/commit/b4d4f55b479d07c13ab25bb2e80cb053378b56d7>`_  2023-08-31   ``Refactor: Replace lambdas with comprehensions in providers (#33771)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+=================================================================================================  ===========  ===================================================================================================
+
+8.0.0
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `ed6a4fd116 <https://github.com/apache/airflow/commit/ed6a4fd1162407a2007d949765eab5749af1c3ac>`_  2023-08-24   ``Remove deprecated parts from Slack provider (#33557)``
 `0a7eae3fcb <https://github.com/apache/airflow/commit/0a7eae3fcbda0b2c4d2fb383e6b07157c2adc937>`_  2023-08-23   ``Replace deprecated slack notification in provider.yaml with new one (#33643)``
 `ea8519c055 <https://github.com/apache/airflow/commit/ea8519c0554d16b13d330a686f8479fc10cc58f2>`_  2023-08-18   ``Avoid importing pandas and numpy in runtime and module level (#33483)``

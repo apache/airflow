@@ -184,8 +184,8 @@ class GKEOperationTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets operation status and yields corresponding event."""
         hook = self._get_hook()
-        while True:
-            try:
+        try:
+            while True:
                 operation = await hook.get_operation(
                     operation_name=self.operation_name,
                     project_id=self.project_id,
@@ -201,7 +201,7 @@ class GKEOperationTrigger(BaseTrigger):
                         }
                     )
                     return
-                elif status == Operation.Status.RUNNING or status == Operation.Status.PENDING:
+                elif status in (Operation.Status.RUNNING, Operation.Status.PENDING):
                     self.log.info("Operation is still running.")
                     self.log.info("Sleeping for %ss...", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
@@ -214,15 +214,14 @@ class GKEOperationTrigger(BaseTrigger):
                         }
                     )
                     return
-            except Exception as e:
-                self.log.exception("Exception occurred while checking operation status")
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "message": str(e),
-                    }
-                )
-                return
+        except Exception as e:
+            self.log.exception("Exception occurred while checking operation status")
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": str(e),
+                }
+            )
 
     def _get_hook(self) -> GKEAsyncHook:
         if self._hook is None:

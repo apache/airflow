@@ -33,13 +33,13 @@ concurrency:
 jobs:
   selective-checks:
     name: Selective checks
-    runs-on: ubuntu-22.04
+    runs-on: "ubuntu-22.04"
     outputs:
       needs-python-scans: ${{ steps.selective-checks.outputs.needs-python-scans }}
       needs-javascript-scans: ${{ steps.selective-checks.outputs.needs-javascript-scans }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -54,7 +54,7 @@ jobs:
 
   analyze:
     name: Analyze
-    runs-on: ubuntu-22.04
+    runs-on: "ubuntu-22.04"
     needs: [selective-checks]
     strategy:
       fail-fast: false
@@ -69,7 +69,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
         if: |

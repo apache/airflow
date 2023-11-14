@@ -21,6 +21,10 @@ description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 suspended: false
 versions:
+  - 8.2.0
+  - 8.1.0
+  - 8.0.0
+  - 7.0.0
   - 6.3.0
   - 6.2.4
   - 6.2.3
@@ -63,7 +67,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
+  - adlfs>=2023.9.2
   - azure-batch>=8.0.0
   - azure-cosmos>=4.0.0
   - azure-mgmt-cosmosdb
@@ -73,20 +78,16 @@ dependencies:
   - azure-mgmt-datalake-store>=0.5.0
   - azure-mgmt-resource>=2.2.0
   - azure-storage-blob>=12.14.0
-  - azure-storage-common>=2.1.0
-  - azure-storage-file>=2.1.0
   - azure-mgmt-storage>=16.0.0
+  - azure-storage-file-share
   - azure-servicebus>=7.6.1
   - azure-synapse-spark
   - adal>=1.2.7
   - azure-storage-file-datalake>=12.9.1
   - azure-kusto-data>=4.1.0
-
+  - azure-mgmt-datafactory>=2.0.0
   - azure-mgmt-containerregistry>=8.0.0
-  # TODO: upgrade to newer versions of all the below libraries.
-  #   See issue https://github.com/apache/airflow/issues/30199
-  - azure-mgmt-containerinstance>=7.0.0,<9.0.0
-  - azure-mgmt-datafactory>=1.0.0,<2.0
+  - azure-mgmt-containerinstance>=9.0.0
 
 integrations:
   - integration-name: Microsoft Azure Batch
@@ -190,6 +191,9 @@ sensors:
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.sensors.data_factory
+
+filesystems:
+  - airflow.providers.microsoft.azure.fs.adls
 
 hooks:
   - integration-name: Microsoft Azure Container Instances
@@ -300,3 +304,17 @@ logging:
 
 extra-links:
   - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink
+
+config:
+  azure_remote_logging:
+    description: |
+      Configuration that needs to be set for enable remote logging in Azure Blob Storage
+    options:
+      remote_wasb_log_container:
+        description: |
+          WASB storage container where the remote logs will be stored.
+          The container should exist.
+        version_added: 8.0.0
+        type: string
+        example: ~
+        default: "airflow-logs"

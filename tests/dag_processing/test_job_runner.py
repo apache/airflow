@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import contextlib
+import itertools
 import logging
 import multiprocessing
 import os
@@ -26,11 +26,12 @@ import pathlib
 import random
 import socket
 import sys
+import textwrap
 import threading
 import time
+from collections import deque
 from datetime import datetime, timedelta
 from logging.config import dictConfig
-from textwrap import dedent
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
@@ -61,6 +62,9 @@ from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs, clear_db_serialized_dags
+
+pytestmark = pytest.mark.db_test
+
 
 TEST_DAG_FOLDER = pathlib.Path(__file__).parents[1].resolve() / "dags"
 
@@ -230,7 +234,7 @@ class TestDagProcessorJobRunner:
         file_1 = "file_1.py"
         file_2 = "file_2.py"
         file_3 = "file_3.py"
-        manager.processor._file_path_queue = collections.deque([file_1, file_2, file_3])
+        manager.processor._file_path_queue = deque([file_1, file_2, file_3])
 
         # Mock that only one processor exists. This processor runs with 'file_1'
         manager.processor._processors[file_1] = MagicMock()
@@ -245,7 +249,7 @@ class TestDagProcessorJobRunner:
 
         assert file_1 in manager.processor._processors.keys()
         assert file_2 in manager.processor._processors.keys()
-        assert collections.deque([file_3]) == manager.processor._file_path_queue
+        assert deque([file_3]) == manager.processor._file_path_queue
 
     def test_set_file_paths_when_processor_file_path_not_in_new_file_paths(self):
         manager = DagProcessorJobRunner(
@@ -321,9 +325,9 @@ class TestDagProcessorJobRunner:
         )
 
         manager.processor.set_file_paths(dag_files)
-        assert manager.processor._file_path_queue == collections.deque()
+        assert manager.processor._file_path_queue == deque()
         manager.processor.prepare_file_path_queue()
-        assert manager.processor._file_path_queue == collections.deque(
+        assert manager.processor._file_path_queue == deque(
             ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
         )
 
@@ -353,10 +357,10 @@ class TestDagProcessorJobRunner:
         )
 
         manager.processor.set_file_paths(dag_files)
-        assert manager.processor._file_path_queue == collections.deque()
+        assert manager.processor._file_path_queue == deque()
         manager.processor.prepare_file_path_queue()
 
-        expected_order = collections.deque(dag_files)
+        expected_order = deque(dag_files)
         random.Random(get_hostname()).shuffle(expected_order)
         assert manager.processor._file_path_queue == expected_order
 
@@ -418,9 +422,9 @@ class TestDagProcessorJobRunner:
         )
 
         manager.processor.set_file_paths(dag_files)
-        assert manager.processor._file_path_queue == collections.deque()
+        assert manager.processor._file_path_queue == deque()
         manager.processor.prepare_file_path_queue()
-        assert manager.processor._file_path_queue == collections.deque(
+        assert manager.processor._file_path_queue == deque(
             ["file_4.py", "file_1.py", "file_3.py", "file_2.py"]
         )
 
@@ -459,7 +463,7 @@ class TestDagProcessorJobRunner:
 
         manager.processor.set_file_paths(dag_files)
         manager.processor.prepare_file_path_queue()
-        assert manager.processor._file_path_queue == collections.deque(["file_2.py", "file_3.py"])
+        assert manager.processor._file_path_queue == deque(["file_2.py", "file_3.py"])
 
     @conf_vars({("scheduler", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("zipfile.is_zipfile", return_value=True)
@@ -496,13 +500,11 @@ class TestDagProcessorJobRunner:
 
         manager.processor.set_file_paths(dag_files)
         manager.processor.prepare_file_path_queue()
-        assert manager.processor._file_path_queue == collections.deque(
-            ["file_3.py", "file_2.py", "file_1.py"]
-        )
+        assert manager.processor._file_path_queue == deque(["file_3.py", "file_2.py", "file_1.py"])
 
         manager.processor.set_file_paths([*dag_files, "file_4.py"])
         manager.processor.add_new_file_path_to_queue()
-        assert manager.processor._file_path_queue == collections.deque(
+        assert manager.processor._file_path_queue == deque(
             ["file_4.py", "file_3.py", "file_2.py", "file_1.py"]
         )
 
@@ -551,10 +553,10 @@ class TestDagProcessorJobRunner:
         }
         with time_machine.travel(freezed_base_time):
             manager.processor.set_file_paths(dag_files)
-            assert manager.processor._file_path_queue == collections.deque()
+            assert manager.processor._file_path_queue == deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
             manager.processor.prepare_file_path_queue()
-            assert manager.processor._file_path_queue == collections.deque()
+            assert manager.processor._file_path_queue == deque()
 
         # Simulate the DAG modification by using modified_time which is greater
         # than the last_parse_time but still less than now - min_file_process_interval
@@ -562,12 +564,12 @@ class TestDagProcessorJobRunner:
         file_1_new_mtime_ts = file_1_new_mtime.timestamp()
         with time_machine.travel(freezed_base_time):
             manager.processor.set_file_paths(dag_files)
-            assert manager.processor._file_path_queue == collections.deque()
+            assert manager.processor._file_path_queue == deque()
             # File Path Queue will be empty as the "modified time" < "last finish time"
             mock_getmtime.side_effect = [file_1_new_mtime_ts]
             manager.processor.prepare_file_path_queue()
             # Check that file is added to the queue even though file was just recently passed
-            assert manager.processor._file_path_queue == collections.deque(["file_1.py"])
+            assert manager.processor._file_path_queue == deque(["file_1.py"])
             assert last_finish_time < file_1_new_mtime
             assert (
                 manager.processor._file_process_interval
@@ -833,14 +835,13 @@ class TestDagProcessorJobRunner:
         # To test this behaviour we need something that continually fills the
         # parent pipe's buffer (and keeps it full).
         def keep_pipe_full(pipe, exit_event):
-            n = 0
-            while True:
+            for n in itertools.count(1):
                 if exit_event.is_set():
                     break
 
                 req = CallbackRequest(str(dag_filepath))
+                logging.info("Sending CallbackRequests %d", n)
                 try:
-                    logging.info("Sending CallbackRequests %d", n + 1)
                     pipe.send(req)
                 except TypeError:
                     # This is actually the error you get when the parent pipe
@@ -848,7 +849,6 @@ class TestDagProcessorJobRunner:
                     break
                 except OSError:
                     break
-                n += 1
                 logging.debug("   Sent %d CallbackRequests", n)
 
         thread = threading.Thread(target=keep_pipe_full, args=(parent_pipe, exit_event))
@@ -893,7 +893,7 @@ class TestDagProcessorJobRunner:
     @mock.patch("airflow.dag_processing.manager.Stats.timing")
     def test_send_file_processing_statsd_timing(self, statsd_timing_mock, tmp_path):
         path_to_parse = tmp_path / "temp_dag.py"
-        dag_code = dedent(
+        dag_code = textwrap.dedent(
             """
         from airflow import DAG
         dag = DAG(dag_id='temp_dag', schedule='0 0 * * *')
@@ -1279,9 +1279,7 @@ class TestDagProcessorJobRunner:
         manager.processor._add_callback_to_queue(dag2_req1)
 
         # then - requests should be in manager's queue, with dag2 ahead of dag1 (because it was added last)
-        assert manager.processor._file_path_queue == collections.deque(
-            [dag2_req1.full_filepath, dag1_req1.full_filepath]
-        )
+        assert manager.processor._file_path_queue == deque([dag2_req1.full_filepath, dag1_req1.full_filepath])
         assert set(manager.processor._callback_to_execute.keys()) == {
             dag1_req1.full_filepath,
             dag2_req1.full_filepath,
@@ -1295,9 +1293,7 @@ class TestDagProcessorJobRunner:
 
         # then - since sla2 == sla1, should not have brought dag1 to the fore, and an SLA on dag3 doesn't
         # update the queue, although the callback is registered
-        assert manager.processor._file_path_queue == collections.deque(
-            [dag2_req1.full_filepath, dag1_req1.full_filepath]
-        )
+        assert manager.processor._file_path_queue == deque([dag2_req1.full_filepath, dag1_req1.full_filepath])
         assert manager.processor._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
         assert manager.processor._callback_to_execute[dag3_sla1.full_filepath] == [dag3_sla1]
 
@@ -1305,9 +1301,7 @@ class TestDagProcessorJobRunner:
         manager.processor._add_callback_to_queue(dag1_req2)
 
         # then - non-sla callback should have brought dag1 to the fore
-        assert manager.processor._file_path_queue == collections.deque(
-            [dag1_req1.full_filepath, dag2_req1.full_filepath]
-        )
+        assert manager.processor._file_path_queue == deque([dag1_req1.full_filepath, dag2_req1.full_filepath])
         assert manager.processor._callback_to_execute[dag1_req1.full_filepath] == [
             dag1_req1,
             dag1_sla1,

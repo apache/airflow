@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import random
 import re
-from random import randrange
 from unittest import mock
 
 import oracledb
@@ -83,6 +83,7 @@ class TestOracleStoredProcedureOperator:
             handler=mock.ANY,
         )
 
+    @pytest.mark.db_test
     @mock.patch.object(OracleHook, "callproc", autospec=OracleHook.callproc)
     def test_push_oracle_exit_to_xcom(self, mock_callproc, request, dag_maker):
         # Test pulls the value previously pushed to xcom and checks if it's the same
@@ -90,7 +91,7 @@ class TestOracleStoredProcedureOperator:
         oracle_conn_id = "oracle_default"
         parameters = {"parameter": "value"}
         task_id = "test_push"
-        ora_exit_code = f"{randrange(10**5):05}"
+        ora_exit_code = f"{random.randrange(10**5):05}"
         error = f"ORA-{ora_exit_code}: This is a five-digit ORA error code"
         mock_callproc.side_effect = oracledb.DatabaseError(error)
 

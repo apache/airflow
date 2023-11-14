@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import os
-import random
 import socket
 import subprocess
 import threading
@@ -28,7 +27,7 @@ from typing import TYPE_CHECKING
 
 from termcolor import colored
 
-from airflow.configuration import AIRFLOW_HOME, conf, make_group_other_inaccessible
+from airflow.configuration import conf
 from airflow.executors import executor_constants
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import most_recent_job
@@ -94,8 +93,8 @@ class StandaloneCommand:
             command.start()
         # Run output loop
         shown_ready = False
-        while True:
-            try:
+        try:
+            while True:
                 # Print all the current lines onto the screen
                 self.update_output()
                 # Print info banner when all components are ready and the
@@ -111,8 +110,8 @@ class StandaloneCommand:
                     shown_ready = True
                 # Ensure we idle-sleep rather than fast-looping
                 time.sleep(0.1)
-            except KeyboardInterrupt:
-                break
+        except KeyboardInterrupt:
+            pass
         # Stop subcommand threads
         self.print_output("standalone", "Shutting down components")
         for command in self.subcommands.values():
@@ -179,39 +178,14 @@ class StandaloneCommand:
         self.print_output("standalone", "Checking database is initialized")
         db.initdb()
         self.print_output("standalone", "Database ready")
-        # See if a user needs creating
-        # We want a streamlined first-run experience, but we do not want to
-        # use a preset password as people will inevitably run this on a public
-        # server. Thus, we make a random password and store it in AIRFLOW_HOME,
-        # with the reasoning that if you can read that directory, you can see
-        # the database credentials anyway.
+
+        # Then create a "default" admin user if necessary
         from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
 
         with get_application_builder() as appbuilder:
-            user_exists = appbuilder.sm.find_user("admin")
-        password_path = os.path.join(AIRFLOW_HOME, "standalone_admin_password.txt")
-        we_know_password = os.path.isfile(password_path)
-        # If the user does not exist, make a random password and make it
-        if not user_exists:
-            self.print_output("standalone", "Creating admin user")
-            role = appbuilder.sm.find_role("Admin")
-            assert role is not None
-            # password does not contain visually similar characters: ijlIJL1oO0
-            password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
-            with open(password_path, "w") as file:
-                file.write(password)
-            make_group_other_inaccessible(password_path)
-            appbuilder.sm.add_user("admin", "Admin", "User", "admin@example.com", role, password)
-            self.print_output("standalone", "Created admin user")
-        # If the user does exist and we know its password, read the password
-        elif user_exists and we_know_password:
-            with open(password_path) as file:
-                password = file.read().strip()
-        # Otherwise we don't know the password
-        else:
-            password = None
+            user_name, password = appbuilder.sm.create_admin_standalone()
         # Store what we know about the user for printing later in startup
-        self.user_info = {"username": "admin", "password": password}
+        self.user_info = {"username": user_name, "password": password}
 
     def is_ready(self):
         """
@@ -291,7 +265,7 @@ class SubCommand(threading.Thread):
     def run(self):
         """Run the actual process and captures it output to a queue."""
         self.process = subprocess.Popen(
-            ["airflow"] + self.command,
+            ["airflow", *self.command],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             env=self.env,

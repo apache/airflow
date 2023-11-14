@@ -59,6 +59,9 @@ Also, you can only build one documentation via ``--package-filter``.
 
     breeze build-docs --package-filter <PACKAGE-NAME>
 
+You can also use shorthand names as arguments instead of using the full names
+for airflow providers. To find the short hand names, follow the instructions in :ref:`generating_short_form_names`.
+
 You can also see all the available arguments via ``--help``.
 
 .. code-block:: bash
@@ -68,7 +71,10 @@ You can also see all the available arguments via ``--help``.
 Running the Docs Locally
 ------------------------
 
-Once you have built the documentation run the following command from the root directory,
+Once you have built the documentation you can start the webserver in breeze environment and view the built documentation
+at ``http://localhost:28080/docs/``
+
+Alternatively, run the following command from the root directory.
 You need to have Python installed to run the command:
 
 .. code-block:: bash
@@ -85,6 +91,20 @@ Troubleshooting
 
 If you are creating ``example_dags`` directory, you need to create ``example_dags/__init__.py`` with Apache
 license or copy another ``__init__.py`` file that contains the necessary license.
+
+.. _generating_short_form_names:
+
+Generating short form names for Providers
+-----------------------------------------
+
+Skip the ``apache-airflow-providers-`` from the usual provider full names.
+Now with the remaining part, replace every ``dash("-")`` with a ``dot(".")``.
+
+Example:
+If the provider name is ``apache-airflow-providers-cncf-kubernetes``, it will be ``cncf.kubernetes``.
+
+Note: For building docs for apache-airflow-providers index, use ``apache-airflow-providers`` as the
+short hand operator.
 
 Cross-referencing syntax
 ========================

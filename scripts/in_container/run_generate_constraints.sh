@@ -152,5 +152,6 @@ echo
 echo "Constraints error markdown generated in ${CONSTRAINTS_MARKDOWN_DIFF}"
 echo
 
+ls "${CONSTRAINTS_MARKDOWN_DIFF}"
 
 exit 0

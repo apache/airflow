@@ -41,7 +41,6 @@ if TYPE_CHECKING:
 
     from airflow.jobs.job import Job
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.job import JobPydantic
 
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
@@ -74,14 +73,14 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
+class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
     job_type = "LocalTaskJob"
 
     def __init__(
         self,
-        job: Job | JobPydantic,
+        job: Job,
         task_instance: TaskInstance,  # TODO add TaskInstancePydantic
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -233,7 +232,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         else:
             self.log.info("Task exited with return code %s", return_code)
 
-        if not self.task_instance.test_mode and not is_deferral:
+        if not (self.task_instance.test_mode or is_deferral):
             if conf.getboolean("scheduler", "schedule_after_task_execution", fallback=True):
                 self.task_instance.schedule_downstream_tasks(max_tis_per_query=self.job.max_tis_per_query)
 

@@ -127,7 +127,7 @@ def _is_parent_process() -> bool:
     return multiprocessing.current_process().name == "MainProcess"
 
 
-class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
+class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
 
@@ -234,7 +234,6 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         self.processor_agent: DagFileProcessorAgent | None = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
-        self._paused_dag_without_running_dagruns: set = set()
         self._task_context_logger: TaskContextLogger = TaskContextLogger(self.job_type)
 
     @provide_session
@@ -829,7 +828,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         processor_timeout_seconds: int = conf.getint("core", "dag_file_processor_timeout")
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
-        if not self._standalone_dag_processor:
+        if not self._standalone_dag_processor and not self.processor_agent:
             self.processor_agent = DagFileProcessorAgent(
                 dag_directory=Path(self.subdir),
                 max_runs=self.num_times_parse_dags,
@@ -910,13 +909,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             )
             for dag_run in paused_runs:
                 dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-                if dag is None:
-                    continue
-
-                dag_run.dag = dag
-                _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
-                if callback_to_run:
-                    self._send_dag_callbacks_to_processor(dag, callback_to_run)
+                if dag is not None:
+                    dag_run.dag = dag
+                    _, callback_to_run = dag_run.update_state(execute_callbacks=False, session=session)
+                    if callback_to_run:
+                        self._send_dag_callbacks_to_processor(dag, callback_to_run)
         except Exception as e:  # should not fail the scheduler
             self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
@@ -1018,7 +1015,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
-                time.sleep(min(self._scheduler_idle_sleep_time, next_event if next_event else 0))
+                time.sleep(min(self._scheduler_idle_sleep_time, next_event or 0))
 
             if loop_count >= self.num_runs > 0:
                 self.log.info(
@@ -1086,13 +1083,12 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         )
         for dag_run, callback_to_run in callback_tuples:
             dag = cached_get_dag(dag_run.dag_id)
-
-            if not dag:
+            if dag:
+                # Sending callbacks there as in standalone_dag_processor they are adding to the database,
+                # so it must be done outside of prohibit_commit.
+                self._send_dag_callbacks_to_processor(dag, callback_to_run)
+            else:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
-                continue
-            # Sending callbacks there as in standalone_dag_processor they are adding to the database,
-            # so it must be done outside of prohibit_commit.
-            self._send_dag_callbacks_to_processor(dag, callback_to_run)
 
         with prohibit_commit(session) as guard:
             # Without this, the session has an invalid view of the DB
@@ -1193,19 +1189,31 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
             if (dag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
-                dag.create_dagrun(
-                    run_type=DagRunType.SCHEDULED,
-                    execution_date=dag_model.next_dagrun,
-                    state=DagRunState.QUEUED,
-                    data_interval=data_interval,
-                    external_trigger=False,
-                    session=session,
-                    dag_hash=dag_hash,
-                    creating_job_id=self.job.id,
-                )
-                active_runs_of_dags[dag.dag_id] += 1
+                try:
+                    dag.create_dagrun(
+                        run_type=DagRunType.SCHEDULED,
+                        execution_date=dag_model.next_dagrun,
+                        state=DagRunState.QUEUED,
+                        data_interval=data_interval,
+                        external_trigger=False,
+                        session=session,
+                        dag_hash=dag_hash,
+                        creating_job_id=self.job.id,
+                    )
+                    active_runs_of_dags[dag.dag_id] += 1
+                # Exceptions like ValueError, ParamValidationError, etc. are raised by
+                # dag.create_dagrun() when dag is misconfigured. The scheduler should not
+                # crash due to misconfigured dags. We should log any exception encountered
+                # and continue to the next dag.
+                except Exception:
+                    self.log.exception("Failed creating DagRun for %s", dag.dag_id)
+                    continue
             if self._should_update_dag_next_dagruns(
-                dag, dag_model, active_runs_of_dags[dag.dag_id], session=session
+                dag,
+                dag_model,
+                last_dag_run=None,
+                total_active_runs=active_runs_of_dags[dag.dag_id],
+                session=session,
             ):
                 dag_model.calculate_dagrun_date_fields(dag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
@@ -1313,9 +1321,22 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
 
     def _should_update_dag_next_dagruns(
-        self, dag: DAG, dag_model: DagModel, total_active_runs: int | None = None, *, session: Session
+        self,
+        dag: DAG,
+        dag_model: DagModel,
+        *,
+        last_dag_run: DagRun | None = None,
+        total_active_runs: int | None = None,
+        session: Session,
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
+        # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
+        # In such case, schedule next only if last_dag_run is finished and was an automated run.
+        if last_dag_run and not (
+            last_dag_run.state in State.finished_dr_states
+            and last_dag_run.run_type in [DagRunType.SCHEDULED, DagRunType.BACKFILL_JOB]
+        ):
+            return False
         # If the DAG never schedules skip save runtime
         if not dag.timetable.can_be_scheduled:
             return False
@@ -1347,12 +1368,14 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         def _update_state(dag: DAG, dag_run: DagRun):
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
-            if dag.timetable.periodic:
+            if dag.timetable.periodic and not dag_run.external_trigger and dag_run.clear_number < 1:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
                 # information is not stored on a DagRun, only before the actual
                 # execution on DagModel.next_dagrun_create_after. We should add
                 # a field on DagRun for this instead of relying on the run
                 # always happening immediately after the data interval.
+                # We only publish these metrics for scheduled dag runs and only
+                # when ``external_trigger`` is *False* and ``clear_number`` is 0.
                 expected_start_date = dag.get_run_data_interval(dag_run).end
                 schedule_delay = dag_run.start_date - expected_start_date
                 # Publish metrics twice with backward compatible name, and then with tags
@@ -1416,12 +1439,10 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
         # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
         query = (
-            session.query(DagModel)
-            .filter(DagModel.dag_id == dag_run.dag_id)
-            .options(joinedload(DagModel.parent_dag))
+            select(DagModel).where(DagModel.dag_id == dag_run.dag_id).options(joinedload(DagModel.parent_dag))
         )
-        dag_model = with_row_locks(
-            query, of=DagModel, session=session, **skip_locked(session=session)
+        dag_model = session.scalars(
+            with_row_locks(query, of=DagModel, session=session, **skip_locked(session=session))
         ).one_or_none()
 
         if not dag:
@@ -1450,8 +1471,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 session.merge(task_instance)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
-            # Work out if we should allow creating a new DagRun now?
-            if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
+
+            if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
             callback_to_execute = DagCallbackRequest(
@@ -1478,11 +1499,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             return callback
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
-        # Check if DAG not scheduled then skip interval calculation to same scheduler runtime
-        if dag_run.state in State.finished_dr_states:
-            # Work out if we should allow creating a new DagRun now?
-            if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
-                dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+
+        if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
+            dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_

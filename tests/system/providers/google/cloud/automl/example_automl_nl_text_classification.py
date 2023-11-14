@@ -24,51 +24,58 @@ import os
 from datetime import datetime
 from typing import cast
 
-from airflow import models
+from google.cloud.aiplatform import schema
+from google.protobuf.struct_pb2 import Value
+
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
-from airflow.providers.google.cloud.operators.automl import (
-    AutoMLCreateDatasetOperator,
-    AutoMLDeleteDatasetOperator,
-    AutoMLDeleteModelOperator,
-    AutoMLDeployModelOperator,
-    AutoMLImportDataOperator,
-    AutoMLTrainModelOperator,
-)
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
     GCSSynchronizeBucketsOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
+    CreateAutoMLTextTrainingJobOperator,
+    DeleteAutoMLTrainingJobOperator,
+)
+from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
+    CreateDatasetOperator,
+    DeleteDatasetOperator,
+    ImportDataOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-DAG_ID = "example_automl_text_cls"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+DAG_ID = "example_automl_text_cls"
 
 GCP_AUTOML_LOCATION = "us-central1"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 
-MODEL_NAME = "text_clss_test_model"
-MODEL = {
-    "display_name": MODEL_NAME,
-    "text_classification_model_metadata": {},
-}
+TEXT_CLSS_DISPLAY_NAME = f"{DAG_ID}-{ENV_ID}".replace("_", "-")
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/classification.csv"
+
+MODEL_NAME = f"{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 DATASET_NAME = f"ds_clss_{ENV_ID}".replace("-", "_")
 DATASET = {
     "display_name": DATASET_NAME,
-    "text_classification_dataset_metadata": {"classification_type": "MULTICLASS"},
+    "metadata_schema_uri": schema.dataset.metadata.text,
+    "metadata": Value(string_value="clss-dataset"),
 }
 
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/text_classification.csv"
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
-
+DATA_CONFIG = [
+    {
+        "import_schema_uri": schema.dataset.ioformat.text.single_label_classification,
+        "gcs_source": {"uris": [AUTOML_DATASET_BUCKET]},
+    },
+]
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Natural Language Text Classification
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -85,67 +92,77 @@ with models.DAG(
     move_dataset_file = GCSSynchronizeBucketsOperator(
         task_id="move_dataset_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="automl/datasets/text",
+        source_object="vertex-ai/automl/datasets/text",
         destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
         destination_object="automl",
         recursive=True,
     )
 
-    create_dataset = AutoMLCreateDatasetOperator(
-        task_id="create_dataset",
+    create_clss_dataset = CreateDatasetOperator(
+        task_id="create_clss_dataset",
         dataset=DATASET,
-        location=GCP_AUTOML_LOCATION,
+        region=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
+    clss_dataset_id = create_clss_dataset.output["dataset_id"]
 
-    dataset_id = cast(str, XComArg(create_dataset, key="dataset_id"))
-    MODEL["dataset_id"] = dataset_id
-    import_dataset = AutoMLImportDataOperator(
-        task_id="import_dataset",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
-        input_config=IMPORT_INPUT_CONFIG,
-    )
-    MODEL["dataset_id"] = dataset_id
-
-    create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
-    model_id = cast(str, XComArg(create_model, key="model_id"))
-
-    deploy_model = AutoMLDeployModelOperator(
-        task_id="deploy_model",
-        model_id=model_id,
-        location=GCP_AUTOML_LOCATION,
+    import_clss_dataset = ImportDataOperator(
+        task_id="import_clss_data",
+        dataset_id=clss_dataset_id,
+        region=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
+        import_configs=DATA_CONFIG,
     )
 
-    delete_model = AutoMLDeleteModelOperator(
-        task_id="delete_model",
-        model_id=model_id,
-        location=GCP_AUTOML_LOCATION,
+    # [START howto_operator_automl_create_model]
+    create_clss_training_job = CreateAutoMLTextTrainingJobOperator(
+        task_id="create_clss_training_job",
+        display_name=TEXT_CLSS_DISPLAY_NAME,
+        prediction_type="classification",
+        multi_label=False,
+        dataset_id=clss_dataset_id,
+        model_display_name=MODEL_NAME,
+        training_fraction_split=0.7,
+        validation_fraction_split=0.2,
+        test_fraction_split=0.1,
+        sync=True,
+        region=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
+    # [END howto_operator_automl_create_model]
+    model_id = cast(str, XComArg(create_clss_training_job, key="model_id"))
 
-    delete_dataset = AutoMLDeleteDatasetOperator(
-        task_id="delete_dataset",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
+    delete_clss_training_job = DeleteAutoMLTrainingJobOperator(
+        task_id="delete_clss_training_job",
+        training_pipeline_id=create_clss_training_job.output["training_id"],
+        region=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_clss_dataset = DeleteDatasetOperator(
+        task_id="delete_clss_dataset",
+        dataset_id=clss_dataset_id,
+        region=GCP_AUTOML_LOCATION,
+        project_id=GCP_PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (
         # TEST SETUP
-        [create_bucket >> move_dataset_file, create_dataset]
+        [create_bucket >> move_dataset_file, create_clss_dataset]
         # TEST BODY
-        >> import_dataset
-        >> create_model
-        >> deploy_model
+        >> import_clss_dataset
+        >> create_clss_training_job
         # TEST TEARDOWN
-        >> delete_model
-        >> delete_dataset
+        >> delete_clss_training_job
+        >> delete_clss_dataset
         >> delete_bucket
     )
 

@@ -28,7 +28,6 @@ TEST_MAX_MESSAGES = 1
 TEST_NUM_BATCHES = 1
 TEST_WAIT_TIME_SECONDS = 1
 TEST_VISIBILITY_TIMEOUT = 1
-TEST_MESSAGE_FILTERING = "literal"
 TEST_MESSAGE_FILTERING_MATCH_VALUES = "test"
 TEST_MESSAGE_FILTERING_CONFIG = "test-message-filtering-config"
 TEST_DELETE_MESSAGE_ON_RECEPTION = False
@@ -41,7 +40,7 @@ trigger = SqsSensorTrigger(
     num_batches=TEST_NUM_BATCHES,
     wait_time_seconds=TEST_WAIT_TIME_SECONDS,
     visibility_timeout=TEST_VISIBILITY_TIMEOUT,
-    message_filtering=TEST_MESSAGE_FILTERING,
+    message_filtering="literal",
     message_filtering_match_values=TEST_MESSAGE_FILTERING_MATCH_VALUES,
     message_filtering_config=TEST_MESSAGE_FILTERING_CONFIG,
     delete_message_on_reception=TEST_DELETE_MESSAGE_ON_RECEPTION,
@@ -50,24 +49,6 @@ trigger = SqsSensorTrigger(
 
 
 class TestSqsTriggers:
-    @pytest.mark.parametrize(
-        "trigger",
-        [
-            trigger,
-        ],
-    )
-    def test_serialize_recreate(self, trigger):
-        class_path, args = trigger.serialize()
-
-        class_name = class_path.split(".")[-1]
-        clazz = globals()[class_name]
-        instance = clazz(**args)
-
-        class_path2, args2 = instance.serialize()
-
-        assert class_path == class_path2
-        assert args == args2
-
     @pytest.mark.asyncio
     async def test_poke(self):
         sqs_trigger = trigger

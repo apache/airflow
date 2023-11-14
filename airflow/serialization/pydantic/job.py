@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime
+import datetime
+from functools import cached_property
 from typing import Optional
 
 from pydantic import BaseModel as BaseModelPydantic
 
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 
 
@@ -35,19 +37,38 @@ class JobPydantic(BaseModelPydantic):
     dag_id: Optional[str]
     state: Optional[str]
     job_type: Optional[str]
-    start_date: Optional[datetime]
-    end_date: Optional[datetime]
-    latest_heartbeat: datetime
+    start_date: Optional[datetime.datetime]
+    end_date: Optional[datetime.datetime]
+    latest_heartbeat: datetime.datetime
     executor_class: Optional[str]
     hostname: Optional[str]
     unixname: Optional[str]
-
-    # not an ORM field
-    heartrate: Optional[int]
-    max_tis_per_query: Optional[int]
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         from_attributes = True
         orm_mode = True  # Pydantic 1.x compatibility.
+
+    @cached_property
+    def executor(self):
+        return ExecutorLoader.get_default_executor()
+
+    @cached_property
+    def heartrate(self) -> float:
+        from airflow.jobs.job import Job
+
+        assert self.job_type is not None
+        return Job._heartrate(self.job_type)
+
+    def is_alive(self, grace_multiplier=2.1) -> bool:
+        """Is this job currently alive."""
+        from airflow.jobs.job import Job
+
+        return Job._is_alive(
+            job_type=self.job_type,
+            heartrate=self.heartrate,
+            state=self.state,
+            latest_heartbeat=self.latest_heartbeat,
+            grace_multiplier=grace_multiplier,
+        )

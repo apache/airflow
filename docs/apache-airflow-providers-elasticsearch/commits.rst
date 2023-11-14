@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-elasticsearch
 ------------------------------------------------------
@@ -28,14 +28,64 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.1.1
+.....
+
+Latest change: 2023-11-08
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`b3be18b36f <https://github.com/apache/airflow/commit/b3be18b36f6dd96dd57717d6fa0484fc8f02805e>`_  2023-11-08   ``Use None instead of empty data structures when no ElasticSearch logs (#34793)``
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`7a93b19138 <https://github.com/apache/airflow/commit/7a93b1913845710eb67ab4670c1be9e9382c030b>`_  2023-10-16   ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+=================================================================================================  ===========  =================================================================================
+
+5.1.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  =====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`0e5890bdcb <https://github.com/apache/airflow/commit/0e5890bdcb6ea92f8333c46493ea7c065e4d6bf7>`_  2023-10-13   ``Remove unused argument metadata from es_read and make clearly private (#34790)``
+`a1a23528da <https://github.com/apache/airflow/commit/a1a23528da0edbd9587c8ab922ba325cfde79976>`_  2023-10-05   ``Improve intelligibility of end_of_log determination (#34788)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`99f320354b <https://github.com/apache/airflow/commit/99f320354b075fb780e54057d223d2d16ddf08b8>`_  2023-10-04   ``Refactor: consolidate import time in providers (#34402)``
+`8ecd576de1 <https://github.com/apache/airflow/commit/8ecd576de1043dbea40e5e16b5dc34859cc41725>`_  2023-09-14   ``Refactor shorter defaults in providers (#34347)``
+`13d2f4a7f1 <https://github.com/apache/airflow/commit/13d2f4a7f1e347607122b65d5b45ef0504a8640b>`_  2023-09-09   ``Replace try/except/pass by contextlib.suppress in ElasticSearch provider (#34251)``
+=================================================================================================  ===========  =====================================================================================
+
+5.0.2
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`f7f3b675ec <https://github.com/apache/airflow/commit/f7f3b675ecd40e32e458b71b5066864f866a60c8>`_  2023-09-07   ``Make sure that only valid elasticsearch keys are passed to handler (#34119)``
+`55976af32e <https://github.com/apache/airflow/commit/55976af32ea7d09831e2bcd21c0f3814d9b0eb3f>`_  2023-08-31   ``Replace sequence concatination by unpacking in Airflow providers (#33933)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+`b11525702c <https://github.com/apache/airflow/commit/b11525702c72cb53034aa29ccd6d0e1161ac475c>`_  2023-08-26   ``Use literal dict instead of calling dict() in providers (#33761)``
+`353b1482d3 <https://github.com/apache/airflow/commit/353b1482d3720c7e962022f25c7e5d3e105ed4f0>`_  2023-08-26   ``remove unnecessary and rewrite it using list in providers (#33763)``
+`c90eec9365 <https://github.com/apache/airflow/commit/c90eec936583d482a35f0dc8bfc13afc58a9c322>`_  2023-08-26   ``Use f-string instead of  in Airflow providers (#33752)``
+=================================================================================================  ===========  ===================================================================================================
+
 5.0.1
 .....
 
-Latest change: 2023-08-23
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  =============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `94f70d8184 <https://github.com/apache/airflow/commit/94f70d818482de7defa03c0aff3c213ca6b83e9e>`_  2023-08-23   ``Replace strftime with f-strings where nicer (#33455)``
 `7e79997594 <https://github.com/apache/airflow/commit/7e799975948573ca2a1c4b2051d3eadc32bb8ba7>`_  2023-08-11   ``D205 Support - Providers - Final Pass (#33303)``
 `dd73a0bffa <https://github.com/apache/airflow/commit/dd73a0bffa6c4de93a2dd8dc4460b64aedc51255>`_  2023-08-10   ``Fix urlparse schemaless-behaviour on Python 3.9+ (#33289)``

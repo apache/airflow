@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import collections.abc
 import contextlib
 import copy
@@ -26,7 +25,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator,
 
 import attr
 
-from airflow import settings
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
@@ -54,6 +52,7 @@ from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
+from airflow.utils.task_instance_session import get_current_task_instance_session
 from airflow.utils.types import NOTSET
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -471,7 +470,7 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
     @property
-    def weight_rule(self) -> int:  # type: ignore[override]
+    def weight_rule(self) -> str:  # type: ignore[override]
         return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
 
     @property
@@ -720,12 +719,13 @@ class MappedOperator(AbstractOperator):
         if not jinja_env:
             jinja_env = self.get_template_env()
 
-        # Ideally we'd like to pass in session as an argument to this function,
-        # but we can't easily change this function signature since operators
-        # could override this. We can't use @provide_session since it closes and
-        # expunges everything, which we don't want to do when we are so "deep"
-        # in the weeds here. We don't close this session for the same reason.
-        session = settings.Session()
+        # We retrieve the session here, stored by _run_raw_task in set_current_task_session
+        # context manager - we cannot pass the session via @provide_session because the signature
+        # of render_template_fields is defined by BaseOperator and there are already many subclasses
+        # overriding it, so changing the signature is not an option. However render_template_fields is
+        # always executed within "_run_raw_task" so we make sure that _run_raw_task uses the
+        # set_current_task_session context manager to store the session in the current task.
+        session = get_current_task_instance_session()
 
         mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
         unmapped_task = self.unmap(mapped_kwargs)

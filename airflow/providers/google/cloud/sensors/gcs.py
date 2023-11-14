@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.triggers.gcs import (
     GCSBlobTrigger,
@@ -125,6 +125,9 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "error":
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
         self.log.info("File %s was found in bucket %s.", self.object, self.bucket)
         return event["message"]
@@ -259,8 +262,16 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
                     "Checking last updated time for object %s in bucket : %s", self.object, self.bucket
                 )
                 return event["message"]
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
-        raise AirflowException("No event received in trigger callback")
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = "No event received in trigger callback"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)
 
 
 class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
@@ -347,6 +358,9 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         self.log.info("Resuming from trigger and checking status")
         if event["status"] == "success":
             return event["matches"]
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        if self.soft_fail:
+            raise AirflowSkipException(event["message"])
         raise AirflowException(event["message"])
 
 
@@ -421,7 +435,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
             raise ValueError("inactivity_period must be non-negative")
         self.inactivity_period = inactivity_period
         self.min_objects = min_objects
-        self.previous_objects = previous_objects if previous_objects else set()
+        self.previous_objects = previous_objects or set()
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
         self.google_cloud_conn_id = google_cloud_conn_id
@@ -476,10 +490,14 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
                 )
                 return False
 
-            raise AirflowException(
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            message = (
                 "Illegal behavior: objects were deleted in "
                 f"{os.path.join(self.bucket, self.prefix)} between pokes."
             )
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         if self.last_activity_time:
             self.inactivity_seconds = (get_time() - self.last_activity_time).total_seconds()
@@ -549,5 +567,13 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         if event:
             if event["status"] == "success":
                 return event["message"]
+            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
-        raise AirflowException("No event received in trigger callback")
+
+        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
+        message = "No event received in trigger callback"
+        if self.soft_fail:
+            raise AirflowSkipException(message)
+        raise AirflowException(message)

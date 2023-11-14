@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 2.6.0
+  - 2.5.3
   - 2.5.2
   - 2.5.1
   - 2.5.0
@@ -39,7 +41,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - oss2>=2.14.0
   - alibabacloud_adb20211201>=1.0.0
   - alibabacloud_tea_openapi>=0.3.7

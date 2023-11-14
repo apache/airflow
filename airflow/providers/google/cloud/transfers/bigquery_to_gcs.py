@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Any, Sequence
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.cloud.dataplex_v1 import DataplexServiceClient, DataScanServiceClient
+from google.cloud.dataplex_v1 import DataplexServiceClient, DataScanServiceAsyncClient, DataScanServiceClient
 from google.cloud.dataplex_v1.types import (
     Asset,
     DataScan,
@@ -35,7 +35,7 @@ from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
@@ -858,4 +858,70 @@ class DataplexHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        return result
+
+
+class DataplexAsyncHook(GoogleBaseAsyncHook):
+    """
+    Asynchronous Hook for Google Cloud Dataplex APIs.
+
+    All the methods in the hook where project_id is used must be called with
+    keyword arguments rather than positional.
+    """
+
+    sync_hook_class = DataplexHook
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+
+    async def get_dataplex_data_scan_client(self) -> DataScanServiceAsyncClient:
+        """Returns DataScanServiceAsyncClient."""
+        client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
+
+        return DataScanServiceAsyncClient(
+            credentials=(await self.get_sync_hook()).get_credentials(),
+            client_info=CLIENT_INFO,
+            client_options=client_options,
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def get_data_scan_job(
+        self,
+        project_id: str,
+        region: str,
+        data_scan_id: str | None = None,
+        job_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Gets a DataScan Job resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param data_scan_id: Required. DataScan identifier.
+        :param job_id: Required. The resource name of the DataScanJob:
+            projects/{project_id}/locations/{region}/dataScans/{data_scan_id}/jobs/{data_scan_job_id}
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = await self.get_dataplex_data_scan_client()
+
+        name = f"projects/{project_id}/locations/{region}/dataScans/{data_scan_id}/jobs/{job_id}"
+        result = await client.get_data_scan_job(
+            request={"name": name, "view": "FULL"},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
         return result

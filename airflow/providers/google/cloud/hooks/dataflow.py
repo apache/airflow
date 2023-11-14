@@ -175,7 +175,7 @@ class _DataflowJobsController(LoggingMixin):
     :param num_retries: Maximum number of retries in case of connection problems.
     :param multiple_jobs: If set to true this task will be searched by name prefix (``name`` parameter),
         not by specific job ID, then actions will be performed on all matching jobs.
-    :param drain_pipeline: Optional, set to True if want to stop streaming job by draining it
+    :param drain_pipeline: Optional, set to True if we want to stop streaming job by draining it
         instead of canceling.
     :param cancel_timeout: wait time in seconds for successful job canceling
     :param wait_until_finished: If True, wait for the end of pipeline execution before exiting. If False,
@@ -183,8 +183,8 @@ class _DataflowJobsController(LoggingMixin):
 
         The default behavior depends on the type of pipeline:
 
-        * for the streaming pipeline, wait for jobs to start,
-        * for the batch pipeline, wait for the jobs to complete.
+        * for the streaming pipeline, wait for jobs to be in JOB_STATE_RUNNING,
+        * for the batch pipeline, wait for the jobs to be in JOB_STATE_DONE.
     """
 
     def __init__(
@@ -200,8 +200,8 @@ class _DataflowJobsController(LoggingMixin):
         drain_pipeline: bool = False,
         cancel_timeout: int | None = 5 * 60,
         wait_until_finished: bool | None = None,
+        expected_terminal_state: str | None = None,
     ) -> None:
-
         super().__init__()
         self._dataflow = dataflow
         self._project_number = project_number
@@ -215,6 +215,7 @@ class _DataflowJobsController(LoggingMixin):
         self._jobs: list[dict] | None = None
         self.drain_pipeline = drain_pipeline
         self._wait_until_finished = wait_until_finished
+        self._expected_terminal_state = expected_terminal_state
 
     def is_job_running(self) -> bool:
         """
@@ -391,27 +392,46 @@ class _DataflowJobsController(LoggingMixin):
         :return: True if job is done.
         :raise: Exception
         """
-        if self._wait_until_finished is None:
-            wait_for_running = job.get("type") == DataflowJobType.JOB_TYPE_STREAMING
-        else:
-            wait_for_running = not self._wait_until_finished
+        current_state = job["currentState"]
+        is_streaming = job.get("type") == DataflowJobType.JOB_TYPE_STREAMING
 
-        if job["currentState"] == DataflowJobStatus.JOB_STATE_DONE:
+        if self._expected_terminal_state is None:
+            if is_streaming:
+                self._expected_terminal_state = DataflowJobStatus.JOB_STATE_RUNNING
+            else:
+                self._expected_terminal_state = DataflowJobStatus.JOB_STATE_DONE
+        else:
+            terminal_states = DataflowJobStatus.TERMINAL_STATES | {DataflowJobStatus.JOB_STATE_RUNNING}
+            if self._expected_terminal_state not in terminal_states:
+                raise Exception(
+                    f"Google Cloud Dataflow job's expected terminal state "
+                    f"'{self._expected_terminal_state}' is invalid."
+                    f" The value should be any of the following: {terminal_states}"
+                )
+            elif is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DONE:
+                raise Exception(
+                    "Google Cloud Dataflow job's expected terminal state cannot be "
+                    "JOB_STATE_DONE while it is a streaming job"
+                )
+            elif not is_streaming and self._expected_terminal_state == DataflowJobStatus.JOB_STATE_DRAINED:
+                raise Exception(
+                    "Google Cloud Dataflow job's expected terminal state cannot be "
+                    "JOB_STATE_DRAINED while it is a batch job"
+                )
+
+        if current_state == self._expected_terminal_state:
+            if self._expected_terminal_state == DataflowJobStatus.JOB_STATE_RUNNING:
+                return not self._wait_until_finished
             return True
-        elif job["currentState"] == DataflowJobStatus.JOB_STATE_FAILED:
-            raise Exception(f"Google Cloud Dataflow job {job['name']} has failed.")
-        elif job["currentState"] == DataflowJobStatus.JOB_STATE_CANCELLED:
-            raise Exception(f"Google Cloud Dataflow job {job['name']} was cancelled.")
-        elif job["currentState"] == DataflowJobStatus.JOB_STATE_DRAINED:
-            raise Exception(f"Google Cloud Dataflow job {job['name']} was drained.")
-        elif job["currentState"] == DataflowJobStatus.JOB_STATE_UPDATED:
-            raise Exception(f"Google Cloud Dataflow job {job['name']} was updated.")
-        elif job["currentState"] == DataflowJobStatus.JOB_STATE_RUNNING and wait_for_running:
-            return True
-        elif job["currentState"] in DataflowJobStatus.AWAITING_STATES:
+
+        if current_state in DataflowJobStatus.AWAITING_STATES:
             return self._wait_until_finished is False
-        self.log.debug("Current job: %s", str(job))
-        raise Exception(f"Google Cloud Dataflow job {job['name']} was unknown state: {job['currentState']}")
+
+        self.log.debug("Current job: %s", job)
+        raise Exception(
+            f"Google Cloud Dataflow job {job['name']} is in an unexpected terminal state: {current_state}, "
+            f"expected terminal state: {self._expected_terminal_state}"
+        )
 
     def wait_for_done(self) -> None:
         """Helper method to wait for result of submitted job."""
@@ -514,6 +534,7 @@ class DataflowHook(GoogleBaseHook):
         drain_pipeline: bool = False,
         cancel_timeout: int | None = 5 * 60,
         wait_until_finished: bool | None = None,
+        expected_terminal_state: str | None = None,
         **kwargs,
     ) -> None:
         if kwargs.get("delegate_to") is not None:
@@ -527,6 +548,7 @@ class DataflowHook(GoogleBaseHook):
         self.wait_until_finished = wait_until_finished
         self.job_id: str | None = None
         self.beam_hook = BeamHook(BeamRunnerType.DataflowRunner)
+        self.expected_terminal_state = expected_terminal_state
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
@@ -691,6 +713,7 @@ class DataflowHook(GoogleBaseHook):
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
             wait_until_finished=self.wait_until_finished,
+            expected_terminal_state=self.expected_terminal_state,
         )
         jobs_controller.wait_for_done()
         return response["job"]
@@ -867,14 +890,14 @@ class DataflowHook(GoogleBaseHook):
         """Builds Dataflow job name."""
         base_job_name = str(job_name).replace("_", "-")
 
-        if not re.match(r"^[a-z]([-a-z0-9]*[a-z0-9])?$", base_job_name):
+        if not re.fullmatch(r"[a-z]([-a-z0-9]*[a-z0-9])?", base_job_name):
             raise ValueError(
                 f"Invalid job_name ({base_job_name}); the name must consist of only the characters "
                 f"[-a-z0-9], starting with a letter and ending with a letter or number "
             )
 
         if append_job_name:
-            safe_job_name = base_job_name + "-" + str(uuid.uuid4())[:8]
+            safe_job_name = f"{base_job_name}-{uuid.uuid4()!s:.8}"
         else:
             safe_job_name = base_job_name
 

@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
     DataprocCreateBatchOperator,
@@ -34,7 +34,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_batch_ps"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 REGION = "europe-west1"
 CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
@@ -66,7 +66,7 @@ BATCH_CONFIG_WITH_PHS = {
 }
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

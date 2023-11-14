@@ -973,8 +973,6 @@ class EksPodOperator(KubernetesPodOperator):
         :ref:`howto/operator:EksPodOperator`
 
     :param cluster_name: The name of the Amazon EKS Cluster to execute the task on. (templated)
-    :param cluster_role_arn: The Amazon Resource Name (ARN) of the IAM role that provides permissions
-         for the Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
     :param in_cluster: If True, look for config inside the cluster; if False look for a local file path.
     :param namespace: The namespace in which to execute the pod. (templated)
     :param pod_name: The unique name to give the pod. (templated)

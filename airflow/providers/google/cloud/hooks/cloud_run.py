@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from google.cloud.run_v2 import (
     CreateJobRequest,
@@ -113,9 +113,15 @@ class CloudRunHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def execute_job(
-        self, job_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
+        self,
+        job_name: str,
+        region: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        overrides: dict[str, Any] | None = None,
     ) -> operation.Operation:
-        run_job_request = RunJobRequest(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
+        run_job_request = RunJobRequest(
+            name=f"projects/{project_id}/locations/{region}/jobs/{job_name}", overrides=overrides
+        )
         operation = self.get_conn().run_job(request=run_job_request)
         return operation
 
@@ -132,7 +138,6 @@ class CloudRunHook(GoogleBaseHook):
         show_deleted: bool = False,
         limit: int | None = None,
     ) -> Iterable[Job]:
-
         if limit is not None and limit < 0:
             raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
 
@@ -165,7 +170,7 @@ class CloudRunAsyncHook(GoogleBaseHook):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
     ):
-        self._client: JobsAsyncClient = JobsAsyncClient()
+        self._client: JobsAsyncClient | None = None
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
 
     def get_conn(self):
@@ -175,4 +180,6 @@ class CloudRunAsyncHook(GoogleBaseHook):
         return self._client
 
     async def get_operation(self, operation_name: str) -> operations_pb2.Operation:
-        return await self.get_conn().get_operation(operations_pb2.GetOperationRequest(name=operation_name))
+        return await self.get_conn().get_operation(
+            operations_pb2.GetOperationRequest(name=operation_name), timeout=120
+        )

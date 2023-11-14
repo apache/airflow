@@ -18,38 +18,13 @@
 """Connect to Asana."""
 from __future__ import annotations
 
-from functools import cached_property, wraps
+from functools import cached_property
 from typing import Any
 
 from asana import Client  # type: ignore[attr-defined]
 from asana.error import NotFoundError  # type: ignore[attr-defined]
 
 from airflow.hooks.base import BaseHook
-
-
-def _ensure_prefixes(conn_type):
-    """Remove when provider min airflow version >= 2.5.0 since this is now handled by provider manager."""
-
-    def dec(func):
-        @wraps(func)
-        def inner():
-            field_behaviors = func()
-            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
-
-            def _ensure_prefix(field):
-                if field not in conn_attrs and not field.startswith("extra__"):
-                    return f"extra__{conn_type}__{field}"
-                else:
-                    return field
-
-            if "placeholders" in field_behaviors:
-                placeholders = field_behaviors["placeholders"]
-                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
-            return field_behaviors
-
-        return inner
-
-    return dec
 
 
 class AsanaHook(BaseHook):
@@ -96,7 +71,6 @@ class AsanaHook(BaseHook):
         }
 
     @staticmethod
-    @_ensure_prefixes(conn_type="asana")
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
@@ -122,7 +96,7 @@ class AsanaHook(BaseHook):
 
     def create_task(self, task_name: str, params: dict | None) -> dict:
         """
-        Creates an Asana task.
+        Create an Asana task.
 
         :param task_name: Name of the new task
         :param params: Other task attributes, such as due_on, parent, and notes. For a complete list

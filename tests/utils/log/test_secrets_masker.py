@@ -18,13 +18,13 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-import io
 import logging
 import logging.config
 import os
 import sys
 import textwrap
 from enum import Enum
+from io import StringIO
 from unittest.mock import patch
 
 import pytest
@@ -406,7 +406,7 @@ class TestRedactedIO:
 
         This is used by debuggers!
         """
-        monkeypatch.setattr(sys, "stdin", io.StringIO("a\n"))
+        monkeypatch.setattr(sys, "stdin", StringIO("a\n"))
         with contextlib.redirect_stdout(RedactedIO()):
             assert input() == "a"
 

@@ -20,9 +20,9 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates
 from airflow.providers.amazon.aws.operators.ecs import (
     EcsCreateClusterOperator,

@@ -28,14 +28,47 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.2.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`169ce92249 <https://github.com/apache/airflow/commit/169ce92249d700c5ad1a4fdac35ba4feb8feee04>`_  2023-09-18   ``Consolidate hook management in HiveOperator (#34430)``
+`94d07908a2 <https://github.com/apache/airflow/commit/94d07908a2188eb650bfab21d89a49b287aee35c>`_  2023-09-11   ``Refactor: Simplify comparisons (#34181)``
+=================================================================================================  ===========  ========================================================
+
+6.1.6
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+`55976af32e <https://github.com/apache/airflow/commit/55976af32ea7d09831e2bcd21c0f3814d9b0eb3f>`_  2023-08-31   ``Replace sequence concatination by unpacking in Airflow providers (#33933)``
+`1969eaf2de <https://github.com/apache/airflow/commit/1969eaf2de4f09f4ce3ac14cf8f3c78022f9212a>`_  2023-08-31   ``Replace single element slice by next() in hive provider (#33937)``
+`6d182beec6 <https://github.com/apache/airflow/commit/6d182beec6e86b372c37fb164a31c2f8811d8c03>`_  2023-08-26   ``Use a single  statement with multiple contexts instead of nested  statements in providers (#33768)``
+`e4ae83d488 <https://github.com/apache/airflow/commit/e4ae83d488bd0bc4554f400c2c1c2d3fc1c44fd6>`_  2023-08-26   ``Use startswith once with a tuple in Hive hook (#33765)``
+`784e0ef04b <https://github.com/apache/airflow/commit/784e0ef04b5013f4e370e9a0380f5c2589128c7f>`_  2023-08-26   ``Refactor: Simplify a few loops (#33736)``
+`2a00f18ebb <https://github.com/apache/airflow/commit/2a00f18ebb7f0e286955a946844c14b72fcc3b05>`_  2023-08-26   ``E731: replace lambda by a def method in Airflow providers (#33757)``
+`c90eec9365 <https://github.com/apache/airflow/commit/c90eec936583d482a35f0dc8bfc13afc58a9c322>`_  2023-08-26   ``Use f-string instead of  in Airflow providers (#33752)``
+=================================================================================================  ===========  ======================================================================================================
+
 6.1.5
 .....
 
-Latest change: 2023-08-24
+Latest change: 2023-08-26
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `08188f80f4 <https://github.com/apache/airflow/commit/08188f80f4bb6c225eaf4f58e2742c982a230652>`_  2023-08-24   ``Bring back hive support for Python 3.11 (#32607)``
 `32feab4100 <https://github.com/apache/airflow/commit/32feab41006897de182bfa684813be230027aca1>`_  2023-08-22   ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
 `bb2689ab45 <https://github.com/apache/airflow/commit/bb2689ab455ca5d82f4f9b8d4b73ec071849c439>`_  2023-08-21   ``Use str.splitlines() to split lines in providers (#33593)``

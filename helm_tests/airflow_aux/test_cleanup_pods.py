@@ -162,6 +162,17 @@ class TestCleanupPods:
             docs[0],
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"cleanup": {"enabled": True}, "schedulerName": "airflow-scheduler"},
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.jobTemplate.spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_default_command_and_args(self):
         docs = render_chart(
             values={"cleanup": {"enabled": True}}, show_only=["templates/cleanup/cleanup-cronjob.yaml"]
@@ -373,7 +384,7 @@ class TestCleanupServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "cleanup": {"enabled": True, "serviceAccount": {"automountServiceAccountToken": False}},

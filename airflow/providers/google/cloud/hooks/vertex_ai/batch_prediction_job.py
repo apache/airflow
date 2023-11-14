@@ -15,15 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Cloud Vertex AI hook.
-
-.. spelling:word-list::
-
-    jsonl
-    codepoints
-    aiplatform
-    gapic
-"""
+"""This module contains a Google Cloud Vertex AI hook."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -33,7 +25,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import BatchPredictionJob, Model, explain
 from google.cloud.aiplatform_v1 import JobServiceClient
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:

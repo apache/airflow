@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.utils.types import NOTSET

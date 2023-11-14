@@ -18,18 +18,18 @@
 """Roles sub-commands."""
 from __future__ import annotations
 
-import collections
 import itertools
 import json
 import os
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 from airflow.auth.managers.fab.cli_commands.utils import get_application_builder
+from airflow.auth.managers.fab.security_manager.constants import EXISTING_ROLES
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.www.security import EXISTING_ROLES
 
 if TYPE_CHECKING:
     from airflow.auth.managers.fab.models import Action, Permission, Resource, Role
@@ -48,7 +48,7 @@ def roles_list(args):
         )
         return
 
-    permission_map: dict[tuple[str, str], list[str]] = collections.defaultdict(list)
+    permission_map: dict[tuple[str, str], list[str]] = defaultdict(list)
     for role in roles:
         for permission in role.permissions:
             permission_map[(role.name, permission.resource.name)].append(permission.action.name)
@@ -92,7 +92,7 @@ def __roles_add_or_remove_permissions(args):
         is_add: bool = args.subcommand.startswith("add")
 
         role_map = {}
-        perm_map: dict[tuple[str, str], set[str]] = collections.defaultdict(set)
+        perm_map: dict[tuple[str, str], set[str]] = defaultdict(set)
         asm = appbuilder.sm
         for name in args.role:
             role: Role | None = asm.find_role(name)

@@ -67,11 +67,17 @@ spec:
         {{- end }}
       {{- end }}
     spec:
+      {{- if .Values.redis.priorityClassName }}
+      priorityClassName: {{ .Values.redis.priorityClassName }}
+      {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "redis.serviceAccountName" . }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
         - name: {{ template "registry_secret" . }}
@@ -103,7 +109,7 @@ spec:
   {{- if not .Values.redis.persistence.enabled }}
       volumes:
         - name: redis-db
-          emptyDir: {}
+          emptyDir: {{- toYaml (default (dict) .Values.redis.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
     - metadata:
@@ -113,7 +119,7 @@ spec:
         {{- end }}
       spec:
         {{- if .Values.redis.persistence.storageClassName }}
-        storageClassName: {{ .Values.redis.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.redis.persistence.storageClassName . | quote }}
         {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:

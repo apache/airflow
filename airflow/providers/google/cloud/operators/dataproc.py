@@ -152,7 +152,7 @@ class ClusterGenerator:
         ``projects/[PROJECT_STORING_KEYS]/locations/[LOCATION]/keyRings/[KEY_RING_NAME]/cryptoKeys/[KEY_NAME]`` # noqa
     :param enable_component_gateway: Provides access to the web interfaces of default and selected optional
         components on the cluster.
-    """  # noqa: E501
+    """
 
     def __init__(
         self,
@@ -192,7 +192,6 @@ class ClusterGenerator:
         enable_component_gateway: bool | None = False,
         **kwargs,
     ) -> None:
-
         self.project_id = project_id
         self.num_masters = num_masters
         self.num_workers = num_workers
@@ -245,12 +244,13 @@ class ClusterGenerator:
         return PreemptibilityType(preemptibility.upper())
 
     def _get_init_action_timeout(self) -> dict:
-        match = re.match(r"^(\d+)([sm])$", self.init_action_timeout)
+        match = re.fullmatch(r"(\d+)([sm])", self.init_action_timeout)
         if match:
-            val = float(match.group(1))
-            if match.group(2) == "s":
-                return {"seconds": int(val)}
-            elif match.group(2) == "m":
+            val = int(match.group(1))
+            unit = match.group(2)
+            if unit == "s":
+                return {"seconds": val}
+            elif unit == "m":
                 return {"seconds": int(timedelta(minutes=val).total_seconds())}
 
         raise AirflowException(
@@ -614,7 +614,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             if time_left < 0:
                 raise AirflowException(f"Cluster {self.cluster_name} is still DELETING state, aborting")
             time.sleep(time_to_sleep)
-            time_left = time_left - time_to_sleep
+            time_left -= time_to_sleep
             try:
                 self._get_cluster(hook)
             except NotFound:
@@ -629,7 +629,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             if time_left < 0:
                 raise AirflowException(f"Cluster {self.cluster_name} is still CREATING state, aborting")
             time.sleep(time_to_sleep)
-            time_left = time_left - time_to_sleep
+            time_left -= time_to_sleep
             cluster = self._get_cluster(hook)
         return cluster
 
@@ -811,18 +811,17 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
             return None
 
         timeout = None
-        match = re.match(r"^(\d+)([smdh])$", self.graceful_decommission_timeout)
+        match = re.fullmatch(r"(\d+)([smdh])", self.graceful_decommission_timeout)
         if match:
-            if match.group(2) == "s":
-                timeout = int(match.group(1))
-            elif match.group(2) == "m":
-                val = float(match.group(1))
+            val = int(match.group(1))
+            unit = match.group(2)
+            if unit == "s":
+                timeout = val
+            elif unit == "m":
                 timeout = int(timedelta(minutes=val).total_seconds())
-            elif match.group(2) == "h":
-                val = float(match.group(1))
+            elif unit == "h":
                 timeout = int(timedelta(hours=val).total_seconds())
-            elif match.group(2) == "d":
-                val = float(match.group(1))
+            elif unit == "d":
                 timeout = int(timedelta(days=val).total_seconds())
 
         if not timeout:
@@ -1052,10 +1051,10 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         self.dataproc_jars = dataproc_jars
         self.region = region
 
-        self.job_error_states = job_error_states if job_error_states is not None else {"ERROR"}
+        self.job_error_states = job_error_states or {"ERROR"}
         self.impersonation_chain = impersonation_chain
         self.hook = DataprocHook(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
-        self.project_id = self.hook.project_id if project_id is None else project_id
+        self.project_id = project_id or self.hook.project_id
         self.job_template: DataProcJobBuilder | None = None
         self.job: dict | None = None
         self.dataproc_job_id = None
@@ -1599,7 +1598,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
     @staticmethod
     def _generate_temp_filename(filename):
-        return f"{time:%Y%m%d%H%M%S}_{str(uuid.uuid4())[:8]}_{ntpath.basename(filename)}"
+        return f"{time:%Y%m%d%H%M%S}_{uuid.uuid4()!s:.8}_{ntpath.basename(filename)}"
 
     def _upload_file_temp(self, bucket, local_file):
         """Upload a local file to a Google Cloud Storage bucket."""
@@ -1790,6 +1789,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode.
     :param polling_interval_seconds: Time (seconds) to wait between calls to check the run status.
+    :param cancel_on_kill: Flag which indicates whether cancel the workflow, when on_kill is called
     """
 
     template_fields: Sequence[str] = ("template_id", "impersonation_chain", "request_id", "parameters")
@@ -1812,6 +1812,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         polling_interval_seconds: int = 10,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1830,6 +1831,8 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.polling_interval_seconds = polling_interval_seconds
+        self.cancel_on_kill = cancel_on_kill
+        self.operation_name: str | None = None
 
     def execute(self, context: Context):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
@@ -1845,24 +1848,26 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.workflow_id = operation.operation.name.split("/")[-1]
+        operation_name = operation.operation.name
+        self.operation_name = operation_name
+        workflow_id = operation_name.split("/")[-1]
         project_id = self.project_id or hook.project_id
         if project_id:
             DataprocWorkflowLink.persist(
                 context=context,
                 operator=self,
-                workflow_id=self.workflow_id,
+                workflow_id=workflow_id,
                 region=self.region,
                 project_id=project_id,
             )
-        self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
+        self.log.info("Template instantiated. Workflow Id : %s", workflow_id)
         if not self.deferrable:
             hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
-            self.log.info("Workflow %s completed successfully", self.workflow_id)
+            self.log.info("Workflow %s completed successfully", workflow_id)
         else:
             self.defer(
                 trigger=DataprocWorkflowTrigger(
-                    name=operation.operation.name,
+                    name=operation_name,
                     project_id=self.project_id,
                     region=self.region,
                     gcp_conn_id=self.gcp_conn_id,
@@ -1878,11 +1883,16 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 
         self.log.info("Workflow %s completed successfully", event["operation_name"])
+
+    def on_kill(self) -> None:
+        if self.cancel_on_kill and self.operation_name:
+            hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+            hook.get_operations_client(region=self.region).cancel_operation(name=self.operation_name)
 
 
 class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator):
@@ -1926,6 +1936,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode.
     :param polling_interval_seconds: Time (seconds) to wait between calls to check the run status.
+    :param cancel_on_kill: Flag which indicates whether cancel the workflow, when on_kill is called
     """
 
     template_fields: Sequence[str] = ("template", "impersonation_chain")
@@ -1946,6 +1957,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         polling_interval_seconds: int = 10,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1963,6 +1975,8 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.polling_interval_seconds = polling_interval_seconds
+        self.cancel_on_kill = cancel_on_kill
+        self.operation_name: str | None = None
 
     def execute(self, context: Context):
         self.log.info("Instantiating Inline Template")
@@ -1977,23 +1991,25 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        self.workflow_id = operation.operation.name.split("/")[-1]
+        operation_name = operation.operation.name
+        self.operation_name = operation_name
+        workflow_id = operation_name.split("/")[-1]
         if project_id:
             DataprocWorkflowLink.persist(
                 context=context,
                 operator=self,
-                workflow_id=self.workflow_id,
+                workflow_id=workflow_id,
                 region=self.region,
                 project_id=project_id,
             )
         if not self.deferrable:
-            self.log.info("Template instantiated. Workflow Id : %s", self.workflow_id)
+            self.log.info("Template instantiated. Workflow Id : %s", workflow_id)
             operation.result()
-            self.log.info("Workflow %s completed successfully", self.workflow_id)
+            self.log.info("Workflow %s completed successfully", workflow_id)
         else:
             self.defer(
                 trigger=DataprocWorkflowTrigger(
-                    name=operation.operation.name,
+                    name=operation_name,
                     project_id=self.project_id or hook.project_id,
                     region=self.region,
                     gcp_conn_id=self.gcp_conn_id,
@@ -2009,11 +2025,16 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         This returns immediately. It relies on trigger to throw an exception,
         otherwise it assumes execution was successful.
         """
-        if event["status"] == "failed" or event["status"] == "error":
+        if event["status"] in ("failed", "error"):
             self.log.exception("Unexpected error in the operation.")
             raise AirflowException(event["message"])
 
         self.log.info("Workflow %s completed successfully", event["operation_name"])
+
+    def on_kill(self) -> None:
+        if self.cancel_on_kill and self.operation_name:
+            hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+            hook.get_operations_client(region=self.region).cancel_operation(name=self.operation_name)
 
 
 class DataprocSubmitJobOperator(GoogleCloudBaseOperator):

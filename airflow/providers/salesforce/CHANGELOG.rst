@@ -27,6 +27,43 @@
 Changelog
 ---------
 
+5.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SalesforceHook compatiblity with Pandas 2.x (#35145)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Work around typing issue in examples and providers (#35494)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+
+5.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+5.4.3
+.....
+
+Misc
+~~~~
+
+* ``Always use 'Literal' from 'typing_extensions' (#33794)``
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 5.4.2
 .....
 

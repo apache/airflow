@@ -53,7 +53,7 @@ const Row = ({
   const instance = task.instances.find((ti) => ti.runId === runId);
   const isSelected = taskId === instance?.taskId;
   const hasQueuedDttm = !!instance?.queuedDttm;
-  const isOpen = openGroupIds.includes(task.label || "");
+  const isOpen = openGroupIds.includes(task.id || "");
 
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);

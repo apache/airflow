@@ -38,9 +38,7 @@ def process_response(
     :param response: The response from SQS
     :return: The processed response
     """
-    if not isinstance(response, dict):
-        return []
-    elif "Messages" not in response:
+    if not isinstance(response, dict) or "Messages" not in response:
         return []
 
     messages = response["Messages"]

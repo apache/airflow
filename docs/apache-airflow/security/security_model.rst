@@ -90,7 +90,9 @@ capabilities authenticated users may have:
    create a Webserver Denial of Service situation and should be trusted
    not to misuse this capability.
 
-4. **Normal Users**: They can view and interact with the UI and API.
+4. **Audit log users**: They can view audit events for the whole Airflow installation.
+
+5. **Normal Users**: They can view and interact with the UI and API.
    They are able to view and edit DAGs, task instances, and DAG runs, and view task logs.
 
 For more information on the capabilities of authenticated UI users, see :doc:`/security/access-control`.
@@ -98,7 +100,22 @@ For more information on the capabilities of authenticated UI users, see :doc:`/s
 Responsibilities of Deployment Managers
 ---------------------------------------
 
-Deployment Managers determine access levels and must understand the potential
+Deployment Managers are responsible for deploying airflow and make it accessible to the users
+in the way that follows best practices of secure deployment applicable to the organization where
+Airflow is deployed. This includes but is not limited to:
+
+* protecting communication using TLS/VPC and whatever network security is required by the organization
+  that is deploying Airflow
+* applying rate-limiting and other forms of protections that is usually applied to web applications
+* applying authentication and authorization to the web application so that only known and authorized
+  users can have access to Airflow
+* any kind of detection of unusual activity and protection against it
+* choosing the right session backend and configuring it properly including timeouts for the session
+
+Airflow does not implement any of those feature natively, and delegates it to the deployment managers
+to deploy all the necessary infrastructure to protect the deployment - as external infrastructure components.
+
+Deployment Managers also determine access levels and must understand the potential
 damage users can cause. Some Deployment Managers may further limit
 access through fine-grained privileges for the **Authenticated UI
 users**. However, these limitations are outside the basic Airflow's

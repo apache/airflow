@@ -24,6 +24,7 @@ import warnings
 from pathlib import Path
 
 import jinja2
+from jinja2 import select_autoescape
 
 from airflow.utils.decorators import remove_task_decorator as _remove_task_decorator
 from airflow.utils.process_utils import execute_in_subprocess
@@ -41,15 +42,13 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
 def _generate_pip_install_cmd_from_file(
     tmp_dir: str, requirements_file_path: str, pip_install_options: list[str]
 ) -> list[str]:
-    cmd = [f"{tmp_dir}/bin/pip", "install"] + pip_install_options + ["-r"]
-    return cmd + [requirements_file_path]
+    return [f"{tmp_dir}/bin/pip", "install", *pip_install_options, "-r", requirements_file_path]
 
 
 def _generate_pip_install_cmd_from_list(
     tmp_dir: str, requirements: list[str], pip_install_options: list[str]
 ) -> list[str]:
-    cmd = [f"{tmp_dir}/bin/pip", "install"] + pip_install_options
-    return cmd + requirements
+    return [f"{tmp_dir}/bin/pip", "install", *pip_install_options, *requirements]
 
 
 def _generate_pip_conf(conf_file: Path, index_urls: list[str]) -> None:
@@ -142,6 +141,10 @@ def write_python_script(
             loader=template_loader, undefined=jinja2.StrictUndefined
         )
     else:
-        template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
+        template_env = jinja2.Environment(
+            loader=template_loader,
+            undefined=jinja2.StrictUndefined,
+            autoescape=select_autoescape(["html", "xml"]),
+        )
     template = template_env.get_template("python_virtualenv_script.jinja2")
     template.stream(**jinja_context).dump(filename)

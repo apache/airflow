@@ -21,7 +21,6 @@ from __future__ import annotations
 import errno
 import json
 import os
-import os.path
 import platform
 import random
 import re
@@ -499,9 +498,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         self.gcp_conn_id = gcp_conn_id
         self.command_line_parameters: list[str] = []
         self.cloud_sql_proxy_socket_directory = self.path_prefix
-        self.sql_proxy_path = (
-            sql_proxy_binary_path if sql_proxy_binary_path else self.path_prefix + "_cloud_sql_proxy"
-        )
+        self.sql_proxy_path = sql_proxy_binary_path or f"{self.path_prefix}_cloud_sql_proxy"
         self.credentials_path = self.path_prefix + "_credentials.json"
         self._build_command_line_parameters()
 
@@ -670,8 +667,7 @@ class CloudSqlProxyRunner(LoggingMixin):
         command_to_run.extend(["--version"])
         command_to_run.extend(self._get_credential_parameters())
         result = subprocess.check_output(command_to_run).decode("utf-8")
-        pattern = re.compile("^.*[V|v]ersion ([^;]*);.*$")
-        matched = pattern.match(result)
+        matched = re.search("[Vv]ersion (.*?);", result)
         if matched:
             return matched.group(1)
         else:
@@ -958,7 +954,7 @@ class CloudSQLDatabaseHook(BaseHook):
     def _get_sqlproxy_instance_specification(self) -> str:
         instance_specification = self._get_instance_socket_name()
         if self.sql_proxy_use_tcp:
-            instance_specification += "=tcp:" + str(self.sql_proxy_tcp_port)
+            instance_specification += f"=tcp:{self.sql_proxy_tcp_port}"
         return instance_specification
 
     def create_connection(self) -> Connection:

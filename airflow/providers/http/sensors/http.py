@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -141,6 +141,9 @@ class HttpSensor(BaseSensorOperator):
         except AirflowException as exc:
             if str(exc).startswith(self.response_error_codes_allowlist):
                 return False
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException from exc
 
             raise exc
 

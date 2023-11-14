@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING
 
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -27,22 +27,20 @@ if TYPE_CHECKING:
     from airflow.jobs.job import Job
     from airflow.serialization.pydantic.job import JobPydantic
 
-J = TypeVar("J", "Job", "JobPydantic", "Job | JobPydantic")
 
-
-class BaseJobRunner(Generic[J]):
+class BaseJobRunner:
     """Abstract class for job runners to derive from."""
 
     job_type = "undefined"
 
-    def __init__(self, job: J) -> None:
+    def __init__(self, job: Job) -> None:
         if job.job_type and job.job_type != self.job_type:
             raise Exception(
                 f"The job is already assigned a different job_type: {job.job_type}."
                 f"This is a bug and should be reported."
             )
         job.job_type = self.job_type
-        self.job: J = job
+        self.job: Job = job
 
     def _execute(self) -> int | None:
         """
@@ -65,7 +63,7 @@ class BaseJobRunner(Generic[J]):
 
     @classmethod
     @provide_session
-    def most_recent_job(cls, session: Session = NEW_SESSION) -> Job | None:
+    def most_recent_job(cls, session: Session = NEW_SESSION) -> Job | JobPydantic | None:
         """Return the most recent job of this type, if any, based on last heartbeat received."""
         from airflow.jobs.job import most_recent_job
 

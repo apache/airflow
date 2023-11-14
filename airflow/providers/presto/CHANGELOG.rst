@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+5.2.1
+.....
+
+Misc
+~~~~
+
+* ``Bump min version of presto client to bring better dbapi compatibility (#35132)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
+5.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+
+5.1.4
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 5.1.3
 .....
 

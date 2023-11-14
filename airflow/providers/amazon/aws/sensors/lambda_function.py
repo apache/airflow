@@ -17,22 +17,23 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
+from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException
-from airflow.sensors.base import BaseSensorOperator
 
-
-class LambdaFunctionStateSensor(BaseSensorOperator):
+class LambdaFunctionStateSensor(AwsBaseSensor[LambdaHook]):
     """
-    Poll the state of the Lambda until it reaches a target state; fails if the query fails.
+    Poll the deployment state of the AWS Lambda function until it reaches a target state.
+
+    Fails if the query fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -46,7 +47,8 @@ class LambdaFunctionStateSensor(BaseSensorOperator):
 
     FAILURE_STATES = ("Failed",)
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = LambdaHook
+    template_fields: Sequence[str] = aws_template_fields(
         "function_name",
         "qualifier",
     )
@@ -57,11 +59,9 @@ class LambdaFunctionStateSensor(BaseSensorOperator):
         function_name: str,
         qualifier: str | None = None,
         target_states: list = ["Active"],
-        aws_conn_id: str = "aws_default",
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self.aws_conn_id = aws_conn_id
         self.function_name = function_name
         self.qualifier = qualifier
         self.target_states = target_states
@@ -74,12 +74,10 @@ class LambdaFunctionStateSensor(BaseSensorOperator):
         state = self.hook.conn.get_function(**trim_none_values(get_function_args))["Configuration"]["State"]
 
         if state in self.FAILURE_STATES:
-            raise AirflowException(
-                "Lambda function state sensor failed because the Lambda is in a failed state"
-            )
+            message = "Lambda function state sensor failed because the Lambda is in a failed state"
+            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
 
         return state in self.target_states
-
-    @cached_property
-    def hook(self) -> LambdaHook:
-        return LambdaHook(aws_conn_id=self.aws_conn_id)

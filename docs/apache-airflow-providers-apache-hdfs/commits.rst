@@ -29,6 +29,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.2.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ===================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`659d94f0ae <https://github.com/apache/airflow/commit/659d94f0ae89f47a7d4b95d6c19ab7f87bd3a60f>`_  2023-09-21   ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+=================================================================================================  ===========  ===================================================================
+
+4.1.1
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`d96f931b99 <https://github.com/apache/airflow/commit/d96f931b991e4afcec6d9206acaa37e10d96d2bc>`_  2023-08-28   ``Use correct headings in HDFS Provider changelog (#33809)``
+`dfa70b9423 <https://github.com/apache/airflow/commit/dfa70b942348ba51be7594499ff54030375e4d89>`_  2023-08-28   ``Fix package name in exception message for hdfs provider (#33813)``
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`a54c2424df <https://github.com/apache/airflow/commit/a54c2424df51bf1acec420f4792a237dabcfa12b>`_  2023-08-23   ``Fix typos (double words and it's/its) (#33623)``
+`c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`8c37b74a20 <https://github.com/apache/airflow/commit/8c37b74a208a808d905c1b86d081d69d7a1aa900>`_  2023-06-28   ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+=================================================================================================  ===========  =======================================================================
+
 4.1.0
 .....
 
@@ -37,6 +71,7 @@ Latest change: 2023-06-20
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
 `8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `d3c8881cc6 <https://github.com/apache/airflow/commit/d3c8881cc607337d3bede1f1b9a9284227e5ebd1>`_  2023-06-08   ``Add HdfsTaskHandler to store task instance logs on HDFS (#31512)``
 `0261bc57bc <https://github.com/apache/airflow/commit/0261bc57bcad3c1f3c0b7f3a4683584462cf1e0e>`_  2023-06-07   ``Updates release notes for snakebite-py3 incompatibility with protobuf (#31756)``

@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
     DataprocCreateClusterOperator,
@@ -37,7 +37,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_cluster_generation"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
@@ -68,7 +68,7 @@ CLUSTER_GENERATOR_CONFIG = ClusterGenerator(
 # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -114,9 +114,8 @@ with models.DAG(
         # TEST SETUP
         create_bucket
         >> upload_file
-        >>
         # TEST BODY
-        create_dataproc_cluster
+        >> create_dataproc_cluster
         # TEST TEARDOWN
         >> [delete_cluster, delete_bucket]
     )

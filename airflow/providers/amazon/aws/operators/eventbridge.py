@@ -19,7 +19,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
 from airflow.utils.helpers import prune_dict
@@ -66,7 +66,6 @@ class EventBridgePutEventsOperator(BaseOperator):
         return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
-
         response = self.hook.conn.put_events(
             **prune_dict(
                 {
@@ -157,7 +156,6 @@ class EventBridgePutRuleOperator(BaseOperator):
         return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
-
         self.log.info('Sending rule "%s" to EventBridge.', self.name)
 
         return self.hook.put_rule(
@@ -260,7 +258,6 @@ class EventBridgeDisableRuleOperator(BaseOperator):
         return EventBridgeHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     def execute(self, context: Context):
-
         self.hook.conn.disable_rule(
             **prune_dict(
                 {

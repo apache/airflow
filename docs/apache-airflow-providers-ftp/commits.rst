@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-ftp
 ------------------------------------------------------
@@ -28,17 +28,61 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.6.1
+.....
+
+Latest change: 2023-10-31
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
+`ff30dcc1e1 <https://github.com/apache/airflow/commit/ff30dcc1e18abf267e4381bcc64a247da3c9af35>`_  2023-10-31   ``FTPHook methods should not change working directory (#35105)``
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`b75f9e8806 <https://github.com/apache/airflow/commit/b75f9e880614fa0427e7d24a1817955f5de658b3>`_  2023-10-18   ``Upgrade pre-commits (#35033)``
+`7a93b19138 <https://github.com/apache/airflow/commit/7a93b1913845710eb67ab4670c1be9e9382c030b>`_  2023-10-16   ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+=================================================================================================  ===========  =========================================================================
+
+3.6.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+=================================================================================================  ===========  ===============================================================
+
+3.5.2
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`4f0e4254e4 <https://github.com/apache/airflow/commit/4f0e4254e4d8b0c3f14b7caf228e30f9e1577123>`_  2023-09-07   ``fix(providers/ftp): respect soft_fail argument when exception is raised (#34161)``
+`9079093291 <https://github.com/apache/airflow/commit/907909329195c6655d1e2989b05609466ef50563>`_  2023-09-07   ``Consolidate importing of os.path.* (#34060)``
+`a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+=================================================================================================  ===========  ====================================================================================
+
 3.5.1
 .....
 
-Latest change: 2023-08-24
+Latest change: 2023-08-26
 
-=================================================================================================  ===========  ==================================================
+=================================================================================================  ===========  ============================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==================================================
+=================================================================================================  ===========  ============================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
 `7e79997594 <https://github.com/apache/airflow/commit/7e799975948573ca2a1c4b2051d3eadc32bb8ba7>`_  2023-08-11   ``D205 Support - Providers - Final Pass (#33303)``
-=================================================================================================  ===========  ==================================================
+=================================================================================================  ===========  ============================================================
 
 3.5.0
 .....

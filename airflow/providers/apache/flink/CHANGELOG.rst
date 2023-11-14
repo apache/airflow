@@ -26,6 +26,31 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/flink): respect soft_fail argument when exception is raised (#34476)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+1.1.3
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
 1.1.2
 .....
 

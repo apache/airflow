@@ -28,6 +28,7 @@ interface Props {
   isOpen?: boolean;
   level?: number;
   label: string;
+  id: string;
 }
 
 const TaskName = ({
@@ -37,11 +38,13 @@ const TaskName = ({
   isOpen = false,
   level = 0,
   label,
+  id,
 }: Props) => (
   <Flex
     as={isGroup ? "button" : "div"}
     onClick={onToggle}
     aria-label={label}
+    data-testid={id}
     title={label}
     mr={4}
     width="100%"

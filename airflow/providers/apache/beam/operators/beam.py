@@ -30,8 +30,8 @@ from contextlib import ExitStack
 from functools import partial
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamPipelineTrigger

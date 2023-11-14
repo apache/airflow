@@ -34,7 +34,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     # [START create_pig]
     run_this = PigOperator(
         task_id="run_example_pig_script",

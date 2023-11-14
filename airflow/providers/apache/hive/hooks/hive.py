@@ -172,7 +172,7 @@ class HiveCliHook(BaseHook):
             )
         try:
             int_port = int(conn.port)
-            if int_port <= 0 or int_port > 65535:
+            if not 0 < int_port <= 65535:
                 raise Exception(f"The port used in beeline command ({conn.port}) should be in range 0-65535)")
         except (ValueError, TypeError) as e:
             raise Exception(f"The port used in beeline command ({conn.port}) should be a valid integer: {e})")
@@ -302,7 +302,6 @@ class HiveCliHook(BaseHook):
         other_ = ";".join(other)
         for query_set in [create, insert]:
             for query in query_set:
-
                 query_preview = " ".join(query.split())[:50]
                 self.log.info("Testing HQL [%s (...)]", query_preview)
                 if query_set == insert:
@@ -315,7 +314,7 @@ class HiveCliHook(BaseHook):
                     message = e.args[0].splitlines()[-2]
                     self.log.info(message)
                     error_loc = re.search(r"(\d+):(\d+)", message)
-                    if error_loc and error_loc.group(1).isdigit():
+                    if error_loc:
                         lst = int(error_loc.group(1))
                         begin = max(lst - 2, 0)
                         end = min(lst + 3, len(query.splitlines()))
@@ -887,7 +886,6 @@ class HiveServer2Hook(DbApiHook):
             sql = [sql]
         previous_description = None
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
-
             cur.arraysize = fetch_size or 1000
 
             # not all query services (e.g. impala AIRFLOW-4434) support the set command

@@ -113,11 +113,11 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 | Image        | Name:tag (both cases latest version and per-build)       | Description                                              |
 +==============+==========================================================+==========================================================+
-| Python image | python:<X.Y>-slim-bullseye                               | Base Python image used by both production and CI image.  |
+| Python image | python:<X.Y>-slim-bookworm                               | Base Python image used by both production and CI image.  |
 | (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
 |              |                                                          | with security fixes every few weeks in DockerHub.        |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bullseye              | Version of python base image used in Airflow Builds      |
+| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bookworm              | Version of python base image used in Airflow Builds      |
 | python base  |                                                          | We keep the "latest" version only to mark last "good"    |
 | image        |                                                          | python base that went through testing and was pushed.    |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
@@ -356,13 +356,17 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +=================================+==========================================================+==========+==========+===========+===================+
 | Build info                      | Prints detailed information about the build              | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Build CI/PROD images            | Builds images in-workflow (not in the build images one)  | -        | Yes      | Yes (1)   | Yes (4)           |
+| Push early cache & images       | Pushes early cache/images to GitHub Registry and test    | -        | Yes      | -         | -                 |
+|                                 | speed of building breeze images from scratch             |          |          |           |                   |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Check that image builds quickly | Checks that image builds quickly without taking a lot of | -        | Yes      | -         | Yes               |
 |                                 | time for ``pip`` to figure out the right set of deps.    |          |          |           |                   |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Push early cache & images       | Pushes early cache/images to GitHub Registry and test    | -        | Yes      | -         | -                 |
-|                                 | speed of building breeze images from scratch             |          |          |           |                   |
+| Build CI images                 | Builds images in-workflow (not in the ``build images``)  | -        | Yes      | Yes (1)   | Yes (4)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Generate constraints            | Generates constraints that were updated in this build    | Yes (2)  | Yes (2)  | Yes (2)   | Yes (2)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Build PROD images               | Builds images in-workflow (not in the ``build images``)  | -        | Yes      | Yes (1)   | Yes (4)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Run breeze tests                | Run unit tests for Breeze                                | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
@@ -370,27 +374,33 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | React WWW tests                 | React UI tests for new Airflow UI                        | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Test image building             | Tests if PROD image build examples work                  | Yes      | Yes      | Yes       | Yes               |
+| Test examples image building    | Tests if PROD image build examples work                  | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Test git clone on Windows       | Tests if Git clone for for Windows                       | Yes (5)  | -        | -         | Yes (5)           |
+| Test git clone on Windows       | Tests if Git clone for for Windows                       | Yes (5)  | Yes (5)  | Yes (5)   | Yes (5)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Waits for CI Images             | Waits for and verify CI Images (2)                       | Yes      | Yes      | Yes       | Yes               |
+| Waits for CI Images             | Waits for and verify CI Images                           | Yes (2)  | Yes (2)  | Yes (2)   | Yes (2)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Static checks                   | Performs full static checks                              | Yes (6)  | Yes      | Yes       | Yes (7)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Basic static checks             | Performs basic static checks                             | Yes (6)  | -        | -         | Yes (7)           |
+| Basic static checks             | Performs basic static checks (no image)                  | Yes (6)  | -        | -         | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Build docs                      | Builds documentation                                     | Yes      | Yes      | Yes       | Yes               |
+| Build docs                      | Builds and tests publishing of the documentation         | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Test Pytest collection          | Tests if pytest collection works                         | Yes      | Yes      | Yes       | Yes               |
+| Tests wheel provider packages   | Tests if provider packages can be built and released     | Yes      | Yes      | Yes       | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Tests                           | Run the Pytest unit tests (Backend/Python matrix)        | Yes      | Yes      | Yes       | Yes (8)           |
+| Tests Airflow compatibility     | Compatibility of provider packages with older Airflow    | Yes      | Yes      | Yes       | -                 |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Tests dist provider packages    | Tests if dist provider packages can be built             | -        | Yes      | Yes       | -                 |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Tests airflow release commands  | Tests if airflow release command works                   | -        | Yes      | Yes       | -                 |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Tests (Backend/Python matrix)   | Run the Pytest unit DB tests (Backend/Python matrix)     | Yes      | Yes      | Yes       | Yes (8)           |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| No DB tests                     | Run the Pytest unit Non-DB tests (with pytest-xdist)     | Yes      | Yes      | Yes       | Yes (8)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Integration tests               | Runs integration tests (Postgres/Mysql)                  | Yes      | Yes      | Yes       | Yes (9)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Quarantined tests               | Runs quarantined tests (with flakiness and side-effects) | Yes      | Yes      | Yes       | Yes (8)           |
-+---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Tests provider packages         | Tests if provider packages can be built and released     | Yes      | Yes      | Yes       | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Test airflow packages           | Tests that Airflow package can be built and released     | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
@@ -398,33 +408,33 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Summarize warnings              | Summarizes warnings from all other tests                 | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Wait for PROD Images            | Waits for and verify PROD Images (2)                     | Yes      | Yes      | Yes       | Yes               |
-+---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Tests Kubernetes                | Run Kubernetes test                                      | Yes      | Yes      | Yes       | -                 |
+| Wait for PROD Images            | Waits for and verify PROD Images                         | Yes (2)  | Yes (2)  | Yes (2)   | Yes (2)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 | Test docker-compose             | Tests if quick-start docker compose works                | Yes      | Yes      | Yes       | Yes               |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Constraints                     | Upgrade constraints to latest ones (3)                   | -        | Yes      | Yes       | Yes               |
+| Tests Kubernetes                | Run Kubernetes test                                      | Yes      | Yes      | Yes       | -                 |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Push cache & images             | Pushes cache/images to GitHub Registry (3)               | -        | Yes      | Yes       | Yes               |
+| Update constraints              | Upgrade constraints to latest ones                       | Yes  (3) | Yes (3)  | Yes (3)   | Yes (3)           |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
-| Build CI ARM images             | Builds CI images for ARM to detect any problems which    | Yes (10) | -        | Yes       | Yes               |
+| Push cache & images             | Pushes cache/images to GitHub Registry (3)               | -        | Yes (3)  | -         | Yes               |
++---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
+| Build CI ARM images             | Builds CI images for ARM to detect any problems which    | Yes (10) | -        | Yes       | -                 |
 |                                 | would only appear if we install all dependencies on ARM  |          |          |           |                   |
 +---------------------------------+----------------------------------------------------------+----------+----------+-----------+-------------------+
 
 ``(1)`` Scheduled jobs builds images from scratch - to test if everything works properly for clean builds
 
-``(2)`` The jobs wait for CI images to be available.
+``(2)`` The jobs wait for CI images to be available. It only actually runs when build image is needed (in
+  case of simpler PRs that do not change dependencies or source code, images are not build)
 
 ``(3)`` PROD and CI cache & images are pushed as "latest" to GitHub Container registry and constraints are
 upgraded only if all tests are successful. The images are rebuilt in this step using constraints pushed
-in the previous step.
+in the previous step. Constraints are only actually pushed in the ``canary`` runs.
 
 ``(4)`` In main, PROD image uses locally build providers using "latest" version of the provider code. In the
 non-main version of the build, the latest released providers from PyPI are used.
 
-``(5)`` Only runs those tests for the builds where public runners are used (so either when non-committer
-runs it or when ``use public runner`` label is assigned to the PR.
+``(5)`` Always run with public runners to test if Git clone works on Windows.
 
 ``(6)`` Run full set of static checks when selective-checks determine that they are needed (basically, when
 Python code has been modified).
@@ -438,7 +448,7 @@ Python code has been modified).
 ``(9)`` On non-main builds the integration tests for providers are skipped via ``skip-provider-tests`` selective
 check output.
 
-``(10)`` Only run the builds in case dependencies are changed (``upgrade-to-newer-dependencies`` is set).
+``(10)`` Only run the builds in case PR is run by a committer from "apache" repository and in scheduled build.
 
 
 CodeQL scan

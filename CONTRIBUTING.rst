@@ -41,9 +41,10 @@ of the community works and you might need to get some mentorship from other memb
 community - mostly committers. Mentoring new members of the community is part of committers
 job so do not be afraid of asking committers to help you. You can do it
 via comments in your Pull Request, asking on a devlist or via Slack. For your convenience,
-we have a dedicated #newbie-questions Slack channel where you can ask any questions
-you want - it's a safe space where it is expected that people asking questions do not know
-a lot about Airflow (yet!).
+we have a dedicated #development-first-pr-support Slack channel where you can ask any questions
+about making your first pull request contribution to the Airflow codebase - it's a safe space
+where it is expected that people asking questions do not know a lot Airflow (yet!).
+If you need help with Airflow see the Slack channel #troubleshooting.
 
 To check on how mentoring works for the projects under Apache Software Foundation's
 `Apache Community Development - Mentoring <https://community.apache.org/mentoring/>`_.
@@ -179,7 +180,7 @@ There are certain expectations from the members of the security team:
 * They are supposed to be active in assessing, discussing, fixing and releasing the
   security issues in Airflow. While it is perfectly understood that as volunteers, we might have
   periods of lower activity, prolonged lack of activity and participation will result in removal
-  from the team, pending PMC decision (the decision on removal can be taken by LAZY CONSENSUS among
+  from the team, pending PMC decision (the decision on removal can be taken by `LAZY CONSENSUS <https://community.apache.org/committers/lazyConsensus.html>`_ among
   all the PMC members on private@airflow.apache.org mailing list).
 
 * They are not supposed to reveal the information about pending and unfixed security issues to anyone
@@ -671,15 +672,16 @@ aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, 
 apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kafka,
 apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs,
 apprise, arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups,
-cloudant, cncf.kubernetes, common.sql, crypto, dask, daskexecutor, databricks, datadog, dbt.cloud,
-deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker,
-druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
-google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes,
-ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql,
-mysql, neo4j, odbc, openfaas, openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill,
-password, pinot, plexus, postgres, presto, rabbitmq, redis, s3, salesforce, samba, segment,
-sendgrid, sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau,
-tabular, telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
+cloudant, cncf.kubernetes, cohere, common.io, common.sql, crypto, dask, daskexecutor, databricks,
+datadog, dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord,
+doc, doc_gen, docker, druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github,
+github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc,
+jenkins, kerberos, kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp,
+microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch,
+opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pgvector, pinecone, pinot, plexus,
+postgres, presto, rabbitmq, redis, s3, s3fs, salesforce, samba, segment, sendgrid, sentry, sftp,
+singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino,
+vertica, virtualenv, weaviate, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages
@@ -1443,7 +1445,7 @@ You can join the channels via links at the `Airflow Community page <https://airf
 * The `Airflow CWiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home?src=breadcrumbs>`_ for:
    * detailed discussions on big proposals (Airflow Improvement Proposals also name AIPs)
    * helpful, shared resources (for example Apache Airflow logos
-   * information that can be re-used by others (for example instructions on preparing workshops)
+   * information that can be reused by others (for example instructions on preparing workshops)
 * GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs
    * not for architectural discussions (use the devlist for that)
@@ -1457,14 +1459,16 @@ We don't create new issues on JIRA anymore. The reason we still look at JIRA iss
 * The `Apache Airflow Slack <https://s.apache.org/airflow-slack>`_ for:
    * ad-hoc questions related to development (#development channel)
    * asking for review (#development channel)
-   * asking for help with PRs (#how-to-pr channel)
+   * asking for help with first contribution PRs (#development-first-pr-support channel)
    * troubleshooting (#troubleshooting channel)
    * group talks (including SIG - special interest groups) (#sig-* channels)
    * notifications (#announcements channel)
    * random queries (#random channel)
    * regional announcements (#users-* channels)
-   * newbie questions (#newbie-questions channel)
    * occasional discussions (wherever appropriate including group and 1-1 discussions)
+
+Please exercise caution against posting same questions across multiple channels. Doing so not only prevents
+redundancy but also promotes more efficient and effective communication for everyone involved.
 
 The devlist is the most important and official communication channel. Often at Apache project you can
 hear "if it is not in the devlist - it did not happen". If you discuss and agree with someone from the
