@@ -132,23 +132,27 @@ def _interleave_logs(*logs):
         last = v
 
 
-def _get_ti_from_key(ti_key: TaskInstanceKey, session) -> TaskInstance | None:
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
     """Given ti_key, get the TaskInstance."""
     from airflow.models.taskinstance import TaskInstance
 
-    ti = (
+    if isinstance(ti, TaskInstance):
+        return ti
+    val = (
         session.query(TaskInstance)
         .filter(
-            TaskInstance.task_id == ti_key.task_id,
-            TaskInstance.dag_id == ti_key.dag_id,
-            TaskInstance.run_id == ti_key.run_id,
-            TaskInstance.map_index == ti_key.map_index,
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.run_id == ti.run_id,
+            TaskInstance.map_index == ti.map_index,
         )
         .one_or_none()
     )
-    if isinstance(ti, TaskInstance):
-        ti._try_number = ti_key.try_number
-    return ti
+    if isinstance(val, TaskInstance):
+        val._try_number = ti.try_number
+        return val
+    else:
+        raise AirflowException(f"Could not find TaskInstance for {ti}")
 
 
 class FileTaskHandler(logging.Handler):
@@ -245,15 +249,8 @@ class FileTaskHandler(logging.Handler):
 
     def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         """Return the worker log filename."""
-        from airflow.models.taskinstance import TaskInstanceKey
-
         with create_session() as session:
-            if isinstance(ti, TaskInstanceKey):
-                val = _get_ti_from_key(ti, session)
-                if val:  # this is for mypy, which doesn't like assigning TI | TIKey to TI | None
-                    ti = val
-                else:
-                    raise AirflowException(f"Could not find TaskInstance for {ti}")
+            ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
             template = dag_run.get_log_template(session=session).filename
             str_tpl, jinja_tpl = parse_template_string(template)
