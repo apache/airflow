@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar, Collection, Sequence
 
 import attr
@@ -24,6 +25,7 @@ import papermill as pm
 
 from airflow.lineage.entities import File
 from airflow.models import BaseOperator
+from airflow.providers.papermill.hooks.kernel import REMOTE_KERNEL_ENGINE, KernelHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -54,7 +56,14 @@ class PapermillOperator(BaseOperator):
 
     supports_lineage = True
 
-    template_fields: Sequence[str] = ("input_nb", "output_nb", "parameters", "kernel_name", "language_name")
+    template_fields: Sequence[str] = (
+        "input_nb",
+        "output_nb",
+        "parameters",
+        "kernel_name",
+        "language_name",
+        "kernel_conn_id",
+    )
 
     def __init__(
         self,
@@ -64,6 +73,7 @@ class PapermillOperator(BaseOperator):
         parameters: dict | None = None,
         kernel_name: str | None = None,
         language_name: str | None = None,
+        kernel_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -85,11 +95,29 @@ class PapermillOperator(BaseOperator):
 
         self.kernel_name = kernel_name
         self.language_name = language_name
+        self.kernel_conn_id = kernel_conn_id
 
         self.inlets.append(self.input_nb)
         self.outlets.append(self.output_nb)
 
     def execute(self, context: Context):
+        remote_kernel_kwargs = {}
+        kernel_hook = self.hook
+        if kernel_hook:
+            engine_name = REMOTE_KERNEL_ENGINE
+            kernel_connection = kernel_hook.get_conn()
+            remote_kernel_kwargs = {
+                "kernel_ip": kernel_connection.ip,
+                "kernel_shell_port": kernel_connection.shell_port,
+                "kernel_iopub_port": kernel_connection.iopub_port,
+                "kernel_stdin_port": kernel_connection.stdin_port,
+                "kernel_control_port": kernel_connection.control_port,
+                "kernel_hb_port": kernel_connection.hb_port,
+                "kernel_session_key": kernel_connection.session_key,
+            }
+        else:
+            engine_name = None
+
         pm.execute_notebook(
             self.input_nb.url,
             self.output_nb.url,
@@ -98,4 +126,14 @@ class PapermillOperator(BaseOperator):
             report_mode=True,
             kernel_name=self.kernel_name,
             language=self.language_name,
+            engine_name=engine_name,
+            **remote_kernel_kwargs,
         )
+
+    @cached_property
+    def hook(self) -> KernelHook | None:
+        """Get valid hook."""
+        if self.kernel_conn_id:
+            return KernelHook(kernel_conn_id=self.kernel_conn_id)
+        else:
+            return None
