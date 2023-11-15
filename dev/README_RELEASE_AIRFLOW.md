@@ -1018,7 +1018,7 @@ Clients and Core versioning are completely decoupled. Clients also follow SemVer
 Most of the time, if the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml) has
 changed, clients need to be released.
 
-To determine if you should release API clients, you can run:
+To determine if you should release API clients, you can run from the airflow repository:
 
 ```shell
 ./dev/airflow-github api-clients-policy 2.3.2 2.4.0
