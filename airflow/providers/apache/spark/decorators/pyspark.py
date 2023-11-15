@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.hooks.base import BaseHook
 from airflow.operators.python import PythonOperator
+from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -73,34 +74,45 @@ class _PySparkDecoratedOperator(DecoratedOperator, PythonOperator):
         from pyspark import SparkConf
         from pyspark.sql import SparkSession
 
-        conf = SparkConf().setAppName(f"{self.dag_id}-{self.task_id}")
+        conf = SparkConf()
+        conf.set("spark.app.name", f"{self.dag_id}-{self.task_id}")
 
-        master = "local[*]"
+        url = "local[*]"
         if self.conn_id:
+            # we handle both spark connect and spark standalone
             conn = BaseHook.get_connection(self.conn_id)
-            if conn.port:
-                master = f"{conn.host}:{conn.port}"
-            elif conn.host:
-                master = conn.host
+            if conn.conn_type == SparkConnectHook.conn_type:
+                url = SparkConnectHook(self.conn_id).get_connection_url()
+            else:
+                if conn.port:
+                    url = f"{conn.host}:{conn.port}"
+                elif conn.host:
+                    url = conn.host
 
             for key, value in conn.extra_dejson.items():
                 conf.set(key, value)
 
-        conf.setMaster(master)
+        # you cannot have both remote and master
+        if url.startswith("sc://"):
+            conf.set("spark.remote", url)
 
         # task can override connection config
         for key, value in self.config_kwargs.items():
             conf.set(key, value)
 
+        if not conf.get("spark.remote") and not conf.get("spark.master"):
+            conf.set("spark.master", url)
+
         spark = SparkSession.builder.config(conf=conf).getOrCreate()
-        sc = spark.sparkContext
 
         if not self.op_kwargs:
             self.op_kwargs = {}
 
         op_kwargs: dict[str, Any] = dict(self.op_kwargs)
         op_kwargs["spark"] = spark
-        op_kwargs["sc"] = sc
+
+        # spark context is not available when using spark connect
+        op_kwargs["sc"] = spark.sparkContext if not conf.get("spark.remote") else None
 
         self.op_kwargs = op_kwargs
         return super().execute(context)
