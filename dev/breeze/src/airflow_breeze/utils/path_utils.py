@@ -100,8 +100,6 @@ def get_package_setup_metadata_hash() -> str:
 def get_sources_setup_metadata_hash(sources: Path) -> str:
     try:
         the_hash = hashlib.new("blake2b")
-        the_hash.update((sources / "dev" / "breeze" / "setup.py").read_bytes())
-        the_hash.update((sources / "dev" / "breeze" / "setup.cfg").read_bytes())
         the_hash.update((sources / "dev" / "breeze" / "pyproject.toml").read_bytes())
         return the_hash.hexdigest()
     except FileNotFoundError as e:
@@ -268,6 +266,7 @@ AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "providers"
 SYSTEM_TESTS_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers"
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
+DOCS_ROOT = AIRFLOW_SOURCES_ROOT / "docs"
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / ".build"
 GENERATED_DIR = AIRFLOW_SOURCES_ROOT / "generated"
 CONSTRAINTS_CACHE_DIR = BUILD_CACHE_DIR / "constraints"

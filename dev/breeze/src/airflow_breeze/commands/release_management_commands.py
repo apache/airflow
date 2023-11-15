@@ -26,6 +26,7 @@ import time
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
+from subprocess import DEVNULL
 from typing import IO, Generator, NamedTuple
 
 import click
@@ -79,7 +80,7 @@ from airflow_breeze.utils.common_options import (
     option_version_suffix_for_pypi,
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import Output, get_console
+from airflow_breeze.utils.console import MessageType, Output, get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
@@ -88,7 +89,14 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
 )
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions
-from airflow_breeze.utils.packages import convert_to_long_package_names, expand_all_provider_packages
+from airflow_breeze.utils.packages import (
+    expand_all_provider_packages,
+    find_matching_long_package_names,
+    get_available_packages,
+    get_provider_details,
+    get_provider_packages_metadata,
+    get_removed_provider_ids,
+)
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
     SummarizeAfter,
@@ -115,8 +123,7 @@ from airflow_breeze.utils.run_utils import (
     run_command,
     run_compile_www_assets,
 )
-from airflow_breeze.utils.shared_options import get_dry_run, get_forced_answer, get_verbose
-from airflow_breeze.utils.suspended_providers import get_removed_provider_ids
+from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 option_debug_release_management = click.option(
     "--debug",
@@ -219,11 +226,24 @@ def prepare_airflow_packages(
     sys.exit(result_command.returncode)
 
 
+def provider_documentation_summary(documentation: str, message_type: MessageType, packages: list[str]):
+    if packages:
+        get_console().print(f"{documentation}: {len(packages)}\n")
+        get_console().print(f"[{message_type.value}]{' '.join(packages)}")
+        get_console().print()
+
+
 @release_management.command(
     name="prepare-provider-documentation",
     help="Prepare CHANGELOG, README and COMMITS information for providers.",
 )
-@option_debug_release_management
+@click.option(
+    "--skip-git-fetch",
+    is_flag=True,
+    help="Skips removal and recreation of `apache-https-for-providers` remote in git. By default, the "
+    "remote is recreated and fetched to make sure that it's up to date and that recent commits "
+    "are not missing",
+)
 @click.option(
     "--base-branch",
     type=str,
@@ -237,10 +257,16 @@ def prepare_airflow_packages(
     help="Only update minimum version in __init__.py files and regenerate corresponding documentation",
 )
 @click.option(
-    "--regenerate-missing-docs",
+    "--reapply-templates-only",
     is_flag=True,
-    help="Only regenerate missing documentation, do not bump version. Useful if templates were added"
+    help="Only reapply templates, do not bump version. Useful if templates were added"
     " and you need to regenerate documentation.",
+)
+@click.option(
+    "--non-interactive",
+    is_flag=True,
+    help="Run in non-interactive mode. Provides random answers to the type of changes and confirms release"
+    "for providers prepared for release - useful to test the script in non-interactive mode in CI.",
 )
 @argument_provider_packages
 @option_verbose
@@ -248,37 +274,120 @@ def prepare_airflow_packages(
 @option_answer
 def prepare_provider_documentation(
     github_repository: str,
+    skip_git_fetch: bool,
     base_branch: str,
-    debug: bool,
-    provider_packages: list[str],
+    provider_packages: tuple[str],
     only_min_version_update: bool,
-    regenerate_missing_docs: bool,
+    reapply_templates_only: bool,
+    non_interactive: bool,
 ):
-    perform_environment_checks()
-    check_remote_ghcr_io_commands()
+    from airflow_breeze.prepare_providers.provider_documentation import (
+        PrepareReleaseDocsChangesOnlyException,
+        PrepareReleaseDocsErrorOccurredException,
+        PrepareReleaseDocsNoChangesException,
+        PrepareReleaseDocsUserQuitException,
+        PrepareReleaseDocsUserSkippedException,
+        make_sure_remote_apache_exists_and_fetch,
+        update_changelog,
+        update_min_airflow_version,
+        update_release_notes,
+    )
+
     cleanup_python_generated_files()
-    shell_params = ShellParams(
-        mount_sources=MOUNT_ALL,
-        github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        base_branch=base_branch,
-        only_min_version_update=only_min_version_update,
-        regenerate_missing_docs=regenerate_missing_docs,
-        skip_environment_initialization=True,
+    if not provider_packages:
+        provider_packages = get_available_packages()
+
+    if not skip_git_fetch:
+        run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
+        make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
+    provider_packages_metadata = get_provider_packages_metadata()
+    no_changes_packages = []
+    doc_only_packages = []
+    error_packages = []
+    user_skipped_packages = []
+    success_packages = []
+    suspended_packages = []
+    removed_packages = []
+    for provider_package_id in provider_packages:
+        provider_metadata = provider_packages_metadata.get(provider_package_id)
+        if not provider_metadata:
+            get_console().print(
+                f"[error]The package {provider_package_id} is not a provider package. Exiting[/]"
+            )
+            sys.exit(1)
+        if provider_metadata.get("removed", False):
+            get_console().print(
+                f"[warning]The package: {provider_package_id} is scheduled for removal, but "
+                f"since you asked for it, it will be built [/]\n"
+            )
+        elif provider_metadata.get("suspended"):
+            get_console().print(
+                f"[warning]The package: {provider_package_id} is suspended " f"skipping it [/]\n"
+            )
+            suspended_packages.append(provider_package_id)
+            continue
+        if os.environ.get("GITHUB_ACTIONS", "false") != "true":
+            get_console().print("-" * get_console().width)
+        try:
+            with_breaking_changes = False
+            maybe_with_new_features = False
+            with ci_group(f"Update release notes for package '{provider_package_id}' "):
+                get_console().print("Updating documentation for the latest release version.")
+                if not only_min_version_update:
+                    with_breaking_changes, maybe_with_new_features = update_release_notes(
+                        provider_package_id,
+                        reapply_templates_only=reapply_templates_only,
+                        base_branch=base_branch,
+                        regenerate_missing_docs=reapply_templates_only,
+                        non_interactive=non_interactive,
+                    )
+                update_min_airflow_version(
+                    provider_package_id=provider_package_id,
+                    with_breaking_changes=with_breaking_changes,
+                    maybe_with_new_features=maybe_with_new_features,
+                )
+            with ci_group(f"Updates changelog for last release of package '{provider_package_id}'"):
+                update_changelog(
+                    package_id=provider_package_id,
+                    base_branch=base_branch,
+                    reapply_templates_only=reapply_templates_only,
+                    with_breaking_changes=with_breaking_changes,
+                    maybe_with_new_features=maybe_with_new_features,
+                )
+        except PrepareReleaseDocsNoChangesException:
+            no_changes_packages.append(provider_package_id)
+        except PrepareReleaseDocsChangesOnlyException:
+            doc_only_packages.append(provider_package_id)
+        except PrepareReleaseDocsErrorOccurredException:
+            error_packages.append(provider_package_id)
+        except PrepareReleaseDocsUserSkippedException:
+            user_skipped_packages.append(provider_package_id)
+        except PrepareReleaseDocsUserQuitException:
+            break
+        else:
+            if provider_metadata.get("removed"):
+                removed_packages.append(provider_package_id)
+            else:
+                success_packages.append(provider_package_id)
+    get_console().print()
+    get_console().print("\n[info]Summary of prepared packages:\n")
+    provider_documentation_summary("Success", MessageType.SUCCESS, success_packages)
+    provider_documentation_summary("Scheduled for removal", MessageType.SUCCESS, removed_packages)
+    provider_documentation_summary("Docs only", MessageType.SUCCESS, doc_only_packages)
+    provider_documentation_summary("Skipped on no changes", MessageType.WARNING, no_changes_packages)
+    provider_documentation_summary("Suspended", MessageType.WARNING, suspended_packages)
+    provider_documentation_summary("Skipped by user", MessageType.SPECIAL, user_skipped_packages)
+    provider_documentation_summary("Errors", MessageType.ERROR, error_packages)
+    if error_packages:
+        get_console().print("\n[errors]There were errors when generating packages. Exiting!\n")
+        sys.exit(1)
+    if not success_packages and not doc_only_packages and not removed_packages:
+        get_console().print("\n[warning]No packages prepared!\n")
+        sys.exit(0)
+    get_console().print("\n[success]Successfully prepared documentation for packages!\n\n")
+    get_console().print(
+        "\n[info]Please review the updated files, classify " "the changelog entries and commit the changes.\n"
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    cmd_to_run = [
-        "/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh",
-        *provider_packages,
-    ]
-    answer = get_forced_answer()
-    result_command = run_docker_command_with_debug(
-        params=shell_params,
-        command=cmd_to_run,
-        enable_input=answer is None or answer[0].lower() != "y",
-        debug=debug,
-    )
-    sys.exit(result_command.returncode)
 
 
 @release_management.command(
@@ -869,8 +978,8 @@ def publish_docs(
             "Provide the path of cloned airflow-site repo\n"
         )
 
-    current_packages = convert_to_long_package_names(
-        package_filters=package_filter, packages_short_form=expand_all_provider_packages(doc_packages)
+    current_packages = find_matching_long_package_names(
+        short_packages=expand_all_provider_packages(doc_packages), filters=package_filter
     )
     print(f"Publishing docs for {len(current_packages)} package(s)")
     for pkg in current_packages:
@@ -1112,46 +1221,34 @@ def is_package_in_dist(dist_files: list[str], package: str) -> bool:
     )
 
 
-def get_prs_for_package(package_id: str) -> list[int]:
-    import yaml
-
+def get_prs_for_package(provider_id: str) -> list[int]:
     pr_matcher = re.compile(r".*\(#([0-9]*)\)``$")
-    changelog_path = (
-        AIRFLOW_SOURCES_ROOT / "airflow" / "providers" / package_id.replace(".", os.sep) / "CHANGELOG.rst"
-    )
-    # load yaml from file
-    provider_yaml_dict = yaml.safe_load(
-        (
-            AIRFLOW_SOURCES_ROOT
-            / "airflow"
-            / "providers"
-            / package_id.replace(r".", os.sep)
-            / "provider.yaml"
-        ).read_text()
-    )
-    current_release_version = provider_yaml_dict["versions"][0]
     prs = []
-    with open(changelog_path) as changelog_file:
-        changelog_lines = changelog_file.readlines()
-        extract_prs = False
-        skip_line = False
-        for line in changelog_lines:
-            if skip_line:
-                # Skip first "....." header
-                skip_line = False
-            elif line.strip() == current_release_version:
-                extract_prs = True
-                skip_line = True
-            elif extract_prs:
-                if len(line) > 1 and all(c == "." for c in line.strip()):
-                    # Header for next version reached
-                    break
-                if line.startswith(".. Below changes are excluded from the changelog"):
-                    # The reminder of PRs is not important skipping it
-                    break
-                match_result = pr_matcher.match(line.strip())
-                if match_result:
-                    prs.append(int(match_result.group(1)))
+    provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
+    if not provider_yaml_dict:
+        raise RuntimeError(f"The provider id {provider_id} does not have provider.yaml file")
+    current_release_version = provider_yaml_dict["versions"][0]
+    provider_details = get_provider_details(provider_id)
+    changelog_lines = provider_details.changelog_path.read_text().splitlines()
+    extract_prs = False
+    skip_line = False
+    for line in changelog_lines:
+        if skip_line:
+            # Skip first "....." header
+            skip_line = False
+        elif line.strip() == current_release_version:
+            extract_prs = True
+            skip_line = True
+        elif extract_prs:
+            if len(line) > 1 and all(c == "." for c in line.strip()):
+                # Header for next version reached
+                break
+            if line.startswith(".. Below changes are excluded from the changelog"):
+                # The reminder of PRs is not important skipping it
+                break
+            match_result = pr_matcher.match(line.strip())
+            if match_result:
+                prs.append(int(match_result.group(1)))
     return prs
 
 
@@ -1208,18 +1305,18 @@ def generate_issue_content_providers(
         if only_available_in_dist:
             files_in_dist = os.listdir(str(AIRFLOW_SOURCES_ROOT / "dist"))
         prepared_package_ids = []
-        for package_id in provider_packages:
-            if not only_available_in_dist or is_package_in_dist(files_in_dist, package_id):
-                get_console().print(f"Extracting PRs for provider {package_id}")
-                prepared_package_ids.append(package_id)
+        for provider_id in provider_packages:
+            if not only_available_in_dist or is_package_in_dist(files_in_dist, provider_id):
+                get_console().print(f"Extracting PRs for provider {provider_id}")
+                prepared_package_ids.append(provider_id)
             else:
                 get_console().print(
-                    f"Skipping extracting PRs for provider {package_id} as it is missing in dist"
+                    f"Skipping extracting PRs for provider {provider_id} as it is missing in dist"
                 )
                 continue
-            prs = get_prs_for_package(package_id)
-            provider_prs[package_id] = [pr for pr in prs if pr not in excluded_prs]
-            all_prs.update(provider_prs[package_id])
+            prs = get_prs_for_package(provider_id)
+            provider_prs[provider_id] = [pr for pr in prs if pr not in excluded_prs]
+            all_prs.update(provider_prs[provider_id])
         g = Github(github_token)
         repo = g.get_repo("apache/airflow")
         pull_requests: dict[int, PullRequest.PullRequest | Issue.Issue] = {}
@@ -1239,21 +1336,21 @@ def generate_issue_content_providers(
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
                 progress.advance(task)
         providers: dict[str, ProviderPRInfo] = {}
-        for package_id in prepared_package_ids:
-            pull_request_list = [pull_requests[pr] for pr in provider_prs[package_id] if pr in pull_requests]
+        for provider_id in prepared_package_ids:
+            pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
             provider_yaml_dict = yaml.safe_load(
                 (
                     AIRFLOW_SOURCES_ROOT
                     / "airflow"
                     / "providers"
-                    / package_id.replace(".", os.sep)
+                    / provider_id.replace(".", os.sep)
                     / "provider.yaml"
                 ).read_text()
             )
             if pull_request_list:
-                providers[package_id] = ProviderPRInfo(
+                providers[provider_id] = ProviderPRInfo(
                     version=provider_yaml_dict["versions"][0],
-                    provider_package_id=package_id,
+                    provider_package_id=provider_id,
                     pypi_package_name=provider_yaml_dict["package-name"],
                     pr_list=pull_request_list,
                 )
