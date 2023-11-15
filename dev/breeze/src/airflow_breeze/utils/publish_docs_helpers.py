@@ -23,8 +23,6 @@ from glob import glob
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 CONSOLE_WIDTH = 180
 
 ROOT_DIR = Path(__file__).parents[5].resolve()
@@ -54,33 +52,6 @@ def _filepath_to_system_tests(filepath: str):
 def get_provider_yaml_paths():
     """Returns list of provider.yaml files"""
     return sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
-
-
-def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
-    """
-    Load all data from providers files
-
-    :return: A list containing the contents of all provider.yaml files.
-    """
-    import jsonschema
-
-    schema = _load_schema()
-    result = []
-    for provider_yaml_path in get_provider_yaml_paths():
-        with open(provider_yaml_path) as yaml_file:
-            provider = yaml.safe_load(yaml_file)
-        try:
-            jsonschema.validate(provider, schema=schema)
-        except jsonschema.ValidationError:
-            raise Exception(f"Unable to parse: {provider_yaml_path}.")
-        if provider["suspended"] and not include_suspended:
-            continue
-        provider_yaml_dir = os.path.dirname(provider_yaml_path)
-        provider["python-module"] = _filepath_to_module(provider_yaml_dir)
-        provider["package-dir"] = provider_yaml_dir
-        provider["system-tests-dir"] = _filepath_to_system_tests(provider_yaml_dir)
-        result.append(provider)
-    return result
 
 
 def pretty_format_path(path: str, start: str) -> str:

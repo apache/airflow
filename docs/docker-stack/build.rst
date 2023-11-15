@@ -295,6 +295,11 @@ There are two types of images you can extend your image from:
    for AMD64 platform and Postgres for ARM64 platform, but contains no extras or providers, except
    the 4 default providers.
 
+.. note:: Database clients and database providers in slim images
+    Slim images come with database clients preinstalled for your convenience, however the default
+    providers included do not include any database provider. You will still need to manually install
+    any database provider you need
+
 .. note:: Differences of slim image vs. regular image.
 
     The slim image is small comparing to regular image (~500 MB vs ~1.1GB) and you might need to add a

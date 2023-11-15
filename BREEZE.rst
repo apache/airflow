@@ -2047,12 +2047,6 @@ The below example perform documentation preparation for provider packages.
 
      breeze release-management prepare-provider-documentation
 
-By default, the documentation preparation runs package verification to check if all packages are
-importable, but you can add ``--skip-package-verification`` to skip it.
-
-.. code-block:: bash
-
-     breeze release-management prepare-provider-documentation --skip-package-verification
 
 You can also add ``--answer yes`` to perform non-interactive build.
 

@@ -535,14 +535,6 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
-            conn_id="qubole_default",
-            conn_type="qubole",
-            host="localhost",
-        ),
-        session,
-    )
-    merge_conn(
-        Connection(
             conn_id="redis_default",
             conn_type="redis",
             host="redis",
