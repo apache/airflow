@@ -28,7 +28,7 @@ from airflow.utils import db, timezone
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 
-class TestConfig:
+class FakeConfig:
     data: dict[str, Any]
 
     def __init__(self, data: dict[str, Any] | None = None):
@@ -81,7 +81,7 @@ class TestPysparkDecorator:
     @mock.patch("pyspark.SparkConf")
     @mock.patch("pyspark.sql.SparkSession")
     def test_pyspark_decorator_with_connection(self, spark_mock, conf_mock, dag_maker):
-        config = TestConfig()
+        config = FakeConfig()
 
         builder = mock.MagicMock()
         spark_mock.builder.config.return_value = builder
@@ -116,7 +116,7 @@ class TestPysparkDecorator:
     @mock.patch("pyspark.SparkConf")
     @mock.patch("pyspark.sql.SparkSession")
     def test_simple_pyspark_decorator(self, spark_mock, conf_mock, dag_maker):
-        config = TestConfig()
+        config = FakeConfig()
         conf_mock.return_value = config
 
         e = 2
@@ -139,7 +139,7 @@ class TestPysparkDecorator:
     @mock.patch("pyspark.SparkConf")
     @mock.patch("pyspark.sql.SparkSession")
     def test_spark_connect(self, spark_mock, conf_mock, dag_maker):
-        config = TestConfig()
+        config = FakeConfig()
         conf_mock.return_value = config
 
         @task.pyspark(conn_id="spark-connect")
@@ -165,7 +165,7 @@ class TestPysparkDecorator:
     @mock.patch("pyspark.SparkConf")
     @mock.patch("pyspark.sql.SparkSession")
     def test_spark_connect_auth(self, spark_mock, conf_mock, dag_maker):
-        config = TestConfig()
+        config = FakeConfig()
         conf_mock.return_value = config
 
         @task.pyspark(conn_id="spark-connect-auth")
