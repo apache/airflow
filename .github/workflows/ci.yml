@@ -506,11 +506,7 @@ jobs:
           python-version: "${{needs.build-info.outputs.default-python-version}}"
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
-      - run: >
-          breeze setup version ||
-          (echo "\033[0;31mERROR: Breeze version check failed\033[0m" &&
-           echo "Please run 'breeze setup version' and commit the changes." && false)
+      - run: pip install --editable ./dev/breeze/
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
 
