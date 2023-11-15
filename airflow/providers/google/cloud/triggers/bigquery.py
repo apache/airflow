@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, SupportsAbs
+from typing import Any, AsyncIterator, Sequence, SupportsAbs
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
@@ -35,7 +35,15 @@ class BigQueryInsertJobTrigger(BaseTrigger):
     :param project_id: Google Cloud Project where the job is running
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
-    :param poll_interval: polling period in seconds to check for the status
+    :param poll_interval: polling period in seconds to check for the status. (templated)
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account. (templated)
     """
 
     def __init__(
@@ -46,6 +54,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         dataset_id: str | None = None,
         table_id: str | None = None,
         poll_interval: float = 4.0,
+        impersonation_chain: str | Sequence[str] | None = None,
     ):
         super().__init__()
         self.log.info("Using the connection  %s .", conn_id)
@@ -56,6 +65,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         self.project_id = project_id
         self.table_id = table_id
         self.poll_interval = poll_interval
+        self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryInsertJobTrigger arguments and classpath."""
@@ -68,6 +78,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                 "project_id": self.project_id,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
@@ -101,7 +112,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_async_hook(self) -> BigQueryAsyncHook:
-        return BigQueryAsyncHook(gcp_conn_id=self.conn_id)
+        return BigQueryAsyncHook(gcp_conn_id=self.conn_id, impersonation_chain=self.impersonation_chain)
 
 
 class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
@@ -118,6 +129,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                 "project_id": self.project_id,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
@@ -191,6 +203,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                 "project_id": self.project_id,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
                 "as_dict": self.as_dict,
             },
         )
@@ -240,13 +253,20 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table: table name
     :param metrics_thresholds: dictionary of ratios indexed by metrics
-    :param date_filter_column: column name
-    :param days_back: number of days between ds and the ds we want to check
-        against
-    :param ratio_formula: ration formula
-    :param ignore_zero: boolean value to consider zero or not
+    :param date_filter_column: column name. (templated)
+    :param days_back: number of days between ds and the ds we want to check against. (templated)
+    :param ratio_formula: ration formula. (templated)
+    :param ignore_zero: boolean value to consider zero or not. (templated)
     :param table_id: The table ID of the requested table. (templated)
-    :param poll_interval: polling period in seconds to check for the status
+    :param poll_interval: polling period in seconds to check for the status. (templated)
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account. (templated)
     """
 
     def __init__(
@@ -264,6 +284,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         dataset_id: str | None = None,
         table_id: str | None = None,
         poll_interval: float = 4.0,
+        impersonation_chain: str | Sequence[str] | None = None,
     ):
         super().__init__(
             conn_id=conn_id,
@@ -272,6 +293,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
             dataset_id=dataset_id,
             table_id=table_id,
             poll_interval=poll_interval,
+            impersonation_chain=impersonation_chain,
         )
         self.conn_id = conn_id
         self.first_job_id = first_job_id
@@ -299,6 +321,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                 "days_back": self.days_back,
                 "ratio_formula": self.ratio_formula,
                 "ignore_zero": self.ignore_zero,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
@@ -386,12 +409,20 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
     :param conn_id: Reference to google cloud connection id
     :param sql: the sql to be executed
     :param pass_value: pass value
-    :param job_id:  The ID of the job
+    :param job_id: The ID of the job
     :param project_id: Google Cloud Project where the job is running
-    :param tolerance: certain metrics for tolerance
+    :param tolerance: certain metrics for tolerance. (templated)
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
-    :param poll_interval: polling period in seconds to check for the status
+    :param poll_interval: polling period in seconds to check for the status. (templated)
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
 
     def __init__(
@@ -405,6 +436,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         dataset_id: str | None = None,
         table_id: str | None = None,
         poll_interval: float = 4.0,
+        impersonation_chain: str | Sequence[str] | None = None,
     ):
         super().__init__(
             conn_id=conn_id,
@@ -413,6 +445,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
             dataset_id=dataset_id,
             table_id=table_id,
             poll_interval=poll_interval,
+            impersonation_chain=impersonation_chain,
         )
         self.sql = sql
         self.pass_value = pass_value
@@ -432,6 +465,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
                 "table_id": self.table_id,
                 "tolerance": self.tolerance,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
@@ -473,6 +507,14 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
     :param gcp_conn_id: Reference to google cloud connection id
     :param hook_params: params for hook
     :param poll_interval: polling period in seconds to check for the status
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account. (templated)
     """
 
     def __init__(
@@ -483,6 +525,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
         gcp_conn_id: str,
         hook_params: dict[str, Any],
         poll_interval: float = 4.0,
+        impersonation_chain: str | Sequence[str] | None = None,
     ):
         self.dataset_id = dataset_id
         self.project_id = project_id
@@ -490,6 +533,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
         self.gcp_conn_id: str = gcp_conn_id
         self.poll_interval = poll_interval
         self.hook_params = hook_params
+        self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryTableExistenceTrigger arguments and classpath."""
@@ -502,11 +546,14 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
                 "gcp_conn_id": self.gcp_conn_id,
                 "poll_interval": self.poll_interval,
                 "hook_params": self.hook_params,
+                "impersonation_chain": self.impersonation_chain,
             },
         )
 
     def _get_async_hook(self) -> BigQueryTableAsyncHook:
-        return BigQueryTableAsyncHook(gcp_conn_id=self.gcp_conn_id)
+        return BigQueryTableAsyncHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Will run until the table exists in the Google Big Query."""
@@ -561,6 +608,14 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
     :param gcp_conn_id: Reference to google cloud connection id
     :param hook_params: params for hook
     :param poll_interval: polling period in seconds to check for the status
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account. (templated)
     """
 
     def __init__(self, partition_id: str, **kwargs):
@@ -578,13 +633,14 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                 "table_id": self.table_id,
                 "gcp_conn_id": self.gcp_conn_id,
                 "poll_interval": self.poll_interval,
+                "impersonation_chain": self.impersonation_chain,
                 "hook_params": self.hook_params,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Will run until the table exists in the Google Big Query."""
-        hook = BigQueryAsyncHook(gcp_conn_id=self.gcp_conn_id)
+        hook = BigQueryAsyncHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         job_id = None
         while True:
             if job_id is not None:
