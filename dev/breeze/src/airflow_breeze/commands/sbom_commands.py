@@ -37,6 +37,7 @@ from airflow_breeze.utils.cdxgen import (
     build_all_airflow_versions_base_image,
     get_cdxgen_port_mapping,
     get_requirements_for_provider,
+    list_providers_from_providers_requirements,
 )
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -129,9 +130,8 @@ SBOM_INDEX_TEMPLATE = """
     help="List of packages to consider. You can use `apache-airflow` for core "
     "or `apache-airflow-providers` to consider all the providers.",
     type=BetterChoice(["apache-airflow-providers", "apache-airflow"]),
-    multiple=True,
     required=False,
-    default=["apache-airflow"],
+    default="apache-airflow",
 )
 def update_sbom_information(
     airflow_site_directory: Path,
@@ -170,7 +170,17 @@ def update_sbom_information(
 
     airflow_site_archive_directory = airflow_site_directory / "docs-archive"
 
-    if "apache-airflow" in package_filter:
+    def _dir_exists_warn_and_should_skip(dir: Path, force: bool) -> bool:
+        if dir.exists():
+            if not force:
+                get_console().print(f"[warning]The {dir} already exists. Skipping")
+                return True
+            else:
+                get_console().print(f"[warning]The {dir} already exists. Forcing update")
+                return False
+        return False
+
+    if package_filter == "apache-airflow":
         # Create core jobs
         apache_airflow_documentation_directory = airflow_site_archive_directory / "apache-airflow"
 
@@ -180,12 +190,9 @@ def update_sbom_information(
                 get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
                 continue
             destination_dir = airflow_version_dir / "sbom"
-            if destination_dir.exists():
-                if not force:
-                    get_console().print(f"[warning]The {destination_dir} already exists. Skipping")
-                    continue
-                else:
-                    get_console().print(f"[warning]The {destination_dir} already exists. Forcing update")
+
+            if _dir_exists_warn_and_should_skip(destination_dir, force):
+                continue
 
             destination_dir.mkdir(parents=True, exist_ok=True)
 
@@ -193,12 +200,10 @@ def update_sbom_information(
             for python_version in python_versions:
                 target_sbom_file_name = f"apache-airflow-sbom-{airflow_v}-python{python_version}.json"
                 target_sbom_path = destination_dir / target_sbom_file_name
-                if target_sbom_path.exists():
-                    if not force:
-                        get_console().print(f"[warning]The {target_sbom_path} already exists. Skipping")
-                        continue
-                    else:
-                        get_console().print(f"[warning]The {target_sbom_path} already exists. Forcing update")
+
+                if _dir_exists_warn_and_should_skip(target_sbom_path, force):
+                    continue
+
                 jobs_to_run.append(
                     SbomCoreJob(
                         airflow_version=airflow_v,
@@ -208,7 +213,7 @@ def update_sbom_information(
                         target_path=target_sbom_path,
                     )
                 )
-    elif "apache-airflow-providers" in package_filter:
+    elif package_filter == "apache-airflow-providers":
         # Create providers jobs
         user_confirm(
             "You are about to update sbom information for providers, did you refresh the "
@@ -216,32 +221,16 @@ def update_sbom_information(
             quit_allowed=False,
             default_answer=Answer.YES,
         )
-        for node_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH):
-            if not node_name.startswith("provider"):
-                continue
-
-            provider_id, provider_version = node_name.rsplit("-", 1)
-
-            provider_documentation_directory = (
-                airflow_site_archive_directory
-                / f"apache-airflow-providers-{provider_id.replace('provider-', '').replace('.', '-')}"
-            )
-
-            provider_version_documentation_directory = provider_documentation_directory / provider_version
-            if not provider_version_documentation_directory.exists():
-                get_console().print(
-                    f"[warning]The {provider_version_documentation_directory} does not exist. Skipping"
-                )
-                continue
-
+        for (
+            node_name,
+            provider_id,
+            provider_version,
+            provider_version_documentation_directory,
+        ) in list_providers_from_providers_requirements(airflow_site_archive_directory):
             destination_dir = provider_version_documentation_directory / "sbom"
 
-            if destination_dir.exists():
-                if not force:
-                    get_console().print(f"[warning]The {destination_dir} already exists. Skipping")
-                    continue
-                else:
-                    get_console().print(f"[warning]The {destination_dir} already exists. Forcing update")
+            if _dir_exists_warn_and_should_skip(destination_dir, force):
+                continue
 
             destination_dir.mkdir(parents=True, exist_ok=True)
 
@@ -259,12 +248,10 @@ def update_sbom_information(
                     f"apache-airflow-sbom-{provider_id}-{provider_version}-python{python_version}.json"
                 )
                 target_sbom_path = destination_dir / target_sbom_file_name
-                if target_sbom_path.exists():
-                    if not force:
-                        get_console().print(f"[warning]The {target_sbom_path} already exists. Skipping")
-                        continue
-                    else:
-                        get_console().print(f"[warning]The {target_sbom_path} already exists. Forcing update")
+
+                if _dir_exists_warn_and_should_skip(target_sbom_path, force):
+                    continue
+
                 jobs_to_run.append(
                     SbomProviderJob(
                         provider_id=provider_id,
@@ -274,6 +261,10 @@ def update_sbom_information(
                         folder_name=node_name,
                     )
                 )
+
+    if len(jobs_to_run) == 0:
+        get_console().print("[info]Nothing to do, there is no job to process")
+        return
 
     if run_in_parallel:
         parallelism = min(parallelism, len(jobs_to_run))
@@ -309,45 +300,35 @@ def update_sbom_information(
         for job in jobs_to_run:
             produce_sbom_for_application_via_cdxgen_server(job, output=None)
 
-    if "apache-airflow" in package_filter:
+    html_template = SBOM_INDEX_TEMPLATE
+
+    def _generate_index(destination_dir: Path, provider_id: str | None, version: str) -> None:
+        destination_index_path = destination_dir / "index.html"
+        get_console().print(f"[info]Generating index for {destination_dir}")
+        sbom_files = sorted(destination_dir.glob("apache-airflow-sbom-*"))
+        if not get_dry_run():
+            destination_index_path.write_text(
+                jinja2.Template(html_template, autoescape=True, undefined=StrictUndefined).render(
+                    provider_id=provider_id,
+                    version=version,
+                    sbom_files=sbom_files,
+                )
+            )
+
+    if package_filter == "apache-airflow":
         for airflow_v in airflow_versions:
             airflow_version_dir = apache_airflow_documentation_directory / airflow_v
             destination_dir = airflow_version_dir / "sbom"
-            destination_index_path = destination_dir / "index.html"
-            get_console().print(f"[info]Generating index for {destination_dir}")
-            sbom_files = sorted(destination_dir.glob("apache-airflow-sbom-*"))
-            html_template = SBOM_INDEX_TEMPLATE
-            if not get_dry_run():
-                destination_index_path.write_text(
-                    jinja2.Template(html_template, autoescape=True, undefined=StrictUndefined).render(
-                        provider_id=None,
-                        version=airflow_v,
-                        sbom_files=sbom_files,
-                    )
-                )
-    elif "apache-airflow-providers" in package_filter:
-        for node_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH):
-            if not node_name.startswith("provider"):
-                continue
-            provider_id, provider_version = node_name.rsplit("-", 1)
-
-            provider_documentation_directory = (
-                airflow_site_archive_directory
-                / f"apache-airflow-providers-{provider_id.replace('provider-', '').replace('.', '-')}"
-            )
-
-            provider_version_documentation_directory = provider_documentation_directory / provider_version
+            _generate_index(destination_dir, None, airflow_v)
+    elif package_filter == "apache-airflow-providers":
+        for (
+            node_name,
+            provider_id,
+            provider_version,
+            provider_version_documentation_directory,
+        ) in list_providers_from_providers_requirements(airflow_site_archive_directory):
             destination_dir = provider_version_documentation_directory / "sbom"
-            destination_index_path = destination_dir / "index.html"
-            get_console().print(f"[info]Generating index for {destination_dir}")
-            sbom_files = sorted(destination_dir.glob("apache-airflow-sbom-*"))
-            html_template = SBOM_INDEX_TEMPLATE
-            if not get_dry_run():
-                destination_index_path.write_text(
-                    jinja2.Template(html_template, autoescape=True, undefined=StrictUndefined).render(
-                        provider_id=provider_id, version=provider_version, sbom_files=sbom_files
-                    )
-                )
+            _generate_index(destination_dir, provider_id, provider_version)
 
 
 @sbom.command(name="build-all-airflow-images", help="Generate images with airflow versions pre-installed")

@@ -27,6 +27,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from multiprocessing.pool import Pool
 from pathlib import Path
+from typing import Generator
 
 import yaml
 
@@ -128,6 +129,30 @@ def get_cdxgen_port_mapping(parallelism: int, pool: Pool) -> dict[str, int]:
 
 def get_all_airflow_versions_image_name(python_version: str) -> str:
     return f"ghcr.io/apache/airflow/airflow-dev/all-airflow/python{python_version}"
+
+
+def list_providers_from_providers_requirements(
+    airflow_site_archive_directory: Path,
+) -> Generator[tuple[str, str, str, Path], None, None]:
+    for node_name in os.listdir(PROVIDER_REQUIREMENTS_DIR_PATH):
+        if not node_name.startswith("provider"):
+            continue
+
+        provider_id, provider_version = node_name.rsplit("-", 1)
+
+        provider_documentation_directory = (
+            airflow_site_archive_directory
+            / f"apache-airflow-providers-{provider_id.replace('provider-', '').replace('.', '-')}"
+        )
+        provider_version_documentation_directory = provider_documentation_directory / provider_version
+
+        if not provider_version_documentation_directory.exists():
+            get_console().print(
+                f"[warning]The {provider_version_documentation_directory} does not exist. Skipping"
+            )
+            continue
+
+        yield (node_name, provider_id, provider_version, provider_version_documentation_directory)
 
 
 TARGET_DIR_NAME = "provider_requirements"
@@ -315,7 +340,7 @@ class SbomCoreJob(SbomApplicationJob):
     def get_job_name(self) -> str:
         return f"{self.airflow_version}:python{self.python_version}"
 
-    def download_dependency_files(self, output: Output | None) -> None:
+    def download_dependency_files(self, output: Output | None) -> bool:
         source_dir = self.application_root_path / self.airflow_version / f"python{self.python_version}"
         source_dir.mkdir(parents=True, exist_ok=True)
         lock_file_relative_path = "airflow/www/yarn.lock"
@@ -332,6 +357,8 @@ class SbomCoreJob(SbomApplicationJob):
                 f"[warning]Failed to download constraints file for "
                 f"{self.airflow_version} and {self.python_version}. Skipping"
             )
+            return False
+        return True
 
     def produce(self, output: Output | None, port: int) -> tuple[int, str]:
         import requests
@@ -339,7 +366,9 @@ class SbomCoreJob(SbomApplicationJob):
         get_console(output=output).print(
             f"[info]Updating sbom for Airflow {self.airflow_version} and python {self.python_version}"
         )
-        self.download_dependency_files(output)
+        if not self.download_dependency_files(output):
+            return 0, f"SBOM Generate {self.airflow_version}:{self.python_version}"
+
         get_console(output=output).print(
             f"[info]Generating sbom for Airflow {self.airflow_version} and python {self.python_version} with cdxgen"
         )
