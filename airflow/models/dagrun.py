@@ -758,6 +758,7 @@ class DagRun(Base, LoggingMixin):
         if dag.sla is not None and not self.sla_missed and not self.run_type == DagRunType.BACKFILL_JOB:
             start_time = self.start_date
             ts = timezone.utcnow()
+            print(f"DEBUG: {ts=}, {start_time=}, {dag.sla=}")
             if dag.sla < ts - start_time:
                 self.sla_missed = True
 

@@ -19,10 +19,9 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from airflow.utils.state import DagRunState
-
 if TYPE_CHECKING:
     from airflow.models.taskinstance import SimpleTaskInstance
+    from airflow.utils.state import DagRunState
 
 
 class CallbackRequest:
