@@ -42,15 +42,17 @@ class TaskContextLogger:
     :meta private:
     """
 
-    def __init__(self, component_name: str):
+    def __init__(self, component_name: str, call_site_logger: Logger | None):
         """
         Initialize the task context logger with the component name.
 
         :param component_name: the name of the component that will be used to identify the log messages
+        :param call_site_logger: if provided, message will also be emitted through this logger
         """
         self.component_name = component_name
         self.task_handler = self._get_task_handler()
         self.should_log = self._should_log()
+        self.call_site_logger = call_site_logger
 
     def _should_log(self) -> bool:
         if not TASK_CONTEXT_LOGGER_ENABLED:
@@ -75,18 +77,17 @@ class TaskContextLogger:
             assert isinstance(h, FileTaskHandler)
         return h
 
-    def _log(self, level: int, msg: str, *args, ti: TaskInstance, call_site_logger: Logger | None = None):
+    def _log(self, level: int, msg: str, *args, ti: TaskInstance):
         """
         Emit a log message to the task instance logs.
 
         :param level: the log level
         :param message: the message to relay to task context log
         :param ti: the task instance
-        :param call_site_logger: logger instance from call site to also send message to
         """
-        if call_site_logger and call_site_logger.isEnabledFor(level=level):
+        if self.call_site_logger and self.call_site_logger.isEnabledFor(level=level):
             with suppress(Exception):
-                call_site_logger.log(level, msg, *args)
+                self.call_site_logger.log(level, msg, *args)
 
         if not self.should_log:
             return
@@ -107,82 +108,74 @@ class TaskContextLogger:
         finally:
             task_handler.close()
 
-    def critical(self, msg: str, *args, ti: TaskInstance, call_site_logger: Logger | None = None):
+    def critical(self, msg: str, *args, ti: TaskInstance):
         """
         Emit a log message with level CRITICAL to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
-        :param call_site_logger: logger instance from call site to also send message to
         """
-        self._log(logging.CRITICAL, msg, *args, ti=ti, call_site_logger=call_site_logger)
+        self._log(logging.CRITICAL, msg, *args, ti=ti)
 
-    def fatal(self, msg: str, *args, ti: TaskInstance, call_site_logger: Logger | None = None):
+    def fatal(self, msg: str, *args, ti: TaskInstance):
         """
         Emit a log message with level FATAL to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
-        :param call_site_logger: logger instance from call site to also send message to
         """
-        self._log(logging.FATAL, msg, *args, ti=ti, call_site_logger=call_site_logger)
+        self._log(logging.FATAL, msg, *args, ti=ti)
 
-    def error(self, msg: str, *args, ti: TaskInstance, call_site_logger: Logger | None = None):
+    def error(self, msg: str, *args, ti: TaskInstance):
         """
         Emit a log message with level ERROR to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
-        :param call_site_logger: logger instance from call site to also send message to
         """
-        self._log(logging.ERROR, msg, *args, ti=ti, call_site_logger=call_site_logger)
+        self._log(logging.ERROR, msg, *args, ti=ti)
 
-    def warn(self, msg: str, *args, ti: TaskInstance, call_site_logger: Logger | None = None):
+    def warn(self, msg: str, *args, ti: TaskInstance):
         """
         Emit a log message with level WARN to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
-        :param call_site_logger: logger instance from call site to also send message to
         """
-        self._log(logging.WARN, msg, *args, ti=ti, call_site_logger=call_site_logger)
+        self._log(logging.WARN, msg, *args, ti=ti)
 
-    def warning(self, msg: str, *args, ti: TaskInstance, call_site_logger: Logger | None = None):
+    def warning(self, msg: str, *args, ti: TaskInstance):
         """
         Emit a log message with level WARNING to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
-        :param call_site_logger: logger instance from call site to also send message to
         """
-        self._log(logging.WARNING, msg, *args, ti=ti, call_site_logger=call_site_logger)
+        self._log(logging.WARNING, msg, *args, ti=ti)
 
-    def info(self, msg: str, *args, ti: TaskInstance, call_site_logger: Logger | None = None):
+    def info(self, msg: str, *args, ti: TaskInstance):
         """
         Emit a log message with level INFO to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
-        :param call_site_logger: logger instance from call site to also send message to
         """
-        self._log(logging.INFO, msg, *args, ti=ti, call_site_logger=call_site_logger)
+        self._log(logging.INFO, msg, *args, ti=ti)
 
-    def debug(self, msg: str, *args, ti: TaskInstance, call_site_logger: Logger | None = None):
+    def debug(self, msg: str, *args, ti: TaskInstance):
         """
         Emit a log message with level DEBUG to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
-        :param call_site_logger: logger instance from call site to also send message to
         """
-        self._log(logging.DEBUG, msg, *args, ti=ti, call_site_logger=call_site_logger)
+        self._log(logging.DEBUG, msg, *args, ti=ti)
 
-    def notset(self, msg: str, *args, ti: TaskInstance, call_site_logger: Logger | None = None):
+    def notset(self, msg: str, *args, ti: TaskInstance):
         """
         Emit a log message with level NOTSET to the task instance logs.
 
         :param msg: the message to relay to task context log
         :param ti: the task instance
-        :param call_site_logger: logger instance from call site to also send message to
         """
-        self._log(logging.NOTSET, msg, *args, ti=ti, call_site_logger=call_site_logger)
+        self._log(logging.NOTSET, msg, *args, ti=ti)
