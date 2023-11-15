@@ -137,9 +137,9 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 
     Will raise exception if no TI is found in the database.
     """
-    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 
-    if isinstance(ti, TaskInstance):
+    if not isinstance(ti, TaskInstanceKey):
         return ti
     val = (
         session.query(TaskInstance)
