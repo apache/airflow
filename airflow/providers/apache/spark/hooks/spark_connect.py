@@ -63,13 +63,28 @@ class SparkConnectHook(BaseHook, LoggingMixin):
 
     def get_connection_url(self) -> str:
         conn = self.get_connection(self._conn_id)
-        url = urlparse(conn.host)
 
-        params = {
-            SparkConnectHook.PARAM_USER_ID: conn.login,
-            SparkConnectHook.PARAM_TOKEN: conn.password,
-            SparkConnectHook.PARAM_USE_SSL: conn.extra_dejson.get(SparkConnectHook.PARAM_USE_SSL),
-        }
+        host = conn.host
+        if conn.host.find("://") == -1:
+            host = f"sc://{conn.host}"
+        if conn.port:
+            host = f"{conn.host}:{conn.port}"
+
+        url = urlparse(host)
+
+        if url.path:
+            raise ValueError("Path {url.path} is not supported in Spark Connect connection URL")
+
+        params = {}
+
+        if conn.login:
+            params[SparkConnectHook.PARAM_USER_ID] = conn.login
+
+        if conn.password:
+            params[SparkConnectHook.PARAM_TOKEN] = conn.password
+
+        if conn.extra_dejson.get(SparkConnectHook.PARAM_USE_SSL) is not None:
+            params[SparkConnectHook.PARAM_USE_SSL] = conn.extra_dejson.get(SparkConnectHook.PARAM_USE_SSL)
 
         return urlunparse(
             (
