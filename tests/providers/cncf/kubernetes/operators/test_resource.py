@@ -89,6 +89,19 @@ class TestKubernetesXResourceOperator:
             body=yaml.safe_load(TEST_VALID_RESOURCE_YAML), namespace="default"
         )
 
+    @patch("kubernetes.client.api.CoreV1Api.create_namespaced_persistent_volume_claim")
+    def test_create_application_from_yaml_list(self, mock_create_namespaced_persistent_volume_claim, context):
+        op = KubernetesCreateResourceOperator(
+            yaml_conf=TEST_VALID_LIST_RESOURCE_YAML,
+            dag=self.dag,
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_task_id",
+        )
+
+        op.execute(context)
+
+        assert mock_create_namespaced_persistent_volume_claim.call_count == 2
+
     @patch("kubernetes.client.api.CoreV1Api.delete_namespaced_persistent_volume_claim")
     def test_single_delete_application_from_yaml(
         self, mock_delete_namespaced_persistent_volume_claim, context
