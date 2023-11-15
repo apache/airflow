@@ -15,10 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck source=scripts/in_container/_in_container_script_init.sh
-
-OPTIONAL_VERBOSE_FLAG=()
-PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
 
 set -euo pipefail
 
@@ -38,23 +34,22 @@ function in_container_set_colors() {
 }
 
 function in_container_basic_sanity_check() {
-    
     function assert_in_container() {
-    export VERBOSE=${VERBOSE:="false"}
-    if [[ ! -f /.dockerenv ]]; then
-        echo
-        echo "${COLOR_RED}ERROR: You are not inside the Airflow docker container!  ${COLOR_RESET}"
-        echo
-        echo "You should only run this script in the Airflow docker container as it may override your files."
-        echo "Learn more about how we develop and test airflow in:"
-        echo "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst"
-        echo
-        exit 1
-    fi
+        export VERBOSE=${VERBOSE:="false"}
+        if [[ ! -f /.dockerenv ]]; then
+            echo
+            echo "${COLOR_RED}ERROR: You are not inside the Airflow docker container!  ${COLOR_RESET}"
+            echo
+            echo "You should only run this script in the Airflow docker container as it may override your files."
+            echo "Learn more about how we develop and test airflow in:"
+            echo "https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst"
+            echo
+            exit 1
+        fi
     }
 
     function in_container_go_to_airflow_sources() {
-    pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
+        pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
     }
 
     assert_in_container
