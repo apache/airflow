@@ -51,15 +51,16 @@ class TaskContextLogger:
         """
         self.component_name = component_name
         self.task_handler = self._get_task_handler()
-        self.should_log = self._should_log()
+        self.should_log_to_task_context = self._should_log_to_task_context()
         self.call_site_logger = call_site_logger
 
-    def _should_log(self) -> bool:
+    def _should_log_to_task_context(self) -> bool:
         if not TASK_CONTEXT_LOGGER_ENABLED:
             return False
         if not getattr(self.task_handler, "supports_task_context_logging", False):
             logger.warning("Task handler does not support task context logging")
             return False
+        logger.info("Task context logging is enabled")
         return True
 
     @staticmethod
@@ -82,14 +83,14 @@ class TaskContextLogger:
         Emit a log message to the task instance logs.
 
         :param level: the log level
-        :param message: the message to relay to task context log
+        :param msg: the message to relay to task context log
         :param ti: the task instance
         """
         if self.call_site_logger and self.call_site_logger.isEnabledFor(level=level):
             with suppress(Exception):
                 self.call_site_logger.log(level, msg, *args)
 
-        if not self.should_log:
+        if not self.should_log_to_task_context:
             return
 
         if not self.task_handler:
