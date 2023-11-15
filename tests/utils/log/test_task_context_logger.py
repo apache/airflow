@@ -46,13 +46,13 @@ def task_context_logger_does_not_support_task_context_logging():
 
 
 def test_task_context_logger_enabled_by_default(task_context_logger):
-    assert task_context_logger.should_log_to_task_context is True
+    assert task_context_logger.enabled is True
 
 
 def test_task_handler_not_supports_task_context_logging(
     task_context_logger_does_not_support_task_context_logging,
 ):
-    assert task_context_logger_does_not_support_task_context_logging._should_log_to_task_context() is False
+    assert task_context_logger_does_not_support_task_context_logging._should_enable() is False
 
 
 def test_task_context_log_with_correct_arguments(task_context_logger, mock_task_handler):

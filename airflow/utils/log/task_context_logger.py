@@ -51,10 +51,10 @@ class TaskContextLogger:
         """
         self.component_name = component_name
         self.task_handler = self._get_task_handler()
-        self.should_log_to_task_context = self._should_log_to_task_context()
+        self.enabled = self._should_enable()
         self.call_site_logger = call_site_logger
 
-    def _should_log_to_task_context(self) -> bool:
+    def _should_enable(self) -> bool:
         if not TASK_CONTEXT_LOGGER_ENABLED:
             return False
         if not getattr(self.task_handler, "supports_task_context_logging", False):
@@ -90,7 +90,7 @@ class TaskContextLogger:
             with suppress(Exception):
                 self.call_site_logger.log(level, msg, *args)
 
-        if not self.should_log_to_task_context:
+        if not self.enabled:
             return
 
         if not self.task_handler:
