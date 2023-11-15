@@ -802,6 +802,10 @@ match any of the patterns would be ignored (under the hood, ``Pattern.search()``
 to match the pattern). Use the ``#`` character to indicate a comment; all characters
 on a line following a ``#`` will be ignored.
 
+As with most regexp matching in Airflow, the regexp engine is `re2`, which explicitly
+doesn’t support many advanced features, please check its
+[documentation](https://github.com/google/re2/wiki/Syntax) for more information.
+
 With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
 
 * The ``*`` character will any number of characters, except ``/``
