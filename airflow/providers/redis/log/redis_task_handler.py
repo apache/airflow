@@ -81,7 +81,7 @@ class RedisTaskHandler(FileTaskHandler, LoggingMixin):
         ).decode()
         return log_str, {"end_of_log": True}
 
-    def set_context(self, ti: TaskInstance, **kwargs) -> None:
+    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
         super().set_context(ti)
         self.handler = _RedisHandler(
             self.conn,

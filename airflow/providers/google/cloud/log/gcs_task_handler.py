@@ -22,7 +22,7 @@ import os
 import shutil
 from functools import cached_property
 from pathlib import Path
-from typing import Collection
+from typing import TYPE_CHECKING, Collection
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
 from google.cloud import storage  # type: ignore[attr-defined]
@@ -137,8 +137,11 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             project=self.project_id if self.project_id else project_id,
         )
 
-    def set_context(self, ti):
+    def set_context(self, ti, *, identifier: str | None = None):
         super().set_context(ti)
+        if TYPE_CHECKING:
+            assert isinstance(self.handler, logging.FileHandler)
+
         # Log relative path is used to construct local and remote
         # log path to upload log files into GCS and read from the
         # remote location.

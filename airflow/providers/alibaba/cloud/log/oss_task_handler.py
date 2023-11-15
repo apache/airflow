@@ -22,6 +22,8 @@ import os
 import pathlib
 import shutil
 from functools import cached_property
+from logging import FileHandler
+from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
@@ -77,9 +79,11 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
                 remote_conn_id,
             )
 
-    def set_context(self, ti):
+    def set_context(self, ti, *, identifier: str | None = None):
         """Set the context of the handler."""
         super().set_context(ti)
+        if TYPE_CHECKING:
+            assert isinstance(self.handler, FileHandler)
         # Local location and remote location is needed to open and
         # upload local log file to OSS remote storage.
         self.log_relative_path = self._render_filename(ti, ti.try_number)

@@ -96,7 +96,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
         # Replace unsupported log group name characters
         return super()._render_filename(ti, try_number).replace(":", "_")
 
-    def set_context(self, ti):
+    def set_context(self, ti, *, identifier: str | None = None):
         super().set_context(ti)
         self.json_serialize = conf.getimport("aws", "cloudwatch_task_handler_json_serializer")
         self.handler = watchtower.CloudWatchLogHandler(
