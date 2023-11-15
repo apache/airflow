@@ -103,7 +103,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     task: PydanticOperator
     test_mode: bool
     dag_run: Optional[DagRunPydantic]
-    dag_model: DagModelPydantic
+    dag_model: Optional[DagModelPydantic]
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""

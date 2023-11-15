@@ -1468,12 +1468,15 @@ class TaskInstance(Base, LoggingMixin):
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:
-        dag: DAG | DagModel | DagModelPydantic
+        dag: DAG | DagModel | DagModelPydantic | None
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
         if hasattr(ti, "task") and hasattr(ti.task, "dag") and ti.task.dag is not None:
             dag = ti.task.dag
         else:
             dag = ti.dag_model
+
+        if dag is None:
+            raise ValueError("DagModel is empty")
 
         should_pass_filepath = not pickle_id and dag
         path: PurePath | None = None
