@@ -26,6 +26,7 @@ from unittest.mock import call
 
 import pendulum
 import pytest
+import time_machine
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -547,10 +548,13 @@ class TestDagRun:
 
         # Scheduler uses Serialized DAG -- so use that instead of the Actual DAG
         dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
-
+        
+        traveller = time_machine.travel(dag.start_date + datetime.timedelta(minutes=1))
+        traveller.start()   
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
 
         _, callback = dag_run.update_state(execute_callbacks=False)
+
         assert DagRunState.RUNNING == dag_run.state
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
