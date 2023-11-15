@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-14T15:10:14Z
+# This constraints file was automatically generated on 2023-11-15T20:08:06Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -122,7 +122,7 @@ apache-airflow-providers-databricks==5.0.0
 apache-airflow-providers-datadog==3.4.0
 apache-airflow-providers-dbt-cloud==3.4.0
 apache-airflow-providers-dingding==3.3.0
-apache-airflow-providers-discord==3.4.0
+apache-airflow-providers-discord==3.4.1
 apache-airflow-providers-docker==3.8.1
 apache-airflow-providers-elasticsearch==5.1.1
 apache-airflow-providers-exasol==4.3.0
@@ -132,7 +132,7 @@ apache-airflow-providers-github==2.4.0
 apache-airflow-providers-google==10.11.1
 apache-airflow-providers-grpc==3.3.0
 apache-airflow-providers-hashicorp==3.5.0
-apache-airflow-providers-http==4.6.0
+apache-airflow-providers-http==4.7.0
 apache-airflow-providers-imap==3.4.0
 apache-airflow-providers-influxdb==2.3.0
 apache-airflow-providers-jdbc==4.1.0
@@ -235,7 +235,7 @@ celery==5.3.5
 certifi==2023.7.22
 cffi==1.16.0
 cfgv==3.4.0
-cfn-lint==0.83.2
+cfn-lint==0.83.3
 cgroupspy==0.2.2
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -291,7 +291,7 @@ executing==2.0.1
 facebook-business==18.0.4
 fastavro==1.8.2
 fasteners==0.19
-fastjsonschema==2.18.1
+fastjsonschema==2.19.0
 filelock==3.13.1
 flower==2.0.1
 frozenlist==1.4.0
@@ -306,14 +306,14 @@ gevent==23.9.1
 gitdb==4.0.11
 google-ads==22.1.0
 google-api-core==2.14.0
-google-api-python-client==2.107.0
+google-api-python-client==2.108.0
 google-auth-httplib2==0.1.1
 google-auth-oauthlib==1.1.0
 google-auth==2.23.4
-google-cloud-aiplatform==1.36.2
+google-cloud-aiplatform==1.36.3
 google-cloud-appengine-logging==1.3.2
 google-cloud-audit-log==0.2.5
-google-cloud-automl==2.11.3
+google-cloud-automl==2.11.4
 google-cloud-batch==0.17.4
 google-cloud-bigquery-datatransfer==3.12.1
 google-cloud-bigquery-storage==2.22.0
@@ -401,8 +401,8 @@ jsonpatch==1.33
 jsonpath-ng==1.6.0
 jsonpickle==3.0.2
 jsonpointer==2.4
-jsonschema-path==0.3.1
-jsonschema-specifications==2023.7.1
+jsonschema-path==0.3.2
+jsonschema-specifications==2023.11.1
 jsonschema==4.19.2
 junit-xml==1.9
 jupyter_client==8.6.0
@@ -442,10 +442,10 @@ msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
-mypy-boto3-appflow==1.28.42
-mypy-boto3-rds==1.28.84
-mypy-boto3-redshift-data==1.28.36
-mypy-boto3-s3==1.28.55
+mypy-boto3-appflow==1.29.0
+mypy-boto3-rds==1.29.0
+mypy-boto3-redshift-data==1.29.0
+mypy-boto3-s3==1.29.0
 mypy-extensions==1.0.0
 mypy==1.2.0
 mysql-connector-python==8.0.29
@@ -493,7 +493,7 @@ partd==1.4.1
 pathable==0.4.3
 pathspec==0.11.2
 pbr==6.0.0
-pdpyras==5.1.2
+pdpyras==5.1.3
 pendulum==2.1.2
 pexpect==4.8.0
 pgvector==0.2.3
@@ -523,14 +523,15 @@ pure-sasl==0.6.2
 py-partiql-parser==0.4.2
 py4j==0.10.9.7
 pyOpenSSL==23.3.0
+pyarrow-hotfix==0.5
 pyarrow==11.0.0
 pyasn1-modules==0.3.0
 pyasn1==0.5.0
 pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.19.0
-pydantic==2.5.0
-pydantic_core==2.14.1
+pydantic==2.5.1
+pydantic_core==2.14.3
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.5
@@ -576,7 +577,7 @@ reactivex==4.0.4
 readme-renderer==42.0
 redis==4.6.0
 redshift-connector==2.0.916
-referencing==0.30.2
+referencing==0.31.0
 regex==2023.10.3
 requests-file==1.5.1
 requests-kerberos==0.14.0
@@ -585,13 +586,13 @@ requests-ntlm==1.2.0
 requests-oauthlib==1.3.1
 requests-toolbelt==1.0.0
 requests==2.31.0
-responses==0.24.0
+responses==0.24.1
 restructuredtext-lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-argparse==1.4.0
 rich-click==1.7.1
-rich==13.6.0
+rich==13.7.0
 rpds-py==0.12.0
 rsa==4.9
 ruff==0.1.5
@@ -656,7 +657,7 @@ thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.13.0
 tomli==2.0.1
-tomlkit==0.12.2
+tomlkit==0.12.3
 toolz==0.12.0
 tornado==6.3.3
 towncrier==23.11.0
@@ -665,7 +666,7 @@ traitlets==5.13.0
 trino==0.327.0
 twine==4.0.2
 types-Deprecated==1.2.9.3
-types-Markdown==3.5.0.1
+types-Markdown==3.5.0.2
 types-PyMySQL==1.1.0.1
 types-PyYAML==6.0.12.12
 types-aiofiles==23.2.0.0

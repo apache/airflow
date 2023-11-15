@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-14T15:05:48Z
+# This constraints file was automatically generated on 2023-11-15T20:03:30Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -107,7 +107,7 @@ importlib-resources==6.1.1
 inflection==0.5.1
 itsdangerous==2.1.2
 jmespath==1.0.1
-jsonschema-specifications==2023.7.1
+jsonschema-specifications==2023.11.1
 jsonschema==4.19.2
 kombu==5.3.3
 krb5==0.5.1
@@ -154,12 +154,13 @@ prompt-toolkit==3.0.41
 protobuf==4.25.0
 psutil==5.9.6
 pure-sasl==0.6.2
+pyarrow-hotfix==0.5
 pyarrow==14.0.1
 pyasn1-modules==0.3.0
 pyasn1==0.5.0
 pycparser==2.21
-pydantic==2.5.0
-pydantic_core==2.14.1
+pydantic==2.5.1
+pydantic_core==2.14.3
 pykerberos==1.2.4
 pyspnego==0.10.2
 python-daemon==3.0.1
@@ -169,13 +170,13 @@ python-nvd3==0.15.0
 python-slugify==8.0.1
 pytz==2023.3.post1
 pytzdata==2020.1
-referencing==0.30.2
+referencing==0.31.0
 requests-kerberos==0.14.0
 requests-oauthlib==1.3.1
 requests==2.31.0
 rfc3339-validator==0.1.4
 rich-argparse==1.4.0
-rich==13.6.0
+rich==13.7.0
 rpds-py==0.12.0
 rsa==4.9
 s3fs==2023.10.0
