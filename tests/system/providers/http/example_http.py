@@ -122,6 +122,7 @@ def get_next_page_cursor(response) -> dict | None:
     next_cursor = response.json().get("cursor")
     if next_cursor:
         return dict(data={"cursor": next_cursor})
+    return None
 
 
 task_get_paginated = HttpOperator(

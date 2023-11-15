@@ -120,6 +120,9 @@ but to make sure that the following rules are in-place:
    SHA (not tag) and integration with Pull Request Review process when someone creates a PR to upgrade the
    action, which makes it ideal to securely and seamlessly keep the action updated if needed.
 
+   UPDATE: The decision for using submodules have been changed in subsequent ADR
+   [0013-get-rid-of-submodules.md](0013-get-rid-of-submodules.md) to use full-length SHA references.
+
 3) No user code coming from the PR can be executed directly in the "Build image" workflow. For example, the
    build scripts should not import `setup.py` or execute bash scripts coming from other places than:
    * scripts/ci

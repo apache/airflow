@@ -33,6 +33,7 @@ from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 from docker.types import LogConfig, Mount, Ulimit
 from dotenv import dotenv_values
+from typing_extensions import Literal
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -96,7 +97,7 @@ class DockerOperator(BaseOperator):
     :param environment: Environment variables to set in the container. (templated)
     :param private_environment: Private environment variables to set in the container.
         These are not templated, and hidden from the website.
-    :param env_file: Relative path to the .env file with environment variables to set in the container.
+    :param env_file: Relative path to the ``.env`` file with environment variables to set in the container.
         Overridden by variables in the environment parameter. (templated)
     :param force_pull: Pull the docker image on every run. Default is False.
     :param mem_limit: Maximum amount of memory the container can use.
@@ -104,14 +105,14 @@ class DockerOperator(BaseOperator):
         or a string like ``128m`` or ``1g``.
     :param host_tmp_dir: Specify the location of the temporary directory on the host which will
         be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
-    :param network_mode: Network mode for the container.
-        It can be one of the following:
-        bridge - Create new network stack for the container with default docker bridge network
-        None - No networking for this container
-        container:<name|id> - Use the network stack of another container specified via <name|id>
-        host - Use the host network stack. Incompatible with `port_bindings`
-        '<network-name>|<network-id>' - Connects the container to user created network
-        (using `docker network create` command)
+    :param network_mode: Network mode for the container. It can be one of the following:
+
+        - ``"bridge"``: Create new network stack for the container with default docker bridge network
+        - ``"none"``: No networking for this container
+        - ``"container:<name|id>"``: Use the network stack of another container specified via <name|id>
+        - ``"host"``: Use the host network stack. Incompatible with `port_bindings`
+        - ``"<network-name>|<network-id>"``: Connects the container to user created network
+          (using ``docker network create`` command)
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
         to secure the docker connection.
     :param tls_client_cert: Path to the PEM-encoded certificate
@@ -138,9 +139,11 @@ class DockerOperator(BaseOperator):
     :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
     :param dns: Docker custom DNS servers
     :param dns_search: Docker custom DNS search domain
-    :param auto_remove: Auto-removal of the container on daemon side when the
-        container's process exits.
-        The default is never.
+    :param auto_remove: Enable removal of the container when the container's process exits. Possible values:
+
+        - ``never``: (default) do not remove container
+        - ``success``: remove on success
+        - ``force``: always remove container
     :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
         greater than 0. If omitted uses system default.
     :param tty: Allocate pseudo-TTY to the container
@@ -148,6 +151,8 @@ class DockerOperator(BaseOperator):
     :param hostname: Optional hostname for the container.
     :param privileged: Give extended privileges to this container.
     :param cap_add: Include container capabilities
+    :param extra_hosts: Additional hostnames to resolve inside the container,
+        as a mapping of hostname to IP address.
     :param retrieve_output: Should this docker image consistently attempt to pull from and output
         file before manually shutting down the image. Useful for cases where users want a pickle serialized
         output that is not posted to logs
@@ -166,10 +171,14 @@ class DockerOperator(BaseOperator):
     :param port_bindings: Publish a container's port(s) to the host. It is a
         dictionary of value where the key indicates the port to open inside the container
         and value indicates the host port that binds to the container port.
-        Incompatible with ``host`` in ``network_mode``.
+        Incompatible with ``"host"`` in ``network_mode``.
     :param ulimits: List of ulimit options to set for the container. Each item should
         be a :py:class:`docker.types.Ulimit` instance.
     """
+
+    # !!! Changes in DockerOperator's arguments should be also reflected in !!!
+    #  - docs/apache-airflow-providers-docker/decorators/docker.rst
+    #  - airflow/decorators/__init__.pyi  (by a separate PR)
 
     template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
     template_fields_renderers = {"env_file": "yaml"}
@@ -211,7 +220,7 @@ class DockerOperator(BaseOperator):
         docker_conn_id: str | None = None,
         dns: list[str] | None = None,
         dns_search: list[str] | None = None,
-        auto_remove: str = "never",
+        auto_remove: Literal["never", "success", "force"] = "never",
         shm_size: int | None = None,
         tty: bool = False,
         hostname: str | None = None,
@@ -225,28 +234,43 @@ class DockerOperator(BaseOperator):
         log_opts_max_size: str | None = None,
         log_opts_max_file: str | None = None,
         ipc_mode: str | None = None,
-        skip_exit_code: int | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         port_bindings: dict | None = None,
         ulimits: list[Ulimit] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.api_version = api_version
-        if isinstance(auto_remove, bool):
+        if skip_exit_code := kwargs.pop("skip_exit_code", None):
             warnings.warn(
-                "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
+                "`skip_exit_code` is deprecated and will be removed in the future. "
+                "Please use `skip_on_exit_code` instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-        if str(auto_remove) == "False":
-            self.auto_remove = "never"
-        elif str(auto_remove) == "True":
-            self.auto_remove = "success"
-        elif str(auto_remove) in ("never", "success", "force"):
-            self.auto_remove = auto_remove
-        else:
-            raise ValueError("unsupported auto_remove option, use 'never', 'success', or 'force' instead")
+            if skip_on_exit_code is not None and skip_exit_code != skip_on_exit_code:
+                msg = (
+                    f"Conflicting `skip_on_exit_code` provided, "
+                    f"skip_on_exit_code={skip_on_exit_code!r}, skip_exit_code={skip_exit_code!r}."
+                )
+                raise ValueError(msg)
+            skip_on_exit_code = skip_exit_code
+        if isinstance(auto_remove, bool):
+            warnings.warn(
+                "bool value for `auto_remove` is deprecated and will be removed in the future. "
+                "Please use 'never', 'success', or 'force' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            auto_remove = "success" if auto_remove else "never"
+
+        super().__init__(**kwargs)
+        self.api_version = api_version
+        if not auto_remove or auto_remove not in ("never", "success", "force"):
+            msg = (
+                f"Invalid `auto_remove` value {auto_remove!r}, "
+                "expected one of 'never', 'success', or 'force'."
+            )
+            raise ValueError(msg)
+        self.auto_remove = auto_remove
         self.command = command
         self.container_name = container_name
         self.cpus = cpus
@@ -291,14 +315,6 @@ class DockerOperator(BaseOperator):
         self.log_opts_max_size = log_opts_max_size
         self.log_opts_max_file = log_opts_max_file
         self.ipc_mode = ipc_mode
-        if skip_exit_code is not None:
-            warnings.warn(
-                "skip_exit_code is deprecated. Please use skip_on_exit_code",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            skip_on_exit_code = skip_exit_code
-
         self.skip_on_exit_code = (
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)

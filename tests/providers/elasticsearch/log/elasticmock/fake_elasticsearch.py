@@ -325,8 +325,8 @@ class FakeElasticsearch(Elasticsearch):
         "track_scores",
         "version",
     )
-    def count(self, index=None, doc_type=None, body=None, params=None, headers=None):
-        searchable_indexes = self._normalize_index_to_list(index, body)
+    def count(self, index=None, doc_type=None, query=None, params=None, headers=None):
+        searchable_indexes = self._normalize_index_to_list(index, query=query)
         searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
         i = 0
         for searchable_index in searchable_indexes:
@@ -372,10 +372,10 @@ class FakeElasticsearch(Elasticsearch):
         "track_scores",
         "version",
     )
-    def search(self, index=None, doc_type=None, body=None, params=None, headers=None):
-        searchable_indexes = self._normalize_index_to_list(index, body)
+    def search(self, index=None, doc_type=None, query=None, params=None, headers=None):
+        searchable_indexes = self._normalize_index_to_list(index, query=query)
 
-        matches = self._find_match(index, doc_type, body)
+        matches = self._find_match(index, doc_type, query=query)
 
         result = {
             "hits": {"total": len(matches), "max_score": 1.0},
@@ -442,11 +442,11 @@ class FakeElasticsearch(Elasticsearch):
             ]
         return result_dict
 
-    def _find_match(self, index, doc_type, body):
-        searchable_indexes = self._normalize_index_to_list(index, body)
+    def _find_match(self, index, doc_type, query):
+        searchable_indexes = self._normalize_index_to_list(index, query=query)
         searchable_doc_types = self._normalize_doc_type_to_list(doc_type)
 
-        must = body["query"]["bool"]["must"][0]  # only support one must
+        must = query["bool"]["must"][0]  # only support one must
 
         matches = []
         for searchable_index in searchable_indexes:
@@ -472,7 +472,7 @@ class FakeElasticsearch(Elasticsearch):
                     matches.append(document)
 
     # Check index(es) exists.
-    def _validate_search_targets(self, targets, body):
+    def _validate_search_targets(self, targets, query):
         # TODO: support allow_no_indices query parameter
         matches = set()
         for target in targets:
@@ -482,10 +482,10 @@ class FakeElasticsearch(Elasticsearch):
             elif "*" in target:
                 matches.update(fnmatch.filter(self.__documents_dict, target))
             elif target not in self.__documents_dict:
-                raise MissingIndexException(msg=f"IndexMissingException[[{target}] missing]", body=body)
+                raise MissingIndexException(msg=f"IndexMissingException[[{target}] missing]", query=query)
         return matches
 
-    def _normalize_index_to_list(self, index, body):
+    def _normalize_index_to_list(self, index, query):
         # Ensure to have a list of index
         if index is None:
             searchable_indexes = self.__documents_dict.keys()
@@ -498,7 +498,7 @@ class FakeElasticsearch(Elasticsearch):
             raise ValueError("Invalid param 'index'")
 
         generator = (target for index in searchable_indexes for target in index.split(","))
-        return list(self._validate_search_targets(generator, body))
+        return list(self._validate_search_targets(generator, query=query))
 
     @staticmethod
     def _normalize_doc_type_to_list(doc_type):

@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.7.2"
+defaultAirflowTag: "2.7.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.7.2"
+airflowVersion: "2.7.3"
 
 # Images
 images:
@@ -626,6 +626,18 @@ workers:
       container: {}
     # container level lifecycle hooks
     containerLifecycleHooks: {}
+
+  kerberosInitContainer:
+    # Enable kerberos init container
+    enabled: false
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
 
   resources: {}
   #  limits:
@@ -1659,6 +1671,9 @@ dagProcessor:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
 
   env: []
 
@@ -2161,6 +2176,7 @@ elasticsearch:
   # Or an object representing the connection
   # Example:
   # connection:
+  #   scheme: ~
   #   user: ~
   #   pass: ~
   #   host: ~

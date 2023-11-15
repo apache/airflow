@@ -43,17 +43,19 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2019, 1, 1, tzinfo=timezone.utc)
 TEST_DAG_ID = "testdag"
 TRIGGERED_DAG_ID = "triggerdag"
-DAG_SCRIPT = (
-    "from datetime import datetime\n\n"
-    "from airflow.models import DAG\n"
-    "from airflow.operators.empty import EmptyOperator\n\n"
-    "dag = DAG(\n"
-    f"dag_id='{TRIGGERED_DAG_ID}', \n"
-    "default_args={'start_date': datetime(2019, 1, 1)}, \n"
-    "schedule=None,\n"
-    ")\n"
-    'task = EmptyOperator(task_id="test", dag=dag)'
+DAG_SCRIPT = f"""\
+from datetime import datetime
+from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
+
+dag = DAG(
+    dag_id='{TRIGGERED_DAG_ID}',
+    default_args={{'start_date': datetime(2019, 1, 1)}},
+    schedule_interval=None
 )
+
+task = EmptyOperator(task_id='test', dag=dag)
+"""
 
 
 class TestDagRunOperator:

@@ -882,6 +882,7 @@ venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
 # therefore we have to extend timeouts for those tests
+@pytest.mark.execution_timeout(120)
 @pytest.mark.virtualenv_operator
 class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     opcls = PythonVirtualenvOperator
@@ -1377,6 +1378,9 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
 # therefore we have to extend timeouts for those tests
+
+
+@pytest.mark.execution_timeout(120)
 @pytest.mark.virtualenv_operator
 class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator):
     opcls = BranchPythonVirtualenvOperator

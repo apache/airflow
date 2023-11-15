@@ -46,6 +46,7 @@ from airflow_breeze.utils.common_options import (
     option_build_timeout_minutes,
     option_builder,
     option_commit_sha,
+    option_debian_version,
     option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -222,6 +223,7 @@ def get_exitcode(status: int) -> int:
 
 @ci_image.command(name="build")
 @option_python
+@option_debian_version
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup

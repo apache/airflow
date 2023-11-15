@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.4.1
+.....
+
+Misc
+~~~~
+
+* ``Add pagination to 'HttpOperator' and make it more modular (#34669)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+
 3.4.0
 .....
 

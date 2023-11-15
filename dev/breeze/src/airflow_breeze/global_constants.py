@@ -26,7 +26,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
@@ -51,6 +51,7 @@ ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -87,7 +88,7 @@ MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
 
 ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
-ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
+ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
 #  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
@@ -96,7 +97,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
 # See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
 MYSQL_LTS_RELEASES: list[str] = []
 MYSQL_OLD_RELEASES = ["8.0"]
-MYSQL_INNOVATION_RELEASE = "8.1"
+MYSQL_INNOVATION_RELEASE = "8.2"
 ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
@@ -105,15 +106,13 @@ ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
 PIP_VERSION = "23.3.1"
 
-# key used for generating providers index
-PROVIDERS_INDEX_KEY = "providers-index"
-# keys for generated non providers docs
-NON_PROVIDERS_DOC_KEYS = ["apache-airflow", "docker-stack", "helm-chart"]
-# Mapping which store short-key:full-key
-ALL_SPECIAL_DOC_KEYS = {
-    PROVIDERS_INDEX_KEY: "apache-airflow-providers",
-    **dict(zip(NON_PROVIDERS_DOC_KEYS, NON_PROVIDERS_DOC_KEYS)),
-}
+# packages that  providers docs
+REGULAR_DOC_PACKAGES = [
+    "apache-airflow",
+    "docker-stack",
+    "helm-chart",
+    "apache-airflow-providers",
+]
 
 
 @lru_cache(maxsize=None)
@@ -183,24 +182,6 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 
 
-def get_available_documentation_packages(short_version=False, only_providers: bool = False) -> list[str]:
-    provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
-    doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
-    available_packages = []
-    if not only_providers:
-        available_packages.extend(NON_PROVIDERS_DOC_KEYS)
-    all_providers = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
-    all_providers.sort()
-    available_packages.extend(all_providers)
-    if short_version:
-        prefix_len = len("apache-airflow-providers-")
-        available_packages = [
-            package[prefix_len:].replace("-", ".") if len(package) > prefix_len else package
-            for package in available_packages
-        ]
-    return available_packages
-
-
 def get_default_platform_machine() -> str:
     machine = platform.uname().machine
     # Some additional conversion for various platforms...
@@ -226,7 +207,7 @@ PYTHONDONTWRITEBYTECODE = True
 PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15", "16"]
+CURRENT_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 USE_MYSQL_INNOVATION_RELEASE = True
 if USE_MYSQL_INNOVATION_RELEASE:
@@ -294,6 +275,7 @@ COMMITTERS = [
     "XD-DENG",
     "aijamalnk",
     "alexvanboxel",
+    "amoghrajesh",
     "aoen",
     "artwr",
     "ashb",
@@ -315,6 +297,7 @@ COMMITTERS = [
     "jhtimmins",
     "jmcarp",
     "josh-fell",
+    "jscheffl",
     "kaxil",
     "leahecole",
     "malthe",
@@ -325,6 +308,7 @@ COMMITTERS = [
     "msumit",
     "o-nikolas",
     "pankajastro",
+    "pankajkoti",
     "phanikumv",
     "pierrejeambrun",
     "pingzh",
@@ -377,6 +361,7 @@ AVAILABLE_INTEGRATIONS = [
     "trino",
 ]
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)

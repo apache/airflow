@@ -30,6 +30,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MSSQL_VERSIONS,
@@ -44,11 +45,9 @@ from airflow_breeze.global_constants import (
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
     DEFAULT_CELERY_BROKER,
-    PROVIDERS_INDEX_KEY,
     SINGLE_PLATFORMS,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
-    get_available_documentation_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
     AnswerChoice,
@@ -61,6 +60,7 @@ from airflow_breeze.utils.custom_param_types import (
     UseAirflowVersionType,
     VerboseOption,
 )
+from airflow_breeze.utils.packages import get_available_packages
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
@@ -131,6 +131,14 @@ option_python = click.option(
     show_default=True,
     help="Python major/minor version used in Airflow image for images.",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
+)
+option_debian_version = click.option(
+    "--debian-version",
+    type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
+    default=ALLOWED_DEBIAN_VERSIONS[0],
+    show_default=True,
+    help="Debian version used in Airflow image as base for building images.",
+    envvar="DEBIAN_VERSION",
 )
 option_backend = click.option(
     "-b",
@@ -445,25 +453,18 @@ option_parallelism = click.option(
     envvar="PARALLELISM",
     show_default=True,
 )
-argument_packages = click.argument(
-    "packages",
+argument_provider_packages = click.argument(
+    "provider_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(get_available_documentation_packages(short_version=True)),
+    type=NotVerifiedBetterChoice(get_available_packages()),
 )
-argument_short_doc_packages = click.argument(
-    "short_doc_packages",
+argument_doc_packages = click.argument(
+    "doc_packages",
     nargs=-1,
     required=False,
-    type=BetterChoice(["all-providers", *get_available_documentation_packages(short_version=True)]),
-)
-
-argument_short_doc_packages_with_providers_index = click.argument(
-    "short_doc_packages",
-    nargs=-1,
-    required=False,
-    type=BetterChoice(
-        ["all-providers", PROVIDERS_INDEX_KEY, *get_available_documentation_packages(short_version=True)]
+    type=NotVerifiedBetterChoice(
+        get_available_packages(include_non_provider_doc_packages=True, include_all_providers=True)
     ),
 )
 
@@ -517,7 +518,7 @@ option_pull = click.option(
 option_python_image = click.option(
     "--python-image",
     help="If specified this is the base python image used to build the image. "
-    "Should be something like: python:VERSION-slim-bullseye.",
+    "Should be something like: python:VERSION-slim-bookworm.",
     envvar="PYTHON_IMAGE",
 )
 option_builder = click.option(

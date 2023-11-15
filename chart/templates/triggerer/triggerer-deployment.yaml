@@ -297,7 +297,7 @@ spec:
         {{- end }}
       spec:
       {{- if .Values.triggerer.persistence.storageClassName }}
-        storageClassName: {{ .Values.triggerer.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.triggerer.persistence.storageClassName . | quote }}
       {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
