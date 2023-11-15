@@ -21,8 +21,6 @@ import os
 import pathlib
 import shutil
 from functools import cached_property
-from logging import FileHandler
-from typing import TYPE_CHECKING
 
 from packaging.version import Version
 
@@ -73,11 +71,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             aws_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"), transfer_config_args={"use_threads": False}
         )
 
-    def set_context(self, ti, *, identifier: str | None = None):
+    def set_context(self, ti):
         super().set_context(ti)
-        if TYPE_CHECKING:
-            assert isinstance(self.handler, FileHandler)
-
         # Local location and remote location is needed to open and
         # upload local log file to S3 remote storage.
         full_path = self.handler.baseFilename

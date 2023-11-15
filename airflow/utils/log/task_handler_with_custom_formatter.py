@@ -34,7 +34,7 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
 
     prefix_jinja_template: Template | None = None
 
-    def set_context(self, ti, *, identifier: str | None = None) -> None:
+    def set_context(self, ti) -> None:
         """
         Accept the run-time context (i.e. the current task) and configure the formatter accordingly.
 

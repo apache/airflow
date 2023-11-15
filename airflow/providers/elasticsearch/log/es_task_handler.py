@@ -377,7 +377,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             setattr(record, self.offset_field, int(time.time() * (10**9)))
             self.handler.emit(record)
 
-    def set_context(self, ti: TaskInstance, *, identifier: str | None = None) -> None:
+    def set_context(self, ti: TaskInstance, **kwargs) -> None:
         """
         Provide task_instance context to airflow task handler.
 

@@ -21,8 +21,6 @@ import os
 import pathlib
 import shutil
 from functools import cached_property
-from logging import FileHandler
-from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from airflow.configuration import conf
@@ -54,12 +52,10 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         """Returns WebHDFSHook."""
         return WebHDFSHook(webhdfs_conn_id=conf.get("logging", "REMOTE_LOG_CONN_ID"))
 
-    def set_context(self, ti, *, identifier: str | None = None):
+    def set_context(self, ti):
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to HDFS storage.
-        if TYPE_CHECKING:
-            assert isinstance(self.handler, FileHandler)
         full_path = self.handler.baseFilename
         self.log_relative_path = pathlib.Path(full_path).relative_to(self.local_base).as_posix()
         is_trigger_log_context = getattr(ti, "is_trigger_log_context", False)
