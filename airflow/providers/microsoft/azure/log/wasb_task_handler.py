@@ -27,12 +27,13 @@ from azure.core.exceptions import HttpResponseError
 from packaging.version import Version
 
 from airflow.configuration import conf
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import logging
+
+    from airflow.models.taskinstance import TaskInstance
 
 
 def get_default_delete_local_copy():
