@@ -646,7 +646,6 @@ EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
     "kubernetes": "cncf.kubernetes",
     "mssql": "microsoft.mssql",
     "pinot": "apache.pinot",
-    "qds": "qubole",
     "s3": "amazon",
     "spark": "apache.spark",
     "webhdfs": "apache.webhdfs",
