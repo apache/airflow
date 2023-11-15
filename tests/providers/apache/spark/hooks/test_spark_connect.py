@@ -59,11 +59,11 @@ class TestSparkConnectHook:
         )
 
     def test_get_connection_url(self):
-        expected_url = "sc://spark-host:1000/?user_id=spark-user&token=1234"
+        expected_url = "sc://spark-host:1000/;user_id=spark-user;token=1234"
         hook = SparkConnectHook(conn_id="spark-default")
         assert hook.get_connection_url() == expected_url
 
-        expected_url = "sc://nowhere/?user_id=spark-user"
+        expected_url = "sc://nowhere/;user_id=spark-user"
         hook = SparkConnectHook(conn_id="spark-test")
         assert hook.get_connection_url() == expected_url
 

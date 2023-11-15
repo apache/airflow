@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from typing import Any
-from urllib.parse import urlencode, urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 from airflow.hooks.base import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -75,24 +75,25 @@ class SparkConnectHook(BaseHook, LoggingMixin):
         if url.path:
             raise ValueError("Path {url.path} is not supported in Spark Connect connection URL")
 
-        params = {}
+        params = []
 
         if conn.login:
-            params[SparkConnectHook.PARAM_USER_ID] = conn.login
+            params.append(f"{SparkConnectHook.PARAM_USER_ID}={quote(conn.login)}")
 
         if conn.password:
-            params[SparkConnectHook.PARAM_TOKEN] = conn.password
+            params.append(f"{SparkConnectHook.PARAM_TOKEN}={quote(conn.password)}")
 
-        if conn.extra_dejson.get(SparkConnectHook.PARAM_USE_SSL) is not None:
-            params[SparkConnectHook.PARAM_USE_SSL] = conn.extra_dejson.get(SparkConnectHook.PARAM_USE_SSL)
+        use_ssl = conn.extra_dejson.get(SparkConnectHook.PARAM_USE_SSL)
+        if use_ssl is not None:
+            params.append(f"{SparkConnectHook.PARAM_USE_SSL}={quote(str(use_ssl))}")
 
         return urlunparse(
             (
                 "sc",
                 url.netloc,
                 "/",
-                "",  # must be empty according to SparkConnect source
-                urlencode(params),
+                ";".join(params),  # params
+                "",
                 url.fragment,
             )
         )

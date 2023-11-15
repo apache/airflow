@@ -182,6 +182,6 @@ class TestPysparkDecorator:
         ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull()
-        assert config.get("spark.remote") == "sc://localhost/?user_id=connect&token=1234&use_ssl=True"
+        assert config.get("spark.remote") == "sc://localhost/;user_id=connect;token=1234;use_ssl=True"
         assert config.get("spark.master") is None
         assert config.get("spark.app.name")
