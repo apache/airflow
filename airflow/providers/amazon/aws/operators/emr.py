@@ -1173,6 +1173,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
+        "name",
     )
 
     template_fields_renderers = {
