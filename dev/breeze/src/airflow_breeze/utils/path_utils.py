@@ -100,8 +100,6 @@ def get_package_setup_metadata_hash() -> str:
 def get_sources_setup_metadata_hash(sources: Path) -> str:
     try:
         the_hash = hashlib.new("blake2b")
-        the_hash.update((sources / "dev" / "breeze" / "setup.py").read_bytes())
-        the_hash.update((sources / "dev" / "breeze" / "setup.cfg").read_bytes())
         the_hash.update((sources / "dev" / "breeze" / "pyproject.toml").read_bytes())
         return the_hash.hexdigest()
     except FileNotFoundError as e:
