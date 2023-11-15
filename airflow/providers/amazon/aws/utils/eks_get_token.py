@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 from datetime import datetime, timedelta, timezone
 
 from airflow.providers.amazon.aws.hooks.eks import EksHook
@@ -58,13 +57,8 @@ def main():
     eks_hook = EksHook(aws_conn_id=args.aws_conn_id, region_name=args.region_name)
     access_token = eks_hook.fetch_access_token_for_cluster(args.cluster_name)
     access_token_expiration = get_expiration_time()
-    exec_credential_object = {
-        "kind": "ExecCredential",
-        "apiVersion": "client.authentication.k8s.io/v1alpha1",
-        "spec": {},
-        "status": {"expirationTimestamp": access_token_expiration, "token": access_token},
-    }
-    print(json.dumps(exec_credential_object))
+    print(f"expirationTimestamp: {access_token_expiration}, token: {access_token}")
+    
 
 
 if __name__ == "__main__":

@@ -38,6 +38,7 @@ STS_TOKEN_EXPIRES_IN = 60
 AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1alpha1"
 _POD_USERNAME = "aws"
 _CONTEXT_NAME = "aws"
+EKS_SCRIPT_PATH = "/opt/airflow/airflow/providers/amazon/aws/utils"
 
 
 class ClusterStates(Enum):
@@ -556,18 +557,11 @@ class EksHook(AwsBaseHook):
                     "user": {
                         "exec": {
                             "apiVersion": AUTHENTICATION_API_VERSION,
-                            "command": "aws",
-                            "args": [
-                                "eks",
-                                "get-token",
-                                "--cluster-name",
-                                eks_cluster_name,
-                            ],
-                            "env": [
-                                {
-                                    "name": "AIRFLOW__LOGGING__LOGGING_LEVEL",
-                                    "value": "FATAL",
-                                }
+                            "command": "sh",
+                             "args": [
+                                "-c",
+                                f"chmod +x {EKS_SCRIPT_PATH}/eks_token_bash.sh &&"\
+                                    f"{EKS_SCRIPT_PATH}/eks_token_bash.sh {eks_cluster_name}"
                             ],
                             "interactiveMode": "Never",
                         }
