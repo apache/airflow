@@ -646,7 +646,6 @@ EXTRAS_DEPRECATED_ALIASES: dict[str, str] = {
     "kubernetes": "cncf.kubernetes",
     "mssql": "microsoft.mssql",
     "pinot": "apache.pinot",
-    "qds": "qubole",
     "s3": "amazon",
     "spark": "apache.spark",
     "webhdfs": "apache.webhdfs",
@@ -822,8 +821,9 @@ def sort_extras_dependencies() -> dict[str, list[str]]:
 EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 
 # Those providers are pre-installed always when airflow is installed.
+# TODO: Sync them with the ones in dev/breeze/src/airflow_breeze/util/packages.py
 PREINSTALLED_PROVIDERS = [
-    #   Until we cut-off the 2.8.0 branch and bump current airflow version to 2.9.0, we should
+    #   Until we cut off the 2.8.0 branch and bump current airflow version to 2.9.0, we should
     #   Keep common.io commented out in order ot be able to generate PyPI constraints because
     #   The version from PyPI has requirement of apache-airflow>=2.8.0
     #   "common.io",
@@ -895,6 +895,8 @@ class AirflowDistribution(Distribution):
                     provider_yaml_file, str(AIRFLOW_SOURCES_ROOT / "airflow")
                 )
                 self.package_data["airflow"].append(provider_relative_path)
+            # Add python_kubernetes_script.jinja2 to package data
+            self.package_data["airflow"].append("providers/cncf/kubernetes/python_kubernetes_script.jinja2")
         else:
             self.install_requires.extend(
                 [
