@@ -49,7 +49,8 @@ export default function useExtraLinks({
       const data = await Promise.all(
         extraLinks.map(async (link) => {
           const definedMapIndex = mapIndex ?? -1;
-          const defaultTryNumber = tryNumber ?? 0;
+          const tryNumberParam =
+            tryNumber !== undefined ? `&try_number=${tryNumber}` : "";
           const url = `${extraLinksUrl}?task_id=${encodeURIComponent(
             taskId
           )}&dag_id=${encodeURIComponent(
@@ -58,7 +59,7 @@ export default function useExtraLinks({
             executionDate
           )}&link_name=${encodeURIComponent(
             link
-          )}&try_number=${defaultTryNumber}&map_index=${definedMapIndex}`;
+          )}&map_index=${definedMapIndex}${tryNumberParam}`;
           try {
             const datum = await axios.get<AxiosResponse, LinkData>(url);
             return {
