@@ -56,6 +56,16 @@ items:
     name: test_pvc_2
 """
 
+TEST_VALID_CRD_YAML = """
+apiVersion: ray.io/v1
+kind: RayJob
+metadata:
+  name: rayjob-sample
+spec:
+  entrypoint: python /home/ray/program/job.py
+  shutdownAfterJobFinishes: true
+"""
+
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook"
 
 
@@ -131,3 +141,43 @@ class TestKubernetesXResourceOperator:
         op.execute(context)
 
         mock_delete_namespaced_persistent_volume_claim.assert_called()
+
+    @patch("kubernetes.client.api.CustomObjectsApi.create_namespaced_custom_object")
+    def test_create_custom_application_from_yaml(self, mock_create_namespaced_custom_object, context):
+        op = KubernetesCreateResourceOperator(
+            yaml_conf=TEST_VALID_CRD_YAML,
+            dag=self.dag,
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_task_id",
+            custom_resource_definition=True,
+        )
+
+        op.execute(context)
+
+        mock_create_namespaced_custom_object.assert_called_once_with(
+            "ray.io",
+            "v1",
+            "default",
+            "rayjobs",
+            yaml.safe_load(TEST_VALID_CRD_YAML),
+        )
+
+    @patch("kubernetes.client.api.CustomObjectsApi.delete_namespaced_custom_object")
+    def test_delete_custom_application_from_yaml(self, mock_delete_namespaced_custom_object, context):
+        op = KubernetesDeleteResourceOperator(
+            yaml_conf=TEST_VALID_CRD_YAML,
+            dag=self.dag,
+            kubernetes_conn_id="kubernetes_default",
+            task_id="test_task_id",
+            custom_resource_definition=True,
+        )
+
+        op.execute(context)
+
+        mock_delete_namespaced_custom_object.assert_called_once_with(
+            "ray.io",
+            "v1",
+            "default",
+            "rayjobs",
+            "rayjob-sample",
+        )
