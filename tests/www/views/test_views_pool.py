@@ -25,6 +25,8 @@ from airflow.models import Pool
 from airflow.utils.session import create_session
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
+pytestmark = pytest.mark.db_test
+
 POOL = {
     "pool": "test-pool",
     "slots": 777,
@@ -127,3 +129,14 @@ def test_pool_muldelete_default(session, admin_client, pool_factory):
     )
     check_content_in_response("default_pool cannot be deleted", resp)
     assert session.query(Pool).filter(Pool.id == pool.id).count() == 1
+
+
+def test_pool_muldelete_access_denied(session, viewer_client, pool_factory):
+    pool = pool_factory()
+
+    resp = viewer_client.post(
+        "/pool/action_post",
+        data={"action": "muldelete", "rowid": [pool.id]},
+        follow_redirects=True,
+    )
+    check_content_in_response("Access is Denied", resp)

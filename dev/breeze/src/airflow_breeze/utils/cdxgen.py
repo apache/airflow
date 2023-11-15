@@ -126,7 +126,7 @@ def get_cdxgen_port_mapping(parallelism: int, pool: Pool) -> dict[str, int]:
 
 
 def get_all_airflow_versions_image_name(python_version: str) -> str:
-    return f"apache/airflow-dev/all_airflow_versions/python{python_version}"
+    return f"ghcr.io/apache/airflow/airflow-dev/all-airflow/python{python_version}"
 
 
 TARGET_DIR_NAME = "provider_requirements"
@@ -240,11 +240,22 @@ def build_all_airflow_versions_base_image(
 ) -> tuple[int, str]:
     """
     Build an image with all airflow versions pre-installed in separate virtualenvs.
+
+    Image cache was built using stable main/ci tags to not rebuild cache on every
+    main new commit. Tags used are:
+
+    main_ci_images_fixed_tags = {
+        "3.6": "latest",
+        "3.7": "latest",
+        "3.8": "e698dbfe25da10d09c5810938f586535633928a4",
+        "3.9": "e698dbfe25da10d09c5810938f586535633928a4",
+        "3.10": "e698dbfe25da10d09c5810938f586535633928a4",
+        "3.11": "e698dbfe25da10d09c5810938f586535633928a4",
+    }
     """
-    image_name = f"apache/airflow-dev/all_airflow_versions/python{python_version}"
     image_name = get_all_airflow_versions_image_name(python_version=python_version)
     dockerfile = f"""
-FROM ghcr.io/apache/airflow/main/ci/python{python_version}
+FROM {image_name}
 RUN pip install --upgrade pip --no-cache-dir
 # Prevent setting sources in PYTHONPATH to not interfere with virtualenvs
 ENV USE_AIRFLOW_VERSION=none
@@ -266,7 +277,11 @@ RUN python -m venv /opt/airflow/airflow-{airflow_version} && \
 constraints-{airflow_version}/constraints-{python_version}.txt
 """
     build_command = run_command(
-        ["docker", "build", "--tag", image_name, "-"], input=dockerfile, text=True, check=True, output=output
+        ["docker", "buildx", "build", "--cache-from", image_name, "--tag", image_name, "-"],
+        input=dockerfile,
+        text=True,
+        check=True,
+        output=output,
     )
     return build_command.returncode, f"All airflow image built for python {python_version}"
 

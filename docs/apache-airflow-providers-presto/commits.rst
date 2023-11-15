@@ -32,11 +32,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 5.2.1
 .....
 
-Latest change: 2023-10-23
+Latest change: 2023-10-28
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `8ef2a9997d <https://github.com/apache/airflow/commit/8ef2a9997d8b6633ba04dd9f752f504a2ce93e25>`_  2023-10-23   ``Bump min version of presto client to bring better dbapi compatibility (#35132)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
 =================================================================================================  ===========  ==================================================================================

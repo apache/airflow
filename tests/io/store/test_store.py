@@ -66,6 +66,12 @@ class TestFs:
         assert path2.key == "key/part1/part2/part3"
         assert path2._protocol == "file"
 
+        # check if we can append a non string to the path
+        path3 = ObjectStoragePath(path2 / 2023)
+        assert path3.bucket == "bucket"
+        assert path3.key == "key/part1/part2/part3/2023"
+        assert path3._protocol == "file"
+
     def test_read_write(self):
         o = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
 

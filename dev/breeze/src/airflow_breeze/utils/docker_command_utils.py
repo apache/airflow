@@ -585,7 +585,6 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, "DOCKER_IS_ROOTLESS", "false")
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
-    set_value_to_default_if_not_set(env, "ENABLE_TEST_COVERAGE", "false")
     set_value_to_default_if_not_set(env, "HELM_TEST_PACKAGE", "")
     set_value_to_default_if_not_set(env, "HOST_GROUP_ID", get_host_group_id())
     set_value_to_default_if_not_set(env, "HOST_OS", get_host_os())
@@ -603,11 +602,9 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_ENVIRONMENT_INITIALIZATION", "false")
-    set_value_to_default_if_not_set(env, "SKIP_PROVIDER_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
     set_value_to_default_if_not_set(env, "SUSPENDED_PROVIDERS_FOLDERS", "")
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
-    set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
     set_value_to_default_if_not_set(env, "UPGRADE_BOTO", "false")
     set_value_to_default_if_not_set(env, "DOWNGRADE_SQLALCHEMY", "false")
     set_value_to_default_if_not_set(env, "UPGRADE_TO_NEWER_DEPENDENCIES", "false")
@@ -619,6 +616,8 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
 
 
 DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
+    "_AIRFLOW_RUN_DB_TESTS_ONLY": "run_db_tests_only",
+    "_AIRFLOW_SKIP_DB_TESTS": "skip_db_tests",
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
     "AIRFLOW_CONSTRAINTS_MODE": "airflow_constraints_mode",
@@ -648,16 +647,16 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
     "ONLY_MIN_VERSION_UPDATE": "only_min_version_update",
-    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "PACKAGE_FORMAT": "package_format",
     "POSTGRES_VERSION": "postgres_version",
     "PYTHON_MAJOR_MINOR_VERSION": "python",
+    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
-    "SKIP_PROVIDER_TESTS": "skip_provider_tests",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
     "UPGRADE_BOTO": "upgrade_boto",
+    "USE_XDIST": "use_xdist",
     "DOWNGRADE_SQLALCHEMY": "downgrade_sqlalchemy",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
@@ -665,6 +664,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "CELERY_FLOWER": "celery_flower",
     "STANDALONE_DAG_PROCESSOR": "standalone_dag_processor",
 }
+
 
 DOCKER_VARIABLE_CONSTANTS = {
     "FLOWER_HOST_PORT": FLOWER_HOST_PORT,

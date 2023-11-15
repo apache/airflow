@@ -19,8 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.auth.managers.fab.cli_commands import sync_perm_command
 from airflow.cli import cli_parser
+
+pytestmark = pytest.mark.db_test
 
 
 class TestCliSyncPerm:

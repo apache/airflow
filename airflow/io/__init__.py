@@ -75,9 +75,10 @@ def get_fs(scheme: str, conn_id: str | None = None) -> AbstractFileSystem:
     """
     filesystems = _register_filesystems()
     try:
-        return filesystems[scheme](conn_id)
+        fs = filesystems[scheme]
     except KeyError:
-        raise ValueError(f"No filesystem registered for scheme {scheme}")
+        raise ValueError(f"No filesystem registered for scheme {scheme}") from None
+    return fs(conn_id)
 
 
 def has_fs(scheme: str) -> bool:

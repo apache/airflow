@@ -60,6 +60,8 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils import db
 
+pytestmark = pytest.mark.db_test
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 

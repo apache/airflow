@@ -25,6 +25,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cloudant.hooks.cloudant import CloudantHook
 
+pytestmark = pytest.mark.db_test
+
 
 class TestCloudantHook:
     def setup_method(self):

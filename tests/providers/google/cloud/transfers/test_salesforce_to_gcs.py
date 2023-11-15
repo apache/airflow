@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.transfers.salesforce_to_gcs import SalesforceToGcsOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
@@ -45,6 +47,7 @@ QUERY_PARAMS = {"DEFAULT_SETTING": "ENABLED"}
 
 
 class TestSalesforceToGcsOperator:
+    @pytest.mark.db_test
     @mock.patch.object(GCSHook, "upload")
     @mock.patch.object(SalesforceHook, "write_object_to_file")
     @mock.patch.object(SalesforceHook, "make_query")

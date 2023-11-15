@@ -35,6 +35,8 @@ from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestClearTasks:
     @pytest.fixture(autouse=True, scope="class")

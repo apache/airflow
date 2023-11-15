@@ -70,6 +70,7 @@ class CommonBuildParams:
     dry_run: bool = False
     version_suffix_for_pypi: str = ""
     verbose: bool = False
+    debian_version: str = "bookworm"
 
     @property
     def airflow_version(self):
@@ -121,7 +122,7 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f"python:{self.python}-slim-bullseye"
+        return f"python:{self.python}-slim-{self.debian_version}"
 
     @property
     def airflow_image_repository(self):

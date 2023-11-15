@@ -66,8 +66,6 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
-
-
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -82,7 +80,7 @@ Package apache-airflow-providers-microsoft-azure
 `Microsoft Azure <https://azure.microsoft.com/>`__
 
 
-Release: 8.0.0
+Release: 8.2.0
 
 Provider package
 ----------------
@@ -106,6 +104,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.5.0
 PIP package                       Version required
 ================================  ==================
 ``apache-airflow``                ``>=2.5.0``
+``adlfs``                         ``>=2023.9.2``
 ``azure-batch``                   ``>=8.0.0``
 ``azure-cosmos``                  ``>=4.0.0``
 ``azure-mgmt-cosmosdb``
@@ -154,5 +153,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-azure 8.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-8.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-8.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-8.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-azure 8.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-8.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-8.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-8.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 8.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-8.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-8.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-8.2.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-azure 8.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-8.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-8.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-8.2.0-py3-none-any.whl.sha512>`__)

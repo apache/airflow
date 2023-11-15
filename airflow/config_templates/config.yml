@@ -1614,6 +1614,13 @@ webserver:
       type: string
       example: ~
       default: "#fff"
+    navbar_text_color:
+      description: |
+        Define the color of text in the navigation bar
+      version_added: 2.8.0
+      type: string
+      example: ~
+      default: "#51504f"
     default_dag_run_display_number:
       description: |
         Default dagrun to show in UI
@@ -1820,6 +1827,21 @@ webserver:
       version_added: 2.7.0
       type: boolean
       example: ~
+      default: "False"
+    allow_raw_html_descriptions:
+      description: |
+        A DAG author is able to provide any raw HTML into ``doc_md`` or params description in
+        ``description_md`` for text formatting. This is including potentially unsafe javascript.
+        Displaying the DAG or trigger form in web UI provides the DAG author the potential to
+        inject malicious code into clients browsers. To ensure the web UI is safe by default,
+        raw HTML is disabled by default. If you trust your DAG authors, you can enable HTML
+        support in markdown by setting this option to True.
+
+        This parameter also enables the deprecated fields ``description_html`` and
+        ``custom_html_form`` in DAG params until the feature is removed in a future version.
+      version_added: 2.8.0
+      type: boolean
+      example: "False"
       default: "False"
 email:
   description: |

@@ -27,7 +27,7 @@ The ``Azure Data Explorer`` connection type enables Azure Data Explorer (ADX) in
 Authenticating to Azure Data Explorer
 ---------------------------------------
 
-There are four ways to connect to Azure Data Explorer using Airflow.
+There are five ways to connect to Azure Data Explorer using Airflow.
 
 1. Use `AAD application certificate
    <https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-certificate-credentials>`_
@@ -38,7 +38,8 @@ There are four ways to connect to Azure Data Explorer using Airflow.
 3. Use a `AAD device code
    <https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-device-code>`_
    (i.e. use "AAD_DEVICE" as the Authentication Method in the Airflow connection).
-4. Fallback on DefaultAzureCredential_.
+4. Use managed identity by setting ``managed_identity_client_id``, ``workload_identity_tenant_id`` (under the hook, it uses DefaultAzureCredential_ with these arguments)
+5. Fallback on DefaultAzureCredential_.
    This includes a mechanism to try different options to authenticate: Managed System Identity, environment variables, authentication through Azure CLI and etc.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
@@ -83,6 +84,12 @@ Application PEM Certificate (optional)
 Application Certificate Thumbprint (optional)
     Specify the thumbprint needed for use with AAD_APP_CERT authentication method.
 
+Managed Identity Client ID (optional)
+    The client ID of a user-assigned managed identity. If provided with ``workload_identity_tenant_id``, they'll pass to DefaultAzureCredential_.
+
+Workload Identity Tenant ID (optional)
+    ID of the application's Microsoft Entra tenant. Also called its "directory" ID. If provided with ``managed_identity_client_id``, they'll pass to DefaultAzureCredential_.
+
 When specifying the connection in environment variable you should specify
 it using URI syntax.
 
@@ -96,3 +103,7 @@ For example:
 
 
 .. _DefaultAzureCredential: https://docs.microsoft.com/en-us/python/api/overview/azure/identity-readme?view=azure-python#defaultazurecredential
+
+.. spelling:word-list::
+
+    Entra
