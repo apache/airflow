@@ -566,7 +566,7 @@ def _convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bo
     headers = ["PIP package", "Version required"]
     table_data = []
     for dependency in requirements:
-        found = re.match(r"(^[^<=>~]*)([^<=>~]?.*)$", dependency)
+        found = re.match(r"(^[^<=>~!]*)([^<=>~!]?.*)$", dependency)
         if found:
             package = found.group(1)
             version_required = found.group(2)
