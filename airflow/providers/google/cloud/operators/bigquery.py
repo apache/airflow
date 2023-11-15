@@ -2829,8 +2829,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             QueryJob._JOB_TYPE: ["destinationTable"],
         }
 
-        project_id = self.project_id or hook.project_id
-        if project_id:
+        if self.project_id:
             for job_type, tables_prop in job_types.items():
                 job_configuration = job.to_api_repr()["configuration"]
                 if job_type in job_configuration:
@@ -2840,7 +2839,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                             persist_kwargs = {
                                 "context": context,
                                 "task_instance": self,
-                                "project_id": project_id,
+                                "project_id": self.project_id,
                                 "table_id": table,
                             }
                             if not isinstance(table, str):
@@ -2849,12 +2848,11 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
                                 persist_kwargs["project_id"] = table["projectId"]
                             BigQueryTableLink.persist(**persist_kwargs)
         self.job_id = job.job_id
-        project_id = self.project_id or self.hook.project_id
 
-        if project_id:
+        if self.project_id:
             job_id_path = convert_job_id(
                 job_id=self.job_id,  # type: ignore[arg-type]
-                project_id=project_id,
+                project_id=self.project_id,
                 location=self.location,
             )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
