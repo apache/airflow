@@ -35,14 +35,14 @@ def mock_task_handler():
 def task_context_logger(mock_task_handler):
     logger = logging.getLogger("airflow.task")
     logger.handlers = [mock_task_handler]
-    return TaskContextLogger("test_component")
+    return TaskContextLogger(component_name="test_component")
 
 
 @pytest.fixture
 def task_context_logger_does_not_support_task_context_logging():
     logger = logging.getLogger("airflow.task")
     logger.handlers = [Mock(supports_task_context_logging=False)]
-    return TaskContextLogger("test_component")
+    return TaskContextLogger(component_name="test_component")
 
 
 def test_task_context_logger_enabled_by_default(task_context_logger):

@@ -234,7 +234,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.processor_agent: DagFileProcessorAgent | None = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
-        self._task_context_logger: TaskContextLogger = TaskContextLogger(self.job_type)
+        self._task_context_logger: TaskContextLogger = TaskContextLogger(component_name=self.job_type)
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -750,15 +750,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
+            # TODO: REMOVE THIS; IT IS JUST FOR TESTING
             self._task_context_logger.info(
-                ti,
-                self.log,
                 "task finished with ti.state=%s state=%s info=%s try=%s _try=%s",
                 ti.state,
                 state,
                 info,
                 ti.try_number,
                 ti._try_number,
+                ti=ti,
+                call_site_logger=self.log,
             )
 
             # There are two scenarios why the same TI with the same try_number is queued
@@ -786,7 +787,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     "Executor reports task instance %s finished (%s) although the "
                     "task says it's %s. (Info: %s) Was the task killed externally?"
                 )
-                self._task_context_logger.error(ti, self.log, msg, ti, state, ti.state, info)
+                self._task_context_logger.error(
+                    msg, ti, state, ti.state, info, ti=ti, call_site_logger=self.log
+                )
 
                 # Get task from the Serialized DAG
                 try:
