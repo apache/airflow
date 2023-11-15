@@ -22,7 +22,7 @@ import os
 import shutil
 import typing
 from pathlib import PurePath
-from urllib.parse import SplitResult, urlsplit
+from urllib.parse import urlsplit
 
 from fsspec.core import split_protocol
 from fsspec.utils import stringify_path
@@ -33,6 +33,8 @@ from airflow.io.store import ObjectStore, attach
 from airflow.io.utils.stat import stat_result
 
 if typing.TYPE_CHECKING:
+    from urllib.parse import SplitResult
+
     from fsspec import AbstractFileSystem
 
 
@@ -42,21 +44,10 @@ default = "file"
 
 
 class _AirflowCloudAccessor(_CloudAccessor):
-    _store: ObjectStore
-    _conn_id: str | None
+    __slots__ = ("_store",)
 
-    __slots__ = ("_store", "_conn_id")
-
-    def __init__(self, parsed_url: SplitResult | None, **kwargs: typing.Any) -> None:
-        _store = kwargs.pop("store", None)
-        conn_id = kwargs.pop("conn_id", None)
-        if _store:
-            self._store = _store
-        elif parsed_url and parsed_url.scheme:
-            self._store = attach(parsed_url.scheme, conn_id)  # todo add kwargs as storage_options
-        else:
-            self._store = attach(default, conn_id)
-        self._conn_id = conn_id
+    def __init__(self, *, store: ObjectStore) -> None:
+        self._store = store
 
     @property
     def _fs(self) -> AbstractFileSystem:
@@ -68,6 +59,8 @@ class _AirflowCloudAccessor(_CloudAccessor):
 
 class ObjectStoragePath(CloudPath):
     """A path-like object for object storage."""
+
+    _accessor: _AirflowCloudAccessor
 
     __version__: typing.ClassVar[int] = 1
 
@@ -89,7 +82,7 @@ class ObjectStoragePath(CloudPath):
         "_hash",
     )
 
-    def __new__(cls: type[PT], *args: str | os.PathLike, **kwargs: typing.Any) -> PT:
+    def __new__(cls: type[PT], *args: str | os.PathLike, conn_id: str | None = None) -> PT:
         args_list = list(args)
         try:
             other = args_list.pop(0)
@@ -99,7 +92,7 @@ class ObjectStoragePath(CloudPath):
             other = other or "."
 
         if isinstance(other, PurePath):
-            _cls: type[typing.Any] = type(other)
+            _cls: typing.Any = type(other)
             drv, root, parts = _cls._parse_args(args_list)
             drv, root, parts = _cls._flavour.join_parsed_parts(
                 other._drv,  # type: ignore[attr-defined]
@@ -115,34 +108,25 @@ class ObjectStoragePath(CloudPath):
             other_kwargs = _kwargs.copy()
             if _url and _url.scheme:
                 other_kwargs["url"] = _url
-            new_kwargs = _kwargs.copy()
-            new_kwargs.update(kwargs)
+            _kwargs["conn_id"] = conn_id
 
-            return _cls(_cls._format_parsed_parts(drv, root, parts, **other_kwargs), **new_kwargs)
+            return _cls(_cls._format_parsed_parts(drv, root, parts, **other_kwargs), **_kwargs)
 
         url = stringify_path(other)
-        protocol, _ = split_protocol(url)
-        parsed_url = urlsplit(url)
-
-        if protocol is None:
-            protocol = kwargs.get("scheme", parsed_url.scheme)
-        else:
-            protocol = kwargs.get("scheme", protocol)
-
-        for key in ["scheme", "netloc"]:
-            val = kwargs.get(key)
-            if val:
-                parsed_url = parsed_url._replace(**{key: val})
+        parsed_url: SplitResult = urlsplit(url)
+        protocol: str | None = split_protocol(url)[0] or parsed_url.scheme
 
         if not parsed_url.path:
             parsed_url = parsed_url._replace(path="/")  # ensure path has root
 
         if not protocol:
             args_list.insert(0, url)
+            store = attach(default, conn_id)
         else:
             args_list.insert(0, parsed_url.path)
+            store = attach(protocol, conn_id)
 
-        return cls._from_parts(args_list, url=parsed_url, **kwargs)  # type: ignore
+        return cls._from_parts(args_list, url=parsed_url, store=store)
 
     @functools.lru_cache
     def __hash__(self) -> int:
@@ -170,8 +154,12 @@ class ObjectStoragePath(CloudPath):
             return ""
 
     def stat(self) -> stat_result:  # type: ignore[override]
-        """Return the result of the `stat()` call."""  # noqa: D402
-        return stat_result(self._accessor.stat(self), protocol=self.protocol, conn_id=self._accessor._conn_id)  # type: ignore[attr-defined]
+        """Call ``stat`` and return the result."""
+        return stat_result(
+            self._accessor.stat(self),
+            protocol=self.protocol,
+            conn_id=self._accessor._store.conn_id,
+        )
 
     def samefile(self, other_path: typing.Any) -> bool:
         """Return whether other_path is the same or not as this file."""
@@ -347,7 +335,7 @@ class ObjectStoragePath(CloudPath):
                 if path == self.path:
                     continue
 
-                src_obj = ObjectStoragePath(path, store=self._accessor._store)  # type: ignore[attr-defined]
+                src_obj = ObjectStoragePath(path, conn_id=self._accessor._store.conn_id)
 
                 # skip directories, empty directories will not be created
                 if src_obj.is_dir():
