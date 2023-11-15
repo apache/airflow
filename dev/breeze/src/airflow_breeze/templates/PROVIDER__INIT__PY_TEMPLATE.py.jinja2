@@ -58,5 +58,5 @@ if packaging.version.parse(packaging.version.parse(airflow_version).base_version
     "{{ MIN_AIRFLOW_VERSION }}"
 ):
     raise RuntimeError(
-        f"The package `{{ PACKAGE_PIP_NAME }}:{__version__}` requires Apache Airflow {{ MIN_AIRFLOW_VERSION }}+"  # NOQA: E501
+        f"The package `{{ PACKAGE_PIP_NAME }}:{__version__}` needs Apache Airflow {{ MIN_AIRFLOW_VERSION }}+"
     )
