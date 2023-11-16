@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,3 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+
+def strip_leading_zeros_from_version(version: str) -> str:
+    """
+    Strips leading zeros from version number.
+
+    This converts 1974.04.03 to 1974.4.3 as the format with leading month and day zeros is not accepted
+    by PIP versioning.
+
+    :param version: version number in CALVER format (potentially with leading 0s in date and month)
+    :return: string with leading 0s after dot replaced.
+    """
+    return ".".join(str(int(i)) for i in version.split("."))
