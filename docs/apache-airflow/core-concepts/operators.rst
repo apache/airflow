@@ -169,8 +169,7 @@ For example, consider a BashOperator which runs a multi-line bash script, this w
 
 By default, paths provided in this way should be provided relative to the DAG's folder (as this is the default Jinja template search path), but additional paths can be added by setting the ``template_searchpath`` arg on the DAG.
 
-.. versionadded:: 2.8
-    In some cases, you may want to exclude a string from templating and use it directly. Consider the following task:
+In some cases, you may want to exclude a string from templating and use it directly. Consider the following task:
 
 .. code-block:: python
 
@@ -188,6 +187,9 @@ This approach disables the rendering of both macros and files and can be applied
         task_id="fixed_print_script",
         bash_command=literal("cat script.sh"),
     )
+
+.. versionadded:: 2.8
+    :func:`~airflow.util.template.literal` was added.
 
 Alternatively, if you want to prevent Airflow from treating a value as a reference to a file, you can override ``template_ext``:
 
