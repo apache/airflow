@@ -23,7 +23,7 @@ from copy import copy
 from logging import Logger
 from typing import TYPE_CHECKING
 
-from airflow.config_templates.airflow_local_settings import TASK_CONTEXT_LOGGER_ENABLED
+from airflow.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -42,7 +42,7 @@ class TaskContextLogger:
     :meta private:
     """
 
-    def __init__(self, component_name: str, call_site_logger: Logger | None):
+    def __init__(self, component_name: str, call_site_logger: Logger | None = None):
         """
         Initialize the task context logger with the component name.
 
@@ -55,7 +55,7 @@ class TaskContextLogger:
         self.call_site_logger = call_site_logger
 
     def _should_enable(self) -> bool:
-        if not TASK_CONTEXT_LOGGER_ENABLED:
+        if not conf.getboolean("logging", "enable_task_context_logger"):
             return False
         if not getattr(self.task_handler, "supports_task_context_logging", False):
             logger.warning("Task handler does not support task context logging")
