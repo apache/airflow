@@ -229,9 +229,6 @@ def update_sbom_information(
         ) in list_providers_from_providers_requirements(airflow_site_archive_directory):
             destination_dir = provider_version_documentation_directory / "sbom"
 
-            if _dir_exists_warn_and_should_skip(destination_dir, force):
-                continue
-
             destination_dir.mkdir(parents=True, exist_ok=True)
 
             get_console().print(
