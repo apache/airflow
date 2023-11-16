@@ -586,6 +586,7 @@
       "azure-storage-blob>=12.14.0",
       "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file-share",
+      "azure-synapse-artifacts>=0.17.0",
       "azure-synapse-spark"
     ],
     "cross-providers-deps": [
