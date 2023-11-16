@@ -190,6 +190,7 @@
   "apache.spark": {
     "deps": [
       "apache-airflow>=2.5.0",
+      "grpcio-status",
       "pyspark"
     ],
     "cross-providers-deps": [
