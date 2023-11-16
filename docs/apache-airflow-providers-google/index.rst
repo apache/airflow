@@ -64,6 +64,8 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -131,7 +133,7 @@ PIP package                              Version required
 ``google-cloud-dataflow-client``         ``>=0.8.2``
 ``google-cloud-dataform``                ``>=0.5.0``
 ``google-cloud-dataplex``                ``>=1.4.2``
-``google-cloud-dataproc``                ``>=5.4.0``
+``google-cloud-dataproc``                ``>=5.5.0``
 ``google-cloud-dataproc-metastore``      ``>=1.12.0``
 ``google-cloud-dlp``                     ``>=3.12.0``
 ``google-cloud-kms``                     ``>=2.15.0``
