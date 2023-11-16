@@ -103,4 +103,5 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.5.0``
 ``papermill[all]``  ``>=1.2.1``
 ``scrapbook[all]``
+``ipykernel``
 ==================  ==================

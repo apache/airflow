@@ -1407,7 +1407,7 @@ MATCH_CONSTRAINTS_FILE_REGEX = re.compile(r"constraints-(.*)-python-(.*).txt")
 
 def load_constraints(python_version: str) -> dict[str, dict[str, str]]:
     constraints: dict[str, dict[str, str]] = {}
-    for filename in CONSTRAINTS_CACHE_DIR.glob(f"constraints-*-python-{python_version}.txt"):
+    for filename in sorted(CONSTRAINTS_CACHE_DIR.glob(f"constraints-*-python-{python_version}.txt")):
         filename_match = MATCH_CONSTRAINTS_FILE_REGEX.match(filename.name)
         if filename_match:
             airflow_version = filename_match.group(1)
@@ -1432,14 +1432,14 @@ def generate_providers_metadata(refresh_constraints: bool, python: str | None):
         python = DEFAULT_PYTHON_MAJOR_MINOR_VERSION
     get_all_constraint_files(refresh_constraints=refresh_constraints, python_version=python)
     constraints = load_constraints(python_version=python)
-    for package_id in DEPENDENCIES.keys():
+    for package_id in sorted(DEPENDENCIES.keys()):
         with ci_group(f"Generating metadata for {package_id}"):
             metadata = generate_providers_metadata_for_package(package_id, constraints)
             if metadata:
                 metadata_dict[package_id] = metadata
     import json
 
-    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4, sort_keys=True))
+    PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4))
 
 
 def fetch_remote(constraints_repo: Path, remote_name: str) -> None:
