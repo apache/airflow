@@ -190,6 +190,7 @@
   "apache.spark": {
     "deps": [
       "apache-airflow>=2.5.0",
+      "grpcio-status",
       "pyspark"
     ],
     "cross-providers-deps": [
@@ -265,6 +266,14 @@
       "google-re2>=1.0",
       "kubernetes>=21.7.0,<24",
       "kubernetes_asyncio>=18.20.1,<25"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
+  "cohere": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "cohere>=4.27"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
@@ -363,7 +372,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.5.0",
-      "elasticsearch>8,<9"
+      "elasticsearch>=8.10,<9"
     ],
     "cross-providers-deps": [
       "common.sql"
@@ -417,7 +426,7 @@
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage",
       "gcsfs>=2023.9.2",
-      "google-ads>=21.2.0",
+      "google-ads>=22.1.0",
       "google-api-core>=2.11.0",
       "google-api-python-client>=1.6.0",
       "google-auth-httplib2>=0.0.1",
@@ -577,6 +586,7 @@
       "azure-storage-blob>=12.14.0",
       "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file-share",
+      "azure-synapse-artifacts>=0.17.0",
       "azure-synapse-spark"
     ],
     "cross-providers-deps": [
@@ -658,6 +668,14 @@
     ],
     "excluded-python-versions": []
   },
+  "openai": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "openai[datalib]>=0.28.1,<1.0"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "openfaas": {
     "deps": [
       "apache-airflow>=2.5.0"
@@ -716,8 +734,29 @@
   "papermill": {
     "deps": [
       "apache-airflow>=2.5.0",
+      "ipykernel",
       "papermill[all]>=1.2.1",
       "scrapbook[all]"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
+  "pgvector": {
+    "deps": [
+      "apache-airflow-providers-postgres>=5.7.1",
+      "apache-airflow>=2.5.0",
+      "pgvector>=0.2.3"
+    ],
+    "cross-providers-deps": [
+      "common.sql",
+      "postgres"
+    ],
+    "excluded-python-versions": []
+  },
+  "pinecone": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "pinecone-client>=2.2.4"
     ],
     "cross-providers-deps": [],
     "excluded-python-versions": []
@@ -841,7 +880,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.3.1",
       "apache-airflow>=2.5.0",
-      "snowflake-connector-python>=2.4.1",
+      "snowflake-connector-python>=2.7.8",
       "snowflake-sqlalchemy>=1.1.0"
     ],
     "cross-providers-deps": [
@@ -915,6 +954,14 @@
     "cross-providers-deps": [
       "common.sql"
     ],
+    "excluded-python-versions": []
+  },
+  "weaviate": {
+    "deps": [
+      "apache-airflow>=2.5.0",
+      "weaviate-client>=3.24.2"
+    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": []
   },
   "yandex": {

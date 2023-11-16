@@ -42,7 +42,7 @@ from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
-    argument_short_doc_packages_with_providers_index,
+    argument_doc_packages,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -88,7 +88,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
-from airflow_breeze.utils.general_utils import expand_all_providers
+from airflow_breeze.utils.packages import expand_all_provider_packages
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     cleanup_python_generated_files,
@@ -388,7 +388,6 @@ def start_airflow(
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
-@argument_short_doc_packages_with_providers_index
 @option_builder
 @click.option(
     "--package-filter",
@@ -409,11 +408,12 @@ def start_airflow(
     help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
     is_flag=True,
 )
+@argument_doc_packages
 @option_github_repository
 @option_verbose
 @option_dry_run
 def build_docs(
-    short_doc_packages: tuple[str, ...],
+    doc_packages: tuple[str, ...],
     docs_only: bool,
     spellcheck_only: bool,
     builder: str,
@@ -444,7 +444,7 @@ def build_docs(
         spellcheck_only=spellcheck_only,
         one_pass_only=one_pass_only,
         skip_environment_initialization=True,
-        short_doc_packages=expand_all_providers(short_doc_packages),
+        short_doc_packages=expand_all_provider_packages(doc_packages),
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
     env = get_env_variables_for_docker_commands(params)
@@ -460,6 +460,10 @@ def build_docs(
         *doc_builder.args_doc_builder,
     ]
     process = run_command(cmd, text=True, env=env, check=False)
+    if process.returncode == 0:
+        get_console().print(
+            "[info]Start the webserver in breeze and view the built docs at http://localhost:28080/docs/[/]"
+        )
     sys.exit(process.returncode)
 
 
@@ -621,6 +625,11 @@ def static_checks(
         command_to_execute.extend(file)
     if precommit_args:
         command_to_execute.extend(precommit_args)
+    skip_checks = os.environ.get("SKIP")
+    if skip_checks and skip_checks != "identity":
+        get_console().print("\nThis static check run skips those checks:\n")
+        get_console().print(skip_checks.split(","))
+        get_console().print()
     env = os.environ.copy()
     env["GITHUB_REPOSITORY"] = github_repository
     static_checks_result = run_command(

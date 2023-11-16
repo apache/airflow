@@ -315,6 +315,7 @@ cpus
 crd
 createDisposition
 CreateQueryOperator
+CreateRunResponse
 creationTimestamp
 credssp
 Cron
@@ -496,6 +497,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+dotproduct
 DownloadReportV
 downscaling
 downstreams
@@ -790,7 +792,9 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceSelection
 instanceTemplates
 instantiation
 integrations
@@ -801,6 +805,7 @@ intvl
 Investorise
 io
 ip
+ipc
 iPython
 irreproducible
 IRSA
@@ -1023,6 +1028,7 @@ natively
 navbar
 nd
 ndjson
+nearText
 neighbours
 neo
 Neo4j
@@ -1071,6 +1077,7 @@ onboarded
 OnFailure
 onkill
 Oozie
+openai
 openapi
 openfaas
 openlineage
@@ -1131,13 +1138,16 @@ permalinks
 personalizations
 pformat
 PgBouncer
+pgvector
 picklable
 pid
 pidbox
 pigcmd
+pinecone
 pinodb
 Pinot
 pinot
+PipelineRun
 pkill
 plaintext
 platformVersion
@@ -1622,6 +1632,7 @@ ui
 uid
 ukey
 ulimit
+ulimits
 Umask
 umask
 Un
@@ -1664,6 +1675,8 @@ updateMask
 updateonly
 Upsert
 upsert
+upserted
+upserting
 upserts
 Upsight
 upstreams
@@ -1693,6 +1706,8 @@ validator
 vals
 vCPU
 ve
+vectorizer
+vectorizers
 vendored
 Vendorize
 venv
@@ -1715,6 +1730,7 @@ wape
 warmup
 Wasb
 wasb
+weaviate
 WebClient
 webhdfs
 Webhook

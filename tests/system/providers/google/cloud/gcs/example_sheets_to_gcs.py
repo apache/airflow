@@ -68,7 +68,7 @@ with DAG(
         conn_extra_json = json.dumps(conn_extra)
         conn.set_extra(conn_extra_json)
 
-        session: Session = Session()
+        session = Session()
         session.add(conn)
         session.commit()
 

@@ -123,7 +123,12 @@ class AzureDataLakeHook(BaseHook):
             if tenant:
                 credential = lib.auth(tenant_id=tenant, client_secret=conn.password, client_id=conn.login)
             else:
-                credential = AzureIdentityCredentialAdapter()
+                managed_identity_client_id = self._get_field(extras, "managed_identity_client_id")
+                workload_identity_tenant_id = self._get_field(extras, "workload_identity_tenant_id")
+                credential = AzureIdentityCredentialAdapter(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
             self._conn = core.AzureDLFileSystem(credential, store_name=self.account_name)
             self._conn.connect()
         return self._conn
@@ -347,7 +352,12 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         elif conn.password:
             credential = conn.password
         else:
-            credential = AzureIdentityCredentialAdapter()
+            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+            credential = AzureIdentityCredentialAdapter(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
 
         return DataLakeServiceClient(
             account_url=f"https://{conn.host}.dfs.core.windows.net",

@@ -74,6 +74,7 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
     remove_docker_networks,
 )
+from airflow_breeze.utils.packages import get_suspended_provider_folders
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
     SummarizeAfter,
@@ -87,7 +88,6 @@ from airflow_breeze.utils.run_tests import (
     run_docker_compose_tests,
 )
 from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
-from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
 
@@ -161,7 +161,7 @@ def _run_test(
     env_variables["TEST_TYPE"] = exec_shell_params.test_type
     env_variables["COLLECT_ONLY"] = str(exec_shell_params.collect_only).lower()
     env_variables["REMOVE_ARM_PACKAGES"] = str(exec_shell_params.remove_arm_packages).lower()
-    env_variables["SUSPENDED_PROVIDERS_FOLDERS"] = " ".join(get_suspended_providers_folders()).strip()
+    env_variables["SUSPENDED_PROVIDERS_FOLDERS"] = " ".join(get_suspended_provider_folders()).strip()
     if "[" in exec_shell_params.test_type and not exec_shell_params.test_type.startswith("Providers"):
         get_console(output=output).print(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"

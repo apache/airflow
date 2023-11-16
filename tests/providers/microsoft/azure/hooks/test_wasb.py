@@ -47,7 +47,7 @@ def mocked_blob_service_client():
 
 @pytest.fixture
 def mocked_default_azure_credential():
-    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.get_default_azure_credential") as m:
+    with mock.patch("airflow.providers.microsoft.azure.hooks.wasb.get_sync_default_azure_credential") as m:
         yield m
 
 

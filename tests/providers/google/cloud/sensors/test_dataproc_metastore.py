@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -39,7 +40,7 @@ MANIFEST_SUCCESS = {
     "filenames": [],
 }
 MANIFEST_FAIL = {"status": {"code": 1, "message": "Bad things happened", "details": []}, "filenames": []}
-RESULT_FILE_CONTENT = {"rows": [], "metadata": {}}
+RESULT_FILE_CONTENT: dict[str, Any] = {"rows": [], "metadata": {}}
 ROW_1 = []
 ROW_2 = []
 TEST_SERVICE_ID = "test-service"

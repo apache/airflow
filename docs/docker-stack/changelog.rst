@@ -34,26 +34,16 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
-Changes after publishing the images
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Airflow 2.8
+~~~~~~~~~~~
 
-Occasionally our images need to be regenerated using newer ``Dockerfiles`` or constraints.
-This happens when an issue is found or a breaking change is released by our dependencies
-that invalidates the already released image, and regenerating the image makes it usable again.
-While we cannot assure 100% backwards compatibility when it happens, we at least document it
-here so that users affected can find the reason for the changes.
+* 2.8.0
 
-+--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
-| Date         | Affected images     | Potentially breaking change             | Reason                 | Link to Pull Request                         |
-+==============+=====================+=========================================+========================+==============================================+
-| 17 June 2022 | 2.2.5               | * The ``Authlib`` library downgraded    | Flask App Builder      | https://github.com/apache/airflow/pull/24516 |
-|              |                     |   from 1.0.1 to 0.15.5 version          | not compatible with    |                                              |
-|              | 2.3.0-2.3.2         |                                         | Authlib >= 1.0.0       |                                              |
-+--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
-| 18 Jan 2022  | All 2.2.\*, 2.1.\*  | * The AIRFLOW_GID 500 was removed       | MySQL changed keys     | https://github.com/apache/airflow/pull/20912 |
-|              |                     | * MySQL ``apt`` repository key changed. | to sign their packages |                                              |
-|              |                     |                                         | on 17 Jan 2022         |                                              |
-+--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
+   * The image is based on ``Debian Bookworm`` in 2.8.0 rather than ``Debian Bullseye``. This might cause some
+     problems when building custom images. You are advised to make sure your system level dependencies are
+     working with ``Debian Bookworm``. While all reference images of Airflow 2.8.0 are built on ``Debian Bookworm``,
+     it is still possible to build deprecated custom ``Debian Bullseye`` based image in 2.8.0 following the
+
 
 Airflow 2.7
 ~~~~~~~~~~~
@@ -248,3 +238,25 @@ Airflow 2.0
 
 * 2.0.0
    * Initial release of the image based on Debian Buster
+
+
+Changes after publishing the images
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Occasionally our images need to be regenerated using newer ``Dockerfiles`` or constraints.
+This happens when an issue is found or a breaking change is released by our dependencies
+that invalidates the already released image, and regenerating the image makes it usable again.
+While we cannot assure 100% backwards compatibility when it happens, we at least document it
+here so that users affected can find the reason for the changes.
+
++--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
+| Date         | Affected images     | Potentially breaking change             | Reason                 | Link to Pull Request                         |
++==============+=====================+=========================================+========================+==============================================+
+| 17 June 2022 | 2.2.5               | * The ``Authlib`` library downgraded    | Flask App Builder      | https://github.com/apache/airflow/pull/24516 |
+|              |                     |   from 1.0.1 to 0.15.5 version          | not compatible with    |                                              |
+|              | 2.3.0-2.3.2         |                                         | Authlib >= 1.0.0       |                                              |
++--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
+| 18 Jan 2022  | All 2.2.\*, 2.1.\*  | * The AIRFLOW_GID 500 was removed       | MySQL changed keys     | https://github.com/apache/airflow/pull/20912 |
+|              |                     | * MySQL ``apt`` repository key changed. | to sign their packages |                                              |
+|              |                     |                                         | on 17 Jan 2022         |                                              |
++--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+

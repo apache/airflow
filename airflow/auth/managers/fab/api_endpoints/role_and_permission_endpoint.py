@@ -24,7 +24,6 @@ from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import asc, desc, func, select
 
-from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.role_and_permission_schema import (
@@ -34,6 +33,7 @@ from airflow.api_connexion.schemas.role_and_permission_schema import (
     role_collection_schema,
     role_schema,
 )
+from airflow.api_connexion.security import requires_access_custom_view
 from airflow.auth.managers.fab.models import Action, Role
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
@@ -56,7 +56,7 @@ def _check_action_and_resource(sm: AirflowSecurityManagerV2, perms: list[tuple[s
             raise BadRequest(detail=f"The specified resource: {resource!r} was not found")
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)])
+@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)
 def get_role(*, role_name: str) -> APIResponse:
     """Get role."""
     ab_security_manager = get_airflow_app().appbuilder.sm
@@ -66,7 +66,7 @@ def get_role(*, role_name: str) -> APIResponse:
     return role_schema.dump(role)
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)])
+@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)
 @format_parameters({"limit": check_limit})
 def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) -> APIResponse:
     """Get roles."""
@@ -94,7 +94,7 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION)])
+@requires_access_custom_view(permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION)
 @format_parameters({"limit": check_limit})
 def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
     """Get permissions."""
@@ -105,7 +105,7 @@ def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
     return action_collection_schema.dump(ActionCollection(actions=actions, total_entries=total_entries))
 
 
-@security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE)])
+@requires_access_custom_view(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE)
 def delete_role(*, role_name: str) -> APIResponse:
     """Delete a role."""
     ab_security_manager = get_airflow_app().appbuilder.sm
@@ -116,7 +116,7 @@ def delete_role(*, role_name: str) -> APIResponse:
     return NoContent, HTTPStatus.NO_CONTENT
 
 
-@security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)])
+@requires_access_custom_view(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)
 def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse:
     """Update a role."""
     appbuilder = get_airflow_app().appbuilder
@@ -150,7 +150,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
     return role_schema.dump(role)
 
 
-@security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE)])
+@requires_access_custom_view(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE)
 def post_role() -> APIResponse:
     """Create a new role."""
     appbuilder = get_airflow_app().appbuilder
