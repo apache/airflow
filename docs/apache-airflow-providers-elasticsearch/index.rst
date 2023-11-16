@@ -63,6 +63,8 @@
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
 .. toctree::
     :hidden:
     :maxdepth: 1
@@ -102,7 +104,7 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.5.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
-``elasticsearch``                        ``>8,<9``
+``elasticsearch``                        ``>=8.10,<9``
 =======================================  ==================
 
 Cross provider package dependencies
