@@ -27,11 +27,6 @@ from tests.test_utils.config import conf_vars
 logger = logging.getLogger(__name__)
 
 
-def test_task_context_logger_enabled_by_default():
-    t = TaskContextLogger(component_name="test_component")
-    assert t.enabled is True
-
-
 @pytest.fixture
 def mock_handler():
     logger = logging.getLogger("airflow.task")
@@ -39,7 +34,7 @@ def mock_handler():
     h = Mock()
     logger.handlers[:] = [h]
     yield h
-    logger.handlers[:] = [old]
+    logger.handlers[:] = old
 
 
 @pytest.fixture
@@ -57,6 +52,11 @@ def ti(dag_maker):
     yield ti
 
 
+def test_task_context_logger_enabled_by_default():
+    t = TaskContextLogger(component_name="test_component")
+    assert t.enabled is True
+
+
 @pytest.mark.parametrize("supported", [True, False])
 def test_task_handler_not_supports_task_context_logging(mock_handler, supported):
     mock_handler.supports_task_context_logging = supported
@@ -64,6 +64,7 @@ def test_task_handler_not_supports_task_context_logging(mock_handler, supported)
     assert t.enabled is supported
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize("supported", [True, False])
 def test_task_context_log_with_correct_arguments(ti, mock_handler, supported):
     mock_handler.supports_task_context_logging = supported
@@ -77,12 +78,14 @@ def test_task_context_log_with_correct_arguments(ti, mock_handler, supported):
         mock_handler.emit.assert_not_called()
 
 
+@pytest.mark.db_test
 def test_task_context_log_closes_task_handler(ti, mock_handler):
     t = TaskContextLogger("blah")
     t.info("test message", ti=ti)
     mock_handler.close.assert_called_once()
 
 
+@pytest.mark.db_test
 def test_task_context_log_also_emits_to_call_site_logger(ti):
     logger = logging.getLogger("abc123567")
     logger.setLevel(logging.INFO)
@@ -92,6 +95,7 @@ def test_task_context_log_also_emits_to_call_site_logger(ti):
     logger.log.assert_called_once_with(logging.INFO, "test message")
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize("val, expected", [("true", True), ("false", False)])
 def test_task_context_logger_config_works(ti, mock_handler, val, expected):
     with conf_vars({("logging", "enable_task_context_logger"): val}):
