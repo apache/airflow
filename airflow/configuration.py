@@ -2062,19 +2062,6 @@ def make_group_other_inaccessible(file_path: str):
         )
 
 
-# Historical convenience functions to access config entries
-def load_test_config():
-    """Historical load_test_config."""
-    warnings.warn(
-        "Accessing configuration method 'load_test_config' directly from the configuration module is "
-        "deprecated. Please access the configuration from the 'configuration.conf' object via "
-        "'conf.load_test_config'",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    conf.load_test_config()
-
-
 def get(*args, **kwargs) -> ConfigType | None:
     """Historical get."""
     warnings.warn(

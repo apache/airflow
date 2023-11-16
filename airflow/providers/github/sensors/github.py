@@ -91,13 +91,13 @@ class BaseGithubRepositorySensor(GithubSensor):
         )
 
     def poke(self, context: Context) -> bool:
-        """Function that the sensors defined while deriving this class should override."""
+        """Check sensor status; sensors defined while deriving this class should override."""
         raise AirflowException("Override me.")
 
 
 class GithubTagSensor(BaseGithubRepositorySensor):
     """
-    Monitors a github tag for its creation.
+    Monitor a github tag for its creation.
 
     :param github_conn_id: reference to a pre-defined GitHub Connection
     :param tag_name: name of the tag to be monitored
@@ -128,7 +128,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
         return GithubSensor.poke(self, context=context)
 
     def tag_checker(self, repo: Any) -> bool | None:
-        """Checking existence of Tag in a Repository."""
+        """Check existence of Tag in a Repository."""
         result = None
         try:
             if repo is not None and self.tag_name is not None:

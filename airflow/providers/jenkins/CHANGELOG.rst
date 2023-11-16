@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/jenkins): respect soft_fail argument when exception is raised (#34475)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Consolidate hook management in JenkinsJobTriggerOperator (#34433)``
+
 3.3.2
 .....
 

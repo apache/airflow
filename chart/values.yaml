@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.7.2"
+defaultAirflowTag: "2.7.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.7.2"
+airflowVersion: "2.7.3"
 
 # Images
 images:
@@ -627,6 +627,18 @@ workers:
     # container level lifecycle hooks
     containerLifecycleHooks: {}
 
+  kerberosInitContainer:
+    # Enable kerberos init container
+    enabled: false
+    resources: {}
+    #  limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    #  requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+
   resources: {}
   #  limits:
   #   cpu: 100m
@@ -728,6 +740,31 @@ workers:
       container: {}
 
   env: []
+
+  volumeClaimTemplates: []
+  # Additional volumeClaimTemplates needed.
+  # Comment out the above and uncomment the section below to enable it.
+  # Add more as needed
+  # Make sure to mount it under extraVolumeMounts.
+  # volumeClaimTemplates:
+  #   - metadata:
+  #       name: data-volume-1
+  #     spec:
+  #       storageClassName: "storage-class-1"
+  #       accessModes:
+  #         - "ReadWriteOnce"
+  #       resources:
+  #         requests:
+  #           storage: "10Gi"
+  #   - metadata:
+  #       name: data-volume-2
+  #     spec:
+  #       storageClassName: "storage-class-2"
+  #       accessModes:
+  #         - "ReadWriteOnce"
+  #       resources:
+  #         requests:
+  #           storage: "20Gi"
 
 # Airflow scheduler settings
 scheduler:
@@ -1634,6 +1671,9 @@ dagProcessor:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
+    # Detailed default security context for waitForMigrations for container level
+    securityContexts:
+      container: {}
 
   env: []
 
@@ -2096,6 +2136,7 @@ redis:
   affinity: {}
   tolerations: []
   topologySpreadConstraints: []
+  priorityClassName: ~
 
   # Set to 0 for backwards-compatiblity
   uid: 0
@@ -2135,6 +2176,7 @@ elasticsearch:
   # Or an object representing the connection
   # Example:
   # connection:
+  #   scheme: ~
   #   user: ~
   #   pass: ~
   #   host: ~
@@ -2351,6 +2393,9 @@ podTemplate: ~
 
 # Git sync
 dags:
+  # Where dags volume will be mounted. Works for both persistence and gitSync.
+  # If not specified, dags mount path will be set to $AIRFLOW_HOME/dags
+  mountPath: ~
   persistence:
     # Annotations for dags PVC
     annotations: {}

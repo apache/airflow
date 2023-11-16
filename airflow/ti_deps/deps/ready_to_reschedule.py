@@ -71,12 +71,12 @@ class ReadyToRescheduleDep(BaseTIDep):
             )
             return
 
-        task_reschedule = (
-            TaskReschedule.query_for_task_instance(task_instance=ti, descending=True, session=session)
-            .with_entities(TaskReschedule.reschedule_date)
-            .first()
+        next_reschedule_date = session.scalar(
+            TaskReschedule.stmt_for_task_instance(ti, descending=True)
+            .with_only_columns(TaskReschedule.reschedule_date)
+            .limit(1)
         )
-        if not task_reschedule:
+        if not next_reschedule_date:
             # Because mapped sensors don't have the reschedule property, here's the last resort
             # and we need a slightly different passing reason
             if is_mapped:
@@ -86,7 +86,6 @@ class ReadyToRescheduleDep(BaseTIDep):
             return
 
         now = timezone.utcnow()
-        next_reschedule_date = task_reschedule.reschedule_date
         if now >= next_reschedule_date:
             yield self._passing_status(reason="Task instance id ready for reschedule.")
             return

@@ -26,48 +26,64 @@ from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
 
 
+@pytest.fixture
+def mock_poll_query_status():
+    with mock.patch.object(AthenaHook, "poll_query_status") as m:
+        yield m
+
+
 class TestAthenaSensor:
     def setup_method(self):
-        self.sensor = AthenaSensor(
+        self.default_op_kwargs = dict(
             task_id="test_athena_sensor",
             query_execution_id="abc",
             sleep_time=5,
             max_retries=1,
-            aws_conn_id="aws_default",
         )
+        self.sensor = AthenaSensor(**self.default_op_kwargs, aws_conn_id=None)
 
-    @mock.patch.object(AthenaHook, "poll_query_status", side_effect=("SUCCEEDED",))
-    def test_poke_success(self, mock_poll_query_status):
+    def test_base_aws_op_attributes(self):
+        op = AthenaSensor(**self.default_op_kwargs)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+        assert op.hook.log_query is True
+
+        op = AthenaSensor(
+            **self.default_op_kwargs,
+            aws_conn_id="aws-test-custom-conn",
+            region_name="eu-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+        assert op.hook.aws_conn_id == "aws-test-custom-conn"
+        assert op.hook._region_name == "eu-west-1"
+        assert op.hook._verify is False
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
+    @pytest.mark.parametrize("state", ["SUCCEEDED"])
+    def test_poke_success_states(self, state, mock_poll_query_status):
+        mock_poll_query_status.side_effect = [state]
         assert self.sensor.poke({}) is True
 
-    @mock.patch.object(AthenaHook, "poll_query_status", side_effect=("RUNNING",))
-    def test_poke_running(self, mock_poll_query_status):
+    @pytest.mark.parametrize("state", ["RUNNING", "QUEUED"])
+    def test_poke_intermediate_states(self, state, mock_poll_query_status):
+        mock_poll_query_status.side_effect = [state]
         assert self.sensor.poke({}) is False
-
-    @mock.patch.object(AthenaHook, "poll_query_status", side_effect=("QUEUED",))
-    def test_poke_queued(self, mock_poll_query_status):
-        assert self.sensor.poke({}) is False
-
-    @mock.patch.object(AthenaHook, "poll_query_status", side_effect=("FAILED",))
-    def test_poke_failed(self, mock_poll_query_status):
-        with pytest.raises(AirflowException) as ctx:
-            self.sensor.poke({})
-        assert "Athena sensor failed" in str(ctx.value)
-
-    @mock.patch.object(AthenaHook, "poll_query_status", side_effect=("CANCELLED",))
-    def test_poke_cancelled(self, mock_poll_query_status):
-        with pytest.raises(AirflowException) as ctx:
-            self.sensor.poke({})
-        assert "Athena sensor failed" in str(ctx.value)
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+        "soft_fail, expected_exception",
+        [
+            pytest.param(False, AirflowException, id="not-soft-fail"),
+            pytest.param(True, AirflowSkipException, id="soft-fail"),
+        ],
     )
-    def test_fail_poke(self, soft_fail, expected_exception):
-        self.sensor.soft_fail = soft_fail
+    @pytest.mark.parametrize("state", ["FAILED", "CANCELLED"])
+    def test_poke_failure_states(self, state, soft_fail, expected_exception, mock_poll_query_status):
+        mock_poll_query_status.side_effect = [state]
+        sensor = AthenaSensor(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
         message = "Athena sensor failed"
-        with pytest.raises(expected_exception, match=message), mock.patch(
-            "airflow.providers.amazon.aws.hooks.athena.AthenaHook.poll_query_status"
-        ) as poll_query_status:
-            poll_query_status.return_value = "FAILED"
-            self.sensor.poke(context={})
+        with pytest.raises(expected_exception, match=message):
+            sensor.poke({})

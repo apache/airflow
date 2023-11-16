@@ -110,7 +110,6 @@ with DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
     conn_id_name = f"{env_id}-conn-id"

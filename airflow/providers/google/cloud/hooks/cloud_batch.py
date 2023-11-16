@@ -102,7 +102,6 @@ class CloudBatchHook(GoogleBaseHook):
         filter: str | None = None,
         limit: int | None = None,
     ) -> Iterable[Job]:
-
         if limit is not None and limit < 0:
             raise AirflowException("The limit for the list jobs request should be greater or equal to zero")
 
@@ -124,7 +123,6 @@ class CloudBatchHook(GoogleBaseHook):
         filter: str | None = None,
         limit: int | None = None,
     ) -> Iterable[Task]:
-
         if limit is not None and limit < 0:
             raise AirflowException("The limit for the list tasks request should be greater or equal to zero")
 
@@ -186,7 +184,6 @@ class CloudBatchAsyncHook(GoogleBaseHook):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
     ):
-
         self._client: BatchServiceAsyncClient | None = None
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
 

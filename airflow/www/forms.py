@@ -142,7 +142,7 @@ class DagRunEditForm(DynamicForm):
     note = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
-        """Populates the attributes of the passed obj with data from the form's not-read-only fields."""
+        """Populate the attributes of the passed obj with data from the form's not-read-only fields."""
         for name, field in self._fields.items():
             if not field.flags.readonly:
                 field.populate_obj(item, name)
@@ -188,7 +188,7 @@ class TaskInstanceEditForm(DynamicForm):
     note = TextAreaField(lazy_gettext("User Note"), widget=BS3TextAreaFieldWidget())
 
     def populate_obj(self, item):
-        """Populates the attributes of the passed obj with data from the form's not-read-only fields."""
+        """Populate the attributes of the passed obj with data from the form's not-read-only fields."""
         for name, field in self._fields.items():
             if not field.flags.readonly:
                 field.populate_obj(item, name)

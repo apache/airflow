@@ -32,11 +32,7 @@ from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 
-TI = TaskInstance(
-    task=BashOperator(task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()),
-    run_id="fake_run",
-    state=State.RUNNING,
-)
+pytestmark = pytest.mark.db_test
 
 
 class TestCallbackRequest:
@@ -45,12 +41,7 @@ class TestCallbackRequest:
         [
             (CallbackRequest(full_filepath="filepath", msg="task_failure"), CallbackRequest),
             (
-                TaskCallbackRequest(
-                    full_filepath="filepath",
-                    simple_task_instance=SimpleTaskInstance.from_ti(ti=TI),
-                    processor_subdir="/test_dir",
-                    is_failure_callback=True,
-                ),
+                None,  # to be generated when test is run
                 TaskCallbackRequest,
             ),
             (
@@ -74,6 +65,21 @@ class TestCallbackRequest:
         ],
     )
     def test_from_json(self, input, request_class):
+        if input is None:
+            ti = TaskInstance(
+                task=BashOperator(
+                    task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()
+                ),
+                run_id="fake_run",
+                state=State.RUNNING,
+            )
+
+            input = TaskCallbackRequest(
+                full_filepath="filepath",
+                simple_task_instance=SimpleTaskInstance.from_ti(ti=ti),
+                processor_subdir="/test_dir",
+                is_failure_callback=True,
+            )
         json_str = input.to_json()
         result = request_class.from_json(json_str=json_str)
         assert result == input

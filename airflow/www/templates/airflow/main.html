@@ -52,6 +52,9 @@
         background-color: {{state_color}};
       }
     {% endfor %}
+    .navbar-nav > li > a {
+      color: {{ navbar_text_color }};
+    }
   </style>
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_32.png') }}">
 {% endblock %}

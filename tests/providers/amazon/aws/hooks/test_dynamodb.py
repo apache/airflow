@@ -33,7 +33,6 @@ class TestDynamoDBHook:
 
     @mock_dynamodb
     def test_insert_batch_items_dynamodb_table(self):
-
         hook = DynamoDBHook(
             aws_conn_id="aws_default", table_name="test_airflow", table_keys=["id"], region_name="us-east-1"
         )

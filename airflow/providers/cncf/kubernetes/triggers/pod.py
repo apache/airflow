@@ -83,6 +83,7 @@ class KubernetesPodTrigger(BaseTrigger):
         in_cluster: bool | None = None,
         get_logs: bool = True,
         startup_timeout: int = 120,
+        startup_check_interval: int = 1,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
     ):
@@ -98,11 +99,13 @@ class KubernetesPodTrigger(BaseTrigger):
         self.in_cluster = in_cluster
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
+        self.startup_check_interval = startup_check_interval
 
         if should_delete_pod is not None:
             warnings.warn(
                 "`should_delete_pod` parameter is deprecated, please use `on_finish_action`",
-                AirflowProviderDeprecationWarning,
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
             )
             self.on_finish_action = (
                 OnFinishAction.DELETE_POD if should_delete_pod else OnFinishAction.KEEP_POD
@@ -116,7 +119,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self._since_time = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes KubernetesCreatePodTrigger arguments and classpath."""
+        """Serialize KubernetesCreatePodTrigger arguments and classpath."""
         return (
             "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger",
             {
@@ -137,7 +140,7 @@ class KubernetesPodTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current pod status and yields a TriggerEvent."""
+        """Get current pod status and yield a TriggerEvent."""
         hook = self._get_async_hook()
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
         try:
@@ -182,9 +185,12 @@ class KubernetesPodTrigger(BaseTrigger):
                                 }
                             )
                             return
-
-                    self.log.info("Sleeping for %s seconds.", self.poll_interval)
-                    await asyncio.sleep(self.poll_interval)
+                        else:
+                            self.log.info("Sleeping for %s seconds.", self.startup_check_interval)
+                            await asyncio.sleep(self.startup_check_interval)
+                    else:
+                        self.log.info("Sleeping for %s seconds.", self.poll_interval)
+                        await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent(
                         {

@@ -73,7 +73,7 @@ class FacebookAdsReportingHook(BaseHook):
         self.client_required_fields = ["app_id", "app_secret", "access_token", "account_id"]
 
     def _get_service(self) -> FacebookAdsApi:
-        """Returns Facebook Ads Client using a service account."""
+        """Return Facebook Ads Client using a service account."""
         config = self.facebook_ads_config
         return FacebookAdsApi.init(
             app_id=config["app_id"],
@@ -84,7 +84,7 @@ class FacebookAdsReportingHook(BaseHook):
 
     @cached_property
     def multiple_accounts(self) -> bool:
-        """Checks whether provided account_id in the Facebook Ads Connection is provided as a list."""
+        """Check whether provided account_id in the Facebook Ads Connection is provided as a list."""
         return isinstance(self.facebook_ads_config["account_id"], list)
 
     @cached_property

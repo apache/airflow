@@ -20,11 +20,14 @@ from __future__ import annotations
 import json
 import warnings
 from functools import cached_property
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
+
+if TYPE_CHECKING:
+    from slack_sdk.http_retry import RetryHandler
 
 
 class SlackAPIOperator(BaseOperator):
@@ -34,7 +37,11 @@ class SlackAPIOperator(BaseOperator):
         which its password is Slack API token.
     :param method: The Slack API Method to Call (https://api.slack.com/methods). Optional
     :param api_params: API Method call parameters (https://api.slack.com/methods). Optional
-    :param client_args: Slack Hook parameters. Optional. Check airflow.providers.slack.hooks.SlackHook
+    :param timeout: The maximum number of seconds the client will wait to connect
+        and receive a response from Slack. Optional
+    :param base_url: A string representing the Slack API base URL. Optional
+    :param proxy: Proxy to make the Slack API call. Optional
+    :param retry_handlers: List of handlers to customize retry logic in ``slack_sdk.WebClient``. Optional
     """
 
     def __init__(
@@ -43,17 +50,31 @@ class SlackAPIOperator(BaseOperator):
         slack_conn_id: str = SlackHook.default_conn_name,
         method: str | None = None,
         api_params: dict | None = None,
+        base_url: str | None = None,
+        proxy: str | None = None,
+        timeout: int | None = None,
+        retry_handlers: list[RetryHandler] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.slack_conn_id = slack_conn_id
         self.method = method
         self.api_params = api_params
+        self.base_url = base_url
+        self.timeout = timeout
+        self.proxy = proxy
+        self.retry_handlers = retry_handlers
 
     @cached_property
     def hook(self) -> SlackHook:
         """Slack Hook."""
-        return SlackHook(slack_conn_id=self.slack_conn_id)
+        return SlackHook(
+            slack_conn_id=self.slack_conn_id,
+            base_url=self.base_url,
+            timeout=self.timeout,
+            proxy=self.proxy,
+            retry_handlers=self.retry_handlers,
+        )
 
     def construct_api_call_params(self) -> Any:
         """API call parameters used by the execute function.
@@ -93,10 +114,10 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :param username: Username that airflow will be posting to Slack as. (templated)
     :param text: message to send to slack. (templated)
     :param icon_url: URL to icon used for this message
-    :param attachments: extra formatting details. (templated)
-        See https://api.slack.com/docs/attachments
-    :param blocks: extra block layouts. (templated)
+    :param blocks: A list of blocks to send with the message. (templated)
         See https://api.slack.com/reference/block-kit/blocks
+    :param attachments: (legacy) A list of attachments to send with the message. (templated)
+        See https://api.slack.com/docs/attachments
     """
 
     template_fields: Sequence[str] = ("username", "text", "attachments", "blocks", "channel")
@@ -114,8 +135,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
         icon_url: str = (
             "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
         ),
-        attachments: list | None = None,
         blocks: list | None = None,
+        attachments: list | None = None,
         **kwargs,
     ) -> None:
         self.method = "chat.postMessage"

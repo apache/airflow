@@ -141,6 +141,7 @@ class TestAirflowInfo:
         }
         assert self.unique_items(instance._tools_info) == expected
 
+    @pytest.mark.db_test
     @conf_vars(
         {
             ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",
@@ -154,6 +155,7 @@ class TestAirflowInfo:
         assert airflow_version in output
         assert "postgresql+psycopg2://postgres:airflow@postgres/airflow" in output
 
+    @pytest.mark.db_test
     @conf_vars(
         {
             ("database", "sql_alchemy_conn"): "postgresql+psycopg2://postgres:airflow@postgres/airflow",

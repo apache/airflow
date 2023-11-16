@@ -44,7 +44,7 @@ if TYPE_CHECKING:
         from aiobotocore.client import AioBaseClient
 
 from asgiref.sync import sync_to_async
-from boto3.s3.transfer import TransferConfig
+from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -218,12 +218,12 @@ class S3Hook(AwsBaseHook):
         elif format[0] == "https:":
             temp_split = format[1].split(".")
             if temp_split[0] == "s3":
-                split_url = format[1].split("/")
-                bucket_name = split_url[1]
-                key = "/".join(split_url[2:])
+                # "https://s3.region-code.amazonaws.com/bucket-name/key-name"
+                _, bucket_name, key = format[1].split("/", 2)
             elif temp_split[1] == "s3":
+                # "https://bucket-name.s3.region-code.amazonaws.com/key-name"
                 bucket_name = temp_split[0]
-                key = "/".join(format[1].split("/")[1:])
+                key = format[1].partition("/")[-1]
             else:
                 raise S3HookUriParseFailure(
                     "Please provide a bucket name using a valid virtually hosted format which should "
@@ -912,6 +912,15 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :return: the key object from the bucket
         """
+
+        def sanitize_extra_args() -> dict[str, str]:
+            """Parse extra_args and return a dict with only the args listed in ALLOWED_DOWNLOAD_ARGS."""
+            return {
+                arg_name: arg_value
+                for (arg_name, arg_value) in self.extra_args.items()
+                if arg_name in S3Transfer.ALLOWED_DOWNLOAD_ARGS
+            }
+
         s3_resource = self.get_session().resource(
             "s3",
             endpoint_url=self.conn_config.endpoint_url,
@@ -919,7 +928,8 @@ class S3Hook(AwsBaseHook):
             verify=self.verify,
         )
         obj = s3_resource.Object(bucket_name, key)
-        obj.load()
+
+        obj.load(**sanitize_extra_args())
         return obj
 
     @unify_bucket_name_and_key

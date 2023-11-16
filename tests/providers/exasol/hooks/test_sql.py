@@ -29,6 +29,9 @@ from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.exasol.hooks.exasol import ExasolHook
 from airflow.utils.session import provide_session
 
+pytestmark = pytest.mark.db_test
+
+
 TASK_ID = "sql-operator"
 HOST = "host"
 DEFAULT_CONN_ID = "exasol_default"

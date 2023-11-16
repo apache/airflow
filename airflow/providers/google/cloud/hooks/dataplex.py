@@ -877,7 +877,6 @@ class DataplexAsyncHook(GoogleBaseAsyncHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
 
     async def get_dataplex_data_scan_client(self) -> DataScanServiceAsyncClient:

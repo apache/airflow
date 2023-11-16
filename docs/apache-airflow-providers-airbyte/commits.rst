@@ -28,14 +28,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.4.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ==================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+=================================================================================================  ===========  ==================================================
+
 3.3.2
 .....
 
-Latest change: 2023-09-07
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `44cb7c6d8d <https://github.com/apache/airflow/commit/44cb7c6d8d516804c95f84accb21b254ce8846cc>`_  2023-09-07   ``fix(providers/airbyte): respect soft_fail argument when exception is raised (#34156)``
 `c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `c645d8e40c <https://github.com/apache/airflow/commit/c645d8e40c167ea1f6c332cdc3ea0ca5a9363205>`_  2023-08-12   ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``

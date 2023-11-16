@@ -34,6 +34,9 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils import db
 from airflow.utils.session import create_session
 
+pytestmark = pytest.mark.db_test
+
+
 HELLO_SERVER_CMD = """
 import socket, sys
 listener = socket.socket()
@@ -788,7 +791,6 @@ class TestSSHHook:
     def test_ssh_connection_with_all_timeout_param_and_extra_combinations(
         self, ssh_mock, timeout, conn_timeout, timeoutextra, conn_timeoutextra, expected_value
     ):
-
         if timeoutextra and conn_timeoutextra:
             ssh_conn_id = self.CONN_SSH_WITH_TIMEOUT_AND_CONN_TIMEOUT_EXTRA
         elif timeoutextra and not conn_timeoutextra:
@@ -837,7 +839,6 @@ class TestSSHHook:
     def test_ssh_connection_with_cmd_timeout(
         self, cmd_timeout, cmd_timeoutextra, null_cmd_timeoutextra, expected_value
     ):
-
         if cmd_timeoutextra:
             if null_cmd_timeoutextra:
                 ssh_conn_id = self.CONN_SSH_WITH_NULL_CMD_TIMEOUT_EXTRA

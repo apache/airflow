@@ -455,7 +455,6 @@ class S3DeleteObjectsOperator(BaseOperator):
         verify: str | bool | None = None,
         **kwargs,
     ):
-
         super().__init__(**kwargs)
         self.bucket = bucket
         self.keys = keys
@@ -543,7 +542,6 @@ class S3FileTransformOperator(BaseOperator):
         replace: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.source_s3_key = source_s3_key
         self.source_aws_conn_id = source_aws_conn_id

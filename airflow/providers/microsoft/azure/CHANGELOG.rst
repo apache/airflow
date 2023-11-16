@@ -27,8 +27,65 @@
 Changelog
 ---------
 
+8.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add managed identity support to AsyncDefaultAzureCredential (#35394)``
+* ``feat(provider/azure): add managed identity support to container_registry hook (#35320)``
+* ``feat(provider/azure): add managed identity support to wasb hook (#35326)``
+* ``feat(provider/azure): add managed identity support to asb hook (#35324)``
+* ``feat(provider/azure): add managed identity support to cosmos hook (#35323)``
+* ``feat(provider/azure): add managed identity support to container_volume hook (#35321)``
+* ``feat(provider/azure): add managed identity support to container_instance hook (#35319)``
+* ``feat(provider/azure): add managed identity support to adx hook (#35325)``
+* ``feat(provider/azure): add managed identity support to batch hook (#35327)``
+* ``feat(provider/azure): add managed identity support to data_factory hook (#35328)``
+* ``feat(provider/azure): add managed identity support to synapse hook (#35329)``
+* ``feat(provider/azure): add managed identity support to fileshare hook (#35330)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AzureContainerInstanceOperator remove_on_error (#35212)``
+* ``fix(providers/microsoft): setting use_async=True for get_async_default_azure_credential (#35432)``
+
+
+Misc
+~~~~
+
+* ``Remove empty TYPE_CHECKING block into the Azure provider (#35477)``
+* ``Refactor azure managed identity (#35367)``
+* ``Reuse get_default_azure_credential method from Azure utils method (#35318)``
+* `` make DefaultAzureCredential configurable in AzureKeyVaultBackend (#35052)``
+* ``Make DefaultAzureCredential in AzureBaseHook configuration (#35051)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch from Black to Ruff formatter (#35287)``
+
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+
 8.0.0
 .....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -49,6 +106,35 @@ Breaking changes
 * Remove deprecated ``extra__azure__tenantId`` from azure_container_instance connection extras
 * Remove deprecated ``extra__azure__subscriptionId`` from azure_container_instance connection extras
 
+
+* ``Bump azure-mgmt-containerinstance (#34738)``
+* ``Upgrade azure-mgmt-datafactory in microsift azure provider (#34040)``
+
+Features
+~~~~~~~~
+
+* ``Add subnet_ids param in AzureContainerInstancesOperator (#34850)``
+* ``allow providing credentials through keyword argument in AzureKeyVaultBackend (#34706)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Name params while invoking ClientSecretCredential (#34732)``
+* ``fix(providers/microsoft-azure): respect soft_fail argument when exception is raised (#34494)``
+* ``Error handling for when Azure container log cannot be read in properly. (#34627)``
+* ``Fix hardcoded container name in remote logging option for Azure Blob Storage (#32779)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Consolidate hook management in AzureBatchOperator (#34437)``
+* ``Consolidate hook management in AzureDataExplorerQueryOperator (#34436)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Refactor: consolidate import time in providers (#34402)``
+   * ``Refactor usage of str() in providers (#34320)``
+   * ``Refactor: reduce some conditions in providers (#34440)``
 
 7.0.0
 .....

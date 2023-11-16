@@ -28,6 +28,7 @@ from rich.console import Console
 from .code_utils import (
     AIRFLOW_SITE_DIR,
     ALL_PROVIDER_YAMLS,
+    ALL_PROVIDER_YAMLS_WITH_SUSPENDED,
     CONSOLE_WIDTH,
     DOCS_DIR,
     PROCESS_TIMEOUT,
@@ -291,14 +292,17 @@ class AirflowDocsBuilder:
         console.print()
 
 
-def get_available_providers_packages():
+def get_available_providers_packages(include_suspended: bool = False):
     """Get list of all available providers packages to build."""
-    return [provider["package-name"] for provider in ALL_PROVIDER_YAMLS if not provider.get("suspended")]
+    return [
+        provider["package-name"]
+        for provider in (ALL_PROVIDER_YAMLS_WITH_SUSPENDED if include_suspended else ALL_PROVIDER_YAMLS)
+    ]
 
 
-def get_available_packages():
+def get_available_packages(include_suspended: bool = False):
     """Get list of all available packages to build."""
-    provider_package_names = get_available_providers_packages()
+    provider_package_names = get_available_providers_packages(include_suspended=include_suspended)
     return [
         "apache-airflow",
         *provider_package_names,

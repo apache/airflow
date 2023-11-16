@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-openlineage
 ------------------------------------------------------
@@ -28,14 +28,54 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.1
+.....
+
+Latest change: 2023-11-06
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`59b32dc0a0 <https://github.com/apache/airflow/commit/59b32dc0a0bcdffd124b82d92428f334646cd8cd>`_  2023-11-06   ``Fix bad regexp in mypy-providers specification in pre-commits (#35465)``
+`6858ea46eb <https://github.com/apache/airflow/commit/6858ea46eb5282034b0695720d797dcb7ef91100>`_  2023-11-04   ``Make schema filter uppercase in 'create_filter_clauses' (#35428)``
+`63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
+=================================================================================================  ===========  ==========================================================================
+
+1.2.0
+.....
+
+Latest change: 2023-10-28
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`0940d09859 <https://github.com/apache/airflow/commit/0940d098590139c8ab5940813f628530c86944b6>`_  2023-10-25   ``Send column lineage from SQL operators. (#34843)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+=================================================================================================  ===========  ==================================================================
+
+1.1.1
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`73dd877961 <https://github.com/apache/airflow/commit/73dd877961cfaca0d29f127b0d868308d174bcd1>`_  2023-10-11   ``Adjust log levels in OpenLineage provider (#34801)``
+=================================================================================================  ===========  ===============================================================
+
 1.1.0
 .....
 
-Latest change: 2023-09-07
+Latest change: 2023-09-08
 
 =================================================================================================  ===========  ===================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `5eea4e632c <https://github.com/apache/airflow/commit/5eea4e632c8ae50812e07b1d844ea4f52e0d6fe1>`_  2023-09-07   ``Add OpenLineage support for DBT Cloud. (#33959)``
 `e403c74524 <https://github.com/apache/airflow/commit/e403c74524a980030ba120c3602de0c3dc867d86>`_  2023-09-06   ``Fix import in 'get_custom_facets'. (#34122)``
 `875387afa5 <https://github.com/apache/airflow/commit/875387afa53c207364fa20b515d154100b5d0a8d>`_  2023-09-01   ``Refactor unneeded  jumps in providers (#33833)``

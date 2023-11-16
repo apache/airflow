@@ -301,6 +301,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         else:
             hook = BigQueryHook(
                 gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
             )
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
@@ -312,6 +313,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
                         job_id=job.job_id,
                         project_id=hook.project_id,
                         poll_interval=self.poll_interval,
+                        impersonation_chain=self.impersonation_chain,
                     ),
                     method_name="execute_complete",
                 )
@@ -424,7 +426,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         if not self.deferrable:
             super().execute(context=context)
         else:
-            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
+            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
@@ -439,6 +441,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                         pass_value=self.pass_value,
                         tolerance=self.tol,
                         poll_interval=self.poll_interval,
+                        impersonation_chain=self.impersonation_chain,
                     ),
                     method_name="execute_complete",
                 )
@@ -573,7 +576,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         if not self.deferrable:
             super().execute(context)
         else:
-            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id)
+            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
             self.log.info("Using ratio formula: %s", self.ratio_formula)
 
             self.log.info("Executing SQL check: %s", self.sql1)
@@ -596,6 +599,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
                     ratio_formula=self.ratio_formula,
                     ignore_zero=self.ignore_zero,
                     poll_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
                 ),
                 method_name="execute_complete",
             )
@@ -2850,7 +2854,9 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         project_id = self.project_id or self.hook.project_id
         if project_id:
             job_id_path = convert_job_id(
-                job_id=self.job_id, project_id=project_id, location=self.location  # type: ignore[arg-type]
+                job_id=self.job_id,  # type: ignore[arg-type]
+                project_id=project_id,
+                location=self.location,
             )
             context["ti"].xcom_push(key="job_id_path", value=job_id_path)
         # Wait for the job to complete

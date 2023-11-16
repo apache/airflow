@@ -30,6 +30,10 @@ description: |
 
 suspended: false
 versions:
+  - 10.11.1
+  - 10.11.0
+  - 10.10.1
+  - 10.10.0
   - 10.9.0
   - 10.8.0
   - 10.7.0
@@ -81,7 +85,8 @@ dependencies:
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
-  - google-ads>=21.2.0
+  - gcsfs>=2023.9.2
+  - google-ads>=22.1.0
   - google-api-core>=2.11.0
   - google-api-python-client>=1.6.0
   - google-auth>=1.0.0
@@ -623,6 +628,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.endpoint_service
       - airflow.providers.google.cloud.operators.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.operators.vertex_ai.model_service
+      - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -698,6 +704,9 @@ sensors:
   - integration-name: Google Cloud Tasks
     python-modules:
       - airflow.providers.google.cloud.sensors.tasks
+
+filesystems:
+  - airflow.providers.google.cloud.fs.gcs
 
 hooks:
   - integration-name: Google Ads
@@ -869,6 +878,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service
       - airflow.providers.google.cloud.hooks.vertex_ai.hyperparameter_tuning_job
       - airflow.providers.google.cloud.hooks.vertex_ai.model_service
+      - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
@@ -1131,6 +1141,8 @@ extra-links:
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIBatchPredictionJobListLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobLink
+  - airflow.providers.google.cloud.links.vertex_ai.VertexAIPipelineJobListLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink
   - airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink

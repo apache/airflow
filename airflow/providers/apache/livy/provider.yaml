@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 3.6.0
   - 3.5.4
   - 3.5.3
   - 3.5.2

@@ -43,7 +43,7 @@ venv
 files
 airflow.iml
 .gitmodules
-scripts/ci/installed_providers.txt
+installed_providers.txt
 
 # Generated doc files
 .*html
@@ -136,3 +136,9 @@ chart/*.iml
 
 # DOAP file
 doap_airflow.rdf
+
+# pyenv
+.python-version
+
+# nvm (Node Version Manager)
+.nvmrc

@@ -31,7 +31,9 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_test_client
 from tests.test_utils.config import conf_vars
-from tests.test_utils.www import check_content_in_response
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -232,6 +234,55 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
         f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
         resp,
     )
+
+
+@pytest.mark.parametrize("allow_html", [False, True])
+def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypatch, allow_html):
+    """
+    Test that HTML is escaped per default in description.
+    """
+    from markupsafe import escape
+
+    DAG_ID = "params_dag"
+    HTML_DESCRIPTION1 = "HTML <code>raw code</code>."
+    HTML_DESCRIPTION2 = "HTML <code>in md text</code>."
+    expect_escape = not allow_html
+    with conf_vars({("webserver", "allow_raw_html_descriptions"): str(allow_html)}):
+        param1 = Param(
+            42,
+            description_html=HTML_DESCRIPTION1,
+            type="integer",
+            minimum=1,
+            maximum=100,
+        )
+        param2 = Param(
+            42,
+            description_md=HTML_DESCRIPTION2,
+            type="integer",
+            minimum=1,
+            maximum=100,
+        )
+        with monkeypatch.context() as m:
+            with dag_maker(
+                dag_id=DAG_ID, serialized=True, session=session, params={"param1": param1, "param2": param2}
+            ):
+                EmptyOperator(task_id="task1")
+
+            m.setattr(app, "dag_bag", dag_maker.dagbag)
+            resp = admin_client.get(f"dags/{DAG_ID}/trigger")
+
+        if expect_escape:
+            check_content_in_response(escape(HTML_DESCRIPTION1), resp)
+            check_content_in_response(escape(HTML_DESCRIPTION2), resp)
+            check_content_in_response(
+                "At least one field in the trigger form uses a raw HTML form definition.", resp
+            )
+        else:
+            check_content_in_response(HTML_DESCRIPTION1, resp)
+            check_content_in_response(HTML_DESCRIPTION2, resp)
+            check_content_not_in_response(
+                "At least one field in the trigger form uses a raw HTML form definition.", resp
+            )
 
 
 def test_trigger_endpoint_uses_existing_dagbag(admin_client):

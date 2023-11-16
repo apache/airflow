@@ -28,12 +28,11 @@ or the ``api/2.1/jobs/runs/submit``
 from __future__ import annotations
 
 import json
-import warnings
 from typing import Any
 
 from requests import exceptions as requests_exceptions
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 GET_CLUSTER_ENDPOINT = ("GET", "api/2.0/clusters/get")
@@ -41,6 +40,8 @@ RESTART_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/restart")
 START_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/start")
 TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
+CREATE_ENDPOINT = ("POST", "api/2.1/jobs/create")
+RESET_ENDPOINT = ("POST", "api/2.1/jobs/reset")
 RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
 SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
 GET_RUN_ENDPOINT = ("GET", "api/2.1/jobs/runs/get")
@@ -194,9 +195,27 @@ class DatabricksHook(BaseDatabricksHook):
     ) -> None:
         super().__init__(databricks_conn_id, timeout_seconds, retry_limit, retry_delay, retry_args, caller)
 
+    def create_job(self, json: dict) -> int:
+        """
+        Utility function to call the ``api/2.1/jobs/create`` endpoint.
+
+        :param json: The data used in the body of the request to the ``create`` endpoint.
+        :return: the job_id as an int
+        """
+        response = self._do_api_call(CREATE_ENDPOINT, json)
+        return response["job_id"]
+
+    def reset_job(self, job_id: str, json: dict) -> None:
+        """
+        Utility function to call the ``api/2.1/jobs/reset`` endpoint.
+
+        :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
+        """
+        self._do_api_call(RESET_ENDPOINT, {"job_id": job_id, "new_settings": json})
+
     def run_now(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.1/jobs/run-now`` endpoint.
+        Call the ``api/2.1/jobs/run-now`` endpoint.
 
         :param json: The data used in the body of the request to the ``run-now`` endpoint.
         :return: the run_id as an int
@@ -206,7 +225,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def submit_run(self, json: dict) -> int:
         """
-        Utility function to call the ``api/2.1/jobs/runs/submit`` endpoint.
+        Call the ``api/2.1/jobs/runs/submit`` endpoint.
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :return: the run_id as an int
@@ -217,16 +236,14 @@ class DatabricksHook(BaseDatabricksHook):
     def list_jobs(
         self,
         limit: int = 25,
-        offset: int | None = None,
         expand_tasks: bool = False,
         job_name: str | None = None,
         page_token: str | None = None,
     ) -> list[dict[str, Any]]:
         """
-        Lists the jobs in the Databricks Job Service.
+        List the jobs in the Databricks Job Service.
 
         :param limit: The limit/batch size used to retrieve jobs.
-        :param offset: The offset of the first job to return, relative to the most recently created job.
         :param expand_tasks: Whether to include task and cluster details in the response.
         :param job_name: Optional name of a job to search.
         :param page_token: The optional page token pointing at the first first job to return.
@@ -234,29 +251,15 @@ class DatabricksHook(BaseDatabricksHook):
         """
         has_more = True
         all_jobs = []
-        use_token_pagination = (page_token is not None) or (offset is None)
-        if offset is not None:
-            warnings.warn(
-                """You are using the deprecated offset parameter in list_jobs.
-                It will be hard-limited at the maximum value of 1000 by Databricks API after Oct 9, 2023.
-                Please paginate using page_token instead.""",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         if page_token is None:
             page_token = ""
-        if offset is None:
-            offset = 0
 
         while has_more:
             payload: dict[str, Any] = {
                 "limit": limit,
                 "expand_tasks": expand_tasks,
             }
-            if use_token_pagination:
-                payload["page_token"] = page_token
-            else:  # offset pagination
-                payload["offset"] = offset
+            payload["page_token"] = page_token
             if job_name:
                 payload["name"] = job_name
             response = self._do_api_call(LIST_JOBS_ENDPOINT, payload)
@@ -268,13 +271,12 @@ class DatabricksHook(BaseDatabricksHook):
             has_more = response.get("has_more", False)
             if has_more:
                 page_token = response.get("next_page_token", "")
-                offset += len(jobs)
 
         return all_jobs
 
     def find_job_id_by_name(self, job_name: str) -> int | None:
         """
-        Finds job id by its name. If there are multiple jobs with the same name, raises AirflowException.
+        Find job id by its name; if there are multiple jobs with the same name, raise AirflowException.
 
         :param job_name: The name of the job to look up.
         :return: The job_id as an int or None if no job was found.
@@ -295,7 +297,7 @@ class DatabricksHook(BaseDatabricksHook):
         self, batch_size: int = 25, pipeline_name: str | None = None, notebook_path: str | None = None
     ) -> list[dict[str, Any]]:
         """
-        Lists the pipelines in Databricks Delta Live Tables.
+        List the pipelines in Databricks Delta Live Tables.
 
         :param batch_size: The limit/batch size used to retrieve pipelines.
         :param pipeline_name: Optional name of a pipeline to search. Cannot be combined with path.
@@ -334,7 +336,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def find_pipeline_id_by_name(self, pipeline_name: str) -> str | None:
         """
-        Finds pipeline id by its name. If multiple pipelines with the same name, raises AirflowException.
+        Find pipeline id by its name; if multiple pipelines with the same name, raise AirflowException.
 
         :param pipeline_name: The name of the pipeline to look up.
         :return: The pipeline_id as a GUID string or None if no pipeline was found.
@@ -354,7 +356,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_run_page_url(self, run_id: int) -> str:
         """
-        Retrieves run_page_url.
+        Retrieve run_page_url.
 
         :param run_id: id of the run
         :return: URL of the run page
@@ -376,7 +378,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_job_id(self, run_id: int) -> int:
         """
-        Retrieves job_id from run_id.
+        Retrieve job_id from run_id.
 
         :param run_id: id of the run
         :return: Job id for given Databricks run
@@ -387,7 +389,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_run_state(self, run_id: int) -> RunState:
         """
-        Retrieves run state of the run.
+        Retrieve run state of the run.
 
         Please note that any Airflow tasks that call the ``get_run_state`` method will result in
         failure unless you have enabled xcom pickling.  This can be done using the following
@@ -454,7 +456,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_run_state_lifecycle(self, run_id: int) -> str:
         """
-        Returns the lifecycle state of the run.
+        Return the lifecycle state of the run.
 
         :param run_id: id of the run
         :return: string with lifecycle state
@@ -463,7 +465,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_run_state_result(self, run_id: int) -> str:
         """
-        Returns the resulting state of the run.
+        Return the resulting state of the run.
 
         :param run_id: id of the run
         :return: string with resulting state
@@ -472,7 +474,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_run_state_message(self, run_id: int) -> str:
         """
-        Returns the state message for the run.
+        Return the state message for the run.
 
         :param run_id: id of the run
         :return: string with state message
@@ -481,7 +483,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_run_output(self, run_id: int) -> dict:
         """
-        Retrieves run output of the run.
+        Retrieve run output of the run.
 
         :param run_id: id of the run
         :return: output of the run
@@ -492,7 +494,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def cancel_run(self, run_id: int) -> None:
         """
-        Cancels the run.
+        Cancel the run.
 
         :param run_id: id of the run
         """
@@ -501,7 +503,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def cancel_all_runs(self, job_id: int) -> None:
         """
-        Cancels all active runs of a job. The runs are canceled asynchronously.
+        Cancel all active runs of a job asynchronously.
 
         :param job_id: The canonical identifier of the job to cancel all runs of
         """
@@ -510,7 +512,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def delete_run(self, run_id: int) -> None:
         """
-        Deletes a non-active run.
+        Delete a non-active run.
 
         :param run_id: id of the run
         """
@@ -527,7 +529,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_cluster_state(self, cluster_id: str) -> ClusterState:
         """
-        Retrieves run state of the cluster.
+        Retrieve run state of the cluster.
 
         :param cluster_id: id of the cluster
         :return: state of the cluster
@@ -561,7 +563,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def start_cluster(self, json: dict) -> None:
         """
-        Starts the cluster.
+        Start the cluster.
 
         :param json: json dictionary containing cluster specification.
         """
@@ -569,7 +571,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def terminate_cluster(self, json: dict) -> None:
         """
-        Terminates the cluster.
+        Terminate the cluster.
 
         :param json: json dictionary containing cluster specification.
         """
@@ -597,7 +599,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def update_repo(self, repo_id: str, json: dict[str, Any]) -> dict:
         """
-        Updates given Databricks Repos.
+        Update given Databricks Repos.
 
         :param repo_id: ID of Databricks Repos
         :param json: payload
@@ -608,7 +610,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def delete_repo(self, repo_id: str):
         """
-        Deletes given Databricks Repos.
+        Delete given Databricks Repos.
 
         :param repo_id: ID of Databricks Repos
         :return:
@@ -618,7 +620,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def create_repo(self, json: dict[str, Any]) -> dict:
         """
-        Creates a Databricks Repos.
+        Create a Databricks Repos.
 
         :param json: payload
         :return:
@@ -628,7 +630,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_repo_by_path(self, path: str) -> str | None:
         """
-        Obtains Repos ID by path.
+        Obtain Repos ID by path.
 
         :param path: path to a repository
         :return: Repos ID if it exists, None if doesn't.

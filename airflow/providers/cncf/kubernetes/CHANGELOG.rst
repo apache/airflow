@@ -27,6 +27,84 @@
 Changelog
 ---------
 
+7.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add verificationy that provider docs are as expected (#35424)``
+* ``Add startup_check_interval_seconds to PodManager's await_pod_start (#34231)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove before_log in KPO retry and add traceback when interrupted (#35423)``
+* ``Remove tenancity on KPO logs inner func consume_logs (#35504)``
+
+Misc
+~~~~
+
+* ``Simplify KPO multi container log reconciliation logic (#35450)``
+* ``Remove PodLoggingStatus object (#35422)``
+* ``Improve clear_not_launched_queued_tasks call duration (#34985)``
+* ``Use constant for empty xcom result sentinel (#35451)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch from Black to Ruff formatter (#35287)``
+
+7.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Added to the rendering of KubernetesOperator V1VolumeMount, sub_path (#35129)``
+* ``feat: add hostAliases to pod spec in KubernetesPodOperator (#35063)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Replace blocking IO with async IO in AsyncKubernetesHook (#35162)``
+* ``Consolidate the warning stacklevel in KubernetesPodTrigger (#35079)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+   * ``Upgrade pre-commits (#35033)``
+   * ``D401 Support - A thru Common (Inclusive) (#34934)``
+   * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+
+7.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix parsing KubernetesPodOperator multiline logs (#34412)``
+* ``Fix KubernetesPodTrigger startup timeout (#34579)``
+* ``Fix Pod not being removed after istio-sidecar is removed  (#34500)``
+* ``Remove duplicated logs by reusing PodLogsConsumer (#34127)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``warn level for deprecated set to stacklevel 2 (#34530)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor usage of str() in providers (#34320)``
+   * ``Update CHANGELOG.rst (#34625)``
+   * ``Refactor shorter defaults in providers (#34347)``
+
 7.6.0
 .....
 

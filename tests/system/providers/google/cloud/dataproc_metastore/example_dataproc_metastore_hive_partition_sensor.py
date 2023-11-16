@@ -113,7 +113,6 @@ with DAG(
     catchup=False,
     tags=["example", "dataproc", "metastore", "partition", "hive", "sensor"],
 ) as dag:
-
     create_metastore_service = DataprocMetastoreCreateServiceOperator(
         task_id="create_metastore_service",
         region=REGION,

@@ -108,7 +108,6 @@ with DAG(
     catchup=False,
     tags=["example", "transfer", "gcp"],
 ) as dag:
-
     create_bucket_src = GCSCreateBucketOperator(
         task_id="create_bucket_src",
         bucket_name=BUCKET_NAME_SRC,

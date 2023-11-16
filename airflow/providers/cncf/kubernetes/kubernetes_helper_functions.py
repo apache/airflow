@@ -63,7 +63,7 @@ def create_pod_id(
     unique: bool = True,
 ) -> str:
     """
-    Generates unique pod ID given a dag_id and / or task_id.
+    Generate unique pod ID given a dag_id and / or task_id.
 
     The default of 80 for max length is somewhat arbitrary, mainly a balance between
     content and not overwhelming terminal windows of reasonable width. The true

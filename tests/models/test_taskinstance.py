@@ -97,6 +97,8 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture
 def test_pool():
@@ -106,6 +108,15 @@ def test_pool():
         session.flush()
         yield test_pool
         session.rollback()
+
+
+@pytest.fixture
+def task_reschedules_for_ti():
+    def wrapper(ti):
+        with create_session() as session:
+            return session.scalars(TaskReschedule.stmt_for_task_instance(ti=ti, descending=False)).all()
+
+    return wrapper
 
 
 class CallbackWrapper:
@@ -735,7 +746,7 @@ class TestTaskInstance:
         date = ti.next_retry_datetime()
         assert date == ti.end_date + datetime.timedelta(seconds=1)
 
-    def test_reschedule_handling(self, dag_maker):
+    def test_reschedule_handling(self, dag_maker, task_reschedules_for_ti):
         """
         Test that task reschedules are handled properly
         """
@@ -785,8 +796,7 @@ class TestTaskInstance:
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)
-            assert len(trs) == expected_task_reschedule_count
+            assert len(task_reschedules_for_ti(ti)) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
         date2 = date1 + datetime.timedelta(minutes=1)
@@ -833,7 +843,7 @@ class TestTaskInstance:
         done, fail = True, False
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
-    def test_mapped_reschedule_handling(self, dag_maker):
+    def test_mapped_reschedule_handling(self, dag_maker, task_reschedules_for_ti):
         """
         Test that mapped task reschedules are handled properly
         """
@@ -884,8 +894,7 @@ class TestTaskInstance:
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)
-            assert len(trs) == expected_task_reschedule_count
+            assert len(task_reschedules_for_ti(ti)) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
         date2 = date1 + datetime.timedelta(minutes=1)
@@ -933,7 +942,7 @@ class TestTaskInstance:
         run_ti_and_assert(date4, date3, date4, 60, State.SUCCESS, 3, 0)
 
     @pytest.mark.usefixtures("test_pool")
-    def test_mapped_task_reschedule_handling_clear_reschedules(self, dag_maker):
+    def test_mapped_task_reschedule_handling_clear_reschedules(self, dag_maker, task_reschedules_for_ti):
         """
         Test that mapped task reschedules clearing are handled properly
         """
@@ -983,8 +992,7 @@ class TestTaskInstance:
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)
-            assert len(trs) == expected_task_reschedule_count
+            assert len(task_reschedules_for_ti(ti)) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
 
@@ -997,11 +1005,10 @@ class TestTaskInstance:
         assert ti.state == State.NONE
         assert ti._try_number == 0
         # Check that reschedules for ti have also been cleared.
-        trs = TaskReschedule.find_for_task_instance(ti)
-        assert not trs
+        assert not task_reschedules_for_ti(ti)
 
     @pytest.mark.usefixtures("test_pool")
-    def test_reschedule_handling_clear_reschedules(self, dag_maker):
+    def test_reschedule_handling_clear_reschedules(self, dag_maker, task_reschedules_for_ti):
         """
         Test that task reschedules clearing are handled properly
         """
@@ -1051,8 +1058,7 @@ class TestTaskInstance:
             assert ti.start_date == expected_start_date
             assert ti.end_date == expected_end_date
             assert ti.duration == expected_duration
-            trs = TaskReschedule.find_for_task_instance(ti)
-            assert len(trs) == expected_task_reschedule_count
+            assert len(task_reschedules_for_ti(ti)) == expected_task_reschedule_count
 
         date1 = timezone.utcnow()
 
@@ -1065,8 +1071,7 @@ class TestTaskInstance:
         assert ti.state == State.NONE
         assert ti._try_number == 0
         # Check that reschedules for ti have also been cleared.
-        trs = TaskReschedule.find_for_task_instance(ti)
-        assert not trs
+        assert not task_reschedules_for_ti(ti)
 
     def test_depends_on_past(self, dag_maker):
         with dag_maker(dag_id="test_depends_on_past"):
@@ -2939,7 +2944,7 @@ class TestTaskInstance:
                 task_id="context_inside_template",
                 python_callable=foo,
                 op_kwargs={"arg": "{{ user_defined_macro() }}"},
-            ),
+            )
         dagrun = dag_maker.create_dagrun()
         tis = dagrun.get_task_instances()
         ti: TaskInstance = next(x for x in tis if x.task_id == "context_inside_template")
@@ -3602,11 +3607,11 @@ class TestTaskInstanceRecordTaskMapXComPush:
             ("taskflow", 1, None),
         ]
 
-        ti = tis[((downstream, 0, None))]
+        ti = tis[(downstream, 0, None)]
         ti.run()
         ti.xcom_pull(task_ids=downstream, map_indexes=0, session=session) == ["a", "d"]
 
-        ti = tis[((downstream, 1, None))]
+        ti = tis[(downstream, 1, None)]
         if strict:
             with pytest.raises(TypeError) as ctx:
                 ti.run()

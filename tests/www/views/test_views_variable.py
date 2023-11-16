@@ -33,6 +33,7 @@ from tests.test_utils.www import (
     client_with_login,
 )
 
+pytestmark = pytest.mark.db_test
 VARIABLE = {
     "key": "test_key",
     "val": "text_val",
@@ -54,7 +55,10 @@ def user_variable_reader(app):
         app,
         username="user_variable_reader",
         role_name="role_variable_reader",
-        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)],
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
     )
 
 
@@ -189,6 +193,16 @@ def test_import_variables_anon(session, app):
     check_content_in_response("Sign In", resp)
 
 
+def test_import_variables_access_denied(session, app, viewer_client):
+    content = '{"str_key": "str_value}'
+    bytes_content = BytesIO(bytes(content, encoding="utf-8"))
+
+    resp = viewer_client.post(
+        "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
+    )
+    check_content_in_response("Access is Denied", resp)
+
+
 def test_import_variables_form_shown(app, admin_client):
     resp = admin_client.get("/variable/list/")
     check_content_in_response("Import Variables", resp)
@@ -241,3 +255,13 @@ def test_action_muldelete(session, admin_client, variable):
     )
     assert resp.status_code == 200
     assert session.query(Variable).filter(Variable.id == var_id).count() == 0
+
+
+def test_action_muldelete_access_denied(session, client_variable_reader, variable):
+    var_id = variable.id
+    resp = client_variable_reader.post(
+        "/variable/action_post",
+        data={"action": "muldelete", "rowid": [var_id]},
+        follow_redirects=True,
+    )
+    check_content_in_response("Access is Denied", resp)

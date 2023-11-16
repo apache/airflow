@@ -278,12 +278,11 @@ class AzureContainerInstancesOperator(BaseOperator):
                 self.on_kill()
 
     def on_kill(self) -> None:
-        if self.remove_on_error:
-            self.log.info("Deleting container group")
-            try:
-                self._ci_hook.delete(self.resource_group, self.name)
-            except Exception:
-                self.log.exception("Could not delete container group")
+        self.log.info("Deleting container group")
+        try:
+            self._ci_hook.delete(self.resource_group, self.name)
+        except Exception:
+            self.log.exception("Could not delete container group")
 
     def _monitor_logging(self, resource_group: str, name: str) -> int:
         last_state = None
@@ -318,6 +317,9 @@ class AzureContainerInstancesOperator(BaseOperator):
                 if state in ["Running", "Terminated", "Succeeded"]:
                     try:
                         logs = self._ci_hook.get_logs(resource_group, name)
+                        if logs and logs[0] is None:
+                            self.log.error("Container log is broken, marking as failed.")
+                            return 1
                         last_line_logged = self._log_last(logs, last_line_logged)
                     except CloudError:
                         self.log.exception(

@@ -136,11 +136,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         messages = []
         logs = []
         worker_log_relative_path = self._render_filename(ti, try_number)
-        # todo: fix this
-        # for some reason this handler was designed such that (1) container name is not configurable
-        # (i.e. it's hardcoded in airflow_local_settings.py) and (2) the "relative path" is actually...
-        # whatever you put in REMOTE_BASE_LOG_FOLDER i.e. it includes the "wasb://" in the blob
-        # name. it's very screwed up but to change it we have to be careful not to break backcompat.
+        # TODO: fix this - "relative path" i.e currently REMOTE_BASE_LOG_FOLDER should start with "wasb"
+        # unlike others with shceme in URL itself to identify the correct handler.
+        # This puts limitations on ways users can name the base_path.
         prefix = os.path.join(self.remote_base, worker_log_relative_path)
         blob_names = []
         try:
@@ -151,7 +149,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             self.log.exception("can't list blobs")
 
         if blob_names:
-            uris = [f"wasb://{self.wasb_container}/{b}" for b in blob_names]
+            uris = [f"https://{self.wasb_container}.blob.core.windows.net/{b}" for b in blob_names]
             messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
             messages.append(f"No logs found in WASB; ti=%s {ti}")

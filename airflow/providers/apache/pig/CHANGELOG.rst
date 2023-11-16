@@ -29,6 +29,22 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor shorter defaults in providers (#34347)``
+
 4.1.2
 .....
 
@@ -92,7 +108,7 @@ Misc
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-You cannot use ``pig_properties`` any more as connection extras. If you want to add extra parameters
+You cannot use ``pig_properties`` anymore as connection extras. If you want to add extra parameters
 to ``pig`` command, you need to do it via ``pig_properties`` (string list) of the PigCliHook (new parameter)
 or via ``pig_opts`` (string with options separated by spaces) or ``pig_properties`` (string list) in
 the PigOperator . Any use of ``pig_properties`` extras in connection will raise an exception,

@@ -22,6 +22,7 @@ import os
 import shutil
 import subprocess
 import sys
+from copy import copy
 from pathlib import Path
 from typing import Any
 
@@ -295,15 +296,14 @@ def validate_params_for_command(command_params, command):
     return is_duplicate_found
 
 
-def get_command_hash_export() -> str:
+def get_command_hash_dict() -> dict[str, str]:
     import rich_click
 
-    hashes = []
+    hashes: dict[str, str] = {}
     with Context(main) as ctx:
         the_context_dict = ctx.to_info_dict()
         if get_verbose():
             get_stderr_console().print(the_context_dict)
-        hashes.append(f"main:{dict_hash(the_context_dict['command']['params'])}")
         commands_dict = the_context_dict["command"]["commands"]
         options = rich_click.rich_click.OPTION_GROUPS
         for command in sorted(commands_dict.keys()):
@@ -311,43 +311,48 @@ def get_command_hash_export() -> str:
             if duplicate_found:
                 sys.exit(1)
             current_command_dict = commands_dict[command]
-            current_command_hash_dict = {
-                "command": current_command_dict,
-                "options": rich_click.rich_click.COMMAND_GROUPS.get(f"breeze {command}"),
-            }
-            if "commands" in current_command_dict:
-                subcommands = current_command_dict["commands"]
-                duplicate_found_subcommand = False
-                for subcommand in sorted(subcommands.keys()):
-                    duplicate_found = validate_params_for_command(
-                        commands_dict[command]["commands"][subcommand], command + " " + subcommand
-                    )
-                    if duplicate_found:
-                        duplicate_found_subcommand = True
-                    subcommand_click_dict = subcommands[subcommand]
-                    try:
-                        subcommand_rich_click_dict = options[f"breeze {command} {subcommand}"]
-                    except KeyError:
-                        get_console().print(
-                            f"[error]The `breeze {command} {subcommand}` is missing in rich-click options[/]"
-                        )
-                        get_console().print(
-                            "[info]Please add it to rich_click.OPTION_GROUPS "
-                            "via one of the `*_commands_config.py` "
-                            "files in `dev/breeze/src/airflow_breeze/commands`[/]"
-                        )
-                        sys.exit(1)
-                    final_dict = {
-                        "click_commands": subcommand_click_dict,
-                        "rich_click_options": subcommand_rich_click_dict,
+            subcommands = current_command_dict.get("commands", {})
+            if subcommands:
+                only_subcommands_with_help = copy(current_command_dict)
+                only_subcommands_with_help["commands"] = {
+                    subcommand: {
+                        "name": subcommands[subcommand]["name"],
+                        "help": subcommands[subcommand]["help"],
                     }
-                    hashes.append(f"{command}:{subcommand}:{dict_hash(final_dict)}")
-                if duplicate_found_subcommand:
-                    sys.exit(1)
-                hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
+                    for subcommand in subcommands
+                    if subcommands[subcommand].get("help")
+                }
+                hashes[f"{command}"] = dict_hash(only_subcommands_with_help) + "\n"
             else:
-                hashes.append(f"{command}:{dict_hash(current_command_hash_dict)}")
-    return "".join(f"{h}\n" for h in hashes)
+                hashes[f"{command}"] = dict_hash(current_command_dict) + "\n"
+            duplicate_found_subcommand = False
+            for subcommand in sorted(subcommands.keys()):
+                duplicate_found = validate_params_for_command(
+                    commands_dict[command]["commands"][subcommand], command + " " + subcommand
+                )
+                if duplicate_found:
+                    duplicate_found_subcommand = True
+                subcommand_click_dict = subcommands[subcommand]
+                try:
+                    subcommand_rich_click_dict = options[f"breeze {command} {subcommand}"]
+                except KeyError:
+                    get_console().print(
+                        f"[error]The `breeze {command} {subcommand}` is missing in rich-click options[/]"
+                    )
+                    get_console().print(
+                        "[info]Please add it to rich_click.OPTION_GROUPS "
+                        "via one of the `*_commands_config.py` "
+                        "files in `dev/breeze/src/airflow_breeze/commands`[/]"
+                    )
+                    sys.exit(1)
+                final_dict = {
+                    "click_commands": subcommand_click_dict,
+                    "rich_click_options": subcommand_rich_click_dict,
+                }
+                hashes[f"{command}:{subcommand}"] = dict_hash(final_dict) + "\n"
+            if duplicate_found_subcommand:
+                sys.exit(1)
+    return hashes
 
 
 def write_to_shell(command_to_execute: str, script_path: str, force_setup: bool) -> bool:
@@ -418,36 +423,17 @@ def backup(script_path_file: Path):
 BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_ROOT / "images" / "breeze"
 BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
-COMMAND_HASH_FILE_PATH = BREEZE_IMAGES_DIR / "output-commands-hash.txt"
 
 
-def get_commands() -> list[str]:
-    results = []
-    if COMMAND_HASH_FILE_PATH.exists():
-        content = COMMAND_HASH_FILE_PATH.read_text()
-        for line in content.splitlines():
-            strip_line = line.strip()
-            if strip_line and not strip_line.startswith("#"):
-                results.append(":".join(strip_line.split(":")[:-1]))
-    return results
+def get_old_command_hash() -> dict[str, str]:
+    command_hash = {}
+    for file in BREEZE_IMAGES_DIR.glob("output_*.txt"):
+        command = ":".join(file.name.split("_")[1:])[:-4]
+        command_hash[command] = file.read_text()
+    return command_hash
 
 
 SCREENSHOT_WIDTH = "120"
-
-PREAMBLE = """# This file is automatically generated by pre-commit. If you have a conflict with this file
-# Please do not solve it but run `breeze setup regenerate-command-images`.
-# This command should fix the conflict and regenerate help images that you have conflict with.
-"""
-
-
-def get_command_hash_dict(hash_file_content: str) -> dict[str, str]:
-    results = {}
-    for line in hash_file_content.splitlines():
-        strip_line = line.strip()
-        if strip_line and not strip_line.startswith("#"):
-            command, the_hash = strip_line.rsplit(":", 1)
-            results[command] = the_hash
-    return results
 
 
 def print_difference(dict1: dict[str, str], dict2: dict[str, str]):
@@ -468,21 +454,17 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
     env["RECORD_BREEZE_WIDTH"] = SCREENSHOT_WIDTH
     env["TERM"] = "xterm-256color"
     env["PYTHONPATH"] = str(BREEZE_SOURCES_DIR)
-    new_hash_text_dump = PREAMBLE + get_command_hash_export()
+    new_hash_dict = get_command_hash_dict()
     regenerate_all_commands = False
     commands_list = list(commands)
     if force:
         console.print("[info]Force regeneration all breeze command images")
-        commands_list.extend(get_command_hash_dict(new_hash_text_dump).keys())
+        commands_list.extend(new_hash_dict.keys())
         regenerate_all_commands = True
     elif commands_list:
         console.print(f"[info]Regenerating breeze command images for specified commands:{commands_list}")
     else:
-        old_hash_text_dump = ""
-        if COMMAND_HASH_FILE_PATH.exists():
-            old_hash_text_dump = COMMAND_HASH_FILE_PATH.read_text()
-        old_hash_dict = get_command_hash_dict(old_hash_text_dump)
-        new_hash_dict = get_command_hash_dict(new_hash_text_dump)
+        old_hash_dict = get_old_command_hash()
         if old_hash_dict == new_hash_dict:
             if check_only:
                 console.print(
@@ -523,8 +505,9 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
             env["RECORD_BREEZE_UNIQUE_ID"] = f"breeze-{'-'.join(subcommands)}"
             run_command(["breeze", *subcommands, "--help"], env=env)
     if regenerate_all_commands:
-        COMMAND_HASH_FILE_PATH.write_text(new_hash_text_dump)
-        get_console().print(f"\n[info]New hash of breeze commands written in {COMMAND_HASH_FILE_PATH}\n")
+        for command, hash_txt in new_hash_dict.items():
+            (BREEZE_IMAGES_DIR / f"output_{'_'.join(command.split(':'))}.txt").write_text(hash_txt)
+        get_console().print("\n[info]New hash of breeze commands written\n")
     return 1
 
 
@@ -644,7 +627,7 @@ def check_that_all_params_are_in_groups(commands: tuple[str, ...]) -> int:
     help="Command(s) to regenerate images for (optional, might be repeated)",
     show_default=True,
     multiple=True,
-    type=BetterChoice(get_commands()),
+    type=BetterChoice(sorted(list(get_old_command_hash().keys()))),
 )
 @option_verbose
 @option_dry_run
@@ -661,7 +644,7 @@ def regenerate_command_images(command: tuple[str, ...], force: bool, check_only:
     help="Command(s) to regenerate images for (optional, might be repeated)",
     show_default=True,
     multiple=True,
-    type=BetterChoice(get_commands()),
+    type=BetterChoice(sorted(list(get_old_command_hash().keys()))),
 )
 @option_verbose
 @option_dry_run

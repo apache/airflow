@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.4.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ===================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`6703f720cc <https://github.com/apache/airflow/commit/6703f720cc4d49e223de2f7c542beda5a6164212>`_  2023-09-13   ``Remove useless print from dbt operator (#34322)``
+=================================================================================================  ===========  ===================================================
+
 3.3.0
 .....
 
-Latest change: 2023-09-11
+Latest change: 2023-09-12
 
 =================================================================================================  ===========  ======================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================================
+`e1fd8d83d1 <https://github.com/apache/airflow/commit/e1fd8d83d1a2f48d61f92d1bfc42f7b0603f4193>`_  2023-09-12   ``Prepare docs for Sep 2023 1st wave of Providers (RC2) (#34294)``
 `87fd884c0b <https://github.com/apache/airflow/commit/87fd884c0b9b90a02d454da323321f944a26c97e>`_  2023-09-11   ``dbt, openlineage: set run_id after defer, do not log error if operator has no run_id set (#34270)``
 `21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `0ecbbacd21 <https://github.com/apache/airflow/commit/0ecbbacd211184eaf8943ba2e58205a0b2dd108e>`_  2023-09-07   ``fix(providers/redis): respect soft_fail argument when exception is raised (#34164)``

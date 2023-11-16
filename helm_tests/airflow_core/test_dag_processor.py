@@ -69,6 +69,29 @@ class TestDagProcessor:
         )
         assert actual is None
 
+    def test_wait_for_migration_security_contexts_are_configurable(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "enabled": True,
+                    "waitForMigrations": {
+                        "enabled": True,
+                        "securityContexts": {
+                            "container": {
+                                "allowPrivilegeEscalation": False,
+                                "readOnlyRootFilesystem": True,
+                            },
+                        },
+                    },
+                },
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True} == jmespath.search(
+            "spec.template.spec.initContainers[0].securityContext", docs[0]
+        )
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
@@ -486,7 +509,7 @@ class TestDagProcessor:
             values=values,
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
@@ -659,7 +682,7 @@ class TestDagProcessorServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "dagProcessor": {
