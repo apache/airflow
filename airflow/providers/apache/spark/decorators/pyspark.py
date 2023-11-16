@@ -83,11 +83,10 @@ class _PySparkDecoratedOperator(DecoratedOperator, PythonOperator):
             conn = BaseHook.get_connection(self.conn_id)
             if conn.conn_type == SparkConnectHook.conn_type:
                 url = SparkConnectHook(self.conn_id).get_connection_url()
-            else:
-                if conn.port:
-                    url = f"{conn.host}:{conn.port}"
-                elif conn.host:
-                    url = conn.host
+            elif conn.port:
+                url = f"{conn.host}:{conn.port}"
+            elif conn.host:
+                url = conn.host
 
             for key, value in conn.extra_dejson.items():
                 conf.set(key, value)
