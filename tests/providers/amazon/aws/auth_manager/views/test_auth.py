@@ -53,7 +53,7 @@ def aws_app():
                     "core",
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-                ("aws", "auth_manager_saml_metadata_url"): SAML_METADATA_URL,
+                ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             }
         ):
             with patch(
@@ -92,7 +92,7 @@ class TestAwsAuthManagerAuthenticationViews:
                     "core",
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-                ("aws", "auth_manager_saml_metadata_url"): SAML_METADATA_URL,
+                ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             }
         ):
             with patch(
@@ -127,7 +127,7 @@ class TestAwsAuthManagerAuthenticationViews:
                     "core",
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-                ("aws", "auth_manager_saml_metadata_url"): SAML_METADATA_URL,
+                ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             }
         ):
             with patch(

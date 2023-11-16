@@ -21,7 +21,7 @@ from airflow.providers.amazon.aws.auth_manager.constants import CONF_SAML_METADA
 
 class TestAwsAuthManagerConstants:
     def test_conf_section_name(self):
-        assert CONF_SECTION_NAME == "aws"
+        assert CONF_SECTION_NAME == "aws_auth_manager"
 
     def test_conf_saml_metadata_url_key(self):
-        assert CONF_SAML_METADATA_URL_KEY == "auth_manager_saml_metadata_url"
+        assert CONF_SAML_METADATA_URL_KEY == "saml_metadata_url"
