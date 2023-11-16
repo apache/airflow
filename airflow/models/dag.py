@@ -1506,12 +1506,12 @@ class DAG(LoggingMixin):
             context = ti.get_template_context(session=session)
             context.update({"reason": reason})
             for callback in callbacks:
-                cls.logger().info("Executing dag callback function: %s", callback)
+                self.logger().info("Executing dag callback function: %s", callback)
                 try:
                     callback(context)
                 except Exception:
-                    cls.logger().exception("failed to invoke dag state update callback")
-                    Stats.incr("dag.callback_exceptions", tags={"dag_id": dag_id})
+                    self.logger().exception("failed to invoke dag state update callback")
+                    Stats.incr("dag.callback_exceptions", tags={"dag_id": self.dag_id})
 
     def get_active_runs(self):
         """
