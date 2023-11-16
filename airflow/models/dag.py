@@ -1485,7 +1485,8 @@ class DAG(LoggingMixin):
             ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
 
         :param dagrun: DagRun object
-        :param success: Flag to specify if failure or success callback should be called
+        :param dagrun_state: State of DagRun that triggered the callback
+        :param sla_miss: Was SLA missed when the callback was triggered
         :param reason: Completion reason
         :param session: Database session
         """

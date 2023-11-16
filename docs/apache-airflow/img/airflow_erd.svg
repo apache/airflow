@@ -750,6 +750,7 @@
 <polygon fill="none" stroke="black" points="472,-781 472,-806 759,-806 759,-781 472,-781"/>
 <text text-anchor="start" x="477" y="-790.8" font-family="Helvetica,sans-Serif" font-size="14.00">sla_missed</text>
 <text text-anchor="start" x="553" y="-790.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BOOLEAN]</text>
+<text text-anchor="start" x="637" y="-790.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="472,-756 472,-781 759,-781 759,-756 472,-756"/>
 <text text-anchor="start" x="477" y="-765.8" font-family="Helvetica,sans-Serif" font-size="14.00">start_date</text>
 <text text-anchor="start" x="547" y="-765.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
