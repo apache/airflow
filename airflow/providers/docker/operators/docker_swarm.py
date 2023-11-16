@@ -24,6 +24,7 @@ from docker import types
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.strings import get_random_string
+from time import sleep
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -179,23 +180,22 @@ class DockerSwarmOperator(DockerOperator):
     def _stream_logs_to_output(self) -> None:
         if not self.service:
             raise Exception("The 'service' should be initialized before!")
-        logs = self.cli.service_logs(
-            self.service["ID"], follow=True, stdout=True, stderr=True, is_tty=self.tty
-        )
-        line = ""
-        for log in logs:
-            try:
-                log = log.decode()
-            except UnicodeDecodeError:
-                continue
-            if log == "\n":
+        last_line_logged = 0
+
+        def stream_new_logs(last_line_logged):
+            all_logs = self.cli.service_logs(
+                self.service["ID"], follow=False, stdout=True, stderr=True, is_tty=False
+            )
+            new_lines_to_log = b"".join(all_logs).decode().splitlines()
+            new_lines_to_log = new_lines_to_log[last_line_logged:]
+            for line in new_lines_to_log:
                 self.log.info(line)
-                line = ""
-            else:
-                line += log
-        # flush any remaining log stream
-        if line:
-            self.log.info(line)
+            return last_line_logged + len(new_lines_to_log)
+
+        while not self._has_service_terminated():
+            sleep(2)
+            last_line_logged = stream_new_logs(last_line_logged)
+        stream_new_logs(last_line_logged)
 
     def on_kill(self) -> None:
         if self.hook.client_created and self.service is not None:
