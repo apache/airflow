@@ -345,7 +345,9 @@ if [[ ${UPGRADE_BOTO=} == "true" ]]; then
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
     pip uninstall --root-user-action ignore aiobotocore s3fs -y || true
-    pip install --root-user-action ignore --upgrade boto3 botocore
+    # The limits for boto3 and botocore are set only because moto does not handle some changes implemented in botocore 1.32.1
+    # They should be removed as soon as https://github.com/getmoto/moto/issues/7031 is fixed and moto with the fixes is released
+    pip install --root-user-action ignore --upgrade "boto3<1.29.1" "botocore<1.32.1"
     pip check
 fi
 if [[ ${DOWNGRADE_SQLALCHEMY=} == "true" ]]; then
