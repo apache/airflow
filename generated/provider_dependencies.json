@@ -191,6 +191,7 @@
   "apache.spark": {
     "deps": [
       "apache-airflow>=2.5.0",
+      "grpcio-status",
       "pyspark"
     ],
     "cross-providers-deps": [
@@ -444,7 +445,7 @@
       "google-cloud-dataform>=0.5.0",
       "google-cloud-dataplex>=1.4.2",
       "google-cloud-dataproc-metastore>=1.12.0",
-      "google-cloud-dataproc>=5.4.0",
+      "google-cloud-dataproc>=5.5.0",
       "google-cloud-dlp>=3.12.0",
       "google-cloud-kms>=2.15.0",
       "google-cloud-language>=2.9.0",
@@ -586,6 +587,7 @@
       "azure-storage-blob>=12.14.0",
       "azure-storage-file-datalake>=12.9.1",
       "azure-storage-file-share",
+      "azure-synapse-artifacts>=0.17.0",
       "azure-synapse-spark"
     ],
     "cross-providers-deps": [
@@ -733,6 +735,7 @@
   "papermill": {
     "deps": [
       "apache-airflow>=2.5.0",
+      "ipykernel",
       "papermill[all]>=1.2.1",
       "scrapbook[all]"
     ],

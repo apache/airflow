@@ -53,14 +53,15 @@ class HttpOperator(BaseOperator):
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
     :param headers: The HTTP headers to be added to the GET request
-    :param pagination_function: A callable that generates the parameters used to call the API again.
-        Typically used when the API is paginated and returns for e.g a cursor, a 'next page id', or
-        a 'next page URL'. When provided, the Operator will call the API repeatedly until this callable
-        returns None. Also, the result of the Operator will become by default a list of Response.text
-        objects (instead of a single response object). Same with the other injected functions (like
-        response_check, response_filter, ...) which will also receive a list of Response object. This
-        function should return a dict of parameters (`endpoint`, `data`, `headers`, `extra_options`),
-        which will be merged and override the one used in the initial API call.
+    :param pagination_function: A callable that generates the parameters used to call the API again,
+        based on the previous response. Typically used when the API is paginated and returns for e.g a
+        cursor, a 'next page id', or a 'next page URL'. When provided, the Operator will call the API
+        repeatedly until this callable returns None. Also, the result of the Operator will become by
+        default a list of Response.text objects (instead of a single response object). Same with the
+        other injected functions (like response_check, response_filter, ...) which will also receive a
+        list of Response object. This function receives a Response object form previous call, and should
+        return a dict of parameters (`endpoint`, `data`, `headers`, `extra_options`), which will be merged
+        and will override the one used in the initial API call.
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.
@@ -162,16 +163,16 @@ class HttpOperator(BaseOperator):
     def execute_sync(self, context: Context) -> Any:
         self.log.info("Calling HTTP method")
         response = self.hook.run(self.endpoint, self.data, self.headers, self.extra_options)
-        response = self.paginate_sync(first_response=response)
+        response = self.paginate_sync(response=response)
         return self.process_response(context=context, response=response)
 
-    def paginate_sync(self, first_response: Response) -> Response | list[Response]:
+    def paginate_sync(self, response: Response) -> Response | list[Response]:
         if not self.pagination_function:
-            return first_response
+            return response
 
-        all_responses = [first_response]
+        all_responses = [response]
         while True:
-            next_page_params = self.pagination_function(first_response)
+            next_page_params = self.pagination_function(response)
             if not next_page_params:
                 break
             response = self.hook.run(**self._merge_next_page_parameters(next_page_params))

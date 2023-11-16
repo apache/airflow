@@ -149,6 +149,7 @@ class TestKubernetesPodOperator:
             arguments="{{ dag.dag_id }}",
             cmds="{{ dag.dag_id }}",
             image="{{ dag.dag_id }}",
+            annotations={"dag-id": "{{ dag.dag_id }}"},
         )
 
         rendered = ti.render_templates()
@@ -167,6 +168,7 @@ class TestKubernetesPodOperator:
         assert dag_id == ti.task.pod_template_file
         assert dag_id == ti.task.arguments
         assert dag_id == ti.task.env_vars[0]
+        assert dag_id == rendered.annotations["dag-id"]
 
     def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id="dag") as dag:

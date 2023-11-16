@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
@@ -189,15 +188,13 @@ class DbtCloudRunJobOperator(BaseOperator):
             return self.run_id
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
-        """
-        Execute when the trigger fires - returns immediately.
-
-        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
-        """
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        self.log.info(event["message"])
+        """Execute when the trigger fires - returns immediately."""
         self.run_id = event["run_id"]
+        if event["status"] == "cancelled":
+            raise DbtCloudJobRunException(f"Job run {self.run_id} has been cancelled.")
+        elif event["status"] == "error":
+            raise DbtCloudJobRunException(f"Job run {self.run_id} has failed.")
+        self.log.info(event["message"])
         return int(event["run_id"])
 
     def on_kill(self) -> None:

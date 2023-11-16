@@ -39,6 +39,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix json data for async PUTs (#35405)``
+* ``Fix: Paginate on lastest Response (#35560)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -46,6 +47,7 @@ Bug Fixes
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
    * ``Upgrade pre-commits (#35033)``
    * ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+   * ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 
 4.6.0
 .....
