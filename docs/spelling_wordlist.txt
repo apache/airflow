@@ -792,7 +792,9 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceSelection
 instanceTemplates
 instantiation
 integrations
