@@ -22,7 +22,6 @@ import subprocess
 import sys
 from pathlib import Path
 from shutil import copytree, rmtree
-from stat import S_IRGRP, S_IROTH, S_IRUSR, S_IWUSR
 from typing import IO, Any
 
 from airflow_breeze.utils.console import get_console
@@ -179,9 +178,7 @@ def cleanup_build_remnants(target_provider_root_sources_path: Path):
     get_console().print(f"[info]Cleaned remnants in {target_provider_root_sources_path}\n")
 
 
-def build_provider_package(
-    provider_id: str, version_suffix: str, target_provider_root_sources_path: Path, package_format: str
-):
+def build_provider_package(provider_id: str, target_provider_root_sources_path: Path, package_format: str):
     get_console().print(
         f"\n[info]Building provider package: {provider_id} in format {package_format} in "
         f"{target_provider_root_sources_path}\n"
@@ -190,7 +187,14 @@ def build_provider_package(
     if package_format != "both":
         command.extend(["--format", package_format])
     try:
-        run_command(command, check=True, cwd=target_provider_root_sources_path)
+        run_command(
+            command,
+            check=True,
+            cwd=target_provider_root_sources_path,
+            env={
+                "SOURCE_DATE_EPOCH": str(get_provider_details(provider_id).source_date_epoch),
+            },
+        )
     except subprocess.CalledProcessError as ex:
         get_console().print("[error]The command returned an error %s", ex)
         raise PrepareReleasePackageErrorBuildingPackageException()
@@ -207,8 +211,6 @@ def move_built_packages_and_cleanup(
         # Shutil can move packages also between filesystems
         target_file = dist_folder / file.name
         target_file.unlink(missing_ok=True)
-        # Change ownership to group/other to read the file
-        file.chmod(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
         shutil.move(file.as_posix(), dist_folder.as_posix())
 
     if skip_cleanup:

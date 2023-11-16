@@ -84,6 +84,7 @@ class PluginInfo(NamedTuple):
 
 class ProviderPackageDetails(NamedTuple):
     provider_id: str
+    source_date_epoch: int
     full_package_name: str
     pypi_package_name: str
     source_provider_package_path: Path
@@ -131,27 +132,41 @@ class PipRequirements(NamedTuple):
         return cls(package=package, version_required=version_required.strip())
 
 
-@lru_cache
+PROVIDER_METADATA: dict[str, dict[str, Any]] = {}
+
+
+def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
+    import jsonschema
+    import yaml
+
+    schema = _load_schema()
+    with open(provider_yaml_path) as yaml_file:
+        provider = yaml.safe_load(yaml_file)
+    try:
+        jsonschema.validate(provider, schema=schema)
+    except jsonschema.ValidationError:
+        raise Exception(f"Unable to parse: {provider_yaml_path}.")
+    PROVIDER_METADATA[get_short_package_name(provider["package-name"])] = provider
+
+
+def refresh_provider_metadata_with_provider_id(provider_id: str):
+    provider_yaml_path = get_source_package_path(provider_id) / "provider.yaml"
+    refresh_provider_metadata_from_yaml_file(provider_yaml_path)
+
+
 def get_provider_packages_metadata() -> dict[str, dict[str, Any]]:
     """
     Load all data from providers files
 
     :return: A list containing the contents of all provider.yaml files.
     """
-    import jsonschema
-    import yaml
 
-    schema = _load_schema()
-    result: dict[str, dict[str, Any]] = {}
+    if PROVIDER_METADATA:
+        return PROVIDER_METADATA
+
     for provider_yaml_path in get_provider_yaml_paths():
-        with open(provider_yaml_path) as yaml_file:
-            provider = yaml.safe_load(yaml_file)
-        try:
-            jsonschema.validate(provider, schema=schema)
-        except jsonschema.ValidationError:
-            raise Exception(f"Unable to parse: {provider_yaml_path}.")
-        result[get_short_package_name(provider["package-name"])] = provider
-    return result
+        refresh_provider_metadata_from_yaml_file(provider_yaml_path)
+    return PROVIDER_METADATA
 
 
 def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) -> None:
@@ -440,6 +455,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
             )
     return ProviderPackageDetails(
         provider_id=provider_id,
+        source_date_epoch=provider_info["source-date-epoch"],
         full_package_name=f"airflow.providers.{provider_id}",
         pypi_package_name=f"apache-airflow-providers-{provider_id.replace('.', '-')}",
         source_provider_package_path=get_source_package_path(provider_id),

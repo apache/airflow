@@ -28,6 +28,7 @@ from copy import deepcopy
 from enum import Enum
 from pathlib import Path
 from shutil import copyfile
+from time import time
 from typing import Any, NamedTuple
 
 import jinja2
@@ -42,8 +43,9 @@ from airflow_breeze.utils.packages import (
     ProviderPackageDetails,
     get_provider_details,
     get_provider_jinja_context,
-    get_provider_packages_metadata,
     get_source_package_path,
+    refresh_provider_metadata_from_yaml_file,
+    refresh_provider_metadata_with_provider_id,
     render_template,
 )
 from airflow_breeze.utils.run_utils import run_command
@@ -458,11 +460,27 @@ def _update_version_in_provider_yaml(
     original_text = provider_yaml_path.read_text()
     new_text = re.sub(r"versions:", f"versions:\n  - {v}", original_text, 1)
     provider_yaml_path.write_text(new_text)
-    # IMPORTANT!!! Whenever we update provider.yaml files, we MUST clear cache for
-    # get_provider_packages_metadata function, because otherwise anything next will not use it
-    get_provider_packages_metadata.cache_clear()
     get_console().print(f"[special]Bumped version to {v}\n")
     return with_breaking_changes, maybe_with_new_features
+
+
+def _update_source_date_epoch_in_provider_yaml(
+    provider_package_id: str,
+) -> None:
+    """
+    Updates source date epoch in provider yaml that then can be used to generate reproducible packages.
+
+    :param provider_package_id: provider package
+    """
+    provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
+    original_text = provider_yaml_path.read_text()
+    source_date_epoch = int(time())
+    new_text = re.sub(
+        r"source-date-epoch: [0-9]*", f"source-date-epoch: {source_date_epoch}", original_text, 1
+    )
+    provider_yaml_path.write_text(new_text)
+    refresh_provider_metadata_with_provider_id(provider_package_id)
+    get_console().print(f"[special]Updated source-date-epoch to {source_date_epoch}\n")
 
 
 def _verify_changelog_exists(package: str) -> Path:
@@ -687,11 +705,14 @@ def update_release_notes(
                 with_breaking_changes, maybe_with_new_features = _update_version_in_provider_yaml(
                     provider_package_id=provider_package_id, type_of_change=type_of_change
                 )
+                _update_source_date_epoch_in_provider_yaml(provider_package_id)
             proceed, list_of_list_of_changes, changes_as_table = _get_all_changes_for_package(
                 provider_package_id=provider_package_id,
                 base_branch=base_branch,
                 reapply_templates_only=reapply_templates_only,
             )
+    else:
+        _update_source_date_epoch_in_provider_yaml(provider_package_id)
     provider_details = get_provider_details(provider_package_id)
     _verify_changelog_exists(provider_details.provider_id)
     jinja_context = get_provider_documentation_jinja_context(
@@ -951,9 +972,7 @@ def _replace_min_airflow_version_in_provider_yaml(
         provider_yaml_txt,
     )
     provider_yaml_path.write_text(provider_yaml_txt)
-    # IMPORTANT!!! Whenever we update provider.yaml files, we MUST clear cache for
-    # get_provider_packages_metadata function, because otherwise anything next will not use it
-    get_provider_packages_metadata.cache_clear()
+    refresh_provider_metadata_from_yaml_file(provider_yaml_path)
 
 
 def update_min_airflow_version(
