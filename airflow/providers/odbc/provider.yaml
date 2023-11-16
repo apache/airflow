@@ -22,6 +22,7 @@ description: |
     `ODBC <https://github.com/mkleehammer/pyodbc/wiki>`__
 
 suspended: false
+source-date-epoch: 1700148076
 versions:
   - 4.1.0
   - 4.0.0

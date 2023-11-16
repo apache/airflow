@@ -179,9 +179,7 @@ def cleanup_build_remnants(target_provider_root_sources_path: Path):
     get_console().print(f"[info]Cleaned remnants in {target_provider_root_sources_path}\n")
 
 
-def build_provider_package(
-    provider_id: str, version_suffix: str, target_provider_root_sources_path: Path, package_format: str
-):
+def build_provider_package(provider_id: str, target_provider_root_sources_path: Path, package_format: str):
     get_console().print(
         f"\n[info]Building provider package: {provider_id} in format {package_format} in "
         f"{target_provider_root_sources_path}\n"
@@ -190,7 +188,15 @@ def build_provider_package(
     if package_format != "both":
         command.extend(["--format", package_format])
     try:
-        run_command(command, check=True, cwd=target_provider_root_sources_path)
+        source_date_epoch = get_provider_details(provider_id).source_date_epoch
+        run_command(
+            command,
+            check=True,
+            cwd=target_provider_root_sources_path,
+            env={
+                "SOURCE_DATE_EPOCH": str(source_date_epoch),
+            },
+        )
     except subprocess.CalledProcessError as ex:
         get_console().print("[error]The command returned an error %s", ex)
         raise PrepareReleasePackageErrorBuildingPackageException()

@@ -481,7 +481,6 @@ def prepare_provider_packages(
                 cleanup_build_remnants(target_provider_root_sources_path)
                 build_provider_package(
                     provider_id=provider_id,
-                    version_suffix=version_suffix_for_pypi,
                     package_format=package_format,
                     target_provider_root_sources_path=target_provider_root_sources_path,
                 )
