@@ -38,7 +38,7 @@ STS_TOKEN_EXPIRES_IN = 60
 AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1alpha1"
 _POD_USERNAME = "aws"
 _CONTEXT_NAME = "aws"
-EKS_SCRIPT_PATH = "/opt/airflow/airflow/providers/amazon/aws/utils"
+EKS_SCRIPT_PATH = "/usr/local/airflow/.local/lib/python3.10/site-packages/airflow/providers/amazon/aws/utils"
 
 
 class ClusterStates(Enum):
