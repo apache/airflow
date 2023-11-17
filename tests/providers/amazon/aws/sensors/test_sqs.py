@@ -24,7 +24,7 @@ from unittest.mock import patch
 import pytest
 from moto import mock_sqs
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
@@ -62,7 +62,6 @@ class TestSqsSensor:
 
     @mock_sqs
     def test_poke_no_message_failed(self):
-
         self.sqs_hook.create_queue(QUEUE_NAME)
         result = self.sensor.poke(self.mock_context)
         assert not result
@@ -291,7 +290,6 @@ class TestSqsSensor:
 
     @patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn", new_callable=mock.PropertyMock)
     def test_poke_do_not_delete_message_on_received(self, mock_conn):
-
         self.sqs_hook.create_queue(QUEUE_NAME)
         self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body="hello")
 
@@ -333,3 +331,62 @@ class TestSqsSensor:
             assert f"'Body': '{message}'" in str(
                 self.mock_context["ti"].method_calls
             ), "context call should contain message '{message}'"
+
+    def test_sqs_deferrable(self):
+        self.sensor = SqsSensor(
+            task_id="test_task_deferrable",
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id="aws_default",
+            max_messages=1,
+            num_batches=3,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred):
+            self.sensor.execute(None)
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    def test_fail_execute_complete(self, soft_fail, expected_exception):
+        self.sensor = SqsSensor(
+            task_id="test_task_deferrable",
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id="aws_default",
+            max_messages=1,
+            num_batches=3,
+            deferrable=True,
+            soft_fail=soft_fail,
+        )
+        event = {"status": "failed"}
+        message = f"Trigger error: event is {event}"
+        with pytest.raises(expected_exception, match=message):
+            self.sensor.execute_complete(context={}, event=event)
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch("airflow.providers.amazon.aws.sensors.sqs.SqsSensor.poll_sqs")
+    @mock.patch("airflow.providers.amazon.aws.sensors.sqs.process_response")
+    @mock.patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn")
+    def test_fail_poke(self, conn, process_response, poll_sqs, soft_fail, expected_exception):
+        self.sensor = SqsSensor(
+            task_id="test_task_deferrable",
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id="aws_default",
+            max_messages=1,
+            num_batches=3,
+            deferrable=True,
+            soft_fail=soft_fail,
+        )
+        response = "error message"
+        messages = [{"MessageId": "1", "ReceiptHandle": "test"}]
+        poll_sqs.return_value = response
+        process_response.return_value = messages
+        conn.delete_message_batch.return_value = response
+        error_message = f"Delete SQS Messages failed {response} for messages"
+        self.sensor.delete_message_on_reception = True
+        with pytest.raises(expected_exception, match=error_message):
+            self.sensor.poke(context={})

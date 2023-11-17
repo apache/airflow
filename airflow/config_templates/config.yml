@@ -64,7 +64,7 @@ core:
       description: |
         The executor class that airflow should use. Choices include
         ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``, ``DaskExecutor``,
-        ``KubernetesExecutor``, ``CeleryKubernetesExecutor`` or the
+        ``KubernetesExecutor``, ``CeleryKubernetesExecutor``, ``LocalKubernetesExecutor`` or the
         full import path to the class when using a custom executor.
       version_added: ~
       type: string
@@ -73,7 +73,7 @@ core:
     auth_manager:
       description: |
         The auth manager class that airflow should use. Full import path to the auth manager class.
-      version_added: ~
+      version_added: 2.7.0
       type: string
       example: ~
       default: "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager"
@@ -446,14 +446,14 @@ core:
       example: '{"some_param": "some_value"}'
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
-      version_added: 2.7.0
+      version_added: 2.6.0
       type: boolean
       example: ~
       default: "False"
     internal_api_url:
       description: |
         (experimental) Airflow Internal API url. Only used if [core] database_access_isolation is True.
-      version_added: 2.7.0
+      version_added: 2.6.0
       type: string
       default: ~
       example: 'http://localhost:8080'
@@ -467,7 +467,7 @@ core:
         Before setting this to Enabled, make sure that you review the users who are able to add/edit
         connections and ensure they are trusted. Connection testing can be done maliciously leading to
         undesired and insecure outcomes. For more information on capabilities of users, see the documentation:
-        https://airflow.apache.org/docs/apache-airflow/stable/security/index.html#capabilities-of-authenticated-ui-users
+        https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users
       version_added: 2.7.0
       type: string
       example: ~
@@ -591,10 +591,17 @@ database:
       default: ~
     load_default_connections:
       description: |
-        Whether to load the default connections that ship with Airflow. It's good to
-        get started, but you probably want to set this to ``False`` in a production
-        environment
+        Whether to load the default connections that ship with Airflow when ``airflow db init`` is called.
+        It's good to get started, but you probably want to set this to ``False`` in a production environment.
       version_added: 2.3.0
+      version_deprecated: 2.7.0
+      deprecation_reason: |
+        This option is only used by the deprecated "airflow db init" command.
+        This option has been used in previous versions of Airflow to determine if loading of the default
+        connections is done with the ``airflow db init`` command. This command has been deprecated and
+        replaced by two separate commands ``airflow db migrate`` and
+        ``airflow connections create-default-connections`` and ``load_default_connections`` is not
+        used anymore by those commands.
       type: string
       example: ~
       default: "True"
@@ -625,7 +632,7 @@ logging:
         This path must be absolute.
         There are a few existing configurations that assume this is set to the default.
         If you choose to override this you may need to update the dag_processor_manager_log_location and
-        dag_processor_manager_log_location settings as well.
+        child_process_log_directory settings as well.
       version_added: 2.0.0
       type: string
       example: ~
@@ -749,7 +756,8 @@ logging:
         [%%(blue)s%%(asctime)s%%(reset)s] {{%%(blue)s%%(filename)s:%%(reset)s%%(lineno)d}}
         %%(log_color)s%%(levelname)s%%(reset)s - %%(log_color)s%%(message)s%%(reset)s
     colored_formatter_class:
-      description: ~
+      description: |
+        Specifies the class utilized by Airflow to implement colored logging
       version_added: 2.0.0
       type: string
       example: ~
@@ -762,7 +770,8 @@ logging:
       example: ~
       default: "[%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
     simple_log_format:
-      description: ~
+      description: |
+        Defines the format of log messages for simple logging configuration
       version_added: 2.0.0
       type: string
       example: ~
@@ -783,7 +792,10 @@ logging:
       default: "[%%(asctime)s] [SOURCE:DAG_PROCESSOR]
         {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s"
     log_formatter_class:
-      description: ~
+      description: |
+        Determines the formatter class used by Airflow for structuring its log messages
+        The default formatter class is timezone-aware, which means that timestamps attached to log entries
+        will be adjusted to reflect the local timezone of the Airflow instance
       version_added: 2.3.4
       type: string
       example: ~
@@ -912,10 +924,22 @@ logging:
         With this option AirFlow will create new handlers
         and send low level logs like INFO and WARNING to stdout,
         while sending higher severity logs to stderr.
-      version_added: 2.5.4
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
+    enable_task_context_logger:
+      description: |
+        If enabled, Airflow may ship messages to task logs from outside the task run context, e.g. from
+        the scheduler, executor, or callback execution context. This can help in circumstances such as
+        when there's something blocking the execution of the task and ordinarily there may be no task
+        logs at all.
+        This is set to True by default. If you encounter issues with this feature
+        (e.g. scheduler performance issues) it can be disabled.
+      version_added: 2.8.0
+      type: boolean
+      example: ~
+      default: "True"
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
@@ -947,19 +971,22 @@ metrics:
       example: ~
       default: "False"
     statsd_host:
-      description: ~
+      description: |
+        Specifies the host address where the StatsD daemon (or server) is running
       version_added: 2.0.0
       type: string
       example: ~
       default: "localhost"
     statsd_port:
-      description: ~
+      description: |
+        Specifies the port on which the StatsD daemon (or server) is listening to
       version_added: 2.0.0
       type: string
       example: ~
       default: "8125"
     statsd_prefix:
-      description: ~
+      description: |
+        Defines the namespace for all metrics sent from Airflow to StatsD
       version_added: 2.0.0
       type: string
       example: ~
@@ -1024,31 +1051,36 @@ metrics:
     otel_on:
       description: |
         Enables sending metrics to OpenTelemetry.
-      version_added: 2.5.1
+      version_added: 2.6.0
       type: string
       example: ~
       default: "False"
     otel_host:
       description: ~
-      version_added: 2.5.1
+      version_added: 2.6.0
       type: string
       example: ~
       default: "localhost"
     otel_port:
-      description: ~
-      version_added: 2.5.1
+      description: |
+        Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
+        metrics and traces
+      version_added: 2.6.0
       type: string
       example: ~
       default: "8889"
     otel_prefix:
-      description: ~
-      version_added: 2.0.0
+      description: |
+        Specifies the port of the OpenTelemetry Collector that is listening to
+      version_added: 2.6.0
       type: string
       example: ~
       default: "airflow"
     otel_interval_milliseconds:
-      description: ~
-      version_added: 2.0.0
+      description: |
+        Defines the interval, in milliseconds, at which Airflow sends batches of metrics and traces
+        to the configured OpenTelemetry Collector
+      version_added: 2.6.0
       type: integer
       example: ~
       default: "60000"
@@ -1090,6 +1122,31 @@ secrets:
       sensitive: true
       example: ~
       default: ""
+    use_cache:
+      description: |
+        .. note:: |experimental|
+
+        Enables local caching of Variables, when parsing DAGs only.
+        Using this option can make dag parsing faster if Variables are used in top level code, at the expense
+        of longer propagation time for changes.
+        Please note that this cache concerns only the DAG parsing step. There is no caching in place when DAG
+        tasks are run.
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
+    cache_ttl_seconds:
+      description: |
+        .. note:: |experimental|
+
+        When the cache is enabled, this is the duration for which we consider an entry in the cache to be
+        valid. Entries are refreshed if they are older than this many seconds.
+        It means that when the cache is enabled, this is the maximum amount of time you need to wait to see a
+        Variable change take effect.
+      version_added: 2.7.0
+      type: integer
+      example: ~
+      default: "900"
 cli:
   description: ~
   options:
@@ -1230,65 +1287,6 @@ lineage:
       type: string
       example: ~
       default: ""
-openlineage:
-  description: |
-    This section applies settings for OpenLineage integration.
-    For backwards compatibility with `openlineage-python` one can still use
-    `openlineage.yml` file or `OPENLINEAGE_` environment variables. However, below
-    configuration takes precedence over those.
-    More in documentation - https://openlineage.io/docs/client/python#configuration.
-  options:
-    disabled:
-      description: |
-        Set this to true if you don't want OpenLineage to emit events.
-      type: boolean
-      example: ~
-      default: "False"
-      version_added: ~
-    namespace:
-      description: |
-        OpenLineage namespace
-      version_added: ~
-      type: string
-      example: "food_delivery"
-      default: ~
-    extractors:
-      description: |
-        Comma-separated paths to custom OpenLineage extractors.
-      type: string
-      example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
-      default: ''
-      version_added: ~
-    config_path:
-      description: |
-        Path to YAML config. This provides backwards compatibility to pass config as
-        `openlineage.yml` file.
-      version_added: ~
-      type: string
-      example: ~
-      default: ''
-    transport:
-      description: |
-        OpenLineage Client transport configuration. It should contain type
-        and additional options per each type.
-
-        Currently supported types are:
-
-          * HTTP
-          * Kafka
-          * Console
-      type: string
-      example: '{"type": "http", "url": "http://localhost:5000"}'
-      default: ''
-      version_added: ~
-    disable_source_code:
-      description: |
-        If disabled, OpenLineage events do not contain source code of particular
-        operators, like PythonOperator.
-      default: ~
-      example: ~
-      type: boolean
-      version_added: ~
 operators:
   description: ~
   options:
@@ -1303,30 +1301,38 @@ operators:
     default_deferrable:
       description: |
         The default value of attribute "deferrable" in operators and sensors.
-      version_added: ~
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "false"
     default_cpus:
-      description: ~
+      description: |
+        Indicates the default number of CPU units allocated to each operator when no specific CPU request
+        is specified in the operator's configuration
       version_added: ~
       type: string
       example: ~
       default: "1"
     default_ram:
-      description: ~
+      description: |
+        Indicates the default number of RAM allocated to each operator when no specific RAM request
+        is specified in the operator's configuration
       version_added: ~
       type: string
       example: ~
       default: "512"
     default_disk:
-      description: ~
+      description: |
+        Indicates the default number of disk storage allocated to each operator when no specific disk request
+        is specified in the operator's configuration
       version_added: ~
       type: string
       example: ~
       default: "512"
     default_gpus:
-      description: ~
+      description: |
+        Indicates the default number of GPUs allocated to each operator when no specific GPUs request
+        is specified in the operator's configuration
       version_added: ~
       type: string
       example: ~
@@ -1349,6 +1355,13 @@ operators:
 webserver:
   description: ~
   options:
+    access_denied_message:
+      description: |
+        The message displayed when a user attempts to execute actions beyond their authorised privileges.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "Access is Denied"
     config_file:
       description: |
         Path of webserver config file used for configuring the webserver parameters
@@ -1407,7 +1420,19 @@ webserver:
       default: ""
     session_backend:
       description: |
-        The type of backend used to store web session data, can be 'database' or 'securecookie'
+        The type of backend used to store web session data, can be `database` or `securecookie`. For the
+        `database` backend, sessions are store in the database (in `session` table) and they can be
+        managed there (for example when you reset password of the user, all sessions for that user are
+        deleted). For the `securecookie` backend, sessions are stored in encrypted cookies on the client
+        side. The `securecookie` mechanism is 'lighter' than database backend, but sessions are not deleted
+        when you reset password of the user, which means that other than waiting for expiry time, the only
+        way to invalidate all sessions for a user is to change secret_key and restart webserver (which
+        also invalidates and logs out all other user's sessions).
+
+        When you are using `database` backend, make sure to keep your database session table small
+        by periodically running `airflow db clean --table session` command, especially if you have
+        automated API calls that will create a new session for each call rather than reuse the sessions
+        stored in browser cookies.
       version_added: 2.2.4
       type: string
       example: securecookie
@@ -1445,7 +1470,8 @@ webserver:
     reload_on_plugin_change:
       description: |
         If set to True, Airflow will track files in plugins_folder directory. When it detects changes,
-        then reload the gunicorn.
+        then reload the gunicorn. If set to True, gunicorn starts without preloading, which is slower, uses
+        more memory, and may cause race conditions. Avoid setting this to True in production.
       version_added: 1.10.11
       type: boolean
       example: ~
@@ -1600,6 +1626,13 @@ webserver:
       type: string
       example: ~
       default: "#fff"
+    navbar_text_color:
+      description: |
+        Define the color of text in the navigation bar
+      version_added: 2.8.0
+      type: string
+      example: ~
+      default: "#51504f"
     default_dag_run_display_number:
       description: |
         Default dagrun to show in UI
@@ -1773,7 +1806,7 @@ webserver:
     run_internal_api:
       description: |
         Boolean for running Internal API in the webserver.
-      version_added: 2.7.0
+      version_added: 2.6.0
       type: boolean
       example: ~
       default: "False"
@@ -1798,6 +1831,30 @@ webserver:
       type: string
       example: "sha256"
       default: "md5"
+    show_trigger_form_if_no_params:
+      description: |
+        Behavior of the trigger DAG run button for DAGs without params. False to skip and trigger
+        without displaying a form to add a dag_run.conf, True to always display the form.
+        The form is displayed always if parameters are defined.
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
+    allow_raw_html_descriptions:
+      description: |
+        A DAG author is able to provide any raw HTML into ``doc_md`` or params description in
+        ``description_md`` for text formatting. This is including potentially unsafe javascript.
+        Displaying the DAG or trigger form in web UI provides the DAG author the potential to
+        inject malicious code into clients browsers. To ensure the web UI is safe by default,
+        raw HTML is disabled by default. If you trust your DAG authors, you can enable HTML
+        support in markdown by setting this option to True.
+
+        This parameter also enables the deprecated fields ``description_html`` and
+        ``custom_html_form`` in DAG params until the feature is removed in a future version.
+      version_added: 2.8.0
+      type: boolean
+      example: "False"
+      default: "False"
 email:
   description: |
     Configuration email backend and whether to
@@ -1855,6 +1912,22 @@ email:
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
+    ssl_context:
+      description: |
+        ssl context to use when using SMTP and IMAP SSL connections. By default, the context is "default"
+        which sets it to ``ssl.create_default_context()`` which provides the right balance between
+        compatibility and security, it however requires that certificates in your operating system are
+        updated and that SMTP/IMAP servers of yours have valid certificates that have corresponding public
+        keys installed on your machines. You can switch it to "none" if you want to disable checking
+        of the certificates, but it is not recommended as it allows MITM (man-in-the-middle) attacks
+        if your infrastructure is not sufficiently secured. It should only be set temporarily while you
+        are fixing your certificate configuration. This can be typically done by upgrading to newer
+        version of the operating system you run Airflow components on,by upgrading/refreshing proper
+        certificates in the OS or by updating certificates for your mail servers.
+      type: string
+      version_added: 2.7.0
+      example: "default"
+      default: "default"
 smtp:
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
@@ -1862,56 +1935,66 @@ smtp:
     smtp server here
   options:
     smtp_host:
-      description: ~
+      description: |
+        Specifies the host server address used by Airflow when sending out email notifications via SMTP.
       version_added: ~
       type: string
       example: ~
       default: "localhost"
     smtp_starttls:
-      description: ~
+      description: |
+        Determines whether to use the STARTTLS command when connecting to the SMTP server.
       version_added: ~
       type: string
       example: ~
       default: "True"
     smtp_ssl:
-      description: ~
+      description: |
+        Determines whether to use an SSL connection when talking to the SMTP server.
       version_added: ~
       type: string
       example: ~
       default: "False"
     smtp_user:
-      description: ~
+      description: |
+        Username to authenticate when connecting to smtp server.
       version_added: ~
       type: string
       example: "airflow"
       default: ~
     smtp_password:
-      description: ~
+      description: |
+        Password to authenticate when connecting to smtp server.
       version_added: ~
       type: string
       sensitive: true
       example: "airflow"
       default: ~
     smtp_port:
-      description: ~
+      description: |
+        Defines the port number on which Airflow connects to the SMTP server to send email notifications.
       version_added: ~
       type: string
       example: ~
       default: "25"
     smtp_mail_from:
-      description: ~
+      description: |
+        Specifies the default "from" email address used when Airflow sends email notifications.
       version_added: ~
       type: string
       example: ~
       default: "airflow@example.com"
     smtp_timeout:
-      description: ~
+      description: |
+        Determines the maximum time (in seconds) the Apache Airflow system will wait for a
+        connection to the SMTP server to be established.
       version_added: 2.0.0
       type: integer
       example: ~
       default: "30"
     smtp_retry_limit:
-      description: ~
+      description: |
+        Defines the maximum number of times Airflow will attempt to connect to the SMTP server.
       version_added: 2.0.0
       type: integer
       example: ~
@@ -2075,7 +2158,8 @@ scheduler:
       example: ~
       default: "300.0"
     child_process_log_directory:
-      description: ~
+      description: |
+        Determines the directory where logs for the child processes of the scheduler will be stored
       version_added: ~
       type: string
       example: ~
@@ -2287,11 +2371,22 @@ triggerer:
       type: float
       example: ~
       default: "5"
+    triggerer_health_check_threshold:
+      description: |
+        If the last triggerer heartbeat happened more than triggerer_health_check_threshold
+        ago (in seconds), triggerer is considered unhealthy.
+        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        for TriggererJob.
+      version_added: 2.7.0
+      type: float
+      example: ~
+      default: "30"
 kerberos:
   description: ~
   options:
     ccache:
-      description: ~
+      description: |
+        Location of your ccache file once kinit has been performed.
       version_added: ~
       type: string
       example: ~
@@ -2304,19 +2399,22 @@ kerberos:
       example: ~
       default: "airflow"
     reinit_frequency:
-      description: ~
+      description: |
+        Determines the frequency at which initialization or re-initialization processes occur.
       version_added: ~
       type: string
       example: ~
       default: "3600"
     kinit_path:
-      description: ~
+      description: |
+        Path to the kinit executable
       version_added: ~
       type: string
       example: ~
       default: "kinit"
     keytab:
-      description: ~
+      description: |
+        Designates the path to the Kerberos keytab file for the Airflow user
       version_added: ~
       type: string
       example: ~
@@ -2333,98 +2431,6 @@ kerberos:
         Allow to remove source IP from token, useful when using token behind NATted Docker host.
       version_added: 2.2.0
       type: boolean
-      example: ~
-      default: "True"
-elasticsearch:
-  description: ~
-  options:
-    host:
-      description: |
-        Elasticsearch host
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: ""
-    log_id_template:
-      description: |
-        Format of the log_id, which is used to query for a given tasks logs
-      version_added: 1.10.4
-      type: string
-      example: ~
-      is_template: true
-      default: "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
-    end_of_log_mark:
-      description: |
-        Used to mark the end of a log stream for a task
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "end_of_log"
-    frontend:
-      description: |
-        Qualified URL for an elasticsearch frontend (like Kibana) with a template argument for log_id
-        Code will construct log_id using the log_id template from the argument above.
-        NOTE: scheme will default to https if one is not provided
-      version_added: 1.10.4
-      type: string
-      example: "http://localhost:5601/app/kibana#/discover\
-        ?_a=(columns:!(message),query:(language:kuery,query:'log_id: \"{log_id}\"'),sort:!(log.offset,asc))"
-      default: ""
-    write_stdout:
-      description: |
-        Write the task logs to the stdout of the worker, rather than the default files
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "False"
-    json_format:
-      description: |
-        Instead of the default log formatter, write the log lines as JSON
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "False"
-    json_fields:
-      description: |
-        Log fields to also attach to the json output, if enabled
-      version_added: 1.10.4
-      type: string
-      example: ~
-      default: "asctime, filename, lineno, levelname, message"
-    host_field:
-      description: |
-        The field where host name is stored (normally either `host` or `host.name`)
-      version_added: 2.1.1
-      type: string
-      example: ~
-      default: "host"
-    offset_field:
-      description: |
-        The field where offset is stored (normally either `offset` or `log.offset`)
-      version_added: 2.1.1
-      type: string
-      example: ~
-      default: "offset"
-    index_patterns:
-      description: |
-        Comma separated list of index patterns to use when searching for logs (default: `_all`).
-      version_added: 2.6.0
-      type: string
-      example: something-*
-      default: "_all"
-elasticsearch_configs:
-  description: ~
-  options:
-    use_ssl:
-      description: ~
-      version_added: 1.10.5
-      type: string
-      example: ~
-      default: "False"
-    verify_certs:
-      description: ~
-      version_added: 1.10.5
-      type: string
       example: ~
       default: "True"
 sensors:

@@ -56,8 +56,7 @@ class TestSqoopOperator:
         "hcatalog_database": "hive_database",
         "hcatalog_table": "hive_table",
         "properties": {"mapred.map.max.attempts": "1"},
-        "extra_import_options": {"hcatalog-storage-stanza": '"stored as orcfile"', "show": ""},
-        "extra_export_options": {"update-key": "id", "update-mode": "allowinsert", "fetch-size": 1},
+        "extra_options": {"update-key": "id", "update-mode": "allowinsert", "fetch-size": 1},
         "schema": "myschema",
     }
 
@@ -92,8 +91,7 @@ class TestSqoopOperator:
         assert self._config["hcatalog_database"] == operator.hcatalog_database
         assert self._config["hcatalog_table"] == operator.hcatalog_table
         assert self._config["create_hcatalog_table"] == operator.create_hcatalog_table
-        assert self._config["extra_import_options"] == operator.extra_import_options
-        assert self._config["extra_export_options"] == operator.extra_export_options
+        assert self._config["extra_options"] == operator.extra_options
         assert self._config["schema"] == operator.schema
 
         # the following are meant to be more of examples
@@ -107,7 +105,7 @@ class TestSqoopOperator:
             hcatalog_database="default",
             hcatalog_table="import_table_1",
             create_hcatalog_table=True,
-            extra_import_options={"hcatalog-storage-stanza": '"stored as orcfile"'},
+            extra_options={"hcatalog-storage-stanza": '"stored as orcfile"'},
             dag=self.dag,
         )
 
@@ -123,7 +121,7 @@ class TestSqoopOperator:
             hcatalog_database="default",
             hcatalog_table="import_table_2",
             create_hcatalog_table=True,
-            extra_import_options={"hcatalog-storage-stanza": '"stored as orcfile"'},
+            extra_options={"hcatalog-storage-stanza": '"stored as orcfile"'},
             dag=self.dag,
         )
 
@@ -137,7 +135,7 @@ class TestSqoopOperator:
             hcatalog_database="default",
             hcatalog_table="import_table_3",
             create_hcatalog_table=True,
-            extra_import_options={
+            extra_options={
                 "hcatalog-storage-stanza": '"stored as orcfile"',
                 "hive-partition-key": "day",
                 "hive-partition-value": "2017-10-18",
@@ -155,7 +153,7 @@ class TestSqoopOperator:
             num_mappers=None,
             hcatalog_database="default",
             hcatalog_table="hive_export_table_1",
-            extra_export_options=None,
+            extra_options=None,
             dag=self.dag,
         )
 
@@ -168,7 +166,7 @@ class TestSqoopOperator:
             direct=True,  # speeds up for data transfer
             verbose=True,
             num_mappers=None,
-            extra_export_options=None,
+            extra_options=None,
             dag=self.dag,
         )
 

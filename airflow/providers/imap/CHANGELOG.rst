@@ -26,6 +26,65 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+3.3.2
+.....
+
+Misc
+~~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+3.3.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify conditions on len() in other providers (#33569)``
+
+3.3.0
+.....
+
+In case of IMAP SSL connection, the context now uses the "default" context
+
+The "default" context is Python's ``default_ssl_context`` instead of previously used "none". The
+``default_ssl_context`` provides a balance between security and compatibility but in some cases,
+when certificates are old, self-signed or misconfigured, it might not work. This can be configured
+by setting "ssl_context" in "imap" configuration of the provider. If it is not explicitly set,
+it will default to "email", "ssl_context" setting in Airflow.
+
+Setting it to "none" brings back the "none" setting that was used in previous versions of the provider,
+but it is not recommended due to security reasons and this setting disables validation
+of certificates and allows MITM attacks.
+
+You can also override "ssl_context" per-connection by setting "ssl_context" in the connection extra.
+
+Features
+~~~~~~~~
+
+* ``Allows to choose SSL context for IMAP provider (#33108)``
+* ``Add possibility to use 'ssl_context' extra for SMTP and IMAP connections (#33112)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 3.2.2
 .....
 

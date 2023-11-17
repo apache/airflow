@@ -64,7 +64,7 @@ class RedshiftSQLHook(DbApiHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:
-        """Custom field behavior."""
+        """Get custom field behavior."""
         return {
             "hidden_fields": [],
             "relabeling": {"login": "User", "schema": "Database"},

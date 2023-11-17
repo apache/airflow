@@ -22,12 +22,14 @@ from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
+from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTransformOperator
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
+from airflow.providers.openlineage.extractors import OperatorLineage
 
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ["Transform", "TransformResources", "InstanceCount"],
@@ -88,7 +90,7 @@ class TestSageMakerTransformOperator:
         }
         self.sagemaker.execute(None)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
-        for (key1, key2, *key3) in EXPECTED_INTEGER_FIELDS:
+        for key1, key2, *key3 in EXPECTED_INTEGER_FIELDS:
             if key3:
                 (key3,) = key3
                 assert self.sagemaker.config[key1][key2][key3] == int(self.sagemaker.config[key1][key2][key3])
@@ -178,3 +180,31 @@ class TestSageMakerTransformOperator:
         with pytest.raises(TaskDeferred) as exc:
             self.sagemaker.execute(context=None)
         assert isinstance(exc.value.trigger, SageMakerTrigger), "Trigger is not a SagemakerTrigger"
+
+    @mock.patch.object(SageMakerHook, "describe_transform_job")
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "describe_model")
+    @mock.patch.object(SageMakerHook, "get_conn")
+    @mock.patch.object(SageMakerHook, "create_transform_job")
+    def test_operator_lineage_data(self, mock_transform, mock_conn, mock_model, _, mock_desc):
+        self.sagemaker.check_if_job_exists = False
+        mock_conn.return_value.describe_model_package.return_value = {
+            "InferenceSpecification": {"Containers": [{"ModelDataUrl": "s3://model-bucket/model-path"}]},
+        }
+        mock_model.return_value = {"PrimaryContainer": {"ModelPackageName": "package-name"}}
+        mock_desc.return_value = {
+            "TransformInput": {"DataSource": {"S3DataSource": {"S3Uri": "s3://input-bucket/input-path"}}},
+            "TransformOutput": {"S3OutputPath": "s3://output-bucket/output-path"},
+        }
+        mock_transform.return_value = {
+            "TransformJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.execute(None)
+        assert self.sagemaker.get_openlineage_facets_on_complete(None) == OperatorLineage(
+            inputs=[
+                Dataset(namespace="s3://input-bucket", name="input-path"),
+                Dataset(namespace="s3://model-bucket", name="model-path"),
+            ],
+            outputs=[Dataset(namespace="s3://output-bucket", name="output-path")],
+        )

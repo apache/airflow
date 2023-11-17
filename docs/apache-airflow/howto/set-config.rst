@@ -66,7 +66,7 @@ For example consider the pretend section ``providers.some_provider``:
 
 .. code-block:: ini
 
-    [providers.some_provider>]
+    [providers.some_provider]
     this_param = true
 
 .. code-block:: bash
@@ -178,3 +178,15 @@ and add any extra settings however by adding flask configuration to ``webserver_
 
 For example if you would like to change rate limit strategy to "moving window", you can set the
 ``RATELIMIT_STRATEGY`` to ``moving-window``.
+
+You could also enhance / modify the underlying flask app directly,
+as the `app context <https://flask.palletsprojects.com/en/2.3.x/appcontext/>`_ is pushed to ``webserver_config.py``:
+
+.. code-block:: python
+
+    from flask import current_app as app
+
+
+    @app.before_request
+    def print_custom_message() -> None:
+        print("Executing before every request")

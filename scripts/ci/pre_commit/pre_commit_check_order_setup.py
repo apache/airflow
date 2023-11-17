@@ -26,15 +26,14 @@ import os
 import re
 import sys
 import textwrap
-from os.path import abspath, dirname
+from pathlib import Path
 
 from rich import print
 
 errors: list[str] = []
 
-MY_DIR_PATH = os.path.dirname(__file__)
-SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir, os.pardir, os.pardir))
-sys.path.insert(0, SOURCE_DIR_PATH)
+SOURCE_DIR_PATH = Path(__file__).parents[3].resolve()
+sys.path.insert(0, os.fspath(SOURCE_DIR_PATH))
 
 
 class ConsoleDiff(difflib.Differ):
@@ -124,7 +123,7 @@ def check_install_and_setup_requires() -> None:
 
     from setuptools.config import read_configuration
 
-    path = abspath(os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir, "setup.cfg"))
+    path = os.fspath(SOURCE_DIR_PATH / "setup.cfg")
     config = read_configuration(path)
 
     pattern_dependent_version = re.compile("[~|><=;].*")

@@ -18,24 +18,26 @@
 """This module contains a Google Cloud Vertex AI hook."""
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1 import DatasetServiceClient
-from google.cloud.aiplatform_v1.services.dataset_service.pagers import (
-    ListAnnotationsPager,
-    ListDataItemsPager,
-    ListDatasetsPager,
-)
-from google.cloud.aiplatform_v1.types import AnnotationSpec, Dataset, ExportDataConfig, ImportDataConfig
-from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.aiplatform_v1.services.dataset_service.pagers import (
+        ListAnnotationsPager,
+        ListDataItemsPager,
+        ListDatasetsPager,
+    )
+    from google.cloud.aiplatform_v1.types import AnnotationSpec, Dataset, ExportDataConfig, ImportDataConfig
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class DatasetHook(GoogleBaseHook):

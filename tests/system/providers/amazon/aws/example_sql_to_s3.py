@@ -22,10 +22,11 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG, settings
+from airflow import settings
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,

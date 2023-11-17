@@ -27,7 +27,7 @@ The Apache Spark connection type enables connection to Apache Spark.
 Default Connection IDs
 ----------------------
 
-Spark Submit and Spark JDBC hooks and operators use ``spark_default`` by default. Spark SQL hooks and operators point to ``spark_sql_default`` by default.
+Spark Submit and Spark JDBC hooks and operators use ``spark_default`` by default. Spark SQL hooks and operators point to ``spark_sql_default`` by default. The Spark Connect hook uses ``spark_connect_default`` by default.
 
 Configuring the Connection
 --------------------------
@@ -45,10 +45,19 @@ Extra (optional)
     * ``spark-binary`` - The command to use for Spark submit. Some distros may use ``spark2-submit``. Default ``spark-submit``. Only ``spark-submit``, ``spark2-submit`` or ``spark3-submit`` are allowed as value.
     * ``namespace`` - Kubernetes namespace (``spark.kubernetes.namespace``) to divide cluster resources between multiple users (via resource quota).
 
+User ID (optional, only applies to Spark Connect)
+    The user ID to authenticate with the proxy.
+
+Token (optional, only applies to Spark Connect)
+    The token to authenticate with the proxy.
+
+Use SSL (optional, only applies to Spark Connect)
+    Whether to use SSL when connecting.
+
 When specifying the connection in environment variable you should specify
 it using URI syntax.
 
-Note that all components of the URI should be URL-encoded. The URI and and the mongo
+Note that all components of the URI should be URL-encoded. The URI and the mongo
 connection string are not the same.
 
 For example:
@@ -56,3 +65,10 @@ For example:
 .. code-block:: bash
 
    export AIRFLOW_CONN_SPARK_DEFAULT='spark://mysparkcluster.com:80?deploy-mode=cluster&spark_binary=command&namespace=kube+namespace'
+
+.. warning::
+
+  Make sure you trust your users with the ability to configure the host settings as it may enable the connection to
+  establish communication with external servers. It's crucial to understand that directing the connection towards a
+  malicious server can lead to significant security vulnerabilities, including the risk of encountering
+  Remote Code Execution (RCE) attacks.

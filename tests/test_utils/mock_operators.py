@@ -17,14 +17,17 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 import attr
-import jinja2
 
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    import jinja2
+
+    from airflow.utils.context import Context
 
 
 class MockOperator(BaseOperator):
@@ -139,7 +142,6 @@ class CustomOpLink(BaseOperatorLink):
 
 
 class CustomOperator(BaseOperator):
-
     template_fields = ["bash_command"]
     custom_operator_name = "@custom"
 

@@ -17,10 +17,10 @@
 from __future__ import annotations
 
 import contextlib
-import io
 import json
 import os
 import runpy
+from io import StringIO
 from unittest import mock
 from unittest.mock import ANY
 
@@ -72,7 +72,7 @@ class TestGetEksToken:
             mock_eks_hook.return_value.fetch_access_token_for_cluster.return_value
         ) = "k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
 
-        with mock.patch("sys.argv", args), contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with mock.patch("sys.argv", args), contextlib.redirect_stdout(StringIO()) as temp_stdout:
             os.chdir(AIRFLOW_MAIN_FOLDER)
             # We are not using run_module because of https://github.com/pytest-dev/pytest/issues/9007
             runpy.run_path("airflow/providers/amazon/aws/utils/eks_get_token.py", run_name="__main__")

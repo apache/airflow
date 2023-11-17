@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Connection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Connection
 
 
 class DrillHook(DbApiHook):
@@ -49,13 +51,14 @@ class DrillHook(DbApiHook):
         """Establish a connection to Drillbit."""
         conn_md = self.get_connection(getattr(self, self.conn_name_attr))
         creds = f"{conn_md.login}:{conn_md.password}@" if conn_md.login else ""
-        if "/" in conn_md.host or "&" in conn_md.host:
-            raise ValueError("Drill host should not contain '/&' characters")
-        engine = create_engine(
-            f'{conn_md.extra_dejson.get("dialect_driver", "drill+sadrill")}://{creds}'
+        database_url = (
+            f"{conn_md.extra_dejson.get('dialect_driver', 'drill+sadrill')}://{creds}"
             f"{conn_md.host}:{conn_md.port}/"
             f'{conn_md.extra_dejson.get("storage_plugin", "dfs")}'
         )
+        if "?" in database_url:
+            raise ValueError("Drill database_url should not contain a '?'")
+        engine = create_engine(database_url)
 
         self.log.info(
             "Connected to the Drillbit at %s:%s as user %s", conn_md.host, conn_md.port, conn_md.login
@@ -64,7 +67,7 @@ class DrillHook(DbApiHook):
 
     def get_uri(self) -> str:
         """
-        Returns the connection URI.
+        Return the connection URI.
 
         e.g: ``drill://localhost:8047/dfs``
         """
@@ -77,10 +80,16 @@ class DrillHook(DbApiHook):
         storage_plugin = conn_md.extra_dejson.get("storage_plugin", "dfs")
         return f"{conn_type}://{host}/{storage_plugin}?dialect_driver={dialect_driver}"
 
-    def set_autocommit(self, conn: Connection, autocommit: bool) -> NotImplementedError:
+    # The superclass DbApiHook's method implementation has a return type `None` and mypy fails saying
+    # return type `NotImplementedError` is incompatible with it. Hence, we ignore the mypy error here.
+    def set_autocommit(  # type: ignore[override]
+        self, conn: Connection, autocommit: bool
+    ) -> NotImplementedError:
         raise NotImplementedError("There are no transactions in Drill.")
 
-    def insert_rows(
+    # The superclass DbApiHook's method implementation has a return type `None` and mypy fails saying
+    # return type `NotImplementedError` is incompatible with it. Hence, we ignore the mypy error here.
+    def insert_rows(  # type: ignore[override]
         self,
         table: str,
         rows: Iterable[tuple[str]],

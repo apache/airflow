@@ -23,6 +23,9 @@ description: |
 
 suspended: false
 versions:
+  - 4.7.0
+  - 4.6.1
+  - 4.6.0
   - 4.5.0
   - 4.4.0
   - 4.3.1
@@ -52,8 +55,9 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - apache-airflow-providers-ssh>=2.1.0
+  - paramiko>=2.8.0
 
 integrations:
   - integration-name: SSH File Transfer Protocol (SFTP)

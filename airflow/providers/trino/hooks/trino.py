@@ -19,17 +19,19 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Iterable, Mapping, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
 
 import trino
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
-from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.models import Connection
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 T = TypeVar("T")
 
@@ -175,10 +177,8 @@ class TrinoHook(DbApiHook):
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(
-        self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
-    ):  # type: ignore[override]
-        import pandas
+    def get_pandas_df(self, sql: str = "", parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):  # type: ignore[override]
+        import pandas as pd
 
         cursor = self.get_cursor()
         try:
@@ -188,10 +188,10 @@ class TrinoHook(DbApiHook):
             raise TrinoException(e)
         column_descriptions = cursor.description
         if data:
-            df = pandas.DataFrame(data, **kwargs)
-            df.columns = [c[0] for c in column_descriptions]
+            df = pd.DataFrame(data, **kwargs)
+            df.rename(columns={n: c[0] for n, c in zip(df.columns, column_descriptions)}, inplace=True)
         else:
-            df = pandas.DataFrame(**kwargs)
+            df = pd.DataFrame(**kwargs)
         return df
 
     def insert_rows(
@@ -233,3 +233,32 @@ class TrinoHook(DbApiHook):
         :return: The cell
         """
         return cell
+
+    def get_openlineage_database_info(self, connection):
+        """Returns Trino specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme="trino",
+            authority=DbApiHook.get_openlineage_authority_part(
+                connection, default_port=trino.constants.DEFAULT_PORT
+            ),
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+                "table_catalog",
+            ],
+            database=connection.extra_dejson.get("catalog", "hive"),
+            is_information_schema_cross_db=True,
+        )
+
+    def get_openlineage_database_dialect(self, _):
+        """Returns Trino dialect."""
+        return "trino"
+
+    def get_openlineage_default_schema(self):
+        """Returns Trino default schema."""
+        return trino.constants.DEFAULT_SCHEMA

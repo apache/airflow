@@ -21,15 +21,18 @@ from __future__ import annotations
 import datetime
 import os
 import uuid
+from typing import TYPE_CHECKING
 
 import psutil
 from cgroupspy import trees
 
-from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.operator_resources import Resources
 from airflow.utils.platform import getuser
 from airflow.utils.process_utils import reap_process_group
+
+if TYPE_CHECKING:
+    from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 
 
 class CgroupTaskRunner(BaseTaskRunner):
@@ -134,7 +137,7 @@ class CgroupTaskRunner(BaseTaskRunner):
             return
 
         # Create a unique cgroup name
-        cgroup_name = f"airflow/{datetime.datetime.utcnow().strftime('%Y-%m-%d')}/{str(uuid.uuid4())}"
+        cgroup_name = f"airflow/{datetime.datetime.utcnow():%Y-%m-%d}/{uuid.uuid4()}"
 
         self.mem_cgroup_name = f"memory/{cgroup_name}"
         self.cpu_cgroup_name = f"cpu/{cgroup_name}"

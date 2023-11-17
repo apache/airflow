@@ -28,6 +28,44 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``extra_import_options`` parameter in the ``import_table`` & ``import_query`` methods
+and the ``extra_export_options`` in the ``export_table`` methods of the ``SqoopHook``
+are no longer accepted as arguments for those methods. These should instead be passed
+as ``extra_options`` while initializing the Hook or via ``extra_options`` parameter to the
+operator which instantiates the hook with those given ``extra_options`` dictionary.
+
+* ``Validate SqoopHook connection string and disable extra options from public hook methods (#33039)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Validate connection host field for Sqoop connection (#32968)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 3.2.1
 .....
@@ -71,6 +109,7 @@ Misc
 
 Bug Fixes
 ~~~~~~~~~
+
 * ``Move libjars parameter in Sqoop Hook to Hook parameter (#29500)``
 
 3.1.0

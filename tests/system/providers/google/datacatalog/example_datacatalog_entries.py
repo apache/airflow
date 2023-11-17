@@ -22,7 +22,7 @@ from datetime import datetime
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.datacatalog import (
@@ -50,7 +50,7 @@ ENTRY_GROUP_NAME = f"name {DAG_ID} {ENV_ID}"
 ENTRY_ID = "python_files"
 ENTRY_NAME = "Wizard"
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

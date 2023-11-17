@@ -22,9 +22,8 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
 
-from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
@@ -192,9 +191,10 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         the time you connect to Snowflake
     """
 
-    template_fields: Sequence[str] = ("sql",)
+    template_fields: Sequence[str] = tuple(set(SQLCheckOperator.template_fields) | {"snowflake_conn_id"})
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#ededed"
+    conn_id_field = "snowflake_conn_id"
 
     def __init__(
         self,
@@ -212,18 +212,19 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(sql=sql, parameters=parameters, conn_id=snowflake_conn_id, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.do_xcom_push = do_xcom_push
-        self.parameters = parameters
-        self.warehouse = warehouse
-        self.database = database
-        self.role = role
-        self.schema = schema
-        self.authenticator = authenticator
-        self.session_parameters = session_parameters
+        if any([warehouse, database, role, schema, authenticator, session_parameters]):
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {
+                "warehouse": warehouse,
+                "database": database,
+                "role": role,
+                "schema": schema,
+                "authenticator": authenticator,
+                "session_parameters": session_parameters,
+                **hook_params,
+            }
+        super().__init__(sql=sql, parameters=parameters, conn_id=snowflake_conn_id, **kwargs)
         self.query_ids: list[str] = []
 
 
@@ -259,6 +260,10 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         the time you connect to Snowflake
     """
 
+    template_fields: Sequence[str] = tuple(set(SQLValueCheckOperator.template_fields) | {"snowflake_conn_id"})
+
+    conn_id_field = "snowflake_conn_id"
+
     def __init__(
         self,
         *,
@@ -277,20 +282,21 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
+        if any([warehouse, database, role, schema, authenticator, session_parameters]):
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {
+                "warehouse": warehouse,
+                "database": database,
+                "role": role,
+                "schema": schema,
+                "authenticator": authenticator,
+                "session_parameters": session_parameters,
+                **hook_params,
+            }
         super().__init__(
             sql=sql, pass_value=pass_value, tolerance=tolerance, conn_id=snowflake_conn_id, **kwargs
         )
-        self.snowflake_conn_id = snowflake_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.do_xcom_push = do_xcom_push
-        self.parameters = parameters
-        self.warehouse = warehouse
-        self.database = database
-        self.role = role
-        self.schema = schema
-        self.authenticator = authenticator
-        self.session_parameters = session_parameters
         self.query_ids: list[str] = []
 
 
@@ -333,6 +339,11 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         the time you connect to Snowflake
     """
 
+    template_fields: Sequence[str] = tuple(
+        set(SQLIntervalCheckOperator.template_fields) | {"snowflake_conn_id"}
+    )
+    conn_id_field = "snowflake_conn_id"
+
     def __init__(
         self,
         *,
@@ -352,6 +363,18 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
+        if any([warehouse, database, role, schema, authenticator, session_parameters]):
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {
+                "warehouse": warehouse,
+                "database": database,
+                "role": role,
+                "schema": schema,
+                "authenticator": authenticator,
+                "session_parameters": session_parameters,
+                **hook_params,
+            }
         super().__init__(
             table=table,
             metrics_thresholds=metrics_thresholds,
@@ -360,16 +383,6 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
             conn_id=snowflake_conn_id,
             **kwargs,
         )
-        self.snowflake_conn_id = snowflake_conn_id
-        self.autocommit = autocommit
-        self.do_xcom_push = do_xcom_push
-        self.parameters = parameters
-        self.warehouse = warehouse
-        self.database = database
-        self.role = role
-        self.schema = schema
-        self.authenticator = authenticator
-        self.session_parameters = session_parameters
         self.query_ids: list[str] = []
 
 
@@ -492,7 +505,9 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             deferrable=self.deferrable,
         )
         self.query_ids = self._hook.execute_query(
-            self.sql, statement_count=self.statement_count, bindings=self.bindings  # type: ignore[arg-type]
+            self.sql,  # type: ignore[arg-type]
+            statement_count=self.statement_count,
+            bindings=self.bindings,
         )
         self.log.info("List of query ids %s", self.query_ids)
 

@@ -31,6 +31,8 @@ from airflow.models import DagRun, XCom
 from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module", autouse=True)
 def clean_xcom():
@@ -41,13 +43,16 @@ def clean_xcom():
 
 def _compare_xcom_collections(collection1: dict, collection_2: dict):
     assert collection1.get("total_entries") == collection_2.get("total_entries")
-    sort_key = lambda record: (
-        record.get("dag_id"),
-        record.get("task_id"),
-        record.get("execution_date"),
-        record.get("map_index"),
-        record.get("key"),
-    )
+
+    def sort_key(record):
+        return (
+            record.get("dag_id"),
+            record.get("task_id"),
+            record.get("execution_date"),
+            record.get("map_index"),
+            record.get("key"),
+        )
+
     assert sorted(collection1.get("xcom_entries", []), key=sort_key) == sorted(
         collection_2.get("xcom_entries", []), key=sort_key
     )

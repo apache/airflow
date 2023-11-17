@@ -57,7 +57,7 @@ class TestGCSToS3Operator:
 
             operator = GCSToS3Operator(
                 task_id=TASK_ID,
-                bucket=GCS_BUCKET,
+                gcs_bucket=GCS_BUCKET,
                 prefix=PREFIX,
                 dest_aws_conn_id="aws_default",
                 dest_s3_key=S3_BUCKET,
@@ -69,7 +69,11 @@ class TestGCSToS3Operator:
 
             operator.execute(None)
             mock_hook.return_value.list.assert_called_once_with(
-                bucket_name=GCS_BUCKET, delimiter=None, match_glob=f"**/*{DELIMITER}", prefix=PREFIX
+                bucket_name=GCS_BUCKET,
+                delimiter=None,
+                match_glob=f"**/*{DELIMITER}",
+                prefix=PREFIX,
+                user_project=None,
             )
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
@@ -82,7 +86,7 @@ class TestGCSToS3Operator:
             with pytest.deprecated_call(match=deprecated_call_match):
                 operator = GCSToS3Operator(
                     task_id=TASK_ID,
-                    bucket=GCS_BUCKET,
+                    gcs_bucket=GCS_BUCKET,
                     prefix=PREFIX,
                     delimiter=DELIMITER,
                     dest_aws_conn_id="aws_default",
@@ -111,7 +115,7 @@ class TestGCSToS3Operator:
             with pytest.deprecated_call(match=deprecated_call_match):
                 operator = GCSToS3Operator(
                     task_id=TASK_ID,
-                    bucket=GCS_BUCKET,
+                    gcs_bucket=GCS_BUCKET,
                     prefix=PREFIX,
                     delimiter=DELIMITER,
                     dest_aws_conn_id="aws_default",
@@ -149,7 +153,7 @@ class TestGCSToS3Operator:
             with pytest.deprecated_call(match=deprecated_call_match):
                 operator = GCSToS3Operator(
                     task_id=TASK_ID,
-                    bucket=GCS_BUCKET,
+                    gcs_bucket=GCS_BUCKET,
                     prefix=PREFIX,
                     delimiter=DELIMITER,
                     dest_aws_conn_id="aws_default",
@@ -177,7 +181,7 @@ class TestGCSToS3Operator:
             with pytest.deprecated_call(match=deprecated_call_match):
                 operator = GCSToS3Operator(
                     task_id=TASK_ID,
-                    bucket=GCS_BUCKET,
+                    gcs_bucket=GCS_BUCKET,
                     prefix=PREFIX,
                     delimiter=DELIMITER,
                     dest_aws_conn_id="aws_default",
@@ -193,6 +197,40 @@ class TestGCSToS3Operator:
             assert sorted(MOCK_FILES) == sorted(hook.list_keys("bucket", delimiter="/"))
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
+    def test_execute_gcs_bucket_rename_compatibility(self, mock_hook):
+        """
+        Tests the same conditions as `test_execute` using the deprecated `bucket` parameter instead of
+        `gcs_bucket`. This test can be removed when the `bucket` parameter is removed.
+        """
+        mock_hook.return_value.list.return_value = MOCK_FILES
+        with NamedTemporaryFile() as f:
+            gcs_provide_file = mock_hook.return_value.provide_file
+            gcs_provide_file.return_value.__enter__.return_value.name = f.name
+            bucket_param_deprecated_message = (
+                "The ``bucket`` parameter is deprecated and will be removed in a future version. "
+                "Please use ``gcs_bucket`` instead."
+            )
+            with pytest.deprecated_call(match=bucket_param_deprecated_message):
+                operator = GCSToS3Operator(
+                    task_id=TASK_ID,
+                    bucket=GCS_BUCKET,
+                    prefix=PREFIX,
+                    match_glob=DELIMITER,
+                    dest_aws_conn_id="aws_default",
+                    dest_s3_key=S3_BUCKET,
+                    replace=False,
+                )
+            hook, _ = _create_test_bucket()
+            # we expect all MOCK_FILES to be uploaded
+            # and all MOCK_FILES to be present at the S3 bucket
+            uploaded_files = operator.execute(None)
+            assert sorted(MOCK_FILES) == sorted(uploaded_files)
+            assert sorted(MOCK_FILES) == sorted(hook.list_keys("bucket", delimiter="/"))
+        with pytest.raises(ValueError) as excinfo:
+            GCSToS3Operator(task_id=TASK_ID, dest_s3_key=S3_BUCKET)
+        assert str(excinfo.value) == "You must pass either ``bucket`` or ``gcs_bucket``."
+
+    @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_with_replace(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
         with NamedTemporaryFile() as f:
@@ -202,7 +240,7 @@ class TestGCSToS3Operator:
             with pytest.deprecated_call(match=deprecated_call_match):
                 operator = GCSToS3Operator(
                     task_id=TASK_ID,
-                    bucket=GCS_BUCKET,
+                    gcs_bucket=GCS_BUCKET,
                     prefix=PREFIX,
                     delimiter=DELIMITER,
                     dest_aws_conn_id="aws_default",
@@ -229,7 +267,7 @@ class TestGCSToS3Operator:
             with pytest.deprecated_call(match=deprecated_call_match):
                 operator = GCSToS3Operator(
                     task_id=TASK_ID,
-                    bucket=GCS_BUCKET,
+                    gcs_bucket=GCS_BUCKET,
                     prefix=PREFIX,
                     delimiter=DELIMITER,
                     dest_aws_conn_id="aws_default",
@@ -257,7 +295,7 @@ class TestGCSToS3Operator:
         with pytest.deprecated_call(match=deprecated_call_match):
             operator = GCSToS3Operator(
                 task_id=TASK_ID,
-                bucket=GCS_BUCKET,
+                gcs_bucket=GCS_BUCKET,
                 prefix=PREFIX,
                 delimiter=DELIMITER,
                 dest_aws_conn_id="aws_default",
@@ -280,7 +318,7 @@ class TestGCSToS3Operator:
             with pytest.deprecated_call(match=deprecated_call_match):
                 operator = GCSToS3Operator(
                     task_id=TASK_ID,
-                    bucket=GCS_BUCKET,
+                    gcs_bucket=GCS_BUCKET,
                     prefix=PREFIX,
                     delimiter=DELIMITER,
                     dest_aws_conn_id="aws_default",
@@ -306,7 +344,7 @@ class TestGCSToS3Operator:
             with pytest.deprecated_call(match=deprecated_call_match):
                 operator = GCSToS3Operator(
                     task_id=TASK_ID,
-                    bucket=GCS_BUCKET,
+                    gcs_bucket=GCS_BUCKET,
                     prefix=PREFIX,
                     delimiter=DELIMITER,
                     dest_aws_conn_id="aws_default",
@@ -331,7 +369,7 @@ class TestGCSToS3Operator:
             with pytest.deprecated_call(match=deprecated_call_match):
                 operator = GCSToS3Operator(
                     task_id=TASK_ID,
-                    bucket=GCS_BUCKET,
+                    gcs_bucket=GCS_BUCKET,
                     prefix=PREFIX,
                     delimiter=DELIMITER,
                     dest_aws_conn_id="aws_default",

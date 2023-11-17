@@ -90,7 +90,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
 
     .. code-block:: python
 
-        CreateBucket = GoogleCloudStorageCreateBucketOperator(
+        CreateBucket = GCSCreateBucketOperator(
             task_id="CreateNewBucket",
             bucket_name="test-bucket",
             storage_class="MULTI_REGIONAL",
@@ -187,7 +187,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         The following Operator would list all the Avro files from ``sales/sales-2017``
         folder in ``data`` bucket. ::
 
-            GCS_Files = GoogleCloudStorageListOperator(
+            GCS_Files = GCSListOperator(
                 task_id='GCS_Files',
                 bucket='data',
                 prefix='sales/sales-2017/',
@@ -301,7 +301,6 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-
         self.bucket_name = bucket_name
         self.objects = objects
         self.prefix = prefix
@@ -798,9 +797,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                         num_max_attempts=self.download_num_attempts,
                     )
                 except GoogleCloudError:
-                    if self.download_continue_on_fail:
-                        continue
-                    raise
+                    if not self.download_continue_on_fail:
+                        raise
 
             self.log.info("Starting the transformation")
             cmd = [self.transform_script] if isinstance(self.transform_script, str) else self.transform_script
@@ -848,9 +846,8 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
                     )
                     files_uploaded.append(str(upload_file_name))
                 except GoogleCloudError:
-                    if self.upload_continue_on_fail:
-                        continue
-                    raise
+                    if not self.upload_continue_on_fail:
+                        raise
 
             return files_uploaded
 
@@ -875,12 +872,15 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param user_project: (Optional) The identifier of the project to bill for this request.
+        Required for Requester Pays buckets.
     """
 
     template_fields: Sequence[str] = (
         "bucket_name",
         "gcp_conn_id",
         "impersonation_chain",
+        "user_project",
     )
 
     def __init__(
@@ -890,6 +890,7 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         force: bool = True,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        user_project: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -898,10 +899,11 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         self.force: bool = force
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.user_project = user_project
 
     def execute(self, context: Context) -> None:
         hook = GCSHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        hook.delete_bucket(bucket_name=self.bucket_name, force=self.force)
+        hook.delete_bucket(bucket_name=self.bucket_name, force=self.force, user_project=self.user_project)
 
 
 class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
@@ -917,7 +919,7 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GCSSynchronizeBuckets`
+        :ref:`howto/operator:GCSSynchronizeBucketsOperator`
 
     :param source_bucket: The name of the bucket containing the source objects.
     :param destination_bucket: The name of the bucket containing the destination objects.

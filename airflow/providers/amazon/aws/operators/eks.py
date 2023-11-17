@@ -735,7 +735,7 @@ class EksDeleteClusterOperator(BaseOperator):
 
     def delete_any_nodegroups(self, eks_hook) -> None:
         """
-        Deletes all Amazon EKS managed node groups for a provided Amazon EKS Cluster.
+        Delete all Amazon EKS managed node groups for a provided Amazon EKS Cluster.
 
         Amazon EKS managed node groups can be deleted in parallel, so we can send all
         delete commands in bulk and move on once the count of nodegroups is zero.
@@ -752,7 +752,7 @@ class EksDeleteClusterOperator(BaseOperator):
 
     def delete_any_fargate_profiles(self, eks_hook) -> None:
         """
-        Deletes all EKS Fargate profiles for a provided Amazon EKS Cluster.
+        Delete all EKS Fargate profiles for a provided Amazon EKS Cluster.
 
         EKS Fargate profiles must be deleted one at a time, so we must wait
         for one to be deleted before sending the next delete command.
@@ -973,8 +973,6 @@ class EksPodOperator(KubernetesPodOperator):
         :ref:`howto/operator:EksPodOperator`
 
     :param cluster_name: The name of the Amazon EKS Cluster to execute the task on. (templated)
-    :param cluster_role_arn: The Amazon Resource Name (ARN) of the IAM role that provides permissions
-         for the Kubernetes control plane to make calls to AWS API operations on your behalf. (templated)
     :param in_cluster: If True, look for config inside the cluster; if False look for a local file path.
     :param namespace: The namespace in which to execute the pod. (templated)
     :param pod_name: The unique name to give the pod. (templated)
@@ -987,7 +985,7 @@ class EksPodOperator(KubernetesPodOperator):
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
-        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
         Current default is `keep_pod`, but this will be changed in the next major release of this provider.
     :param is_delete_operator_pod: What to do when the pod reaches its final

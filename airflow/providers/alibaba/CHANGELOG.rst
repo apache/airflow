@@ -26,6 +26,55 @@
 Changelog
 ---------
 
+2.6.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Consolidate hook management in AnalyticDBSparkSensor (#34435)``
+* ``Consolidate hook management in AnalyticDBSparkBaseOperator (#34434)``
+* ``Deprecate get_hook in OSSKeySensor and use hook instead (#34426)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Refactor: consolidate import time in providers (#34402)``
+   * ``Refactor usage of str() in providers (#34320)``
+
+2.5.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/alibaba): respect soft_fail argument when exception is raised (#34157)``
+
+2.5.2
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in Apache/Alibaba providers (#33227)``
+* ``Simplify conditions on len() in providers/apache (#33564)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+2.5.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Simplify code in providers/alibaba (#33225)``
+
 2.5.0
 .....
 

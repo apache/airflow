@@ -213,7 +213,7 @@ You can solve the problem by:
 
     # if necessary, start with a clean AIRFLOW_HOME, e.g.
     # rm -rf ~/airflow
-    airflow db init
+    airflow db migrate
 
 4. Select the virtualenv you created as the project's default virtualenv in your IDE.
 

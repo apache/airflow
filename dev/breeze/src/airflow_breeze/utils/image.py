@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import subprocess
 import time
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -26,8 +26,6 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
-from airflow_breeze.params.build_prod_params import BuildProdParams
-from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import Output, get_console
@@ -41,6 +39,10 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+
+if TYPE_CHECKING:
+    from airflow_breeze.params.build_prod_params import BuildProdParams
+    from airflow_breeze.params.common_build_params import CommonBuildParams
 
 
 def run_pull_in_parallel(

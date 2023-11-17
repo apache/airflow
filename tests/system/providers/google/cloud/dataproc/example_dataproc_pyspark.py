@@ -23,25 +23,19 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
-from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
     DataprocSubmitJobOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import (
-    GCSCreateBucketOperator,
-    GCSDeleteBucketOperator,
-)
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_pyspark"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+JOB_FILE_URI = "gs://airflow-system-tests-resources/dataproc/pyspark/dataproc-pyspark-job-pi.py"
 CLUSTER_NAME = f"cluster-{ENV_ID}-{DAG_ID}".replace("_", "-")
 REGION = "europe-west1"
 
@@ -50,73 +44,32 @@ CLUSTER_CONFIG = {
     "master_config": {
         "num_instances": 1,
         "machine_type_uri": "n1-standard-4",
-        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
     "worker_config": {
         "num_instances": 2,
         "machine_type_uri": "n1-standard-4",
-        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 1024},
+        "disk_config": {"boot_disk_type": "pd-standard", "boot_disk_size_gb": 32},
     },
 }
-
-JOB_FILE_NAME = "dataproc-pyspark-job.py"
-JOB_FILE_LOCAL_PATH = f"/tmp/{JOB_FILE_NAME}"
-JOB_FILE_CONTENT = """from operator import add
-from random import random
-
-from pyspark.sql import SparkSession
-
-
-def f(_: int) -> float:
-    x = random() * 2 - 1
-    y = random() * 2 - 1
-    return 1 if x**2 + y**2 <= 1 else 0
-
-
-spark = SparkSession.builder.appName("PythonPi").getOrCreate()
-partitions = 2
-n = 100000 * partitions
-count = spark.sparkContext.parallelize(range(1, n + 1), partitions).map(f).reduce(add)
-print(f"Pi is roughly {4.0 * count / n:f}")
-
-spark.stop()
-"""
 
 # Jobs definitions
 # [START how_to_cloud_dataproc_pyspark_config]
 PYSPARK_JOB = {
     "reference": {"project_id": PROJECT_ID},
     "placement": {"cluster_name": CLUSTER_NAME},
-    "pyspark_job": {"main_python_file_uri": f"gs://{BUCKET_NAME}/{JOB_FILE_NAME}"},
+    "pyspark_job": {"main_python_file_uri": JOB_FILE_URI},
 }
 # [END how_to_cloud_dataproc_pyspark_config]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "dataproc", "pyspark"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
-    )
-
-    @task
-    def create_job_file():
-        with open(JOB_FILE_LOCAL_PATH, "w") as job_file:
-            job_file.write(JOB_FILE_CONTENT)
-
-    create_job_file_task = create_job_file()
-
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file",
-        src=JOB_FILE_LOCAL_PATH,
-        dst=JOB_FILE_NAME,
-        bucket=BUCKET_NAME,
-    )
-
     create_cluster = DataprocCreateClusterOperator(
         task_id="create_cluster",
         project_id=PROJECT_ID,
@@ -139,27 +92,13 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
-    )
-
-    @task(trigger_rule=TriggerRule.ALL_DONE)
-    def delete_job_file():
-        try:
-            os.remove(JOB_FILE_LOCAL_PATH)
-        except FileNotFoundError:
-            pass
-        return 0
-
-    delete_job_file_task = delete_job_file()
-
     (
         # TEST SETUP
-        [[create_job_file_task, create_bucket] >> upload_file, create_cluster]
+        create_cluster
         # TEST BODY
         >> pyspark_task
         # TEST TEARDOWN
-        >> [delete_cluster, delete_bucket, delete_job_file_task]
+        >> delete_cluster
     )
 
     from tests.system.utils.watcher import watcher

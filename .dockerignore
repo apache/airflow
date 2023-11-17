@@ -45,7 +45,6 @@
 !helm_tests
 !docker_tests
 
-!.coveragerc
 !.rat-excludes
 !.dockerignore
 !RELEASE_NOTES.rst

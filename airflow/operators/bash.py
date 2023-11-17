@@ -21,13 +21,15 @@ import os
 import shutil
 import warnings
 from functools import cached_property
-from typing import Container, Sequence
+from typing import TYPE_CHECKING, Container, Sequence
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.hooks.subprocess import SubprocessHook
 from airflow.models.baseoperator import BaseOperator
-from airflow.utils.context import Context
 from airflow.utils.operator_helpers import context_to_airflow_vars
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BashOperator(BaseOperator):
@@ -172,7 +174,7 @@ class BashOperator(BaseOperator):
         return SubprocessHook()
 
     def get_env(self, context):
-        """Builds the set of environment variables to be exposed for the bash command."""
+        """Build the set of environment variables to be exposed for the bash command."""
         system_env = os.environ.copy()
         env = self.env
         if env is None:

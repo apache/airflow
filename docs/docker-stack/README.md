@@ -31,12 +31,12 @@ Every time a new version of Airflow is released, the images are prepared in the
 [apache/airflow DockerHub](https://hub.docker.com/r/apache/airflow)
 for all the supported Python versions.
 
-You can find the following images there (Assuming Airflow version `2.7.0.dev0`):
+You can find the following images there (Assuming Airflow version `2.8.0.dev0`):
 
 * `apache/airflow:latest` - the latest released Airflow image with default Python version (3.8 currently)
 * `apache/airflow:latest-pythonX.Y` - the latest released Airflow image with specific Python version
-* `apache/airflow:2.7.0.dev0` - the versioned Airflow image with default Python version (3.8 currently)
-* `apache/airflow:2.7.0.dev0-pythonX.Y` - the versioned Airflow image with specific Python version
+* `apache/airflow:2.8.0.dev0` - the versioned Airflow image with default Python version (3.8 currently)
+* `apache/airflow:2.8.0.dev0-pythonX.Y` - the versioned Airflow image with specific Python version
 
 Those are "reference" regular images. They contain the most common set of extras, dependencies and providers that are
 often used by the users and they are good to "try-things-out" when you want to just take Airflow for a spin,
@@ -47,8 +47,8 @@ via [Building the image](https://airflow.apache.org/docs/docker-stack/build.html
 
 * `apache/airflow:slim-latest`              - the latest released Airflow image with default Python version (3.8 currently)
 * `apache/airflow:slim-latest-pythonX.Y`    - the latest released Airflow image with specific Python version
-* `apache/airflow:slim-2.7.0.dev0`           - the versioned Airflow image with default Python version (3.8 currently)
-* `apache/airflow:slim-2.7.0.dev0-pythonX.Y` - the versioned Airflow image with specific Python version
+* `apache/airflow:slim-2.8.0.dev0`           - the versioned Airflow image with default Python version (3.8 currently)
+* `apache/airflow:slim-2.8.0.dev0-pythonX.Y` - the versioned Airflow image with specific Python version
 
 The Apache Airflow image provided as convenience package is optimized for size, and
 it provides just a bare minimal set of the extras and dependencies installed and in most cases
@@ -79,6 +79,6 @@ If no `AIRFLOW__DATABASE__SQL_ALCHEMY_CONN` variable is set then SQLite database
 For example commands that start Airflow see: [Executing commands](https://airflow.apache.org/docs/docker-stack/entrypoint.html#entrypoint-commands).
 
 Airflow requires many components to function as it is a distributed application. You may therefore also be interested
-in launching Airflow in the Docker Compose environment, see: [Running Airflow in Docker](https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose.html).
+in launching Airflow in the Docker Compose environment, see: [Running Airflow in Docker](https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html).
 
 You can use this image in [Helm Chart](https://airflow.apache.org/docs/helm-chart/stable/index.html) as well.

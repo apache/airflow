@@ -66,6 +66,10 @@ function in_container_script_start() {
 #
 function in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "linux" ]]; then
+        if [[ ${DOCKER_IS_ROOTLESS=} == "true" ]]; then
+             echo "${COLOR_YELLOW}Skip fixing ownership of generated files: Docker is rootless${COLOR_RESET}"
+             return
+        fi
         DIRECTORIES_TO_FIX=(
             "/dist"
             "/files"
@@ -84,7 +88,7 @@ function in_container_fix_ownership() {
             echo "${COLOR_BLUE}Fixing ownership of ${count_matching} root owned files on ${HOST_OS}${COLOR_RESET}"
             echo
             find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -print0 2> /dev/null |
-                xargs --null chown "${HOST_USER_ID}.${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
+                xargs --null chown "${HOST_USER_ID}:${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
             echo "${COLOR_BLUE}Fixed ownership of generated files${COLOR_RESET}."
             echo
         fi
@@ -181,9 +185,9 @@ function install_airflow_from_wheel() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -220,9 +224,9 @@ function install_airflow_from_sdist() {
         set -e
         if [[ ${res} != "0" ]]; then
             >&2 echo
-            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode"
+            >&2 echo "WARNING! Could not install provider packages with constraints, falling back to no-constraints mode without dependencies in case some of the required providers are not yet released"
             >&2 echo
-            pip install "${airflow_package}${extras}"
+            pip install "${airflow_package}${extras}" --no-deps
         fi
     fi
 }
@@ -262,7 +266,18 @@ function install_released_airflow_version() {
     if [[ ${constraints_reference} == "none" ]]; then
         pip install "${airflow_package}${extras}"
     else
-        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" \
+        local dependency_fix=""
+        # The pyopenssl is needed to downgrade pyopenssl for older airflow versions when using constraints
+        # Flask app builder has an optional pyopenssl transitive dependency, that causes import error when
+        # Pyopenssl is installed in a wrong version for Flask App Builder 4.1 and older. Adding PyOpenSSL
+        # directly as the dependency, forces downgrading of pyopenssl to the right version. Our constraint
+        # version has it pinned to the right version, but since it is not directly required, it is not
+        # downgraded when installing airflow and it is already installed in a newer version
+        if [[ ${USE_AIRFLOW_VERSION=} != "" ]]; then
+            dependency_fix="pyopenssl"
+        fi
+
+        pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" ${dependency_fix} \
             --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     fi
 }
@@ -273,7 +288,7 @@ function install_local_airflow_with_eager_upgrade() {
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers
     # shellcheck disable=SC2086
-    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
 }
 
@@ -286,6 +301,13 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     local res
     for provider_package in ${ALL_PROVIDERS_PACKAGES}
     do
+        # Remove common.io provider in main branch until we cut-off v2-8-test branch and change
+        # version in main to 2.9.0 - otherwise we won't be able to generate PyPI constraints as
+        # released common-io provider has apache-airflow>2.8.0 as dependency and we cannot install
+        # the provider from PyPI
+        if [[ ${provider_package} == "apache-airflow-providers-common-io" ]]; then
+            continue
+        fi
         echo -n "Checking if ${provider_package} is available in PyPI: "
         res=$(curl --head -s -o /dev/null -w "%{http_code}" "https://pypi.org/project/${provider_package}/")
         if [[ ${res} == "200" ]]; then
@@ -295,16 +317,21 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
             echo "${COLOR_YELLOW}Skipped${COLOR_RESET}"
         fi
     done
+
+
     echo "Installing provider packages: ${packages_to_install[*]}"
+
+
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers. We install only those packages that are available in PyPI - we might
     # Have some new providers in the works and they might not yet be simply available in PyPI
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    set -x
+    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
-
+    set +x
 }
 
 function install_all_provider_packages_from_wheels() {

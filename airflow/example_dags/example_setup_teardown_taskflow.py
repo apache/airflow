@@ -50,7 +50,7 @@ with DAG(
 
     # The method `as_teardown` will mark task_3 as teardown, task_1 as setup, and
     # arrow task_1 >> task_3.
-    # Now if you clear task_2, then it's setup task, task_1, will be cleared in
+    # Now if you clear task_2, then its setup task, task_1, will be cleared in
     # addition to its teardown task, task_3
 
     # it's also possible to use a decorator to mark a task as setup or

@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Connection types <connections/imap>
     Python API <_api/airflow/providers/imap/index>
 
@@ -62,7 +63,7 @@ Package apache-airflow-providers-imap
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 
-Release: 3.2.2
+Release: 3.4.0
 
 Provider package
 ----------------
@@ -80,10 +81,10 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.4.0``
+``apache-airflow``  ``>=2.5.0``
 ==================  ==================

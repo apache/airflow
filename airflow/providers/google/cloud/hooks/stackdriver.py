@@ -18,12 +18,12 @@
 """This module contains Google Cloud Stackdriver operators."""
 from __future__ import annotations
 
+import contextlib
 import json
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import InvalidArgument
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.retry import Retry
 from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -31,6 +31,9 @@ from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.retry import Retry
 
 
 class StackdriverHook(GoogleBaseHook):
@@ -293,15 +296,13 @@ class StackdriverHook(GoogleBaseHook):
                     policy.notification_channels[i] = new_channel
 
             if policy.name in existing_policies:
-                try:
+                with contextlib.suppress(InvalidArgument):
                     policy_client.update_alert_policy(
                         request={"alert_policy": policy},
                         retry=retry,
                         timeout=timeout,
                         metadata=metadata,
                     )
-                except InvalidArgument:
-                    pass
             else:
                 policy.name = None
                 for condition in policy.conditions:

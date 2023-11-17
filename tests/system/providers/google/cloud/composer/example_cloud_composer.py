@@ -20,8 +20,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import models
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.cloud_composer import (
     CloudComposerCreateEnvironmentOperator,
     CloudComposerDeleteEnvironmentOperator,
@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.operators.cloud_composer import (
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 DAG_ID = "example_composer"
 
@@ -60,7 +60,7 @@ UPDATE_MASK = {"paths": ["labels.label1"]}
 # [END howto_operator_composer_update_environment]
 
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),

@@ -37,41 +37,44 @@
     {% endif %}
 
     {% for option_name, option in section["options"].items() %}
-
     .. _config:{{ section_name }}__{{ option_name }}:
 
     {{ option_name }}
     {{ "-" * option_name|length }}
 
-    {% if option["version_added"] %}
-    .. versionadded:: {{ option["version_added"] }}
-    {% endif %}
+        {% if option["version_added"] %}
+     .. versionadded:: {{ option["version_added"] }}
+        {% endif %}
 
-    {% if option["description"] %}
+        {% if option["description"] %}
     {{ option["description"] }}
-    {% endif %}
+        {% endif %}
 
-    {% if option.get("see_also") %}
+        {% if option.get("version_deprecated") %}
+    .. deprecated:: {{ option["version_deprecated"] }}
+        {{ option["deprecation_reason"] | indent(width=8) }}
+        {% endif %}
+
+        {% if option.get("see_also") %}
     .. seealso:: {{ option["see_also"] }}
-    {% endif %}
+        {% endif %}
 
     :Type: {{ option["type"] }}
     :Default: ``{{ "''" if option["default"] == "" else option["default"] }}``
-    {% if option.get("sensitive") %}
+        {% if option.get("sensitive") %}
     :Environment Variables:
       ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
 
       ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_CMD``
 
       ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}_SECRET``
-    {% else %}
+        {% else %}
     :Environment Variable: ``AIRFLOW__{{ section_name | upper }}__{{ option_name | upper }}``
-    {% endif %}
-    {% if option["example"] %}
+        {% endif %}
+        {% if option["example"] %}
     :Example:
       ``{{ option["example"] }}``
-    {% endif %}
-
+        {% endif %}
     {% endfor %}
 
     {% if section_name in deprecated_options %}

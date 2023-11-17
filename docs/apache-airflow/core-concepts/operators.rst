@@ -21,7 +21,7 @@ Operators
 An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, that you can just define declaratively inside your DAG::
 
     with DAG("my-dag") as dag:
-        ping = SimpleHttpOperator(endpoint="http://example.com/update/")
+        ping = HttpOperator(endpoint="http://example.com/update/")
         email = EmailOperator(to="admin@example.com", subject="Update complete")
 
         ping >> email
@@ -41,7 +41,7 @@ For a list of all core operators, see: :doc:`Core Operators and Hooks Reference 
 
 If the operator you need isn't installed with Airflow by default, you can probably find it as part of our huge set of community :doc:`provider packages <apache-airflow-providers:index>`. Some popular operators from here include:
 
-- :class:`~airflow.providers.http.operators.http.SimpleHttpOperator`
+- :class:`~airflow.providers.http.operators.http.HttpOperator`
 - :class:`~airflow.providers.mysql.operators.mysql.MySqlOperator`
 - :class:`~airflow.providers.postgres.operators.postgres.PostgresOperator`
 - :class:`~airflow.providers.microsoft.mssql.operators.mssql.MsSqlOperator`
@@ -155,6 +155,56 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
     )
 
 See the `Jinja documentation <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_ to find all available options.
+
+Some operators will also consider strings ending in specific suffixes (defined in ``template_ext``) to be references to files when rendering fields. This can be useful for loading scripts or queries directly from files rather than including them into DAG code.
+
+For example, consider a BashOperator which runs a multi-line bash script, this will load the file at ``script.sh`` and use its contents as the value for ``bash_command``:
+
+.. code-block:: python
+
+    run_script = BashOperator(
+        task_id="run_script",
+        bash_command="script.sh",
+    )
+
+By default, paths provided in this way should be provided relative to the DAG's folder (as this is the default Jinja template search path), but additional paths can be added by setting the ``template_searchpath`` arg on the DAG.
+
+In some cases, you may want to exclude a string from templating and use it directly. Consider the following task:
+
+.. code-block:: python
+
+    print_script = BashOperator(
+        task_id="print_script",
+        bash_command="cat script.sh",
+    )
+
+This will fail with ``TemplateNotFound: cat script.sh`` since Airflow would treat the string as a path to a file, not a command.
+We can prevent airflow from treating this value as a reference to a file by wrapping it in :func:`~airflow.util.template.literal`.
+This approach disables the rendering of both macros and files and can be applied to selected nested fields while retaining the default templating rules for the remainder of the content.
+
+.. code-block:: python
+
+    from airflow.utils.template import literal
+
+
+    fixed_print_script = BashOperator(
+        task_id="fixed_print_script",
+        bash_command=literal("cat script.sh"),
+    )
+
+.. versionadded:: 2.8
+    :func:`~airflow.util.template.literal` was added.
+
+Alternatively, if you want to prevent Airflow from treating a value as a reference to a file, you can override ``template_ext``:
+
+.. code-block:: python
+
+    fixed_print_script = BashOperator(
+        task_id="fixed_print_script",
+        bash_command="cat script.sh",
+    )
+    fixed_print_script.template_ext = ()
+
 
 .. _concepts:templating-native-objects:
 

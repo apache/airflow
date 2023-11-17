@@ -19,11 +19,11 @@ from __future__ import annotations
 import datetime
 import operator
 import os
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy.orm import Session
 
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
@@ -36,6 +36,12 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
+
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 class CustomXCom(BaseXCom):

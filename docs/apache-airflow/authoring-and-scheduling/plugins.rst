@@ -82,9 +82,9 @@ start of each Airflow process, set ``[core] lazy_load_plugins = False`` in ``air
 This means that if you make any changes to plugins and you want the webserver or scheduler to use that new
 code you will need to restart those processes. However, it will not be reflected in new running tasks after the scheduler boots.
 
-By default, task execution will use forking to avoid the slow down of having to create a whole new python
-interpreter and re-parse all of the Airflow code and start up routines -- this is a big benefit for shorter
-running tasks. This does mean that if you use plugins in your tasks, and want them to update you will either
+By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
+and re-parsing all of Airflow's code and startup routines. This approach offers significant benefits, especially for shorter tasks.
+This does mean that if you use plugins in your tasks, and want them to update you will either
 need to restart the worker (if using CeleryExecutor) or scheduler (Local or Sequential executors). The other
 option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
 config setting to True, resulting in launching a whole new python interpreter for tasks.
@@ -118,6 +118,7 @@ looks like:
         appbuilder_views = []
         # A list of dictionaries containing kwargs for FlaskAppBuilder add_link. See example below
         appbuilder_menu_items = []
+
         # A callback to perform actions when airflow starts and the plugin is loaded.
         # NOTE: Ensure your plugin has *args, and **kwargs in the method definition
         #   to protect against extra parameters injected into the on_load(...)
@@ -177,6 +178,7 @@ definitions in Airflow.
     from airflow.hooks.base import BaseHook
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
+
     # Will show up in Connections screen in a future version
     class PluginHook(BaseHook):
         pass
@@ -196,6 +198,7 @@ definitions in Airflow.
         static_folder="static",
         static_url_path="/static/test_plugin",
     )
+
 
     # Creating a flask appbuilder BaseView
     class TestAppBuilderBaseView(AppBuilderBaseView):

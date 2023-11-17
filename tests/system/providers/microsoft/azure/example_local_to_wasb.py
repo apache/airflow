@@ -23,10 +23,6 @@ from airflow.models import DAG
 from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
 from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFilesystemToWasbOperator
 
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
-
-
 PATH_TO_UPLOAD_FILE = os.environ.get("AZURE_PATH_TO_UPLOAD_FILE", "example-text.txt")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_local_to_wasb"
@@ -47,7 +43,9 @@ with DAG(
         blob_name=AZURE_BLOB_NAME,
     )
     # [END howto_operator_local_to_wasb]
-    delete = WasbDeleteBlobOperator(task_id="delete_file")
+    delete = WasbDeleteBlobOperator(
+        task_id="delete_file", blob_name=AZURE_BLOB_NAME, container_name=AZURE_CONTAINER_NAME
+    )
 
     upload >> delete
 

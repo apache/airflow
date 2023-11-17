@@ -23,10 +23,11 @@ import pytest
 import requests
 
 from airflow.exceptions import AirflowException
-from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook
+from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
 
 
-class TestDruidHook:
+@pytest.mark.db_test
+class TestDruidSubmitHook:
     def setup_method(self):
         import requests_mock
 
@@ -35,7 +36,11 @@ class TestDruidHook:
         session.mount("mock", adapter)
 
         class TestDRuidhook(DruidHook):
-            def get_conn_url(self):
+            self.is_sql_based_ingestion = False
+
+            def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH):
+                if ingestion_type == IngestionType.MSQ:
+                    return "http://druid-overlord:8081/druid/v2/sql/task"
                 return "http://druid-overlord:8081/druid/indexer/v1/task"
 
         self.db_hook = TestDRuidhook()
@@ -69,6 +74,22 @@ class TestDruidHook:
 
         # Exists just as it should
         self.db_hook.submit_indexing_job("Long json file")
+
+        assert task_post.called_once
+        assert status_check.called_once
+
+    def test_submit_sql_based_ingestion_ok(self, requests_mock):
+        task_post = requests_mock.post(
+            "http://druid-overlord:8081/druid/v2/sql/task",
+            text='{"taskId":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}',
+        )
+        status_check = requests_mock.get(
+            "http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status",
+            text='{"status":{"status": "SUCCESS"}}',
+        )
+
+        # Exists just as it should
+        self.db_hook.submit_indexing_job("Long json file", IngestionType.MSQ)
 
         assert task_post.called_once
         assert status_check.called_once
@@ -138,6 +159,25 @@ class TestDruidHook:
         assert status_check.called
         assert shutdown_post.called_once
 
+
+class TestDruidHook:
+    def setup_method(self):
+        import requests_mock
+
+        session = requests.Session()
+        adapter = requests_mock.Adapter()
+        session.mount("mock", adapter)
+
+        class TestDRuidhook(DruidHook):
+            self.is_sql_based_ingestion = False
+
+            def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH):
+                if ingestion_type == IngestionType.MSQ:
+                    return "http://druid-overlord:8081/druid/v2/sql/task"
+                return "http://druid-overlord:8081/druid/indexer/v1/task"
+
+        self.db_hook = TestDRuidhook()
+
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
     def test_get_conn_url(self, mock_get_connection):
         get_conn_value = MagicMock()
@@ -148,6 +188,17 @@ class TestDruidHook:
         mock_get_connection.return_value = get_conn_value
         hook = DruidHook(timeout=1, max_ingestion_time=5)
         assert hook.get_conn_url() == "https://test_host:1/ingest"
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_get_conn_url_with_ingestion_type(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "https"
+        get_conn_value.port = "1"
+        get_conn_value.extra_dejson = {"endpoint": "ingest", "msq_endpoint": "sql_ingest"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidHook(timeout=1, max_ingestion_time=5)
+        assert hook.get_conn_url(IngestionType.MSQ) == "https://test_host:1/sql_ingest"
 
     @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
     def test_get_auth(self, mock_get_connection):
@@ -201,6 +252,38 @@ class TestDruidDbApiHook:
                 return conn
 
         self.db_hook = TestDruidDBApiHook
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidDbApiHook.get_connection")
+    @patch("airflow.providers.apache.druid.hooks.druid.connect")
+    @pytest.mark.parametrize(
+        ("specified_context", "passed_context"),
+        [
+            (None, {}),
+            ({"query_origin": "airflow"}, {"query_origin": "airflow"}),
+        ],
+    )
+    def test_get_conn_with_context(
+        self, mock_connect, mock_get_connection, specified_context, passed_context
+    ):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "https"
+        get_conn_value.login = "test_login"
+        get_conn_value.password = "test_password"
+        get_conn_value.port = 10000
+        get_conn_value.extra_dejson = {"endpoint": "/test/endpoint", "schema": "https"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidDbApiHook(context=specified_context)
+        hook.get_conn()
+        mock_connect.assert_called_with(
+            host="test_host",
+            port=10000,
+            path="/test/endpoint",
+            scheme="https",
+            user="test_login",
+            password="test_password",
+            context=passed_context,
+        )
 
     def test_get_uri(self):
         db_hook = self.db_hook()

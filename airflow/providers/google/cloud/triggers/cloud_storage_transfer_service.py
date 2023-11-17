@@ -23,7 +23,7 @@ from typing import Any, AsyncIterator
 from google.api_core.exceptions import GoogleAPIError
 from google.cloud.storage_transfer_v1.types import TransferOperation
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
 )
@@ -97,7 +97,7 @@ class CloudStorageTransferServiceCreateJobsTrigger(BaseTrigger):
                         )
                         return
             except (GoogleAPIError, AirflowException) as ex:
-                yield TriggerEvent(dict(status="error", message=str(ex)))
+                yield TriggerEvent({"status": "error", "message": str(ex)})
                 return
 
             jobs_total = len(self.job_names)

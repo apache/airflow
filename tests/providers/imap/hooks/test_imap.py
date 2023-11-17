@@ -27,6 +27,10 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.utils import db
+from tests.test_utils.config import conf_vars
+
+pytestmark = pytest.mark.db_test
+
 
 imaplib_string = "airflow.providers.imap.hooks.imap.imaplib"
 open_string = "airflow.providers.imap.hooks.imap.open"
@@ -85,13 +89,104 @@ class TestImapHook:
         )
 
     @patch(imaplib_string)
-    def test_connect_and_disconnect(self, mock_imaplib):
+    @patch("ssl.create_default_context")
+    def test_connect_and_disconnect(self, create_default_context, mock_imaplib):
         mock_conn = _create_fake_imap(mock_imaplib)
 
         with ImapHook():
             pass
 
-        mock_imaplib.IMAP4_SSL.assert_called_once_with("imap_server_address", 1993)
+        assert create_default_context.called
+        mock_imaplib.IMAP4_SSL.assert_called_once_with(
+            "imap_server_address", 1993, ssl_context=create_default_context.return_value
+        )
+        mock_conn.login.assert_called_once_with("imap_user", "imap_password")
+        assert mock_conn.logout.call_count == 1
+
+    @patch(imaplib_string)
+    @patch("ssl.create_default_context")
+    def test_connect_and_disconnect_imap_ssl_context_none(self, create_default_context, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib)
+
+        with conf_vars({("imap", "ssl_context"): "none"}):
+            with ImapHook():
+                pass
+
+        assert not create_default_context.called
+        mock_imaplib.IMAP4_SSL.assert_called_once_with("imap_server_address", 1993, ssl_context=None)
+        mock_conn.login.assert_called_once_with("imap_user", "imap_password")
+        assert mock_conn.logout.call_count == 1
+
+    @patch(imaplib_string)
+    @patch("ssl.create_default_context")
+    def test_connect_and_disconnect_imap_ssl_context_from_extra(self, create_default_context, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib)
+        db.merge_conn(
+            Connection(
+                conn_id="imap_ssl_context_from_extra",
+                conn_type="imap",
+                host="imap_server_address",
+                login="imap_user",
+                password="imap_password",
+                port=1993,
+                extra=json.dumps(dict(use_ssl=True, ssl_context="default")),
+            )
+        )
+
+        with conf_vars({("imap", "ssl_context"): "none"}):
+            with ImapHook(imap_conn_id="imap_ssl_context_from_extra"):
+                pass
+
+        assert create_default_context.called
+        mock_imaplib.IMAP4_SSL.assert_called_once_with(
+            "imap_server_address", 1993, ssl_context=create_default_context.return_value
+        )
+        mock_conn.login.assert_called_once_with("imap_user", "imap_password")
+        assert mock_conn.logout.call_count == 1
+
+    @patch(imaplib_string)
+    @patch("ssl.create_default_context")
+    def test_connect_and_disconnect_imap_ssl_context_default(self, create_default_context, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib)
+
+        with conf_vars({("imap", "ssl_context"): "default"}):
+            with ImapHook():
+                pass
+
+        assert create_default_context.called
+        mock_imaplib.IMAP4_SSL.assert_called_once_with(
+            "imap_server_address", 1993, ssl_context=create_default_context.return_value
+        )
+        mock_conn.login.assert_called_once_with("imap_user", "imap_password")
+        assert mock_conn.logout.call_count == 1
+
+    @patch(imaplib_string)
+    @patch("ssl.create_default_context")
+    def test_connect_and_disconnect_email_ssl_context_none(self, create_default_context, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib)
+
+        with conf_vars({("email", "ssl_context"): "none"}):
+            with ImapHook():
+                pass
+
+        assert not create_default_context.called
+        mock_imaplib.IMAP4_SSL.assert_called_once_with("imap_server_address", 1993, ssl_context=None)
+        mock_conn.login.assert_called_once_with("imap_user", "imap_password")
+        assert mock_conn.logout.call_count == 1
+
+    @patch(imaplib_string)
+    @patch("ssl.create_default_context")
+    def test_connect_and_disconnect_imap_ssl_context_override(self, create_default_context, mock_imaplib):
+        mock_conn = _create_fake_imap(mock_imaplib)
+
+        with conf_vars({("email", "ssl_context"): "none", ("imap", "ssl_context"): "default"}):
+            with ImapHook():
+                pass
+
+        assert create_default_context.called
+        mock_imaplib.IMAP4_SSL.assert_called_once_with(
+            "imap_server_address", 1993, ssl_context=create_default_context.return_value
+        )
         mock_conn.login.assert_called_once_with("imap_user", "imap_password")
         assert mock_conn.logout.call_count == 1
 

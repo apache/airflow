@@ -17,12 +17,20 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest import mock
 
+import httplib2
 import pytest
+from googleapiclient.errors import HttpError
+from paramiko.ssh_exception import SSHException
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
+
+pytestmark = pytest.mark.db_test
+
 
 TEST_PROJECT_ID = "test-project-id"
 
@@ -99,7 +107,45 @@ class TestComputeEngineHookWithPassedProjectId:
             ]
         )
 
-        mock_compute_hook.return_value.set_instance_metadata.assert_not_called()
+    @pytest.mark.parametrize(
+        "exception_type, error_message",
+        [(SSHException, r"Error occurred when establishing SSH connection using Paramiko")],
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook._connect_to_instance")
+    def test_get_conn_default_configuration_test_exceptions(
+        self,
+        mock_connect,
+        mock_ssh_client,
+        mock_paramiko,
+        mock_os_login_hook,
+        mock_compute_hook,
+        exception_type,
+        error_message,
+        caplog,
+    ):
+        mock_paramiko.SSHException = Exception
+        mock_paramiko.RSAKey.generate.return_value.get_name.return_value = "NAME"
+        mock_paramiko.RSAKey.generate.return_value.get_base64.return_value = "AYZ"
+
+        mock_compute_hook.return_value.project_id = TEST_PROJECT_ID
+        mock_compute_hook.return_value.get_instance_address.return_value = EXTERNAL_IP
+
+        mock_os_login_hook.return_value._get_credentials_email.return_value = "test-example@example.org"
+        mock_os_login_hook.return_value.import_ssh_public_key.return_value.login_profile.posix_accounts = [
+            mock.MagicMock(username="test-username")
+        ]
+
+        hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE)
+        mock_connect.side_effect = [exception_type, mock_ssh_client]
+
+        with caplog.at_level(logging.INFO):
+            hook.get_conn()
+        assert error_message in caplog.text
+        assert "Failed establish SSH connection" in caplog.text
 
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
@@ -158,6 +204,49 @@ class TestComputeEngineHookWithPassedProjectId:
         )
 
         mock_os_login_hook.return_value.import_ssh_public_key.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "exception_type, error_message",
+        [
+            (
+                HttpError(resp=httplib2.Response({"status": 412}), content=b"Error content"),
+                r"Error occurred when trying to update instance metadata",
+            ),
+            (
+                AirflowException("412 PRECONDITION FAILED"),
+                r"Error occurred when trying to update instance metadata",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    def test_get_conn_authorize_using_instance_metadata_test_exception(
+        self,
+        mock_ssh_client,
+        mock_paramiko,
+        mock_os_login_hook,
+        mock_compute_hook,
+        exception_type,
+        error_message,
+        caplog,
+    ):
+        mock_paramiko.SSHException = Exception
+        mock_paramiko.RSAKey.generate.return_value.get_name.return_value = "NAME"
+        mock_paramiko.RSAKey.generate.return_value.get_base64.return_value = "AYZ"
+
+        mock_compute_hook.return_value.project_id = TEST_PROJECT_ID
+        mock_compute_hook.return_value.get_instance_address.return_value = EXTERNAL_IP
+
+        mock_compute_hook.return_value.get_instance_info.return_value = {"metadata": {}}
+        mock_compute_hook.return_value.set_instance_metadata.side_effect = [exception_type, None]
+
+        hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False)
+        with caplog.at_level(logging.INFO):
+            hook.get_conn()
+        assert error_message in caplog.text
+        assert "Failed establish SSH connection" in caplog.text
 
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
@@ -273,6 +362,41 @@ class TestComputeEngineHookWithPassedProjectId:
             f"--listen-on-stdin --project={TEST_PROJECT_ID} "
             f"--zone={TEST_ZONE} --verbosity=warning"
         )
+
+    @pytest.mark.parametrize(
+        "exception_type, error_message",
+        [(SSHException, r"Error occurred when establishing SSH connection using Paramiko")],
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.paramiko")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh._GCloudAuthorizedSSHClient")
+    @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook._connect_to_instance")
+    def test_get_conn_iap_tunnel_test_exception(
+        self,
+        mock_connect,
+        mock_ssh_client,
+        mock_paramiko,
+        mock_os_login_hook,
+        mock_compute_hook,
+        exception_type,
+        error_message,
+        caplog,
+    ):
+        del mock_os_login_hook
+        mock_paramiko.SSHException = Exception
+
+        mock_compute_hook.return_value.project_id = TEST_PROJECT_ID
+
+        hook = ComputeEngineSSHHook(
+            instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE, use_oslogin=False, use_iap_tunnel=True
+        )
+        mock_connect.side_effect = [exception_type, mock_ssh_client]
+
+        with caplog.at_level(logging.INFO):
+            hook.get_conn()
+        assert error_message in caplog.text
+        assert "Failed establish SSH connection" in caplog.text
 
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineHook")
     @mock.patch("airflow.providers.google.cloud.hooks.compute_ssh.OSLoginHook")

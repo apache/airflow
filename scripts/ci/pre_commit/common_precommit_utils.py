@@ -29,11 +29,9 @@ AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze"
 def read_airflow_version() -> str:
     ast_obj = ast.parse((AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "__init__.py").read_text())
     for node in ast_obj.body:
-        if not isinstance(node, ast.Assign):
-            continue
-
-        if node.targets[0].id == "__version__":  # type: ignore[attr-defined]
-            return ast.literal_eval(node.value)
+        if isinstance(node, ast.Assign):
+            if node.targets[0].id == "__version__":  # type: ignore[attr-defined]
+                return ast.literal_eval(node.value)
 
     raise RuntimeError("Couldn't find __version__ in AST")
 
@@ -64,8 +62,7 @@ def insert_documentation(file_path: Path, content: list[str], header: str, foote
 
 
 def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
-    files = [file for file in directory.rglob("*")]
-    files.sort()
+    files = sorted(directory.rglob("*"))
     if skip_path_regexp:
         matcher = re.compile(skip_path_regexp)
         files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]

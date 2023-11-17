@@ -17,12 +17,16 @@
 from __future__ import annotations
 
 import itertools
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 import pendulum
-from pendulum import DateTime
 
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
+
+    from airflow.timetables.base import TimeRestriction
 
 
 class EventsTimetable(Timetable):
@@ -48,11 +52,10 @@ class EventsTimetable(Timetable):
         presorted: bool = False,
         description: str | None = None,
     ):
-
         self.event_dates = list(event_dates)  # Must be reversible and indexable
         if not presorted:
             # For long lists this could take a while, so only want to do it once
-            self.event_dates = sorted(self.event_dates)
+            self.event_dates.sort()
         self.restrict_to_events = restrict_to_events
         if description is None:
             self.description = (
@@ -80,7 +83,8 @@ class EventsTimetable(Timetable):
             next_event = self.event_dates[0]
         else:
             future_dates = itertools.dropwhile(
-                lambda when: when <= last_automated_data_interval.end, self.event_dates  # type: ignore
+                lambda when: when <= last_automated_data_interval.end,  # type: ignore
+                self.event_dates,
             )
             next_event = next(future_dates, None)  # type: ignore
             if next_event is None:

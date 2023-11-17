@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Connection types <connections/smtp>
     SMTP Notifications <notifications/smtp_notifier_howto_guide>
     Python API <_api/airflow/providers/smtp/index>
@@ -63,7 +64,7 @@ Package apache-airflow-providers-smtp
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 
-Release: 1.2.0
+Release: 1.4.1
 
 Provider package
 ----------------
@@ -81,10 +82,10 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.4.0``
+``apache-airflow``  ``>=2.5.0``
 ==================  ==================

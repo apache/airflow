@@ -27,7 +27,7 @@ The Google Cloud connection type enables the Google Cloud Integrations.
 Authenticating to Google Cloud
 ------------------------------
 
-There are two ways to connect to Google Cloud using Airflow.
+There are three ways to connect to Google Cloud using Airflow:
 
 1. Using a `Application Default Credentials
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_,
@@ -125,6 +125,16 @@ Number of Retries
     represents the last request. If zero (default), we attempt the
     request only once.
 
+Impersonation Chain
+    Optional service account to impersonate using short-term
+    credentials, or chained list of accounts required to get the access_token
+    of the last account in the list, which will be impersonated in all requests leveraging this connection.
+    If set as a string, the account must grant the originating account
+    the Service Account Token Creator IAM role.
+    If set as a sequence, the identities from the list must grant
+    Service Account Token Creator IAM role to the directly preceding identity, with first
+    account from the list granting this role to the originating account.
+
     When specifying the connection in environment variable you should specify
     it using URI syntax, with the following requirements:
 
@@ -141,6 +151,7 @@ Number of Retries
         * ``key_secret_project_id`` - Project Id which holds Keyfile JSON
         * ``scope`` - Scopes
         * ``num_retries`` - Number of Retries
+
 
     Note that all components of the URI should be URL-encoded.
 
@@ -165,6 +176,8 @@ Google operators support `direct impersonation of a service account
 <https://cloud.google.com/iam/docs/understanding-service-accounts#directly_impersonating_a_service_account>`_
 via ``impersonation_chain`` argument (``google_impersonation_chain`` in case of operators
 that also communicate with services of other cloud providers).
+The impersonation chain can also be configured directly on the Google Cloud Connection
+as described above, though the ``impersonation_chain`` passed to the operator takes precedence.
 
 For example:
 

@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import time
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from looker_sdk.rtl import api_settings, auth_session, requests_transport, serialize
 from looker_sdk.sdk.api40 import methods as methods40
@@ -28,8 +29,10 @@ from packaging.version import parse as parse_version
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class LookerHook(BaseHook):
@@ -155,7 +158,6 @@ class LookerHook(BaseHook):
             JobStatus.CANCELLED.value,
             JobStatus.UNKNOWN.value,
         ):
-
             if timeout and start + timeout < time.monotonic():
                 self.stop_pdt_build(materialization_id=materialization_id)
                 raise AirflowException(
@@ -191,7 +193,7 @@ class LookerHook(BaseHook):
         return methods40.Looker40SDK(
             auth_session.AuthSession(settings, transport, serialize.deserialize40, "4.0"),
             serialize.deserialize40,
-            serialize.serialize,
+            serialize.serialize40,
             transport,
             "4.0",
         )

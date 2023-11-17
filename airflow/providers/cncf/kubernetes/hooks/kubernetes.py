@@ -17,13 +17,14 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import tempfile
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generator
 
+import aiofiles
 from asgiref.sync import sync_to_async
 from kubernetes import client, config, watch
-from kubernetes.client.models import V1Pod
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
@@ -34,6 +35,9 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.utils import yaml
+
+if TYPE_CHECKING:
+    from kubernetes.client.models import V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -84,7 +88,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form."""
+        """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
@@ -99,11 +103,17 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
+            "xcom_sidecar_container_image": StringField(
+                lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
+            ),
+            "xcom_sidecar_container_resources": StringField(
+                lazy_gettext("XCom sidecar resources (JSON format)"), widget=BS3TextFieldWidget()
+            ),
         }
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour."""
+        """Return custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -162,7 +172,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def _get_field(self, field_name):
         """
-        Handles backcompat for extra fields.
+        Handle backcompat for extra fields.
 
         Prior to Airflow 2.3, in order to make use of UI customizations for extra fields,
         we needed to store them with the prefix ``extra__kubernetes__``. This method
@@ -179,12 +189,12 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return self.conn_extras.get(prefixed_name) or None
 
     def get_conn(self) -> client.ApiClient:
-        """Returns kubernetes api session for use with requests."""
+        """Return kubernetes api session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
         kubeconfig_path = self._coalesce_param(self.config_file, self._get_field("kube_config_path"))
         kubeconfig = self._get_field("kube_config")
-        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
+        num_selected_configuration = sum(1 for o in [in_cluster, kubeconfig, kubeconfig_path] if o)
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -280,7 +290,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         self, group: str, version: str, plural: str, body: str | dict, namespace: str | None = None
     ):
         """
-        Creates custom resource definition object in Kubernetes.
+        Create custom resource definition object in Kubernetes.
 
         :param group: api group
         :param version: api version
@@ -351,10 +361,21 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         )
 
     def get_namespace(self) -> str | None:
-        """Returns the namespace that defined in the connection."""
+        """Return the namespace that defined in the connection."""
         if self.conn_id:
             return self._get_field("namespace")
         return None
+
+    def get_xcom_sidecar_container_image(self):
+        """Return the xcom sidecar image that defined in the connection."""
+        return self._get_field("xcom_sidecar_container_image")
+
+    def get_xcom_sidecar_container_resources(self):
+        """Return the xcom sidecar resources that defined in the connection."""
+        field = self._get_field("xcom_sidecar_container_resources")
+        if not field:
+            return None
+        return json.loads(field)
 
     def get_pod_log_stream(
         self,
@@ -363,7 +384,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         namespace: str | None = None,
     ) -> tuple[watch.Watch, Generator[str, None, None]]:
         """
-        Retrieves a log stream for a container in a kubernetes pod.
+        Retrieve a log stream for a container in a kubernetes pod.
 
         :param pod_name: pod name
         :param container: container name
@@ -387,7 +408,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         namespace: str | None = None,
     ):
         """
-        Retrieves a container's log from the specified pod.
+        Retrieve a container's log from the specified pod.
 
         :param pod_name: pod name
         :param container: container name
@@ -415,7 +436,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         **kwargs,
     ):
         """
-        Retrieves a list of Kind pod which belong default kubernetes namespace.
+        Retrieve a list of Kind pod which belong default kubernetes namespace.
 
         :param label_selector: A selector to restrict the list of returned objects by their labels
         :param namespace: kubernetes namespace
@@ -431,7 +452,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
 
 def _get_bool(val) -> bool | None:
-    """Converts val to bool if can be done with certainty; if we cannot infer intention we return None."""
+    """Convert val to bool if can be done with certainty; if we cannot infer intention we return None."""
     if isinstance(val, bool):
         return val
     elif isinstance(val, str):
@@ -450,13 +471,13 @@ class AsyncKubernetesHook(KubernetesHook):
         self._extras: dict | None = None
 
     async def _load_config(self):
-        """Returns Kubernetes API session for use with requests."""
+        """Return Kubernetes API session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
         kubeconfig_path = self._coalesce_param(self.config_file, await self._get_field("kube_config_path"))
         kubeconfig = await self._get_field("kube_config")
 
-        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
+        num_selected_configuration = sum(1 for o in [in_cluster, kubeconfig, kubeconfig_path] if o)
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -482,13 +503,13 @@ class AsyncKubernetesHook(KubernetesHook):
             return async_client.ApiClient()
 
         if kubeconfig is not None:
-            with tempfile.NamedTemporaryFile() as temp_config:
+            async with aiofiles.tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug(
                     "Reading kubernetes configuration file from connection "
                     "object and writing temporary config file with its content",
                 )
-                temp_config.write(kubeconfig.encode())
-                temp_config.flush()
+                await temp_config.write(kubeconfig.encode())
+                await temp_config.flush()
                 self._is_in_cluster = False
                 await async_config.load_kube_config(
                     config_file=temp_config.name,
@@ -535,7 +556,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def get_pod(self, name: str, namespace: str) -> V1Pod:
         """
-        Gets pod's object.
+        Get pod's object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
@@ -550,7 +571,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def delete_pod(self, name: str, namespace: str):
         """
-        Deletes pod's object.
+        Delete pod's object.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
@@ -568,7 +589,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def read_logs(self, name: str, namespace: str):
         """
-        Reads logs inside the pod while starting containers inside.
+        Read logs inside the pod while starting containers inside.
 
         All the logs will be outputted with its timestamp to track
         the logs after the execution of the pod is completed. The

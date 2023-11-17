@@ -22,14 +22,16 @@ import json
 import logging
 import re
 import secrets
+import shlex
 import string
 import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
-from kubernetes.client import CoreV1Api, models as k8s
+from kubernetes.client import CoreV1Api, V1Pod, models as k8s
+from kubernetes.stream import stream
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 
@@ -50,19 +52,19 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.secret import Secret
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    EMPTY_XCOM_RESULT,
     OnFinishAction,
     PodLaunchFailedException,
     PodManager,
     PodOperatorHookProtocol,
     PodPhase,
+    container_is_succeeded,
     get_container_termination_message,
 )
 from airflow.settings import pod_mutation_hook
-from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.utils.timezone import utcnow
@@ -70,7 +72,9 @@ from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
     import jinja2
+    from typing_extensions import Literal
 
+    from airflow.providers.cncf.kubernetes.secret import Secret
     from airflow.utils.context import Context
 
 alphanum_lower = string.ascii_lowercase + string.digits
@@ -107,7 +111,7 @@ def _create_pod_id(
     unique: bool = True,
 ) -> str:
     """
-    Generates unique pod ID given a dag_id and / or task_id.
+    Generate unique pod ID given a dag_id and / or task_id.
 
     TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
 
@@ -173,11 +177,12 @@ class KubernetesPodOperator(BaseOperator):
         They can be exposed as environment vars or files in a volume.
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
-        Ignored when in_cluster is True. If None, current-context is used.
+        Ignored when in_cluster is True. If None, current-context is used. (templated)
     :param reattach_on_restart: if the worker dies while the pod is running, reattach and monitor
         during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
+    :param startup_check_interval_seconds: interval in seconds to check if the pod has already started
     :param get_logs: get the stdout of the base container as logs of the tasks.
     :param container_logs: list of containers whose logs will be published to stdout
         Takes a sequence of containers, a single container name or True. If True,
@@ -186,7 +191,7 @@ class KubernetesPodOperator(BaseOperator):
     :param image_pull_policy: Specify a policy to cache or always pull an image.
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
-        that are not permitted by labels.
+        that are not permitted by labels. (templated)
     :param container_resources: resources for the launched pod. (templated)
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
@@ -197,6 +202,7 @@ class KubernetesPodOperator(BaseOperator):
         comma separated list: secret_a,secret_b
     :param service_account_name: Name of the service account
     :param hostnetwork: If True enable host networking on the pod.
+    :param host_aliases: A list of host aliases to apply to the containers in the pod.
     :param tolerations: A list of kubernetes tolerations.
     :param security_context: security options the pod should run with (PodSecurityContext).
     :param container_security_context: security options the container should run with.
@@ -232,7 +238,7 @@ class KubernetesPodOperator(BaseOperator):
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
     :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
-        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
@@ -240,17 +246,22 @@ class KubernetesPodOperator(BaseOperator):
         Deprecated - use `on_finish_action` instead.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
+    :param active_deadline_seconds: The active_deadline_seconds which matches to active_deadline_seconds
+        in V1PodSpec.
+    :param progress_callback: Callback function for receiving k8s container logs.
     """
 
     # This field can be overloaded at the instance level via base_container_name
     BASE_CONTAINER_NAME = "base"
-
+    ISTIO_CONTAINER_NAME = "istio-proxy"
+    KILL_ISTIO_PROXY_SUCCESS_MSG = "HTTP/1.1 200"
     POD_CHECKED_KEY = "already_checked"
     POST_TERMINATION_TIMEOUT = 120
 
     template_fields: Sequence[str] = (
         "image",
         "cmds",
+        "annotations",
         "arguments",
         "env_vars",
         "labels",
@@ -260,6 +271,7 @@ class KubernetesPodOperator(BaseOperator):
         "container_resources",
         "volumes",
         "volume_mounts",
+        "cluster_context",
     )
     template_fields_renderers = {"env_vars": "py"}
 
@@ -284,6 +296,7 @@ class KubernetesPodOperator(BaseOperator):
         labels: dict | None = None,
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
+        startup_check_interval_seconds: int = 1,
         get_logs: bool = True,
         container_logs: Iterable[str] | str | Literal[True] = BASE_CONTAINER_NAME,
         image_pull_policy: str | None = None,
@@ -295,9 +308,10 @@ class KubernetesPodOperator(BaseOperator):
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
         service_account_name: str | None = None,
         hostnetwork: bool = False,
+        host_aliases: list[k8s.V1HostAlias] | None = None,
         tolerations: list[k8s.V1Toleration] | None = None,
-        security_context: dict | None = None,
-        container_security_context: dict | None = None,
+        security_context: k8s.V1PodSecurityContext | dict | None = None,
+        container_security_context: k8s.V1SecurityContext | dict | None = None,
         dnspolicy: str | None = None,
         dns_config: k8s.V1PodDNSConfig | None = None,
         hostname: str | None = None,
@@ -320,6 +334,8 @@ class KubernetesPodOperator(BaseOperator):
         on_finish_action: str = "delete_pod",
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
+        active_deadline_seconds: int | None = None,
+        progress_callback: Callable[[str], None] | None = None,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -345,6 +361,7 @@ class KubernetesPodOperator(BaseOperator):
         self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
+        self.startup_check_interval_seconds = startup_check_interval_seconds
         self.env_vars = convert_env_vars(env_vars) if env_vars else []
         if pod_runtime_info_envs:
             self.env_vars.extend([convert_pod_runtime_info_env(p) for p in pod_runtime_info_envs])
@@ -361,9 +378,7 @@ class KubernetesPodOperator(BaseOperator):
         self.get_logs = get_logs
         self.container_logs = container_logs
         if self.container_logs == KubernetesPodOperator.BASE_CONTAINER_NAME:
-            self.container_logs = (
-                base_container_name if base_container_name else KubernetesPodOperator.BASE_CONTAINER_NAME
-            )
+            self.container_logs = base_container_name or self.BASE_CONTAINER_NAME
         self.image_pull_policy = image_pull_policy
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
@@ -373,6 +388,7 @@ class KubernetesPodOperator(BaseOperator):
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.hostnetwork = hostnetwork
+        self.host_aliases = host_aliases
         self.tolerations = (
             [convert_toleration(toleration) for toleration in tolerations] if tolerations else []
         )
@@ -419,8 +435,10 @@ class KubernetesPodOperator(BaseOperator):
             self.on_finish_action = OnFinishAction(on_finish_action)
             self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
         self.termination_message_policy = termination_message_policy
+        self.active_deadline_seconds = active_deadline_seconds
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
+        self._progress_callback = progress_callback
 
     @cached_property
     def _incluster_namespace(self):
@@ -446,7 +464,7 @@ class KubernetesPodOperator(BaseOperator):
             elif isinstance(content, k8s.V1Volume):
                 template_fields = ("name", "persistent_volume_claim")
             elif isinstance(content, k8s.V1VolumeMount):
-                template_fields = ("name",)
+                template_fields = ("name", "sub_path")
             elif isinstance(content, k8s.V1PersistentVolumeClaimVolumeSource):
                 template_fields = ("claim_name",)
             else:
@@ -498,7 +516,7 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def pod_manager(self) -> PodManager:
-        return PodManager(kube_client=self.client)
+        return PodManager(kube_client=self.client, progress_callback=self._progress_callback)
 
     @cached_property
     def hook(self) -> PodOperatorHookProtocol:
@@ -515,7 +533,7 @@ class KubernetesPodOperator(BaseOperator):
         return self.hook.core_v1_client
 
     def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True) -> k8s.V1Pod | None:
-        """Returns an already-running pod for this task instance if one exists."""
+        """Return an already-running pod for this task instance if one exists."""
         label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
         pod_list = self.client.list_namespaced_pod(
             namespace=namespace,
@@ -546,7 +564,11 @@ class KubernetesPodOperator(BaseOperator):
 
     def await_pod_start(self, pod: k8s.V1Pod):
         try:
-            self.pod_manager.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
+            self.pod_manager.await_pod_start(
+                pod=pod,
+                startup_timeout=self.startup_timeout_seconds,
+                startup_check_interval=self.startup_check_interval_seconds,
+            )
         except PodLaunchFailedException:
             if self.log_events_on_failure:
                 for event in self.pod_manager.read_pod_events(pod).items:
@@ -554,9 +576,9 @@ class KubernetesPodOperator(BaseOperator):
             raise
 
     def extract_xcom(self, pod: k8s.V1Pod):
-        """Retrieves xcom value and kills xcom sidecar container."""
+        """Retrieve xcom value and kill xcom sidecar container."""
         result = self.pod_manager.extract_xcom(pod)
-        if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
+        if isinstance(result, str) and result.rstrip() == EMPTY_XCOM_RESULT:
             self.log.info("xcom result file is empty.")
             return None
         else:
@@ -571,6 +593,7 @@ class KubernetesPodOperator(BaseOperator):
             return self.execute_sync(context)
 
     def execute_sync(self, context: Context):
+        result = None
         try:
             self.pod_request_obj = self.build_pod_request_obj(context)
             self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
@@ -589,10 +612,12 @@ class KubernetesPodOperator(BaseOperator):
             if self.get_logs:
                 self.pod_manager.fetch_requested_container_logs(
                     pod=self.pod,
-                    container_logs=self.container_logs,
+                    containers=self.container_logs,
                     follow_logs=True,
                 )
-            else:
+            if not self.get_logs or (
+                self.container_logs is not True and self.base_container_name not in self.container_logs
+            ):
                 self.pod_manager.await_container_completion(
                     pod=self.pod, container_name=self.base_container_name
                 )
@@ -600,7 +625,10 @@ class KubernetesPodOperator(BaseOperator):
             if self.do_xcom_push:
                 self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
                 result = self.extract_xcom(pod=self.pod)
-            self.remote_pod = self.pod_manager.await_pod_completion(self.pod)
+            istio_enabled = self.is_istio_enabled(self.pod)
+            self.remote_pod = self.pod_manager.await_pod_completion(
+                self.pod, istio_enabled, self.base_container_name
+            )
         finally:
             self.cleanup(
                 pod=self.pod or self.pod_request_obj,
@@ -615,10 +643,14 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
+        ti = context["ti"]
+        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
+
         self.invoke_defer_method()
 
     def invoke_defer_method(self):
-        """Method to easily redefine triggers which are being used in child classes."""
+        """Redefine triggers which are being used in child classes."""
         trigger_start_time = utcnow()
         self.defer(
             trigger=KubernetesPodTrigger(
@@ -632,6 +664,7 @@ class KubernetesPodOperator(BaseOperator):
                 poll_interval=self.poll_interval,
                 get_logs=self.get_logs,
                 startup_timeout=self.startup_timeout_seconds,
+                startup_check_interval=self.startup_check_interval_seconds,
                 base_container_name=self.base_container_name,
                 on_finish_action=self.on_finish_action.value,
             ),
@@ -651,10 +684,6 @@ class KubernetesPodOperator(BaseOperator):
                     self.write_logs(pod)
                 raise AirflowException(event["message"])
             elif event["status"] == "success":
-                ti = context["ti"]
-                ti.xcom_push(key="pod_name", value=pod.metadata.name)
-                ti.xcom_push(key="pod_namespace", value=pod.metadata.namespace)
-
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
                     self.write_logs(pod)
@@ -663,7 +692,11 @@ class KubernetesPodOperator(BaseOperator):
                     xcom_sidecar_output = self.extract_xcom(pod=pod)
                     return xcom_sidecar_output
         finally:
-            pod = self.pod_manager.await_pod_completion(pod)
+            istio_enabled = self.is_istio_enabled(pod)
+            # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
+            # on the ErrImagePull or ContainerCreating step and it will never complete
+            if event["status"] != "timeout":
+                pod = self.pod_manager.await_pod_completion(pod, istio_enabled, self.base_container_name)
             if pod is not None:
                 self.post_complete_action(
                     pod=pod,
@@ -695,13 +728,16 @@ class KubernetesPodOperator(BaseOperator):
         )
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+        istio_enabled = self.is_istio_enabled(remote_pod)
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
 
         # if the pod fails or success, but we don't want to delete it
         if pod_phase != PodPhase.SUCCEEDED or self.on_finish_action == OnFinishAction.KEEP_POD:
             self.patch_already_checked(remote_pod, reraise=False)
 
-        if pod_phase != PodPhase.SUCCEEDED:
+        if (pod_phase != PodPhase.SUCCEEDED and not istio_enabled) or (
+            istio_enabled and not container_is_succeeded(remote_pod, self.base_container_name)
+        ):
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
 
@@ -716,10 +752,10 @@ class KubernetesPodOperator(BaseOperator):
                     (x for x in container_statuses if x.name == self.base_container_name), None
                 )
                 exit_code = (
-                    base_container_status.last_state.terminated.exit_code
+                    base_container_status.state.terminated.exit_code
                     if base_container_status
-                    and base_container_status.last_state
-                    and base_container_status.last_state.terminated
+                    and base_container_status.state
+                    and base_container_status.state.terminated
                     else None
                 )
                 if exit_code in self.skip_on_exit_code:
@@ -748,12 +784,55 @@ class KubernetesPodOperator(BaseOperator):
             for event in self.pod_manager.read_pod_events(pod).items:
                 self.log.error("Pod Event: %s - %s", event.reason, event.message)
 
+    def is_istio_enabled(self, pod: V1Pod) -> bool:
+        """Check if istio is enabled for the namespace of the pod by inspecting the namespace labels."""
+        if not pod:
+            return False
+
+        remote_pod = self.pod_manager.read_pod(pod)
+
+        return any(container.name == self.ISTIO_CONTAINER_NAME for container in remote_pod.spec.containers)
+
+    def kill_istio_sidecar(self, pod: V1Pod) -> None:
+        command = "/bin/sh -c 'curl -fsI -X POST http://localhost:15020/quitquitquit'"
+        command_to_container = shlex.split(command)
+        resp = stream(
+            self.client.connect_get_namespaced_pod_exec,
+            name=pod.metadata.name,
+            namespace=pod.metadata.namespace,
+            container=self.ISTIO_CONTAINER_NAME,
+            command=command_to_container,
+            stderr=True,
+            stdin=True,
+            stdout=True,
+            tty=False,
+            _preload_content=False,
+        )
+        output = []
+        while resp.is_open():
+            if resp.peek_stdout():
+                output.append(resp.read_stdout())
+
+        resp.close()
+        output_str = "".join(output)
+        self.log.info("Output of curl command to kill istio: %s", output_str)
+        resp.close()
+        if self.KILL_ISTIO_PROXY_SUCCESS_MSG not in output_str:
+            raise Exception("Error while deleting istio-proxy sidecar: %s", output_str)
+
     def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True):
         with _optionally_suppress(reraise=reraise):
             if pod is not None:
-                should_delete_pod = (self.on_finish_action == OnFinishAction.DELETE_POD) or (
-                    self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
-                    and pod.status.phase == PodPhase.SUCCEEDED
+                should_delete_pod = (
+                    (self.on_finish_action == OnFinishAction.DELETE_POD)
+                    or (
+                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                        and pod.status.phase == PodPhase.SUCCEEDED
+                    )
+                    or (
+                        self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD
+                        and container_is_succeeded(pod, self.base_container_name)
+                    )
                 )
                 if should_delete_pod:
                     self.log.info("Deleting pod: %s", pod.metadata.name)
@@ -762,7 +841,10 @@ class KubernetesPodOperator(BaseOperator):
                     self.log.info("Skipping deleting pod: %s", pod.metadata.name)
 
     def _build_find_pod_label_selector(self, context: Context | None = None, *, exclude_checked=True) -> str:
-        labels = self._get_ti_pod_labels(context, include_try_number=False)
+        labels = {
+            **self.labels,
+            **self._get_ti_pod_labels(context, include_try_number=False),
+        }
         label_strings = [f"{label_id}={label}" for label_id, label in sorted(labels.items())]
         labels_value = ",".join(label_strings)
         if exclude_checked:
@@ -789,17 +871,17 @@ class KubernetesPodOperator(BaseOperator):
     def on_kill(self) -> None:
         if self.pod:
             pod = self.pod
-            kwargs = dict(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-            )
+            kwargs = {
+                "name": pod.metadata.name,
+                "namespace": pod.metadata.namespace,
+            }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
             self.client.delete_namespaced_pod(**kwargs)
 
     def build_pod_request_obj(self, context: Context | None = None) -> k8s.V1Pod:
         """
-        Returns V1Pod object based on pod template file, full pod spec, and other operator parameters.
+        Return V1Pod object based on pod template file, full pod spec, and other operator parameters.
 
         The V1Pod attributes are derived (in order of precedence) from operator params, full pod spec, pod
         template file.
@@ -829,6 +911,7 @@ class KubernetesPodOperator(BaseOperator):
                 affinity=self.affinity,
                 tolerations=self.tolerations,
                 init_containers=self.init_containers,
+                host_aliases=self.host_aliases,
                 containers=[
                     k8s.V1Container(
                         image=self.image,
@@ -857,6 +940,7 @@ class KubernetesPodOperator(BaseOperator):
                 restart_policy="Never",
                 priority_class_name=self.priority_class_name,
                 volumes=self.volumes,
+                active_deadline_seconds=self.active_deadline_seconds,
             ),
         )
 
@@ -880,7 +964,11 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = xcom_sidecar.add_xcom_sidecar(pod)
+            pod = xcom_sidecar.add_xcom_sidecar(
+                pod,
+                sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
+                sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
+            )
 
         labels = self._get_ti_pod_labels(context)
         self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
@@ -900,7 +988,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def dry_run(self) -> None:
         """
-        Prints out the pod definition that would be created by this operator.
+        Print out the pod definition that would be created by this operator.
 
         Does not include labels specific to the task instance (since there isn't
         one in a dry_run) and excludes all empty elements.
@@ -932,14 +1020,10 @@ class _optionally_suppress(AbstractContextManager):
     def __exit__(self, exctype, excinst, exctb):
         error = exctype is not None
         matching_error = error and issubclass(exctype, self._exceptions)
-        if error and not matching_error:
-            return False
-        elif matching_error and self.reraise:
+        if (error and not matching_error) or (matching_error and self.reraise):
             return False
         elif matching_error:
             self.exception = excinst
             logger = logging.getLogger(__name__)
             logger.exception(excinst)
-            return True
-        else:
-            return True
+        return True

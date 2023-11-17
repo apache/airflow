@@ -32,7 +32,6 @@ class KafkaConsumerHook(KafkaBaseHook):
     """
 
     def __init__(self, topics: Sequence[str], kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
-
         super().__init__(kafka_config_id=kafka_config_id)
         self.topics = topics
 
@@ -40,7 +39,7 @@ class KafkaConsumerHook(KafkaBaseHook):
         return Consumer(config)
 
     def get_consumer(self) -> Consumer:
-        """Returns a Consumer that has been subscribed to topics."""
+        """Return a Consumer that has been subscribed to topics."""
         consumer = self.get_conn
         consumer.subscribe(self.topics)
 

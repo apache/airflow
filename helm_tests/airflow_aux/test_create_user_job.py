@@ -99,6 +99,17 @@ class TestCreateUserJob:
             docs[0],
         )
 
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
+
     def test_create_user_job_resources_are_configurable(self):
         resources = {
             "requests": {
@@ -408,7 +419,7 @@ class TestCreateUserJobServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "createUserJob": {

@@ -18,14 +18,26 @@
 """Branching operators."""
 from __future__ import annotations
 
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
-class BaseBranchOperator(BaseOperator, SkipMixin):
+class BranchMixIn(SkipMixin):
+    """Utility helper which handles the branching as one-liner."""
+
+    def do_branch(self, context: Context, branches_to_execute: str | Iterable[str]) -> str | Iterable[str]:
+        """Implement the handling of branching including logging."""
+        self.log.info("Branch into %s", branches_to_execute)
+        self.skip_all_except(context["ti"], branches_to_execute)
+        return branches_to_execute
+
+
+class BaseBranchOperator(BaseOperator, BranchMixIn):
     """
     A base class for creating operators with branching functionality, like to BranchPythonOperator.
 
@@ -51,6 +63,4 @@ class BaseBranchOperator(BaseOperator, SkipMixin):
         raise NotImplementedError
 
     def execute(self, context: Context):
-        branches_to_execute = self.choose_branch(context)
-        self.skip_all_except(context["ti"], branches_to_execute)
-        return branches_to_execute
+        return self.do_branch(context, self.choose_branch(context))

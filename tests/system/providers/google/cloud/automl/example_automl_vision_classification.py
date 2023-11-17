@@ -24,7 +24,10 @@ import os
 from datetime import datetime
 from typing import cast
 
-from airflow import models
+from google.cloud import storage  # type: ignore[attr-defined]
+
+from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
@@ -37,43 +40,46 @@ from airflow.providers.google.cloud.operators.automl import (
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
-    GCSSynchronizeBucketsOperator,
 )
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_automl_vision"
+DAG_ID = "example_automl_vision_clss"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-
 GCP_AUTOML_LOCATION = "us-central1"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-RESOURCE_DATA_BUCKET = "system-tests-resources"
 
-DATASET_NAME = "test_dataset_vision"
+DATASET_NAME = f"ds_vision_clss_{ENV_ID}".replace("-", "_")
 DATASET = {
     "display_name": DATASET_NAME,
     "image_classification_dataset_metadata": {"classification_type": "MULTILABEL"},
 }
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-vision/data.csv"
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/vision_classification.csv"
 IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 
-MODEL_NAME = "test_model"
+MODEL_NAME = "vision_clss_test_model"
 MODEL = {
     "display_name": MODEL_NAME,
     "image_classification_model_metadata": {"train_budget": 1},
 }
 
+CSV_FILE_NAME = "vision_classification.csv"
+GCS_FILE_PATH = f"automl/datasets/vision/{CSV_FILE_NAME}"
+DESTINATION_FILE_PATH = f"/tmp/{CSV_FILE_NAME}"
+
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Vision Classification
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
-    tags=["example", "automl"],
+    tags=["example", "automl", "vision-clss"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -82,14 +88,43 @@ with models.DAG(
         location=GCP_AUTOML_LOCATION,
     )
 
-    move_dataset_file = GCSSynchronizeBucketsOperator(
-        task_id="move_data_to_bucket",
-        source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="automl-vision",
-        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object="automl-vision",
-        recursive=True,
-    )
+    @task
+    def upload_csv_file_to_gcs():
+        # download file to local storage
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(RESOURCE_DATA_BUCKET)
+        blob = bucket.blob(GCS_FILE_PATH)
+        blob.download_to_filename(DESTINATION_FILE_PATH)
+
+        # update file content
+        with open(DESTINATION_FILE_PATH) as file:
+            lines = file.readlines()
+
+        updated_lines = [line.replace("template-bucket", DATA_SAMPLE_GCS_BUCKET_NAME) for line in lines]
+
+        with open(DESTINATION_FILE_PATH, "w") as file:
+            file.writelines(updated_lines)
+
+        # upload updated file to bucket storage
+        destination_bucket = storage_client.bucket(DATA_SAMPLE_GCS_BUCKET_NAME)
+        destination_blob = destination_bucket.blob(f"automl/{CSV_FILE_NAME}")
+        generation_match_precondition = 0
+        destination_blob.upload_from_filename(
+            DESTINATION_FILE_PATH, if_generation_match=generation_match_precondition
+        )
+
+    upload_csv_file_to_gcs_task = upload_csv_file_to_gcs()
+
+    copy_folder_tasks = [
+        GCSToGCSOperator(
+            task_id=f"copy_dataset_folder_{folder}",
+            source_bucket=RESOURCE_DATA_BUCKET,
+            source_object=f"automl/datasets/vision/{folder}",
+            destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+            destination_object=f"automl/{folder}",
+        )
+        for folder in ("cirrus", "cumulonimbus", "cumulus")
+    ]
 
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task",
@@ -110,16 +145,16 @@ with models.DAG(
     create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
     model_id = cast(str, XComArg(create_model, key="model_id"))
 
-    delete_model_task = AutoMLDeleteModelOperator(
-        task_id="delete_model_task",
+    delete_model = AutoMLDeleteModelOperator(
+        task_id="delete_model",
         model_id=model_id,
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    delete_datasets_task = AutoMLDeleteDatasetOperator(
-        task_id="delete_datasets_task",
+    delete_dataset = AutoMLDeleteDatasetOperator(
+        task_id="delete_dataset",
         dataset_id=dataset_id,
         location=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
@@ -135,14 +170,15 @@ with models.DAG(
     (
         # TEST SETUP
         create_bucket
-        >> move_dataset_file
+        >> upload_csv_file_to_gcs_task
+        >> copy_folder_tasks
+        # TEST BODY
         >> create_dataset_task
         >> import_dataset_task
-        # TEST BODY
         >> create_model
         # TEST TEARDOWN
-        >> delete_model_task
-        >> delete_datasets_task
+        >> delete_model
+        >> delete_dataset
         >> delete_bucket
     )
 

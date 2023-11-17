@@ -30,8 +30,8 @@ from contextlib import ExitStack
 from functools import partial
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamPipelineTrigger
@@ -309,10 +309,15 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def execute_sync(self, context: Context):
         with ExitStack() as exit_stack:
+            gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
             if self.py_file.lower().startswith("gs://"):
-                gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
+            if self.snake_case_pipeline_options.get("requirements_file", "").startswith("gs://"):
+                tmp_req_file = exit_stack.enter_context(
+                    gcs_hook.provide_file(object_url=self.snake_case_pipeline_options["requirements_file"])
+                )
+                self.snake_case_pipeline_options["requirements_file"] = tmp_req_file.name
 
             if self.is_dataflow and self.dataflow_hook:
                 with self.dataflow_hook.provide_authorized_gcloud():
@@ -396,7 +401,8 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
-        Callback for when the trigger fires - returns immediately.
+        Execute when the trigger fires - returns immediately.
+
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
         """

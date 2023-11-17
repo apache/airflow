@@ -379,6 +379,11 @@ class TestProviderManager:
         trigger_class_names = list(provider_manager.trigger)
         assert len(trigger_class_names) > 10
 
+    def test_notification(self):
+        provider_manager = ProvidersManager()
+        notification_class_names = list(provider_manager.notification)
+        assert len(notification_class_names) > 5
+
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_no_warning(self, mock_importlib_import_string):
         with self._caplog.at_level(logging.WARNING):

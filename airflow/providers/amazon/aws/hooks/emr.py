@@ -18,15 +18,15 @@
 from __future__ import annotations
 
 import json
+import time
 import warnings
-from time import sleep
 from typing import Any
 
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.helpers import prune_dict
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 
 class EmrHook(AwsBaseHook):
@@ -158,6 +158,9 @@ class EmrHook(AwsBaseHook):
         :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
         """
         config = {}
+        waiter_delay = waiter_delay or 30
+        waiter_max_attempts = waiter_max_attempts or 60
+
         if execution_role_arn:
             config["ExecutionRoleArn"] = execution_role_arn
         response = self.get_conn().add_job_flow_steps(JobFlowId=job_flow_id, Steps=steps, **config)
@@ -169,16 +172,23 @@ class EmrHook(AwsBaseHook):
         if wait_for_completion:
             waiter = self.get_conn().get_waiter("step_complete")
             for step_id in response["StepIds"]:
-                waiter.wait(
-                    ClusterId=job_flow_id,
-                    StepId=step_id,
-                    WaiterConfig=prune_dict(
-                        {
-                            "Delay": waiter_delay,
-                            "MaxAttempts": waiter_max_attempts,
-                        }
-                    ),
-                )
+                try:
+                    wait(
+                        waiter=waiter,
+                        waiter_max_attempts=waiter_max_attempts,
+                        waiter_delay=waiter_delay,
+                        args={"ClusterId": job_flow_id, "StepId": step_id},
+                        failure_message=f"EMR Steps failed: {step_id}",
+                        status_message="EMR Step status is",
+                        status_args=["Step.Status.State", "Step.Status.StateChangeReason"],
+                    )
+                except AirflowException as ex:
+                    if "EMR Steps failed" in str(ex):
+                        resp = self.get_conn().describe_step(ClusterId=job_flow_id, StepId=step_id)
+                        failure_details = resp["Step"]["Status"].get("FailureDetails", None)
+                        if failure_details:
+                            self.log.error("EMR Steps failed: %s", failure_details)
+                    raise
         return response["StepIds"]
 
     def test_connection(self):
@@ -197,7 +207,7 @@ class EmrHook(AwsBaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom UI field behaviour for Amazon Elastic MapReduce Connection."""
+        """Return custom UI field behaviour for Amazon Elastic MapReduce Connection."""
         return {
             "hidden_fields": ["host", "schema", "port", "login", "password"],
             "relabeling": {
@@ -281,7 +291,7 @@ class EmrServerlessHook(AwsBaseHook):
         for r in iterator:
             job_ids = [jr["id"] for jr in r["jobRuns"]]
             count += len(job_ids)
-            if len(job_ids) > 0:
+            if job_ids:
                 self.log.info(
                     "Cancelling %s pending job(s) for the application %s so that it can be stopped",
                     len(job_ids),
@@ -499,7 +509,7 @@ class EmrContainerHook(AwsBaseHook):
                 final_query_state = query_state
                 break
             try_number += 1
-            sleep(poll_interval)
+            time.sleep(poll_interval)
         return final_query_state
 
     def stop_query(self, job_id: str) -> dict:

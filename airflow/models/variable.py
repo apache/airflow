@@ -19,20 +19,24 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text, delete
+from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import Session, declared_attr, reconstructor, synonym
+from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
+from airflow.secrets.cache import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
 
@@ -125,7 +129,7 @@ class Variable(Base, LoggingMixin):
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
     ) -> Any:
-        """Gets a value for an Airflow Variable Key.
+        """Get a value for an Airflow Variable Key.
 
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exist
@@ -156,7 +160,7 @@ class Variable(Base, LoggingMixin):
         serialize_json: bool = False,
         session: Session = None,
     ) -> None:
-        """Sets a value for an Airflow Variable with a given Key.
+        """Set a value for an Airflow Variable with a given Key.
 
         This operation overwrites an existing variable.
 
@@ -175,6 +179,10 @@ class Variable(Base, LoggingMixin):
         Variable.delete(key, session=session)
         session.add(Variable(key=key, val=stored_value, description=description))
         session.flush()
+        # invalidate key in cache for faster propagation
+        # we cannot save the value set because it's possible that it's shadowed by a custom backend
+        # (see call to check_for_write_conflict above)
+        SecretCache.invalidate_variable(key)
 
     @staticmethod
     @provide_session
@@ -185,7 +193,7 @@ class Variable(Base, LoggingMixin):
         serialize_json: bool = False,
         session: Session = None,
     ) -> None:
-        """Updates a given Airflow Variable with the Provided value.
+        """Update a given Airflow Variable with the Provided value.
 
         :param key: Variable Key
         :param value: Value to set for the Variable
@@ -195,8 +203,7 @@ class Variable(Base, LoggingMixin):
 
         if Variable.get_variable_from_secrets(key=key) is None:
             raise KeyError(f"Variable {key} does not exist")
-
-        obj = session.query(Variable).filter(Variable.key == key).first()
+        obj = session.scalar(select(Variable).where(Variable.key == key))
         if obj is None:
             raise AttributeError(f"Variable {key} does not exist in the Database and cannot be updated.")
 
@@ -210,7 +217,9 @@ class Variable(Base, LoggingMixin):
 
         :param key: Variable Keys
         """
-        return session.execute(delete(Variable).where(Variable.key == key)).rowcount
+        rows = session.execute(delete(Variable).where(Variable.key == key)).rowcount
+        SecretCache.invalidate_variable(key)
+        return rows
 
     def rotate_fernet_key(self):
         """Rotate Fernet Key."""
@@ -220,7 +229,7 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     def check_for_write_conflict(key: str) -> None:
-        """Logs a warning if a variable exists outside of the metastore.
+        """Log a warning if a variable exists outside the metastore.
 
         If we try to write a variable to the metastore while the same key
         exists in an environment variable or custom secrets backend, then
@@ -256,15 +265,26 @@ class Variable(Base, LoggingMixin):
         :param key: Variable Key
         :return: Variable Value
         """
+        # check cache first
+        # enabled only if SecretCache.init() has been called first
+        try:
+            return SecretCache.get_variable(key)
+        except SecretCache.NotPresentException:
+            pass  # continue business
+
+        var_val = None
+        # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
                 var_val = secrets_backend.get_variable(key=key)
                 if var_val is not None:
-                    return var_val
+                    break
             except Exception:
                 log.exception(
                     "Unable to retrieve variable from secrets backend (%s). "
                     "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,
                 )
-        return None
+
+        SecretCache.save_variable(key, var_val)  # we save None as well
+        return var_val

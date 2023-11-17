@@ -117,11 +117,12 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider documentation preparation flags",
             "options": [
-                "--debug",
                 "--github-repository",
+                "--skip-git-fetch",
                 "--base-branch",
                 "--only-min-version-update",
-                "--regenerate-missing-docs",
+                "--reapply-templates-only",
+                "--non-interactive",
             ],
         }
     ],
@@ -170,11 +171,21 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-site-directory",
             ],
         },
+        {
+            "name": "Parallel running",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+            ],
+        },
     ],
     "breeze release-management add-back-references": [
         {
             "name": "Add Back References to Docs",
-            "options": ["--airflow-site-directory", "--gen-type"],
+            "options": ["--airflow-site-directory"],
         },
     ],
     "breeze release-management generate-issue-content-providers": [
@@ -212,5 +223,29 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze release-management start-release": [
         {"name": "Start release flags", "options": ["--release-candidate", "--previous-release"]}
+    ],
+    "breeze release-management update-constraints": [
+        {
+            "name": "Update constraints flags",
+            "options": [
+                "--constraints-repo",
+                "--commit-message",
+                "--remote-name",
+            ],
+        },
+        {
+            "name": "Selection criteria",
+            "options": [
+                "--airflow-versions",
+                "--airflow-constraints-mode",
+            ],
+        },
+        {
+            "name": "Action to perform",
+            "options": [
+                "--updated-constraint",
+                "--comment-file",
+            ],
+        },
     ],
 }

@@ -103,7 +103,15 @@ Otherwise you won't have access to the most context variables of Airflow in ``op
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
-If additional parameters for package installation are needed pass them in ``requirements.txt`` as in the example below:
+.. warning::
+    The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
+    As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
+
+    If you want to pass variables into the classic :class:`~airflow.operators.python.PythonVirtualenvOperator` use
+    ``op_args`` and ``op_kwargs``.
+
+If additional parameters for package installation are needed pass them in via the ``pip_install_options`` parameter or use a
+``requirements.txt`` as in the example below:
 
 .. code-block::
 
@@ -111,6 +119,41 @@ If additional parameters for package installation are needed pass them in ``requ
   AnotherPackage==1.4.3 --no-index --find-links /my/local/archives
 
 All supported options are listed in the `requirements file format <https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>`_.
+
+Virtual environment setup options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The virtual environment is created based on the global python pip configuration on your worker. Using additional ENVs in your environment or adjustments in the general
+pip configuration as described in `pip config <https://pip.pypa.io/en/stable/topics/configuration/>`_.
+
+If you want to use additional task specific private python repositories to setup the virtual environment, you can pass the ``index_urls`` parameter which will adjust the
+pip install configurations. Passed index urls replace the standard system configured index url settings.
+To prevent adding secrets to the private repository in your DAG code you can use the Airflow
+:doc:`../../authoring-and-scheduling/connections`. For this purpose the connection type ``Package Index (Python)`` can be used.
+
+In the special case you want to prevent remote calls for setup of a virtual environment, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
+forced pip installer to use the ``--no-index`` option.
+
+Caching and reuse
+^^^^^^^^^^^^^^^^^
+
+Setup of virtual environments is made per task execution in a temporary directory. After execution the virtual environment is deleted again. Ensure that the ``$tmp`` folder
+on your workers have sufficient disk space. Usually (if not configured differently) the local pip cache will be used preventing a re-download of packages
+for each execution.
+
+But still setting up the virtual environment for every execution needs some time. For repeated execution you can set the option ``venv_cache_path`` to a file system
+folder on your worker. In this case the virtual environment will be set up once and be re-used. If virtual environment caching is used, per unique requirements set different
+virtual environment subfolders are created in the cache path. So depending on your variations in the DAGs in your system setup sufficient disk space is needed.
+
+Note that no automated cleanup is made and in case of cached mode. All worker slots share the same virtual environment but if tasks are scheduled over and over on
+different workers, it might happen that virtual environment are created on multiple workers individually. Also if the worker is started in a Kubernetes POD, a restart
+of the worker will drop the cache (assuming ``venv_cache_path`` is not on a persistent volume).
+
+In case you have problems during runtime with broken cached virtual environments, you can influence the cache directory hash by setting the Airflow variable
+``PythonVirtualenvOperator.cache_key`` to any text. The content of this variable is uses in the vector to calculate the cache directory key.
+
+Note that any modification of a cached virtual environment (like temp files in binary path, post-installing further requirements) might pollute a cached virtual environment and the
+operator is not maintaining or cleaning the cache path.
 
 
 .. _howto/operator:ExternalPythonOperator:
@@ -129,7 +172,7 @@ automatically activates it. In both examples below ``PATH_TO_PYTHON_BINARY`` is 
 to the executable Python binary.
 
 Use the :class:`~airflow.operators.python.ExternalPythonOperator` to execute Python callables inside a
-pre-defined environment. The virtualenv should be preinstalled in the environment where Python is run.
+pre-defined environment. The virtualenv package should be preinstalled in the environment where Python is run.
 In case ``dill`` is used, it has to be preinstalled in the environment (the same version that is installed
 in main Airflow environment).
 
@@ -159,7 +202,103 @@ with the underlying library. For Airflow context variables make sure that Airflo
 of the virtualenv environment in the same version as the Airflow version the task is run on.
 Otherwise you won't have access to the most context variables of Airflow in ``op_kwargs``.
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
-``lazy_object_proxy`` to your virtualenv.
+``lazy_object_proxy`` to your virtual environment.
+
+.. warning::
+    The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
+    As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
+
+    If you want to pass variables into the classic :class:`~airflow.operators.python.ExternalPythonOperator` use
+    ``op_args`` and ``op_kwargs``.
+
+.. _howto/operator:PythonBranchOperator:
+
+PythonBranchOperator
+====================
+
+Use the ``@task.branch`` decorator to execute Python :ref:`branching <concepts:branching>` tasks.
+
+.. warning::
+    The ``@task.branch`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonBranchOperator`
+    to execute Python code.
+
+TaskFlow example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_python]
+    :end-before: [END howto_operator_branch_python]
+
+Classic example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_python]
+    :end-before: [END howto_operator_branch_python]
+
+Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
+
+.. _howto/operator:BranchPythonVirtualenvOperator:
+
+BranchPythonVirtualenvOperator
+==============================
+
+Use the ``@task.branch_virtualenv`` decorator to execute Python :ref:`branching <concepts:branching>` tasks and is a hybrid of
+the branch decorator with execution in a virtual environment.
+
+.. warning::
+    The ``@task.branch_virtualenv`` decorator is recommended over the classic
+    :class:`~airflow.operators.python.BranchPythonVirtualenvOperator` to execute Python code.
+
+TaskFlow example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_virtualenv]
+    :end-before: [END howto_operator_branch_virtualenv]
+
+Classic example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_virtualenv]
+    :end-before: [END howto_operator_branch_virtualenv]
+
+Argument passing and templating options are the same like with :ref:`howto/operator:PythonVirtualenvOperator`.
+
+.. _howto/operator:BranchExternalPythonOperator:
+
+BranchExternalPythonOperator
+============================
+
+Use the ``@task.branch_external_python`` decorator to execute Python :ref:`branching <concepts:branching>` tasks and is a hybrid of
+the branch decorator with execution in an external Python environment.
+
+.. warning::
+    The ``@task.branch_external_python`` decorator is recommended over the classic
+    :class:`~airflow.operators.python.BranchExternalPythonOperator` to execute Python code.
+
+TaskFlow example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator_decorator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_ext_py]
+    :end-before: [END howto_operator_branch_ext_py]
+
+Classic example of using the operator:
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_branch_ext_py]
+    :end-before: [END howto_operator_branch_ext_py]
+
+Argument passing and templating options are the same like with :ref:`howto/operator:ExternalPythonOperator`.
 
 .. _howto/operator:ShortCircuitOperator:
 

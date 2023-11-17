@@ -23,7 +23,7 @@ import logging
 import os
 from contextlib import suppress
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterable
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import attrs
@@ -38,6 +38,7 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
 )
+from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
 
 if TYPE_CHECKING:
@@ -207,16 +208,14 @@ class InfoJsonEncodable(dict):
             raise Exception("Don't use both includes and excludes.")
         if self.includes:
             for field in self.includes:
-                if field in self._fields or not hasattr(self.obj, field):
-                    continue
-                setattr(self, field, getattr(self.obj, field))
-                self._fields.append(field)
+                if field not in self._fields and hasattr(self.obj, field):
+                    setattr(self, field, getattr(self.obj, field))
+                    self._fields.append(field)
         else:
             for field, val in self.obj.__dict__.items():
-                if field in self._fields or field in self.excludes or field in self.renames:
-                    continue
-                setattr(self, field, val)
-                self._fields.append(field)
+                if field not in self._fields and field not in self.excludes and field not in self.renames:
+                    setattr(self, field, val)
+                    self._fields.append(field)
 
 
 class DagInfo(InfoJsonEncodable):
@@ -345,37 +344,44 @@ class OpenLineageRedactor(SecretsMasker):
         if depth > max_depth:
             return item
         try:
-            if name and should_hide_value_for_key(name):
-                return self._redact_all(item, depth, max_depth)
-            if attrs.has(type(item)):
-                # TODO: fixme when mypy gets compatible with new attrs
-                for dict_key, subval in attrs.asdict(item, recurse=False).items():  # type: ignore[arg-type]
-                    if _is_name_redactable(dict_key, item):
-                        setattr(
-                            item,
-                            dict_key,
-                            self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
-                        )
-                return item
-            elif is_json_serializable(item) and hasattr(item, "__dict__"):
-                for dict_key, subval in item.__dict__.items():
-                    if _is_name_redactable(dict_key, item):
-                        setattr(
-                            item,
-                            dict_key,
-                            self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
-                        )
-                return item
-            else:
-                return super()._redact(item, name, depth, max_depth)
-        except Exception as e:
-            log.warning(
-                "Unable to redact %s. Error was: %s: %s",
-                repr(item),
-                type(e).__name__,
-                str(e),
-            )
-            return item
+            # It's impossible to check the type of variable in a dict without accessing it, and
+            # this already causes warning - so suppress it
+            with suppress(AirflowContextDeprecationWarning):
+                if type(item).__name__ == "Proxy":
+                    # Those are deprecated values in _DEPRECATION_REPLACEMENTS
+                    # in airflow.utils.context.Context
+                    return "<<non-redactable: Proxy>>"
+                if name and should_hide_value_for_key(name):
+                    return self._redact_all(item, depth, max_depth)
+                if attrs.has(type(item)):
+                    # TODO: FIXME when mypy gets compatible with new attrs
+                    for dict_key, subval in attrs.asdict(
+                        item,  # type: ignore[arg-type]
+                        recurse=False,
+                    ).items():
+                        if _is_name_redactable(dict_key, item):
+                            setattr(
+                                item,
+                                dict_key,
+                                self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
+                            )
+                    return item
+                elif is_json_serializable(item) and hasattr(item, "__dict__"):
+                    for dict_key, subval in item.__dict__.items():
+                        if type(subval).__name__ == "Proxy":
+                            return "<<non-redactable: Proxy>>"
+                        if _is_name_redactable(dict_key, item):
+                            setattr(
+                                item,
+                                dict_key,
+                                self._redact(subval, name=dict_key, depth=(depth + 1), max_depth=max_depth),
+                            )
+                    return item
+                else:
+                    return super()._redact(item, name, depth, max_depth)
+        except Exception as exc:
+            log.warning("Unable to redact %r. Error was: %s: %s", item, type(exc).__name__, exc)
+        return item
 
 
 def is_json_serializable(item):
@@ -392,15 +398,18 @@ def _is_name_redactable(name, redacted):
     return name not in redacted.skip_redact
 
 
-def print_exception(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except Exception as e:
-            log.exception(e)
+def print_warning(log):
+    def decorator(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            try:
+                return f(*args, **kwargs)
+            except Exception as e:
+                log.warning(e)
 
-    return wrapper
+        return wrapper
+
+    return decorator
 
 
 @cache
@@ -414,3 +423,10 @@ def is_source_enabled() -> bool:
 def get_filtered_unknown_operator_keys(operator: BaseOperator) -> dict:
     not_required_keys = {"dag", "task_group"}
     return {attr: value for attr, value in operator.__dict__.items() if attr not in not_required_keys}
+
+
+def normalize_sql(sql: str | Iterable[str]):
+    if isinstance(sql, str):
+        sql = [stmt for stmt in sql.split(";") if stmt != ""]
+    sql = [obj for stmt in sql for obj in stmt.split(";") if obj != ""]
+    return ";\n".join(sql)

@@ -24,6 +24,8 @@ from airflow.decorators.setup_teardown import context_wrapper
 from airflow.exceptions import AirflowException
 from airflow.operators.bash import BashOperator
 
+pytestmark = pytest.mark.db_test
+
 
 def make_task(name, type_, setup_=False, teardown_=False):
     if type_ == "classic" and setup_:
@@ -186,7 +188,7 @@ class TestSetupTearDownTask:
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         assert len(dag.task_group.children) == 1
 
-    def test_setup_task_can_be_overriden(self, dag_maker):
+    def test_setup_task_can_be_overridden(self, dag_maker):
         @setup
         def mytask():
             print("I am a setup task")
@@ -197,7 +199,7 @@ class TestSetupTearDownTask:
         setup_task = dag.task_group.children["mytask2"]
         assert setup_task.is_setup
 
-    def test_teardown_on_failure_fail_dagrun_can_be_overriden(self, dag_maker):
+    def test_teardown_on_failure_fail_dagrun_can_be_overridden(self, dag_maker):
         @teardown
         def mytask():
             print("I am a teardown task")
@@ -209,7 +211,7 @@ class TestSetupTearDownTask:
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun
 
-    def test_retain_on_failure_fail_dagrun_when_other_attrs_are_overriden(self, dag_maker):
+    def test_retain_on_failure_fail_dagrun_when_other_attrs_are_overridden(self, dag_maker):
         @teardown(on_failure_fail_dagrun=True)
         def mytask():
             print("I am a teardown task")
@@ -255,7 +257,7 @@ class TestSetupTearDownTask:
             mytask2()
 
         assert len(dag.task_group.children) == 6
-        assert [x for x in dag.tasks if not x.downstream_list]  # no deps have been set
+        assert sum(1 for x in dag.tasks if not x.downstream_list) == 6
         assert dag.task_group.children["setuptask"].is_setup
         assert dag.task_group.children["teardowntask"].is_teardown
         assert dag.task_group.children["setuptask2"].is_setup
@@ -1130,59 +1132,6 @@ class TestSetupTearDownTask:
             "mytask",
         }
 
-    def test_tasks_decorators_called_outside_context_manager_can_link_up(self, dag_maker):
-        @setup
-        def setuptask():
-            print("setup")
-
-        @task()
-        def mytask():
-            print("mytask")
-
-        @task()
-        def mytask2():
-            print("mytask 2")
-
-        @teardown
-        def teardowntask():
-            print("teardown")
-
-        with dag_maker() as dag:
-            task1 = mytask()
-            task2 = mytask2()
-            with setuptask() >> teardowntask():
-                task1 >> task2
-
-        assert len(dag.task_group.children) == 4
-        assert not dag.task_group.children["setuptask"].upstream_task_ids
-        assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask", "teardowntask"}
-        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
-        assert dag.task_group.children["mytask"].downstream_task_ids == {"mytask2"}
-        assert dag.task_group.children["mytask2"].upstream_task_ids == {"mytask"}
-        assert dag.task_group.children["mytask2"].downstream_task_ids == {"teardowntask"}
-        assert dag.task_group.children["teardowntask"].upstream_task_ids == {"mytask2", "setuptask"}
-        assert not dag.task_group.children["teardowntask"].downstream_task_ids
-
-    def test_classic_tasks_called_outside_context_manager_can_link_up(self, dag_maker):
-
-        with dag_maker() as dag:
-            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
-            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
-            mytask = BashOperator(task_id="mytask", bash_command="echo 1")
-            mytask2 = BashOperator(task_id="mytask2", bash_command="echo 1")
-            with setuptask >> teardowntask:
-                mytask >> mytask2
-
-        assert len(dag.task_group.children) == 4
-        assert not dag.task_group.children["setuptask"].upstream_task_ids
-        assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask", "teardowntask"}
-        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
-        assert dag.task_group.children["mytask"].downstream_task_ids == {"mytask2"}
-        assert dag.task_group.children["mytask2"].upstream_task_ids == {"mytask"}
-        assert dag.task_group.children["mytask2"].downstream_task_ids == {"teardowntask"}
-        assert dag.task_group.children["teardowntask"].upstream_task_ids == {"mytask2", "setuptask"}
-        assert not dag.task_group.children["teardowntask"].downstream_task_ids
-
     def test_tasks_decorators_called_outside_context_manager_can_link_up_with_scope(self, dag_maker):
         @setup
         def setuptask():
@@ -1315,7 +1264,6 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["teardowntask2"].upstream_task_ids == {"mytask2", "setuptask2"}
 
     def test_check_for_circular_dependency(self, dag_maker):
-
         with dag_maker() as dag:
             s1 = make_task("s1", type_="classic", setup_=True)
             s2 = make_task("s2", type_="classic", setup_=True)
@@ -1338,7 +1286,6 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["t2"].downstream_task_ids == {"t1"}
 
     def test_mixing_construct_with_add_task(self, dag_maker):
-
         with dag_maker() as dag:
             s1 = make_task("s1", type_="classic")
             s2 = make_task("s2", type_="classic")

@@ -41,6 +41,8 @@ class S3ToMySqlOperator(BaseOperator):
     :param mysql_extra_options: MySQL options to specify exactly how to load the data.
     :param aws_conn_id: The S3 connection that contains the credentials to the S3 Bucket.
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
+    :param mysql_local_infile: flag to enable local_infile option on the MySQLHook. This
+        loads MySQL directly using the LOAD DATA LOCAL INFILE command. Defaults to False.
     """
 
     template_fields: Sequence[str] = (
@@ -59,6 +61,7 @@ class S3ToMySqlOperator(BaseOperator):
         mysql_extra_options: str | None = None,
         aws_conn_id: str = "aws_default",
         mysql_conn_id: str = "mysql_default",
+        mysql_local_infile: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -68,6 +71,7 @@ class S3ToMySqlOperator(BaseOperator):
         self.mysql_extra_options = mysql_extra_options or ""
         self.aws_conn_id = aws_conn_id
         self.mysql_conn_id = mysql_conn_id
+        self.mysql_local_infile = mysql_local_infile
 
     def execute(self, context: Context) -> None:
         """
@@ -81,7 +85,7 @@ class S3ToMySqlOperator(BaseOperator):
         file = s3_hook.download_file(key=self.s3_source_key)
 
         try:
-            mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
+            mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id, local_infile=self.mysql_local_infile)
             mysql.bulk_load_custom(
                 table=self.mysql_table,
                 tmp_file=file,

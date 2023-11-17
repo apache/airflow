@@ -59,7 +59,8 @@ def retry_db_transaction(_func: F) -> F:
 
 
 def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB_RETRIES, **retry_kwargs):
-    """Decorator to retry functions in case of ``OperationalError`` from DB.
+    """
+    Retry functions in case of ``OperationalError`` from DB.
 
     It should not be used with ``@provide_session``.
     """

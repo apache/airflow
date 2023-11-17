@@ -16,16 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+import atexit
 import os
+import signal
 import subprocess
 import sys
+import time
+from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import click
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
-from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
@@ -39,14 +42,17 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference_build,
     option_answer,
+    option_build_progress,
+    option_build_timeout_minutes,
     option_builder,
     option_commit_sha,
+    option_debian_version,
     option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
     option_dry_run,
-    option_empty_image,
+    option_eager_upgrade_additional_requirements,
     option_force_build,
     option_github_repository,
     option_github_token,
@@ -82,7 +88,6 @@ from airflow_breeze.utils.docker_command_utils import (
     make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
-    prepare_docker_build_from_input,
     warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
@@ -101,6 +106,9 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+
+if TYPE_CHECKING:
+    from airflow_breeze.params.shell_params import ShellParams
 
 
 @click.group(
@@ -163,8 +171,59 @@ def prepare_for_building_ci_image(params: BuildCiParams):
     )
 
 
+def build_timout_handler(build_process_group_id: int, signum, frame):
+    # Kill the forked process group - it will kill the build even if it is running in parallel
+    # with multiple processes and docker build sessions
+    os.killpg(build_process_group_id, signal.SIGTERM)
+    os.waitpid(build_process_group_id, 0)
+    # give the output a little time to flush so that the helpful error message is not hidden
+    time.sleep(5)
+    if os.environ.get("GITHUB_ACTIONS", "false") != "true":
+        get_console().print("::endgroup::")
+    get_console().print()
+    get_console().print(
+        "[error]The build timed out. This is likely because `pip` "
+        "started to backtrack dependency resolution.\n"
+    )
+    get_console().print(
+        "[warning]Please follow the instructions in "
+        "`dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md"
+    )
+    get_console().print(
+        "[warning]in the `How to figure out backtracking dependencies` "
+        "chapter as soon as possible. The longer it is delayed, "
+        "the more difficult it will be to find the culprit.\n"
+    )
+    from airflow_breeze.utils.backtracking import print_backtracking_candidates
+
+    print_backtracking_candidates()
+    sys.exit(1)
+
+
+def kill_process_group(build_process_group_id: int):
+    try:
+        os.killpg(build_process_group_id, signal.SIGTERM)
+    except OSError:
+        pass
+
+
+def get_exitcode(status: int) -> int:
+    # In Python 3.9+ we will be able to use
+    # os.waitstatus_to_exitcode(status) - see https://github.com/python/cpython/issues/84275
+    # but until then we need to do this ugly conversion
+    if os.WIFSIGNALED(status):
+        return -os.WTERMSIG(status)
+    elif os.WIFEXITED(status):
+        return os.WEXITSTATUS(status)
+    elif os.WIFSTOPPED(status):
+        return -os.WSTOPSIG(status)
+    else:
+        return 1
+
+
 @ci_image.command(name="build")
 @option_python
+@option_debian_version
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
@@ -179,7 +238,6 @@ def prepare_for_building_ci_image(params: BuildCiParams):
 @option_image_tag_for_building
 @option_prepare_buildx_cache
 @option_push
-@option_empty_image
 @option_install_providers_from_sources
 @option_additional_extras
 @option_additional_dev_apt_deps
@@ -187,11 +245,14 @@ def prepare_for_building_ci_image(params: BuildCiParams):
 @option_additional_dev_apt_command
 @option_additional_dev_apt_env
 @option_builder
+@option_build_progress
+@option_build_timeout_minutes
 @option_commit_sha
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_force_build
 @option_python_image
+@option_eager_upgrade_additional_requirements
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference_build
@@ -209,6 +270,7 @@ def build(
     debug_resources: bool,
     include_success_outputs,
     python_versions: str,
+    build_timeout_minutes: int | None,
     **kwargs: dict[str, Any],
 ):
     """Build CI image. Include building multiple images for all python versions."""
@@ -221,6 +283,26 @@ def build(
         if return_code != 0:
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
+
+    if build_timeout_minutes:
+        pid = os.fork()
+        if pid:
+            # Parent process - send signal to process group of the child process
+            handler: Callable[..., tuple[Any, Any]] = partial(build_timout_handler, pid)
+            # kill the child process group when we exit before - for example when we are Ctrl-C-ed
+            atexit.register(kill_process_group, pid)
+            signal.signal(signal.SIGALRM, handler)
+            signal.alarm(build_timeout_minutes * 60)
+            child_pid, status = os.waitpid(pid, 0)
+            exit_code = get_exitcode(status)
+            if exit_code:
+                get_console().print(f"[error]Exiting with exit code {exit_code}")
+            else:
+                get_console().print(f"[success]Exiting with exit code {exit_code}")
+            sys.exit(exit_code)
+        else:
+            # turn us into a process group leader
+            os.setpgid(0, 0)
 
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -398,7 +480,10 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
     # We import those locally so that click autocomplete works
     from inputimeout import TimeoutOccurred
 
-    if not md5sum_check_if_build_is_needed(md5sum_cache_dir=build_ci_params.md5sum_cache_dir):
+    if not md5sum_check_if_build_is_needed(
+        md5sum_cache_dir=build_ci_params.md5sum_cache_dir,
+        skip_provider_dependencies_check=build_ci_params.skip_provider_dependencies_check,
+    ):
         return False
     try:
         answer = user_confirm(
@@ -495,79 +580,63 @@ def run_build_ci_image(
     else:
         env = os.environ.copy()
         env["DOCKER_BUILDKIT"] = "1"
-        if ci_image_params.empty_image:
-            get_console(output=output).print(
-                f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n"
-            )
-            build_command_result = run_command(
-                prepare_docker_build_from_input(image_params=ci_image_params),
-                input="FROM scratch\n",
-                cwd=AIRFLOW_SOURCES_ROOT,
-                text=True,
-                env=env,
-                output=output,
-            )
-        else:
-            subprocess.run(
-                [
-                    sys.executable,
-                    os.fspath(
-                        AIRFLOW_SOURCES_ROOT
-                        / "scripts"
-                        / "ci"
-                        / "pre_commit"
-                        / "pre_commit_update_providers_dependencies.py"
-                    ),
-                ],
-                check=False,
-            )
-            get_console(output=output).print(
-                f"\n[info]Building CI Image for Python {ci_image_params.python}\n"
-            )
-            build_command_result = run_command(
-                prepare_docker_build_command(
-                    image_params=ci_image_params,
+        subprocess.run(
+            [
+                sys.executable,
+                os.fspath(
+                    AIRFLOW_SOURCES_ROOT
+                    / "scripts"
+                    / "ci"
+                    / "pre_commit"
+                    / "pre_commit_update_providers_dependencies.py"
                 ),
-                cwd=AIRFLOW_SOURCES_ROOT,
-                text=True,
-                check=False,
-                env=env,
-                output=output,
-            )
-            if build_command_result.returncode != 0 and not ci_image_params.upgrade_to_newer_dependencies:
-                if ci_image_params.upgrade_on_failure:
-                    ci_image_params.upgrade_to_newer_dependencies = True
-                    get_console().print(
-                        "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
-                    )
-                    build_command_result = run_command(
-                        prepare_docker_build_command(
-                            image_params=ci_image_params,
-                        ),
-                        cwd=AIRFLOW_SOURCES_ROOT,
-                        env=env,
-                        text=True,
-                        check=False,
-                        output=output,
+            ],
+            check=False,
+        )
+        get_console(output=output).print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
+        build_command_result = run_command(
+            prepare_docker_build_command(
+                image_params=ci_image_params,
+            ),
+            cwd=AIRFLOW_SOURCES_ROOT,
+            text=True,
+            check=False,
+            env=env,
+            output=output,
+        )
+        if build_command_result.returncode != 0 and not ci_image_params.upgrade_to_newer_dependencies:
+            if ci_image_params.upgrade_on_failure:
+                ci_image_params.upgrade_to_newer_dependencies = True
+                get_console().print(
+                    "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
+                )
+                build_command_result = run_command(
+                    prepare_docker_build_command(
+                        image_params=ci_image_params,
+                    ),
+                    cwd=AIRFLOW_SOURCES_ROOT,
+                    env=env,
+                    text=True,
+                    check=False,
+                    output=output,
+                )
+            else:
+                get_console().print(
+                    "[warning]Your image build failed. It could be caused by conflicting dependencies."
+                )
+                get_console().print(
+                    "[info]Run `breeze ci-image build --upgrade-to-newer-dependencies` to upgrade them.\n"
+                )
+        if build_command_result.returncode == 0:
+            if ci_image_params.tag_as_latest:
+                build_command_result = tag_image_as_latest(image_params=ci_image_params, output=output)
+            if ci_image_params.preparing_latest_image():
+                if get_dry_run():
+                    get_console(output=output).print(
+                        "[info]Not updating build hash because we are in `dry_run` mode.[/]"
                     )
                 else:
-                    get_console().print(
-                        "[warning]Your image build failed. It could be caused by conflicting dependencies."
-                    )
-                    get_console().print(
-                        "[info]Run "
-                        "`breeze ci-image build --upgrade-to-newer-dependencies` to upgrade them.\n"
-                    )
-            if build_command_result.returncode == 0:
-                if ci_image_params.tag_as_latest:
-                    build_command_result = tag_image_as_latest(image_params=ci_image_params, output=output)
-                if ci_image_params.preparing_latest_image():
-                    if get_dry_run():
-                        get_console(output=output).print(
-                            "[info]Not updating build hash because we are in `dry_run` mode.[/]"
-                        )
-                    else:
-                        mark_image_as_refreshed(ci_image_params)
+                    mark_image_as_refreshed(ci_image_params)
     return build_command_result.returncode, f"Image build: {ci_image_params.python}"
 
 
@@ -590,6 +659,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         image_tag=command_params.image_tag,
         platform=command_params.platform,
         force_build=command_params.force_build,
+        skip_provider_dependencies_check=command_params.skip_provider_dependencies_check,
     )
     if command_params.image_tag is not None and command_params.image_tag != "latest":
         return_code, message = run_pull_image(

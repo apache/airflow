@@ -24,29 +24,36 @@ import { getDuration } from "src/datetime_utils";
 import { SimpleStatus } from "src/dag/StatusBox";
 import { useContainerRef } from "src/context/containerRef";
 import { hoverDelay } from "src/utils";
-import type { DagRun, Task } from "src/types";
+import type { Task } from "src/types";
 import GanttTooltip from "./GanttTooltip";
 
 interface Props {
   ganttWidth?: number;
   openGroupIds: string[];
-  dagRun: DagRun;
   task: Task;
+  ganttStartDate?: string | null;
+  ganttEndDate?: string | null;
 }
 
-const Row = ({ ganttWidth = 500, openGroupIds, task, dagRun }: Props) => {
+const Row = ({
+  ganttWidth = 500,
+  openGroupIds,
+  task,
+  ganttStartDate,
+  ganttEndDate,
+}: Props) => {
   const {
     selected: { runId, taskId },
     onSelect,
   } = useSelection();
   const containerRef = useContainerRef();
 
-  const runDuration = getDuration(dagRun?.startDate, dagRun?.endDate);
+  const runDuration = getDuration(ganttStartDate, ganttEndDate);
 
   const instance = task.instances.find((ti) => ti.runId === runId);
   const isSelected = taskId === instance?.taskId;
   const hasQueuedDttm = !!instance?.queuedDttm;
-  const isOpen = openGroupIds.includes(task.label || "");
+  const isOpen = openGroupIds.includes(task.id || "");
 
   // Calculate durations in ms
   const taskDuration = getDuration(instance?.startDate, instance?.endDate);
@@ -54,7 +61,7 @@ const Row = ({ ganttWidth = 500, openGroupIds, task, dagRun }: Props) => {
     ? getDuration(instance?.queuedDttm, instance?.startDate)
     : 0;
   const taskStartOffset = getDuration(
-    dagRun.startDate,
+    ganttStartDate,
     instance?.queuedDttm || instance?.startDate
   );
 
@@ -127,7 +134,8 @@ const Row = ({ ganttWidth = 500, openGroupIds, task, dagRun }: Props) => {
           <Row
             ganttWidth={ganttWidth}
             openGroupIds={openGroupIds}
-            dagRun={dagRun}
+            ganttStartDate={ganttStartDate}
+            ganttEndDate={ganttEndDate}
             task={c}
             key={`gantt-${c.id}`}
           />

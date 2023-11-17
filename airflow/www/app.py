@@ -36,6 +36,7 @@ from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.json import AirflowJsonProvider
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.extensions.init_cache import init_cache
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
@@ -48,7 +49,9 @@ from airflow.www.extensions.init_security import (
 )
 from airflow.www.extensions.init_session import init_airflow_session_interface
 from airflow.www.extensions.init_views import (
+    init_api_auth_provider,
     init_api_connexion,
+    init_api_error_handlers,
     init_api_experimental,
     init_api_internal,
     init_appbuilder_views,
@@ -65,16 +68,6 @@ app: Flask | None = None
 csrf = CSRFProtect()
 
 
-def sync_appbuilder_roles(flask_app):
-    """Sync appbuilder roles to DB."""
-    # Garbage collect old permissions/views after they have been modified.
-    # Otherwise, when the name of a view or menu is changed, the framework
-    # will add the new Views and Menus names to the backend, but will not
-    # delete the old ones.
-    if conf.getboolean("webserver", "UPDATE_FAB_PERMS"):
-        flask_app.appbuilder.sm.sync_roles()
-
-
 def create_app(config=None, testing=False):
     """Create a new instance of Airflow WWW app."""
     flask_app = Flask(__name__)
@@ -83,7 +76,9 @@ def create_app(config=None, testing=False):
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=settings.get_session_lifetime_config())
 
     webserver_config = conf.get_mandatory_value("webserver", "config_file")
-    flask_app.config.from_pyfile(webserver_config, silent=True)
+    # Enable customizations in webserver_config.py to be applied via Flask.current_app.
+    with flask_app.app_context():
+        flask_app.config.from_pyfile(webserver_config, silent=True)
 
     flask_app.config["TESTING"] = testing
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
@@ -167,8 +162,10 @@ def create_app(config=None, testing=False):
                 raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
             init_api_internal(flask_app)
         init_api_experimental(flask_app)
+        init_api_auth_provider(flask_app)
+        init_api_error_handlers(flask_app)  # needs to be after all api inits to let them add their path first
 
-        sync_appbuilder_roles(flask_app)
+        get_auth_manager().init()
 
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
@@ -186,6 +183,6 @@ def cached_app(config=None, testing=False):
 
 
 def purge_cached_app():
-    """Removes the cached version of the app in global state."""
+    """Remove the cached version of the app in global state."""
     global app
     app = None

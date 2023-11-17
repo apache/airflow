@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import os
 import sys
 from typing import Any
@@ -40,14 +39,15 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_location,
     option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
+    option_build_progress,
     option_builder,
     option_commit_sha,
+    option_debian_version,
     option_debug_resources,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_docker_cache,
     option_dry_run,
-    option_empty_image,
     option_github_repository,
     option_github_token,
     option_image_name,
@@ -69,8 +69,6 @@ from airflow_breeze.utils.common_options import (
     option_runtime_apt_deps,
     option_skip_cleanup,
     option_tag_as_latest,
-    option_upgrade_on_failure,
-    option_upgrade_to_newer_dependencies,
     option_verbose,
     option_verify,
     option_version_suffix_for_pypi,
@@ -84,7 +82,6 @@ from airflow_breeze.utils.docker_command_utils import (
     make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
-    prepare_docker_build_from_input,
     warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
@@ -153,21 +150,19 @@ def prod_image():
 
 @prod_image.command(name="build")
 @option_python
+@option_debian_version
 @option_run_in_parallel
 @option_parallelism
 @option_skip_cleanup
 @option_debug_resources
 @option_include_success_outputs
 @option_python_versions
-@option_upgrade_to_newer_dependencies
-@option_upgrade_on_failure
 @option_platform_multiple
 @option_github_token
 @option_docker_cache
 @option_image_tag_for_building
 @option_prepare_buildx_cache
 @option_push
-@option_empty_image
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_prod
 @click.option(
@@ -180,6 +175,12 @@ def prod_image():
     "--install-packages-from-context",
     help="Install wheels from local docker-context-files when building image. "
     "Implies --disable-airflow-repo-cache.",
+    is_flag=True,
+)
+@click.option(
+    "--use-constraints-for-context-packages",
+    help="Uses constraints for context packages installation - "
+    "either from constraints store in docker-context-files or from github.",
     is_flag=True,
 )
 @click.option(
@@ -217,6 +218,7 @@ def prod_image():
 @option_additional_runtime_apt_env
 @option_additional_runtime_apt_command
 @option_builder
+@option_build_progress
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_python_image
@@ -422,11 +424,10 @@ def clean_docker_context_files():
         get_console().print("[info]Cleaning docker-context-files[/]")
     if get_dry_run():
         return
-    with contextlib.suppress(FileNotFoundError):
-        context_files_to_delete = DOCKER_CONTEXT_DIR.glob("**/*")
-        for file_to_delete in context_files_to_delete:
-            if file_to_delete.name != ".README.md":
-                file_to_delete.unlink()
+    context_files_to_delete = DOCKER_CONTEXT_DIR.rglob("*")
+    for file_to_delete in context_files_to_delete:
+        if file_to_delete.name != ".README.md":
+            file_to_delete.unlink(missing_ok=True)
 
 
 def check_docker_context_files(install_packages_from_context: bool):
@@ -438,26 +439,27 @@ def check_docker_context_files(install_packages_from_context: bool):
 
     :param install_packages_from_context: whether we want to install from docker-context-files
     """
-    context_file = DOCKER_CONTEXT_DIR.glob("**/*")
-    number_of_context_files = len(
-        [context for context in context_file if context.is_file() and context.name != ".README.md"]
+    context_file = DOCKER_CONTEXT_DIR.rglob("*")
+    any_context_files = any(
+        context.is_file()
+        and context.name not in (".README.md", ".DS_Store")
+        and not context.parent.name.startswith("constraints")
+        for context in context_file
     )
-    if number_of_context_files == 0:
-        if install_packages_from_context:
-            get_console().print("[warning]\nERROR! You want to install packages from docker-context-files")
-            get_console().print("[warning]\n but there are no packages to install in this folder.")
-            sys.exit(1)
-    else:
-        if not install_packages_from_context:
-            get_console().print(
-                "[warning]\n ERROR! There are some extra files in docker-context-files except README.md"
-            )
-            get_console().print("[warning]\nAnd you did not choose --install-packages-from-context flag")
-            get_console().print(
-                "[warning]\nThis might result in unnecessary cache invalidation and long build times"
-            )
-            get_console().print("[warning]Please restart the command with --cleanup-context switch\n")
-            sys.exit(1)
+    if not any_context_files and install_packages_from_context:
+        get_console().print("[warning]\nERROR! You want to install packages from docker-context-files")
+        get_console().print("[warning]\n but there are no packages to install in this folder.")
+        sys.exit(1)
+    elif any_context_files and not install_packages_from_context:
+        get_console().print(
+            "[warning]\n ERROR! There are some extra files in docker-context-files except README.md"
+        )
+        get_console().print("[warning]\nAnd you did not choose --install-packages-from-context flag")
+        get_console().print(
+            "[warning]\nThis might result in unnecessary cache invalidation and long build times"
+        )
+        get_console().print("[warning]Please restart the command with --cleanup-context switch\n")
+        sys.exit(1)
 
 
 def run_build_production_image(
@@ -500,50 +502,16 @@ def run_build_production_image(
     else:
         env = os.environ.copy()
         env["DOCKER_BUILDKIT"] = "1"
-        if prod_image_params.empty_image:
-            get_console(output=output).print(
-                f"\n[info]Building empty PROD Image for Python {prod_image_params.python}\n"
-            )
-            build_command_result = run_command(
-                prepare_docker_build_from_input(image_params=prod_image_params),
-                input="FROM scratch\n",
-                cwd=AIRFLOW_SOURCES_ROOT,
-                check=False,
-                text=True,
-                env=env,
-                output=output,
-            )
-        else:
-            build_command_result = run_command(
-                prepare_docker_build_command(
-                    image_params=prod_image_params,
-                ),
-                cwd=AIRFLOW_SOURCES_ROOT,
-                check=False,
-                env=env,
-                text=True,
-                output=output,
-            )
-            if (
-                build_command_result.returncode != 0
-                and prod_image_params.upgrade_on_failure
-                and not prod_image_params.upgrade_to_newer_dependencies
-            ):
-                prod_image_params.upgrade_to_newer_dependencies = True
-                get_console().print(
-                    "[warning]Attempting to build with upgrade_to_newer_dependencies on failure"
-                )
-                build_command_result = run_command(
-                    prepare_docker_build_command(
-                        image_params=prod_image_params,
-                    ),
-                    cwd=AIRFLOW_SOURCES_ROOT,
-                    check=False,
-                    text=True,
-                    env=env,
-                    output=output,
-                )
-            if build_command_result.returncode == 0:
-                if prod_image_params.tag_as_latest:
-                    build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
+        build_command_result = run_command(
+            prepare_docker_build_command(
+                image_params=prod_image_params,
+            ),
+            cwd=AIRFLOW_SOURCES_ROOT,
+            check=False,
+            env=env,
+            text=True,
+            output=output,
+        )
+        if build_command_result.returncode == 0 and prod_image_params.tag_as_latest:
+            build_command_result = tag_image_as_latest(image_params=prod_image_params, output=output)
     return build_command_result.returncode, f"Image build: {prod_image_params.python}"

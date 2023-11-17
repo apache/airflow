@@ -27,6 +27,9 @@ from airflow.providers.databricks.triggers.databricks import DatabricksExecution
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import provide_session
 
+pytestmark = pytest.mark.db_test
+
+
 DEFAULT_CONN_ID = "databricks_default"
 HOST = "xx.cloud.databricks.com"
 LOGIN = "login"
@@ -107,23 +110,22 @@ class TestDatabricksExecutionTrigger:
             result_state="SUCCESS",
         )
 
-        generator = self.trigger.run()
-        actual = await generator.asend(None)
-        assert actual == TriggerEvent(
-            {
-                "run_id": RUN_ID,
-                "run_state": RunState(
-                    life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
-                ).to_json(),
-                "run_page_url": RUN_PAGE_URL,
-            }
-        )
+        trigger_event = self.trigger.run()
+        async for event in trigger_event:
+            assert event == TriggerEvent(
+                {
+                    "run_id": RUN_ID,
+                    "run_state": RunState(
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                    ).to_json(),
+                    "run_page_url": RUN_PAGE_URL,
+                }
+            )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
     @mock.patch("airflow.providers.databricks.hooks.databricks.DatabricksHook.a_get_run_state")
     async def test_sleep_between_retries(self, mock_get_run_state, mock_sleep):
-
         mock_get_run_state.side_effect = [
             RunState(
                 life_cycle_state=LIFE_CYCLE_STATE_PENDING,
@@ -137,16 +139,16 @@ class TestDatabricksExecutionTrigger:
             ),
         ]
 
-        generator = self.trigger.run()
-        actual = await generator.asend(None)
-        assert actual == TriggerEvent(
-            {
-                "run_id": RUN_ID,
-                "run_state": RunState(
-                    life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
-                ).to_json(),
-                "run_page_url": RUN_PAGE_URL,
-            }
-        )
+        trigger_event = self.trigger.run()
+        async for event in trigger_event:
+            assert event == TriggerEvent(
+                {
+                    "run_id": RUN_ID,
+                    "run_state": RunState(
+                        life_cycle_state=LIFE_CYCLE_STATE_TERMINATED, state_message="", result_state="SUCCESS"
+                    ).to_json(),
+                    "run_page_url": RUN_PAGE_URL,
+                }
+            )
         mock_sleep.assert_called_once()
         mock_sleep.assert_called_with(POLLING_INTERVAL_SECONDS)

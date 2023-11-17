@@ -328,7 +328,7 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
         )
         self.inactivity_period = inactivity_period
         self.min_objects = min_objects
-        self.previous_objects = previous_objects if previous_objects else set()
+        self.previous_objects = previous_objects or set()
         self.inactivity_seconds = 0.0
         self.allow_delete = allow_delete
         self.last_activity_time: datetime | None = None

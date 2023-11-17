@@ -110,16 +110,15 @@
         {% if dag.parent_dag is defined and dag.parent_dag %}
           <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
         {% else %}
-          {% set can_edit = appbuilder.sm.can_edit_dag(dag.dag_id) %}
-          {% if appbuilder.sm.can_edit_dag(dag.dag_id) %}
+          {% if can_edit_dag %}
             {% set switch_tooltip = 'Pause/Unpause DAG' %}
           {% else %}
             {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
           {% endif %}
-          <label class="switch-label{{' disabled' if not can_edit else ''  }} js-tooltip" title="{{ switch_tooltip }}">
+          <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
             <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
                    type="checkbox"{{ " checked" if not dag_is_paused else "" }}
-                   {{ " disabled" if not can_edit else "" }}>
+                   {{ " disabled" if not can_edit_dag else "" }}>
             <span class="switch" aria-hidden="true"></span>
           </label>
           <span class="text-muted">DAG:</span> {{ dag.dag_id }}
@@ -184,11 +183,11 @@
     <div class="row">
       <div class="col-md-10">
         <ul class="nav nav-pills">
-          <li><a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
+          <li id="grid-nav"><a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, root=root, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">grid_on</span>
             Grid
           </a></li>
-          <li><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+          <li id="graph-nav"><a href="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">account_tree</span>
             Graph</a></li>
           <li><a href="{{ url_for('Airflow.calendar', dag_id=dag.dag_id) }}">
@@ -204,13 +203,13 @@
           <li><a href="{{ url_for('Airflow.landing_times', dag_id=dag.dag_id, days=30, root=root, num_runs=num_runs_arg, base_date=base_date_arg) }}">
             <span class="material-icons" aria-hidden="true">flight_land</span>
             Landing Times</a></li>
-          <li><a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
+          <li id="gantt-nav"><a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id, root=root, num_runs=num_runs_arg, base_date=base_date_arg, execution_date=execution_date_arg) }}">
             <span class="material-icons" aria-hidden="true">vertical_distribute</span>
             Gantt</a></li>
           <li><a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
             <span class="material-icons" aria-hidden="true">details</span>
             Details</a></li>
-          <li><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
+          <li id="code-nav"><a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
             <span class="material-icons" aria-hidden="true">code</span>
             Code</a></li>
           <li><a href="{{ url_for('Airflow.audit_log', dag_id=dag.dag_id, root=root) }}">
@@ -220,6 +219,36 @@
       </div>
       <div class="col-md-2">
         <div class="btn-group pull-right">
+          {% if show_trigger_form_if_no_params %}
+          <div class="dropdown">
+            <a aria-label="Trigger DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn" data-toggle="dropdown">
+              <span class="material-icons" aria-hidden="true">play_arrow</span>
+              </a>
+            <ul class="dropdown-menu trigger-dropdown-menu">
+              <li>
+                <form method="POST" action="{{ url_for('Airflow.trigger', dag_id=dag.dag_id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
+                  <input type="hidden" name="unpause" value="True">
+                  <!-- for task instance detail pages, dag_id is still a query param -->
+                  {% if 'dag_id' in request.args %}
+                    <input type="hidden" name="origin" value="{{ url_for(request.endpoint, **request.args) }}">
+                  {% else %}
+                    <input type="hidden" name="origin" value="{{ url_for(request.endpoint, dag_id=dag.dag_id, **request.args) }}">
+                  {% endif %}
+                  <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
+                </form>
+              </li>
+              <li>
+                {% if 'dag_id' in request.args %}
+                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, **request.args)) }}">
+                {% else %}
+                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id, **request.args)) }}">
+                {% endif %}
+                Trigger DAG w/ config</a></li>
+            </ul>
+          </div>
+          {% else %}
           {% if 'dag_id' in request.args %}
             <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, **request.args)) }}"
           {% else %}
@@ -230,6 +259,7 @@
               class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn">
               <span class="material-icons" aria-hidden="true">play_arrow</span>
           </a>
+          {% endif %}
           <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint, dag_id=dag.dag_id)) }}"
             title="Delete&nbsp;DAG"
             aria-label="Delete DAG"
@@ -242,203 +272,6 @@
     </div>
   </div>
   {{ dag_docs(doc_md) }}
-  <!-- Modal for Task Instance -->
-  <div class="modal fade" id="taskInstanceModal" tabindex="-1" role="dialog" aria-labelledby="taskInstanceModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-          <h4 class="modal-title" id="taskInstanceModalLabel">
-            <span class="text-muted">Task Instance:</span> <span id="task_id"></span>
-            <br><span class="text-muted">at:</span> <span id="execution_date"></span>
-            <span id="modal_map_index"><br><span class="text-muted">Map Index:</span>
-              <span class="value"></span>
-              <div class="dropdown" id="mapped_dropdown">
-                <button class="btn btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
-                  <span id="dropdown-label" title="Select Mapped Instance"></span>
-                  <span class="caret"></span>
-                </button>
-                <ul class="dropdown-menu menu-scroll"></ul>
-              </div>
-            </span>
-          </h4>
-        </div>
-        <div class="modal-body">
-          <div id="div_btn_subdag">
-            <a id="btn_subdag" class="btn btn-primary" data-base-url="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.dag_id) }}">
-              Zoom into Sub DAG
-            </a>
-            <hr>
-          </div>
-          <a id="btn_task" class="btn btn-sm" data-base-url="{{ url_for('Airflow.task') }}">
-            Instance Details
-          </a>
-          <a id="btn_rendered" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered_templates') }}">
-            Rendered
-          </a>
-          {% if k8s_or_k8scelery_executor %}
-            <a id="btn_rendered_k8s" class="btn btn-sm" data-base-url="{{ url_for('Airflow.rendered_k8s') }}">
-              K8s Pod Spec
-            </a>
-          {% endif %}
-          <a id="btn_log" class="btn btn-sm" data-base-url="{{ url_for('Airflow.log') }}">
-            Log
-          </a>
-          <a id="btn_xcom" class="btn btn-sm" data-base-url="{{ url_for('Airflow.xcom') }}">
-            XCom
-          </a>
-          <a id="btn_mapped" style="display: none;" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
-            List Instances, current run
-          </a>
-          <a id="btn_ti" class="btn btn-sm" data-base-url="{{ url_for('TaskInstanceModelView.list') }}">
-            List Instances, all runs
-          </a>
-          <div class="dropdown" style="display: inline">
-            <button class="btn btn-sm dropdown-toggle" type="button" id="filterDropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-              Filter Tasks
-            </button>
-            <ul class="dropdown-menu" aria-labelledby="filterDropdownMenuButton">
-              <li><a id="btn_filter_upstream" href="#">Filter Upstream</a></li>
-              <li><a id="btn_filter_downstream" href="#">Filter Downstream</a></li>
-              <li><a id="btn_filter_upstream_downstream" href="#">Filter Upstream & Downstream</a></li>
-            </ul>
-          </div>
-          <hr>
-          <div id="dag_dl_logs">
-            <label style="display:inline">Download Log (by attempts):</label>
-            <ul class="nav nav-pills" role="tablist" id="try_index" style="display:inline">
-            </ul>
-            <hr>
-          </div>
-          {% if external_log_name is defined %}
-            <div id="dag_redir_logs">
-              <label style="display:inline"> View Logs in {{ external_log_name }} (by attempts):</label>
-              <ul class="nav nav-pills" role="tablist" id="redir_log_try_index" style="display:inline">
-              </ul>
-              <hr>
-              <hr>
-            </div>
-          {% endif %}
-          <h4 id="task_actions">Task Actions</h4>
-          <form method="POST" data-action="{{ url_for('Airflow.clear') }}" id="clear_action">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
-            <input type="hidden" name="task_id">
-            <input type="hidden" name="execution_date">
-            <input type="hidden" name="map_index">
-            <input type="hidden" name="origin" value="{{ request.base_url }}">
-            <div class="row">
-              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
-                <label class="btn btn-default btn-sm" title="Also include past task instances when clearing this one">
-                  <input type="checkbox" value="true" name="past" autocomplete="off">
-                  Past
-                </label>
-                <label class="btn btn-default btn-sm" title="Also include future task instances when clearing this one">
-                  <input type="checkbox" value="true" name="future" autocomplete="off">
-                  Future
-                </label>
-                <label class="btn btn-default btn-sm" title="Also include upstream dependencies">
-                  <input type="checkbox" value="true" name="upstream" autocomplete="off">
-                  Upstream
-                </label>
-                <label class="btn btn-default btn-sm active" title="Also include downstream dependencies">
-                  <input type="checkbox" value="true" name="downstream" checked autocomplete="off">
-                  Downstream
-                </label>
-                <label class="btn btn-default btn-sm active">
-                  <input type="checkbox" value="true" name="recursive" checked autocomplete="off">
-                  Recursive
-                </label>
-                <label class="btn btn-default btn-sm" title="Only consider failed task instances when clearing this one">
-                  <input type="checkbox" value="true" name="only_failed" autocomplete="off">
-                  Failed
-                </label>
-              </span>
-              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
-                <button type="submit" id="btn_clear" class="btn btn-primary btn-block"
-                    title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command">
-                  Clear
-                </button>
-              </span>
-            </div>
-            <hr style="margin-bottom: 8px;">
-          </form>
-          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}" id="failed_action">
-            <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
-            <input type="hidden" name="task_id">
-            <input type="hidden" name="dag_run_id">
-            <input type="hidden" name="map_index">
-            <input type="hidden" name="origin" value="{{ request.base_url }}">
-            <input type="hidden" name="state" value="failed">
-            <div class="row">
-              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
-                <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="past" autocomplete="off">
-                  Past
-                </label>
-                <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="future" autocomplete="off">
-                  Future
-                </label>
-                <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="upstream" autocomplete="off">
-                  Upstream
-                </label>
-                <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="downstream" autocomplete="off">
-                  Downstream
-                </label>
-              </span>
-              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
-                <button type="submit" id="btn_failed" class="btn btn-primary btn-block">
-                  Mark Failed
-                </button>
-              </span>
-            </div>
-            <hr style="margin-bottom: 8px;">
-          </form>
-          <form method="GET" data-action="{{ url_for('Airflow.confirm') }}" id="success_action">
-            <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
-            <input type="hidden" name="task_id">
-            <input type="hidden" name="dag_run_id">
-            <input type="hidden" name="map_index">
-            <input type="hidden" name="origin" value="{{ request.base_url }}">
-            <input type="hidden" name="state" value="success">
-            <div class="row">
-              <span class="btn-group col-xs-12 col-sm-9 task-instance-modal-column" data-toggle="buttons">
-                <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="past" autocomplete="off">
-                  Past
-                </label>
-                <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="future" autocomplete="off">
-                  Future
-                </label>
-                <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="upstream" autocomplete="off">
-                  Upstream
-                </label>
-                <label class="btn btn-default">
-                  <input type="checkbox" value="true" name="downstream" autocomplete="off">
-                  Downstream
-                </label>
-              </span>
-              <span class="col-xs-12 col-sm-3 task-instance-modal-column">
-                <button type="submit" id="btn_success" class="btn btn-primary btn-block">
-                  Mark Success
-                </button>
-              </span>
-            </div>
-          </form>
-          <hr>
-          <span class="btn-group" id="extra_links"></span>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
   <!-- Modal for dataset-triggered next run -->
   {{ dataset_next_run_modal(id='dataset-next-run-modal') }}
 {% endblock %}

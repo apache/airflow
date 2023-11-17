@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
-from kubernetes.client.models import V1Pod
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -46,6 +45,8 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperati
 from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
+    from kubernetes.client.models import V1Pod
+
     from airflow.utils.context import Context
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
@@ -163,7 +164,7 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
         status = event["status"]
         message = event["message"]
 
-        if status == "failed" or status == "error":
+        if status in ("failed", "error"):
             self.log.exception("Trigger ended with one of the failed statuses.")
             raise AirflowException(message)
 
@@ -370,7 +371,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         status = event["status"]
         message = event["message"]
 
-        if status == "failed" or status == "error":
+        if status in ("failed", "error"):
             self.log.exception("Trigger ended with one of the failed statuses.")
             raise AirflowException(message)
 
@@ -429,7 +430,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
     :param regional: The location param is region name.
     :param deferrable: Run operator in the deferrable mode.
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
-        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
         Current default is `keep_pod`, but this will be changed in the next major release of this provider.
     :param is_delete_operator_pod: What to do when the pod reaches its final
@@ -539,6 +540,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             )
 
         hook = GKEPodHook(
+            gcp_conn_id=self.gcp_conn_id,
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
         )

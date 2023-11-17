@@ -54,6 +54,7 @@ SQL_MULTIPLE_STMTS = (
 SINGLE_STMT = "select i from user_test order by i;"
 
 
+@pytest.mark.db_test
 class TestSnowflakeOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
@@ -70,6 +71,37 @@ class TestSnowflakeOperator:
         operator = SnowflakeOperator(task_id="basic_snowflake", sql=sql, dag=self.dag, do_xcom_push=False)
         # do_xcom_push=False because otherwise the XCom test will fail due to the mocking (it actually works)
         operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+
+class TestSnowflakeOperatorForParams:
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__")
+    def test_overwrite_params(self, mock_base_op):
+        sql = "Select * from test_table"
+        SnowflakeOperator(
+            sql=sql,
+            task_id="snowflake_params_check",
+            snowflake_conn_id="snowflake_default",
+            warehouse="test_warehouse",
+            database="test_database",
+            role="test_role",
+            schema="test_schema",
+            authenticator="oath",
+            session_parameters={"QUERY_TAG": "test_tag"},
+        )
+        mock_base_op.assert_called_once_with(
+            conn_id="snowflake_default",
+            task_id="snowflake_params_check",
+            database=None,
+            hook_params={
+                "warehouse": "test_warehouse",
+                "database": "test_database",
+                "role": "test_role",
+                "schema": "test_schema",
+                "authenticator": "oath",
+                "session_parameters": {"QUERY_TAG": "test_tag"},
+            },
+            default_args={},
+        )
 
 
 @pytest.mark.parametrize(
@@ -91,6 +123,49 @@ class TestSnowflakeCheckOperators:
         operator = operator_class(task_id="snowflake_check", snowflake_conn_id="snowflake_default", **kwargs)
         operator.get_db_hook()
         mock_get_db_hook.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "operator_class, kwargs",
+    [
+        (SnowflakeCheckOperator, dict(sql="Select * from test_table")),
+        (SnowflakeValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
+        (SnowflakeIntervalCheckOperator, dict(table="test-table-id", metrics_thresholds={"COUNT(*)": 1.5})),
+    ],
+)
+class TestSnowflakeCheckOperatorsForParams:
+    @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.__init__")
+    def test_overwrite_params(
+        self,
+        mock_base_op,
+        operator_class,
+        kwargs,
+    ):
+        operator_class(
+            task_id="snowflake_params_check",
+            snowflake_conn_id="snowflake_default",
+            warehouse="test_warehouse",
+            database="test_database",
+            role="test_role",
+            schema="test_schema",
+            authenticator="oath",
+            session_parameters={"QUERY_TAG": "test_tag"},
+            **kwargs,
+        )
+        mock_base_op.assert_called_once_with(
+            conn_id="snowflake_default",
+            database=None,
+            task_id="snowflake_params_check",
+            hook_params={
+                "warehouse": "test_warehouse",
+                "database": "test_database",
+                "role": "test_role",
+                "schema": "test_schema",
+                "authenticator": "oath",
+                "session_parameters": {"QUERY_TAG": "test_tag"},
+            },
+            default_args={},
+        )
 
 
 def create_context(task, dag=None):

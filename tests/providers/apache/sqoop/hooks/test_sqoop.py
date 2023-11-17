@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import collections
 import json
 from io import StringIO
 from unittest import mock
@@ -30,6 +29,8 @@ from airflow.models import Connection
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
 from airflow.utils import db
 
+pytestmark = pytest.mark.db_test
+
 
 class TestSqoopHook:
     _config = {
@@ -39,6 +40,9 @@ class TestSqoopHook:
         "properties": {"mapred.map.max.attempts": "1"},
         "hcatalog_database": "hive_database",
         "hcatalog_table": "hive_table",
+    }
+    _config_export_extra_options = {
+        "extra_options": {"update-key": "id", "update-mode": "allowinsert", "fetch-size": 1},
     }
     _config_export = {
         "table": "export_data_to",
@@ -54,10 +58,14 @@ class TestSqoopHook:
         "input_optionally_enclosed_by": '"',
         "batch": True,
         "relaxed_isolation": True,
-        "extra_export_options": collections.OrderedDict(
-            [("update-key", "id"), ("update-mode", "allowinsert"), ("fetch-size", 1)]
-        ),
         "schema": "domino",
+    }
+    _config_import_extra_options = {
+        "extra_options": {
+            "hcatalog-storage-stanza": '"stored as orcfile"',
+            "show": "",
+            "fetch-size": 1,
+        },
     }
     _config_import = {
         "target_dir": "/hdfs/data/target/location",
@@ -66,11 +74,6 @@ class TestSqoopHook:
         "split_by": "\n",
         "direct": True,
         "driver": "com.microsoft.jdbc.sqlserver.SQLServerDriver",
-        "extra_import_options": {
-            "hcatalog-storage-stanza": '"stored as orcfile"',
-            "show": "",
-            "fetch-size": 1,
-        },
     }
 
     _config_json = {
@@ -111,6 +114,16 @@ class TestSqoopHook:
                 extra=None,
             )
         )
+        db.merge_conn(
+            Connection(
+                conn_id="invalid_schema_conn",
+                conn_type="mssql",
+                schema="schema?query_param1=value1",
+                host="rmdbs",
+                port=5050,
+                extra=None,
+            )
+        )
 
     @patch("subprocess.Popen")
     def test_popen(self, mock_popen):
@@ -126,7 +139,7 @@ class TestSqoopHook:
         mock_popen.return_value.__enter__.return_value = mock_proc
 
         # When
-        hook = SqoopHook(conn_id="sqoop_test", libjars="/path/to/jars")
+        hook = SqoopHook(conn_id="sqoop_test", libjars="/path/to/jars", **self._config_export_extra_options)
         hook.export_table(**self._config_export)
 
         # Then
@@ -172,7 +185,7 @@ class TestSqoopHook:
                 "--update-mode",
                 "allowinsert",
                 "--fetch-size",
-                str(self._config_export["extra_export_options"].get("fetch-size")),
+                str(self._config_export_extra_options["extra_options"].get("fetch-size")),
                 "--table",
                 self._config_export["table"],
                 "--",
@@ -243,7 +256,7 @@ class TestSqoopHook:
         """
         Tests to verify the hook export command is building correct Sqoop export command.
         """
-        hook = SqoopHook()
+        hook = SqoopHook(**self._config_export_extra_options)
 
         # The subprocess requires an array but we build the cmd by joining on a space
         cmd = " ".join(
@@ -261,7 +274,6 @@ class TestSqoopHook:
                 input_optionally_enclosed_by=self._config_export["input_optionally_enclosed_by"],
                 batch=self._config_export["batch"],
                 relaxed_isolation=self._config_export["relaxed_isolation"],
-                extra_export_options=self._config_export["extra_export_options"],
                 schema=self._config_export["schema"],
             )
         )
@@ -287,7 +299,7 @@ class TestSqoopHook:
         if self._config_export["relaxed_isolation"]:
             assert "--relaxed-isolation" in cmd
 
-        if self._config_export["extra_export_options"]:
+        if self._config_export_extra_options["extra_options"]:
             assert "--update-key" in cmd
             assert "--update-mode" in cmd
             assert "--fetch-size" in cmd
@@ -299,6 +311,7 @@ class TestSqoopHook:
         """
         Tests to verify the hook import command is building correct Sqoop import command.
         """
+        # Test hook without extra import options
         hook = SqoopHook()
 
         # The subprocess requires an array but we build the cmd by joining on a space
@@ -310,7 +323,6 @@ class TestSqoopHook:
                 split_by=self._config_import["split_by"],
                 direct=self._config_import["direct"],
                 driver=self._config_import["driver"],
-                extra_import_options=None,
             )
         )
 
@@ -328,6 +340,9 @@ class TestSqoopHook:
         assert "--show" not in cmd
         assert 'hcatalog-storage-stanza "stored as orcfile"' not in cmd
 
+        # Test hook with extra import options
+        hook = SqoopHook(**self._config_import_extra_options)
+
         cmd = " ".join(
             hook._import_cmd(
                 target_dir=None,
@@ -336,7 +351,6 @@ class TestSqoopHook:
                 split_by=self._config_import["split_by"],
                 direct=self._config_import["direct"],
                 driver=self._config_import["driver"],
-                extra_import_options=self._config_import["extra_import_options"],
             )
         )
 
@@ -383,5 +397,10 @@ class TestSqoopHook:
 
     def test_invalid_host(self):
         hook = SqoopHook(conn_id="invalid_host_conn")
-        with pytest.raises(ValueError, match="host should not contain a"):
+        with pytest.raises(ValueError, match="should not contain a"):
+            hook._prepare_command()
+
+    def test_invalid_schema(self):
+        hook = SqoopHook(conn_id="invalid_schema_conn")
+        with pytest.raises(ValueError, match="should not contain a"):
             hook._prepare_command()

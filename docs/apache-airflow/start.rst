@@ -24,8 +24,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 .. note::
 
-   Successful installation requires a Python 3 environment. Starting with Airflow 2.3.0, Airflow is tested with Python 3.8, 3.9, 3.10.
-   Note that Python 3.11 is not yet supported.
+   Successful installation requires a Python 3 environment. Starting with Airflow 2.7.0, Airflow supports Python 3.8, 3.9, 3.10 and 3.11.
 
    Only ``pip`` installation is currently officially supported.
 
@@ -61,7 +60,8 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
       AIRFLOW_VERSION=|version|
 
-      # Extract the version of Python you have installed. If you're currently using Python 3.11 you may want to set this manually as noted above, Python 3.11 is not yet supported.
+      # Extract the version of Python you have installed. If you're currently using a Python version that is not supported by Airflow, you may want to set this manually.
+      # See above for supported versions.
       PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
 
       CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
@@ -119,7 +119,7 @@ the all-in-one ``standalone`` command, you can instead run:
 
 .. code-block:: bash
 
-    airflow db init
+    airflow db migrate
 
     airflow users create \
         --username admin \

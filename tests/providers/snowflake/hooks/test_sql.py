@@ -151,7 +151,7 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
             [[("id2",), ("value2",)]],
             [[3, 4], [13, 14]],
             False,
-            id="The return_last set set on multiple queries in list",
+            id="The return_last set on multiple queries in list",
         ),
         pytest.param(
             False,

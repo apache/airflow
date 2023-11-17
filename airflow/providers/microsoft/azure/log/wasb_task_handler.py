@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 import os
 import shutil
 from functools import cached_property
@@ -32,6 +31,7 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    import logging
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -70,7 +70,6 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
         self.log_relative_path = ""
-        self._hook = None
         self.closed = False
         self.upload_on_close = True
         self.delete_local_copy = (
@@ -141,22 +140,20 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         messages = []
         logs = []
         worker_log_relative_path = self._render_filename(ti, try_number)
-        # todo: fix this
-        # for some reason this handler was designed such that (1) container name is not configurable
-        # (i.e. it's hardcoded in airflow_local_settings.py) and (2) the "relative path" is actually...
-        # whatever you put in REMOTE_BASE_LOG_FOLDER i.e. it includes the "wasb://" in the blob
-        # name. it's very screwed up but to change it we have to be careful not to break backcompat.
+        # TODO: fix this - "relative path" i.e currently REMOTE_BASE_LOG_FOLDER should start with "wasb"
+        # unlike others with shceme in URL itself to identify the correct handler.
+        # This puts limitations on ways users can name the base_path.
         prefix = os.path.join(self.remote_base, worker_log_relative_path)
         blob_names = []
         try:
             blob_names = self.hook.get_blobs_list(container_name=self.wasb_container, prefix=prefix)
         except HttpResponseError as e:
             messages.append(f"tried listing blobs with prefix={prefix} and container={self.wasb_container}")
-            messages.append("could not list blobs " + str(e))
+            messages.append(f"could not list blobs {e}")
             self.log.exception("can't list blobs")
 
         if blob_names:
-            uris = [f"wasb://{self.wasb_container}/{b}" for b in blob_names]
+            uris = [f"https://{self.wasb_container}.blob.core.windows.net/{b}" for b in blob_names]
             messages.extend(["Found remote logs:", *[f"  * {x}" for x in sorted(uris)]])
         else:
             messages.append(f"No logs found in WASB; ti=%s {ti}")
@@ -243,7 +240,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         """
         if append and self.wasb_log_exists(remote_log_location):
             old_log = self.wasb_read(remote_log_location)
-            log = "\n".join([old_log, log]) if old_log else log
+            log = f"{old_log}\n{log}" if old_log else log
 
         try:
             self.hook.load_string(log, self.wasb_container, remote_log_location, overwrite=True)

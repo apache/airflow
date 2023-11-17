@@ -40,7 +40,7 @@ from airflow.providers.microsoft.azure.operators.asb import (
 
 QUEUE_NAME = "test_queue"
 MESSAGE = "Test Message"
-MESSAGE_LIST = [MESSAGE + " " + str(n) for n in range(0, 10)]
+MESSAGE_LIST = [f"MESSAGE {n}" for n in range(10)]
 
 OWNER_NAME = "airflow"
 DAG_ID = "test_azure_service_bus_subscription"

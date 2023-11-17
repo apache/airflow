@@ -18,12 +18,13 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-import io
 import logging
 import logging.config
 import os
 import sys
 import textwrap
+from enum import Enum
+from io import StringIO
 from unittest.mock import patch
 
 import pytest
@@ -36,11 +37,16 @@ from airflow.utils.log.secrets_masker import (
     redact,
     should_hide_value_for_key,
 )
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
 settings.MASK_SECRETS_IN_LOGS = True
 
 p = "password"
+
+
+class MyEnum(str, Enum):
+    testname = "testvalue"
 
 
 @pytest.fixture
@@ -299,6 +305,23 @@ class TestSecretsMasker:
             got = redact(val, max_depth=max_depth)
             assert got == expected
 
+    @pytest.mark.parametrize(
+        "state, expected",
+        [
+            (DagRunState.SUCCESS, "success"),
+            (TaskInstanceState.FAILED, "failed"),
+            (JobState.RUNNING, "running"),
+            ([DagRunState.SUCCESS, DagRunState.RUNNING], ["success", "running"]),
+            ([TaskInstanceState.FAILED, TaskInstanceState.SUCCESS], ["failed", "success"]),
+            (State.failed_states, frozenset([TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED])),
+            (MyEnum.testname, "testvalue"),
+        ],
+    )
+    def test_redact_state_enum(self, logger, caplog, state, expected):
+        logger.info("State: %s", state)
+        assert caplog.text == f"INFO State: {expected}\n"
+        assert "TypeError" not in caplog.text
+
 
 class TestShouldHideValueForKey:
     @pytest.mark.parametrize(
@@ -383,7 +406,7 @@ class TestRedactedIO:
 
         This is used by debuggers!
         """
-        monkeypatch.setattr(sys, "stdin", io.StringIO("a\n"))
+        monkeypatch.setattr(sys, "stdin", StringIO("a\n"))
         with contextlib.redirect_stdout(RedactedIO()):
             assert input() == "a"
 

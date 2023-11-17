@@ -127,10 +127,7 @@ def render_template(
 
 def update_static_checks_array(hooks: dict[str, list[str]], image_hooks: list[str]):
     rows = []
-    hook_ids = list(hooks.keys())
-    hook_ids.sort()
-    for hook_id in hook_ids:
-        hook_description = hooks[hook_id]
+    for hook_id, hook_description in sorted(hooks.items()):
         formatted_hook_description = (
             hook_description[0] if len(hook_description) == 1 else "* " + "\n* ".join(hook_description)
         )

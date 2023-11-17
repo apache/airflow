@@ -22,6 +22,7 @@ Much of this code is expensive to import/load, be careful where this module is i
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import math
 import os
@@ -34,26 +35,28 @@ from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Optional, Tuple
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
-from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
+from sqlalchemy import select
 
 import airflow.settings as settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.models.taskinstance import TaskInstanceKey
-from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
 from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.timeout import timeout
 
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from celery.result import AsyncResult
+
     from airflow.executors.base_executor import CommandType, EventBufferValueType
+    from airflow.models.taskinstance import TaskInstanceKey
 
     TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
@@ -62,23 +65,36 @@ OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
-if conf.has_option("celery", "celery_config_options"):
-    celery_configuration = conf.getimport("celery", "celery_config_options")
+celery_configuration = None
 
-else:
-    celery_configuration = DEFAULT_CELERY_CONFIG
 
-celery_app_name = conf.get("celery", "CELERY_APP_NAME")
-if celery_app_name == "airflow.executors.celery_executor":
-    warnings.warn(
-        "The celery.CELERY_APP_NAME configuration uses deprecated package name: "
-        "'airflow.executors.celery_executor'. "
-        "Change it to `airflow.providers.celery.executors.celery_executor`, and "
-        "update the `-app` flag in your Celery Health Checks "
-        "to use `airflow.providers.celery.executors.celery_executor.app`.",
-        RemovedInAirflow3Warning,
-    )
-app = Celery(celery_app_name, config_source=celery_configuration)
+@providers_configuration_loaded
+def _get_celery_app() -> Celery:
+    """Init providers before importing the configuration, so the _SECRET and _CMD options work."""
+    global celery_configuration
+
+    if conf.has_option("celery", "celery_config_options"):
+        celery_configuration = conf.getimport("celery", "celery_config_options")
+    else:
+        from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
+
+        celery_configuration = DEFAULT_CELERY_CONFIG
+
+    celery_app_name = conf.get("celery", "CELERY_APP_NAME")
+    if celery_app_name == "airflow.executors.celery_executor":
+        warnings.warn(
+            "The celery.CELERY_APP_NAME configuration uses deprecated package name: "
+            "'airflow.executors.celery_executor'. "
+            "Change it to `airflow.providers.celery.executors.celery_executor`, and "
+            "update the `-app` flag in your Celery Health Checks "
+            "to use `airflow.providers.celery.executors.celery_executor.app`.",
+            RemovedInAirflow3Warning,
+        )
+
+    return Celery(celery_app_name, config_source=celery_configuration)
+
+
+app = _get_celery_app()
 
 
 @celery_import_modules.connect
@@ -97,20 +113,16 @@ def on_celery_import_modules(*args, **kwargs):
     import airflow.operators.python
     import airflow.operators.subdag  # noqa: F401
 
-    try:
+    with contextlib.suppress(ImportError):
         import numpy  # noqa: F401
-    except ImportError:
-        pass
 
-    try:
+    with contextlib.suppress(ImportError):
         import kubernetes.client  # noqa: F401
-    except ImportError:
-        pass
 
 
 @app.task
 def execute_command(command_to_exec: CommandType) -> None:
-    """Executes command."""
+    """Execute command."""
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)
     celery_task_id = app.current_task.request.id
     log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
@@ -155,8 +167,8 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         setproctitle(f"airflow task supervisor: {command_to_exec}")
         args.func(args)
         ret = 0
-    except Exception as e:
-        log.exception("[%s] Failed to execute task %s.", celery_task_id, str(e))
+    except Exception:
+        log.exception("[%s] Failed to execute task.", celery_task_id)
         ret = 1
     finally:
         Sentry.flush()
@@ -193,7 +205,7 @@ class ExceptionWithTraceback:
 def send_task_to_executor(
     task_tuple: TaskInstanceInCelery,
 ) -> tuple[TaskInstanceKey, CommandType, AsyncResult | ExceptionWithTraceback]:
-    """Sends task to executor."""
+    """Send task to executor."""
     key, command, queue, task_to_run = task_tuple
     try:
         with timeout(seconds=OPERATION_TIMEOUT):
@@ -244,7 +256,7 @@ class BulkStateFetcher(LoggingMixin):
         return {a.task_id for a in async_tasks}
 
     def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
-        """Gets status for many Celery tasks using the best method available."""
+        """Get status for many Celery tasks using the best method available."""
         if isinstance(app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
         elif isinstance(app.backend, DatabaseBackend):
@@ -268,7 +280,7 @@ class BulkStateFetcher(LoggingMixin):
         session = app.backend.ResultSession()
         task_cls = getattr(app.backend, "task_cls", TaskDb)
         with session_cleanup(session):
-            return session.query(task_cls).filter(task_cls.task_id.in_(task_ids)).all()
+            return session.scalars(select(task_cls).where(task_cls.task_id.in_(task_ids))).all()
 
     def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
         task_ids = self._tasks_list_to_task_ids(async_tasks)
@@ -298,7 +310,7 @@ class BulkStateFetcher(LoggingMixin):
         num_process = min(len(async_results), self._sync_parallelism)
 
         with ProcessPoolExecutor(max_workers=num_process) as sync_pool:
-            chunksize = max(1, math.floor(math.ceil(1.0 * len(async_results) / self._sync_parallelism)))
+            chunksize = max(1, math.ceil(len(async_results) / self._sync_parallelism))
 
             task_id_to_states_and_info = list(
                 sync_pool.map(fetch_celery_task_state, async_results, chunksize=chunksize)

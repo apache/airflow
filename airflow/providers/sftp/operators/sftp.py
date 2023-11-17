@@ -123,7 +123,7 @@ class SFTPOperator(BaseOperator):
                 f"!= {len(remote_filepath_array)} paths in remote_filepath"
             )
 
-        if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
+        if self.operation.lower() not in (SFTPOperation.GET, SFTPOperation.PUT):
             raise TypeError(
                 f"Unsupported operation value {self.operation}, "
                 f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}."
@@ -188,13 +188,15 @@ class SFTPOperator(BaseOperator):
                     self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
 
         except Exception as e:
-            raise AirflowException(f"Error while transferring {file_msg}, error: {str(e)}")
+            raise AirflowException(f"Error while transferring {file_msg}, error: {e}")
 
         return self.local_filepath
 
     def get_openlineage_facets_on_start(self):
         """
-        This returns OpenLineage datasets in format:
+        Returns OpenLineage datasets.
+
+        Dataset will have the following structure:
             input: file://<local_host>/path
             output: file://<remote_host>:<remote_port>/path.
         """
@@ -208,7 +210,7 @@ class SFTPOperator(BaseOperator):
             local_host = socket.gethostbyname(local_host)
         except Exception as e:
             self.log.warning(
-                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",  # noqa: E501
+                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",
                 exc_info=True,
             )
 
@@ -223,7 +225,7 @@ class SFTPOperator(BaseOperator):
             remote_host = socket.gethostbyname(remote_host)
         except OSError as e:
             self.log.warning(
-                f"Failed to resolve remote hostname. Using the provided hostname without resolution. {e}",  # noqa: E501
+                f"Failed to resolve remote hostname. Using the provided hostname without resolution. {e}",
                 exc_info=True,
             )
 

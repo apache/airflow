@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import itertools
+import json
 import os
 import warnings
 from collections import defaultdict
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
 
 import re2
@@ -45,10 +45,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Query, Session, declared_attr, joinedload, relationship, synonym, validates
+from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
@@ -61,18 +62,25 @@ from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
-from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
+from airflow.utils.types import NOTSET, DagRunType
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
+    from sqlalchemy.orm import Query, Session
+
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+    from airflow.typing_compat import Literal
+    from airflow.utils.types import ArgNotSet
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     TaskCreator = Callable[[Operator, Iterable[int]], CreatedTasks]
@@ -90,8 +98,39 @@ class TISchedulingDecision(NamedTuple):
     finished_tis: list[TI]
 
 
+class ConfDict(dict):
+    """Custom dictionary for storing only JSON serializable values."""
+
+    def __init__(self, val=None):
+        super().__init__(self.is_jsonable(val))
+
+    def __setitem__(self, key, value):
+        self.is_jsonable({key: value})
+        super().__setitem__(key, value)
+
+    @staticmethod
+    def is_jsonable(conf: dict) -> dict | None:
+        """Prevent setting non-json attributes."""
+        try:
+            json.dumps(conf)
+        except TypeError:
+            raise AirflowException("Cannot assign non JSON Serializable value")
+        if isinstance(conf, dict):
+            return conf
+        else:
+            raise AirflowException(f"Object of type {type(conf)} must be a dict")
+
+    @staticmethod
+    def dump_check(conf: str) -> str:
+        val = json.loads(conf)
+        if isinstance(val, dict):
+            return conf
+        else:
+            raise TypeError(f"Object of type {type(val)} must be a dict")
+
+
 def _creator_note(val):
-    """Custom creator for the ``note`` association proxy."""
+    """Creator the ``note`` association proxy."""
     if isinstance(val, str):
         return DagRunNote(content=val)
     elif isinstance(val, dict):
@@ -120,7 +159,7 @@ class DagRun(Base, LoggingMixin):
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
-    conf = Column(PickleType)
+    _conf = Column("conf", PickleType)
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
@@ -136,6 +175,10 @@ class DagRun(Base, LoggingMixin):
         default=select(func.max(LogTemplate.__table__.c.id)),
     )
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
+    # Keeps track of the number of times the dagrun had been cleared.
+    # This number is incremented only when the DagRun is re-Queued,
+    # when the DagRun is cleared.
+    clear_number = Column(Integer, default=0, nullable=False)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -218,7 +261,12 @@ class DagRun(Base, LoggingMixin):
         self.execution_date = execution_date
         self.start_date = start_date
         self.external_trigger = external_trigger
-        self.conf = conf or {}
+
+        if isinstance(conf, str):
+            self._conf = ConfDict.dump_check(conf)
+        else:
+            self._conf = ConfDict(conf or {})
+
         if state is not None:
             self.state = state
         if queued_at is NOTSET:
@@ -228,19 +276,13 @@ class DagRun(Base, LoggingMixin):
         self.run_type = run_type
         self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
+        self.clear_number = 0
         super().__init__()
 
     def __repr__(self):
         return (
-            "<DagRun {dag_id} @ {execution_date}: {run_id}, state:{state}, "
-            "queued_at: {queued_at}. externally triggered: {external_trigger}>"
-        ).format(
-            dag_id=self.dag_id,
-            execution_date=self.execution_date,
-            run_id=self.run_id,
-            state=self.state,
-            queued_at=self.queued_at,
-            external_trigger=self.external_trigger,
+            f"<DagRun {self.dag_id} @ {self.execution_date}: {self.run_id}, state:{self.state}, "
+            f"queued_at: {self.queued_at}. externally triggered: {self.external_trigger}>"
         )
 
     @validates("run_id")
@@ -253,6 +295,16 @@ class DagRun(Base, LoggingMixin):
                 f"The run_id provided '{run_id}' does not match the pattern '{regex}' or '{RUN_ID_REGEX}'"
             )
         return run_id
+
+    def get_conf(self):
+        return self._conf
+
+    def set_conf(self, value):
+        self._conf = ConfDict(value)
+
+    @declared_attr
+    def conf(self):
+        return synonym("_conf", descriptor=property(self.get_conf, self.set_conf))
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -281,7 +333,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION) -> None:
         """
-        Reloads the current dagrun from the database.
+        Reload the current dagrun from the database.
 
         :param session: database session
         """
@@ -310,7 +362,7 @@ class DagRun(Base, LoggingMixin):
         else:
             query = query.where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
         query = query.group_by(cls.dag_id)
-        return {dag_id: count for dag_id, count in session.execute(query)}
+        return dict(iter(session.execute(query)))
 
     @classmethod
     def next_dagruns_to_examine(
@@ -380,7 +432,7 @@ class DagRun(Base, LoggingMixin):
         execution_end_date: datetime | None = None,
     ) -> list[DagRun]:
         """
-        Returns a set of dag runs for the given search criteria.
+        Return a set of dag runs for the given search criteria.
 
         :param dag_id: the dag_id or list of dag_id to find dag runs for
         :param run_id: defines the run id for this dag run
@@ -456,19 +508,23 @@ class DagRun(Base, LoggingMixin):
         # _Ensure_ run_type is a DagRunType, not just a string from user code
         return DagRunType(run_type).generate_run_id(execution_date)
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def get_task_instances(
-        self,
+    def fetch_task_instances(
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_ids: list[str] | None = None,
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
-        """Returns the task instances for this dag run."""
+        """Return the task instances for this dag run."""
         tis = (
             select(TI)
             .options(joinedload(TI.dag_run))
             .where(
-                TI.dag_id == self.dag_id,
-                TI.run_id == self.run_id,
+                TI.dag_id == dag_id,
+                TI.run_id == run_id,
             )
         )
 
@@ -486,9 +542,26 @@ class DagRun(Base, LoggingMixin):
                 else:
                     tis = tis.where(TI.state.in_(state))
 
-        if self.dag and self.dag.partial:
-            tis = tis.where(TI.task_id.in_(self.dag.task_ids))
+        if task_ids is not None:
+            tis = tis.where(TI.task_id.in_(task_ids))
         return session.scalars(tis).all()
+
+    @provide_session
+    def get_task_instances(
+        self,
+        state: Iterable[TaskInstanceState | None] | None = None,
+        session: Session = NEW_SESSION,
+    ) -> list[TI]:
+        """
+        Returns the task instances for this dag run.
+
+        Redirect to DagRun.fetch_task_instances method.
+        Keep this method because it is widely used across the code.
+        """
+        task_ids = self.dag.task_ids if self.dag and self.dag.partial else None
+        return DagRun.fetch_task_instances(
+            dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
+        )
 
     @provide_session
     def get_task_instance(
@@ -497,20 +570,46 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         map_index: int = -1,
-    ) -> TI | None:
+    ) -> TI | TaskInstancePydantic | None:
         """
-        Returns the task instance specified by task_id for this dag run.
+        Return the task instance specified by task_id for this dag run.
 
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
+        return DagRun.fetch_task_instance(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=task_id,
+            session=session,
+            map_index=map_index,
+        )
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def fetch_task_instance(
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        session: Session = NEW_SESSION,
+        map_index: int = -1,
+    ) -> TI | TaskInstancePydantic | None:
+        """
+        Returns the task instance specified by task_id for this dag run.
+
+        :param dag_id: the DAG id
+        :param dag_run_id: the DAG run id
+        :param task_id: the task id
+        :param session: Sqlalchemy ORM Session
+        """
         return session.scalars(
-            select(TI).filter_by(dag_id=self.dag_id, run_id=self.run_id, task_id=task_id, map_index=map_index)
+            select(TI).filter_by(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
         ).one_or_none()
 
     def get_dag(self) -> DAG:
         """
-        Returns the Dag associated with this DagRun.
+        Return the Dag associated with this DagRun.
 
         :return: DAG
         """
@@ -519,30 +618,50 @@ class DagRun(Base, LoggingMixin):
 
         return self.dag
 
+    @staticmethod
+    @internal_api_call
     @provide_session
     def get_previous_dagrun(
-        self, state: DagRunState | None = None, session: Session = NEW_SESSION
+        dag_run: DagRun | DagRunPydantic, state: DagRunState | None = None, session: Session = NEW_SESSION
     ) -> DagRun | None:
-        """The previous DagRun, if there is one."""
+        """
+        Return the previous DagRun, if there is one.
+
+        :param dag_run: the dag run
+        :param session: SQLAlchemy ORM Session
+        :param state: the dag run state
+        """
         filters = [
-            DagRun.dag_id == self.dag_id,
-            DagRun.execution_date < self.execution_date,
+            DagRun.dag_id == dag_run.dag_id,
+            DagRun.execution_date < dag_run.execution_date,
         ]
         if state is not None:
             filters.append(DagRun.state == state)
-        return session.scalar(select(DagRun).where(*filters).order_by(DagRun.execution_date.desc()))
+        return session.scalar(select(DagRun).where(*filters).order_by(DagRun.execution_date.desc()).limit(1))
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
-        """The previous, SCHEDULED DagRun, if there is one."""
+    def get_previous_scheduled_dagrun(
+        dag_run_id: int,
+        session: Session = NEW_SESSION,
+    ) -> DagRun | None:
+        """
+        Return the previous SCHEDULED DagRun, if there is one.
+
+        :param dag_run_id: the DAG run ID
+        :param session: SQLAlchemy ORM Session
+        """
+        dag_run = session.get(DagRun, dag_run_id)
         return session.scalar(
             select(DagRun)
             .where(
-                DagRun.dag_id == self.dag_id,
-                DagRun.execution_date < self.execution_date,
+                DagRun.dag_id == dag_run.dag_id,
+                DagRun.execution_date < dag_run.execution_date,
                 DagRun.run_type != DagRunType.MANUAL,
             )
             .order_by(DagRun.execution_date.desc())
+            .limit(1)
         )
 
     def _tis_for_dagrun_state(self, *, dag, tis):
@@ -575,7 +694,7 @@ class DagRun(Base, LoggingMixin):
         self, session: Session = NEW_SESSION, execute_callbacks: bool = True
     ) -> tuple[list[TI], DagCallbackRequest | None]:
         """
-        Determines the overall state of the DagRun based on the state of its TaskInstances.
+        Determine the overall state of the DagRun based on the state of its TaskInstances.
 
         :param session: Sqlalchemy ORM Session
         :param execute_callbacks: Should dag callbacks (success/failure, SLA etc.) be invoked
@@ -919,11 +1038,14 @@ class DagRun(Base, LoggingMixin):
         rid of the outliers on the stats side through dashboards tooling.
 
         Note that the stat will only be emitted for scheduler-triggered DAG runs
-        (i.e. when ``external_trigger`` is *False*).
+        (i.e. when ``external_trigger`` is *False* and ``clear_number`` is
+        greater than 0).
         """
         if self.state == TaskInstanceState.RUNNING:
             return
         if self.external_trigger:
+            return
+        if self.clear_number > 0:
             return
         if not finished_tis:
             return
@@ -973,7 +1095,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
         """
-        Verifies the DagRun by checking for removed tasks or tasks that are not in the database yet.
+        Verify the DagRun by checking for removed tasks or tasks that are not in the database yet.
 
         It will set state to removed or add the task if required.
 
@@ -1238,7 +1360,7 @@ class DagRun(Base, LoggingMixin):
                 TI.run_id == self.run_id,
             )
         )
-        existing_indexes = {i for i in query}
+        existing_indexes = set(query)
 
         removed_indexes = existing_indexes.difference(range(total_length))
         if removed_indexes:
@@ -1297,7 +1419,7 @@ class DagRun(Base, LoggingMixin):
     @classmethod
     @provide_session
     def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
-        """Returns the latest DagRun for each DAG."""
+        """Return the latest DagRun for each DAG."""
         subquery = (
             select(cls.dag_id, func.max(cls.execution_date).label("execution_date"))
             .group_by(cls.dag_id)
@@ -1320,7 +1442,7 @@ class DagRun(Base, LoggingMixin):
         """
         Set the given task instances in to the scheduled state.
 
-        Each element of ``schedulable_tis`` should have it's ``task`` attribute already set.
+        Each element of ``schedulable_tis`` should have its ``task`` attribute already set.
 
         Any EmptyOperator without callbacks or outlets is instead set straight to the success state.
 
@@ -1387,7 +1509,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate:
         if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
-            template = session.scalar(select(LogTemplate).order_by(LogTemplate.id))
+            template = session.scalar(select(LogTemplate).order_by(LogTemplate.id).limit(1))
         else:
             template = session.get(LogTemplate, self.log_template_id)
         if template is None:
@@ -1412,7 +1534,11 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
+        nullable=True,
+    )
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
@@ -1427,11 +1553,6 @@ class DagRunNote(Base):
             ["dag_run.id"],
             name="dag_run_note_dr_fkey",
             ondelete="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            (user_id,),
-            ["ab_user.id"],
-            name="dag_run_note_user_fkey",
         ),
     )
 

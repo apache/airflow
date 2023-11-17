@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from os import listdir
 from pathlib import Path
 
 AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
@@ -45,16 +44,16 @@ if __name__ == "__main__":
     SCRIPTS_DOCKER_DIR = AIRFLOW_SOURCES_DIR / "scripts" / "docker"
 
     for file in [DOCKERFILE_FILE, DOCKERFILE_CI_FILE]:
-        for script in listdir(SCRIPTS_DOCKER_DIR):
-            script_content = (SCRIPTS_DOCKER_DIR / script).read_text().splitlines(keepends=True)
+        for script in SCRIPTS_DOCKER_DIR.iterdir():
+            script_content = script.read_text().splitlines(keepends=True)
             no_comments_script_content = [
                 line for line in script_content if not line.startswith("#") or line.startswith("#!")
             ]
-            no_comments_script_content.insert(0, f'COPY <<"EOF" /{script}\n')
+            no_comments_script_content.insert(0, f'COPY <<"EOF" /{script.name}\n')
             insert_content(
                 file_path=file,
                 content=no_comments_script_content,
                 header="# The content below is automatically copied from scripts/docker/",
                 footer="EOF",
-                file_name=script,
+                file_name=script.name,
             )

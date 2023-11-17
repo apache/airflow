@@ -26,8 +26,8 @@ from __future__ import annotations
 import datetime
 import os
 
-from airflow import models
 from airflow.decorators import task
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
@@ -106,14 +106,13 @@ INSERT INTO TABLE {TABLE_NAME} PARTITION ({COLUMN})
 SELECT SubmissionDate,TransactionAmount,TransactionType FROM transactions;
 """
 
-with models.DAG(
+with DAG(
     DAG_ID,
     start_date=datetime.datetime(2021, 1, 1),
     schedule="@once",
     catchup=False,
     tags=["example", "dataproc", "metastore", "partition", "hive", "sensor"],
 ) as dag:
-
     create_metastore_service = DataprocMetastoreCreateServiceOperator(
         task_id="create_metastore_service",
         region=REGION,

@@ -25,7 +25,7 @@ from datetime import datetime
 
 from google.cloud.dataform_v1beta1 import WorkflowInvocation
 
-from airflow import models
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigquery import BigQueryDeleteDatasetOperator
 from airflow.providers.google.cloud.operators.dataform import (
     DataformCancelWorkflowInvocationOperator,
@@ -55,10 +55,10 @@ DAG_ID = "example_dataform"
 REPOSITORY_ID = f"example_dataform_repository_{ENV_ID}"
 REGION = "us-central1"
 WORKSPACE_ID = f"example_dataform_workspace_{ENV_ID}"
-DEFAULT_DATASET = "dataform"
+DATAFORM_SCHEMA_NAME = f"schema_{DAG_ID}_{ENV_ID}"
 
 # This DAG is not self-run we need to do some extra configuration to execute it in automation process
-with models.DAG(
+with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
@@ -84,13 +84,6 @@ with models.DAG(
     )
     # [END howto_operator_create_workspace]
 
-    # Delete the default dataset if it exists in the bigquery
-    delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset",
-        dataset_id=DEFAULT_DATASET,
-        delete_contents=True,
-    )
-
     # [START howto_initialize_workspace]
     first_initialization_step, last_initialization_step = make_initialization_workspace_flow(
         project_id=PROJECT_ID,
@@ -99,6 +92,7 @@ with models.DAG(
         workspace_id=WORKSPACE_ID,
         package_name=f"dataform_package_{ENV_ID}",
         without_installation=True,
+        dataform_schema_name=DATAFORM_SCHEMA_NAME,
     )
     # [END howto_initialize_workspace]
 
@@ -259,9 +253,9 @@ with models.DAG(
     )
     # [END howto_operator_remove_directory]
 
-    delete_dataset_2 = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset_2",
-        dataset_id=DEFAULT_DATASET,
+    delete_dataset = BigQueryDeleteDatasetOperator(
+        task_id="delete_dataset",
+        dataset_id=DATAFORM_SCHEMA_NAME,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
@@ -289,7 +283,7 @@ with models.DAG(
 
     delete_repository.trigger_rule = TriggerRule.ALL_DONE
 
-    (make_repository >> make_workspace >> delete_dataset >> first_initialization_step)
+    (make_repository >> make_workspace >> first_initialization_step)
     (
         last_initialization_step
         >> install_npm_packages
@@ -305,7 +299,7 @@ with models.DAG(
         >> write_test_file
         >> remove_test_file
         >> remove_test_directory
-        >> delete_dataset_2
+        >> delete_dataset
         >> delete_workspace
         >> delete_repository
     )

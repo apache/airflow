@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.providers.databricks.operators.databricks_repos import (
     DatabricksReposCreateOperator,
     DatabricksReposDeleteOperator,

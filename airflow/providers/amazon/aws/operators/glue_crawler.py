@@ -20,8 +20,8 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow import AirflowException
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 
 if TYPE_CHECKING:
@@ -80,7 +80,7 @@ class GlueCrawlerOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Executes AWS Glue Crawler from Airflow.
+        Execute AWS Glue Crawler from Airflow.
 
         :return: the name of the current glue crawler.
         """

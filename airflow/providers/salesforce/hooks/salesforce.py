@@ -26,13 +26,15 @@ from __future__ import annotations
 import logging
 import time
 from functools import cached_property
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
-import pandas as pd
-from requests import Session
 from simple_salesforce import Salesforce, api
 
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    import pandas as pd
+    from requests import Session
 
 log = logging.getLogger(__name__)
 
@@ -240,6 +242,9 @@ class SalesforceHook(BaseHook):
         # between 0 and 10 are turned into timestamps
         # if the column cannot be converted,
         # just return the original column untouched
+        import numpy as np
+        import pandas as pd
+
         try:
             column = pd.to_datetime(column)
         except ValueError:
@@ -255,7 +260,7 @@ class SalesforceHook(BaseHook):
             try:
                 converted.append(value.timestamp())
             except (ValueError, AttributeError):
-                converted.append(pd.np.NaN)
+                converted.append(np.NaN)
 
         return pd.Series(converted, index=column.index)
 
@@ -355,13 +360,14 @@ class SalesforceHook(BaseHook):
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :return: the dataframe.
         """
+        import pandas as pd
+
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column
         # that's because None/np.nan cannot exist in an integer column
         # we should write all of our timestamps as FLOATS in our final schema
         df = pd.DataFrame.from_records(query_results, exclude=["attributes"])
-
-        df.columns = [column.lower() for column in df.columns]
+        df.rename(columns=str.lower, inplace=True)
 
         # convert columns with datetime strings to datetimes
         # not all strings will be datetimes, so we ignore any errors that occur

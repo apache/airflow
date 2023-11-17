@@ -105,7 +105,7 @@ There are two main ways to declare individual task dependencies. The recommended
 
 Or, you can also use the more explicit ``set_upstream`` and ``set_downstream`` methods::
 
-    first_task.set_downstream(second_task, third_task)
+    first_task.set_downstream([second_task, third_task])
     third_task.set_upstream(fourth_task)
 
 There are also shortcuts to declaring more complex dependencies. If you want to make two lists of tasks depend on all parts of each other, you can't use either of the approaches above, so you need to use ``cross_downstream``::
@@ -341,7 +341,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
     start_op = BashOperator(
         task_id="start_task",
         bash_command="echo 5",
-        xcom_push=True,
+        do_xcom_push=True,
         dag=dag,
     )
 
@@ -370,6 +370,8 @@ As with the callable for ``@task.branch``, this method can return the ID of a do
                 return 'daily_task_id'
             else:
                 return None
+
+Similar like ``@task.branch`` decorator for regular Python code there are also branch decorators which use a virtual environment called ``@task.branch_virtualenv`` or external python called ``@task.branch_external_python``.
 
 
 .. _concepts:latest-only:
@@ -503,7 +505,6 @@ For example, here is a DAG that uses a ``for`` loop to define some tasks:
    :emphasize-lines: 7
 
     with DAG("loop_example", ...):
-
         first = EmptyOperator(task_id="first")
         last = EmptyOperator(task_id="last")
 
@@ -677,6 +678,11 @@ This is especially useful if your tasks are built dynamically from configuration
 SubDAGs
 -------
 
+.. note::
+
+    SubDAG is deprecated hence TaskGroup is always the preferred choice.
+
+
 Sometimes, you will find that you are regularly adding exactly the same set of tasks to every DAG, or you want to group a lot of tasks into a single, logical unit. This is what SubDAGs are for.
 
 For example, here's a DAG that has a lot of parallel tasks in two sections:
@@ -753,10 +759,6 @@ You can see the core differences between these two constructs.
 +--------------------------------------------------------+--------------------------------------------------------+
 | Simple construct declaration with context manager      |  Complex DAG factory with naming restrictions          |
 +--------------------------------------------------------+--------------------------------------------------------+
-
-.. note::
-
-    SubDAG is deprecated hence TaskGroup is always the preferred choice.
 
 
 

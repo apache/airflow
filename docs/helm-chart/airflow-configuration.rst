@@ -39,12 +39,3 @@ configuration prior to installing and deploying the service.
   The recommended way to load example DAGs using the official Docker image and chart is to configure the ``AIRFLOW__CORE__LOAD_EXAMPLES`` environment variable
   in ``extraEnv`` (see :doc:`Parameters reference <parameters-ref>`). The official Docker image has ``AIRFLOW__CORE__LOAD_EXAMPLES=False``
   set within the image, so you need to override it with an environment variable when deploying the chart in order for the examples to be present.
-
-.. note::
-
-  The  ``AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS`` variable is not used by the Chart. Airflow Helm Chart is
-  intended to be used as production deployment and loading default connections is not supposed to be handled
-  during Chart installation. The Chart is intended to install and configure the Apache Airflow software
-  and create database structure, but not to fill-in the data which should be managed by the users.
-  The default connections are only meaningful when you want to have a ``quick start`` with Airflow or
-  do some development and adding the data via Helm Chart installation is not a good idea.

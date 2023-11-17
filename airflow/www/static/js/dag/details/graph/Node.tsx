@@ -28,10 +28,7 @@ import { getGroupAndMapSummary, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
 import InstanceTooltip from "src/dag/InstanceTooltip";
 import { useContainerRef } from "src/context/containerRef";
-import {
-  MdOutlineArrowCircleUp,
-  MdOutlineArrowCircleDown,
-} from "react-icons/md";
+import { ImArrowUpRight2, ImArrowDownRight2 } from "react-icons/im";
 
 export interface CustomNodeProps {
   label: string;
@@ -47,7 +44,8 @@ export interface CustomNodeProps {
   isOpen?: boolean;
   isActive?: boolean;
   setupTeardownType?: "setup" | "teardown";
-  fullParentNode?: string;
+  labelStyle?: string;
+  style?: string;
 }
 
 export const BaseNode = ({
@@ -65,6 +63,8 @@ export const BaseNode = ({
     isOpen,
     isActive,
     setupTeardownType,
+    labelStyle,
+    style,
   },
 }: NodeProps<CustomNodeProps>) => {
   const { colors } = useTheme();
@@ -73,6 +73,7 @@ export const BaseNode = ({
 
   if (!task) return null;
 
+  const bg = isOpen ? "blackAlpha.50" : "white";
   const { isMapped } = task;
   const mappedStates = instance?.mappedStates;
 
@@ -82,7 +83,20 @@ export const BaseNode = ({
     ? `${label} [${instance ? totalTasks : " "}]`
     : label;
 
-  const bg = isOpen ? "blackAlpha.50" : "white";
+  let operatorTextColor = "";
+  let operatorBG = "";
+  if (style) {
+    [, operatorBG] = style.split(":");
+  }
+
+  if (labelStyle) {
+    [, operatorTextColor] = labelStyle.split(":");
+  }
+
+  const nodeBorderColor =
+    instance?.state && stateColors[instance.state]
+      ? `${stateColors[instance.state]}.400`
+      : "gray.400";
 
   return (
     <Tooltip
@@ -98,8 +112,8 @@ export const BaseNode = ({
     >
       <Box
         borderRadius={5}
-        borderWidth={1}
-        borderColor={isSelected ? "blue.400" : "gray.400"}
+        borderWidth={isSelected ? 2.5 : 1.5}
+        borderColor={nodeBorderColor}
         bg={isSelected ? "blue.50" : bg}
         height={`${height}px`}
         width={`${width}px`}
@@ -132,22 +146,30 @@ export const BaseNode = ({
                 {taskName}
               </Text>
               {setupTeardownType === "setup" && (
-                <MdOutlineArrowCircleUp size={18} color={colors.gray[800]} />
+                <ImArrowUpRight2 size={15} color={colors.gray[800]} />
               )}
               {setupTeardownType === "teardown" && (
-                <MdOutlineArrowCircleDown size={18} color={colors.gray[800]} />
+                <ImArrowDownRight2 size={15} color={colors.gray[800]} />
               )}
             </Flex>
             {!!instance && instance.state && (
               <Flex alignItems="center">
                 <SimpleStatus state={instance.state} />
-                <Text ml={2} color="gray.500" fontSize="sm">
+                <Text ml={2} color="gray.500" fontSize="lg">
                   {instance.state}
                 </Text>
               </Flex>
             )}
             {task?.operator && (
-              <Text color="gray.500" fontWeight={400} fontSize="md">
+              <Text
+                fontWeight={400}
+                fontSize="md"
+                width="fit-content"
+                borderRadius={5}
+                bg={operatorBG}
+                color={operatorTextColor || "gray.500"}
+                px={1}
+              >
                 {task.operator}
               </Text>
             )}

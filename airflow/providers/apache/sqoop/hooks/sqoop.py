@@ -46,6 +46,9 @@ class SqoopHook(BaseHook):
     :param num_mappers: Number of map tasks to import in parallel.
     :param properties: Properties to set via the -D argument
     :param libjars: Optional Comma separated jar files to include in the classpath.
+    :param extra_options:  Extra import/export options to pass as dict.
+        If a key doesn't have a value, just pass an empty string to it.
+        Don't include prefix of -- for sqoop options.
     """
 
     conn_name_attr = "conn_id"
@@ -62,6 +65,7 @@ class SqoopHook(BaseHook):
         hcatalog_table: str | None = None,
         properties: dict[str, Any] | None = None,
         libjars: str | None = None,
+        extra_options: dict[str, Any] | None = None,
     ) -> None:
         # No mutable types in the default parameters
         super().__init__()
@@ -79,6 +83,7 @@ class SqoopHook(BaseHook):
         self.num_mappers = num_mappers
         self.properties = properties or {}
         self.sub_process_pid: int
+        self._extra_options = extra_options
         self.log.info("Using connection to: %s:%s/%s", self.conn.host, self.conn.port, self.conn.schema)
 
     def get_conn(self) -> Any:
@@ -113,9 +118,6 @@ class SqoopHook(BaseHook):
                 raise AirflowException(f"Sqoop command failed: {masked_cmd}")
 
     def _prepare_command(self, export: bool = False) -> list[str]:
-        if "?" in self.conn.host:
-            raise ValueError("The sqoop connection host should not contain a '?' character")
-
         sqoop_cmd_type = "export" if export else "import"
         connection_cmd = ["sqoop", sqoop_cmd_type]
 
@@ -156,6 +158,8 @@ class SqoopHook(BaseHook):
                 connect_str += f"/{self.conn.schema}"
             else:
                 connect_str += f";databaseName={self.conn.schema}"
+        if "?" in connect_str:
+            raise ValueError("The sqoop connection string should not contain a '?' character")
         connection_cmd += ["--connect", connect_str]
 
         return connection_cmd
@@ -181,9 +185,7 @@ class SqoopHook(BaseHook):
         split_by: str | None,
         direct: bool | None,
         driver: Any,
-        extra_import_options: Any,
     ) -> list[str]:
-
         cmd = self._prepare_command(export=False)
 
         if target_dir:
@@ -203,8 +205,8 @@ class SqoopHook(BaseHook):
         if driver:
             cmd += ["--driver", driver]
 
-        if extra_import_options:
-            for key, value in extra_import_options.items():
+        if self._extra_options:
+            for key, value in self._extra_options.items():
                 cmd += [f"--{key}"]
                 if value:
                     cmd += [str(value)]
@@ -222,7 +224,6 @@ class SqoopHook(BaseHook):
         where: str | None = None,
         direct: bool = False,
         driver: Any = None,
-        extra_import_options: dict[str, Any] | None = None,
         schema: str | None = None,
     ) -> Any:
         """Import table from remote location to target dir.
@@ -240,11 +241,8 @@ class SqoopHook(BaseHook):
         :param where: WHERE clause to use during import
         :param direct: Use direct connector if exists for the database
         :param driver: Manually specify JDBC driver class to use
-        :param extra_import_options: Extra import options to pass as dict.
-            If a key doesn't have a value, just pass an empty string to it.
-            Don't include prefix of -- for sqoop options.
         """
-        cmd = self._import_cmd(target_dir, append, file_type, split_by, direct, driver, extra_import_options)
+        cmd = self._import_cmd(target_dir, append, file_type, split_by, direct, driver)
 
         cmd += ["--table", table]
 
@@ -266,7 +264,6 @@ class SqoopHook(BaseHook):
         split_by: str | None = None,
         direct: bool | None = None,
         driver: Any | None = None,
-        extra_import_options: dict[str, Any] | None = None,
     ) -> Any:
         """Import a specific query from the rdbms to hdfs.
 
@@ -278,11 +275,8 @@ class SqoopHook(BaseHook):
         :param split_by: Column of the table used to split work units
         :param direct: Use direct import fast path
         :param driver: Manually specify JDBC driver class to use
-        :param extra_import_options: Extra import options to pass as dict.
-            If a key doesn't have a value, just pass an empty string to it.
-            Don't include prefix of -- for sqoop options.
         """
-        cmd = self._import_cmd(target_dir, append, file_type, split_by, direct, driver, extra_import_options)
+        cmd = self._import_cmd(target_dir, append, file_type, split_by, direct, driver)
         cmd += ["--query", query]
 
         self.popen(cmd)
@@ -302,10 +296,8 @@ class SqoopHook(BaseHook):
         input_optionally_enclosed_by: str | None = None,
         batch: bool = False,
         relaxed_isolation: bool = False,
-        extra_export_options: dict[str, Any] | None = None,
         schema: str | None = None,
     ) -> list[str]:
-
         cmd = self._prepare_command(export=True)
 
         if input_null_string:
@@ -344,8 +336,8 @@ class SqoopHook(BaseHook):
         if export_dir:
             cmd += ["--export-dir", export_dir]
 
-        if extra_export_options:
-            for key, value in extra_export_options.items():
+        if self._extra_options:
+            for key, value in self._extra_options.items():
                 cmd += [f"--{key}"]
                 if value:
                     cmd += [str(value)]
@@ -373,7 +365,6 @@ class SqoopHook(BaseHook):
         input_optionally_enclosed_by: str | None = None,
         batch: bool = False,
         relaxed_isolation: bool = False,
-        extra_export_options: dict[str, Any] | None = None,
         schema: str | None = None,
     ) -> None:
         """Export Hive table to remote location.
@@ -399,9 +390,6 @@ class SqoopHook(BaseHook):
         :param batch: Use batch mode for underlying statement execution
         :param relaxed_isolation: Transaction isolation to read uncommitted
             for the mappers
-        :param extra_export_options: Extra export options to pass as dict.
-            If a key doesn't have a value, just pass an empty string to it.
-            Don't include prefix of -- for sqoop options.
         """
         cmd = self._export_cmd(
             table,
@@ -417,7 +405,6 @@ class SqoopHook(BaseHook):
             input_optionally_enclosed_by,
             batch,
             relaxed_isolation,
-            extra_export_options,
             schema,
         )
 

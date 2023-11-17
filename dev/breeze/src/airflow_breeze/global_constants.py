@@ -26,10 +26,14 @@ from functools import lru_cache
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
-RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
-RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
+RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
+# we should get more sophisticated logic here in the future, but for now we just check if
+# we use self airflow, vm-based, amd hosted runner as a default
+# TODO: when we have it properly set-up with labels we should change it to
+# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
+RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
 SELF_HOSTED_RUNNERS_CPU_COUNT = 8
 
 ANSWER = ""
@@ -40,11 +44,14 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
+# Database Backends used when starting Breeze. The "none" value means that invalid configuration
+# Is set and no database started - access to a database will fail.
+ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
-OTHER_INTEGRATIONS = ["statsd"]
+OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -55,8 +62,6 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
     [
         "all-testable",
         "all",
-        "otel",
-        "statsd",
         *ALL_INTEGRATIONS,
     ]
 )
@@ -66,7 +71,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.24.15", "v1.25.11", "v1.26.6", "v1.27.3"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.25.11", "v1.26.6", "v1.27.3", "v1.28.0"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["CeleryExecutor", "LocalExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS = START_AIRFLOW_ALLOWED_EXECUTORS[1]
@@ -83,11 +88,31 @@ MOUNT_SKIP = "skip"
 MOUNT_REMOVE = "remove"
 
 ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
-ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
-ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
+ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
+# Oracle introduced new release model for MySQL
+# - LTS: Long Time Support releases, new release approx every 2 year,
+#  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
+#  the first LTS release should be in summer/fall 2024.
+# - Innovations: Shot living releases with short support cycle - only until next Innovation/LTS release.
+# See: https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions/
+MYSQL_LTS_RELEASES: list[str] = []
+MYSQL_OLD_RELEASES = ["8.0"]
+MYSQL_INNOVATION_RELEASE = "8.2"
+ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
+if MYSQL_INNOVATION_RELEASE:
+    ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
+
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.2.1"
+PIP_VERSION = "23.3.1"
+
+# packages that  providers docs
+REGULAR_DOC_PACKAGES = [
+    "apache-airflow",
+    "docker-stack",
+    "helm-chart",
+    "apache-airflow-providers",
+]
 
 
 @lru_cache(maxsize=None)
@@ -98,20 +123,31 @@ def all_selective_test_types() -> tuple[str, ...]:
 class SelectiveUnitTestTypes(Enum):
     ALWAYS = "Always"
     API = "API"
+    BRANCH_PYTHON_VENV = "BranchPythonVenv"
+    EXTERNAL_PYTHON = "ExternalPython"
+    EXTERNAL_BRANCH_PYTHON = "BranchExternalPython"
     CLI = "CLI"
     CORE = "Core"
+    SERIALIZATION = "Serialization"
     OTHER = "Other"
+    OPERATORS = "Operators"
+    PLAIN_ASSERTS = "PlainAsserts"
     PROVIDERS = "Providers"
+    PYTHON_VENV = "PythonVenv"
     WWW = "WWW"
 
 
 ALLOWED_TEST_TYPE_CHOICES = [
     "All",
+    "Default",
     *all_selective_test_types(),
-    "PlainAsserts",
-    "Postgres",
-    "MySQL",
-    "Quarantine",
+    "All-Postgres",
+    "All-MySQL",
+    "All-Quarantined",
+]
+
+ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
+    *all_selective_test_types(),
 ]
 
 
@@ -135,6 +171,7 @@ ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
 ALLOWED_INSTALLATION_PACKAGE_FORMATS = ["wheel", "sdist"]
 ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
+ALLOWED_BUILD_PROGRESS = ["auto", "plain", "tty"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
 SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
@@ -143,22 +180,6 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
 
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
-
-
-def get_available_documentation_packages(short_version=False) -> list[str]:
-    provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
-    doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
-    available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
-    available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
-    available_packages.sort()
-    if short_version:
-        prefix_len = len("apache-airflow-providers-")
-        available_packages = [
-            package[prefix_len:].replace("-", ".")
-            for package in available_packages
-            if len(package) > prefix_len
-        ]
-    return available_packages
 
 
 def get_default_platform_machine() -> str:
@@ -186,12 +207,55 @@ PYTHONDONTWRITEBYTECODE = True
 PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
+CURRENT_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
-CURRENT_MYSQL_VERSIONS = ["5.7", "8"]
+USE_MYSQL_INNOVATION_RELEASE = True
+if USE_MYSQL_INNOVATION_RELEASE:
+    CURRENT_MYSQL_VERSIONS = ALLOWED_MYSQL_VERSIONS.copy()
+else:
+    CURRENT_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
 CURRENT_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
+
+
+AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
+    "2.0.0": ["3.6", "3.7", "3.8"],
+    "2.0.1": ["3.6", "3.7", "3.8"],
+    "2.0.2": ["3.6", "3.7", "3.8"],
+    "2.1.0": ["3.6", "3.7", "3.8"],
+    "2.1.1": ["3.6", "3.7", "3.8"],
+    "2.1.2": ["3.6", "3.7", "3.8", "3.9"],
+    "2.1.3": ["3.6", "3.7", "3.8", "3.9"],
+    "2.1.4": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.0": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.1": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.2": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.3": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.4": ["3.6", "3.7", "3.8", "3.9"],
+    "2.2.5": ["3.6", "3.7", "3.8", "3.9"],
+    "2.3.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.3.4": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.4.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.2": ["3.7", "3.8", "3.9", "3.10"],
+    "2.5.3": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.0": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.1": ["3.7", "3.8", "3.9", "3.10"],
+    "2.6.2": ["3.7", "3.8", "3.9", "3.10", "3.11"],
+    "2.6.3": ["3.7", "3.8", "3.9", "3.10", "3.11"],
+    "2.7.0": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.1": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.2": ["3.8", "3.9", "3.10", "3.11"],
+    "2.7.3": ["3.8", "3.9", "3.10", "3.11"],
+}
 
 DB_RESET = False
 START_AIRFLOW = "false"
@@ -204,7 +268,6 @@ BREEZE_INIT_COMMAND = ""
 DRY_RUN_DOCKER = False
 INSTALL_AIRFLOW_VERSION = ""
 
-
 COMMITTERS = [
     "BasPH",
     "Fokko",
@@ -213,6 +276,7 @@ COMMITTERS = [
     "XD-DENG",
     "aijamalnk",
     "alexvanboxel",
+    "amoghrajesh",
     "aoen",
     "artwr",
     "ashb",
@@ -234,6 +298,7 @@ COMMITTERS = [
     "jhtimmins",
     "jmcarp",
     "josh-fell",
+    "jscheffl",
     "kaxil",
     "leahecole",
     "malthe",
@@ -244,6 +309,7 @@ COMMITTERS = [
     "msumit",
     "o-nikolas",
     "pankajastro",
+    "pankajkoti",
     "phanikumv",
     "pierrejeambrun",
     "pingzh",
@@ -264,11 +330,16 @@ COMMITTERS = [
 
 
 def get_airflow_version():
-    airflow_setup_file = AIRFLOW_SOURCES_ROOT / "setup.py"
-    with open(airflow_setup_file) as setup_file:
-        for line in setup_file.readlines():
-            if "version =" in line:
-                return line.split()[2][1:-1]
+    airflow_init_py_file = AIRFLOW_SOURCES_ROOT / "airflow" / "__init__.py"
+    airflow_version = "unknown"
+    with open(airflow_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                airflow_version = line.split()[2][1:-1]
+                break
+    if airflow_version == "unknown":
+        raise Exception("Unable to determine Airflow version")
+    return airflow_version
 
 
 def get_airflow_extras():
@@ -290,7 +361,8 @@ AVAILABLE_INTEGRATIONS = [
     "statsd",
     "trino",
 ]
-ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
+ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT, "airflow", "providers").rglob("provider.yaml")
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider_info.schema.json"
 
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)
@@ -301,13 +373,13 @@ FILES_FOR_REBUILD_CHECK = [
     "setup.cfg",
     "Dockerfile.ci",
     ".dockerignore",
+    "generated/provider_dependencies.json",
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
     "scripts/docker/install_airflow.sh",
     "scripts/docker/install_airflow_dependencies_from_branch_tip.sh",
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
-    *ALL_PROVIDER_YAML_FILES,
 ]
 
 ENABLED_SYSTEMS = ""
@@ -328,8 +400,8 @@ GITHUB_ACTIONS = ""
 ISSUE_ID = ""
 NUM_RUNS = ""
 
-MIN_DOCKER_VERSION = "20.10.0"
-MIN_DOCKER_COMPOSE_VERSION = "1.29.0"
+MIN_DOCKER_VERSION = "23.0.0"
+MIN_DOCKER_COMPOSE_VERSION = "2.14.0"
 
 AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"
@@ -354,6 +426,7 @@ DEFAULT_EXTRAS = [
     "microsoft.azure",
     "mysql",
     "odbc",
+    "openlineage",
     "pandas",
     "postgres",
     "redis",

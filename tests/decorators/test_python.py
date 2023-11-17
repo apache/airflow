@@ -26,8 +26,8 @@ from airflow import PY38, PY311
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
-from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.expandinput import DictOfListsExpandInput
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
@@ -36,10 +36,17 @@ from airflow.models.xcom_arg import PlainXComArg, XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
+
+pytestmark = pytest.mark.db_test
+
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -462,7 +469,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti_add_num = [ti for ti in dr.get_task_instances() if ti.task_id == "add_num"][0]
+        ti_add_num = next(ti for ti in dr.get_task_instances() if ti.task_id == "add_num")
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2
 
     def test_dag_task(self):
@@ -744,36 +751,37 @@ def test_mapped_render_template_fields(dag_maker, session):
     def fn(arg1, arg2):
         ...
 
-    with dag_maker(session=session):
-        task1 = BaseOperator(task_id="op1")
-        mapped = fn.partial(arg2="{{ ti.task_id }}").expand(arg1=task1.output)
+    with set_current_task_instance_session(session=session):
+        with dag_maker(session=session):
+            task1 = BaseOperator(task_id="op1")
+            mapped = fn.partial(arg2="{{ ti.task_id }}").expand(arg1=task1.output)
 
-    dr = dag_maker.create_dagrun()
-    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+        dr = dag_maker.create_dagrun()
+        ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
 
-    ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
+        ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
 
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=1,
-            keys=None,
+        session.add(
+            TaskMap(
+                dag_id=dr.dag_id,
+                task_id=task1.task_id,
+                run_id=dr.run_id,
+                map_index=-1,
+                length=1,
+                keys=None,
+            )
         )
-    )
-    session.flush()
+        session.flush()
 
-    mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
-    mapped_ti.map_index = 0
+        mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
+        mapped_ti.map_index = 0
 
-    assert isinstance(mapped_ti.task, MappedOperator)
-    mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert isinstance(mapped_ti.task, BaseOperator)
+        assert isinstance(mapped_ti.task, MappedOperator)
+        mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
+        assert isinstance(mapped_ti.task, BaseOperator)
 
-    assert mapped_ti.task.op_kwargs["arg1"] == "{{ ds }}"
-    assert mapped_ti.task.op_kwargs["arg2"] == "fn"
+        assert mapped_ti.task.op_kwargs["arg1"] == "{{ ds }}"
+        assert mapped_ti.task.op_kwargs["arg2"] == "fn"
 
 
 def test_task_decorator_has_wrapped_attr():
@@ -795,7 +803,6 @@ def test_task_decorator_has_wrapped_attr():
 
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
     from airflow.exceptions import AirflowSkipException
-    from airflow.models.dagrun import DagRun
     from airflow.utils.trigger_rule import TriggerRule
 
     result = None
@@ -889,8 +896,7 @@ def test_no_warnings(reset_logging_config, caplog):
 
 
 def test_task_decorator_dataset(dag_maker, session):
-    from airflow import Dataset
-    from airflow.models.dagrun import DagRun
+    from airflow.datasets import Dataset
 
     result = None
     uri = "s3://test"

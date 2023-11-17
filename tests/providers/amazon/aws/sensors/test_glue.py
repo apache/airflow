@@ -21,16 +21,12 @@ from unittest.mock import ANY
 
 import pytest
 
-from airflow import AirflowException
-from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.sensors.glue import GlueJobSensor
 
 
 class TestGlueJobSensor:
-    def setup_method(self):
-        conf.load_test_config()
-
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_conn")
     @mock.patch.object(GlueJobHook, "get_job_state")
@@ -139,3 +135,26 @@ class TestGlueJobSensor:
                 filter_pattern="?ERROR ?Exception",
                 next_token=ANY,
             )
+
+    @pytest.mark.parametrize(
+        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.glue.GlueJobHook.get_job_state")
+    def test_fail_poke(self, get_job_state, soft_fail, expected_exception):
+        job_name = "job_name"
+        job_run_id = "job_run_id"
+        op = GlueJobSensor(
+            task_id="test_glue_job_sensor",
+            job_name=job_name,
+            run_id=job_run_id,
+            poke_interval=1,
+            timeout=5,
+            verbose=True,
+        )
+        op.verbose = False
+        op.soft_fail = soft_fail
+        job_state = "FAILED"
+        get_job_state.return_value = job_state
+        job_error_message = "Exiting Job"
+        with pytest.raises(expected_exception, match=job_error_message):
+            op.poke(context={})

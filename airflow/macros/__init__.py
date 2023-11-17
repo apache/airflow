@@ -22,13 +22,15 @@ import time  # noqa
 import uuid  # noqa
 from datetime import datetime, timedelta
 from random import random  # noqa
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import dateutil  # noqa
-from pendulum import DateTime
 
 import airflow.utils.yaml as yaml  # noqa
 from airflow.utils.deprecation_tools import add_deprecated_classes
+
+if TYPE_CHECKING:
+    from pendulum import DateTime
 
 __deprecated_classes = {
     "hive": {

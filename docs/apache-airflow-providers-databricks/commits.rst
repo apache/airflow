@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -16,6 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-databricks
 ------------------------------------------------------
@@ -28,14 +28,107 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.0
+.....
+
+Latest change: 2023-11-03
+
+=================================================================================================  ===========  =========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================================
+`10bac853d2 <https://github.com/apache/airflow/commit/10bac853d2fb183e673faef6efaeb95a47c80a40>`_  2023-11-03   ``Remove offset-based pagination from 'list_jobs' function in 'DatabricksHook' (#34926)``
+=================================================================================================  ===========  =========================================================================================
+
+4.7.0
+.....
+
+Latest change: 2023-10-28
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
+`3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
+`a8784e3c35 <https://github.com/apache/airflow/commit/a8784e3c352aafec697d3778eafcbbd455b7ba1d>`_  2023-10-28   ``Add operator to create jobs in Databricks (#35156)``
+`dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
+`7a93b19138 <https://github.com/apache/airflow/commit/7a93b1913845710eb67ab4670c1be9e9382c030b>`_  2023-10-16   ``D401 Support - Providers: DaskExecutor to Github (Inclusive) (#34935)``
+=================================================================================================  ===========  =========================================================================
+
+4.6.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`946b539f0d <https://github.com/apache/airflow/commit/946b539f0dbdc13272a44bdb6f756282f1d373e1>`_  2023-10-12   ``Add 'DatabricksHook' ClusterState (#34643)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`a1ef232230 <https://github.com/apache/airflow/commit/a1ef2322304ea6ff9bc9744668c011ad13fad056>`_  2023-09-25   ``Use aiohttp.BasicAuth instead of HTTPBasicAuth for aiohttp session in databricks hook (#34590)``
+`f26fa6d602 <https://github.com/apache/airflow/commit/f26fa6d6022c56a4c2c8bbc9006ccd2ce4f9aec9>`_  2023-09-22   ``Respect 'soft_fail' parameter in 'DatabricksSqlSensor' (#34544)``
+`3813ed69c7 <https://github.com/apache/airflow/commit/3813ed69c7774b359596972864bca53302ee6eda>`_  2023-09-22   ``Respect 'soft_fail' argument when running DatabricksPartitionSensor (#34517)``
+`966c2bce9f <https://github.com/apache/airflow/commit/966c2bce9f6e8d7d1ba9d0519332a7d74a8b17d1>`_  2023-09-21   ``Decode response in f-string (#34518)``
+`dfec053371 <https://github.com/apache/airflow/commit/dfec053371bdf40ada98d4fce05f90f2e8965039>`_  2023-09-12   ``Update 'list_jobs' function in 'DatabricksHook' to token-based pagination  (#33472)``
+=================================================================================================  ===========  ==================================================================================================
+
+4.5.0
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`c45617c4d5 <https://github.com/apache/airflow/commit/c45617c4d5988555f2f52684e082b96b65ca6c17>`_  2023-09-07   ``allow DatabricksSubmitRunOperator to accept a pipeline name for a pipeline_task (#32903)``
+`55976af32e <https://github.com/apache/airflow/commit/55976af32ea7d09831e2bcd21c0f3814d9b0eb3f>`_  2023-08-31   ``Replace sequence concatination by unpacking in Airflow providers (#33933)``
+`f7a005db8c <https://github.com/apache/airflow/commit/f7a005db8c5b47fe86196374e3e857b40e9ea5ac>`_  2023-08-30   ``Add "QUEUED" to RUN_LIFE_CYCLE_STATES following deployement of … (#33886)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+`b11525702c <https://github.com/apache/airflow/commit/b11525702c72cb53034aa29ccd6d0e1161ac475c>`_  2023-08-26   ``Use literal dict instead of calling dict() in providers (#33761)``
+`c90eec9365 <https://github.com/apache/airflow/commit/c90eec936583d482a35f0dc8bfc13afc58a9c322>`_  2023-08-26   ``Use f-string instead of  in Airflow providers (#33752)``
+=================================================================================================  ===========  ===================================================================================================
+
+4.4.0
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`dc47c460dc <https://github.com/apache/airflow/commit/dc47c460dc0edfbfe0e692eac1d07b42280e0810>`_  2023-08-24   ``Update docs in databricks.py - we use 2.1 now (#32340)``
+`4154cc04ce <https://github.com/apache/airflow/commit/4154cc04ce9702b09e6f13d423686fdf4cb7b877>`_  2023-08-24   ``Do not create lists we don't need (#33519)``
+`2dbb963324 <https://github.com/apache/airflow/commit/2dbb9633240777d658031d32217255849150684b>`_  2023-08-24   ``Refactor: Improve detection of duplicates and list sorting (#33675)``
+`1cdd82391e <https://github.com/apache/airflow/commit/1cdd82391e0f7a24ab7f0badbe8f44a54f51d757>`_  2023-08-21   ``Simplify conditions on len() in other providers (#33569)``
+`a91ee7ac2f <https://github.com/apache/airflow/commit/a91ee7ac2fe29f460a4e4b0d8c1346f40672be43>`_  2023-08-20   ``Refactor: Simplify code in smaller providers (#33234)``
+`8bf53dd554 <https://github.com/apache/airflow/commit/8bf53dd5545ecda0e5bbffbc4cc803cbbde719a9>`_  2023-08-14   ``Add Service Principal OAuth for Databricks. (#33005)``
+`5f8f25b34c <https://github.com/apache/airflow/commit/5f8f25b34c9e8c0d4845b014fc8f1b00cc2e766f>`_  2023-08-11   ``Ecldude databrick connector 2.9.0 due to a bug (#33311)``
+=================================================================================================  ===========  =======================================================================
+
+4.3.3
+.....
+
+Latest change: 2023-08-11
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`9736143468 <https://github.com/apache/airflow/commit/9736143468cfe034e65afb3df3031ab3626f0f6d>`_  2023-08-07   ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+=================================================================================================  ===========  ==========================================================================
+
 4.3.2
 .....
 
-Latest change: 2023-07-25
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ==========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `58e21c66fd <https://github.com/apache/airflow/commit/58e21c66fdcc8a416a697b4efa852473ad8bd6fc>`_  2023-07-25   ``fix(providers/databricks): remove the execute method from to-be-deprecated DatabricksRunNowDeferrableOperator (#32806)``
 `6313e52932 <https://github.com/apache/airflow/commit/6313e5293280773aed7598e1befb8d371e8f5614>`_  2023-07-24   ``Add missing execute_complete method for 'DatabricksRunNowOperator' (#32689)``
 `60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``

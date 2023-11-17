@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta
 
-from airflow import DAG
+from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
@@ -37,16 +37,16 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
-DAG_ID = "bigquery_queries_async"
+DAG_ID = "example_bigquery_queries_async"
 
-DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
+DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
 LOCATION = "us"
 
-TABLE_1 = "table1"
-TABLE_2 = "table2"
+TABLE_NAME_1 = f"table_{DAG_ID}_{ENV_ID}_1".replace("-", "_")
+TABLE_NAME_2 = f"table_{DAG_ID}_{ENV_ID}_2".replace("-", "_")
 
 SCHEMA = [
     {"name": "value", "type": "INTEGER", "mode": "REQUIRED"},
@@ -54,10 +54,9 @@ SCHEMA = [
     {"name": "ds", "type": "STRING", "mode": "NULLABLE"},
 ]
 
-DATASET = DATASET_NAME
 INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
 INSERT_ROWS_QUERY = (
-    f"INSERT {DATASET}.{TABLE_1} VALUES "
+    f"INSERT {DATASET_NAME}.{TABLE_NAME_1} VALUES "
     f"(42, 'monthy python', '{INSERT_DATE}'), "
     f"(42, 'fishy fish', '{INSERT_DATE}');"
 )
@@ -72,7 +71,8 @@ CONFIGURATION = {
         DECLARE WAIT STRING;
         SET success = FALSE;
 
-        SELECT row_count = (SELECT row_count FROM {DATASET}.__TABLES__ WHERE table_id='NON_EXISTING_TABLE');
+        SELECT row_count = (SELECT row_count FROM {DATASET_NAME}.__TABLES__
+        WHERE table_id='NON_EXISTING_TABLE');
         IF row_count > 0  THEN
             SELECT 'Table Exists!' as message, retry_count as retries;
             SET success = TRUE;
@@ -103,26 +103,26 @@ with DAG(
     start_date=datetime(2022, 1, 1),
     catchup=False,
     default_args=default_args,
-    tags=["example", "async", "bigquery"],
-    user_defined_macros={"DATASET": DATASET, "TABLE": TABLE_1},
+    tags=["example", "bigquery", "deferrable"],
+    user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME_1},
 ) as dag:
     create_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset",
-        dataset_id=DATASET,
+        dataset_id=DATASET_NAME,
         location=LOCATION,
     )
 
     create_table_1 = BigQueryCreateEmptyTableOperator(
         task_id="create_table_1",
-        dataset_id=DATASET,
-        table_id=TABLE_1,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME_1,
         schema_fields=SCHEMA,
         location=LOCATION,
     )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",
-        dataset_id=DATASET,
+        dataset_id=DATASET_NAME,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
@@ -159,7 +159,7 @@ with DAG(
     # [START howto_operator_bigquery_value_check_async]
     check_value = BigQueryValueCheckOperator(
         task_id="check_value",
-        sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
+        sql=f"SELECT COUNT(*) FROM {DATASET_NAME}.{TABLE_NAME_1}",
         pass_value=2,
         use_legacy_sql=False,
         location=LOCATION,
@@ -170,7 +170,7 @@ with DAG(
     # [START howto_operator_bigquery_interval_check_async]
     check_interval = BigQueryIntervalCheckOperator(
         task_id="check_interval",
-        table=f"{DATASET}.{TABLE_1}",
+        table=f"{DATASET_NAME}.{TABLE_NAME_1}",
         days_back=1,
         metrics_thresholds={"COUNT(*)": 1.5},
         use_legacy_sql=False,
@@ -185,8 +185,8 @@ with DAG(
         configuration={
             "query": {
                 "query": [
-                    f"SELECT * FROM {DATASET}.{TABLE_2}",
-                    f"SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
+                    f"SELECT * FROM {DATASET_NAME}.{TABLE_NAME_2}",
+                    f"SELECT COUNT(*) FROM {DATASET_NAME}.{TABLE_NAME_2}",
                 ],
                 "useLegacySql": False,
             }
@@ -199,10 +199,11 @@ with DAG(
     # [START howto_operator_bigquery_get_data_async]
     get_data = BigQueryGetDataOperator(
         task_id="get_data",
-        dataset_id=DATASET,
-        table_id=TABLE_1,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME_1,
+        use_legacy_sql=False,
         max_results=10,
-        selected_fields="value,name",
+        selected_fields="value",
         location=LOCATION,
         deferrable=True,
     )
@@ -217,7 +218,7 @@ with DAG(
     # [START howto_operator_bigquery_check_async]
     check_count = BigQueryCheckOperator(
         task_id="check_count",
-        sql=f"SELECT COUNT(*) FROM {DATASET}.{TABLE_1}",
+        sql=f"SELECT COUNT(*) FROM {DATASET_NAME}.{TABLE_NAME_1}",
         use_legacy_sql=False,
         location=LOCATION,
         deferrable=True,
@@ -229,12 +230,12 @@ with DAG(
         task_id="execute_query_save",
         configuration={
             "query": {
-                "query": f"SELECT * FROM {DATASET}.{TABLE_1}",
+                "query": f"SELECT * FROM {DATASET_NAME}.{TABLE_NAME_1}",
                 "useLegacySql": False,
                 "destinationTable": {
                     "projectId": PROJECT_ID,
-                    "datasetId": DATASET,
-                    "tableId": TABLE_2,
+                    "datasetId": DATASET_NAME,
+                    "tableId": TABLE_NAME_2,
                 },
             }
         },
@@ -257,8 +258,6 @@ with DAG(
     insert_query_job >> execute_long_running_query >> check_value >> check_interval
     [check_count, check_interval, bigquery_execute_multi_query, get_data_result] >> delete_dataset
 
-    # ### Everything below this line is not part of example ###
-    # ### Just for system tests purpose ###
     from tests.system.utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure

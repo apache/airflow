@@ -28,10 +28,11 @@
 {{- $revisionHistoryLimit := or .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "localPodSecurityContext" .Values.statsd }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.statsd }}
+{{- $containerLifecycleHooks := .Values.statsd.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-statsd
+  name: {{ include "airflow.fullname" . }}-statsd
   labels:
     tier: airflow
     component: statsd
@@ -77,6 +78,9 @@ spec:
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
       affinity: {{- toYaml $affinity | nindent 8 }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
       serviceAccountName: {{ include "statsd.serviceAccountName" . }}
       securityContext: {{ $securityContext | nindent 8 }}
@@ -90,6 +94,9 @@ spec:
           image: {{ template "statsd_image" . }}
           imagePullPolicy: {{ .Values.images.statsd.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.statsd.args }}
           args: {{ tpl (toYaml .Values.statsd.args) . | nindent 12 }}
           {{- else}}
@@ -97,6 +104,9 @@ spec:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
+          {{- with .Values.statsd.env }}
+          env: {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: statsd-ingest
               protocol: UDP
@@ -124,5 +134,5 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: {{ .Release.Name }}-statsd
+            name: {{ include "airflow.fullname" . }}-statsd
 {{- end }}

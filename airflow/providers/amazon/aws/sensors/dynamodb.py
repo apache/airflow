@@ -84,7 +84,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
         key = {self.partition_key_name: self.partition_key_value}
         msg = (
             f"Checking table {self.table_name} for "
-            + f"item Partition Key: {self.partition_key_name}={self.partition_key_value}"
+            f"item Partition Key: {self.partition_key_name}={self.partition_key_value}"
         )
 
         if self.sort_key_name and self.sort_key_value:

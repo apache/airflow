@@ -21,94 +21,48 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
+
+DEFAULT_HOOKS_PARAMETERS = {"timeout": None, "proxy": None, "retry_handlers": None}
 
 
 class TestSlackWebhookOperator:
     def setup_method(self):
         self.default_op_kwargs = {
+            "slack_webhook_conn_id": "test_conn_id",
             "channel": None,
             "username": None,
             "icon_emoji": None,
             "icon_url": None,
         }
 
-    @pytest.mark.parametrize(
-        "simple_http_op_attr",
-        [
-            "endpoint",
-            "method",
-            "data",
-            "headers",
-            "response_check",
-            "response_filter",
-            "extra_options",
-            "log_response",
-            "auth_type",
-            "tcp_keep_alive",
-            "tcp_keep_alive_idle",
-            "tcp_keep_alive_count",
-            "tcp_keep_alive_interval",
-        ],
-    )
-    def test_unused_deprecated_http_operator_kwargs(self, simple_http_op_attr):
-        """
-        Test remove deprecated (and unused) SimpleHttpOperator keyword arguments.
-        No error should happen if provide any of attribute, unless operator allow to provide this attributes.
-        """
-        kw = {simple_http_op_attr: "foo-bar"}
-        warning_message = rf"Provide '{simple_http_op_attr}' is deprecated and as has no affect"
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            SlackWebhookOperator(task_id="test_unused_args", **kw)
-
-    def test_deprecated_http_conn_id(self):
-        """Test resolve deprecated http_conn_id."""
-        warning_message = (
-            r"Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead."
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-            op = SlackWebhookOperator(
-                task_id="test_deprecated_http_conn_id", slack_webhook_conn_id=None, http_conn_id="http_conn"
-            )
-        assert op.slack_webhook_conn_id == "http_conn"
-
-        error_message = "You cannot provide both `slack_webhook_conn_id` and `http_conn_id`."
-        with pytest.raises(AirflowException, match=error_message):
-            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-                SlackWebhookOperator(
-                    task_id="test_both_conn_ids",
-                    slack_webhook_conn_id="slack_webhook_conn_id",
-                    http_conn_id="http_conn",
-                )
-
-    @pytest.mark.parametrize(
-        "slack_webhook_conn_id,webhook_token",
-        [
-            ("test_conn_id", None),
-            (None, "https://hooks.slack.com/services/T000/B000/XXX"),
-            ("test_conn_id", "https://hooks.slack.com/services/T000/B000/XXX"),
-        ],
-    )
-    @pytest.mark.parametrize("proxy", [None, "https://localhost:9999"])
     @mock.patch("airflow.providers.slack.operators.slack_webhook.SlackWebhookHook")
-    def test_hook(self, mock_slackwebhook_cls, slack_webhook_conn_id, webhook_token, proxy):
+    @pytest.mark.parametrize(
+        "slack_op_kwargs, hook_extra_kwargs",
+        [
+            pytest.param({}, DEFAULT_HOOKS_PARAMETERS, id="default-hook-parameters"),
+            pytest.param(
+                {"timeout": 42, "proxy": "http://spam.egg", "retry_handlers": []},
+                {"timeout": 42, "proxy": "http://spam.egg", "retry_handlers": []},
+                id="with-extra-hook-parameters",
+            ),
+        ],
+    )
+    def test_hook(self, mock_slackwebhook_cls, slack_op_kwargs, hook_extra_kwargs):
         """Test get cached ``SlackWebhookHook`` hook."""
-        op_kw = {
-            "slack_webhook_conn_id": slack_webhook_conn_id,
-            "proxy": proxy,
-            "webhook_token": webhook_token,
-        }
-        op = SlackWebhookOperator(task_id="test_hook", **op_kw)
+        op = SlackWebhookOperator(
+            task_id="test_hook", slack_webhook_conn_id="test_conn_id", **slack_op_kwargs
+        )
         hook = op.hook
         assert hook is op.hook, "Expected cached hook"
-        mock_slackwebhook_cls.assert_called_once_with(**op_kw)
+        mock_slackwebhook_cls.assert_called_once_with(
+            slack_webhook_conn_id="test_conn_id", **hook_extra_kwargs
+        )
 
     def test_assert_templated_fields(self):
         """Test expected templated fields."""
         operator = SlackWebhookOperator(task_id="test_assert_templated_fields", **self.default_op_kwargs)
         template_fields = (
-            "webhook_token",
             "message",
             "attachments",
             "blocks",
@@ -163,5 +117,4 @@ class TestSlackWebhookOperator:
             username=username,
             icon_emoji=icon_emoji,
             icon_url=icon_url,
-            link_names=mock.ANY,
         )

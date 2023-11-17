@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 2.3.0
+  - 2.2.2
   - 2.2.1
   - 2.2.0
   - 2.1.0
@@ -35,8 +37,12 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
-  - asana>=0.10
+  - apache-airflow>=2.5.0
+  # The Asana provider uses Asana Python API https://github.com/Asana/python-asana/ and version
+  # 4.* of it introduced 31.07.2023 is heavily incompatible with previous versions
+  # (new way of generating API client from specification has been used). Until we convert to the new API
+  # - as described in https://github.com/apache/airflow/issues/32994 - we need to limit the version to < 4.
+  - asana>=0.10,<4.0.0
 
 integrations:
   - integration-name: Asana

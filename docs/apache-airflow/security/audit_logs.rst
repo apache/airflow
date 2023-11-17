@@ -16,7 +16,7 @@
     under the License.
 
 Audit Logs in Airflow
-========================
+=====================
 
 
 Overview
@@ -27,6 +27,8 @@ They provide a way to track user actions and system events, which can be used to
 
 In Airflow, audit logs are used to track user actions and system events that occur during the execution of DAGs and tasks.
 They are stored in a database and can be accessed through the Airflow UI.
+
+To be able to see audit logs, a user needs to have the ``Audit Logs.can_read`` permission. Such user will be able to see all audit logs, independently of the DAGs permissions applied.
 
 
 Level of Audit Logs
@@ -42,7 +44,7 @@ Audit logs exist at the task level and the user level.
 Location of Audit Logs
 ----------------------
 
-Audit logs can be accessed through the Airflow UI. They are located under the "Admin" tab, and can be viewed by selecting "Audit Logs" from the dropdown menu.
+Audit logs can be accessed through the Airflow UI. They are located under the "Browse" tab, and can be viewed by selecting "Audit Logs" from the dropdown menu.
 
 
 Types of Events

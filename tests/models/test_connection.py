@@ -21,7 +21,7 @@ import re
 
 import pytest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 
 

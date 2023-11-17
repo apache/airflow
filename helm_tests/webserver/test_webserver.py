@@ -25,7 +25,7 @@ from tests.charts.helm_template_generator import render_chart
 class TestWebserverDeployment:
     """Tests webserver deployment."""
 
-    def test_should_add_host_header_to_liveness_and_readiness_probes(self):
+    def test_should_add_host_header_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
                 "config": {
@@ -41,8 +41,11 @@ class TestWebserverDeployment:
         assert {"name": "Host", "value": "example.com"} in jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0]
         )
+        assert {"name": "Host", "value": "example.com"} in jmespath.search(
+            "spec.template.spec.containers[0].startupProbe.httpGet.httpHeaders", docs[0]
+        )
 
-    def test_should_add_path_to_liveness_and_readiness_probes(self):
+    def test_should_add_path_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
                 "config": {
@@ -58,6 +61,10 @@ class TestWebserverDeployment:
         )
         assert (
             jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.path", docs[0])
+            == "/mypath/path/health"
+        )
+        assert (
+            jmespath.search("spec.template.spec.containers[0].startupProbe.httpGet.path", docs[0])
             == "/mypath/path/health"
         )
 
@@ -91,6 +98,10 @@ class TestWebserverDeployment:
             jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
             is None
         )
+        assert (
+            jmespath.search("spec.template.spec.containers[0].startupProbe.httpGet.httpHeaders", docs[0])
+            is None
+        )
 
     def test_should_use_templated_base_url_for_probes(self):
         docs = render_chart(
@@ -111,15 +122,20 @@ class TestWebserverDeployment:
         assert {"name": "Host", "value": "release-name.com"} in jmespath.search(
             "readinessProbe.httpGet.httpHeaders", container
         )
+        assert {"name": "Host", "value": "release-name.com"} in jmespath.search(
+            "startupProbe.httpGet.httpHeaders", container
+        )
         assert "/mypath/release-name/path/health" == jmespath.search("livenessProbe.httpGet.path", container)
         assert "/mypath/release-name/path/health" == jmespath.search("readinessProbe.httpGet.path", container)
+        assert "/mypath/release-name/path/health" == jmespath.search("startupProbe.httpGet.path", container)
 
-    def test_should_add_scheme_to_liveness_and_readiness_probes(self):
+    def test_should_add_scheme_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
                 "webserver": {
                     "livenessProbe": {"scheme": "HTTPS"},
                     "readinessProbe": {"scheme": "HTTPS"},
+                    "startupProbe": {"scheme": "HTTPS"},
                 }
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -130,6 +146,9 @@ class TestWebserverDeployment:
         )
         assert "HTTPS" in jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.httpGet.scheme", docs[0]
+        )
+        assert "HTTPS" in jmespath.search(
+            "spec.template.spec.containers[0].startupProbe.httpGet.scheme", docs[0]
         )
 
     def test_should_add_volume_and_volume_mount_when_exist_webserver_config(self):
@@ -421,6 +440,17 @@ class TestWebserverDeployment:
         assert "dynamic-pods" == tolerations[0]["key"]
         assert expected_topology_spread_constraints == jmespath.search(
             "spec.template.spec.topologySpreadConstraints[0]", docs[0]
+        )
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
         )
 
     @pytest.mark.parametrize(
@@ -760,6 +790,20 @@ class TestWebserverDeployment:
         assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
         assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
 
+    def test_should_add_annotations_to_webserver_configmap(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "webserverConfig": "CSRF_ENABLED = True  # {{ .Release.Name }}",
+                    "configMapAnnotations": {"test_annotation": "test_annotation_value"},
+                },
+            },
+            show_only=["templates/configmaps/webserver-configmap.yaml"],
+        )
+
+        assert "annotations" in jmespath.search("metadata", docs[0])
+        assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
+
 
 class TestWebserverService:
     """Tests webserver service."""
@@ -1026,7 +1070,7 @@ class TestWebserverServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "webserver": {

@@ -18,13 +18,15 @@
 """This module contains a Google Calendar API hook."""
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class GoogleCalendarHook(GoogleBaseHook):

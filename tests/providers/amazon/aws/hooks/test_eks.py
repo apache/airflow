@@ -19,19 +19,17 @@ from __future__ import annotations
 
 import sys
 from copy import deepcopy
-from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
-from urllib.parse import ParseResult, urlsplit
+from urllib.parse import urlsplit
 
 import pytest
 import time_machine
 import yaml
-from _pytest._code import ExceptionInfo
 from botocore.exceptions import ClientError
 from moto import mock_eks
 from moto.core import DEFAULT_ACCOUNT_ID
-from moto.core.exceptions import AWSError
 from moto.eks.exceptions import (
     InvalidParameterException,
     InvalidRequestException,
@@ -94,6 +92,11 @@ from ..utils.eks_test_utils import (
     iso_date,
     region_matches_partition,
 )
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from moto.core.exceptions import AWSError
 
 
 @pytest.fixture(scope="function")
@@ -271,7 +274,8 @@ class TestEksHooks:
 
         with pytest.raises(ClientError) as raised_exception:
             eks_hook.create_cluster(
-                name=generated_test_data.existing_cluster_name, **dict(ClusterInputs.REQUIRED)  # type: ignore
+                name=generated_test_data.existing_cluster_name,
+                **dict(ClusterInputs.REQUIRED),  # type: ignore
             )
 
         assert_client_error_exception_thrown(
@@ -1166,15 +1170,15 @@ class TestEksHooks:
 
         test_inputs = dict(
             deepcopy(
-                # Required Constants
-                [POD_EXECUTION_ROLE_ARN]
-                # Required Variables
-                + [
+                [
+                    # Required Constants
+                    POD_EXECUTION_ROLE_ARN,
+                    # Required Variables
                     (ClusterAttributes.CLUSTER_NAME, cluster_name),
                     (FargateProfileAttributes.FARGATE_PROFILE_NAME, fargate_profile_name),
+                    # Test Case Values
+                    (FargateProfileAttributes.SELECTORS, selectors),
                 ]
-                # Test Case Values
-                + [(FargateProfileAttributes.SELECTORS, selectors)]
             )
         )
 
@@ -1328,7 +1332,7 @@ def assert_all_arn_values_are_valid(expected_arn_values, pattern, arn_under_test
 
 
 def assert_client_error_exception_thrown(
-    expected_exception: type[AWSError], expected_msg: str, raised_exception: ExceptionInfo
+    expected_exception: type[AWSError], expected_msg: str, raised_exception: pytest.ExceptionInfo
 ) -> None:
     """
     Asserts that the raised exception is of the expected type
@@ -1347,7 +1351,7 @@ def assert_result_matches_expected_list(
 
 
 def assert_is_valid_uri(value: str) -> None:
-    result: ParseResult = urlsplit(value)
+    result = urlsplit(value)
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value

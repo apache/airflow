@@ -33,7 +33,7 @@ def check_dir_init_file(provider_files: list[str]) -> None:
             missing_init_dirs.append(path)
 
     if missing_init_dirs:
-        with open(os.path.join(ROOT_DIR, "license-templates/LICENSE.txt")) as license:
+        with open(os.path.join(ROOT_DIR, "scripts/ci/license-templates/LICENSE.txt")) as license:
             license_txt = license.readlines()
         prefixed_licensed_txt = [f"# {line}" if line != "\n" else "#\n" for line in license_txt]
 

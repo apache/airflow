@@ -27,6 +27,39 @@ Changelog
 ---------
 
 
+2.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+
+2.4.4
+.....
+
+Misc
+~~~~
+
+* ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+   * ``D401 Support - Providers: Airbyte to Atlassian (Inclusive) (#33354)``
+
+2.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate database URL passed to create_engine of Drill hook's connection (#33074)``
+
 2.4.2
 .....
 

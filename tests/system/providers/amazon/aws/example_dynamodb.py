@@ -20,12 +20,15 @@ from datetime import datetime
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+
+# TODO: FIXME The argument types here seems somewhat tricky to fix
+# mypy: disable-error-code="arg-type"
 
 DAG_ID = "example_dynamodbvaluesensor"
 sys_test_context_task = SystemTestContextBuilder().build()

@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from typing import Any
 
 import boto3
 
-from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrAddStepsOperator,
@@ -68,7 +69,7 @@ SPARK_STEPS = [
     }
 ]
 
-JOB_FLOW_OVERRIDES = {
+JOB_FLOW_OVERRIDES: dict[str, Any] = {
     "Name": "PiCalc",
     "ReleaseLabel": "emr-6.7.0",
     "Applications": [{"Name": "Spark"}],

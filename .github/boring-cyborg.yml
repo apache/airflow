@@ -166,6 +166,11 @@ labelPRBasedOnFilePath:
     - tests/providers/cncf/kubernetes/**/*
     - tests/system/providers/cncf/kubernetes/**/*
 
+  provider:common-io:
+    - airflow/providers/common/io/**/*
+    - docs/apache-airflow-providers-common-io/**/*
+    - tests/system/providers/common/io/**/*
+
   provider:common-sql:
     - airflow/providers/common/sql/**/*
     - docs/apache-airflow-providers-common-sql/**/*
@@ -339,6 +344,12 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-openlineage/**/*
     - tests/providers/openlineage/**/*
 
+  provider:opensearch:
+    - airflow/providers/opensearch/**/*
+    - docs/apache-airflow-providers-opensearch/**/*
+    - tests/providers/opensearch/**/*
+    - tests/system/providers/opensearch/**/*
+
   provider:opsgenie:
     - airflow/providers/opsgenie/**/*
     - docs/apache-airflow-providers-opsgenie/**/*
@@ -378,12 +389,6 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-presto/**/*
     - tests/providers/presto/**/*
     - tests/system/providers/presto/**/*
-
-  provider:qubole:
-    - airflow/providers/qubole/**/*
-    - docs/apache-airflow-providers-qubole/**/*
-    - tests/providers/qubole/**/*
-    - tests/system/providers/qubole/**/*
 
   provider:redis:
     - airflow/providers/redis/**/*
@@ -580,15 +585,17 @@ labelPRBasedOnFilePath:
     - tests/plugins/**/*
     - docs/apache-airflow/authoring-and-scheduling/plugins.rst
 
-  area:Scheduler/Executor:
-    - airflow/executors/**/*
+  area:Scheduler:
     - airflow/jobs/**/*
     - airflow/task/task_runner/**/*
     - airflow/dag_processing/**/*
-    - docs/apache-airflow/core-concepts/executor/**/*
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
-    - tests/executors/**/*
     - tests/jobs/**/*
+
+  area:Executors-core:
+    - airflow/executors/**/*
+    - docs/apache-airflow/core-concepts/executor/**/*
+    - tests/executors/**/*
 
   area:Secrets:
     - airflow/secrets/**/*
@@ -669,6 +676,9 @@ firstPRWelcomeComment: >
 
   - Be sure to read the [Airflow Coding style](
   https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#coding-style-and-best-practices).
+
+  - Always keep your Pull Requests rebased, otherwise your build might fail due to changes not related
+  to your commits.
 
   Apache Airflow is a community-driven project and together we are making it better 🚀.
 

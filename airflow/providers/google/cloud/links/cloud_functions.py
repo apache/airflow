@@ -21,10 +21,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
+    from airflow.models import BaseOperator
     from airflow.utils.context import Context
 
 
@@ -52,7 +52,6 @@ class CloudFunctionsDetailsLink(BaseGoogleLink):
         location: str,
         project_id: str,
     ):
-
         task_instance.xcom_push(
             context,
             key=CloudFunctionsDetailsLink.key,

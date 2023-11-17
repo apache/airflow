@@ -23,6 +23,14 @@ description: |
 
 suspended: false
 versions:
+  - 7.9.0
+  - 7.8.0
+  - 7.7.0
+  - 7.6.0
+  - 7.5.1
+  - 7.5.0
+  - 7.4.2
+  - 7.4.1
   - 7.4.0
   - 7.3.0
   - 7.2.0
@@ -63,7 +71,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - aiofiles>=23.2.0
+  - apache-airflow>=2.5.0
   - asgiref>=3.5.2
   - cryptography>=2.0.0
   # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
@@ -81,6 +90,7 @@ dependencies:
   # (started from current 24.2.2 version) to prevent introducing some problems that could be due to some
   #  major changes in the package.
   - kubernetes_asyncio>=18.20.1,<25
+  - google-re2>=1.0
 
 integrations:
   - integration-name: Kubernetes
@@ -97,7 +107,6 @@ integrations:
 operators:
   - integration-name: Kubernetes
     python-modules:
-      - airflow.providers.cncf.kubernetes.operators.kubernetes_pod
       - airflow.providers.cncf.kubernetes.operators.pod
       - airflow.providers.cncf.kubernetes.operators.spark_kubernetes
       - airflow.providers.cncf.kubernetes.operators.resource
@@ -334,3 +343,6 @@ config:
         type: string
         example: ~
         default: ""
+
+executors:
+  - airflow.providers.cncf.kubernetes.kubernetes_executor.KubernetesExecutor

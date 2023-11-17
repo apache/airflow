@@ -24,7 +24,6 @@ CONTRIBUTORS_QUICK_START.rst export-ignore
 
 .devcontainer export-ignore
 .github export-ignore
-.coveragerc export-ignore
 .readthedocs.yml export-ignore
 .hadolint.yaml export-ignore
 .pre-commit-config.yaml export-ignore

@@ -18,12 +18,11 @@
 from __future__ import annotations
 
 import contextlib
-import io
 import json
 import os
-import tempfile
 from datetime import datetime, timedelta
-from unittest import mock
+from io import StringIO
+from unittest import TestCase, mock
 from unittest.mock import MagicMock
 
 import pendulum
@@ -34,9 +33,13 @@ from airflow import settings
 from airflow.api_connexion.schemas.dag_schema import DAGSchema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
+from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import _StopDagTest
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.triggers.temporal import TimeDeltaTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -47,6 +50,8 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 DEFAULT_DATE = timezone.make_aware(datetime(2015, 1, 1), timezone=timezone.utc)
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
+
+pytestmark = pytest.mark.db_test
 
 
 class TestCliDags:
@@ -137,7 +142,7 @@ class TestCliDags:
         mock_run.reset_mock()
         dag = self.dagbag.get_dag("example_bash_operator")
 
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             dag_command.dag_backfill(
                 self.parser.parse_args(
                     [
@@ -209,7 +214,7 @@ class TestCliDags:
         )
         mock_run.reset_mock()
 
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             dag_command.dag_backfill(
                 self.parser.parse_args(
                     [
@@ -246,7 +251,7 @@ class TestCliDags:
         mock_get_dag.assert_not_called()
 
     def test_show_dag_dependencies_print(self):
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_dependencies_show(self.parser.parse_args(["dags", "show-dependencies"]))
         out = temp_stdout.getvalue()
         assert "digraph" in out
@@ -254,7 +259,7 @@ class TestCliDags:
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag_dependencies")
     def test_show_dag_dependencies_save(self, mock_render_dag_dependencies):
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_dependencies_show(
                 self.parser.parse_args(["dags", "show-dependencies", "--save", "output.png"])
             )
@@ -265,7 +270,7 @@ class TestCliDags:
         assert "File output.png saved" in out
 
     def test_show_dag_print(self):
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_show(self.parser.parse_args(["dags", "show", "example_bash_operator"]))
         out = temp_stdout.getvalue()
         assert "label=example_bash_operator" in out
@@ -274,7 +279,7 @@ class TestCliDags:
 
     @mock.patch("airflow.cli.commands.dag_command.render_dag")
     def test_show_dag_save(self, mock_render_dag):
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_show(
                 self.parser.parse_args(["dags", "show", "example_bash_operator", "--save", "awesome.png"])
             )
@@ -292,7 +297,7 @@ class TestCliDags:
         mock_proc.returncode = 0
         mock_proc.communicate.return_value = (b"OUT", b"ERR")
         mock_popen.return_value.__enter__.return_value = mock_proc
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_show(
                 self.parser.parse_args(["dags", "show", "example_bash_operator", "--imgcat"])
             )
@@ -467,7 +472,7 @@ class TestCliDags:
         for dag_id in expected_output:
             # Test num-executions = 1 (default)
             args = self.parser.parse_args(["dags", "next-execution", dag_id, "-S", str(tmp_path)])
-            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
             assert expected_output[dag_id][0] in out
@@ -476,7 +481,7 @@ class TestCliDags:
             args = self.parser.parse_args(
                 ["dags", "next-execution", dag_id, "--num-executions", "2", "-S", str(tmp_path)]
             )
-            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
                 dag_command.dag_next_execution(args)
                 out = temp_stdout.getvalue()
             assert expected_output[dag_id][1] in out
@@ -489,7 +494,7 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_report(self):
         args = self.parser.parse_args(["dags", "report", "--output", "json"])
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_report(args)
             out = temp_stdout.getvalue()
 
@@ -499,7 +504,7 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_get_dag_details(self):
         args = self.parser.parse_args(["dags", "details", "example_complex", "--output", "yaml"])
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_details(args)
             out = temp_stdout.getvalue()
 
@@ -518,7 +523,7 @@ class TestCliDags:
     @conf_vars({("core", "load_examples"): "true"})
     def test_cli_list_dags(self):
         args = self.parser.parse_args(["dags", "list", "--output", "yaml"])
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_list_dags(args)
             out = temp_stdout.getvalue()
         assert "owner" in out
@@ -531,7 +536,7 @@ class TestCliDags:
     def test_cli_list_dags_prints_import_errors(self):
         dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
         args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
-        with contextlib.redirect_stderr(io.StringIO()) as temp_stderr:
+        with contextlib.redirect_stderr(StringIO()) as temp_stderr:
             dag_command.dag_list_dags(args)
             out = temp_stderr.getvalue()
         assert "Failed to load all files." in out
@@ -540,11 +545,13 @@ class TestCliDags:
     def test_cli_list_import_errors(self):
         dag_path = os.path.join(TEST_DAGS_FOLDER, "test_invalid_cron.py")
         args = self.parser.parse_args(["dags", "list", "--output", "yaml", "--subdir", dag_path])
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
-            dag_command.dag_list_import_errors(args)
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with TestCase.assertRaises(TestCase(), SystemExit) as context:
+                dag_command.dag_list_import_errors(args)
             out = temp_stdout.getvalue()
         assert "[0 100 * * *] is not acceptable, out of range" in out
         assert dag_path in out
+        assert context.exception.code == 1
 
     def test_cli_list_dag_runs(self):
         dag_command.dag_trigger(
@@ -677,10 +684,10 @@ class TestCliDags:
                 "--output=json",
             ]
         )
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             dag_command.dag_trigger(args)
             # get the last line from the logs ignoring all logging lines
-            out = temp_stdout.getvalue().strip().split("\n")[-1]
+            out = temp_stdout.getvalue().strip().splitlines()[-1]
         parsed_out = json.loads(out)
 
         assert 1 == len(parsed_out)
@@ -701,17 +708,17 @@ class TestCliDags:
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
             )
 
-    def test_delete_dag_existing_file(self):
+    def test_delete_dag_existing_file(self, tmp_path):
         # Test to check that the DAG should be deleted even if
         # the file containing it is not deleted
+        path = tmp_path / "testfile"
         DM = DagModel
         key = "my_dag_id"
         session = settings.Session()
-        with tempfile.NamedTemporaryFile() as f:
-            session.add(DM(dag_id=key, fileloc=f.name))
-            session.commit()
-            dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-            assert session.query(DM).filter_by(dag_id=key).count() == 0
+        session.add(DM(dag_id=key, fileloc=os.fspath(path)))
+        session.commit()
+        dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
+        assert session.query(DM).filter_by(dag_id=key).count() == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])
@@ -788,7 +795,7 @@ class TestCliDags:
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_bash_operator", DEFAULT_DATE.isoformat(), "--show-dagrun"]
         )
-        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+        with contextlib.redirect_stdout(StringIO()) as stdout:
             dag_command.dag_test(cli_args)
 
         output = stdout.getvalue()
@@ -816,3 +823,36 @@ class TestCliDags:
         )
         dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
+
+    def test_dag_test_no_triggerer(self, dag_maker):
+        with dag_maker() as dag:
+
+            @task
+            def one():
+                return 1
+
+            @task
+            def two(val):
+                return val + 1
+
+            class MyOp(BaseOperator):
+                template_fields = ("tfield",)
+
+                def __init__(self, tfield, **kwargs):
+                    self.tfield = tfield
+                    super().__init__(**kwargs)
+
+                def execute(self, context, event=None):
+                    if event is None:
+                        print("I AM DEFERRING")
+                        self.defer(trigger=TimeDeltaTrigger(timedelta(seconds=20)), method_name="execute")
+                        return
+                    print("RESUMING")
+                    return self.tfield + 1
+
+            task_one = one()
+            task_two = two(task_one)
+            op = MyOp(task_id="abc", tfield=str(task_two))
+            task_two >> op
+        with pytest.raises(_StopDagTest, match="Task has deferred but triggerer component is not running"):
+            dag.test()

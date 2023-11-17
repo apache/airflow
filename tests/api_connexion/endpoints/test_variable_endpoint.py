@@ -28,6 +28,8 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
 from tests.test_utils.www import _check_last_log
 
+pytestmark = pytest.mark.db_test
+
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
@@ -244,6 +246,21 @@ class TestPatchVariable(TestVariableEndpoint):
         _check_last_log(session, dag_id=None, event="variable.edit", execution_date=None)
 
     def test_should_reject_invalid_update(self):
+        response = self.client.patch(
+            "/api/v1/variables/var1",
+            json={
+                "key": "var1",
+                "value": "foo",
+            },
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert response.json == {
+            "title": "Variable not found",
+            "status": 404,
+            "type": EXCEPTIONS_LINK_MAP[404],
+            "detail": "Variable does not exist",
+        }
         Variable.set("var1", "foo")
         response = self.client.patch(
             "/api/v1/variables/var1",

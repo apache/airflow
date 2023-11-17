@@ -26,14 +26,15 @@ from typing import TYPE_CHECKING, Any, Iterable, Union
 import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from psycopg2.extensions import connection
+
+    from airflow.models.connection import Connection
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
@@ -110,13 +111,16 @@ class PostgresHook(DbApiHook):
 
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
-        if _cursor == "dictcursor":
-            return psycopg2.extras.DictCursor
-        if _cursor == "realdictcursor":
-            return psycopg2.extras.RealDictCursor
-        if _cursor == "namedtuplecursor":
-            return psycopg2.extras.NamedTupleCursor
-        raise ValueError(f"Invalid cursor passed {_cursor}")
+        cursor_types = {
+            "dictcursor": psycopg2.extras.DictCursor,
+            "realdictcursor": psycopg2.extras.RealDictCursor,
+            "namedtuplecursor": psycopg2.extras.NamedTupleCursor,
+        }
+        if _cursor in cursor_types:
+            return cursor_types[_cursor]
+        else:
+            valid_cursors = ", ".join(cursor_types.keys())
+            raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
     def get_conn(self) -> connection:
         """Establishes a connection to a postgres database."""
@@ -127,13 +131,13 @@ class PostgresHook(DbApiHook):
         if conn.extra_dejson.get("iam", False):
             conn.login, conn.password, conn.port = self.get_iam_token(conn)
 
-        conn_args = dict(
-            host=conn.host,
-            user=conn.login,
-            password=conn.password,
-            dbname=self.database or conn.schema,
-            port=conn.port,
-        )
+        conn_args = {
+            "host": conn.host,
+            "user": conn.login,
+            "password": conn.password,
+            "dbname": self.database or conn.schema,
+            "port": conn.port,
+        }
         raw_cursor = conn.extra_dejson.get("cursor", False)
         if raw_cursor:
             conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
@@ -170,12 +174,10 @@ class PostgresHook(DbApiHook):
             with open(filename, "w"):
                 pass
 
-        with open(filename, "r+") as file:
-            with closing(self.get_conn()) as conn:
-                with closing(conn.cursor()) as cur:
-                    cur.copy_expert(sql, file)
-                    file.truncate(file.tell())
-                    conn.commit()
+        with open(filename, "r+") as file, closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
+            cur.copy_expert(sql, file)
+            file.truncate(file.tell())
+            conn.commit()
 
     def get_uri(self) -> str:
         """Extract the URI from the connection.
@@ -363,3 +365,12 @@ class PostgresHook(DbApiHook):
     def get_openlineage_default_schema(self) -> str | None:
         """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
         return self.get_first("SELECT CURRENT_SCHEMA;")[0]
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        return {
+            "hidden_fields": [],
+            "relabeling": {
+                "schema": "Database",
+            },
+        }

@@ -23,7 +23,6 @@ import contextlib
 import copy
 import functools
 import json
-import logging
 import os
 import select
 import shlex
@@ -31,7 +30,7 @@ import shutil
 import subprocess
 import tempfile
 import textwrap
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from packaging.version import Version
 
@@ -39,6 +38,9 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.go_module_utils import init_module, install_dependencies
 from airflow.utils.python_virtualenv import prepare_virtualenv
+
+if TYPE_CHECKING:
+    import logging
 
 
 class BeamRunnerType:
@@ -60,7 +62,7 @@ class BeamRunnerType:
 
 def beam_options_to_args(options: dict) -> list[str]:
     """
-    Returns a formatted pipeline options from a dictionary of arguments.
+    Return a formatted pipeline options from a dictionary of arguments.
 
     The logic of this method should be compatible with Apache Beam:
     https://github.com/apache/beam/blob/b56740f0e8cd80c2873412847d0b336837429fb9/sdks/python/
@@ -90,7 +92,7 @@ def process_fd(
     process_line_callback: Callable[[str], None] | None = None,
 ):
     """
-    Prints output to logs.
+    Print output to logs.
 
     :param proc: subprocess.
     :param fd: File descriptor.
@@ -104,10 +106,8 @@ def process_fd(
     fd_to_log = {proc.stderr: log.warning, proc.stdout: log.info}
     func_log = fd_to_log[fd]
 
-    while True:
-        line = fd.readline().decode()
-        if not line:
-            return
+    for line in iter(fd.readline, b""):
+        line = line.decode()
         if process_line_callback:
             process_line_callback(line)
         func_log(line.rstrip("\n"))
@@ -120,7 +120,7 @@ def run_beam_command(
     working_directory: str | None = None,
 ) -> None:
     """
-    Function responsible for running pipeline command in subprocess.
+    Run pipeline command in subprocess.
 
     :param cmd: Parts of the command to be run in subprocess
     :param process_line_callback: Optional callback which can be used to process
@@ -188,9 +188,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
         working_directory: str | None = None,
     ) -> None:
-        cmd = command_prefix + [
-            f"--runner={self.runner}",
-        ]
+        cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
             cmd.extend(beam_options_to_args(variables))
         run_beam_command(
@@ -211,7 +209,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
     ):
         """
-        Starts Apache Beam python pipeline.
+        Start Apache Beam python pipeline.
 
         :param variables: Variables passed to the pipeline.
         :param py_file: Path to the python file to execute.
@@ -261,7 +259,7 @@ class BeamHook(BaseHook):
                     requirements=py_requirements,
                 )
 
-            command_prefix = [py_interpreter] + py_options + [py_file]
+            command_prefix = [py_interpreter, *py_options, py_file]
 
             beam_version = (
                 subprocess.check_output(
@@ -273,7 +271,7 @@ class BeamHook(BaseHook):
             self.log.info("Beam version: %s", beam_version)
             impersonate_service_account = variables.get("impersonate_service_account")
             if impersonate_service_account:
-                if Version(beam_version) < Version("2.39.0") or True:
+                if Version(beam_version) < Version("2.39.0"):
                     raise AirflowException(
                         "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."
                     )
@@ -291,7 +289,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
     ) -> None:
         """
-        Starts Apache Beam Java pipeline.
+        Start Apache Beam Java pipeline.
 
         :param variables: Variables passed to the job.
         :param jar: Name of the jar for the pipeline
@@ -317,7 +315,7 @@ class BeamHook(BaseHook):
         should_init_module: bool = False,
     ) -> None:
         """
-        Starts Apache Beam Go pipeline with a source file.
+        Start Apache Beam Go pipeline with a source file.
 
         :param variables: Variables passed to the job.
         :param go_file: Path to the Go file with your beam pipeline.
@@ -361,7 +359,7 @@ class BeamHook(BaseHook):
         process_line_callback: Callable[[str], None] | None = None,
     ) -> None:
         """
-        Starts Apache Beam Go pipeline with an executable binary.
+        Start Apache Beam Go pipeline with an executable binary.
 
         :param variables: Variables passed to the job.
         :param launcher_binary: Path to the binary compiled for the launching platform.
@@ -388,6 +386,7 @@ class BeamHook(BaseHook):
 class BeamAsyncHook(BeamHook):
     """
     Asynchronous hook for Apache Beam.
+
     :param runner: Runner type.
     """
 
@@ -400,7 +399,7 @@ class BeamAsyncHook(BeamHook):
 
     @staticmethod
     async def _create_tmp_dir(prefix: str) -> str:
-        """Helper method to create temporary directory."""
+        """Create temporary directory."""
         # Creating separate thread to create temporary directory
         loop = asyncio.get_running_loop()
         partial_func = functools.partial(tempfile.mkdtemp, prefix=prefix)
@@ -410,7 +409,8 @@ class BeamAsyncHook(BeamHook):
     @staticmethod
     async def _cleanup_tmp_dir(tmp_dir: str) -> None:
         """
-        Helper method to delete temporary directory after finishing work with it.
+        Delete temporary directory after finishing work with it.
+
         Is uses `rmtree` method to recursively remove the temporary directory.
         """
         shutil.rmtree(tmp_dir)
@@ -425,7 +425,7 @@ class BeamAsyncHook(BeamHook):
         py_system_site_packages: bool = False,
     ):
         """
-        Starts Apache Beam python pipeline.
+        Start Apache Beam python pipeline.
 
         :param variables: Variables passed to the pipeline.
         :param py_file: Path to the python file to execute.
@@ -488,7 +488,7 @@ class BeamAsyncHook(BeamHook):
             self.log.info("Beam version: %s", beam_version)
             impersonate_service_account = variables.get("impersonate_service_account")
             if impersonate_service_account:
-                if Version(beam_version) < Version("2.39.0") or True:
+                if Version(beam_version) < Version("2.39.0"):
                     raise AirflowException(
                         "The impersonateServiceAccount option requires Apache Beam 2.39.0 or newer."
                     )
@@ -504,9 +504,7 @@ class BeamAsyncHook(BeamHook):
         command_prefix: list[str],
         working_directory: str | None = None,
     ) -> int:
-        cmd = command_prefix + [
-            f"--runner={self.runner}",
-        ]
+        cmd = [*command_prefix, f"--runner={self.runner}"]
         if variables:
             cmd.extend(beam_options_to_args(variables))
         return await self.run_beam_command_async(
@@ -522,7 +520,7 @@ class BeamAsyncHook(BeamHook):
         working_directory: str | None = None,
     ) -> int:
         """
-        Function responsible for running pipeline command in subprocess.
+        Run pipeline command in subprocess.
 
         :param cmd: Parts of the command to be run in subprocess
         :param working_directory: Working directory

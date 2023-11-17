@@ -28,14 +28,56 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.4.0
+.....
+
+Latest change: 2023-10-05
+
+=================================================================================================  ===========  ===================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`8ecd576de1 <https://github.com/apache/airflow/commit/8ecd576de1043dbea40e5e16b5dc34859cc41725>`_  2023-09-14   ``Refactor shorter defaults in providers (#34347)``
+=================================================================================================  ===========  ===================================================
+
+3.3.2
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+`3ba994d8f4 <https://github.com/apache/airflow/commit/3ba994d8f4c4b5ce3828bebcff28bbfc25170004>`_  2023-08-26   ``Limit Redis dependencies to match celery limits (#33773)``
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`7e79997594 <https://github.com/apache/airflow/commit/7e799975948573ca2a1c4b2051d3eadc32bb8ba7>`_  2023-08-11   ``D205 Support - Providers - Final Pass (#33303)``
+=================================================================================================  ===========  ===================================================================================================
+
+3.3.1
+.....
+
+Latest change: 2023-08-08
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`8f27d3ff47 <https://github.com/apache/airflow/commit/8f27d3ff472e6ddd52c08a948d51901adb8a1f1a>`_  2023-08-08   ``Prepare docs for RC2 providers (google, redis) (#33185)``
+`29a59de237 <https://github.com/apache/airflow/commit/29a59de237ccd42a3a5c20b10fc4c92b82ff4475>`_  2023-08-05   ``Fix oversubsription of Redis pubsub sensor (#33139)``
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+`17a3dd4135 <https://github.com/apache/airflow/commit/17a3dd41355c29ed55fcf449b3b7002d4085e9bb>`_  2023-08-01   ``Move redis subscribe to poke() method in Redis Sensor (#32984)``
+=================================================================================================  ===========  ==================================================================
+
 3.3.0
 .....
 
-Latest change: 2023-07-23
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  ================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `42b4b43c4c <https://github.com/apache/airflow/commit/42b4b43c4c2ccf0b6e7eaa105c982df495768d01>`_  2023-07-23   ``Add Redis task handler (#31855)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``

@@ -87,7 +87,6 @@ class ConsumeFromTopicOperator(BaseOperator):
         poll_timeout: float = 60,
         **kwargs: Any,
     ) -> None:
-
         super().__init__(**kwargs)
 
         self.topics = topics
@@ -128,7 +127,6 @@ class ConsumeFromTopicOperator(BaseOperator):
             )
 
     def execute(self, context) -> Any:
-
         consumer = KafkaConsumerHook(topics=self.topics, kafka_config_id=self.kafka_config_id).get_consumer()
 
         if isinstance(self.apply_function, str):
@@ -139,7 +137,9 @@ class ConsumeFromTopicOperator(BaseOperator):
 
         if self.apply_function:
             apply_callable = partial(
-                self.apply_function, *self.apply_function_args, **self.apply_function_kwargs  # type: ignore
+                self.apply_function,  # type: ignore
+                *self.apply_function_args,
+                **self.apply_function_kwargs,
             )
 
         if self.apply_function_batch:
@@ -154,14 +154,14 @@ class ConsumeFromTopicOperator(BaseOperator):
         while self.read_to_end or (
             messages_left > 0
         ):  # bool(True > 0) == True in the case where self.max_messages isn't set by the user
-
             if not isinstance(messages_left, bool):
                 batch_size = self.max_batch_size if messages_left > self.max_batch_size else messages_left
             else:
                 batch_size = self.max_batch_size
 
             msgs = consumer.consume(num_messages=batch_size, timeout=self.poll_timeout)
-            messages_left -= len(msgs)
+            if not self.read_to_end:
+                messages_left -= len(msgs)
 
             if not msgs:  # No messages + messages_left is being used.
                 self.log.info("Reached end of log. Exiting.")

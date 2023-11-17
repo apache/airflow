@@ -72,15 +72,15 @@ class RedshiftCreateClusterOperator(BaseOperator):
     :param cluster_version: The version of a Redshift engine software that you want to deploy on the cluster.
     :param allow_version_upgrade: Whether major version upgrades can be applied during the maintenance window.
         The Default value is ``True``.
-    :parma publicly_accessible: Whether cluster can be accessed from a public network.
-    :parma encrypted: Whether data in the cluster is encrypted at rest.
+    :param publicly_accessible: Whether cluster can be accessed from a public network.
+    :param encrypted: Whether data in the cluster is encrypted at rest.
         The default value is ``False``.
-    :parma hsm_client_certificate_identifier: Name of the HSM client certificate
+    :param hsm_client_certificate_identifier: Name of the HSM client certificate
         the Amazon Redshift cluster uses to retrieve the data.
-    :parma hsm_configuration_identifier: Name of the HSM configuration
-    :parma elastic_ip: The Elastic IP (EIP) address for the cluster.
-    :parma tags: A list of tag instances
-    :parma kms_key_id: KMS key id of encryption key.
+    :param hsm_configuration_identifier: Name of the HSM configuration
+    :param elastic_ip: The Elastic IP (EIP) address for the cluster.
+    :param tags: A list of tag instances
+    :param kms_key_id: KMS key id of encryption key.
     :param enhanced_vpc_routing: Whether to create the cluster with enhanced VPC routing enabled
         Default value is ``False``.
     :param additional_info: Reserved
@@ -303,7 +303,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
     :param cluster_identifier: The cluster identifier for which you want a snapshot
     :param retention_period: The number of days that a manual snapshot is retained.
         If the value is -1, the manual snapshot is retained indefinitely.
-    :parma tags: A list of tag instances
+    :param tags: A list of tag instances
     :param wait_for_completion: Whether wait for the cluster snapshot to be in ``available`` state
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check state
     :param max_attempt: The maximum number of attempts to be made to check the state
@@ -492,14 +492,14 @@ class RedshiftResumeClusterOperator(BaseOperator):
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Starting resume cluster")
-        while self._remaining_attempts >= 1:
+        while self._remaining_attempts:
             try:
                 redshift_hook.get_conn().resume_cluster(ClusterIdentifier=self.cluster_identifier)
                 break
             except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                self._remaining_attempts = self._remaining_attempts - 1
+                self._remaining_attempts -= 1
 
-                if self._remaining_attempts > 0:
+                if self._remaining_attempts:
                     self.log.error(
                         "Unable to resume cluster. %d attempts remaining.", self._remaining_attempts
                     )
@@ -580,14 +580,14 @@ class RedshiftPauseClusterOperator(BaseOperator):
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        while self._remaining_attempts >= 1:
+        while self._remaining_attempts:
             try:
                 redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
                 break
             except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                self._remaining_attempts = self._remaining_attempts - 1
+                self._remaining_attempts -= 1
 
-                if self._remaining_attempts > 0:
+                if self._remaining_attempts:
                     self.log.error(
                         "Unable to pause cluster. %d attempts remaining.", self._remaining_attempts
                     )
@@ -669,7 +669,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.max_attempts = max_attempts
 
     def execute(self, context: Context):
-        while self._attempts >= 1:
+        while self._attempts:
             try:
                 self.redshift_hook.delete_cluster(
                     cluster_identifier=self.cluster_identifier,
@@ -678,9 +678,9 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                 )
                 break
             except self.redshift_hook.get_conn().exceptions.InvalidClusterStateFault:
-                self._attempts = self._attempts - 1
+                self._attempts -= 1
 
-                if self._attempts > 0:
+                if self._attempts:
                     self.log.error("Unable to delete cluster. %d attempts remaining.", self._attempts)
                     time.sleep(self._attempt_interval)
                 else:

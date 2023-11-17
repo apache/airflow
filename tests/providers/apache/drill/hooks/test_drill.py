@@ -24,9 +24,7 @@ import pytest
 from airflow.providers.apache.drill.hooks.drill import DrillHook
 
 
-@pytest.mark.parametrize(
-    "host, expect_error", [("host_with/", True), ("host_with&", True), ("good_host", False)]
-)
+@pytest.mark.parametrize("host, expect_error", [("host_with?", True), ("good_host", False)])
 def test_get_host(host, expect_error):
     with patch(
         "airflow.providers.apache.drill.hooks.drill.DrillHook.get_connection"

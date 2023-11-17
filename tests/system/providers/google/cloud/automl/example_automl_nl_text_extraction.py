@@ -24,53 +24,63 @@ import os
 from datetime import datetime
 from typing import cast
 
-from airflow import models
+from google.cloud.aiplatform import schema
+from google.protobuf.struct_pb2 import Value
+
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
-from airflow.providers.google.cloud.operators.automl import (
-    AutoMLCreateDatasetOperator,
-    AutoMLDeleteDatasetOperator,
-    AutoMLDeleteModelOperator,
-    AutoMLImportDataOperator,
-    AutoMLTrainModelOperator,
-)
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
     GCSSynchronizeBucketsOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
+    CreateAutoMLTextTrainingJobOperator,
+    DeleteAutoMLTrainingJobOperator,
+)
+from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
+    CreateDatasetOperator,
+    DeleteDatasetOperator,
+    ImportDataOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_automl_text"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+DAG_ID = "example_automl_text_extr"
 
 GCP_AUTOML_LOCATION = "us-central1"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-RESOURCE_DATA_BUCKET = "system-tests-resources"
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
+TEXT_EXTR_DISPLAY_NAME = f"{DAG_ID}-{ENV_ID}".replace("_", "-")
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl/extraction.jsonl"
 
-DATASET_NAME = "test_entity_extr"
-DATASET = {"display_name": DATASET_NAME, "text_extraction_dataset_metadata": {}}
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-text/dataset.csv"
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
-
-MODEL_NAME = "entity_extr_test_model"
-MODEL = {
-    "display_name": MODEL_NAME,
-    "text_extraction_model_metadata": {},
+MODEL_NAME = f"{DAG_ID}-{ENV_ID}".replace("_", "-")
+DATASET_NAME = f"ds_clss_{ENV_ID}".replace("-", "_")
+DATASET = {
+    "display_name": DATASET_NAME,
+    "metadata_schema_uri": schema.dataset.metadata.text,
+    "metadata": Value(string_value="extr-dataset"),
 }
+DATA_CONFIG = [
+    {
+        "import_schema_uri": schema.dataset.ioformat.text.extraction,
+        "gcs_source": {"uris": [AUTOML_DATASET_BUCKET]},
+    },
+]
 
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Natural Language Entities Extraction
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
-    tags=["example", "automl"],
+    tags=["example", "automl", "text-extraction"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -80,51 +90,60 @@ with models.DAG(
     )
 
     move_dataset_file = GCSSynchronizeBucketsOperator(
-        task_id="move_data_to_bucket",
+        task_id="move_dataset_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="automl-text",
+        source_object="vertex-ai/automl/datasets/text",
         destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object="automl-text",
+        destination_object="automl",
         recursive=True,
     )
 
-    create_dataset_task = AutoMLCreateDatasetOperator(
-        task_id="create_dataset_task",
+    create_extr_dataset = CreateDatasetOperator(
+        task_id="create_extr_dataset",
         dataset=DATASET,
-        location=GCP_AUTOML_LOCATION,
+        region=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
     )
+    extr_dataset_id = create_extr_dataset.output["dataset_id"]
 
-    dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
-    MODEL["dataset_id"] = dataset_id
-    import_dataset_task = AutoMLImportDataOperator(
-        task_id="import_dataset_task",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
-        input_config=IMPORT_INPUT_CONFIG,
+    import_extr_dataset = ImportDataOperator(
+        task_id="import_extr_data",
+        dataset_id=extr_dataset_id,
+        region=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
-    )
-    MODEL["dataset_id"] = dataset_id
-
-    create_model = AutoMLTrainModelOperator(
-        task_id="create_model",
-        model=MODEL,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-    model_id = cast(str, XComArg(create_model, key="model_id"))
-
-    delete_model_task = AutoMLDeleteModelOperator(
-        task_id="delete_model_task",
-        model_id=model_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
+        import_configs=DATA_CONFIG,
     )
 
-    delete_datasets_task = AutoMLDeleteDatasetOperator(
-        task_id="delete_datasets_task",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
+    # [START howto_operator_automl_create_model]
+    create_extr_training_job = CreateAutoMLTextTrainingJobOperator(
+        task_id="create_extr_training_job",
+        display_name=TEXT_EXTR_DISPLAY_NAME,
+        prediction_type="extraction",
+        multi_label=False,
+        dataset_id=extr_dataset_id,
+        model_display_name=MODEL_NAME,
+        training_fraction_split=0.8,
+        validation_fraction_split=0.1,
+        test_fraction_split=0.1,
+        sync=True,
+        region=GCP_AUTOML_LOCATION,
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_automl_create_model]
+    model_id = cast(str, XComArg(create_extr_training_job, key="model_id"))
+
+    delete_extr_training_job = DeleteAutoMLTrainingJobOperator(
+        task_id="delete_extr_training_job",
+        training_pipeline_id=create_extr_training_job.output["training_id"],
+        region=GCP_AUTOML_LOCATION,
+        project_id=GCP_PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_extr_dataset = DeleteDatasetOperator(
+        task_id="delete_extr_dataset",
+        dataset_id=extr_dataset_id,
+        region=GCP_AUTOML_LOCATION,
         project_id=GCP_PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
@@ -137,15 +156,13 @@ with models.DAG(
 
     (
         # TEST SETUP
-        create_bucket
-        >> move_dataset_file
-        >> create_dataset_task
-        >> import_dataset_task
+        [create_bucket >> move_dataset_file, create_extr_dataset]
         # TEST BODY
-        >> create_model
+        >> import_extr_dataset
+        >> create_extr_training_job
         # TEST TEARDOWN
-        >> delete_model_task
-        >> delete_datasets_task
+        >> delete_extr_training_job
+        >> delete_extr_dataset
         >> delete_bucket
     )
 

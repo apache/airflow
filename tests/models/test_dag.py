@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import datetime
-import io
+import itertools
 import logging
 import os
 import pickle
@@ -27,8 +27,8 @@ import sys
 import weakref
 from contextlib import redirect_stdout
 from datetime import timedelta
+from io import StringIO
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import patch
 
@@ -39,24 +39,31 @@ import time_machine
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import inspect
 
-import airflow
-from airflow import models, settings
+from airflow import settings
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
-    AirflowDagInconsistent,
     AirflowException,
     DuplicateTaskIdFound,
     ParamValidationError,
     RemovedInAirflow3Warning,
 )
-from airflow.models import DAG, DagModel, DagRun, DagTag, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DagOwnerAttributes, dag as dag_decorator, get_dataset_triggered_next_run_info
+from airflow.models.dag import (
+    DAG,
+    DagModel,
+    DagOwnerAttributes,
+    DagTag,
+    dag as dag_decorator,
+    get_dataset_triggered_next_run_info,
+)
+from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel, TaskOutletDatasetReference
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.taskfail import TaskFail
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -76,6 +83,7 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
 from airflow.utils.timezone import datetime as datetime_tz
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
@@ -85,9 +93,11 @@ from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs,
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.timetables import cron_timetable, delta_timetable
 
+pytestmark = pytest.mark.db_test
+
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
-repo_root = Path(airflow.__file__).parent.parent
+repo_root = Path(__file__).parents[2]
 
 
 @pytest.fixture
@@ -146,7 +156,7 @@ class TestDag:
         Test that when 'params' is _not_ passed to a new Dag, that the params
         attribute is set to an empty dictionary.
         """
-        dag = models.DAG("test-dag")
+        dag = DAG("test-dag")
 
         assert isinstance(dag.params, ParamsDict)
         assert 0 == len(dag.params)
@@ -161,7 +171,7 @@ class TestDag:
         params1 = {"parameter1": 1}
         params2 = {"parameter2": 2}
 
-        dag = models.DAG("test-dag", default_args={"params": params1}, params=params2)
+        dag = DAG("test-dag", default_args={"params": params1}, params=params2)
 
         assert params1["parameter1"] == dag.params["parameter1"]
         assert params2["parameter2"] == dag.params["parameter2"]
@@ -174,20 +184,20 @@ class TestDag:
         params = {"param1": Param(type="string")}
 
         with pytest.raises(AirflowException):
-            models.DAG("dummy-dag", params=params)
+            DAG("dummy-dag", params=params)
 
     def test_dag_invalid_default_view(self):
         """
         Test invalid `default_view` of DAG initialization
         """
         with pytest.raises(AirflowException, match="Invalid values of dag.default_view: only support"):
-            models.DAG(dag_id="test-invalid-default_view", default_view="airflow")
+            DAG(dag_id="test-invalid-default_view", default_view="airflow")
 
     def test_dag_default_view_default_value(self):
         """
         Test `default_view` default value of DAG initialization
         """
-        dag = models.DAG(dag_id="test-default_default_view")
+        dag = DAG(dag_id="test-default_default_view")
         assert conf.get("webserver", "dag_default_view").lower() == dag.default_view
 
     def test_dag_invalid_orientation(self):
@@ -195,13 +205,13 @@ class TestDag:
         Test invalid `orientation` of DAG initialization
         """
         with pytest.raises(AirflowException, match="Invalid values of dag.orientation: only support"):
-            models.DAG(dag_id="test-invalid-orientation", orientation="airflow")
+            DAG(dag_id="test-invalid-orientation", orientation="airflow")
 
     def test_dag_orientation_default_value(self):
         """
         Test `orientation` default value of DAG initialization
         """
-        dag = models.DAG(dag_id="test-default_orientation")
+        dag = DAG(dag_id="test-default_orientation")
         assert conf.get("webserver", "dag_orientation") == dag.orientation
 
     def test_dag_as_context_manager(self):
@@ -340,15 +350,12 @@ class TestDag:
         # Default weight should be calculated using downstream descendants
         with DAG("dag", start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag:
             pipeline = [
-                [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(0, width)]
-                for i in range(0, depth)
+                [EmptyOperator(task_id=f"stage{i}.{j}", priority_weight=weight) for j in range(width)]
+                for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
-                for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
-                        current_task.set_upstream(prev_task)
+            for upstream, downstream in zip(pipeline, pipeline[1:]):
+                for up_task, down_task in itertools.product(upstream, downstream):
+                    down_task.set_upstream(up_task)
 
             for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
@@ -373,16 +380,13 @@ class TestDag:
                         priority_weight=weight,
                         weight_rule=WeightRule.UPSTREAM,
                     )
-                    for j in range(0, width)
+                    for j in range(width)
                 ]
-                for i in range(0, depth)
+                for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
-                for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
-                        current_task.set_upstream(prev_task)
+            for upstream, downstream in zip(pipeline, pipeline[1:]):
+                for up_task, down_task in itertools.product(upstream, downstream):
+                    down_task.set_upstream(up_task)
 
             for task in dag.task_dict.values():
                 match = pattern.match(task.task_id)
@@ -406,16 +410,13 @@ class TestDag:
                         priority_weight=weight,
                         weight_rule=WeightRule.ABSOLUTE,
                     )
-                    for j in range(0, width)
+                    for j in range(width)
                 ]
-                for i in range(0, depth)
+                for i in range(depth)
             ]
-            for i, stage in enumerate(pipeline):
-                if i == 0:
-                    continue
-                for current_task in stage:
-                    for prev_task in pipeline[i - 1]:
-                        current_task.set_upstream(prev_task)
+            for upstream, downstream in zip(pipeline, pipeline[1:]):
+                for up_task, down_task in itertools.product(upstream, downstream):
+                    down_task.set_upstream(up_task)
 
             for task in dag.task_dict.values():
                 # the sum of each stages after this task + itself
@@ -604,7 +605,7 @@ class TestDag:
         def jinja_udf(name):
             return f"Hello {name}"
 
-        dag = models.DAG(
+        dag = DAG(
             "test-dag",
             start_date=DEFAULT_DATE,
             user_defined_filters={"hello": jinja_udf},
@@ -643,37 +644,31 @@ class TestDag:
         jinja_env = dag.get_template_env(force_sandboxed=force_sandboxed)
         assert isinstance(jinja_env, expected_env)
 
-    def test_resolve_template_files_value(self):
-        with NamedTemporaryFile(suffix=".template") as f:
-            f.write(b"{{ ds }}")
-            f.flush()
-            template_dir = os.path.dirname(f.name)
-            template_file = os.path.basename(f.name)
+    def test_resolve_template_files_value(self, tmp_path):
+        path = tmp_path / "testfile.template"
+        path.write_text("{{ ds }}")
 
-            with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=template_dir):
-                task = EmptyOperator(task_id="op1")
+        with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent)):
+            task = EmptyOperator(task_id="op1")
 
-            task.test_field = template_file
-            task.template_fields = ("test_field",)
-            task.template_ext = (".template",)
-            task.resolve_template_files()
+        task.test_field = path.name
+        task.template_fields = ("test_field",)
+        task.template_ext = (".template",)
+        task.resolve_template_files()
 
         assert task.test_field == "{{ ds }}"
 
-    def test_resolve_template_files_list(self):
-        with NamedTemporaryFile(suffix=".template") as f:
-            f.write(b"{{ ds }}")
-            f.flush()
-            template_dir = os.path.dirname(f.name)
-            template_file = os.path.basename(f.name)
+    def test_resolve_template_files_list(self, tmp_path):
+        path = tmp_path / "testfile.template"
+        path.write_text("{{ ds }}")
 
-            with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=template_dir):
-                task = EmptyOperator(task_id="op1")
+        with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent)):
+            task = EmptyOperator(task_id="op1")
 
-            task.test_field = [template_file, "some_string"]
-            task.template_fields = ("test_field",)
-            task.template_ext = (".template",)
-            task.resolve_template_files()
+        task.test_field = [path.name, "some_string"]
+        task.template_fields = ("test_field",)
+        task.template_ext = (".template",)
+        task.resolve_template_files()
 
         assert task.test_field == ["{{ ds }}", "some_string"]
 
@@ -867,7 +862,7 @@ class TestDag:
 
     def test_bulk_write_to_db(self):
         clear_db_dags()
-        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(0, 4)]
+        dags = [DAG(f"dag-bulk-sync-{i}", start_date=DEFAULT_DATE, tags=["test-dag"]) for i in range(4)]
 
         with assert_queries_count(5):
             DAG.bulk_write_to_db(dags)
@@ -1304,14 +1299,17 @@ class TestDag:
         dag.fileloc = dag_fileloc
         session = settings.Session()
         with mock.patch("airflow.models.dag.DagCode.bulk_sync_to_db"):
-            dag.sync_to_db(session=session)
+            dag.sync_to_db(session=session, processor_subdir="/usr/local/airflow/dags/")
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
         assert orm_dag.is_active
         assert orm_dag.fileloc == dag_fileloc
 
-        DagModel.deactivate_deleted_dags(list_py_file_paths(settings.DAGS_FOLDER))
+        DagModel.deactivate_deleted_dags(
+            list_py_file_paths(settings.DAGS_FOLDER),
+            processor_subdir="/usr/local/airflow/dags/",
+        )
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
         assert not orm_dag.is_active
@@ -1361,11 +1359,11 @@ class TestDag:
             op3 = EmptyOperator(task_id="t3")
             op1 >> op2 >> op3
 
-            with redirect_stdout(io.StringIO()) as stdout:
+            with redirect_stdout(StringIO()) as stdout:
                 dag.tree_view()
                 stdout = stdout.getvalue()
 
-            stdout_lines = stdout.split("\n")
+            stdout_lines = stdout.splitlines()
             assert "t1" in stdout_lines[0]
             assert "t2" in stdout_lines[1]
             assert "t3" in stdout_lines[2]
@@ -1731,7 +1729,7 @@ class TestDag:
 
     def test_dag_add_task_checks_trigger_rule(self):
         # A non fail stop dag should allow any trigger rule
-        from airflow.exceptions import DagInvalidTriggerRule
+        from airflow.exceptions import FailStopDagInvalidTriggerRule
         from airflow.utils.trigger_rule import TriggerRule
 
         task_with_non_default_trigger_rule = EmptyOperator(
@@ -1742,8 +1740,10 @@ class TestDag:
         )
         try:
             non_fail_stop_dag.add_task(task_with_non_default_trigger_rule)
-        except DagInvalidTriggerRule as exception:
-            assert False, f"dag add_task() raises DagInvalidTriggerRule for non fail stop dag: {exception}"
+        except FailStopDagInvalidTriggerRule as exception:
+            assert (
+                False
+            ), f"dag add_task() raises FailStopDagInvalidTriggerRule for non fail stop dag: {exception}"
 
         # a fail stop dag should allow default trigger rule
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
@@ -1756,13 +1756,13 @@ class TestDag:
         )
         try:
             fail_stop_dag.add_task(task_with_default_trigger_rule)
-        except DagInvalidTriggerRule as exception:
+        except FailStopDagInvalidTriggerRule as exception:
             assert (
                 False
             ), f"dag.add_task() raises exception for fail-stop dag & default trigger rule: {exception}"
 
         # a fail stop dag should not allow a non-default trigger rule
-        with pytest.raises(DagInvalidTriggerRule):
+        with pytest.raises(FailStopDagInvalidTriggerRule):
             fail_stop_dag.add_task(task_with_non_default_trigger_rule)
 
     def test_dag_add_task_sets_default_task_group(self):
@@ -1984,7 +1984,7 @@ class TestDag:
         dag.test()
         mock_object.assert_called_with([0, 1, 2, 3, 4])
 
-    def test_dag_connection_file(self):
+    def test_dag_connection_file(self, tmp_path):
         test_connections_string = """
 ---
 my_postgres_conn:
@@ -2004,10 +2004,9 @@ my_postgres_conn:
 
         with dag:
             check_task()
-        with NamedTemporaryFile(suffix=".yaml") as tmp:
-            with open(tmp.name, "w") as f:
-                f.write(test_connections_string)
-            dag.test(conn_file_path=tmp.name)
+        path = tmp_path / "testfile.yaml"
+        path.write_text(test_connections_string)
+        dag.test(conn_file_path=os.fspath(path))
 
     def _make_test_subdag(self, session):
         dag_id = "test_subdag"
@@ -2250,8 +2249,9 @@ my_postgres_conn:
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
-    @time_machine.travel(timezone.datetime(2020, 1, 5), tick=False)
-    def test_next_dagrun_info_timedelta_schedule_and_catchup_false(self):
+    @time_machine.travel(timezone.datetime(2020, 1, 5))
+    @pytest.mark.parametrize("schedule", ("@daily", timedelta(days=1), cron_timetable("0 0 * * *")))
+    def test_next_dagrun_info_timedelta_schedule_and_catchup_false(self, schedule):
         """
         Test that the dag file processor does not create multiple dagruns
         if a dag is scheduled with 'timedelta' and catchup=False
@@ -2259,7 +2259,7 @@ my_postgres_conn:
         dag = DAG(
             "test_scheduler_dagrun_once_with_timedelta_and_catchup_false",
             start_date=timezone.datetime(2015, 1, 1),
-            schedule=timedelta(days=1),
+            schedule=schedule,
             catchup=False,
         )
 
@@ -2418,7 +2418,7 @@ my_postgres_conn:
         assert dag.access_control == updated_permissions
 
     def test_validate_params_on_trigger_dag(self):
-        dag = models.DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
+        dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
         with pytest.raises(ParamValidationError, match="No value passed and Param has no default value"):
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
@@ -2426,7 +2426,7 @@ my_postgres_conn:
                 execution_date=TEST_DATE,
             )
 
-        dag = models.DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
+        dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
         with pytest.raises(
             ParamValidationError, match="Invalid input for param param1: None is not of type 'string'"
         ):
@@ -2437,7 +2437,7 @@ my_postgres_conn:
                 conf={"param1": None},
             )
 
-        dag = models.DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
+        dag = DAG("dummy-dag", schedule=None, params={"param1": Param(type="string")})
         dag.create_dagrun(
             run_id="test_dagrun_missing_param",
             state=State.RUNNING,
@@ -2449,7 +2449,7 @@ my_postgres_conn:
         start_date = TEST_DATE
         delta = timedelta(days=1)
 
-        dag = models.DAG("dummy-dag", schedule=delta)
+        dag = DAG("dummy-dag", schedule=delta)
         dag_dates = dag.date_range(start_date=start_date, num=3)
 
         assert dag_dates == [
@@ -2884,31 +2884,28 @@ class TestDagDecorator:
         assert dag.dag_id == "noop_pipeline"
         assert "Regular DAG documentation" in dag.doc_md
 
-    def test_resolve_documentation_template_file_rendered(self):
+    def test_resolve_documentation_template_file_rendered(self, tmp_path):
         """Test that @dag uses function docs as doc_md for DAG object"""
 
-        with NamedTemporaryFile(suffix=".md") as f:
-            f.write(
-                b"""
-            {% if True %}
-               External Markdown DAG documentation
-            {% endif %}
+        path = tmp_path / "testfile.md"
+        path.write_text(
             """
-            )
-            f.flush()
-            template_dir = os.path.dirname(f.name)
-            template_file = os.path.basename(f.name)
+        {% if True %}
+            External Markdown DAG documentation
+        {% endif %}
+        """
+        )
 
-            @dag_decorator(
-                "test-dag", start_date=DEFAULT_DATE, template_searchpath=template_dir, doc_md=template_file
-            )
-            def markdown_docs():
-                ...
+        @dag_decorator(
+            "test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent), doc_md=path.name
+        )
+        def markdown_docs():
+            ...
 
-            dag = markdown_docs()
-            assert isinstance(dag, DAG)
-            assert dag.dag_id == "test-dag"
-            assert dag.doc_md.strip() == "External Markdown DAG documentation"
+        dag = markdown_docs()
+        assert isinstance(dag, DAG)
+        assert dag.dag_id == "test-dag"
+        assert dag.doc_md.strip() == "External Markdown DAG documentation"
 
     def test_fails_if_arg_not_set(self):
         """Test that @dag decorated function fails if positional argument is not set"""
@@ -3443,10 +3440,10 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
 )
 def test__tags_length(tags: list[str], should_pass: bool):
     if should_pass:
-        models.DAG("test-dag", tags=tags)
+        DAG("test-dag", tags=tags)
     else:
         with pytest.raises(AirflowException):
-            models.DAG("test-dag", tags=tags)
+            DAG("test-dag", tags=tags)
 
 
 @pytest.mark.need_serialized_dag
@@ -3729,7 +3726,9 @@ class TestTaskClearingSetupTeardownBehavior:
         s2 >> w2 >> t2
 
         assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
-        assert self.cleared_downstream(w1) == {s1, w1, t1, w2, t2}
+        # s2 is included because w2 is included
+        assert self.cleared_downstream(w1) == {s1, w1, t1, s2, w2, t2}
+        assert self.cleared_neither(w1) == {s1, w1, t1}
         assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s2, t2}
         assert self.cleared_downstream(w2) == {s2, w2, t2}
 
@@ -3749,7 +3748,9 @@ class TestTaskClearingSetupTeardownBehavior:
         s3 >> w2 >> [t3a, t3b]
         s3 >> [t3a, t3b]
         assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1a, s1b, t1}
-        assert self.cleared_downstream(w1) == {s1a, s1b, w1, t1, t3a, t3b, w2, t2}
+        # since w2 is downstream of w1, w2 gets cleared.
+        # and since w2 gets cleared, we should also see s2 and s3 in here
+        assert self.cleared_downstream(w1) == {s1a, s1b, w1, t1, s3, t3a, t3b, w2, s2, t2}
         assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s2, t2, s3, t3a, t3b}
         assert self.cleared_downstream(w2) == {s2, s3, w2, t2, t3a, t3b}
 
@@ -3825,7 +3826,7 @@ class TestTaskClearingSetupTeardownBehavior:
         the setup (and its teardown) will be cleared even though strictly speaking you don't
         "require" it since, depending on speed of execution, it might be torn down by t1
         before / while w2 runs.  It just gets cleared by virtue of it being upstream, and
-        that's what you requested.  And it's teardown gets cleared too.  But w1 doesn't.
+        that's what you requested.  And its teardown gets cleared too.  But w1 doesn't.
         """
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
             s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
@@ -3897,25 +3898,144 @@ class TestTaskClearingSetupTeardownBehavior:
             ).tasks
         } == expected
 
-    def test_validate_setup_teardown_dag(self, dag_maker):
-        """Test some invalid setups and teardowns in a dag"""
-        with dag_maker("test_dag") as dag:
-            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
-            w1 >> w2
-            with s1 >> t1:
-                ...
-        with pytest.raises(
-            AirflowDagInconsistent,
-            match="Dag has teardown task without an upstream work task: dag='test_dag', task='t1'",
-        ):
-            dag.validate()
+    def test_get_flat_relative_ids_two_tasks_diff_setup_teardowns_deeper(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, t1, s2, t2, w1, w2, s3, w3, t3 = self.make_tasks(dag, "s1, t1, s2, t2, w1, w2, s3, w3, t3")
+        s1 >> w1 >> t1
+        s1 >> t1
+        w1 >> w2
 
-        with dag_maker("test_dag") as dag:
-            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
-            s1 >> t1 >> w1 >> w2
+        # with the below, s2 is not downstream of w1, but it's the setup for w2
+        # so it should be cleared when w1 is cleared
+        s2 >> w2 >> t2
+        s2 >> t2
 
-        with pytest.raises(
-            AirflowDagInconsistent,
-            match="Dag has teardown task without an upstream work task: dag='test_dag', task='t1'",
-        ):
-            dag.validate()
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s2, t2}
+        assert self.cleared_downstream(w1) == {s1, w1, t1, s2, w2, t2}
+        assert self.cleared_downstream(w2) == {s2, w2, t2}
+
+        # now, what if s2 itself has a setup and teardown?
+        s3 >> s2 >> t3
+        s3 >> t3
+        # note that s3 is excluded because it's assumed that a setup won't have a setup
+        # so, we don't continue to recurse for setups after reaching the setups for
+        # the downstream work tasks
+        # but, t3 is included since it's a teardown for s2
+        assert self.cleared_downstream(w1) == {s1, w1, t1, s2, w2, t2, t3}
+
+    def test_clearing_behavior_multiple_setups_for_work_task(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, t1, s2, t2, w1, w2, s3, w3, t3 = self.make_tasks(dag, "s1, t1, s2, t2, w1, w2, s3, w3, t3")
+        s1 >> t1
+        s2 >> t2
+        s3 >> t3
+        s1 >> s2 >> s3 >> w1 >> w2 >> [t1, t2, t3]
+
+        assert self.cleared_downstream(w1) == {s1, s2, s3, w1, w2, t1, t2, t3}
+        assert self.cleared_downstream(w2) == {s1, s2, s3, w2, t1, t2, t3}
+        assert self.cleared_downstream(s3) == {s1, s2, s3, w1, w2, t1, t2, t3}
+        # even if we don't include upstream / downstream, setups and teardowns are cleared
+        assert self.cleared_neither(w2) == {s3, t3, s2, t2, s1, t1, w2}
+        assert self.cleared_neither(w1) == {s3, t3, s2, t2, s1, t1, w1}
+        # but, a setup doesn't formally have a setup, so if we only clear s3, say then its upstream setups
+        # are not also cleared
+        assert self.cleared_neither(s3) == {s3, t3}
+        assert self.cleared_neither(s2) == {s2, t2}
+
+    def test_clearing_behavior_multiple_setups_for_work_task2(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, t1, s2, t2, w1, w2, s3, w3, t3 = self.make_tasks(dag, "s1, t1, s2, t2, w1, w2, s3, w3, t3")
+        s1 >> t1
+        s2 >> t2
+        s3 >> t3
+        [s1, s2, s3] >> w1 >> w2 >> [t1, t2, t3]
+
+        assert self.cleared_downstream(w1) == {s1, s2, s3, w1, w2, t1, t2, t3}
+        assert self.cleared_downstream(w2) == {s1, s2, s3, w2, t1, t2, t3}
+
+    def test_clearing_behavior_more_tertiary_weirdness(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, t1, s2, t2, w1, w2, s3, t3 = self.make_tasks(dag, "s1, t1, s2, t2, w1, w2, s3, t3")
+        s1 >> t1
+        s2 >> t2
+        s1 >> w1 >> s2 >> w2 >> [t1, t2]
+        s2 >> w2 >> t2
+        s3 >> s2 >> t3
+        s3 >> t3
+
+        def sort(task_list):
+            return sorted(x.task_id for x in task_list)
+
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
+        # s2 is included because w2 is included
+        assert self.cleared_downstream(w1) == {s1, w1, t1, s2, w2, t2, t3}
+        assert self.cleared_downstream(w2) == {s1, t1, s2, w2, t2, t3}
+        # t3 is included since s2 is included and s2 >> t3
+        # but s3 not included because it's assumed that a setup doesn't have a setup
+        assert self.cleared_neither(w2) == {s1, w2, t1, s2, t2, t3}
+
+        # since we're clearing upstream, s3 is upstream of w2, so s3 and t3 are included
+        # even though w2 doesn't require them
+        # s2 and t2 are included for obvious reasons, namely that w2 requires s2
+        # and s1 and t1 are included for the same reason
+        # w1 included since it is upstream of w2
+        assert sort(self.cleared_upstream(w2)) == sort({s1, t1, s2, t2, s3, t3, w1, w2})
+
+        # t3 is included here since it's a teardown for s2
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s2, t2, s1, t1, t3}
+
+    def test_clearing_behavior_more_tertiary_weirdness2(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, t1, s2, t2, w1, w2, s3, t3 = self.make_tasks(dag, "s1, t1, s2, t2, w1, w2, s3, t3")
+        s1 >> t1
+        s2 >> t2
+        s1 >> w1 >> t1
+        s2 >> t1 >> t2
+
+        def sort(task_list):
+            return sorted(x.task_id for x in task_list)
+
+        # t2 included since downstream, but s2 not included since it's not required by t2
+        # and clearing teardown does not clear the setup
+        assert self.cleared_downstream(w1) == {s1, w1, t1, t2}
+
+        # even though t1 is cleared here, s2 and t2 are not "setup and teardown" for t1
+        # so they are not included
+        assert self.cleared_neither(w1) == {s1, w1, t1}
+        assert self.cleared_upstream(w1) == {s1, w1, t1}
+
+        # t1 does not have a setup or teardown
+        # but t2 is downstream so it's included
+        # and s2 is not included since clearing teardown does not clear the setup
+        assert self.cleared_downstream(t1) == {t1, t2}
+        # t1 does not have a setup or teardown
+        assert self.cleared_neither(t1) == {t1}
+        # s2 included since upstream, and t2 included since s2 included
+        assert self.cleared_upstream(t1) == {s1, t1, s2, t2, w1}
+
+    def test_clearing_behavior_just_teardown(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, t1 = self.make_tasks(dag, "s1, t1")
+        s1 >> t1
+        assert set(t1.get_upstreams_only_setups_and_teardowns()) == set()
+        assert self.cleared_upstream(t1) == {s1, t1}
+        assert self.cleared_downstream(t1) == {t1}
+        assert self.cleared_neither(t1) == {t1}
+        assert set(s1.get_upstreams_only_setups_and_teardowns()) == set()
+        assert self.cleared_upstream(s1) == {s1, t1}
+        assert self.cleared_downstream(s1) == {s1, t1}
+        assert self.cleared_neither(s1) == {s1, t1}
+
+    def test_validate_setup_teardown_trigger_rule(self):
+        with DAG(
+            dag_id="direct_setup_trigger_rule", start_date=pendulum.now(), schedule=None, catchup=False
+        ) as dag:
+            s1, w1 = self.make_tasks(dag, "s1, w1")
+            s1 >> w1
+            dag.validate_setup_teardown()
+            w1.trigger_rule = TriggerRule.ONE_FAILED
+            with pytest.raises(
+                Exception, match="Setup tasks must be followed with trigger rule ALL_SUCCESS."
+            ):
+                dag.validate_setup_teardown()

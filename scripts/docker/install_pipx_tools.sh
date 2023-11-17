@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -23,7 +24,7 @@ function install_pipx_tools() {
     echo "${COLOR_BLUE}Installing pipx tools${COLOR_RESET}"
     echo
     # Make sure PIPX is installed in latest version
-    pip install --root-user-action ignore  --upgrade pipx
+    pip install --root-user-action ignore  --upgrade "pipx>=1.2.1"
     if [[ $(uname -m) != "aarch64" ]]; then
         # Do not install mssql-cli for ARM
         # Install all the tools we need available in command line but without impacting the current environment

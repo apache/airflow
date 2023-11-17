@@ -52,6 +52,7 @@ class BuildProdParams(CommonBuildParams):
     install_airflow_reference: str = ""
     install_airflow_version: str = ""
     install_packages_from_context: bool = False
+    use_constraints_for_context_packages: bool = False
     installation_method: str = "."
     runtime_apt_command: str = ""
     runtime_apt_deps: str = ""
@@ -112,7 +113,7 @@ class BuildProdParams(CommonBuildParams):
     @property
     def extra_docker_build_flags(self) -> list[str]:
         extra_build_flags = []
-        if len(self.install_airflow_reference) > 0:
+        if self.install_airflow_reference:
             AIRFLOW_INSTALLATION_METHOD = (
                 "https://github.com/apache/airflow/archive/"
                 + self.install_airflow_reference
@@ -125,7 +126,7 @@ class BuildProdParams(CommonBuildParams):
                 ]
             )
             extra_build_flags.extend(self.args_for_remote_install)
-        elif len(self.install_airflow_version) > 0:
+        elif self.install_airflow_version:
             if not re.match(r"^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$", self.install_airflow_version):
                 get_console().print(
                     f"\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}"
@@ -159,7 +160,6 @@ class BuildProdParams(CommonBuildParams):
                     f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
                 ]
             )
-
         maintainers = json.dumps([{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}])
         logo_url = "https://github.com/apache/airflow/raw/main/docs/apache-airflow/img/logos/wordmark_1.png"
         readme_url = "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -175,7 +175,7 @@ class BuildProdParams(CommonBuildParams):
                 f"io.artifacthub.package.logo-url={logo_url}",
             ]
         )
-        return extra_build_flags
+        return super().extra_docker_build_flags + extra_build_flags
 
     @property
     def airflow_pre_cached_pip_packages(self) -> str:
@@ -221,7 +221,6 @@ class BuildProdParams(CommonBuildParams):
             "install_postgres_client",
             "install_providers_from_sources",
             "python_base_image",
-            "upgrade_to_newer_dependencies",
         ]
 
     @property
@@ -242,4 +241,6 @@ class BuildProdParams(CommonBuildParams):
             "runtime_apt_deps",
             "version_suffix_for_pypi",
             "commit_sha",
+            "build_progress",
+            "use_constraints_for_context_packages",
         ]

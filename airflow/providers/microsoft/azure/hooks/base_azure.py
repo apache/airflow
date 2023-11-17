@@ -16,13 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from azure.common.client_factory import get_client_from_auth_file, get_client_from_json_dict
 from azure.common.credentials import ServicePrincipalCredentials
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+)
 
 
 class AzureBaseHook(BaseHook):
@@ -43,6 +48,7 @@ class AzureBaseHook(BaseHook):
     hook_name = "Azure"
 
     @staticmethod
+    @add_managed_identity_connection_widgets
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
@@ -50,12 +56,8 @@ class AzureBaseHook(BaseHook):
         from wtforms import StringField
 
         return {
-            "extra__azure__tenantId": StringField(
-                lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()
-            ),
-            "extra__azure__subscriptionId": StringField(
-                lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()
-            ),
+            "tenantId": StringField(lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()),
+            "subscriptionId": StringField(lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -79,8 +81,8 @@ class AzureBaseHook(BaseHook):
                 ),
                 "login": "client_id (token credentials auth)",
                 "password": "secret (token credentials auth)",
-                "extra__azure__tenantId": "tenantId (token credentials auth)",
-                "extra__azure__subscriptionId": "subscriptionId (token credentials auth)",
+                "tenantId": "tenantId (token credentials auth)",
+                "subscriptionId": "subscriptionId (token credentials auth)",
             },
         }
 
@@ -96,10 +98,24 @@ class AzureBaseHook(BaseHook):
         :return: the authenticated client.
         """
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get("extra__azure__tenantId") or conn.extra_dejson.get("tenantId")
-        subscription_id = conn.extra_dejson.get("extra__azure__subscriptionId") or conn.extra_dejson.get(
-            "subscriptionId"
-        )
+        tenant = conn.extra_dejson.get("tenantId")
+        if not tenant and conn.extra_dejson.get("extra__azure__tenantId"):
+            warnings.warn(
+                "`extra__azure__tenantId` is deprecated in azure connection extra, "
+                "please use `tenantId` instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            tenant = conn.extra_dejson.get("extra__azure__tenantId")
+        subscription_id = conn.extra_dejson.get("subscriptionId")
+        if not subscription_id and conn.extra_dejson.get("extra__azure__subscriptionId"):
+            warnings.warn(
+                "`extra__azure__subscriptionId` is deprecated in azure connection extra, "
+                "please use `subscriptionId` instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            subscription_id = conn.extra_dejson.get("extra__azure__subscriptionId")
 
         key_path = conn.extra_dejson.get("key_path")
         if key_path:
@@ -113,10 +129,22 @@ class AzureBaseHook(BaseHook):
             self.log.info("Getting connection using a JSON config.")
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
-        self.log.info("Getting connection using specific credentials and subscription_id.")
-        return self.sdk_client(
-            credentials=ServicePrincipalCredentials(
+        credentials: ServicePrincipalCredentials | AzureIdentityCredentialAdapter
+        if all([conn.login, conn.password, tenant]):
+            self.log.info("Getting connection using specific credentials and subscription_id.")
+            credentials = ServicePrincipalCredentials(
                 client_id=conn.login, secret=conn.password, tenant=tenant
-            ),
+            )
+        else:
+            self.log.info("Using DefaultAzureCredential as credential")
+            managed_identity_client_id = conn.extra_dejson.get("managed_identity_client_id")
+            workload_identity_tenant_id = conn.extra_dejson.get("workload_identity_tenant_id")
+            credentials = AzureIdentityCredentialAdapter(
+                managed_identity_client_id=managed_identity_client_id,
+                workload_identity_tenant_id=workload_identity_tenant_id,
+            )
+
+        return self.sdk_client(
+            credentials=credentials,
             subscription_id=subscription_id,
         )

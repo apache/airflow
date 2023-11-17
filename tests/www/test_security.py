@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import datetime
 import logging
+import os
 from unittest import mock
 from unittest.mock import patch
 
@@ -29,15 +30,19 @@ from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
-from airflow.auth.managers.fab.auth.anonymous_user import AnonymousUser
 from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.auth.managers.fab.models import User, assoc_permission_role
+from airflow.auth.managers.fab.models.anonymous_user import AnonymousUser
+from airflow.auth.managers.models.resource_details import DagDetails
+from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.base import Base
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
+from airflow.www.auth import get_access_denied_message
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.api_connexion_utils import (
     create_user,
@@ -49,6 +54,8 @@ from tests.test_utils.api_connexion_utils import (
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
+
+pytestmark = pytest.mark.db_test
 
 READ_WRITE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
 READ_ONLY = {permissions.ACTION_CAN_READ}
@@ -113,6 +120,24 @@ def _delete_dag_model(dag_model, session, security_manager):
     session.delete(dag_model)
     session.commit()
     _delete_dag_permissions(dag_model.dag_id, security_manager)
+
+
+def _can_read_dag(dag_id: str, user) -> bool:
+    return get_auth_manager().is_authorized_dag(method="GET", details=DagDetails(id=dag_id), user=user)
+
+
+def _can_edit_dag(dag_id: str, user) -> bool:
+    return get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag_id), user=user)
+
+
+def _can_delete_dag(dag_id: str, user) -> bool:
+    return get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag_id), user=user)
+
+
+def _has_all_dags_access(user) -> bool:
+    return get_auth_manager().is_authorized_dag(
+        method="GET", user=user
+    ) or get_auth_manager().is_authorized_dag(method="PUT", user=user)
 
 
 @contextlib.contextmanager
@@ -203,7 +228,9 @@ def sample_dags(security_manager):
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
         root_dag_id = security_manager._get_root_dag_id(dag_id)
-        return security_manager.has_access(perm, permissions.resource_name_for_dag(root_dag_id), user)
+        return get_auth_manager().is_authorized_dag(
+            method=perm, details=DagDetails(id=root_dag_id), user=user
+        )
 
     return _has_dag_perm
 
@@ -318,7 +345,7 @@ def test_verify_default_anon_user_has_no_accessible_dag_ids(
         with _create_dag_model_context("test_dag_id", session, security_manager):
             security_manager.sync_roles()
 
-            assert security_manager.get_accessible_dag_ids(user) == set()
+            assert get_auth_manager().get_permitted_dag_ids(user=user) == set()
 
 
 def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, security_manager, has_dag_perm):
@@ -331,10 +358,10 @@ def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, se
         with _create_dag_model_context(dag_id, session, security_manager):
             security_manager.sync_roles()
 
-            assert security_manager.can_read_dag(dag_id, user) is False
-            assert security_manager.can_edit_dag(dag_id, user) is False
-            assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is False
-            assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is False
+            assert _can_read_dag(dag_id, user) is False
+            assert _can_edit_dag(dag_id, user) is False
+            assert has_dag_perm("GET", dag_id, user) is False
+            assert has_dag_perm("PUT", dag_id, user) is False
 
 
 @patch.object(FabAuthManager, "is_logged_in")
@@ -356,7 +383,7 @@ def test_verify_anon_user_with_admin_role_has_all_dag_access(
 
         security_manager.sync_roles()
 
-        assert security_manager.get_accessible_dag_ids(user) == set(test_dag_ids)
+        assert get_auth_manager().get_permitted_dag_ids(user=user) == set(test_dag_ids)
 
 
 def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
@@ -376,10 +403,10 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
             with _create_dag_model_context(dag_id, session, security_manager):
                 security_manager.sync_roles()
 
-                assert security_manager.can_read_dag(dag_id, user) is True
-                assert security_manager.can_edit_dag(dag_id, user) is True
-                assert has_dag_perm(permissions.ACTION_CAN_READ, dag_id, user) is True
-                assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is True
+                assert _can_read_dag(dag_id, user) is True
+                assert _can_edit_dag(dag_id, user) is True
+                assert has_dag_perm("GET", dag_id, user) is True
+                assert has_dag_perm("PUT", dag_id, user) is True
 
 
 def test_get_user_roles(app_builder, security_manager):
@@ -484,7 +511,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
                 dag_id, access_control={role_name: permission_action}
             )
 
-            assert security_manager.get_accessible_dag_ids(user) == {"dag_id"}
+            assert get_auth_manager().get_permitted_dag_ids(user=user) == {"dag_id"}
 
 
 @patch.object(FabAuthManager, "is_logged_in")
@@ -492,7 +519,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
     mock_is_logged_in, app, security_manager, session
 ):
     # In this test case,
-    # get_readable_dag_ids() don't return DAGs to which the user has CAN_EDIT action
+    # get_permitted_dag_ids() don't return DAGs to which the user has CAN_EDIT action
     username = "Monsieur User"
     role_name = "MyRole1"
     permission_action = [permissions.ACTION_CAN_EDIT]
@@ -515,7 +542,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
                 dag_id, access_control={role_name: permission_action}
             )
 
-            assert security_manager.get_readable_dag_ids(user) == set()
+            assert get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=user) == set()
 
 
 def test_has_access(security_manager):
@@ -534,6 +561,137 @@ def test_sync_perm_for_dag_creates_permissions_on_resources(security_manager):
     assert security_manager.get_permission(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id) is not None
 
 
+def test_sync_perm_for_dag_creates_permissions_for_specified_roles(app, security_manager):
+    test_dag_id = "TEST_DAG"
+    test_role = "limited-role"
+    security_manager.bulk_sync_roles([{"role": test_role, "perms": []}])
+    with app.app_context():
+        with create_user_scope(
+            app,
+            username="test_user",
+            role_name=test_role,
+            permissions=[],
+        ) as user:
+            security_manager.sync_perm_for_dag(
+                test_dag_id, access_control={test_role: {"can_read", "can_edit"}}
+            )
+            assert _can_read_dag(test_dag_id, user)
+            assert _can_edit_dag(test_dag_id, user)
+            assert not _can_delete_dag(test_dag_id, user)
+
+
+def test_sync_perm_for_dag_removes_existing_permissions_if_empty(app, security_manager):
+    test_dag_id = "TEST_DAG"
+    test_role = "limited-role"
+
+    with app.app_context():
+        with create_user_scope(
+            app,
+            username="test_user",
+            role_name=test_role,
+            permissions=[],
+        ) as user:
+            security_manager.bulk_sync_roles(
+                [
+                    {
+                        "role": test_role,
+                        "perms": [
+                            (permissions.ACTION_CAN_READ, f"DAG:{test_dag_id}"),
+                            (permissions.ACTION_CAN_EDIT, f"DAG:{test_dag_id}"),
+                            (permissions.ACTION_CAN_DELETE, f"DAG:{test_dag_id}"),
+                        ],
+                    }
+                ]
+            )
+
+            assert _can_read_dag(test_dag_id, user)
+            assert _can_edit_dag(test_dag_id, user)
+            assert _can_delete_dag(test_dag_id, user)
+
+            # Need to clear cache on user perms
+            user._perms = None
+
+            security_manager.sync_perm_for_dag(test_dag_id, access_control={test_role: {}})
+
+            assert not _can_read_dag(test_dag_id, user)
+            assert not _can_edit_dag(test_dag_id, user)
+            assert not _can_delete_dag(test_dag_id, user)
+
+
+def test_sync_perm_for_dag_removes_permissions_from_other_roles(app, security_manager):
+    test_dag_id = "TEST_DAG"
+    test_role = "limited-role"
+
+    with app.app_context():
+        with create_user_scope(
+            app,
+            username="test_user",
+            role_name=test_role,
+            permissions=[],
+        ) as user:
+            security_manager.bulk_sync_roles(
+                [
+                    {
+                        "role": test_role,
+                        "perms": [
+                            (permissions.ACTION_CAN_READ, f"DAG:{test_dag_id}"),
+                            (permissions.ACTION_CAN_EDIT, f"DAG:{test_dag_id}"),
+                            (permissions.ACTION_CAN_DELETE, f"DAG:{test_dag_id}"),
+                        ],
+                    },
+                    {"role": "other_role", "perms": []},
+                ]
+            )
+
+            assert _can_read_dag(test_dag_id, user)
+            assert _can_edit_dag(test_dag_id, user)
+            assert _can_delete_dag(test_dag_id, user)
+
+            # Need to clear cache on user perms
+            user._perms = None
+
+            security_manager.sync_perm_for_dag(test_dag_id, access_control={"other_role": {"can_read"}})
+
+            assert not _can_read_dag(test_dag_id, user)
+            assert not _can_edit_dag(test_dag_id, user)
+            assert not _can_delete_dag(test_dag_id, user)
+
+
+def test_sync_perm_for_dag_does_not_prune_roles_when_access_control_unset(app, security_manager):
+    test_dag_id = "TEST_DAG"
+    test_role = "limited-role"
+
+    with app.app_context():
+        with create_user_scope(
+            app,
+            username="test_user",
+            role_name=test_role,
+            permissions=[],
+        ) as user:
+            security_manager.bulk_sync_roles(
+                [
+                    {
+                        "role": test_role,
+                        "perms": [
+                            (permissions.ACTION_CAN_READ, f"DAG:{test_dag_id}"),
+                            (permissions.ACTION_CAN_EDIT, f"DAG:{test_dag_id}"),
+                        ],
+                    },
+                ]
+            )
+
+            assert _can_read_dag(test_dag_id, user)
+            assert _can_edit_dag(test_dag_id, user)
+
+            # Need to clear cache on user perms
+            user._perms = None
+
+            security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
+
+            assert _can_read_dag(test_dag_id, user)
+            assert _can_edit_dag(test_dag_id, user)
+
+
 def test_has_all_dag_access(app, security_manager):
     for role_name in ["Admin", "Viewer", "Op", "User"]:
         with app.app_context():
@@ -542,7 +700,7 @@ def test_has_all_dag_access(app, security_manager):
                 username="user",
                 role_name=role_name,
             ) as user:
-                assert security_manager.has_all_dags_access(user)
+                assert _has_all_dags_access(user)
 
     with app.app_context():
         with create_user_scope(
@@ -551,7 +709,7 @@ def test_has_all_dag_access(app, security_manager):
             role_name="read_all",
             permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)],
         ) as user:
-            assert security_manager.has_all_dags_access(user)
+            assert _has_all_dags_access(user)
 
     with app.app_context():
         with create_user_scope(
@@ -560,7 +718,7 @@ def test_has_all_dag_access(app, security_manager):
             role_name="edit_all",
             permissions=[(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)],
         ) as user:
-            assert security_manager.has_all_dags_access(user)
+            assert _has_all_dags_access(user)
 
     with app.app_context():
         with create_user_scope(
@@ -569,7 +727,7 @@ def test_has_all_dag_access(app, security_manager):
             role_name="nada",
             permissions=[],
         ) as user:
-            assert not security_manager.has_all_dags_access(user)
+            assert not _has_all_dags_access(user)
 
 
 def test_access_control_with_non_existent_role(security_manager):
@@ -644,7 +802,7 @@ def test_access_control_is_set_on_init(
                 access_control={role_name: [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
             )
             assert_user_has_dag_perms(
-                perms=[permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ],
+                perms=["PUT", "GET"],
                 dag_id="access_control_test",
                 user=user,
             )
@@ -652,7 +810,7 @@ def test_access_control_is_set_on_init(
             security_manager.bulk_sync_roles([{"role": negated_role, "perms": []}])
             set_user_single_role(app, user, role_name=negated_role)
             assert_user_does_not_have_dag_perms(
-                perms=[permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ],
+                perms=["PUT", "GET"],
                 dag_id="access_control_test",
                 user=user,
             )
@@ -677,19 +835,15 @@ def test_access_control_stale_perms_are_revoked(
             security_manager._sync_dag_view_permissions(
                 "access_control_test", access_control={"team-a": READ_WRITE}
             )
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id="access_control_test", user=user)
+            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id="access_control_test", user=user)
 
             security_manager._sync_dag_view_permissions(
                 "access_control_test", access_control={"team-a": READ_ONLY}
             )
             # Clear the cache, to make it pick up new rol perms
             user._perms = None
-            assert_user_has_dag_perms(
-                perms=[permissions.ACTION_CAN_READ], dag_id="access_control_test", user=user
-            )
-            assert_user_does_not_have_dag_perms(
-                perms=[permissions.ACTION_CAN_EDIT], dag_id="access_control_test", user=user
-            )
+            assert_user_has_dag_perms(perms=["GET"], dag_id="access_control_test", user=user)
+            assert_user_does_not_have_dag_perms(perms=["PUT"], dag_id="access_control_test", user=user)
 
 
 def test_no_additional_dag_permission_views_created(db, security_manager):
@@ -736,7 +890,9 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     dagbag_class_mock.return_value = dagbag_mock
     import airflow.www.security
 
-    monkeypatch.setitem(airflow.www.security.__dict__, "DagBag", dagbag_class_mock)
+    monkeypatch.setitem(
+        airflow.auth.managers.fab.security_manager.override.__dict__, "DagBag", dagbag_class_mock
+    )
     security_manager._sync_dag_view_permissions = mock.Mock()
 
     for dag in sample_dags:
@@ -845,10 +1001,10 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
                     parent_dag_name, access_control={role_name: READ_WRITE}
                 )
 
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag", user=user)
+            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=parent_dag_name, user=user)
+            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=parent_dag_name + ".subdag", user=user)
             assert_user_has_dag_perms(
-                perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
+                perms=["GET", "PUT"], dag_id=parent_dag_name + ".subdag.subsubdag", user=user
             )
             session.query(DagModel).delete()
 
@@ -882,8 +1038,8 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             security_manager.bulk_sync_roles(mock_roles)
             security_manager.sync_perm_for_dag(dag1.dag_id, access_control={role_name: READ_WRITE})
             security_manager.sync_perm_for_dag(dag2.dag_id, access_control={role_name: READ_WRITE})
-            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=dag_id, user=user)
-            assert_user_does_not_have_dag_perms(perms=READ_WRITE, dag_id=dag_id_2, user=user)
+            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
+            assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
             session.query(DagModel).delete()
 
 
@@ -969,3 +1125,18 @@ def test_users_can_be_found(app, security_manager, session, caplog):
     assert len(users) == 1
     delete_user(app, "Test")
     assert "Error adding new user to database" in caplog.text
+
+
+def test_default_access_denied_message():
+    initialize_config()
+    assert get_access_denied_message() == "Access is Denied"
+
+
+def test_custom_access_denied_message():
+    with mock.patch.dict(
+        os.environ,
+        {"AIRFLOW__WEBSERVER__ACCESS_DENIED_MESSAGE": "My custom access denied message"},
+        clear=True,
+    ):
+        initialize_config()
+        assert get_access_denied_message() == "My custom access denied message"

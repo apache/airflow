@@ -17,7 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+from unittest import mock
+
 import pytest
+from flask.sessions import SecureCookieSessionInterface
 from flask_appbuilder import SQLA
 
 from airflow import settings
@@ -25,6 +29,8 @@ from airflow.security import permissions
 from airflow.www import app as application
 from tests.test_utils.api_connexion_utils import create_user, delete_role
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+
+pytestmark = pytest.mark.db_test
 
 PERMISSIONS_TESTS_PARAMS = [
     (
@@ -94,7 +100,6 @@ class TestSecurity:
 
     @pytest.mark.parametrize("url, permission, expected_text", PERMISSIONS_TESTS_PARAMS)
     def test_user_model_view_without_access(self, url, permission, expected_text):
-
         user_with_access = create_user(
             self.app,
             username="has_access",
@@ -111,7 +116,6 @@ class TestSecurity:
         check_content_in_response(expected_text, response)
 
     def test_user_model_view_without_delete_access(self):
-
         user_to_delete = create_user(
             self.app,
             username="user_to_delete",
@@ -139,7 +143,6 @@ class TestSecurity:
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is True
 
     def test_user_model_view_with_delete_access(self):
-
         user_to_delete = create_user(
             self.app,
             username="user_to_delete",
@@ -166,3 +169,110 @@ class TestSecurity:
         check_content_in_response("Deleted Row", response)
         check_content_not_in_response(user_to_delete.username, response)
         assert bool(self.security_manager.get_user_by_id(user_to_delete.id)) is False
+
+
+# type: ignore[attr-defined]
+
+
+class TestResetUserSessions:
+    @classmethod
+    def setup_class(cls):
+        settings.configure_orm()
+
+    def setup_method(self):
+        # We cannot reuse the app in tests (on class level) as in Flask 2.2 this causes
+        # an exception because app context teardown is removed and if even single request is run via app
+        # it cannot be re-intialized again by passing it as constructor to SQLA
+        # This makes the tests slightly slower (but they work with Flask 2.1 and 2.2
+        self.app = application.create_app(testing=True)
+        self.appbuilder = self.app.appbuilder
+        self.app.config["WTF_CSRF_ENABLED"] = False
+        self.security_manager = self.appbuilder.sm
+        self.interface = self.app.session_interface
+        self.model = self.interface.sql_session_model
+        self.serializer = self.interface.serializer
+        self.db = self.interface.db
+        self.db.session.query(self.model).delete()
+        self.db.session.commit()
+        self.db.session.flush()
+        self.user_1 = create_user(
+            self.app,
+            username="user_to_delete_1",
+            role_name="user_to_delete",
+        )
+        self.user_2 = create_user(
+            self.app,
+            username="user_to_delete_2",
+            role_name="user_to_delete",
+        )
+        self.db.session.commit()
+        self.db.session.flush()
+
+    def create_user_db_session(self, session_id: str, time_delta: timedelta, user_id: int):
+        self.db.session.add(
+            self.model(
+                session_id=session_id,
+                data=self.serializer.dumps({"_user_id": user_id}),
+                expiry=datetime.now() + time_delta,
+            )
+        )
+
+    @pytest.mark.parametrize(
+        "time_delta, user_sessions_deleted",
+        [
+            pytest.param(timedelta(days=-1), True, id="Both expired"),
+            pytest.param(timedelta(hours=1), True, id="Both fresh"),
+            pytest.param(timedelta(days=1), True, id="Both future"),
+        ],
+    )
+    def test_reset_user_sessions_delete(self, time_delta: timedelta, user_sessions_deleted: bool):
+        self.create_user_db_session("session_id_1", time_delta, self.user_1.id)
+        self.create_user_db_session("session_id_2", time_delta, self.user_2.id)
+        self.db.session.commit()
+        self.db.session.flush()
+        assert self.db.session.query(self.model).count() == 2
+        assert self.get_session_by_id("session_id_1") is not None
+        assert self.get_session_by_id("session_id_2") is not None
+
+        self.security_manager.reset_password(self.user_1.id, "new_password")
+        self.db.session.commit()
+        self.db.session.flush()
+        if user_sessions_deleted:
+            assert self.db.session.query(self.model).count() == 1
+            assert self.get_session_by_id("session_id_1") is None
+        else:
+            assert self.db.session.query(self.model).count() == 2
+            assert self.get_session_by_id("session_id_1") is not None
+
+    def get_session_by_id(self, session_id: str):
+        return self.db.session.query(self.model).filter(self.model.session_id == session_id).scalar()
+
+    @mock.patch("airflow.auth.managers.fab.security_manager.override.flash")
+    @mock.patch("airflow.auth.managers.fab.security_manager.override.MAX_NUM_DATABASE_USER_SESSIONS", 1)
+    def test_refuse_delete(self, flash_mock):
+        self.create_user_db_session("session_id_1", timedelta(days=1), self.user_1.id)
+        self.create_user_db_session("session_id_2", timedelta(days=1), self.user_2.id)
+        self.db.session.commit()
+        self.db.session.flush()
+        assert self.db.session.query(self.model).count() == 2
+        assert self.get_session_by_id("session_id_1") is not None
+        assert self.get_session_by_id("session_id_2") is not None
+        self.security_manager.reset_password(self.user_1.id, "new_password")
+        assert flash_mock.called
+        assert (
+            "The old sessions for user user_to_delete_1 have <b>NOT</b> been deleted!"
+            in flash_mock.call_args[0][0]
+        )
+        assert self.db.session.query(self.model).count() == 2
+        assert self.get_session_by_id("session_id_1") is not None
+        assert self.get_session_by_id("session_id_2") is not None
+
+    @mock.patch("airflow.auth.managers.fab.security_manager.override.flash")
+    def test_warn_securecookie(self, flash_mock):
+        self.app.session_interface = SecureCookieSessionInterface()
+        self.security_manager.reset_password(self.user_1.id, "new_password")
+        assert flash_mock.called
+        assert (
+            "Since you are using `securecookie` session backend mechanism, we cannot"
+            in flash_mock.call_args[0][0]
+        )

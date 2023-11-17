@@ -23,7 +23,7 @@ from airflow.models import Log
 
 
 def client_with_login(app, expected_response_code=302, **kwargs):
-    patch_path = "airflow.www.fab_security.manager.check_password_hash"
+    patch_path = "airflow.auth.managers.fab.security_manager.override.check_password_hash"
     with mock.patch(patch_path) as check_password_hash:
         check_password_hash.return_value = True
         client = app.test_client()

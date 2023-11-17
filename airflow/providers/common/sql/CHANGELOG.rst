@@ -20,8 +20,84 @@
     and you want to add an explanation to the users on how they are supposed to deal with them.
     The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-common-sql``
 
-------
+Changelog
+---------
+
+1.8.1
+.....
+
+Misc
+~~~~
+
+* ``Add '_make_serializable' method which other SQL operators can overrides when result from cursor is not JSON-serializable (#32319)``
+
+1.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.5+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/sql): respect soft_fail argument when exception is raised (#34199)``
+
+Misc
+~~~~
+
+* ``Bump min airflow version of providers (#34728)``
+* ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add missing header into 'common.sql' changelog (#34910)``
+   * ``Refactor usage of str() in providers (#34320)``
+
+1.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BigQueryValueCheckOperator deferrable mode optimisation (#34018)``
+
+Misc
+~~~~
+
+* ``Refactor regex in providers (#33898)``
+
+1.7.1
+.....
+
+Misc
+~~~~
+
+* ``Refactor: Better percentage formatting (#33595)``
+* ``Refactor: Simplify code in smaller providers (#33234)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix typos (double words and it's/its) (#33623)``
+
+1.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+
+1.6.2
+.....
+
+Misc
+~~~~
+
+* ``Make SQLExecute Query signature consistent with other SQL operators (#32974)``
+* ``Get rid of Python2 numeric relics (#33050)``
 
 1.6.1
 .....

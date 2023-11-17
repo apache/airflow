@@ -28,14 +28,82 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.8.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`128f6b9e40 <https://github.com/apache/airflow/commit/128f6b9e40c4cf96f900629294175f9c5babd703>`_  2023-10-13   ``Add missing header into 'common.sql' changelog (#34910)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`659d94f0ae <https://github.com/apache/airflow/commit/659d94f0ae89f47a7d4b95d6c19ab7f87bd3a60f>`_  2023-09-21   ``Use 'airflow.exceptions.AirflowException' in providers (#34511)``
+`f5c2748c33 <https://github.com/apache/airflow/commit/f5c2748c3346bdebf445afd615657af8849345dd>`_  2023-09-08   ``fix(providers/sql): respect soft_fail argument when exception is raised (#34199)``
+=================================================================================================  ===========  ====================================================================================
+
+1.7.2
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+`d757f6a3af <https://github.com/apache/airflow/commit/d757f6a3af24c3ec0d48c8c983d6ba5d6ed2202e>`_  2023-09-03   ``Fix BigQueryValueCheckOperator deferrable mode optimisation (#34018)``
+=================================================================================================  ===========  ========================================================================
+
+1.7.1
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`92474db6a5 <https://github.com/apache/airflow/commit/92474db6a5321a0c0cd0dc21695f95d51c3aad16>`_  2023-08-23   ``Refactor: Better percentage formatting (#33595)``
+`a54c2424df <https://github.com/apache/airflow/commit/a54c2424df51bf1acec420f4792a237dabcfa12b>`_  2023-08-23   ``Fix typos (double words and it's/its) (#33623)``
+`a91ee7ac2f <https://github.com/apache/airflow/commit/a91ee7ac2fe29f460a4e4b0d8c1346f40672be43>`_  2023-08-20   ``Refactor: Simplify code in smaller providers (#33234)``
+=================================================================================================  ===========  ============================================================
+
+1.7.0
+.....
+
+Latest change: 2023-08-11
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`9736143468 <https://github.com/apache/airflow/commit/9736143468cfe034e65afb3df3031ab3626f0f6d>`_  2023-08-07   ``Add a new parameter to SQL operators to specify conn id field (#30784)``
+=================================================================================================  ===========  ==========================================================================
+
+1.6.2
+.....
+
+Latest change: 2023-08-05
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+`cfac7d379f <https://github.com/apache/airflow/commit/cfac7d379f43d8d15da65cae8620322dfd0043d6>`_  2023-08-04   ``Make SQLExecute Query signature consistent with other SQL operators (#32974)``
+`e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
+=================================================================================================  ===========  ================================================================================
+
 1.6.1
 .....
 
-Latest change: 2023-07-25
+Latest change: 2023-07-29
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `ce2841bf6a <https://github.com/apache/airflow/commit/ce2841bf6ab609f31cb04aea9a39473de281bf24>`_  2023-07-25   ``Add default port to Openlineage authority method. (#32828)``
 `60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
 `ef0ed1aacc <https://github.com/apache/airflow/commit/ef0ed1aacc208be9e52a35211d2beaefb735173a>`_  2023-07-06   ``Fix local OpenLineage import in 'SQLExecuteQueryOperator'. (#32400)``

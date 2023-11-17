@@ -24,8 +24,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow import DAG, AirflowException
-from airflow.models import DagRun, TaskInstance
+from airflow.exceptions import AirflowException
+from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerBaseOperator,
     SageMakerCreateExperimentOperator,
@@ -80,6 +80,7 @@ class TestSageMakerBaseOperator:
             self.sagemaker._get_unique_job_name("test", True, lambda _: None)
 
 
+@pytest.mark.db_test
 class TestSageMakerExperimentOperator:
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_create_experiment(self, conn_mock):

@@ -21,12 +21,13 @@ from typing import TYPE_CHECKING, Any, Collection
 
 from pendulum import DateTime
 
-from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 
 if TYPE_CHECKING:
     from sqlalchemy import Session
 
     from airflow.models.dataset import DatasetEvent
+    from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
 
@@ -177,7 +178,6 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         logical_date: DateTime,
         events: Collection[DatasetEvent],
     ) -> DataInterval:
-
         if not events:
             return DataInterval(logical_date, logical_date)
 

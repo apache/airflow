@@ -17,20 +17,23 @@
 # under the License.
 from __future__ import annotations
 
+import fcntl
 import importlib
 import inspect
+import json
 import logging
 import os
 import pickle
+import shutil
 import subprocess
 import sys
+import textwrap
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
 
 import dill
@@ -45,7 +48,10 @@ from airflow.exceptions import (
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
-from airflow.utils.context import Context, context_copy_partial, context_merge
+from airflow.models.variable import Variable
+from airflow.operators.branch import BranchMixIn
+from airflow.utils import hashlib_wrapper
+from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -53,9 +59,22 @@ from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_scr
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
+    from airflow.utils.context import Context
+
+
+def is_venv_installed() -> bool:
+    """
+    Check if the virtualenv package is installed via checking if it is on the path or installed as package.
+
+    :return: True if it is. Whichever way of checking it works, is fine.
+    """
+    if shutil.which("virtualenv") or importlib.util.find_spec("virtualenv"):
+        return True
+    return False
+
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """Deprecated. Use :func:`airflow.decorators.task` instead.
+    """Use :func:`airflow.decorators.task` instead, this is deprecated.
 
     Calls ``@task.python`` and allows users to turn a Python function into
     an Airflow task.
@@ -190,14 +209,14 @@ class PythonOperator(BaseOperator):
 
     def execute_callable(self) -> Any:
         """
-        Calls the python callable with the given arguments.
+        Call the python callable with the given arguments.
 
         :return: the return value of the call.
         """
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
-class BranchPythonOperator(PythonOperator, SkipMixin):
+class BranchPythonOperator(PythonOperator, BranchMixIn):
     """
     A workflow can "branch" or follow a path after the execution of this task.
 
@@ -211,10 +230,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     """
 
     def execute(self, context: Context) -> Any:
-        branch = super().execute(context)
-        self.log.info("Branch callable return %s", branch)
-        self.skip_all_except(context["ti"], branch)
-        return branch
+        return self.do_branch(context, super().execute(context))
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
@@ -322,6 +338,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "prev_execution_date",
         "prev_execution_date_success",
         "prev_start_date_success",
+        "prev_end_date_success",
     }
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
         "macros",
@@ -384,7 +401,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
     def get_python_source(self):
         """Return the source of self.python_callable."""
-        return dedent(inspect.getsource(self.python_callable))
+        return textwrap.dedent(inspect.getsource(self.python_callable))
 
     def _write_args(self, file: Path):
         if self.op_args or self.op_kwargs:
@@ -406,53 +423,56 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         memo[id(self.pickling_library)] = self.pickling_library
         return super().__deepcopy__(memo)
 
-    def _execute_python_callable_in_subprocess(self, python_path: Path, tmp_dir: Path):
-        op_kwargs: dict[str, Any] = {k: v for k, v in self.op_kwargs.items()}
-        if self.templates_dict:
-            op_kwargs["templates_dict"] = self.templates_dict
-        input_path = tmp_dir / "script.in"
-        output_path = tmp_dir / "script.out"
-        string_args_path = tmp_dir / "string_args.txt"
-        script_path = tmp_dir / "script.py"
-        termination_log_path = tmp_dir / "termination.log"
-        self._write_args(input_path)
-        self._write_string_args(string_args_path)
-        write_python_script(
-            jinja_context=dict(
-                op_args=self.op_args,
-                op_kwargs=op_kwargs,
-                expect_airflow=self.expect_airflow,
-                pickling_library=self.pickling_library.__name__,
-                python_callable=self.python_callable.__name__,
-                python_callable_source=self.get_python_source(),
-            ),
-            filename=os.fspath(script_path),
-            render_template_as_native_obj=self.dag.render_template_as_native_obj,
-        )
+    def _execute_python_callable_in_subprocess(self, python_path: Path):
+        with TemporaryDirectory(prefix="venv-call") as tmp:
+            tmp_dir = Path(tmp)
+            op_kwargs: dict[str, Any] = dict(self.op_kwargs)
+            if self.templates_dict:
+                op_kwargs["templates_dict"] = self.templates_dict
+            input_path = tmp_dir / "script.in"
+            output_path = tmp_dir / "script.out"
+            string_args_path = tmp_dir / "string_args.txt"
+            script_path = tmp_dir / "script.py"
+            termination_log_path = tmp_dir / "termination.log"
 
-        try:
-            execute_in_subprocess(
-                cmd=[
-                    os.fspath(python_path),
-                    os.fspath(script_path),
-                    os.fspath(input_path),
-                    os.fspath(output_path),
-                    os.fspath(string_args_path),
-                    os.fspath(termination_log_path),
-                ]
+            self._write_args(input_path)
+            self._write_string_args(string_args_path)
+            write_python_script(
+                jinja_context={
+                    "op_args": self.op_args,
+                    "op_kwargs": op_kwargs,
+                    "expect_airflow": self.expect_airflow,
+                    "pickling_library": self.pickling_library.__name__,
+                    "python_callable": self.python_callable.__name__,
+                    "python_callable_source": self.get_python_source(),
+                },
+                filename=os.fspath(script_path),
+                render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
-        except subprocess.CalledProcessError as e:
-            if e.returncode in self.skip_on_exit_code:
-                raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
-            elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
-                error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
-                with open(termination_log_path) as file:
-                    error_msg += file.read()
-                raise AirflowException(error_msg) from None
-            else:
-                raise
 
-        return self._read_result(output_path)
+            try:
+                execute_in_subprocess(
+                    cmd=[
+                        os.fspath(python_path),
+                        os.fspath(script_path),
+                        os.fspath(input_path),
+                        os.fspath(output_path),
+                        os.fspath(string_args_path),
+                        os.fspath(termination_log_path),
+                    ]
+                )
+            except subprocess.CalledProcessError as e:
+                if e.returncode in self.skip_on_exit_code:
+                    raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
+                elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                    error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
+                    with open(termination_log_path) as file:
+                        error_msg += file.read()
+                    raise AirflowException(error_msg) from None
+                else:
+                    raise
+
+            return self._read_result(output_path)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).serializing()
@@ -477,16 +497,16 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         :ref:`howto/operator:PythonVirtualenvOperator`
 
     :param python_callable: A python function with no references to outside variables,
-        defined with def, which will be run in a virtualenv
+        defined with def, which will be run in a virtual environment.
     :param requirements: Either a list of requirement strings, or a (templated)
         "requirements file" as specified by pip.
-    :param python_version: The Python version to run the virtualenv with. Note that
+    :param python_version: The Python version to run the virtual environment with. Note that
         both 2 and 2.7 are acceptable forms.
     :param use_dill: Whether to use dill to serialize
         the args and result (pickle is default). This allow more complex types
         but requires you to include dill in your requirements.
     :param system_site_packages: Whether to include
-        system_site_packages in your virtualenv.
+        system_site_packages in your virtual environment.
         See virtualenv documentation for more information.
     :param pip_install_options: a list of pip install options when installing requirements
         See 'pip install -h' for available options
@@ -507,9 +527,17 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
         in ``skipped`` state (default: None). If set to ``None``, any non-zero
         exit code will be treated as a failure.
+    :param index_urls: an optional list of index urls to load Python packages from.
+        If not provided the system pip conf will be used to source packages from.
+    :param venv_cache_path: Optional path to the virtual environment parent folder in which the
+        virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
+        with a checksum of requirements. If not provided the virtual environment will be created and deleted
+        in a temp folder for every execution.
     """
 
-    template_fields: Sequence[str] = tuple({"requirements"} | set(PythonOperator.template_fields))
+    template_fields: Sequence[str] = tuple(
+        {"requirements", "index_urls", "venv_cache_path"}.union(PythonOperator.template_fields)
+    )
     template_ext: Sequence[str] = (".txt",)
 
     def __init__(
@@ -517,7 +545,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         *,
         python_callable: Callable,
         requirements: None | Iterable[str] | str = None,
-        python_version: str | int | float | None = None,
+        python_version: str | None = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
         pip_install_options: list[str] | None = None,
@@ -528,6 +556,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
+        index_urls: None | Collection[str] | str = None,
+        venv_cache_path: None | os.PathLike[str] = None,
         **kwargs,
     ):
         if (
@@ -538,19 +568,33 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             raise AirflowException(
                 "Passing op_args or op_kwargs is not supported across different Python "
                 "major versions for PythonVirtualenvOperator. Please use string_args."
-                f"Sys version: {sys.version_info}. Venv version: {python_version}"
+                f"Sys version: {sys.version_info}. Virtual environment version: {python_version}"
             )
-        if importlib.util.find_spec("virtualenv") is None:
+        if python_version is not None and not isinstance(python_version, str):
+            warnings.warn(
+                "Passing non-string types (e.g. int or float) as python_version "
+                "is deprecated. Please use string value instead.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
+        if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if not requirements:
-            self.requirements: list[str] | str = []
+            self.requirements: list[str] = []
         elif isinstance(requirements, str):
-            self.requirements = requirements
+            self.requirements = [requirements]
         else:
             self.requirements = list(requirements)
         self.python_version = python_version
         self.system_site_packages = system_site_packages
         self.pip_install_options = pip_install_options
+        if isinstance(index_urls, str):
+            self.index_urls: list[str] | None = [index_urls]
+        elif isinstance(index_urls, Collection):
+            self.index_urls = list(index_urls)
+        else:
+            self.index_urls = None
+        self.venv_cache_path = venv_cache_path
         super().__init__(
             python_callable=python_callable,
             use_dill=use_dill,
@@ -564,30 +608,109 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             **kwargs,
         )
 
+    def _requirements_list(self) -> list[str]:
+        """Prepare a list of requirements that need to be installed for the virtual environment."""
+        requirements = [str(dependency) for dependency in self.requirements]
+        if not self.system_site_packages and self.use_dill and "dill" not in requirements:
+            requirements.append("dill")
+        requirements.sort()  # Ensure a hash is stable
+        return requirements
+
+    def _prepare_venv(self, venv_path: Path) -> None:
+        """Prepare the requirements and installs the virtual environment."""
+        requirements_file = venv_path / "requirements.txt"
+        requirements_file.write_text("\n".join(self._requirements_list()))
+        prepare_virtualenv(
+            venv_directory=str(venv_path),
+            python_bin=f"python{self.python_version}" if self.python_version else "python",
+            system_site_packages=self.system_site_packages,
+            requirements_file_path=str(requirements_file),
+            pip_install_options=self.pip_install_options,
+            index_urls=self.index_urls,
+        )
+
+    def _calculate_cache_hash(self) -> tuple[str, str]:
+        """Helper to generate the hash of the cache folder to use.
+
+        The following factors are used as input for the hash:
+        - (sorted) list of requirements
+        - pip install options
+        - flag of system site packages
+        - python version
+        - Variable to override the hash with a cache key
+        - Index URLs
+
+        Returns a hash and the data dict which is the base for the hash as text.
+        """
+        hash_dict = {
+            "requirements_list": self._requirements_list(),
+            "pip_install_options": self.pip_install_options,
+            "index_urls": self.index_urls,
+            "cache_key": str(Variable.get("PythonVirtualenvOperator.cache_key", "")),
+            "python_version": self.python_version,
+            "system_site_packages": self.system_site_packages,
+        }
+        hash_text = json.dumps(hash_dict, sort_keys=True)
+        hash_object = hashlib_wrapper.md5(hash_text.encode())
+        requirements_hash = hash_object.hexdigest()
+        return requirements_hash[:8], hash_text
+
+    def _ensure_venv_cache_exists(self, venv_cache_path: Path) -> Path:
+        """Helper to ensure a valid virtual environment is set up and will create inplace."""
+        cache_hash, hash_data = self._calculate_cache_hash()
+        venv_path = venv_cache_path / f"venv-{cache_hash}"
+        self.log.info("Python virtual environment will be cached in %s", venv_path)
+        venv_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(f"{venv_path}.lock", "w") as f:
+            # Ensure that cache is not build by parallel workers
+            fcntl.flock(f, fcntl.LOCK_EX)
+
+            hash_marker = venv_path / "install_complete_marker.json"
+            try:
+                if venv_path.exists():
+                    if hash_marker.exists():
+                        previous_hash_data = hash_marker.read_text(encoding="utf8")
+                        if previous_hash_data == hash_data:
+                            self.log.info("Re-using cached Python virtual environment in %s", venv_path)
+                            return venv_path
+
+                        self.log.error(
+                            "Unicorn alert: Found a previous virtual environment in %s "
+                            "with the same hash but different parameters. Previous setup: '%s' / "
+                            "Requested venv setup: '%s'. Please report a bug to airflow!",
+                            venv_path,
+                            previous_hash_data,
+                            hash_data,
+                        )
+                    else:
+                        self.log.warning(
+                            "Found a previous (probably partial installed) virtual environment in %s, "
+                            "deleting and re-creating.",
+                            venv_path,
+                        )
+
+                    shutil.rmtree(venv_path)
+
+                venv_path.mkdir(parents=True)
+                self._prepare_venv(venv_path)
+                hash_marker.write_text(hash_data, encoding="utf8")
+            except Exception as e:
+                shutil.rmtree(venv_path)
+                raise AirflowException(f"Unable to create new virtual environment in {venv_path}") from e
+            self.log.info("New Python virtual environment created in %s", venv_path)
+            return venv_path
+
     def execute_callable(self):
+        if self.venv_cache_path:
+            venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
+            python_path = venv_path / "bin" / "python"
+            return self._execute_python_callable_in_subprocess(python_path)
+
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
-            requirements_file_name = f"{tmp_dir}/requirements.txt"
-
-            if not isinstance(self.requirements, str):
-                requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
-            else:
-                requirements_file_contents = self.requirements
-
-            if not self.system_site_packages and self.use_dill:
-                requirements_file_contents += "\ndill"
-
-            with open(requirements_file_name, "w") as file:
-                file.write(requirements_file_contents)
-            prepare_virtualenv(
-                venv_directory=tmp_dir,
-                python_bin=f"python{self.python_version}" if self.python_version else None,
-                system_site_packages=self.system_site_packages,
-                requirements_file_path=requirements_file_name,
-                pip_install_options=self.pip_install_options,
-            )
+            self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
-            result = self._execute_python_callable_in_subprocess(python_path, tmp_path)
+            result = self._execute_python_callable_in_subprocess(python_path)
             return result
 
     def _iter_serializable_context_keys(self):
@@ -599,11 +722,32 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
 
+class BranchPythonVirtualenvOperator(PythonVirtualenvOperator, BranchMixIn):
+    """
+    A workflow can "branch" or follow a path after the execution of this task in a virtual environment.
+
+    It derives the PythonVirtualenvOperator and expects a Python function that returns
+    a single task_id or list of task_ids to follow. The task_id(s) returned
+    should point to a task directly downstream from {self}. All other "branches"
+    or directly downstream tasks are marked with a state of ``skipped`` so that
+    these paths can't move forward. The ``skipped`` states are propagated
+    downstream to allow for the DAG state to fill up and the DAG run's state
+    to be inferred.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchPythonVirtualenvOperator`
+    """
+
+    def execute(self, context: Context) -> Any:
+        return self.do_branch(context, super().execute(context))
+
+
 class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     """
     Run a function in a virtualenv that is not re-created.
 
-    Reused as is without the overhead of creating the virtualenv (with certain caveats).
+    Reused as is without the overhead of creating the virtual environment (with certain caveats).
 
     The function must be defined using def, and not be
     part of a class. All imports must happen inside the function
@@ -611,7 +755,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     variable named virtualenv_string_args will be available (populated by
     string_args). In addition, one can pass stuff through op_args and op_kwargs, and one
     can use a return value.
-    Note that if your virtualenv runs in a different Python major version than Airflow,
+    Note that if your virtual environment runs in a different Python major version than Airflow,
     you cannot use return values, op_args, op_kwargs, or use any macros that are being provided to
     Airflow through plugins. You can use string_args though.
 
@@ -623,13 +767,13 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         :ref:`howto/operator:ExternalPythonOperator`
 
     :param python: Full path string (file-system specific) that points to a Python binary inside
-        a virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path
+        a virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path
         (so usually start with "/" or "X:/" depending on the filesystem/os used).
     :param python_callable: A python function with no references to outside variables,
-        defined with def, which will be run in a virtualenv
+        defined with def, which will be run in a virtual environment
     :param use_dill: Whether to use dill to serialize
         the args and result (pickle is default). This allow more complex types
-        but if dill is not preinstalled in your venv, the task will fail with use_dill enabled.
+        but if dill is not preinstalled in your virtual environment, the task will fail with use_dill enabled.
     :param op_args: A list of positional arguments to pass to python_callable.
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
     :param string_args: Strings that are present in the global var virtualenv_string_args,
@@ -649,7 +793,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         exit code will be treated as a failure.
     """
 
-    template_fields: Sequence[str] = tuple({"python"} | set(PythonOperator.template_fields))
+    template_fields: Sequence[str] = tuple({"python"}.union(PythonOperator.template_fields))
 
     def __init__(
         self,
@@ -701,11 +845,10 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             raise AirflowException(
                 "Passing op_args or op_kwargs is not supported across different Python "
                 "major versions for ExternalPythonOperator. Please use string_args."
-                f"Sys version: {sys.version_info}. Venv version: {python_version_as_list_of_strings}"
+                f"Sys version: {sys.version_info}. "
+                f"Virtual environment version: {python_version_as_list_of_strings}"
             )
-        with TemporaryDirectory(prefix="tmd") as tmp_dir:
-            tmp_path = Path(tmp_dir)
-            return self._execute_python_callable_in_subprocess(python_path, tmp_path)
+        return self._execute_python_callable_in_subprocess(python_path)
 
     def _get_python_version_from_environment(self) -> list[str]:
         try:
@@ -728,11 +871,11 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return True
         except Exception as e:
             if self.expect_pendulum:
-                self.log.warning("When checking for Pendulum installed in venv got %s", e)
+                self.log.warning("When checking for Pendulum installed in virtual environment got %s", e)
                 self.log.warning(
-                    "Pendulum is not properly installed in the virtualenv "
+                    "Pendulum is not properly installed in the virtual environment "
                     "Pendulum context keys will not be available. "
-                    "Please Install Pendulum or Airflow in your venv to access them."
+                    "Please Install Pendulum or Airflow in your virtual environment to access them."
                 )
             return False
 
@@ -757,7 +900,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return target_airflow_version
         except Exception as e:
             if self.expect_airflow:
-                self.log.warning("When checking for Airflow installed in venv got %s", e)
+                self.log.warning("When checking for Airflow installed in virtual environment got %s", e)
                 self.log.warning(
                     f"This means that Airflow is not properly installed by  "
                     f"{self.python}. Airflow context keys will not be available. "
@@ -766,19 +909,21 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return None
 
 
-class ExternalBranchPythonOperator(ExternalPythonOperator, SkipMixin):
+class BranchExternalPythonOperator(ExternalPythonOperator, BranchMixIn):
     """
-    A workflow can "branch" or follow a path after the execution of this task,
+    A workflow can "branch" or follow a path after the execution of this task.
+
     Extends ExternalPythonOperator, so expects to get Python:
-    virtualenv that should be used (in ``VENV/bin`` folder). Should be absolute path,
-    so it can run on separate virtualenv similarly to ExternalPythonOperator.
+    virtual environment that should be used (in ``VENV/bin`` folder). Should be absolute path,
+    so it can run on separate virtual environment similarly to ExternalPythonOperator.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:BranchExternalPythonOperator`
     """
 
     def execute(self, context: Context) -> Any:
-        branch = super().execute(context)
-        self.log.info("Branch callable return %s", branch)
-        self.skip_all_except(context["ti"], branch)
-        return branch
+        return self.do_branch(context, super().execute(context))
 
 
 def get_current_context() -> Context:

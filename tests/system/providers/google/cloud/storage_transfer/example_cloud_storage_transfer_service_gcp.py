@@ -18,14 +18,6 @@
 
 """
 Example Airflow DAG that demonstrates interactions with Google Cloud Transfer.
-
-
-This DAG relies on the following OS environment variables
-
-* GCP_PROJECT_ID - Google Cloud Project to use for the Google Cloud Transfer Service.
-* GCP_TRANSFER_FIRST_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied from AWS.
-  It is also a source bucket in next step
-* GCP_TRANSFER_SECOND_TARGET_BUCKET - Google Cloud Storage bucket to which files are copied
 """
 
 from __future__ import annotations
@@ -34,8 +26,7 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from airflow import models
-from airflow.models.baseoperator import chain
+from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ALREADY_EXISTING_IN_SINK,
     BUCKET_NAME,
@@ -71,14 +62,14 @@ from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service impor
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID_TRANSFER = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID_TRANSFER = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 DAG_ID = "example_gcp_transfer"
 
-BUCKET_NAME_SRC = f"src-bucket-{DAG_ID}-{ENV_ID}"
-BUCKET_NAME_DST = f"dst-bucket-{DAG_ID}-{ENV_ID}"
-FILE_NAME = "file"
+BUCKET_NAME_SRC = f"src-bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
+BUCKET_NAME_DST = f"dst-bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
+FILE_NAME = "transfer_service_gcp_file"
 FILE_URI = f"gs://{BUCKET_NAME_SRC}/{FILE_NAME}"
 
 CURRENT_FOLDER = Path(__file__).parent
@@ -110,14 +101,13 @@ update_body = {
 }
 # [END howto_operator_gcp_transfer_update_job_body]
 
-with models.DAG(
+with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "transfer", "gcp"],
 ) as dag:
-
     create_bucket_src = GCSCreateBucketOperator(
         task_id="create_bucket_src",
         bucket_name=BUCKET_NAME_SRC,
@@ -184,18 +174,15 @@ with models.DAG(
         task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    chain(
-        create_bucket_src,
-        upload_file,
-        create_bucket_dst,
-        create_transfer,
-        wait_for_transfer,
-        update_transfer,
-        list_operations,
-        get_operation,
-        delete_transfer,
-        delete_bucket_src,
-        delete_bucket_dst,
+    (
+        [create_bucket_src, create_bucket_dst]
+        >> upload_file
+        >> create_transfer
+        >> wait_for_transfer
+        >> update_transfer
+        >> list_operations
+        >> get_operation
+        >> [delete_transfer, delete_bucket_src, delete_bucket_dst]
     )
 
     from tests.system.utils.watcher import watcher

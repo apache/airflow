@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# mypy ignore arg types (for templated fields)
-# type: ignore[arg-type]
 
 """
 Example Airflow DAG for Google Vertex AI service testing Auto ML operations.
@@ -26,15 +24,17 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from google.cloud.aiplatform import schema
 from google.protobuf.json_format import ParseDict
 from google.protobuf.struct_pb2 import Value
 
-from airflow import models
-from airflow.operators.bash import BashOperator
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.models.dag import DAG
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
@@ -43,22 +43,17 @@ from airflow.providers.google.cloud.operators.vertex_ai.dataset import (
     CreateDatasetOperator,
     DeleteDatasetOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_auto_ml_operations"
+DAG_ID = "example_vertex_ai_auto_ml_operations"
 REGION = "us-central1"
 FORECASTING_DISPLAY_NAME = f"auto-ml-forecasting-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"auto-ml-forecasting-model-{ENV_ID}"
 
-FORECAST_GCS_BUCKET_NAME = f"bucket_forecast_{DAG_ID}_{ENV_ID}"
-
-RESOURCES_PATH = Path(__file__).parent / "resources"
-FORECAST_ZIP_CSV_FILE_LOCAL_PATH = str(RESOURCES_PATH / "forecast-dataset.csv.zip")
-FORECAST_GCS_OBJECT_NAME = "vertex-ai/forecast-dataset.csv"
-FORECAST_CSV_FILE_LOCAL_PATH = "/forecast/forecast-dataset.csv"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
+FORECAST_GCS_BUCKET_NAME = f"bucket_forecast_{DAG_ID}_{ENV_ID}".replace("_", "-")
 
 FORECAST_DATASET = {
     "display_name": f"forecast-dataset-{ENV_ID}",
@@ -86,14 +81,13 @@ COLUMN_SPECS = {
 }
 
 
-with models.DAG(
+with DAG(
     f"{DAG_ID}_forecasting_training_job",
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "vertex_ai", "auto_ml"],
 ) as dag:
-
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
         bucket_name=FORECAST_GCS_BUCKET_NAME,
@@ -101,16 +95,13 @@ with models.DAG(
         location=REGION,
     )
 
-    unzip_file = BashOperator(
-        task_id="unzip_csv_data_file",
-        bash_command=f"unzip {FORECAST_ZIP_CSV_FILE_LOCAL_PATH} -d /forecast/",
-    )
-
-    upload_files = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=FORECAST_CSV_FILE_LOCAL_PATH,
-        dst=FORECAST_GCS_OBJECT_NAME,
-        bucket=FORECAST_GCS_BUCKET_NAME,
+    move_dataset_file = GCSSynchronizeBucketsOperator(
+        task_id="move_dataset_to_bucket",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="vertex-ai/datasets",
+        destination_bucket=FORECAST_GCS_BUCKET_NAME,
+        destination_object="vertex-ai",
+        recursive=True,
     )
 
     create_forecast_dataset = CreateDatasetOperator(
@@ -151,7 +142,8 @@ with models.DAG(
     # [START how_to_cloud_vertex_ai_delete_auto_ml_training_job_operator]
     delete_auto_ml_forecasting_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_forecasting_training_job",
-        training_pipeline_id=create_auto_ml_forecasting_training_job.output["training_id"],
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='auto_ml_forecasting_task', "
+        "key='training_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -168,16 +160,10 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=FORECAST_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    clear_folder = BashOperator(
-        task_id="clear_folder",
-        bash_command="rm -r /forecast/*",
-    )
-
     (
         # TEST SETUP
         create_bucket
-        >> unzip_file
-        >> upload_files
+        >> move_dataset_file
         >> create_forecast_dataset
         # TEST BODY
         >> create_auto_ml_forecasting_training_job
@@ -185,7 +171,6 @@ with models.DAG(
         >> delete_auto_ml_forecasting_training_job
         >> delete_forecast_dataset
         >> delete_bucket
-        >> clear_folder
     )
 
 

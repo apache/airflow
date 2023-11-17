@@ -22,6 +22,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Generator,
     Iterable,
     Mapping,
     Protocol,
@@ -36,11 +37,13 @@ import sqlparse
 from packaging.version import Version
 from sqlalchemy import create_engine
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.version import version
 
 if TYPE_CHECKING:
+    from pandas import DataFrame
+
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -50,7 +53,7 @@ T = TypeVar("T")
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
     """
-    Determines when results of single query only should be returned.
+    Determine when results of single query only should be returned.
 
     For compatibility reasons, the behaviour of the DBAPIHook is somewhat confusing.
     In some cases, when multiple queries are run, the return value will be an iterable (list) of results
@@ -77,7 +80,7 @@ def return_single_query_results(sql: str | Iterable[str], return_last: bool, spl
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
-    """Handler for DbApiHook.run() to return results."""
+    """Return results for DbApiHook.run()."""
     if not hasattr(cursor, "description"):
         raise RuntimeError(
             "The database we interact with does not support DBAPI 2.0. Use operator and "
@@ -90,7 +93,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
 
 
 def fetch_one_handler(cursor) -> list[tuple] | None:
-    """Handler for DbApiHook.run() to return first result."""
+    """Return first result for DbApiHook.run()."""
     if not hasattr(cursor, "description"):
         raise RuntimeError(
             "The database we interact with does not support DBAPI 2.0. Use operator and "
@@ -103,7 +106,7 @@ def fetch_one_handler(cursor) -> list[tuple] | None:
 
 
 class ConnectorProtocol(Protocol):
-    """A protocol where you can connect to a database."""
+    """Database connection protocol."""
 
     def connect(self, host: str, port: int, username: str, schema: str) -> Any:
         """
@@ -134,6 +137,11 @@ else:
 class DbApiHook(BaseForDbApiHook):
     """
     Abstract base class for sql hooks.
+
+    When subclassing, maintainers can override the `_make_serializable` method:
+    This method transforms the result of the handler method (typically `cursor.fetchall()`) into
+    JSON-serializable objects. Most of the time, the underlying SQL library already returns tuples from
+    its cursor, and the `_make_serializable` method can be ignored.
 
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
@@ -173,7 +181,7 @@ class DbApiHook(BaseForDbApiHook):
         self.descriptions: list[Sequence[Sequence] | None] = []
 
     def get_conn(self):
-        """Returns a connection object."""
+        """Return a connection object."""
         db = self.get_connection(getattr(self, cast(str, self.conn_name_attr)))
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
@@ -198,12 +206,16 @@ class DbApiHook(BaseForDbApiHook):
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_pandas_df(self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):
+    def get_pandas_df(
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        **kwargs,
+    ) -> DataFrame:
         """
-        Executes the sql and returns a pandas dataframe.
+        Execute the sql and returns a pandas dataframe.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         """
@@ -219,15 +231,19 @@ class DbApiHook(BaseForDbApiHook):
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
     def get_pandas_df_by_chunks(
-        self, sql, parameters: Iterable | Mapping[str, Any] | None = None, *, chunksize: int | None, **kwargs
-    ):
+        self,
+        sql,
+        parameters: list | tuple | Mapping[str, Any] | None = None,
+        *,
+        chunksize: int,
+        **kwargs,
+    ) -> Generator[DataFrame, None, None]:
         """
-        Executes the sql and returns a generator.
+        Execute the sql and return a generator.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with
-        :param chunksize: number of rows to include in  each chunk
+        :param chunksize: number of rows to include in each chunk
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
         """
         try:
@@ -247,7 +263,7 @@ class DbApiHook(BaseForDbApiHook):
         parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> Any:
         """
-        Executes the sql and returns a set of records.
+        Execute the sql and return a set of records.
 
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
@@ -256,7 +272,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
-        Executes the sql and returns the first resulting row.
+        Execute the sql and return the first resulting row.
 
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
@@ -270,7 +286,7 @@ class DbApiHook(BaseForDbApiHook):
     @staticmethod
     def split_sql_string(sql: str) -> list[str]:
         """
-        Splits string into multiple SQL expressions.
+        Split string into multiple SQL expressions.
 
         :param sql: SQL string potentially consisting of multiple expressions
         :return: list of individual expressions
@@ -392,7 +408,7 @@ class DbApiHook(BaseForDbApiHook):
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = handler(cur)
+                        result = self._make_serializable(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
@@ -412,8 +428,22 @@ class DbApiHook(BaseForDbApiHook):
         else:
             return results
 
+    @staticmethod
+    def _make_serializable(result: Any) -> Any:
+        """Ensure the data returned from an SQL command is JSON-serializable.
+
+        This method is intended to be overridden by subclasses of the `DbApiHook`. Its purpose is to
+        transform the result of an SQL command (typically returned by cursor methods) into a
+        JSON-serializable format.
+
+        If this method is not overridden, the result data is returned as-is.
+        If the output of the cursor is already JSON-serializable, this method
+        should be ignored.
+        """
+        return result
+
     def _run_command(self, cur, sql_statement, parameters):
-        """Runs a statement using an already open cursor."""
+        """Run a statement using an already open cursor."""
         if self.log_sql:
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
 
@@ -427,7 +457,7 @@ class DbApiHook(BaseForDbApiHook):
             self.log.info("Rows affected: %s", cur.rowcount)
 
     def set_autocommit(self, conn, autocommit):
-        """Sets the autocommit flag on the connection."""
+        """Set the autocommit flag on the connection."""
         if not self.supports_autocommit and autocommit:
             self.log.warning(
                 "%s connection doesn't support autocommit but autocommit activated.",
@@ -446,12 +476,13 @@ class DbApiHook(BaseForDbApiHook):
         return getattr(conn, "autocommit", False) and self.supports_autocommit
 
     def get_cursor(self):
-        """Returns a cursor."""
+        """Return a cursor."""
         return self.get_conn().cursor()
 
     @classmethod
     def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs) -> str:
-        """Helper class method that generates the INSERT SQL statement.
+        """
+        Generate the INSERT SQL statement.
 
         The REPLACE variant is specific to MySQL syntax.
 
@@ -517,7 +548,7 @@ class DbApiHook(BaseForDbApiHook):
     @staticmethod
     def _serialize_cell(cell, conn=None) -> str | None:
         """
-        Returns the SQL literal of the cell as a string.
+        Return the SQL literal of the cell as a string.
 
         :param cell: The cell to insert into the table
         :param conn: The database connection
@@ -531,7 +562,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def bulk_dump(self, table, tmp_file):
         """
-        Dumps a database table into a tab-delimited file.
+        Dump a database table into a tab-delimited file.
 
         :param table: The name of the source table
         :param tmp_file: The path of the target file
@@ -540,7 +571,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def bulk_load(self, table, tmp_file):
         """
-        Loads a tab-delimited file into a database table.
+        Load a tab-delimited file into a database table.
 
         :param table: The name of the target table
         :param tmp_file: The path of the file to load into the table
@@ -562,7 +593,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo | None:
         """
-        Returns database specific information needed to generate and parse lineage metadata.
+        Return database specific information needed to generate and parse lineage metadata.
 
         This includes information helpful for constructing information schema query
         and creating correct namespace.
@@ -572,7 +603,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_openlineage_database_dialect(self, connection) -> str:
         """
-        Returns database dialect used for SQL parsing.
+        Return database dialect used for SQL parsing.
 
         For a list of supported dialects check: https://openlineage.io/docs/development/sql#sql-dialects
         """
@@ -580,7 +611,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_openlineage_default_schema(self) -> str | None:
         """
-        Returns default schema specific to database.
+        Return default schema specific to database.
 
         .. seealso::
             - :class:`airflow.providers.openlineage.sqlparser.SQLParser`
@@ -589,7 +620,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
         """
-        Returns additional database specific lineage, e.g. query execution information.
+        Return additional database specific lineage, e.g. query execution information.
 
         This method is called only on completion of the task.
 
@@ -600,7 +631,7 @@ class DbApiHook(BaseForDbApiHook):
     @staticmethod
     def get_openlineage_authority_part(connection, default_port: int | None = None) -> str:
         """
-        This method serves as common method for several hooks to get authority part from Airflow Connection.
+        Get authority part from Airflow Connection.
 
         The authority represents the hostname and port of the connection
         and conforms OpenLineage naming convention for a number of databases (e.g. MySQL, Postgres, Trino).

@@ -28,6 +28,89 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.4.1
+.....
+
+Latest change: 2023-10-17
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`1ae9279346 <https://github.com/apache/airflow/commit/1ae9279346315d99e7f7c546fbcd335aa5a871cd>`_  2023-10-17   ``Init providers before importing Celery (#34782)``
+`f23170c9dd <https://github.com/apache/airflow/commit/f23170c9dd23556a40bd07b5d24f06220eec15c4>`_  2023-10-16   ``D401 Support - A thru Common (Inclusive) (#34934)``
+`dd59e3e63e <https://github.com/apache/airflow/commit/dd59e3e63e0db349f40f8d1c91e7f6ef252caa4b>`_  2023-10-15   ``Remove sensitive information from Celery executor warning (#34954)``
+=================================================================================================  ===========  ======================================================================
+
+3.4.0
+.....
+
+Latest change: 2023-10-13
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`e9987d5059 <https://github.com/apache/airflow/commit/e9987d50598f70d84cbb2a5d964e21020e81c080>`_  2023-10-13   ``Prepare docs 1st wave of Providers in October 2023 (#34916)``
+`0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
+`7ebf4220c9 <https://github.com/apache/airflow/commit/7ebf4220c9abd001f1fa23c95f882efddd5afbac>`_  2023-09-28   ``Refactor usage of str() in providers (#34320)``
+`f19e055789 <https://github.com/apache/airflow/commit/f19e0557890a86f7a622bada99f7a054edd3cfe0>`_  2023-09-25   ``respect soft_fail argument when exception is raised for celery sensors (#34474)``
+=================================================================================================  ===========  ===================================================================================
+
+3.3.4
+.....
+
+Latest change: 2023-09-08
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`50cccbdf44 <https://github.com/apache/airflow/commit/50cccbdf4422c7a394709f5ce2f3d833dee16e9d>`_  2023-09-08   ``Fix bad "code cleanup" in celery executor (#34192)``
+`fa5e54c4c5 <https://github.com/apache/airflow/commit/fa5e54c4c57631de353102af56633f05346685f9>`_  2023-09-03   ``Combine similar if logics in providers (#33987)``
+`b6318ffabc <https://github.com/apache/airflow/commit/b6318ffabce8cc3fdb02c30842726476b7e1fcca>`_  2023-09-02   ``Limit celery by excluding 5.3.2 and 5.3.3 (#34031)``
+`a9bbb430fc <https://github.com/apache/airflow/commit/a9bbb430fcf6df7ac2677edfe5b0402c23cfe8e2>`_  2023-09-01   ``Replace try - except pass by contextlib.suppress in providers (#33980)``
+`9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+=================================================================================================  ===========  ===================================================================================================
+
+3.3.3
+.....
+
+Latest change: 2023-08-26
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
+`b1a3b42880 <https://github.com/apache/airflow/commit/b1a3b4288022c67db22cbc7d24b0c4b2b122453b>`_  2023-08-23   ``Make auth managers provide their own airflow CLI commands (#33481)``
+`ae25a52ae3 <https://github.com/apache/airflow/commit/ae25a52ae342c9e0bc3afdb21d613447c3687f6c>`_  2023-08-21   ``Fix dependencies for celery and opentelemetry for Python 3.8 (#33579)``
+`4c4981d1ad <https://github.com/apache/airflow/commit/4c4981d1adf2bd8b28ffa7e6ed57162abb8feb8f>`_  2023-08-21   ``Refactor Sqlalchemy queries to 2.0 style (Part 7) (#32883)``
+=================================================================================================  ===========  =========================================================================
+
+3.3.2
+.....
+
+Latest change: 2023-08-11
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`b5a4d36383 <https://github.com/apache/airflow/commit/b5a4d36383c4143f46e168b8b7a4ba2dc7c54076>`_  2023-08-11   ``Prepare docs for Aug 2023 2nd wave of Providers (#33291)``
+`0b528e2b2e <https://github.com/apache/airflow/commit/0b528e2b2e0a9942b38a78cf79e0995d9eb8a8d8>`_  2023-08-09   ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
+`9556d6d5f6 <https://github.com/apache/airflow/commit/9556d6d5f611428ac8a3a5891647b720d4498ace>`_  2023-08-08   ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+=================================================================================================  ===========  ===============================================================================
+
+3.3.1
+.....
+
+Latest change: 2023-08-05
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+`879fd34e97 <https://github.com/apache/airflow/commit/879fd34e97a5343e6d2bbf3d5373831b9641b5ad>`_  2023-08-04   ``aDd documentation generation for CLI commands from executors (#33081)``
+`e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
+=================================================================================================  ===========  =========================================================================
+
 3.3.0
 .....
 
@@ -36,6 +119,7 @@ Latest change: 2023-07-29
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `f31af91dbd <https://github.com/apache/airflow/commit/f31af91dbd8b98cc4ddb98bed8bbc086ab4b65c9>`_  2023-07-29   ``Raise original import error in CLI vending of executors (#32931)``
 `fcbbf47864 <https://github.com/apache/airflow/commit/fcbbf47864c251046de108aafdad394d66e1df23>`_  2023-07-29   ``[AIP-51] Executors vending CLI commands (#29055)``
 `e93460383f <https://github.com/apache/airflow/commit/e93460383f287f9b2af4b6bda3ea6ba17ba3c08b>`_  2023-07-26   ``Move all k8S classes to cncf.kubernetes provider (#32767)``

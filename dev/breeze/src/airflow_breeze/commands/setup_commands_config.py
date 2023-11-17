@@ -23,6 +23,7 @@ SETUP_COMMANDS: dict[str, str | list[str]] = {
         "self-upgrade",
         "cleanup",
         "config",
+        "check-all-params-in-groups",
         "regenerate-command-images",
         "command-hash-export",
         "version",

@@ -18,20 +18,22 @@
 """This module contains a Google Cloud Dataproc Metastore hook."""
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
-from google.api_core.operation import Operation
-from google.api_core.retry import Retry
 from google.cloud.metastore_v1 import DataprocMetastoreClient
-from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
-from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
-from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.api_core.operation import Operation
+    from google.api_core.retry import Retry
+    from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
+    from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
+    from google.protobuf.field_mask_pb2 import FieldMask
 
 
 class DataprocMetastoreHook(GoogleBaseHook):
@@ -226,7 +228,7 @@ class DataprocMetastoreHook(GoogleBaseHook):
             request={
                 "parent": parent,
                 "service_id": service_id,
-                "service": service if service else {},
+                "service": service or {},
                 "request_id": request_id,
             },
             retry=retry,

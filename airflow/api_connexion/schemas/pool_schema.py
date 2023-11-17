@@ -39,31 +39,39 @@ class PoolSchema(SQLAlchemySchema):
     queued_slots = fields.Method("get_queued_slots", dump_only=True)
     scheduled_slots = fields.Method("get_scheduled_slots", dump_only=True)
     open_slots = fields.Method("get_open_slots", dump_only=True)
+    deferred_slots = fields.Method("get_deferred_slots", dump_only=True)
     description = auto_field()
+    # we skip auto_field() here to be compatible with the manual validation in the pool_endpoint module
+    include_deferred = fields.Boolean(load_default=False)
 
     @staticmethod
     def get_occupied_slots(obj: Pool) -> int:
-        """Returns the occupied slots of the pool."""
+        """Return the occupied slots of the pool."""
         return obj.occupied_slots()
 
     @staticmethod
     def get_running_slots(obj: Pool) -> int:
-        """Returns the running slots of the pool."""
+        """Return the running slots of the pool."""
         return obj.running_slots()
 
     @staticmethod
     def get_queued_slots(obj: Pool) -> int:
-        """Returns the queued slots of the pool."""
+        """Return the queued slots of the pool."""
         return obj.queued_slots()
 
     @staticmethod
     def get_scheduled_slots(obj: Pool) -> int:
-        """Returns the scheduled slots of the pool."""
+        """Return the scheduled slots of the pool."""
         return obj.scheduled_slots()
 
     @staticmethod
+    def get_deferred_slots(obj: Pool) -> int:
+        """Return the deferred slots of the pool."""
+        return obj.deferred_slots()
+
+    @staticmethod
     def get_open_slots(obj: Pool) -> float:
-        """Returns the open slots of the pool."""
+        """Return the open slots of the pool."""
         return obj.open_slots()
 
 

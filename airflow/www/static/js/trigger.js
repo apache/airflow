@@ -63,7 +63,8 @@ function updateJSONconf() {
         params[keyName] = null;
       } else if (
         elements[i].attributes.valuetype &&
-        elements[i].attributes.valuetype.value === "object"
+        (elements[i].attributes.valuetype.value === "object" ||
+          elements[i].attributes.valuetype.value === "advancedarray")
       ) {
         try {
           const textValue = objectFields.get(elements[i].name).getValue();
@@ -112,6 +113,7 @@ function initForm() {
     mode: { name: "javascript", json: true },
     gutters: ["CodeMirror-lint-markers"],
     lint: true,
+    indentUnit: 4,
   });
   jsonForm.setSize(null, height);
 
@@ -122,7 +124,8 @@ function initForm() {
       if (elements[i].name && elements[i].name.startsWith("element_")) {
         if (
           elements[i].attributes.valuetype &&
-          elements[i].attributes.valuetype.value === "object"
+          (elements[i].attributes.valuetype.value === "object" ||
+            elements[i].attributes.valuetype.value === "advancedarray")
         ) {
           // Apply JSON formatting and linting to all object fields in the form
           const field = CodeMirror.fromTextArea(elements[i], {
@@ -130,6 +133,7 @@ function initForm() {
             mode: { name: "javascript", json: true },
             gutters: ["CodeMirror-lint-markers"],
             lint: true,
+            indentUnit: 4,
           });
           field.on("blur", updateJSONconf);
           objectFields.set(elements[i].name, field);
@@ -230,7 +234,8 @@ function setRecentConfig(e) {
         element.value = newValue.join("\n");
       } else if (
         element.attributes.valuetype &&
-        element.attributes.valuetype.value === "object"
+        (element.attributes.valuetype.value === "object" ||
+          element.attributes.valuetype.value === "advancedarray")
       ) {
         objectFields
           .get(`element_${keys[i]}`)

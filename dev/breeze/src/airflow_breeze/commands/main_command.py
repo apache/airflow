@@ -20,9 +20,7 @@ import platform
 import shutil
 import subprocess
 import sys
-from typing import Any
-
-from click import Context
+from typing import TYPE_CHECKING, Any
 
 from airflow_breeze.commands.ci_image_commands import ci_image
 from airflow_breeze.commands.production_image_commands import prod_image
@@ -33,6 +31,7 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
     option_builder,
+    option_database_isolation,
     option_db_reset,
     option_dry_run,
     option_forward_credentials,
@@ -43,6 +42,7 @@ from airflow_breeze.utils.common_options import (
     option_mysql_version,
     option_postgres_version,
     option_python,
+    option_standalone_dag_processor,
     option_verbose,
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
@@ -51,6 +51,9 @@ from airflow_breeze.utils.docker_command_utils import remove_docker_networks
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
+
+if TYPE_CHECKING:
+    from click import Context
 
 
 def print_deprecated(deprecated_command: str, command_to_use: str):
@@ -106,6 +109,8 @@ class MainGroupWithAliases(BreezeGroup):
 @option_mysql_version
 @option_mssql_version
 @option_integration
+@option_database_isolation
+@option_standalone_dag_processor
 @option_forward_credentials
 @option_db_reset
 @option_max_time
@@ -276,7 +281,7 @@ def cleanup(all: bool):
         )
     elif given_answer == Answer.QUIT:
         sys.exit(0)
-    get_console().print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
+    get_console().print(f"Removing build cache dir {BUILD_CACHE_DIR}")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         if not get_dry_run():

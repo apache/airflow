@@ -26,12 +26,15 @@ import email
 import imaplib
 import os
 import re
-from typing import Any, Iterable
+import ssl
+from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
 
 
 class ImapHook(BaseHook):
@@ -78,16 +81,38 @@ class ImapHook(BaseHook):
         return self
 
     def _build_client(self, conn: Connection) -> imaplib.IMAP4_SSL | imaplib.IMAP4:
-        IMAP: type[imaplib.IMAP4_SSL] | type[imaplib.IMAP4]
-        if conn.extra_dejson.get("use_ssl", True):
-            IMAP = imaplib.IMAP4_SSL
-        else:
-            IMAP = imaplib.IMAP4
+        mail_client: imaplib.IMAP4_SSL | imaplib.IMAP4
+        use_ssl = conn.extra_dejson.get("use_ssl", True)
+        if use_ssl:
+            from airflow.configuration import conf
 
-        if conn.port:
-            mail_client = IMAP(conn.host, conn.port)
+            extra_ssl_context = conn.extra_dejson.get("ssl_context", None)
+            if extra_ssl_context:
+                ssl_context_string = extra_ssl_context
+            else:
+                ssl_context_string = conf.get("imap", "SSL_CONTEXT", fallback=None)
+            if ssl_context_string is None:
+                ssl_context_string = conf.get("email", "SSL_CONTEXT", fallback=None)
+            if ssl_context_string is None:
+                ssl_context_string = "default"
+            if ssl_context_string == "default":
+                ssl_context = ssl.create_default_context()
+            elif ssl_context_string == "none":
+                ssl_context = None
+            else:
+                raise RuntimeError(
+                    f"The email.ssl_context configuration variable must "
+                    f"be set to 'default' or 'none' and is '{ssl_context_string}'."
+                )
+            if conn.port:
+                mail_client = imaplib.IMAP4_SSL(conn.host, conn.port, ssl_context=ssl_context)
+            else:
+                mail_client = imaplib.IMAP4_SSL(conn.host, ssl_context=ssl_context)
         else:
-            mail_client = IMAP(conn.host)
+            if conn.port:
+                mail_client = imaplib.IMAP4(conn.host, conn.port)
+            else:
+                mail_client = imaplib.IMAP4(conn.host)
 
         return mail_client
 
@@ -107,7 +132,7 @@ class ImapHook(BaseHook):
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, True, mail_folder, mail_filter
         )
-        return len(mail_attachments) > 0
+        return bool(mail_attachments)
 
     def retrieve_mail_attachments(
         self,

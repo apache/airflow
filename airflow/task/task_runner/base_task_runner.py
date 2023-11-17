@@ -22,7 +22,6 @@ import os
 import subprocess
 import threading
 
-from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.platform import IS_WINDOWS
 
@@ -30,12 +29,17 @@ if not IS_WINDOWS:
     # ignored to avoid flake complaining on Linux
     from pwd import getpwnam  # noqa
 
+from typing import TYPE_CHECKING
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
+
+if TYPE_CHECKING:
+    from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 
 PYTHONPATH_VAR = "PYTHONPATH"
 
@@ -178,7 +182,7 @@ class BaseTaskRunner(LoggingMixin):
         raise NotImplementedError()
 
     def on_finish(self) -> None:
-        """A callback that should be called when this is done running."""
+        """Execute when this is done running."""
         if self._cfg_path and os.path.isfile(self._cfg_path):
             if self.run_as_user:
                 subprocess.call(["sudo", "rm", self._cfg_path], close_fds=True)

@@ -20,7 +20,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.sensors.base import BaseSensorOperator
@@ -78,7 +78,10 @@ class QuickSightSensor(BaseSensorOperator):
         self.log.info("QuickSight Status: %s", quicksight_ingestion_state)
         if quicksight_ingestion_state in self.errored_statuses:
             error = self.quicksight_hook.get_error_info(aws_account_id, self.data_set_id, self.ingestion_id)
-            raise AirflowException(f"The QuickSight Ingestion failed. Error info: {error}")
+            message = f"The QuickSight Ingestion failed. Error info: {error}"
+            if self.soft_fail:
+                raise AirflowSkipException(message)
+            raise AirflowException(message)
         return quicksight_ingestion_state == self.success_status
 
     @cached_property

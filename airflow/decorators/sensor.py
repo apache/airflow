@@ -17,10 +17,13 @@
 
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from typing import TYPE_CHECKING, Callable, Sequence
 
-from airflow.decorators.base import TaskDecorator, get_unique_task_id, task_decorator_factory
+from airflow.decorators.base import get_unique_task_id, task_decorator_factory
 from airflow.sensors.python import PythonSensor
+
+if TYPE_CHECKING:
+    from airflow.decorators.base import TaskDecorator
 
 
 class DecoratedSensorOperator(PythonSensor):
@@ -60,7 +63,7 @@ class DecoratedSensorOperator(PythonSensor):
 
 def sensor_task(python_callable: Callable | None = None, **kwargs) -> TaskDecorator:
     """
-    Wraps a function into an Airflow operator.
+    Wrap a function into an Airflow operator.
 
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
     :param python_callable: Function to decorate

@@ -95,7 +95,9 @@ Other Methods
 
 Since Airflow 2.0, the default UI is the Flask App Builder RBAC. A ``webserver_config.py`` configuration file
 is automatically generated and can be used to configure the Airflow to support authentication
-methods like OAuth, OpenID, LDAP, REMOTE_USER.
+methods like OAuth, OpenID, LDAP, REMOTE_USER. It should be noted that due to the limitation of Flask AppBuilder
+and Authlib, only a selection of OAuth2 providers is supported. This list includes ``github``, ``githublocal``, ``twitter``,
+``linkedin``, ``google``, ``azure``, ``openshift``, ``okta``, ``keycloak`` and ``keycloak_before_17``.
 
 The default authentication option described in the :ref:`Web Authentication <web-authentication>` section is related
 with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
@@ -103,6 +105,33 @@ with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
 .. code-block:: ini
 
     AUTH_TYPE = AUTH_DB
+
+A WSGI middleware could be used to manage very specific forms of authentication
+(e.g. `SPNEGO <https://www.ibm.com/docs/en/was-liberty/core?topic=authentication-single-sign-http-requests-using-spnego-web>`_)
+and leverage the REMOTE_USER method:
+
+.. code-block:: python
+
+    from typing import Any, Callable
+
+    from flask import current_app
+    from flask_appbuilder.const import AUTH_REMOTE_USER
+
+
+    class CustomMiddleware:
+        def __init__(self, wsgi_app: Callable) -> None:
+            self.wsgi_app = wsgi_app
+
+        def __call__(self, environ: dict, start_response: Callable) -> Any:
+            # Custom authenticating logic here
+            # ...
+            environ["REMOTE_USER"] = "username"
+            return self.wsgi_app(environ, start_response)
+
+
+    current_app.wsgi_app = CustomMiddleware(current_app.wsgi_app)
+
+    AUTH_TYPE = AUTH_REMOTE_USER
 
 Another way to create users is in the UI login page, allowing user self registration through a "Register" button.
 The following entries in the ``$AIRFLOW_HOME/webserver_config.py`` can be edited to make it possible:
@@ -142,14 +171,14 @@ Here is an example of what you might have in your webserver_config.py:
 
 .. code-block:: python
 
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     from flask_appbuilder.security.manager import AUTH_OAUTH
     import os
 
     AUTH_TYPE = AUTH_OAUTH
     AUTH_ROLES_SYNC_AT_LOGIN = True  # Checks roles on every login
     AUTH_USER_REGISTRATION = True  # allow users who are not already in the FAB DB to register
-    # Make sure to replace this with the path to your security manager class
-    FAB_SECURITY_MANAGER_CLASS = "your_module.your_security_manager_class"
+
     AUTH_ROLES_MAPPING = {
         "Viewer": ["Viewer"],
         "Admin": ["Admin"],
@@ -172,13 +201,21 @@ Here is an example of what you might have in your webserver_config.py:
         },
     ]
 
+
+    class CustomSecurityManager(FabAirflowSecurityManagerOverride):
+        pass
+
+
+    # Make sure to replace this with your own implementation of AirflowSecurityManager class
+    SECURITY_MANAGER_CLASS = CustomSecurityManager
+
 Here is an example of defining a custom security manager.
 This class must be available in Python's path, and could be defined in
 webserver_config.py itself if you wish.
 
 .. code-block:: python
 
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
     import logging
     from typing import Any, List, Union
     import os
@@ -209,13 +246,11 @@ webserver_config.py itself if you wish.
         return list(set(team_role_map.get(team, FAB_PUBLIC_ROLE) for team in team_list))
 
 
-    class GithubTeamAuthorizer(AirflowSecurityManager):
-
+    class GithubTeamAuthorizer(FabAirflowSecurityManagerOverride):
         # In this example, the oauth provider == 'github'.
         # If you ever want to support other providers, see how it is done here:
         # https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/security/manager.py#L550
         def get_oauth_user_info(self, provider: str, resp: Any) -> dict[str, Union[str, list[str]]]:
-
             # Creates the user info payload from Github.
             # The user previously allowed your app to act on their behalf,
             #   so now we can query the user and teams endpoints for their data.
@@ -278,9 +313,9 @@ setting the ``RATELIMIT_*`` configuration settings in ``webserver_config.py``.
 For example, to use Redis as a rate limit storage you can use the following configuration (you need
 to set ``redis_host`` to your Redis instance)
 
-```
-RATELIMIT_STORAGE_URI = 'redis://redis_host:6379/0
-```
+.. code-block:: python
+
+    RATELIMIT_STORAGE_URI = "redis://redis_host:6379/0"
 
 You can also configure other rate limit settings in ``webserver_config.py`` - for more details, see the
 `Flask Limiter rate limit configuration <https://flask-limiter.readthedocs.io/en/stable/configuration.html>`_.

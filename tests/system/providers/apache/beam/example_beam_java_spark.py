@@ -37,7 +37,6 @@ with models.DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-
     jar_to_local_spark_runner = GCSToLocalFilesystemOperator(
         task_id="jar_to_local_spark_runner",
         bucket=GCS_JAR_SPARK_RUNNER_BUCKET_NAME,

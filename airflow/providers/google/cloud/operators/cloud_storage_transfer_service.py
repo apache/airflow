@@ -855,7 +855,6 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
         self.gcs_bucket = gcs_bucket
@@ -1023,7 +1022,6 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         delete_job_after_completion: bool = False,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.source_bucket = source_bucket
         self.destination_bucket = destination_bucket

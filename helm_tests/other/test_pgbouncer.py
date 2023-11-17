@@ -116,8 +116,19 @@ class TestPgbouncer:
             values=values,
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
-        expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
+        expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
+    def test_scheduler_name(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True}, "schedulerName": "airflow-scheduler"},
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert "airflow-scheduler" == jmespath.search(
+            "spec.template.spec.schedulerName",
+            docs[0],
+        )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
@@ -525,6 +536,39 @@ class TestPgbouncerConfig:
         assert "server_round_robin = 1" in ini
         assert "stats_period = 30" in ini
 
+    def test_should_add_custom_env_variables(self):
+        env1 = {"name": "TEST_ENV_1", "value": "test_env_1"}
+
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "env": [env1],
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )[0]
+
+        assert jmespath.search("spec.template.spec.containers[0].env", docs) == [env1]
+
+    def test_should_add_extra_containers(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "extraContainers": [
+                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-container",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
 
 class TestPgbouncerExporter:
     """Tests PgBouncer exporter."""
@@ -568,6 +612,78 @@ class TestPgbouncerExporter:
             "/pgbouncer?sslmode=require" == connection
         )
 
+    def test_no_existing_secret(self):
+        docs = render_chart(
+            "test-pgbouncer-stats",
+            values={
+                "pgbouncer": {"enabled": True},
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-pgbouncer-stats-pgbouncer-stats",
+            "key": "connection",
+        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+
+    def test_existing_secret(self):
+        docs = render_chart(
+            "test-pgbouncer-stats",
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {
+                        "statsSecretName": "existing-stats-secret",
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "name": "existing-stats-secret",
+            "key": "connection",
+        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+
+    def test_existing_secret_existing_key(self):
+        docs = render_chart(
+            "test-pgbouncer-stats",
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {
+                        "statsSecretName": "existing-stats-secret",
+                        "statsSecretKey": "exisiting-stats-secret-key",
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "name": "existing-stats-secret",
+            "key": "exisiting-stats-secret-key",
+        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+
+    def test_unused_secret_key(self):
+        docs = render_chart(
+            "test-pgbouncer-stats",
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {
+                        "statsSecretKey": "unused",
+                    },
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {
+            "name": "test-pgbouncer-stats-pgbouncer-stats",
+            "key": "connection",
+        } == jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0])
+
 
 class TestPgBouncerServiceAccount:
     """Tests PgBouncer Service Account."""
@@ -584,7 +700,7 @@ class TestPgBouncerServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
-    def test_overriden_automount_service_account_token(self):
+    def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
                 "pgbouncer": {
@@ -595,3 +711,119 @@ class TestPgBouncerServiceAccount:
             show_only=["templates/pgbouncer/pgbouncer-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestPgbouncerNetworkPolicy:
+    """Tests PgBouncer Network Policy."""
+
+    def test_should_create_pgbouncer_network_policy(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True}, "networkPolicies": {"enabled": True}},
+            show_only=["templates/pgbouncer/pgbouncer-networkpolicy.yaml"],
+        )
+
+        assert "NetworkPolicy" == jmespath.search("kind", docs[0])
+        assert "release-name-pgbouncer-policy" == jmespath.search("metadata.name", docs[0])
+
+    @pytest.mark.parametrize(
+        "conf, expected_selector",
+        [
+            # test with workers.keda enabled without namespace labels
+            (
+                {"executor": "CeleryExecutor", "workers": {"keda": {"enabled": True}}},
+                [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
+            ),
+            # test with triggerer.keda enabled without namespace labels
+            (
+                {"triggerer": {"keda": {"enabled": True}}},
+                [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
+            ),
+            # test with workers.keda and triggerer.keda both enabled without namespace labels
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"keda": {"enabled": True}},
+                    "triggerer": {"keda": {"enabled": True}},
+                },
+                [{"podSelector": {"matchLabels": {"app": "keda-operator"}}}],
+            ),
+            # test with workers.keda enabled with namespace labels
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+            # test with triggerer.keda enabled with namespace labels
+            (
+                {"triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}}},
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+            # test with workers.keda and triggerer.keda both enabled with namespace labels
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                    "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+            # test with workers.keda and triggerer.keda both enabled workers with namespace labels
+            # and triggerer without namespace labels
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                    "triggerer": {"keda": {"enabled": True}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+            # test with workers.keda and triggerer.keda both enabled workers without namespace labels
+            # and triggerer with namespace labels
+            (
+                {
+                    "executor": "CeleryExecutor",
+                    "workers": {"keda": {"enabled": True}},
+                    "triggerer": {"keda": {"enabled": True, "namespaceLabels": {"app": "airflow"}}},
+                },
+                [
+                    {
+                        "namespaceSelector": {"matchLabels": {"app": "airflow"}},
+                        "podSelector": {"matchLabels": {"app": "keda-operator"}},
+                    }
+                ],
+            ),
+        ],
+    )
+    def test_pgbouncer_network_policy_with_keda(self, conf, expected_selector):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True},
+                "networkPolicies": {"enabled": True},
+                **conf,
+            },
+            show_only=["templates/pgbouncer/pgbouncer-networkpolicy.yaml"],
+        )
+
+        assert expected_selector == jmespath.search("spec.ingress[0].from[1:]", docs[0])

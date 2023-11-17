@@ -72,7 +72,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
     ):
         super().__init__(**kwargs)
         self.mssql_conn_id = mssql_conn_id
-        self.bit_fields = bit_fields if bit_fields else []
+        self.bit_fields = bit_fields or []
 
     def query(self):
         """

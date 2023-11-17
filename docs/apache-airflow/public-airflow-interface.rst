@@ -46,7 +46,7 @@ Airflow Interface and might change at any time.
 
 You can also use Airflow's Public Interface via the `Stable REST API <stable-rest-api-ref>`_ (based on the
 OpenAPI specification). For specific needs you can also use the
-`Airflow Command Line Interface (CLI) <cli-and-env-variables-ref.rst>`_ though it's behaviour might change
+`Airflow Command Line Interface (CLI) <cli-and-env-variables-ref>`_ though its behaviour might change
 in details (such as output format and available flags) so if you want to rely on those in programmatic
 way, the Stable REST API is recommended.
 
@@ -59,8 +59,8 @@ DAGs
 
 The DAG is Airflow's core entity that represents a recurring workflow. You can create a DAG by
 instantiating the :class:`~airflow.models.dag.DAG` class in your DAG file. You can also instantiate
-them via :class::`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
-can also have parameters specified via :class::`~airflow.models.param.Param` class.
+them via :class:`~airflow.models.dagbag.DagBag` class that reads DAGs from a file or a folder. DAGs
+can also have parameters specified via :class:`~airflow.models.param.Param` class.
 
 Airflow has a set of example DAGs that you can use to learn how to write DAGs
 
@@ -85,6 +85,16 @@ References for the modules used in DAGs are here:
   _api/airflow/models/dag/index
   _api/airflow/models/dagbag/index
   _api/airflow/models/param/index
+
+Properties of a :class:`~airflow.models.dagrun.DagRun` can also be referenced in things like :ref:`Templates <templates-ref>`.
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/models/dagrun/index
+
 
 Operators
 ---------
@@ -222,6 +232,16 @@ exposes:
 
   _api/airflow/exceptions/index
 
+Public Utility classes
+----------------------
+
+.. toctree::
+  :includehidden:
+  :glob:
+  :maxdepth: 1
+
+  _api/airflow/utils/state/index
+
 
 Using Public Interface to extend Airflow capabilities
 =====================================================
@@ -308,11 +328,11 @@ Executors
 
 Executors are the mechanism by which task instances get run. All executors are
 derived from :class:`~airflow.executors.base_executor.BaseExecutor`. There are several
-executor implementations built-in Airflow, each with its own unique characteristics and capabilities.
+executor implementations built-in Airflow, each with their own unique characteristics and capabilities.
 
-The executor interface itself (the BaseExecutor class) is public, but the built-in executors are not (i.e. KubernetesExecutor, LocalExecutor, etc).  This means that, to use KubernetesExecutor as an example, we may make changes to KubernetesExecutor in minor or patch Airflow releases which could break an executor that subclasses KubernetesExecutor.  This is necessary to allow Airflow developers sufficient freedom to continue to improve the executors we offer.  Accordingly if you want to modify or extend a built-in executor, you should incorporate the full executor code into your project so that such changes will not break your derivative executor.
+The executor interface itself (the BaseExecutor class) is public, but the built-in executors are not (i.e. KubernetesExecutor, LocalExecutor, etc).  This means that, to use KubernetesExecutor as an example, we may make changes to KubernetesExecutor in minor or patch Airflow releases which could break an executor that subclasses KubernetesExecutor.  This is necessary to allow Airflow developers sufficient freedom to continue to improve the executors we offer.  Accordingly, if you want to modify or extend a built-in executor, you should incorporate the full executor code into your project so that such changes will not break your derivative executor.
 
-You can read more about executors in :doc:`core-concepts/executor/index`.
+You can read more about executors and how to write your own in :doc:`core-concepts/executor/index`.
 
 .. versionadded:: 2.6
 
@@ -327,8 +347,8 @@ Secrets Backends
 ----------------
 
 Airflow can be configured to rely on secrets backends to retrieve
-:class:`~airflow.models.connection.Connection` and :class:`~airflow.models.Variables`.
-All secrets backends derive from :class:`~airflow.secrets.BaseSecretsBackend`.
+:class:`~airflow.models.connection.Connection` and :class:`~airflow.models.variable.Variable`.
+All secrets backends derive from :class:`~airflow.secrets.base_secrets.BaseSecretsBackend`.
 
 All Secrets Backend implementations are public. You can extend their functionality:
 

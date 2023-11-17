@@ -17,14 +17,16 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import TriggerEvent
+
+if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
@@ -138,7 +140,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
     async def delete_any_nodegroups(self, client) -> None:
         """
-        Deletes all EKS Nodegroups for a provided Amazon EKS Cluster.
+        Delete all EKS Nodegroups for a provided Amazon EKS Cluster.
 
         All the EKS Nodegroups are deleted simultaneously. We wait for
         all Nodegroups to be deleted before returning.
@@ -167,7 +169,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
 
     async def delete_any_fargate_profiles(self, client) -> None:
         """
-        Deletes all EKS Fargate profiles for a provided Amazon EKS Cluster.
+        Delete all EKS Fargate profiles for a provided Amazon EKS Cluster.
 
         EKS Fargate profiles must be deleted one at a time, so we must wait
         for one to be deleted before sending the next delete command.

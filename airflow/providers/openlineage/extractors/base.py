@@ -18,13 +18,18 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import cached_property
+from typing import TYPE_CHECKING
 
 from attrs import Factory, define
-from openlineage.client.facet import BaseFacet
-from openlineage.client.run import Dataset
 
+from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from openlineage.client.facet import BaseFacet
+    from openlineage.client.run import Dataset
 
 
 @define
@@ -59,12 +64,30 @@ class BaseExtractor(ABC, LoggingMixin):
         """
         raise NotImplementedError()
 
+    @cached_property
+    def disabled_operators(self) -> set[str]:
+        return set(
+            operator.strip() for operator in conf.get("openlineage", "disabled_for_operators").split(";")
+        )
+
     def validate(self):
         assert self.operator.task_type in self.get_operator_classnames()
 
     @abstractmethod
+    def _execute_extraction(self) -> OperatorLineage | None:
+        ...
+
     def extract(self) -> OperatorLineage | None:
-        pass
+        fully_qualified_class_name = (
+            self.operator.__class__.__module__ + "." + self.operator.__class__.__name__
+        )
+        if fully_qualified_class_name in self.disabled_operators:
+            self.log.debug(
+                f"Skipping extraction for operator {self.operator.task_type} "
+                "due to its presence in [openlineage] openlineage_disabled_for_operators."
+            )
+            return None
+        return self._execute_extraction()
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
         return self.extract()
@@ -82,11 +105,21 @@ class DefaultExtractor(BaseExtractor):
         """
         return []
 
-    def extract(self) -> OperatorLineage | None:
+    def _execute_extraction(self) -> OperatorLineage | None:
         # OpenLineage methods are optional - if there's no method, return None
         try:
             return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
+        except ImportError:
+            self.log.error(
+                "OpenLineage provider method failed to import OpenLineage integration. "
+                "This should not happen. Please report this bug to developers."
+            )
+            return None
         except AttributeError:
+            self.log.debug(
+                f"Operator {self.operator.task_type} does not have the "
+                "get_openlineage_facets_on_start method."
+            )
             return None
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
@@ -116,5 +149,5 @@ class DefaultExtractor(BaseExtractor):
                 "This should not happen."
             )
         except Exception:
-            self.log.exception("OpenLineage provider method failed to extract data from provider. ")
+            self.log.warning("OpenLineage provider method failed to extract data from provider. ")
         return None

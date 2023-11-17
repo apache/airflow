@@ -18,14 +18,14 @@
 from __future__ import annotations
 
 import logging
-import shutil
 from datetime import datetime
 
 from airflow.decorators import dag, task
+from airflow.operators.python import is_venv_installed
 
 log = logging.getLogger(__name__)
 
-if not shutil.which("virtualenv"):
+if not is_venv_installed():
     log.warning("The tutorial_taskflow_api_virtualenv example DAG requires virtualenv, please install it.")
 else:
 

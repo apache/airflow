@@ -25,9 +25,9 @@ from rich.console import Console
 
 from airflow_breeze.utils.publish_docs_helpers import CONSOLE_WIDTH, prepare_code_snippet
 
-CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+CURRENT_DIR = Path(__file__).resolve().parent
 ROOT_PROJECT_DIR = Path(__file__).parents[5].resolve()
-DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
+DOCS_DIR = ROOT_PROJECT_DIR / "docs"
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
@@ -94,7 +94,7 @@ def parse_sphinx_warnings(warning_text: str, docs_dir: str) -> list[DocBuildErro
     :return: list of DocBuildErrors.
     """
     sphinx_build_errors = []
-    for sphinx_warning in warning_text.split("\n"):
+    for sphinx_warning in warning_text.splitlines():
         if not sphinx_warning:
             continue
         warning_parts = sphinx_warning.split(":", 2)

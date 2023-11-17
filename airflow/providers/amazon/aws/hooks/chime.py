@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import re
+from functools import cached_property
 from typing import Any
 
 from airflow.exceptions import AirflowException
@@ -28,19 +29,19 @@ from airflow.providers.http.hooks.http import HttpHook
 
 
 class ChimeWebhookHook(HttpHook):
-    """Interact with Chime Web Hooks to create notifications.
+    """Interact with Amazon Chime Webhooks to create notifications.
 
     .. warning:: This hook is only designed to work with web hooks and not chat bots.
 
-    :param chime_conn_id: Chime connection ID with Endpoint as "https://hooks.chime.aws" and
-                         the webhook token in the form of ```{webhook.id}?token{webhook.token}```
-
+    :param chime_conn_id: :ref:`Amazon Chime Connection ID <howto/connection:chime>`
+        with Endpoint as `https://hooks.chime.aws` and the webhook token
+        in the form of ``{webhook.id}?token{webhook.token}``
     """
 
     conn_name_attr = "chime_conn_id"
     default_conn_name = "chime_default"
     conn_type = "chime"
-    hook_name = "Chime Web Hook"
+    hook_name = "Amazon Chime Webhook"
 
     def __init__(
         self,
@@ -49,7 +50,11 @@ class ChimeWebhookHook(HttpHook):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.webhook_endpoint = self._get_webhook_endpoint(chime_conn_id)
+        self._chime_conn_id = chime_conn_id
+
+    @cached_property
+    def webhook_endpoint(self):
+        return self._get_webhook_endpoint(self._chime_conn_id)
 
     def _get_webhook_endpoint(self, conn_id: str) -> str:
         """
@@ -65,7 +70,7 @@ class ChimeWebhookHook(HttpHook):
         url = conn.schema + "://" + conn.host
         endpoint = url + token
         # Check to make sure the endpoint matches what Chime expects
-        if not re.match(r"^[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", token):
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+", token):
             raise AirflowException(
                 "Expected Chime webhook token in the form of '{webhook.id}?token={webhook.token}'."
             )
@@ -74,10 +79,9 @@ class ChimeWebhookHook(HttpHook):
 
     def _build_chime_payload(self, message: str) -> str:
         """
-        Builds payload for Chime and ensures messages do not exceed max length allowed.
+        Build payload for Chime and ensures messages do not exceed max length allowed.
 
-        :param message: The message you want to send to your Chime room.
-                    (max 4096 characters)
+        :param message: The message you want to send to your Chime room. (max 4096 characters)
         """
         payload: dict[str, Any] = {}
         # We need to make sure that the message does not exceed the max length for Chime
@@ -88,11 +92,10 @@ class ChimeWebhookHook(HttpHook):
         return json.dumps(payload)
 
     def send_message(self, message: str) -> None:
-        """Execute calling the Chime webhook endpoint.
+        """
+        Execute calling the Chime webhook endpoint.
 
-        :param message: The message you want to send to your Chime room.
-                    (max 4096 characters)
-
+        :param message: The message you want to send to your Chime room.(max 4096 characters)
         """
         chime_payload = self._build_chime_payload(message)
         self.run(
@@ -101,12 +104,12 @@ class ChimeWebhookHook(HttpHook):
 
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
-        """Returns custom field behaviour to only get what is needed for Chime webhooks to function."""
+        """Return custom field behaviour to only get what is needed for Chime webhooks to function."""
         return {
             "hidden_fields": ["login", "port", "extra"],
             "relabeling": {
                 "host": "Chime Webhook Endpoint",
-                "password": "Webhook Token",
+                "password": "Chime Webhook token",
             },
             "placeholders": {
                 "schema": "https",

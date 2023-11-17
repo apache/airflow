@@ -17,11 +17,10 @@
  * under the License.
  */
 
-/* global describe, test, expect, jest */
+/* global describe, test, expect, jest, moment */
 
 import React from "react";
 import { render } from "@testing-library/react";
-import moment from "moment-timezone";
 
 import { TableWrapper } from "src/utils/testUtils";
 import * as useGridDataModule from "src/api/useGridData";
@@ -105,6 +104,7 @@ describe("Test DagRuns", () => {
     expect(getByText("00:02:53")).toBeInTheDocument();
     expect(getByText("00:01:26")).toBeInTheDocument();
     expect(
+      // @ts-ignore
       queryByText(moment.utc(dagRuns[0].executionDate).format("MMM DD, HH:mm"))
     ).toBeNull();
 
@@ -124,6 +124,7 @@ describe("Test DagRuns", () => {
     );
     const { getByText } = render(<DagRuns />, { wrapper: TableWrapper });
     expect(
+      // @ts-ignore
       getByText(moment.utc(datestring).format("MMM DD, HH:mm"))
     ).toBeInTheDocument();
     spy.mockRestore();
@@ -142,6 +143,7 @@ describe("Test DagRuns", () => {
     );
     const { queryAllByText } = render(<DagRuns />, { wrapper: TableWrapper });
     expect(
+      // @ts-ignore
       queryAllByText(moment.utc(datestring).format("MMM DD, HH:mm"))
     ).toHaveLength(1);
     spy.mockRestore();
@@ -160,6 +162,7 @@ describe("Test DagRuns", () => {
     );
     const { queryAllByText } = render(<DagRuns />, { wrapper: TableWrapper });
     expect(
+      // @ts-ignore
       queryAllByText(moment.utc(datestring).format("MMM DD, HH:mm"))
     ).toHaveLength(2);
     spy.mockRestore();

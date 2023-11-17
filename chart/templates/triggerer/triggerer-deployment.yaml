@@ -24,6 +24,7 @@
 {{- if .Values.triggerer.enabled }}
 {{- /* Airflow version 2.6.0 is when triggerer logs serve introduced */ -}}
 {{- $persistence := and .Values.triggerer.persistence.enabled (semverCompare ">=2.6.0" .Values.airflowVersion) }}
+{{- $keda := .Values.triggerer.keda.enabled }}
 {{- $nodeSelector := or .Values.triggerer.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.triggerer.tolerations .Values.tolerations }}
@@ -33,10 +34,12 @@
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.triggerer) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.triggerer.waitForMigrations) }}
 {{- $containerSecurityContextLogGroomer := include "containerSecurityContext" (list . .Values.triggerer.logGroomerSidecar) }}
+{{- $containerLifecycleHooks := or .Values.triggerer.containerLifecycleHooks .Values.containerLifecycleHooks }}
+{{- $containerLifecycleHooksLogGroomerSidecar := or .Values.triggerer.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ .Release.Name }}-triggerer
+  name: {{ include "airflow.fullname" . }}-triggerer
   labels:
     tier: airflow
     component: triggerer
@@ -53,7 +56,9 @@ spec:
   {{- if $persistence }}
   serviceName: {{ .Release.Name }}-triggerer
   {{- end }}
+  {{- if not $keda }}
   replicas: {{ .Values.triggerer.replicas }}
+  {{- end }}
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
@@ -97,6 +102,9 @@ spec:
       priorityClassName: {{ .Values.triggerer.priorityClassName }}
       {{- end }}
       nodeSelector: {{- toYaml $nodeSelector | nindent 8 }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Values.schedulerName }}
+      {{- end }}
       affinity:
         {{- if $affinity }}
           {{- toYaml $affinity | nindent 8 }}
@@ -159,6 +167,9 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- if $containerLifecycleHooks }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.triggerer.command }}
           command: {{ tpl (toYaml .Values.triggerer.command) . | nindent 12 }}
           {{- end }}
@@ -214,6 +225,9 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextLogGroomer | nindent 12 }}
+          {{- if $containerLifecycleHooksLogGroomerSidecar }}
+          lifecycle: {{- tpl (toYaml $containerLifecycleHooksLogGroomerSidecar) . | nindent 12 }}
+          {{- end }}
           {{- if .Values.triggerer.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.triggerer.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}
@@ -256,7 +270,7 @@ spec:
             claimName: {{ template "airflow_dags_volume_claim" . }}
         {{- else if .Values.dags.gitSync.enabled }}
         - name: dags
-          emptyDir: {}
+          emptyDir: {{- toYaml (default (dict) .Values.dags.gitSync.emptyDirConfig) | nindent 12 }}
         {{- if .Values.dags.gitSync.sshKeySecret }}
           {{- include "git_sync_ssh_key_volume" . | nindent 8 }}
         {{- end }}
@@ -273,7 +287,7 @@ spec:
             claimName: {{ template "airflow_logs_volume_claim" . }}
   {{- else if not $persistence }}
         - name: logs
-          emptyDir: {}
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
     - metadata:
@@ -283,7 +297,7 @@ spec:
         {{- end }}
       spec:
       {{- if .Values.triggerer.persistence.storageClassName }}
-        storageClassName: {{ .Values.triggerer.persistence.storageClassName }}
+        storageClassName: {{ tpl .Values.triggerer.persistence.storageClassName . | quote }}
       {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:

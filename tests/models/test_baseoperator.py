@@ -20,17 +20,17 @@ from __future__ import annotations
 import copy
 import logging
 import uuid
+from collections import defaultdict
 from datetime import date, datetime, timedelta
-from typing import Any, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 from unittest import mock
 
 import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
-from airflow.models import DAG
 from airflow.models.baseoperator import (
     BaseOperator,
     BaseOperatorMeta,
@@ -38,14 +38,21 @@ from airflow.models.baseoperator import (
     chain_linear,
     cross_downstream,
 )
-from airflow.utils.context import Context
+from airflow.models.dag import DAG
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
+from airflow.utils.template import literal
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import DagRunType
 from airflow.utils.weight_rule import WeightRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class ClassWithCustomAttributes:
@@ -184,7 +191,7 @@ class TestBaseOperator:
             BaseOperator(
                 task_id="test_valid_trigger_rule", dag=fail_stop_dag, trigger_rule=DEFAULT_TRIGGER_RULE
             )
-        except DagInvalidTriggerRule as exception:
+        except FailStopDagInvalidTriggerRule as exception:
             assert (
                 False
             ), f"BaseOperator raises exception with fail-stop dag & default trigger rule: {exception}"
@@ -194,17 +201,18 @@ class TestBaseOperator:
             BaseOperator(
                 task_id="test_valid_trigger_rule", dag=non_fail_stop_dag, trigger_rule=TriggerRule.DUMMY
             )
-        except DagInvalidTriggerRule as exception:
+        except FailStopDagInvalidTriggerRule as exception:
             assert (
                 False
             ), f"BaseOperator raises exception with non fail-stop dag & non-default trigger rule: {exception}"
 
         # An operator with non default trigger rule and a fail stop dag should not be allowed
-        with pytest.raises(DagInvalidTriggerRule):
+        with pytest.raises(FailStopDagInvalidTriggerRule):
             BaseOperator(
                 task_id="test_invalid_trigger_rule", dag=fail_stop_dag, trigger_rule=TriggerRule.DUMMY
             )
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("content", "context", "expected_output"),
         [
@@ -270,6 +278,9 @@ class TestBaseOperator:
             ),
             # By default, Jinja2 drops one (single) trailing newline
             ("{{ foo }}\n\n", {"foo": "bar"}, "bar\n"),
+            (literal("{{ foo }}"), {"foo": "bar"}, "{{ foo }}"),
+            (literal(["{{ foo }}_1", "{{ foo }}_2"]), {"foo": "bar"}, ["{{ foo }}_1", "{{ foo }}_2"]),
+            (literal(("{{ foo }}_1", "{{ foo }}_2")), {"foo": "bar"}, ("{{ foo }}_1", "{{ foo }}_2")),
         ],
     )
     def test_render_template(self, content, context, expected_output):
@@ -348,6 +359,7 @@ class TestBaseOperator:
 
                 print_val.expand(x=task1)
 
+    @pytest.mark.db_test
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
         task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
@@ -369,6 +381,7 @@ class TestBaseOperator:
         result = task.render_template(content, {"foo": "bar"})
         assert content is result
 
+    @pytest.mark.db_test
     def test_nested_template_fields_declared_must_exist(self):
         """Test render_template when a nested template field is missing."""
         task = BaseOperator(task_id="op1")
@@ -409,6 +422,7 @@ class TestBaseOperator:
         with pytest.raises(jinja2.exceptions.TemplateSyntaxError):
             task.render_template("{{ invalid expression }}", {})
 
+    @pytest.mark.db_test
     @mock.patch("airflow.templates.SandboxedEnvironment", autospec=True)
     def test_jinja_env_creation(self, mock_jinja_env):
         """Verify if a Jinja environment is created only once when templating."""
@@ -813,6 +827,7 @@ def test_init_subclass_args():
     assert task_copy.context_arg == context
 
 
+@pytest.mark.db_test
 def test_operator_retries_invalid(dag_maker):
     with pytest.raises(AirflowException) as ctx:
         with dag_maker():
@@ -820,6 +835,7 @@ def test_operator_retries_invalid(dag_maker):
     assert str(ctx.value) == "'retries' type must be int, not str"
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     ("retries", "expected"),
     [
@@ -848,6 +864,7 @@ def test_operator_retries(caplog, dag_maker, retries, expected):
     assert caplog.record_tuples == expected
 
 
+@pytest.mark.db_test
 def test_default_retry_delay(dag_maker):
     with dag_maker(dag_id="test_default_retry_delay"):
         task1 = BaseOperator(task_id="test_no_explicit_retry_delay")
@@ -855,6 +872,7 @@ def test_default_retry_delay(dag_maker):
         assert task1.retry_delay == timedelta(seconds=300)
 
 
+@pytest.mark.db_test
 def test_dag_level_retry_delay(dag_maker):
     with dag_maker(dag_id="test_dag_level_retry_delay", default_args={"retry_delay": timedelta(seconds=100)}):
         task1 = BaseOperator(task_id="test_no_explicit_retry_delay")
@@ -862,6 +880,7 @@ def test_dag_level_retry_delay(dag_maker):
         assert task1.retry_delay == timedelta(seconds=100)
 
 
+@pytest.mark.db_test
 def test_task_level_retry_delay(dag_maker):
     with dag_maker(
         dag_id="test_task_level_retry_delay", default_args={"retry_delay": timedelta(seconds=100)}
@@ -883,6 +902,7 @@ def test_deepcopy():
     copy.deepcopy(dag)
 
 
+@pytest.mark.db_test
 @pytest.mark.parametrize(
     ("task", "context", "expected_exception", "expected_rendering", "expected_log", "not_expected_log"),
     [
@@ -919,6 +939,7 @@ def test_render_template_fields_logging(
     caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
 ):
     """Verify if operator attributes are correctly templated."""
+
     # Trigger templating and verify results
     def _do_render():
         task.render_template_fields(context=context)
@@ -938,6 +959,7 @@ def test_render_template_fields_logging(
         assert not_expected_log not in caplog.text
 
 
+@pytest.mark.db_test
 def test_find_mapped_dependants_in_another_group(dag_maker):
     from airflow.utils.task_group import TaskGroup
 
@@ -957,3 +979,104 @@ def test_find_mapped_dependants_in_another_group(dag_maker):
 
     dependants = list(gen_result.operator.iter_mapped_dependants())
     assert dependants == [add_result.operator]
+
+
+def get_states(dr):
+    """
+    For a given dag run, get a dict of states.
+
+    Example::
+        {
+            "my_setup": "success",
+            "my_teardown": {0: "success", 1: "success", 2: "success"},
+            "my_work": "failed",
+        }
+    """
+    ti_dict = defaultdict(dict)
+    for ti in dr.get_task_instances():
+        if ti.map_index == -1:
+            ti_dict[ti.task_id] = ti.state
+        else:
+            ti_dict[ti.task_id][ti.map_index] = ti.state
+    return dict(ti_dict)
+
+
+@pytest.mark.db_test
+def test_teardown_and_fail_stop(dag_maker):
+    """
+    when fail_stop enabled, teardowns should run according to their setups.
+    in this case, the second teardown skips because its setup skips.
+    """
+
+    with dag_maker(fail_stop=True) as dag:
+        for num in (1, 2):
+            with TaskGroup(f"tg_{num}"):
+
+                @task_decorator
+                def my_setup():
+                    print("setting up multiple things")
+                    return [1, 2, 3]
+
+                @task_decorator
+                def my_work(val):
+                    print(f"doing work with multiple things: {val}")
+                    raise ValueError("this fails")
+                    return val
+
+                @task_decorator
+                def my_teardown():
+                    print("teardown")
+
+                s = my_setup()
+                t = my_teardown().as_teardown(setups=s)
+                with t:
+                    my_work(s)
+    tg1, tg2 = dag.task_group.children.values()
+    tg1 >> tg2
+    dr = dag.test()
+    states = get_states(dr)
+    expected = {
+        "tg_1.my_setup": "success",
+        "tg_1.my_teardown": "success",
+        "tg_1.my_work": "failed",
+        "tg_2.my_setup": "skipped",
+        "tg_2.my_teardown": "skipped",
+        "tg_2.my_work": "skipped",
+    }
+    assert states == expected
+
+
+@pytest.mark.db_test
+def test_get_task_instances(session):
+    import pendulum
+
+    first_execution_date = pendulum.datetime(2023, 1, 1)
+    second_execution_date = pendulum.datetime(2023, 1, 2)
+    third_execution_date = pendulum.datetime(2023, 1, 3)
+
+    test_dag = DAG(dag_id="test_dag", start_date=first_execution_date)
+    task = BaseOperator(task_id="test_task", dag=test_dag)
+
+    common_dr_kwargs = {
+        "dag_id": test_dag.dag_id,
+        "run_type": DagRunType.MANUAL,
+    }
+    dr1 = DagRun(execution_date=first_execution_date, run_id="test_run_id_1", **common_dr_kwargs)
+    ti_1 = TaskInstance(run_id=dr1.run_id, task=task, execution_date=first_execution_date)
+    dr2 = DagRun(execution_date=second_execution_date, run_id="test_run_id_2", **common_dr_kwargs)
+    ti_2 = TaskInstance(run_id=dr2.run_id, task=task, execution_date=second_execution_date)
+    dr3 = DagRun(execution_date=third_execution_date, run_id="test_run_id_3", **common_dr_kwargs)
+    ti_3 = TaskInstance(run_id=dr3.run_id, task=task, execution_date=third_execution_date)
+    session.add_all([dr1, dr2, dr3, ti_1, ti_2, ti_3])
+    session.commit()
+
+    # get all task instances
+    assert task.get_task_instances(session=session) == [ti_1, ti_2, ti_3]
+    # get task instances with start_date
+    assert task.get_task_instances(session=session, start_date=second_execution_date) == [ti_2, ti_3]
+    # get task instances with end_date
+    assert task.get_task_instances(session=session, end_date=second_execution_date) == [ti_1, ti_2]
+    # get task instances with start_date and end_date
+    assert task.get_task_instances(
+        session=session, start_date=second_execution_date, end_date=second_execution_date
+    ) == [ti_2]

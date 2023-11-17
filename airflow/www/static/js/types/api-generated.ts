@@ -44,6 +44,15 @@ export interface paths {
     /**
      * Test a connection.
      *
+     * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+     * For more information on capabilities of users, see the documentation:
+     * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+     * It is strongly advised to not enable the feature until you make sure that only
+     * highly trusted UI/API users have "edit connection" permissions.
+     *
+     * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+     * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
+     *
      * *New in version 2.2.0*
      */
     post: operations["test_connection"];
@@ -1239,7 +1248,7 @@ export interface components {
       name?: string;
       /** @description The maximum number of slots that can be assigned to tasks. One job may occupy one or more slots. */
       slots?: number;
-      /** @description The number of slots used by running/queued tasks at the moment. */
+      /** @description The number of slots used by running/queued tasks at the moment. May include deferred tasks if 'include_deferred' is set to true. */
       occupied_slots?: number;
       /** @description The number of slots used by running tasks at the moment. */
       running_slots?: number;
@@ -1250,11 +1259,23 @@ export interface components {
       /** @description The number of slots used by scheduled tasks at the moment. */
       scheduled_slots?: number;
       /**
+       * @description The number of slots used by deferred tasks at the moment. Relevant if 'include_deferred' is set to true.
+       *
+       * *New in version 2.7.0*
+       */
+      deferred_slots?: number;
+      /**
        * @description The description of the pool.
        *
        * *New in version 2.3.0*
        */
       description?: string | null;
+      /**
+       * @description If set to true, deferred tasks are considered when calculating open pool slots.
+       *
+       * *New in version 2.7.0*
+       */
+      include_deferred?: boolean;
     };
     /**
      * @description Collection of pools.
@@ -1305,7 +1326,7 @@ export interface components {
       /** Format: datetime */
       created_date?: string;
       triggerer_id?: number | null;
-    };
+    } | null;
     Job: {
       id?: number;
       dag_id?: string | null;
@@ -1320,7 +1341,7 @@ export interface components {
       executor_class?: string | null;
       hostname?: string | null;
       unixname?: string | null;
-    };
+    } | null;
     TaskInstance: {
       task_id?: string;
       dag_id?: string;
@@ -1337,7 +1358,7 @@ export interface components {
       /** Format: datetime */
       end_date?: string | null;
       duration?: number | null;
-      state?: components["schemas"]["TaskState"] | null;
+      state?: components["schemas"]["TaskState"];
       try_number?: number;
       map_index?: number;
       max_tries?: number;
@@ -1352,15 +1373,15 @@ export interface components {
       queued_when?: string | null;
       pid?: number | null;
       executor_config?: string;
-      sla_miss?: components["schemas"]["SLAMiss"] | null;
+      sla_miss?: components["schemas"]["SLAMiss"];
       /**
        * @description JSON object describing rendered fields.
        *
        * *New in version 2.3.0*
        */
       rendered_fields?: { [key: string]: unknown };
-      trigger?: components["schemas"]["Trigger"] | null;
-      triggerer_job?: components["schemas"]["Job"] | null;
+      trigger?: components["schemas"]["Trigger"];
+      triggerer_job?: components["schemas"]["Job"];
       /**
        * @description Contains manually entered notes by the user about the TaskInstance.
        *
@@ -1460,7 +1481,7 @@ export interface components {
        * *Changed in version 2.0.1*&#58; Field becomes nullable.
        */
       start_date?: string | null;
-      dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
+      dag_run_timeout?: components["schemas"]["TimeDelta"];
       doc_md?: string | null;
       default_view?: string;
       /**
@@ -1535,8 +1556,8 @@ export interface components {
       queue?: string | null;
       pool?: string;
       pool_slots?: number;
-      execution_timeout?: components["schemas"]["TimeDelta"] | null;
-      retry_delay?: components["schemas"]["TimeDelta"] | null;
+      execution_timeout?: components["schemas"]["TimeDelta"];
+      retry_delay?: components["schemas"]["TimeDelta"];
       retry_exponential_backoff?: boolean;
       priority_weight?: number;
       weight_rule?: components["schemas"]["WeightRule"];
@@ -1563,19 +1584,25 @@ export interface components {
       /** @description The plugin executors */
       executors?: (string | null)[];
       /** @description The plugin macros */
-      macros?: ({ [key: string]: unknown } | null)[];
+      macros?: (string | null)[];
       /** @description The flask blueprints */
-      flask_blueprints?: ({ [key: string]: unknown } | null)[];
+      flask_blueprints?: (string | null)[];
       /** @description The appuilder views */
       appbuilder_views?: ({ [key: string]: unknown } | null)[];
       /** @description The Flask Appbuilder menu items */
       appbuilder_menu_items?: ({ [key: string]: unknown } | null)[];
       /** @description The global operator extra links */
-      global_operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      global_operator_extra_links?: (string | null)[];
       /** @description Operator extra links */
-      operator_extra_links?: ({ [key: string]: unknown } | null)[];
+      operator_extra_links?: (string | null)[];
       /** @description The plugin source */
       source?: string | null;
+      /** @description The plugin task instance dependencies */
+      ti_deps?: string[];
+      /** @description The plugin listeners */
+      listeners?: string[];
+      /** @description The plugin timetables */
+      timetables?: string[];
     };
     /**
      * @description A collection of plugin.
@@ -1885,25 +1912,17 @@ export interface components {
       include_future?: boolean;
       /** @description If set to True, also tasks from past DAG Runs are affected. */
       include_past?: boolean;
-      /**
-       * @description Expected new state.
-       * @enum {string}
-       */
-      new_state?: "success" | "failed" | "skipped";
+      new_state?: components["schemas"]["UpdateTaskState"];
     };
     UpdateTaskInstance: {
       /**
        * @description If set, don't actually run this operation. The response will contain the task instance
        * planned to be affected, but won't be modified in any way.
        *
-       * @default false
+       * @default true
        */
       dry_run?: boolean;
-      /**
-       * @description Expected new state.
-       * @enum {string}
-       */
-      new_state?: "success" | "failed" | "skipped";
+      new_state?: components["schemas"]["UpdateTaskState"];
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */
@@ -1984,6 +2003,18 @@ export interface components {
        */
       dag_ids?: string[];
       /**
+       * @description Return objects with specific DAG Run IDs.
+       * The value can be repeated to retrieve multiple matching values (OR condition).
+       * *New in version 2.7.1*
+       */
+      dag_run_ids?: string[];
+      /**
+       * @description Return objects with specific task IDs.
+       * The value can be repeated to retrieve multiple matching values (OR condition).
+       * *New in version 2.7.1*
+       */
+      task_ids?: string[];
+      /**
        * Format: date-time
        * @description Returns objects greater or equal to the specified date.
        *
@@ -2059,7 +2090,7 @@ export interface components {
       days: number;
       seconds: number;
       microseconds: number;
-    };
+    } | null;
     /** @description Relative delta */
     RelativeDelta: {
       __type: string;
@@ -2134,22 +2165,37 @@ export interface components {
      * *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
      * *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
      *
-     * @enum {string}
+     * *Changed in version 2.7.0*&#58; Field becomes nullable and null primitive is added as a possible value.
+     * *Changed in version 2.7.0*&#58; 'none' state is deprecated in favor of null.
+     *
+     * @enum {string|null}
      */
     TaskState:
-      | "success"
-      | "running"
-      | "failed"
-      | "upstream_failed"
-      | "skipped"
-      | "up_for_retry"
-      | "up_for_reschedule"
-      | "queued"
-      | "none"
-      | "scheduled"
-      | "deferred"
-      | "removed"
-      | "restarting";
+      | (
+          | null
+          | "success"
+          | "running"
+          | "failed"
+          | "upstream_failed"
+          | "skipped"
+          | "up_for_retry"
+          | "up_for_reschedule"
+          | "queued"
+          | "none"
+          | "scheduled"
+          | "deferred"
+          | "removed"
+          | "restarting"
+        )
+      | null;
+    /**
+     * @description Expected new state. Only a subset of TaskState are available.
+     *
+     * Other states are managed directly by the scheduler or the workers and cannot be updated manually through the REST API.
+     *
+     * @enum {string}
+     */
+    UpdateTaskState: "success" | "failed" | "skipped";
     /**
      * @description DAG State.
      *
@@ -2161,7 +2207,13 @@ export interface components {
     /**
      * @description Trigger rule.
      *
-     * *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value.
+     * *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value. Deprecated 'dummy' and 'always' is added as a possible value
+     *
+     * *Changed in version 2.3.0*&#58; 'all_skipped' is added as a possible value.
+     *
+     * *Changed in version 2.5.0*&#58; 'one_done' is added as a possible value.
+     *
+     * *Changed in version 2.7.0*&#58; 'all_done_setup_success' is added as a possible value.
      *
      * @enum {string}
      */
@@ -2169,13 +2221,17 @@ export interface components {
       | "all_success"
       | "all_failed"
       | "all_done"
+      | "all_done_setup_success"
       | "one_success"
       | "one_failed"
+      | "one_done"
       | "none_failed"
       | "none_skipped"
       | "none_failed_or_skipped"
       | "none_failed_min_one_success"
-      | "dummy";
+      | "dummy"
+      | "all_skipped"
+      | "always";
     /**
      * @description Weight rule.
      * @enum {string}
@@ -2256,6 +2312,14 @@ export interface components {
     DAGID: string;
     /** @description The task ID. */
     TaskID: string;
+    /** @description The name of event log. */
+    Event: string;
+    /** @description The owner's name of event log. */
+    Owner: string;
+    /** @description Timestamp to select event logs occurring before. */
+    Before: string;
+    /** @description Timestamp to select event logs occurring after. */
+    After: string;
     /** @description The map index. */
     MapIndex: number;
     /** @description The DAG run ID. */
@@ -2393,6 +2457,10 @@ export interface components {
     Paused: boolean;
     /** @description Only filter the XCom records which have the provided key. */
     FilterXcomKey: string;
+    /** @description Returns objects matched by the DAG ID. */
+    FilterDAGID: string;
+    /** @description Returns objects matched by the Task ID. */
+    FilterTaskID: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -2524,6 +2592,15 @@ export interface operations {
   };
   /**
    * Test a connection.
+   *
+   * For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+   * For more information on capabilities of users, see the documentation:
+   * https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+   * It is strongly advised to not enable the feature until you make sure that only
+   * highly trusted UI/API users have "edit connection" permissions.
+   *
+   * Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+   * It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
    *
    * *New in version 2.2.0*
    */
@@ -3156,6 +3233,18 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
+        /** Returns objects matched by the DAG ID. */
+        dag_id?: components["parameters"]["FilterDAGID"];
+        /** Returns objects matched by the Task ID. */
+        task_id?: components["parameters"]["FilterTaskID"];
+        /** The name of event log. */
+        event?: components["parameters"]["Event"];
+        /** The owner's name of event log. */
+        owner?: components["parameters"]["Owner"];
+        /** Timestamp to select event logs occurring before. */
+        before?: components["parameters"]["Before"];
+        /** Timestamp to select event logs occurring after. */
+        after?: components["parameters"]["After"];
       };
     };
     responses: {
@@ -4850,6 +4939,9 @@ export type CollectionInfo = CamelCasedPropertiesDeep<
 >;
 export type TaskState = CamelCasedPropertiesDeep<
   components["schemas"]["TaskState"]
+>;
+export type UpdateTaskState = CamelCasedPropertiesDeep<
+  components["schemas"]["UpdateTaskState"]
 >;
 export type DagState = CamelCasedPropertiesDeep<
   components["schemas"]["DagState"]

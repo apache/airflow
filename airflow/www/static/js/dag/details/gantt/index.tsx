@@ -18,7 +18,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Divider, Text } from "@chakra-ui/react";
+import { Alert, AlertIcon, Box, Divider, Text } from "@chakra-ui/react";
 
 import useSelection from "src/dag/useSelection";
 import { useGridData } from "src/api";
@@ -106,14 +106,45 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
 
   const dagRun = dagRuns.find((dr) => dr.runId === runId);
 
-  const startDate = dagRun?.startDate;
+  let startDate = dagRun?.queuedAt || dagRun?.startDate;
+  let endDate = dagRun?.endDate;
+
+  // Check if any task instance dates are outside the bounds of the dag run dates and update our min start and max end
+  groups.children?.forEach((task) => {
+    const taskInstance = task.instances.find((ti) => ti.runId === runId);
+    if (
+      taskInstance?.queuedDttm &&
+      (!startDate ||
+        Date.parse(taskInstance.queuedDttm) < Date.parse(startDate))
+    ) {
+      startDate = taskInstance.queuedDttm;
+    } else if (
+      taskInstance?.startDate &&
+      (!startDate || Date.parse(taskInstance.startDate) < Date.parse(startDate))
+    ) {
+      startDate = taskInstance.startDate;
+    }
+
+    if (
+      taskInstance?.endDate &&
+      (!endDate || Date.parse(taskInstance.endDate) > Date.parse(endDate))
+    ) {
+      endDate = taskInstance.endDate;
+    }
+  });
 
   const numBars = Math.round(width / 100);
-  const runDuration = getDuration(dagRun?.startDate, dagRun?.endDate);
+  const runDuration = getDuration(startDate, endDate);
   const intervals = runDuration / numBars;
 
   return (
     <Box ref={ganttRef} position="relative" height="100%" overflow="hidden">
+      {!runId && (
+        <Alert status="warning" position="absolute" top={2}>
+          <AlertIcon />
+          Please select a dag run in order to see a gantt chart
+        </Alert>
+      )}
       <Box borderBottomWidth={1} pt={`${top}px`} pointerEvents="none">
         {Array.from(Array(numBars)).map((_, i) => (
           <Box
@@ -160,8 +191,9 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
               <Row
                 ganttWidth={width}
                 openGroupIds={openGroupIds}
-                dagRun={dagRun}
                 task={c}
+                ganttStartDate={startDate}
+                ganttEndDate={endDate}
                 key={`gantt-${c.id}`}
               />
             ))}

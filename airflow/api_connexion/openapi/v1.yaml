@@ -231,7 +231,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.7.0.dev0'
+  version: '2.8.0.dev0'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -368,6 +368,15 @@ paths:
       summary: Test a connection
       description: |
         Test a connection.
+
+        For security reasons, the test connection functionality is disabled by default across Airflow UI, API and CLI.
+        For more information on capabilities of users, see the documentation:
+        https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users.
+        It is strongly advised to not enable the feature until you make sure that only
+        highly trusted UI/API users have "edit connection" permissions.
+
+        Set the "test_connection" flag to "Enabled" in the "core" section of Airflow configuration (airflow.cfg) to enable testing of collections.
+        It can also be controlled by the environment variable `AIRFLOW__CORE__TEST_CONNECTION`.
 
         *New in version 2.2.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.connection_endpoint
@@ -983,6 +992,12 @@ paths:
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
         - $ref: '#/components/parameters/OrderBy'
+        - $ref: '#/components/parameters/FilterDAGID'
+        - $ref: '#/components/parameters/FilterTaskID'
+        - $ref: '#/components/parameters/Event'
+        - $ref: '#/components/parameters/Owner'
+        - $ref: '#/components/parameters/Before'
+        - $ref: '#/components/parameters/After'
       responses:
         '200':
           description: Success.
@@ -2112,12 +2127,13 @@ paths:
 
   /roles:
     get:
+      deprecated: true
       summary: List roles
       description: |
         Get a list of roles.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_roles
       tags: [Role]
       parameters:
@@ -2137,12 +2153,13 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
 
     post:
+      deprecated: true
       summary: Create a role
       description: |
         Create a new role.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_role
       tags: [Role]
       requestBody:
@@ -2170,12 +2187,13 @@ paths:
       - $ref: '#/components/parameters/RoleName'
 
     get:
+      deprecated: true
       summary: Get a role
       description: |
         Get a role.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_role
       tags: [Role]
       responses:
@@ -2193,12 +2211,13 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     patch:
+      deprecated: true
       summary: Update a role
       description: |
         Update a role.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_role
       tags: [Role]
       parameters:
@@ -2227,12 +2246,13 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
+      deprecated: true
       summary: Delete a role
       description: |
         Delete a role.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_role
       tags: [Role]
       responses:
@@ -2249,12 +2269,13 @@ paths:
 
   /permissions:
     get:
+      deprecated: true
       summary: List permissions
       description: |
         Get a list of permissions.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.role_and_permission_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_permissions
       tags: [Permission]
       parameters:
@@ -2274,12 +2295,13 @@ paths:
 
   /users:
     get:
+      deprecated: true
       summary: List users
       description: |
         Get a list of users.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_users
       tags: [User]
       parameters:
@@ -2299,12 +2321,13 @@ paths:
           $ref: '#/components/responses/PermissionDenied'
 
     post:
+      deprecated: true
       summary: Create a user
       description: |
         Create a new user with unique username and email.
 
         *New in version 2.2.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: post_user
       tags: [User]
       requestBody:
@@ -2333,12 +2356,13 @@ paths:
     parameters:
       - $ref: '#/components/parameters/Username'
     get:
+      deprecated: true
       summary: Get a user
       description: |
         Get a user with a specific username.
 
         *New in version 2.1.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: get_user
       tags: [User]
       responses:
@@ -2356,12 +2380,13 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     patch:
+      deprecated: true
       summary: Update a user
       description: |
         Update fields for a user.
 
         *New in version 2.2.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: patch_user
       tags: [User]
       parameters:
@@ -2389,12 +2414,13 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     delete:
+      deprecated: true
       summary: Delete a user
       description: |
         Delete a user with a specific username.
 
         *New in version 2.2.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.user_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
       operationId: delete_user
       tags: [User]
       responses:
@@ -3158,7 +3184,7 @@ components:
         occupied_slots:
           type: integer
           readOnly: true
-          description: The number of slots used by running/queued tasks at the moment.
+          description: The number of slots used by running/queued tasks at the moment. May include deferred tasks if 'include_deferred' is set to true.
         running_slots:
           type: integer
           readOnly: true
@@ -3175,6 +3201,13 @@ components:
           type: integer
           readOnly: true
           description: The number of slots used by scheduled tasks at the moment.
+        deferred_slots:
+          type: integer
+          readOnly: true
+          description: |
+            The number of slots used by deferred tasks at the moment. Relevant if 'include_deferred' is set to true.
+
+            *New in version 2.7.0*
         description:
           type: string
           description: |
@@ -3182,6 +3215,12 @@ components:
 
             *New in version 2.3.0*
           nullable: true
+        include_deferred:
+          type: boolean
+          description: |
+            If set to true, deferred tasks are considered when calculating open pool slots.
+
+            *New in version 2.7.0*
 
     PoolCollection:
       type: object
@@ -3228,7 +3267,6 @@ components:
           items:
             $ref: '#/components/schemas/Provider'
 
-
     SLAMiss:
       type: object
       properties:
@@ -3256,6 +3294,7 @@ components:
 
     Trigger:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3272,6 +3311,7 @@ components:
 
     Job:
       type: object
+      nullable: true
       properties:
         id:
           type: integer
@@ -3335,7 +3375,6 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/TaskState'
-          nullable: true
         try_number:
           type: integer
         map_index:
@@ -3371,7 +3410,6 @@ components:
           type: string
         sla_miss:
           $ref: '#/components/schemas/SLAMiss'
-          nullable: true
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3380,10 +3418,8 @@ components:
           type: object
         trigger:
           $ref: '#/components/schemas/Trigger'
-          nullable: true
         triggerer_job:
           $ref: '#/components/schemas/Job'
-          nullable: true
         note:
           type: string
           description: |
@@ -3561,7 +3597,6 @@ components:
 
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
-              nullable: true
               $ref: '#/components/schemas/TimeDelta'
             doc_md:
               type: string
@@ -3699,10 +3734,8 @@ components:
           readOnly: true
         execution_timeout:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_delay:
           $ref: '#/components/schemas/TimeDelta'
-          nullable: true
         retry_exponential_backoff:
           type: boolean
           readOnly: true
@@ -3763,13 +3796,13 @@ components:
         macros:
           type: array
           items:
-            type: object
+            type: string
             nullable: true
           description: The plugin macros
         flask_blueprints:
           type: array
           items:
-            type: object
+            type: string
             nullable: true
           description: The flask blueprints
         appbuilder_views:
@@ -3787,19 +3820,34 @@ components:
         global_operator_extra_links:
           type: array
           items:
-            type: object
+            type: string
             nullable: true
           description: The global operator extra links
         operator_extra_links:
           type: array
           items:
-            type: object
+            type: string
             nullable: true
           description: Operator extra links
         source:
           type: string
           description: The plugin source
           nullable: true
+        ti_deps:
+          type: array
+          items:
+              type: string
+          description: The plugin task instance dependencies
+        listeners:
+          type: array
+          items:
+              type: string
+          description: The plugin listeners
+        timetables:
+          type: array
+          items:
+              type: string
+          description: The plugin timetables
 
     PluginCollection:
       type: object
@@ -4285,12 +4333,7 @@ components:
           type: boolean
 
         new_state:
-          description: Expected new state.
-          type: string
-          enum:
-            - success
-            - failed
-            - skipped
+          $ref: '#/components/schemas/UpdateTaskState'
 
     UpdateTaskInstance:
       type: object
@@ -4300,15 +4343,10 @@ components:
             If set, don't actually run this operation. The response will contain the task instance
             planned to be affected, but won't be modified in any way.
           type: boolean
-          default: false
+          default: true
 
         new_state:
-          description: Expected new state.
-          type: string
-          enum:
-            - success
-            - failed
-            - skipped
+          $ref: '#/components/schemas/UpdateTaskState'
 
     SetTaskInstanceNote:
       type: object
@@ -4416,6 +4454,26 @@ components:
             Return objects with specific DAG IDs.
 
             The value can be repeated to retrieve multiple matching values (OR condition).
+        dag_run_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific DAG Run IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
+        task_ids:
+          type: array
+          items:
+            type: string
+          description:
+            Return objects with specific task IDs.
+
+            The value can be repeated to retrieve multiple matching values (OR condition).
+
+            *New in version 2.7.1*
         execution_date_gte:
           type: string
           format: date-time
@@ -4506,6 +4564,7 @@ components:
     TimeDelta:
       description: Time delta
       type: object
+      nullable: true
       required:
         - __type
         - days
@@ -4646,8 +4705,14 @@ components:
 
         *Changed in version 2.4.0*&#58; 'sensing' state has been removed.
         *Changed in version 2.4.2*&#58; 'restarting' is added as a possible value
+
+        *Changed in version 2.7.0*&#58; Field becomes nullable and null primitive is added as a possible value.
+        *Changed in version 2.7.0*&#58; 'none' state is deprecated in favor of null.
+
       type: string
+      nullable: true
       enum:
+        - null
         - success
         - running
         - failed
@@ -4661,6 +4726,19 @@ components:
         - deferred
         - removed
         - restarting
+
+
+    UpdateTaskState:
+      description: |
+        Expected new state. Only a subset of TaskState are available.
+
+        Other states are managed directly by the scheduler or the workers and cannot be updated manually through the REST API.
+
+      type: string
+      enum:
+        - success
+        - failed
+        - skipped
 
     DagState:
       description: |
@@ -4679,19 +4757,29 @@ components:
       description: |
         Trigger rule.
 
-        *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value.
+        *Changed in version 2.2.0*&#58; 'none_failed_min_one_success' is added as a possible value. Deprecated 'dummy' and 'always' is added as a possible value
+
+        *Changed in version 2.3.0*&#58; 'all_skipped' is added as a possible value.
+
+        *Changed in version 2.5.0*&#58; 'one_done' is added as a possible value.
+
+        *Changed in version 2.7.0*&#58; 'all_done_setup_success' is added as a possible value.
       type: string
       enum:
         - all_success
         - all_failed
         - all_done
+        - all_done_setup_success
         - one_success
         - one_failed
+        - one_done
         - none_failed
         - none_skipped
         - none_failed_or_skipped
         - none_failed_min_one_success
         - dummy
+        - all_skipped
+        - always
 
     WeightRule:
       description: Weight rule.
@@ -4772,6 +4860,40 @@ components:
         type: string
       required: true
       description: The task ID.
+
+    Event:
+      in: query
+      name: event
+      schema:
+        type: string
+      required: false
+      description: The name of event log.
+
+    Owner:
+      in: query
+      name: owner
+      schema:
+        type: string
+      required: false
+      description: The owner's name of event log.
+
+    Before:
+      in: query
+      name: before
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: Timestamp to select event logs occurring before.
+
+    After:
+      in: query
+      name: after
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: Timestamp to select event logs occurring after.
 
     MapIndex:
       in: path
@@ -5109,6 +5231,22 @@ components:
         type: string
       required: false
       description: Only filter the XCom records which have the provided key.
+
+    FilterDAGID:
+      in: query
+      name: dag_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the DAG ID.
+
+    FilterTaskID:
+      in: query
+      name: task_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the Task ID.
 
     # Other parameters
     FileToken:

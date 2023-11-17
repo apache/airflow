@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
@@ -32,9 +31,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import ClauseElement
 
     from airflow.hooks.base import BaseHook
-
-
-logger = logging.getLogger(__name__)
 
 
 class ColumnIndex(IntEnum):
@@ -73,7 +69,7 @@ class TableSchema:
         return Dataset(
             namespace=namespace,
             name=name,
-            facets={"schema": SchemaDatasetFacet(fields=self.fields)} if len(self.fields) > 0 else {},
+            facets={"schema": SchemaDatasetFacet(fields=self.fields)} if self.fields else {},
         )
 
 
@@ -155,11 +151,22 @@ def create_information_schema_query(
     metadata = MetaData(sqlalchemy_engine)
     select_statements = []
     for db, schema_mapping in tables_hierarchy.items():
-        schema, table_name = information_schema_table_name.split(".")
+        # Information schema table name is expected to be "< information_schema schema >.<view/table name>"
+        # usually "information_schema.columns". In order to use table identifier correct for various table
+        # we need to pass first part of dot-separated identifier as `schema` argument to `sqlalchemy.Table`.
         if db:
-            schema = f"{db}.{schema}"
+            # Use database as first part of table identifier.
+            schema = db
+            table_name = information_schema_table_name
+        else:
+            # When no database passed, use schema as first part of table identifier.
+            schema, table_name = information_schema_table_name.split(".")
         information_schema_table = Table(
-            table_name, metadata, *[Column(column) for column in columns], schema=schema
+            table_name,
+            metadata,
+            *[Column(column) for column in columns],
+            schema=schema,
+            quote=False,
         )
         filter_clauses = create_filter_clauses(schema_mapping, information_schema_table, uppercase_names)
         select_statements.append(information_schema_table.select().filter(*filter_clauses))
@@ -186,6 +193,7 @@ def create_filter_clauses(
             name.upper() if uppercase_names else name for name in tables
         )
         if schema:
+            schema = schema.upper() if uppercase_names else schema
             filter_clause = and_(information_schema_table.c.table_schema == schema, filter_clause)
         filter_clauses.append(filter_clause)
     return filter_clauses

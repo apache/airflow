@@ -17,26 +17,21 @@
 
 from __future__ import annotations
 
+from typing import Any
+from unittest import mock
+
 import pytest
 
-from airflow.providers.microsoft.azure.utils import get_field
-from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
+from airflow.providers.microsoft.azure.utils import (
+    AzureIdentityCredentialAdapter,
+    add_managed_identity_connection_widgets,
+    get_async_default_azure_credential,
+    get_field,
+    # _get_default_azure_credential
+    get_sync_default_azure_credential,
+)
 
-
-def test__ensure_prefixes_removal():
-    """Ensure that _ensure_prefixes is removed from snowflake when airflow min version >= 2.5.0."""
-    path = "airflow.providers.microsoft.azure.utils._ensure_prefixes"
-    if not object_exists(path):
-        raise Exception(
-            "You must remove this test. It only exists to "
-            "remind us to remove decorator `_ensure_prefixes`."
-        )
-
-    if get_provider_min_airflow_version("apache-airflow-providers-microsoft-azure") >= (2, 5):
-        raise Exception(
-            "You must now remove `_ensure_prefixes` from azure utils."
-            " The functionality is now taken care of by providers manager."
-        )
+MODULE = "airflow.providers.microsoft.azure.utils"
 
 
 def test_get_field_warns_on_dupe():
@@ -73,3 +68,62 @@ def test_get_field_non_prefixed(input, expected):
         field_name="this_param",
     )
     assert value == expected
+
+
+def test_add_managed_identity_connection_widgets():
+    def test_func() -> dict[str, Any]:
+        return {}
+
+    widgets = add_managed_identity_connection_widgets(test_func)()
+
+    assert "managed_identity_client_id" in widgets
+    assert "workload_identity_tenant_id" in widgets
+
+
+@mock.patch(f"{MODULE}.DefaultAzureCredential")
+def test_get_sync_default_azure_credential(mock_default_azure_credential):
+    get_sync_default_azure_credential()
+
+    assert mock_default_azure_credential.called
+
+
+@mock.patch(f"{MODULE}.AsyncDefaultAzureCredential")
+def test_get_async_default_azure_credential(mock_default_azure_credential):
+    get_async_default_azure_credential()
+    assert mock_default_azure_credential.called
+
+
+class TestAzureIdentityCredentialAdapter:
+    @mock.patch(f"{MODULE}.PipelineRequest")
+    @mock.patch(f"{MODULE}.BearerTokenCredentialPolicy")
+    @mock.patch(f"{MODULE}.DefaultAzureCredential")
+    def test_signed_session(self, mock_default_azure_credential, mock_policy, mock_request):
+        mock_request.return_value.http_request.headers = {"Authorization": "Bearer token"}
+
+        adapter = AzureIdentityCredentialAdapter()
+        mock_default_azure_credential.assert_called_once()
+        mock_policy.assert_called_once()
+
+        adapter.signed_session()
+        assert adapter.token == {"access_token": "token"}
+
+    @mock.patch(f"{MODULE}.PipelineRequest")
+    @mock.patch(f"{MODULE}.BearerTokenCredentialPolicy")
+    @mock.patch(f"{MODULE}.DefaultAzureCredential")
+    def test_init_with_identity(self, mock_default_azure_credential, mock_policy, mock_request):
+        mock_request.return_value.http_request.headers = {"Authorization": "Bearer token"}
+
+        adapter = AzureIdentityCredentialAdapter(
+            managed_identity_client_id="managed_identity_client_id",
+            workload_identity_tenant_id="workload_identity_tenant_id",
+            additionally_allowed_tenants=["workload_identity_tenant_id"],
+        )
+        mock_default_azure_credential.assert_called_once_with(
+            managed_identity_client_id="managed_identity_client_id",
+            workload_identity_tenant_id="workload_identity_tenant_id",
+            additionally_allowed_tenants=["workload_identity_tenant_id"],
+        )
+        mock_policy.assert_called_once()
+
+        adapter.signed_session()
+        assert adapter.token == {"access_token": "token"}

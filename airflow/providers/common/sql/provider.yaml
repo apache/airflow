@@ -23,6 +23,12 @@ description: |
 
 suspended: false
 versions:
+  - 1.8.1
+  - 1.8.0
+  - 1.7.2
+  - 1.7.1
+  - 1.7.0
+  - 1.6.2
   - 1.6.1
   - 1.6.0
   - 1.5.2
@@ -39,7 +45,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.4.0
+  - apache-airflow>=2.5.0
   - sqlparse>=0.4.2
 
 additional-extras:

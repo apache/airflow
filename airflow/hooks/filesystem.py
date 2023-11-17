@@ -17,6 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
 from airflow.hooks.base import BaseHook
 
 
@@ -33,9 +36,32 @@ class FSHook(BaseHook):
     Extra: {"path": "/tmp"}
     """
 
-    def __init__(self, conn_id: str = "fs_default"):
+    conn_name_attr = "fs_conn_id"
+    default_conn_name = "fs_default"
+    conn_type = "fs"
+    hook_name = "File (path)"
+
+    @staticmethod
+    def get_connection_form_widgets() -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import StringField
+
+        return {"path": StringField(lazy_gettext("Path"), widget=BS3TextFieldWidget())}
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": ["host", "schema", "port", "login", "password", "extra"],
+            "relabeling": {},
+            "placeholders": {},
+        }
+
+    def __init__(self, fs_conn_id: str = default_conn_name):
         super().__init__()
-        conn = self.get_connection(conn_id)
+        conn = self.get_connection(fs_conn_id)
         self.basepath = conn.extra_dejson.get("path", "")
         self.conn = conn
 
@@ -49,3 +75,15 @@ class FSHook(BaseHook):
         :return: the path.
         """
         return self.basepath
+
+    def test_connection(self):
+        """Test File connection."""
+        try:
+            p = self.get_path()
+            if not p:
+                return False, "File Path is undefined."
+            if not Path(p).exists():
+                return False, f"Path {p} does not exist."
+            return True, f"Path {p} is existing."
+        except Exception as e:
+            return False, str(e)

@@ -151,7 +151,7 @@ with DAG(
     "kafka-example",
     default_args=default_args,
     description="Examples of Kafka Operators",
-    schedule_interval=timedelta(days=1),
+    schedule=timedelta(days=1),
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],

@@ -17,8 +17,12 @@
 
 from __future__ import annotations
 
-import boto3
+from typing import TYPE_CHECKING
+
 from botocore.waiter import Waiter, WaiterModel, create_waiter_with_client
+
+if TYPE_CHECKING:
+    import boto3
 
 
 class BaseBotoWaiter:
