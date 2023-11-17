@@ -91,7 +91,6 @@ dependencies:
   - redshift_connector>=2.0.888
   - sqlalchemy_redshift>=0.8.6
   - asgiref
-  - python3-saml
 
 integrations:
   - integration-name: Amazon Athena
@@ -745,6 +744,9 @@ additional-extras:
   - name: s3fs
     dependencies:
       - s3fs>=2023.9.2
+  - name: python3-saml
+    dependencies:
+      - python3-saml>=1.16.0
 
 config:
   aws:
