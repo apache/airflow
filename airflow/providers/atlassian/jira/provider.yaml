@@ -59,3 +59,6 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.atlassian.jira.hooks.jira.JiraHook
     connection-type: jira
+
+notifications:
+  - airflow.providers.atlassian.jira.notifications.jira.JiraNotifier
