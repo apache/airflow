@@ -1173,6 +1173,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
+        "name",
     )
 
     template_fields_renderers = {
@@ -1226,7 +1227,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.configuration_overrides = configuration_overrides
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
-        self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
+        self.name = name
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
         self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.job_id: str | None = None
@@ -1268,6 +1269,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
         self.log.info("Starting job on Application: %s", self.application_id)
+        self.name = self.name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
         response = self.hook.conn.start_job_run(
             clientToken=self.client_request_token,
             applicationId=self.application_id,
