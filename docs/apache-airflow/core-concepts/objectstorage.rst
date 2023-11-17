@@ -23,6 +23,8 @@ Object Storage
 
 .. versionadded:: 2.8.0
 
+|experimental|
+
 All major cloud providers offer persistent data storage in object stores. These are not classic
 "POSIX" file systems. In order to store hundreds of petabytes of data without any single points
 of failure, object stores replace the classic file system directory tree with a simpler model

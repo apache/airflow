@@ -234,10 +234,17 @@ class TestFs:
 
         s = o.serialize()
         assert s["path"] == path
-
         d = ObjectStoragePath.deserialize(s, 1)
-
         assert o == d
+
+        o = ObjectStoragePath(path, my_setting="foo")
+        s = o.serialize()
+        assert s["my_setting"] == "foo"
+
+        store = attach("filex", conn_id="mock")
+        o = ObjectStoragePath(path, store=store)
+        s = o.serialize()
+        assert s["store"] == store
 
     def test_serde_store(self):
         store = attach("file", conn_id="mock")

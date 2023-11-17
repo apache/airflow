@@ -29,7 +29,7 @@ from fsspec.utils import stringify_path
 from upath.implementations.cloud import CloudPath, _CloudAccessor
 from upath.registry import get_upath_class
 
-from airflow.io.store import ObjectStore, attach
+from airflow.io.store import attach
 from airflow.io.utils.stat import stat_result
 
 if typing.TYPE_CHECKING:
@@ -46,8 +46,15 @@ default = "file"
 class _AirflowCloudAccessor(_CloudAccessor):
     __slots__ = ("_store",)
 
-    def __init__(self, *, store: ObjectStore) -> None:
-        self._store = store
+    def __init__(self, parsed_url: SplitResult | None, **kwargs: typing.Any) -> None:
+        store = kwargs.pop("store", None)
+        conn_id = kwargs.pop("conn_id", None)
+        if store:
+            self._store = store
+        elif parsed_url and parsed_url.scheme:
+            self._store = attach(parsed_url.scheme, conn_id)
+        else:
+            self._store = attach(default, conn_id)
 
     @property
     def _fs(self) -> AbstractFileSystem:
@@ -82,8 +89,9 @@ class ObjectStoragePath(CloudPath):
         "_hash",
     )
 
-    def __new__(cls: type[PT], *args: str | os.PathLike, conn_id: str | None = None) -> PT:
+    def __new__(cls: type[PT], *args: str | os.PathLike, **kwargs: typing.Any) -> PT:
         args_list = list(args)
+
         try:
             other = args_list.pop(0)
         except IndexError:
@@ -108,25 +116,32 @@ class ObjectStoragePath(CloudPath):
             other_kwargs = _kwargs.copy()
             if _url and _url.scheme:
                 other_kwargs["url"] = _url
-            _kwargs["conn_id"] = conn_id
+            new_kwargs = _kwargs.copy()
+            new_kwargs.update(kwargs)
 
-            return _cls(_cls._format_parsed_parts(drv, root, parts, **other_kwargs), **_kwargs)
+            return _cls(_cls._format_parsed_parts(drv, root, parts, **other_kwargs), **new_kwargs)
 
         url = stringify_path(other)
         parsed_url: SplitResult = urlsplit(url)
         protocol: str | None = split_protocol(url)[0] or parsed_url.scheme
+
+        # allow override of protocol
+        protocol = kwargs.get("scheme", protocol)
+
+        for key in ["scheme", "url"]:
+            val = kwargs.pop(key, None)
+            if val:
+                parsed_url = parsed_url._replace(**{key: val})
 
         if not parsed_url.path:
             parsed_url = parsed_url._replace(path="/")  # ensure path has root
 
         if not protocol:
             args_list.insert(0, url)
-            store = attach(default, conn_id)
         else:
             args_list.insert(0, parsed_url.path)
-            store = attach(protocol, conn_id)
 
-        return cls._from_parts(args_list, url=parsed_url, store=store)
+        return cls._from_parts(args_list, url=parsed_url, **kwargs)  # type: ignore
 
     @functools.lru_cache
     def __hash__(self) -> int:
