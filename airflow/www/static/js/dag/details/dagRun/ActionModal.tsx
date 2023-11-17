@@ -55,9 +55,6 @@ const ActionModal = ({
   const containerRef = useContainerRef();
 
   const handleClose = () => {
-    if (onDoNotShowAgainChange) {
-      onDoNotShowAgainChange(doNotShowAgain);
-    }
     onClose();
   };
 
