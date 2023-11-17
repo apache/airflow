@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-17T07:37:45Z
+# This constraints file was automatically generated on 2023-11-17T20:48:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -70,7 +70,7 @@ analytics-python==1.2.9
 annotated-types==0.6.0
 anyascii==0.3.2
 anyio==4.0.0
-apache-beam==2.51.0
+apache-beam==2.52.0
 apispec==6.3.0
 apprise==1.6.0
 argcomplete==3.1.6
@@ -125,7 +125,7 @@ botocore==1.31.64
 cachelib==0.9.0
 cachetools==5.3.2
 cassandra-driver==3.28.0
-cattrs==23.1.2
+cattrs==23.2.0
 celery==5.3.5
 certifi==2023.7.22
 cffi==1.16.0
@@ -256,8 +256,8 @@ graphviz==0.20.1
 greenlet==3.0.1
 grpc-google-iam-v1==0.12.7
 grpcio-gcp==0.2.2
-grpcio-status==1.59.2
-grpcio==1.59.2
+grpcio-status==1.59.3
+grpcio==1.59.3
 gssapi==1.8.3
 gunicorn==21.2.0
 h11==0.14.0
@@ -411,7 +411,7 @@ prison==0.2.1
 prometheus-client==0.18.0
 prompt-toolkit==3.0.41
 proto-plus==1.22.3
-protobuf==4.24.4
+protobuf==4.25.1
 psutil==5.9.6
 psycopg2-binary==2.9.9
 ptyprocess==0.7.0
@@ -492,7 +492,7 @@ rich-click==1.7.1
 rich==13.7.0
 rpds-py==0.13.0
 rsa==4.9
-ruff==0.1.5
+ruff==0.1.6
 s3fs==2023.10.0
 s3transfer==0.7.0
 sarif-om==1.0.4
