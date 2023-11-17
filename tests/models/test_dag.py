@@ -2384,7 +2384,6 @@ my_postgres_conn:
             dag_subdag = DAG(
                 dag_id=f"{parent_dag_name}.{child_dag_name}",
                 schedule="@daily",
-                start_date=TEST_DATE,
                 default_args=args,
             )
 

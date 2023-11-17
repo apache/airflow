@@ -549,7 +549,7 @@ class DAG(LoggingMixin):
         # sort out DAG's scheduling behavior
         scheduling_args = [schedule_interval, timetable, schedule]
 
-        if not self.start_date and at_least_one(*scheduling_args):
+        if at_least_one(*scheduling_args) and not ("start_date" in self.default_args or self.start_date):
             raise ValueError("DAG is missing the start_date parameter")
 
         if not at_most_one(*scheduling_args):

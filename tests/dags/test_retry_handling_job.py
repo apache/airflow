@@ -33,11 +33,6 @@ default_args = {
     "retry_delay": timedelta(seconds=0),
 }
 
-dag = DAG(
-    "test_retry_handling_job",
-    default_args=default_args,
-    schedule="@once",
-    start_date=datetime(2016, 10, 5, 19),
-)
+dag = DAG("test_retry_handling_job", default_args=default_args, schedule="@once")
 
 task1 = BashOperator(task_id="test_retry_handling_op", bash_command="exit 1", dag=dag)
