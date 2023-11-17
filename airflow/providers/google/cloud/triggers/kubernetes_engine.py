@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import asyncio
 import warnings
-from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence, TypeVar
 
 from google.cloud.container_v1.types import Operation
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
 try:
@@ -36,6 +37,8 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from datetime import datetime
+
+C = TypeVar("C", bound=KubernetesPodOperatorCallback)
 
 
 class GKEStartPodTrigger(KubernetesPodTrigger):
@@ -80,6 +83,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         startup_timeout: int = 120,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
+        callbacks: C = KubernetesPodOperatorCallback,
         *args,
         **kwargs,
     ):
@@ -100,6 +104,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         self.in_cluster = in_cluster
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
+        self.callbacks = callbacks
 
         if should_delete_pod is not None:
             warnings.warn(
@@ -134,6 +139,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
                 "base_container_name": self.base_container_name,
                 "should_delete_pod": self.should_delete_pod,
                 "on_finish_action": self.on_finish_action.value,
+                "callbacks": self.callbacks,
             },
         )
 

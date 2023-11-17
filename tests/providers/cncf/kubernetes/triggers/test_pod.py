@@ -26,6 +26,7 @@ from unittest import mock
 import pytest
 from kubernetes.client import models as k8s
 
+from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import TriggerEvent
@@ -45,6 +46,10 @@ TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
 ON_FINISH_ACTION = "delete_pod"
+
+
+async def async_mock():
+    return mock.MagicMock()
 
 
 @pytest.fixture
@@ -90,6 +95,7 @@ class TestKubernetesPodTrigger:
             "trigger_start_time": TRIGGER_START_TIME,
             "on_finish_action": ON_FINISH_ACTION,
             "should_delete_pod": ON_FINISH_ACTION == "delete_pod",
+            "callbacks": KubernetesPodOperatorCallback,
         }
 
     @pytest.mark.asyncio
@@ -217,7 +223,7 @@ class TestKubernetesPodTrigger:
         Test that KubernetesPodTrigger fires the correct event in case if the task was cancelled.
         """
 
-        mock_hook.return_value.get_pod.side_effect = CancelledError()
+        mock_hook.return_value.get_pod.side_effect = [CancelledError(), async_mock()]
         mock_hook.return_value.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
         mock_hook.return_value.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
 
@@ -263,7 +269,7 @@ class TestKubernetesPodTrigger:
         Test that KubernetesPodTrigger fires the correct event if the task was cancelled.
         """
 
-        mock_hook.return_value.get_pod.side_effect = CancelledError()
+        mock_hook.return_value.get_pod.side_effect = [CancelledError(), async_mock()]
         mock_hook.return_value.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
         mock_hook.return_value.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
 

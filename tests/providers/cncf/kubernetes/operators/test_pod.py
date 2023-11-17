@@ -1487,9 +1487,13 @@ class TestKubernetesPodOperatorAsync:
         return remote_pod_mock
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
+    @patch(KUB_OP_PATH.format("client"))
+    @patch(KUB_OP_PATH.format("find_pod"))
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
-    def test_async_create_pod_should_execute_successfully(self, mocked_pod, mocked_pod_obj, do_xcom_push):
+    def test_async_create_pod_should_execute_successfully(
+        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push
+    ):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
         when the KubernetesPodOperator is executed in deferrable mode when deferrable=True.
@@ -1517,7 +1521,7 @@ class TestKubernetesPodOperatorAsync:
         mocked_pod.return_value.metadata.namespace = TEST_NAMESPACE
 
         context = create_context(k)
-        ti_mock = MagicMock()
+        ti_mock = MagicMock(**{"map_index": -1})
         context["ti"] = ti_mock
 
         with pytest.raises(TaskDeferred) as exc:

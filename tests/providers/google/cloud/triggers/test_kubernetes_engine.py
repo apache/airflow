@@ -231,7 +231,11 @@ class TestGKEStartPodTrigger:
         """
         Test that GKEStartPodTrigger fires the correct event in case if the task was cancelled.
         """
-        mock_hook.return_value.get_pod.side_effect = CancelledError()
+
+        async def async_mock():
+            return mock.MagicMock()
+
+        mock_hook.return_value.get_pod.side_effect = [CancelledError(), async_mock()]
         mock_hook.return_value.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
         mock_hook.return_value.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
 

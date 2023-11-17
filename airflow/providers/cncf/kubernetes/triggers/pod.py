@@ -21,15 +21,19 @@ import datetime
 import warnings
 from asyncio import CancelledError
 from enum import Enum
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator, TypeVar
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodPhase
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
+
+
+C = TypeVar("C", bound=KubernetesPodOperatorCallback)
 
 
 class ContainerState(str, Enum):
@@ -86,6 +90,7 @@ class KubernetesPodTrigger(BaseTrigger):
         startup_check_interval: int = 1,
         on_finish_action: str = "delete_pod",
         should_delete_pod: bool | None = None,
+        callbacks: C = KubernetesPodOperatorCallback,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -100,6 +105,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
         self.startup_check_interval = startup_check_interval
+        self.callbacks = callbacks
 
         if should_delete_pod is not None:
             warnings.warn(
@@ -136,6 +142,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 "trigger_start_time": self.trigger_start_time,
                 "should_delete_pod": self.should_delete_pod,
                 "on_finish_action": self.on_finish_action.value,
+                "callbacks": self.callbacks,
             },
         )
 
@@ -143,6 +150,7 @@ class KubernetesPodTrigger(BaseTrigger):
         """Get current pod status and yield a TriggerEvent."""
         hook = self._get_async_hook()
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
+        _is_starting_callback_called = False
         try:
             while True:
                 pod = await hook.get_pod(
@@ -189,9 +197,21 @@ class KubernetesPodTrigger(BaseTrigger):
                             self.log.info("Sleeping for %s seconds.", self.startup_check_interval)
                             await asyncio.sleep(self.startup_check_interval)
                     else:
+                        if not _is_starting_callback_called:
+                            # if the trigger fails and re-run on a different triggerer, this callback could
+                            # be called again
+                            self.callbacks.on_pod_starting(
+                                pod=pod,
+                                client=self._get_async_hook().core_v1_client,
+                                mode=ExecutionMode.ASYNC,
+                            )
+                            _is_starting_callback_called = True
                         self.log.info("Sleeping for %s seconds.", self.poll_interval)
                         await asyncio.sleep(self.poll_interval)
                 else:
+                    self.callbacks.on_pod_completion(
+                        pod=pod, client=self._get_async_hook().core_v1_client, mode=ExecutionMode.ASYNC
+                    )
                     yield TriggerEvent(
                         {
                             "name": self.pod_name,
@@ -215,6 +235,11 @@ class KubernetesPodTrigger(BaseTrigger):
                     name=self.pod_name,
                     namespace=self.pod_namespace,
                 )
+            self.callbacks.on_pod_cleanup(
+                pod=await hook.get_pod(name=self.pod_name, namespace=self.pod_namespace),
+                client=self._get_async_hook().core_v1_client,
+                mode=ExecutionMode.ASYNC,
+            )
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
@@ -242,6 +267,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 config_file=self.config_file,
                 cluster_context=self.cluster_context,
             )
+            self.callbacks.on_async_client_creation(client=self._hook.core_v1_client)
         return self._hook
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
