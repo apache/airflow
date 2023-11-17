@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { ReactNode } from "react";
+import React, { ReactNode, useRef, cloneElement, ReactElement } from "react";
 import {
   Button,
   Modal,
@@ -37,7 +37,7 @@ import { useContainerRef } from "src/context/containerRef";
 interface Props extends ModalProps {
   header: ReactNode | string;
   children: ReactNode | string;
-  submitButton: ReactNode;
+  submitButton: ReactElement;
   doNotShowAgain: boolean;
   onDoNotShowAgainChange?: (value: boolean) => void;
 }
@@ -53,6 +53,7 @@ const ActionModal = ({
   ...otherProps
 }: Props) => {
   const containerRef = useContainerRef();
+  const submitButtonFocusRef = useRef<HTMLButtonElement>(null);
 
   const handleClose = () => {
     onClose();
@@ -65,6 +66,7 @@ const ActionModal = ({
       onClose={handleClose}
       portalProps={{ containerRef }}
       blockScrollOnMount={false}
+      initialFocusRef={submitButtonFocusRef}
       {...otherProps}
     >
       <ModalOverlay />
@@ -87,7 +89,7 @@ const ActionModal = ({
           <Button colorScheme="gray" onClick={handleClose}>
             Cancel
           </Button>
-          {submitButton}
+          {cloneElement(submitButton, { ref: submitButtonFocusRef })}
         </ModalFooter>
       </ModalContent>
     </Modal>
