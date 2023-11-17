@@ -226,7 +226,7 @@ class TestHttpHook:
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_http_connection(self, mock_get_connection):
-        conn = Connection(conn_id="http_default", conn_type="http", host="localhost", schema="http")
+        conn = Connection(conn_id="http_default", conn_type="http", host="localhost")
         mock_get_connection.return_value = conn
         hook = HttpHook()
         hook.get_conn({})
@@ -234,11 +234,19 @@ class TestHttpHook:
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_https_connection(self, mock_get_connection):
-        conn = Connection(conn_id="http_default", conn_type="http", host="localhost", schema="https")
+        conn = Connection(conn_id="http_default", conn_type="https", host="localhost")
         mock_get_connection.return_value = conn
         hook = HttpHook()
         hook.get_conn({})
         assert hook.base_url == "https://localhost"
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_http_connection_with_path(self, mock_get_connection):
+        conn = Connection(conn_id="http_default", conn_type="http", host="localhost", schema="path")
+        mock_get_connection.return_value = conn
+        hook = HttpHook()
+        hook.get_conn({})
+        assert hook.base_url == "http://localhost/path"
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_host_encoded_http_connection(self, mock_get_connection):

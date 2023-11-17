@@ -100,10 +100,11 @@ class HttpHook(BaseHook):
             if conn.host and "://" in conn.host:
                 self.base_url = conn.host
             else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
+                scheme = conn.conn_type
                 host = conn.host if conn.host else ""
-                self.base_url = f"{schema}://{host}"
+                self.base_url = f"{scheme}://{host}"
+                if conn.schema:  # 'schema' is actually URI path (name kept for backward compatibility)
+                    self.base_url += f"/{conn.schema}"
 
             if conn.port:
                 self.base_url += f":{conn.port}"
@@ -323,10 +324,11 @@ class HttpAsyncHook(BaseHook):
             if conn.host and "://" in conn.host:
                 self.base_url = conn.host
             else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
+                scheme = conn.conn_type
                 host = conn.host if conn.host else ""
-                self.base_url = schema + "://" + host
+                self.base_url = f"{scheme}://{host}"
+                if conn.schema:  # 'schema' is actually URI path (name kept for backward compatibility)
+                    self.base_url += f"/{conn.schema}"
 
             if conn.port:
                 self.base_url += f":{conn.port}"
