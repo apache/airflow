@@ -32,6 +32,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import logging
+
     from airflow.models.taskinstance import TaskInstance
 
 
