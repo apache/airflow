@@ -45,9 +45,6 @@ if TYPE_CHECKING:
 
 
 class EmptyAuthManager(BaseAuthManager):
-    def get_user_name(self) -> str:
-        raise NotImplementedError()
-
     def get_user(self) -> BaseUser:
         raise NotImplementedError()
 
@@ -128,6 +125,18 @@ class TestBaseAuthManager:
 
     def test_get_api_endpoints_return_none(self, auth_manager):
         assert auth_manager.get_api_endpoints() is None
+
+    def test_get_user_name(self, auth_manager):
+        user = Mock()
+        user.get_name.return_value = "test_username"
+        auth_manager.get_user = MagicMock(return_value=user)
+        result = auth_manager.get_user_name()
+        assert result == "test_username"
+
+    def test_get_user_name_when_not_logged_in(self, auth_manager):
+        auth_manager.get_user = MagicMock(return_value=None)
+        with pytest.raises(AirflowException):
+            auth_manager.get_user_name()
 
     def test_get_user_display_name_return_user_name(self, auth_manager):
         auth_manager.get_user_name = MagicMock(return_value="test_user")

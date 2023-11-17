@@ -47,5 +47,5 @@ class AwsAuthManagerUser(BaseUser):
     def get_id(self) -> str:
         return self.user_id
 
-    def get_user_name(self) -> str:
+    def get_name(self) -> str:
         return self.username or self.email or self.user_id

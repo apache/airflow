@@ -86,6 +86,11 @@ class BaseAuthManager(LoggingMixin):
     @abstractmethod
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
+        user = self.get_user()
+        if not user:
+            self.log.error("Calling 'get_user_name()' but the user is not signed in.")
+            raise AirflowException("The user must be signed in.")
+        return user.get_name()
 
     def get_user_display_name(self) -> str:
         """Return the user's display name associated to the user in session."""

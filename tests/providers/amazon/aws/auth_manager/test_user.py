@@ -30,14 +30,14 @@ class TestAwsAuthManagerUser:
     def test_get_id(self, user):
         assert user.get_id() == "user_id"
 
-    def test_get_user_name_with_username(self, user):
+    def test_get_name_with_username(self, user):
         user.username = "username"
-        assert user.get_user_name() == "username"
+        assert user.get_name() == "username"
 
-    def test_get_user_name_with_email(self, user):
+    def test_get_name_with_email(self, user):
         user.email = "email"
-        assert user.get_user_name() == "email"
+        assert user.get_name() == "email"
 
-    def test_get_user_name_with_user_id(self, user):
+    def test_get_name_with_user_id(self, user):
         user.user_id = "user_id"
-        assert user.get_user_name() == "user_id"
+        assert user.get_name() == "user_id"

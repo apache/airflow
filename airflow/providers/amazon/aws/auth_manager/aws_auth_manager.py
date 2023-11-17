@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from flask import session, url_for
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_SECTION_NAME, CONF_USE_EXPERIMENTAL_KEY
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
@@ -68,13 +68,6 @@ class AwsAuthManager(BaseAuthManager):
             raise NotImplementedError(
                 "The AWS auth manager is currently being built. It is not finalized. It is not intended to be used yet."
             )
-
-    def get_user_name(self) -> str:
-        user = self.get_user()
-        if not user:
-            self.log.error("Calling 'get_user_name()' but the user is not signed in.")
-            raise AirflowException("The user must be signed in.")
-        return user.get_user_name()
 
     def get_user(self) -> AwsAuthManagerUser | None:
         return session["aws_user"] if self.is_logged_in() else None

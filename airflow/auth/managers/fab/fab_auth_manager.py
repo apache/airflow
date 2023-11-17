@@ -170,16 +170,6 @@ class FabAuthManager(BaseAuthManager):
         last_name = user.last_name.strip() if isinstance(user.last_name, str) else ""
         return f"{first_name} {last_name}".strip()
 
-    def get_user_name(self) -> str:
-        """
-        Return the username associated to the user in session.
-
-        For backward compatibility reasons, the username in FAB auth manager can be any of username,
-        email, or the database user ID.
-        """
-        user = self.get_user()
-        return user.username or user.email or self.get_user_id()
-
     def get_user(self) -> User:
         """Return the user associated to the user in session."""
         from flask_login import current_user

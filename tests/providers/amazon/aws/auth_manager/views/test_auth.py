@@ -53,6 +53,7 @@ def aws_app():
                     "core",
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+                ("aws_auth_manager", "use_experimental"): "True",
                 ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             }
         ):
@@ -92,6 +93,7 @@ class TestAwsAuthManagerAuthenticationViews:
                     "core",
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+                ("aws_auth_manager", "use_experimental"): "True",
                 ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             }
         ):
@@ -118,7 +120,7 @@ class TestAwsAuthManagerAuthenticationViews:
                     assert response.location == url_for("Airflow.index")
                     assert session["aws_user"] is not None
                     assert session["aws_user"].get_id() == "1"
-                    assert session["aws_user"].get_user_name() == "user_id"
+                    assert session["aws_user"].get_name() == "user_id"
 
     def test_login_callback_raise_exception_if_errors(self):
         with conf_vars(
@@ -127,6 +129,7 @@ class TestAwsAuthManagerAuthenticationViews:
                     "core",
                     "auth_manager",
                 ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+                ("aws_auth_manager", "use_experimental"): "True",
                 ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             }
         ):

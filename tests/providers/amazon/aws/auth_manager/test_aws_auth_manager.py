@@ -21,25 +21,43 @@ from unittest.mock import patch
 import pytest
 from flask import Flask, session
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.www.extensions.init_appbuilder import init_appbuilder
+from tests.test_utils.config import conf_vars
 
 
 @pytest.fixture
 def auth_manager():
-    return AwsAuthManager(None)
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+            ("aws_auth_manager", "use_experimental"): "True",
+        }
+    ):
+        return AwsAuthManager(None)
 
 
 @pytest.fixture
 def auth_manager_with_appbuilder():
     flask_app = Flask(__name__)
     appbuilder = init_appbuilder(flask_app)
-    return AwsAuthManager(appbuilder)
+    with conf_vars(
+        {
+            (
+                "core",
+                "auth_manager",
+            ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+            ("aws_auth_manager", "use_experimental"): "True",
+        }
+    ):
+        return AwsAuthManager(appbuilder)
 
 
 @pytest.fixture
@@ -48,18 +66,6 @@ def test_user():
 
 
 class TestAwsAuthManager:
-    @patch.object(AwsAuthManager, "get_user")
-    def test_get_user_name(self, mock_get_user, auth_manager, test_user):
-        mock_get_user.return_value = test_user
-        result = auth_manager.get_user_name()
-        assert result == "test_username"
-
-    @patch.object(AwsAuthManager, "get_user")
-    def test_get_user_name_when_not_logged_in(self, mock_get_user, auth_manager):
-        mock_get_user.return_value = None
-        with pytest.raises(AirflowException):
-            auth_manager.get_user_name()
-
     @pytest.mark.db_test
     @patch.object(AwsAuthManager, "is_logged_in")
     def test_get_user(self, mock_is_logged_in, auth_manager, app, test_user):

@@ -76,31 +76,6 @@ class TestFabAuthManager:
     @pytest.mark.parametrize(
         "id,first_name,last_name,username,email,expected",
         [
-            (1, "First", "Last", None, None, "1"),
-            (1, None, None, None, None, "1"),
-            (1, "First", "Last", "user", None, "user"),
-            (1, "First", "Last", "user", "email", "user"),
-            (1, None, None, None, "email", "email"),
-            (1, "First", "Last", None, "email", "email"),
-        ],
-    )
-    @mock.patch.object(FabAuthManager, "get_user")
-    def test_get_user_name(
-        self, mock_get_user, id, first_name, last_name, username, email, expected, auth_manager
-    ):
-        user = User()
-        user.id = id
-        user.first_name = first_name
-        user.last_name = last_name
-        user.username = username
-        user.email = email
-        mock_get_user.return_value = user
-
-        assert auth_manager.get_user_name() == expected
-
-    @pytest.mark.parametrize(
-        "id,first_name,last_name,username,email,expected",
-        [
             (1, "First", "Last", None, None, "First Last"),
             (1, "First", None, "user", None, "First"),
             (1, None, "Last", "user", "email", "Last"),
