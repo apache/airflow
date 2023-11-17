@@ -166,6 +166,12 @@ labelPRBasedOnFilePath:
     - tests/providers/cncf/kubernetes/**/*
     - tests/system/providers/cncf/kubernetes/**/*
 
+  provider:cohere:
+    - airflow/providers/cohere/**/*
+    - docs/apache-airflow-providers-cohere/**/*
+    - tests/providers/cohere/**/*
+    - tests/system/providers/cohere/**/*
+
   provider:common-io:
     - airflow/providers/common/io/**/*
     - docs/apache-airflow-providers-common-io/**/*
@@ -334,6 +340,12 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-odbc/**/*
     - tests/providers/odbc/**/*
 
+  provider:openai:
+    - airflow/providers/openai/**/*
+    - docs/apache-airflow-providers-openai/**/*
+    - tests/providers/openai/**/*
+    - tests/system/providers/openai/**/*
+
   provider:openfaas:
     - airflow/providers/openfaas/**/*
     - docs/apache-airflow-providers-openfaas/**/*
@@ -371,6 +383,18 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-papermill/**/*
     - tests/providers/papermill/**/*
     - tests/system/providers/papermill/**/*
+
+  provider:pgvector:
+    - airflow/providers/pgvector/**/*
+    - docs/apache-airflow-providers-pgvector/**/*
+    - tests/providers/pgvector/**/*
+    - tests/system/providers/pgvector/**/*
+
+  provider:pinecone:
+    - airflow/providers/pinecone/**/*
+    - docs/apache-airflow-providers-pinecone/**/*
+    - tests/providers/pinecone/**/*
+    - tests/system/providers/pinecone/**/*
 
   provider:plexus:
     - airflow/providers/plexus/**/*
@@ -483,6 +507,12 @@ labelPRBasedOnFilePath:
     - airflow/providers/vertica/**/*
     - docs/apache-airflow-providers-vertica/**/*
     - tests/providers/vertica/**/*
+
+  provider:weaviate:
+    - airflow/providers/weaviate/**/*
+    - docs/apache-airflow-providers-weaviate/**/*
+    - tests/providers/weaviate/**/*
+    - tests/system/providers/weaviate/**/*
 
   provider:yandex:
     - airflow/providers/yandex/**/*
