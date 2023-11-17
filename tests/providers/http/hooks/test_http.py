@@ -264,6 +264,22 @@ class TestHttpHook:
         hook.get_conn({})
         assert hook.base_url == "https://localhost"
 
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_host_encoded_https_connection_from_uri(self, mock_get_connection):
+        conn = Connection(conn_id="http_default", uri="https://localhost")
+        mock_get_connection.return_value = conn
+        hook = HttpHook()
+        hook.get_conn({})
+        assert hook.base_url == "https://localhost"
+
+    @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
+    def test_host_encoded_https_connection_with_path_from_uri(self, mock_get_connection):
+        conn = Connection(conn_id="http_default", uri="https://localhost/path")
+        mock_get_connection.return_value = conn
+        hook = HttpHook()
+        hook.get_conn({})
+        assert hook.base_url == "https://localhost/path"
+
     def test_method_converted_to_uppercase_when_created_in_lowercase(self):
         assert self.get_lowercase_hook.method == "GET"
 
