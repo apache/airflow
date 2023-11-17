@@ -43,6 +43,7 @@ def subdag(parent_dag_name, child_dag_name, args):
     dag_subdag = DAG(
         dag_id=f"{parent_dag_name}.{child_dag_name}",
         default_args=args,
+        start_date=datetime(2019, 1, 1),
         schedule="@daily",
     )
 

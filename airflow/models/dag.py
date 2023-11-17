@@ -119,7 +119,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.decorators import fixup_decorator_warning_stack
-from airflow.utils.helpers import at_most_one, exactly_one, validate_key
+from airflow.utils.helpers import at_least_one, at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import (
@@ -548,6 +548,10 @@ class DAG(LoggingMixin):
 
         # sort out DAG's scheduling behavior
         scheduling_args = [schedule_interval, timetable, schedule]
+
+        if not self.start_date and at_least_one(*scheduling_args):
+            raise ValueError("DAG is missing the start_date parameter")
+
         if not at_most_one(*scheduling_args):
             raise ValueError("At most one allowed for args 'schedule_interval', 'timetable', and 'schedule'.")
         if schedule_interval is not NOTSET:
