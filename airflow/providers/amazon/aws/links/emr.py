@@ -85,7 +85,7 @@ def get_log_uri(
 
 
 class EmrServerlessLogsLink(BaseAwsLink):
-    """Helper class for constructing Amazon EMR Serverless Logs Link."""
+    """Helper class for constructing Amazon EMR Serverless link to Spark stdout logs."""
 
     name = "Spark Driver stdout"
     key = "emr_serverless_logs"
@@ -97,11 +97,11 @@ class EmrServerlessLogsLink(BaseAwsLink):
         ti_key: TaskInstanceKey,
     ) -> str:
         """
-        Link to Amazon Web Services Console.
+        Pre-signed URL to the Spark stdout log.
 
         :param operator: airflow operator
         :param ti_key: TaskInstance ID to return link for
-        :return: link to external system
+        :return: Pre-signed URL to Spark stdout log. Empty string if no Spark stdout log is available.
         """
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
         if not conf:
@@ -127,11 +127,11 @@ class EmrServerlessDashboardLink(BaseAwsLink):
         ti_key: TaskInstanceKey,
     ) -> str:
         """
-        Link to Amazon Web Services Console.
+        Pre-signed URL to the application UI for the EMR Serverless job.
 
         :param operator: airflow operator
         :param ti_key: TaskInstance ID to return link for
-        :return: link to external system
+        :return: Pre-signed URL to application UI.
         """
         conf = XCom.get_value(key=self.key, ti_key=ti_key)
         if not conf:
@@ -145,7 +145,7 @@ class EmrServerlessDashboardLink(BaseAwsLink):
 
 
 class EmrServerlessS3LogsLink(BaseAwsLink):
-    """Helper class for constructing Amazon EMR Serverless Logs Link."""
+    """Helper class for constructing link to S3 console for Amazon EMR Serverless Logs."""
 
     name = "S3 Logs"
     key = "emr_serverless_s3_logs"
@@ -162,7 +162,11 @@ class EmrServerlessS3LogsLink(BaseAwsLink):
 
 
 class EmrServerlessCloudWatchLogsLink(BaseAwsLink):
-    """Helper class for constructing Amazon EMR Serverless Logs Link."""
+    """
+    Helper class for constructing link to CloudWatch console for Amazon EMR Serverless Logs.
+    
+    This is a deep link that filters on a specific job run.
+    """
 
     name = "CloudWatch Logs"
     key = "emr_serverless_cloudwatch_logs"
