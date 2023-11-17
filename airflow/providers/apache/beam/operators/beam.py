@@ -522,6 +522,9 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         )
         self.jar = jar
         self.job_class = job_class
+        self.pipeline_options.setdefault("labels", {}).update(
+            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
+        )
         self.deferrable = deferrable
 
     def execute(self, context: Context):
