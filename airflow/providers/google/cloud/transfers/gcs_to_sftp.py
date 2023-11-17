@@ -84,6 +84,7 @@ class GCSToSFTPOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
+    :param bool confirm: whether to do a stat() on the file afterwards to confirm the file size
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -113,6 +114,7 @@ class GCSToSFTPOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        confirm: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -125,6 +127,7 @@ class GCSToSFTPOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.sftp_conn_id = sftp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.confirm = confirm
         self.sftp_dirs = None
 
     def execute(self, context: Context):
@@ -193,7 +196,7 @@ class GCSToSFTPOperator(BaseOperator):
                 object_name=source_object,
                 filename=tmp.name,
             )
-            sftp_hook.store_file(destination_path, tmp.name)
+            sftp_hook.store_file(destination_path, tmp.name, confirm=self.confirm)
 
         if self.move_object:
             self.log.info("Executing delete of gs://%s/%s", self.source_bucket, source_object)
