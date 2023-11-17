@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Collection, Iterable, Sequence
 
 from airflow.utils.helpers import render_template_as_native, render_template_to_string
@@ -29,7 +30,25 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.models.operator import Operator
     from airflow.utils.context import Context
+
+
+@dataclass(frozen=True)
+class LiteralValue(ResolveMixin):
+    """
+    A wrapper for a value that should be rendered as-is, without applying jinja templating to its contents.
+
+    :param value: The value to be rendered without templating
+    """
+
+    value: Any
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        return ()
+
+    def resolve(self, context: Context) -> Any:
+        return self.value
 
 
 class Templater(LoggingMixin):
