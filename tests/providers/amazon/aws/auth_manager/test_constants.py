@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 from airflow.providers.amazon.aws.auth_manager.constants import (
+    CONF_ENABLE_KEY,
     CONF_SAML_METADATA_URL_KEY,
     CONF_SECTION_NAME,
-    CONF_USE_EXPERIMENTAL_KEY,
 )
 
 
@@ -30,5 +30,5 @@ class TestAwsAuthManagerConstants:
     def test_conf_saml_metadata_url_key(self):
         assert CONF_SAML_METADATA_URL_KEY == "saml_metadata_url"
 
-    def test_conf_use_experimental_key(self):
-        assert CONF_USE_EXPERIMENTAL_KEY == "use_experimental"
+    def test_conf_enable_key(self):
+        assert CONF_ENABLE_KEY == "enable"

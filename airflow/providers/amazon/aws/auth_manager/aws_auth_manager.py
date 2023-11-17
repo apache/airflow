@@ -23,7 +23,10 @@ from flask import session, url_for
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.amazon.aws.auth_manager.constants import CONF_SECTION_NAME, CONF_USE_EXPERIMENTAL_KEY
+from airflow.providers.amazon.aws.auth_manager.constants import (
+    CONF_ENABLE_KEY,
+    CONF_SECTION_NAME,
+)
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
@@ -63,8 +66,8 @@ class AwsAuthManager(BaseAuthManager):
 
     def __init__(self, appbuilder: AirflowAppBuilder) -> None:
         super().__init__(appbuilder)
-        use_experimental = conf.getboolean(CONF_SECTION_NAME, CONF_USE_EXPERIMENTAL_KEY)
-        if not use_experimental:
+        enable = conf.getboolean(CONF_SECTION_NAME, CONF_ENABLE_KEY)
+        if not enable:
             raise NotImplementedError(
                 "The AWS auth manager is currently being built. It is not finalized. It is not intended to be used yet."
             )

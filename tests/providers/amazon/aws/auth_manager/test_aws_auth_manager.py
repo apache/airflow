@@ -38,7 +38,7 @@ def auth_manager():
                 "core",
                 "auth_manager",
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "use_experimental"): "True",
+            ("aws_auth_manager", "enable"): "True",
         }
     ):
         return AwsAuthManager(None)
@@ -54,7 +54,7 @@ def auth_manager_with_appbuilder():
                 "core",
                 "auth_manager",
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
-            ("aws_auth_manager", "use_experimental"): "True",
+            ("aws_auth_manager", "enable"): "True",
         }
     ):
         return AwsAuthManager(appbuilder)

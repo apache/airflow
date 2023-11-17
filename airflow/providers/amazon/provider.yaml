@@ -902,7 +902,7 @@ config:
       ``[core] auth_manager = airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager`` in
       Airflow's configuration.
     options:
-      use_experimental:
+      enable:
         description: |
           AWS auth manager is not ready to be used. Turn on this flag to use it anyway.
           Do that at your own risk since the AWS auth manager is not in an usable state.
