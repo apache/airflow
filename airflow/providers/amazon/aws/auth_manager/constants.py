@@ -20,3 +20,4 @@ from __future__ import annotations
 
 CONF_SECTION_NAME = "aws_auth_manager"
 CONF_SAML_METADATA_URL_KEY = "saml_metadata_url"
+CONF_USE_EXPERIMENTAL_KEY = "use_experimental"

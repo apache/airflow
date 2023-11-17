@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING
 
 from flask import session, url_for
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.amazon.aws.auth_manager.constants import CONF_SECTION_NAME, CONF_USE_EXPERIMENTAL_KEY
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
@@ -62,10 +63,11 @@ class AwsAuthManager(BaseAuthManager):
 
     def __init__(self, appbuilder: AirflowAppBuilder) -> None:
         super().__init__(appbuilder)
-        warnings.warn(
-            "The AWS auth manager is currently being built. It is not finalized. "
-            "It is not intended to be used yet."
-        )
+        use_experimental = conf.getboolean(CONF_SECTION_NAME, CONF_USE_EXPERIMENTAL_KEY)
+        if not use_experimental:
+            raise NotImplementedError(
+                "The AWS auth manager is currently being built. It is not finalized. It is not intended to be used yet."
+            )
 
     def get_user_name(self) -> str:
         user = self.get_user()

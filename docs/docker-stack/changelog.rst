@@ -39,6 +39,9 @@ Airflow 2.8
 
 * 2.8.0
 
+   * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD
+     image as it is required by ``python3-saml`` library.
+
    * The image is based on ``Debian Bookworm`` in 2.8.0 rather than ``Debian Bullseye``. This might cause some
      problems when building custom images. You are advised to make sure your system level dependencies are
      working with ``Debian Bookworm``. While all reference images of Airflow 2.8.0 are built on ``Debian Bookworm``,
@@ -49,9 +52,6 @@ Airflow 2.7
 ~~~~~~~~~~~
 
 * 2.7.3
-
-  * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD
-    image as it is required by ``python3-saml`` library.
 
   * Add experimental feature for select type of MySQL Client libraries during the build custom image via ``INSTALL_MYSQL_CLIENT_TYPE``
     build arg. ``mysql`` for install MySQL client libraries from `Oracle APT repository <https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/>`_,
