@@ -34,7 +34,7 @@ from tests.test_utils.db import clear_db_connections
 LIVY_CONN_ID = LivyHook.default_conn_name
 DEFAULT_CONN_ID = LivyHook.default_conn_name
 DEFAULT_HOST = "livy"
-DEFAULT_SCHEMA = "http"
+DEFAULT_SCHEME = "http"
 DEFAULT_PORT = 8998
 MATCH_URL = f"//{DEFAULT_HOST}:{DEFAULT_PORT}"
 
@@ -59,24 +59,20 @@ class TestLivyDbHook:
         db.merge_conn(
             Connection(
                 conn_id=DEFAULT_CONN_ID,
-                conn_type="http",
+                conn_type=DEFAULT_SCHEME,
                 host=DEFAULT_HOST,
-                schema=DEFAULT_SCHEMA,
                 port=DEFAULT_PORT,
             )
         )
         db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
         db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
         db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="schema_set", host="host", conn_type="http", schema="https"))
-        db.merge_conn(
-            Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="https")
-        )
+        db.merge_conn(Connection(conn_id="scheme_set", host="host", conn_type="https"))
         db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
         db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
         db.merge_conn(
             Connection(
-                conn_id="with_credentials", login="login", password="secret", conn_type="http", host="host"
+                conn_id="with_credentials", login="login", password="secret", conn_type="https", host="host"
             )
         )
 
@@ -91,8 +87,7 @@ class TestLivyDbHook:
             pytest.param("default_port", "http://host", id="default-port"),
             pytest.param("default_protocol", "http://host", id="default-protocol"),
             pytest.param("port_set", "http://host:1234", id="with-defined-port"),
-            pytest.param("schema_set", "https://host", id="with-defined-schema"),
-            pytest.param("dont_override_schema", "http://host", id="ignore-defined-schema"),
+            pytest.param("scheme_set", "https://host", id="with-defined-scheme"),
         ],
     )
     def test_build_get_hook(self, conn_id, expected):
@@ -356,7 +351,8 @@ class TestLivyDbHook:
         requests_mock.register_uri(
             "GET", f"{MATCH_URL}/batches/{session_id}/state", json=SAMPLE_GET_RESPONSE, status_code=200
         )
-        assert LivyHook().get_batch_state(session_id) == BatchState.SUCCESS
+        hook = LivyHook()
+        assert hook.get_batch_state(session_id) == BatchState.SUCCESS
 
     @pytest.mark.parametrize("session_id", INVALID_SESSION_ID_TEST_CASES)
     def test_get_batch_state_validation_failed(self, session_id):
@@ -639,15 +635,12 @@ class TestLivyAsyncHook:
 
     def set_conn(self):
         db.merge_conn(
-            Connection(conn_id=LIVY_CONN_ID, conn_type="http", host="host", schema="http", port=8998)
+            Connection(conn_id=LIVY_CONN_ID, conn_type="http", host="host", port=8998)
         )
         db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
         db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
         db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="schema_set", host="host", conn_type="http", schema="zzz"))
-        db.merge_conn(
-            Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="zzz")
-        )
+        db.merge_conn(Connection(conn_id="scheme_set", host="host", conn_type="zzz"))
         db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
         db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
 
@@ -659,15 +652,15 @@ class TestLivyAsyncHook:
             "default_port": "http://host",
             "default_protocol": "http://host",
             "port_set": "http://host:1234",
-            "schema_set": "zzz://host",
-            "dont_override_schema": "http://host",
+            "scheme_set": "zzz://host",
         }
 
         for conn_id, expected in connection_url_mapping.items():
             hook = LivyAsyncHook(livy_conn_id=conn_id)
             response_conn: Connection = hook.get_connection(conn_id=conn_id)
             assert isinstance(response_conn, Connection)
-            assert hook._generate_base_url(response_conn) == expected
+            generated = hook._generate_base_url(response_conn)
+            assert generated == expected
 
     def test_build_body(self):
         # minimal request

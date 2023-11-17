@@ -575,10 +575,11 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         if conn.host and "://" in conn.host:
             base_url: str = conn.host
         else:
-            # schema defaults to HTTP
-            schema = conn.schema if conn.schema else "http"
+            scheme = conn.conn_type
             host = conn.host if conn.host else ""
-            base_url = f"{schema}://{host}"
+            base_url = f"{scheme}://{host}"
+            if conn.schema:  # 'schema' is actually URI path (name kept for backward compatibility)
+                base_url += f"/{conn.schema}"
         if conn.port:
             base_url = f"{base_url}:{conn.port}"
         return base_url
