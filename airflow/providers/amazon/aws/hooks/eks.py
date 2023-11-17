@@ -24,6 +24,7 @@ from contextlib import contextmanager
 from enum import Enum
 from functools import partial
 from typing import Callable, Generator
+import sys
 
 from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
@@ -526,8 +527,9 @@ class EksHook(AwsBaseHook):
         if self.aws_conn_id is not None:
             args = args + f" --aws-conn-id {self.aws_conn_id}"
 
+        python_executable = f"python{sys.version_info[0]}.{sys.version_info[1]}"
         COMMAND = f"""
-            output=$(python -m airflow.providers.amazon.aws.utils.eks_get_token \
+            output=$({python_executable} -m airflow.providers.amazon.aws.utils.eks_get_token \
                 --cluster-name {eks_cluster_name} {args} 2>&1)
 
             if [ $? -ne 0 ]; then
