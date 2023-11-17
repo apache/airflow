@@ -47,7 +47,7 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
 
     @expose("/login")
     def login(self):
-        """Start logging process."""
+        """Start login process."""
         saml_auth = self._init_saml_auth()
         return redirect(saml_auth.login())
 

@@ -906,7 +906,7 @@ config:
         description: |
           AWS auth manager is not ready to be used. Turn on this flag to use it anyway.
           Do that at your own risk since the AWS auth manager is not in an usable state.
-        version_added: 10.0.0
+        version_added: 8.11.0
         type: boolean
         example: "True"
         default: "False"
@@ -914,9 +914,9 @@ config:
         description: |
           SAML metadata XML file provided by AWS Identity Center.
           This URL can be found in the AWS Identity Center console. Required.
-        version_added: 10.0.0
+        version_added: 8.11.0
         type: string
-        example: ~
+        example: "https://portal.sso.<region>.amazonaws.com/saml/metadata/XXXXXXXXXX"
         default: ~
 
 executors:
