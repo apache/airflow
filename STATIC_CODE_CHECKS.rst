@@ -167,6 +167,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-common-sql-dependency-make-serializable             | Check dependency of SQL Providers with '_make_serializable'  |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-daysago-import-from-utils                           | Make sure days_ago is imported from airflow.utils.dates      |         |
