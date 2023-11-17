@@ -753,17 +753,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            # TODO: REMOVE THIS; IT IS JUST FOR TESTING
-            self._task_context_logger.info(
-                "task finished with ti.state=%s state=%s info=%s try=%s _try=%s",
-                ti.state,
-                state,
-                info,
-                ti.try_number,
-                ti._try_number,
-                ti=ti,
-            )
-
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
             # 1) the TI was killed externally and it had no time to mark itself failed
