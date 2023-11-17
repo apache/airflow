@@ -150,8 +150,7 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
           }
         }}
       >
-        This marks the DAG run as {confirmingAction}. Are you sure you want to
-        proceed?
+        Are you sure you want to mark the DAG run as {confirmingAction}?
       </ActionModal>
     </>
   );
