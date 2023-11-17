@@ -85,6 +85,32 @@ def get_es_kwargs_from_config() -> dict[str, Any]:
     return kwargs_dict
 
 
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
+    """Given TI | TIKey, return a TI object.
+
+    Will raise exception if no TI is found in the database.
+    """
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+
+    if not isinstance(ti, TaskInstanceKey):
+        return ti
+    val = (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.task_id == ti.task_id,
+            TaskInstance.dag_id == ti.dag_id,
+            TaskInstance.run_id == ti.run_id,
+            TaskInstance.map_index == ti.map_index,
+        )
+        .one_or_none()
+    )
+    if isinstance(val, TaskInstance):
+        val._try_number = ti.try_number
+        return val
+    else:
+        raise AirflowException(f"Could not find TaskInstance for {ti}")
+
+
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
     ElasticsearchTaskHandler is a python log handler that reads logs from Elasticsearch.
@@ -184,13 +210,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return host
 
     def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
-        from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+        from airflow.models.taskinstance import TaskInstanceKey
 
         with create_session() as session:
             if isinstance(ti, TaskInstanceKey):
-                ti = TaskInstance.get_by_key(ti, session)
-                if not ti:
-                    raise AirflowException("TaskInstance not found")
+                ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
