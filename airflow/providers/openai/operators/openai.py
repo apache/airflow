@@ -31,16 +31,17 @@ class OpenAIEmbeddingOperator(BaseOperator):
     """
     Operator that accepts input text to generate OpenAI embeddings using the specified model.
 
+    :param conn_id: The OpenAI connection ID to use.
+    :param input_text: The text to generate OpenAI embeddings for. This can be a string, a list of strings,
+                    a list of integers, or a list of lists of integers.
+    :param model: The OpenAI model to be used for generating the embeddings.
+    :param embedding_kwargs: Additional keyword arguments to pass to the OpenAI `create_embeddings` method.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:OpenAIEmbeddingOperator`
-
-    :param conn_id: The OpenAI connection.
-    :param input_text: The text to generate OpenAI embeddings on. Either input_text or input_callable
-        should be provided.
-    :param model: The OpenAI model to be used for generating the embeddings.
-    :param embedding_kwargs: For possible option check
-        .. seealso:: https://platform.openai.com/docs/api-reference/embeddings/create
+        For possible options for `embedding_kwargs`, see:
+        https://platform.openai.com/docs/api-reference/embeddings/create
     """
 
     template_fields: Sequence[str] = ("input_text",)
@@ -48,16 +49,16 @@ class OpenAIEmbeddingOperator(BaseOperator):
     def __init__(
         self,
         conn_id: str,
-        input_text: str | list[Any],
+        input_text: str | list[str] | list[int] | list[list[int]],
         model: str = "text-embedding-ada-002",
         embedding_kwargs: dict | None = None,
         **kwargs: Any,
     ):
-        self.embedding_kwargs = embedding_kwargs or {}
         super().__init__(**kwargs)
         self.conn_id = conn_id
         self.input_text = input_text
         self.model = model
+        self.embedding_kwargs = embedding_kwargs or {}
 
     @cached_property
     def hook(self) -> OpenAIHook:
@@ -65,7 +66,11 @@ class OpenAIEmbeddingOperator(BaseOperator):
         return OpenAIHook(conn_id=self.conn_id)
 
     def execute(self, context: Context) -> list[float]:
-        self.log.info("Input text: %s", self.input_text)
+        if not self.input_text or not isinstance(self.input_text, (str, list)):
+            raise ValueError(
+                "The 'input_text' must be a non-empty string, list of strings, list of integers, or list of lists of integers."
+            )
+        self.log.info("Generating embeddings for the input text of length: %d", len(self.input_text))
         embeddings = self.hook.create_embeddings(self.input_text, model=self.model, **self.embedding_kwargs)
-        self.log.info("Embeddings: %s", embeddings)
+        self.log.info("Generated embeddings for %d items", len(embeddings))
         return embeddings

@@ -3086,6 +3086,18 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
 
     sync_hook_class = BigQueryHook
 
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
+
     async def get_job_instance(
         self, project_id: str | None, job_id: str | None, session: ClientSession
     ) -> Job:
@@ -3310,6 +3322,18 @@ class BigQueryTableAsyncHook(GoogleBaseAsyncHook):
     """Async hook for BigQuery Table."""
 
     sync_hook_class = BigQueryHook
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
 
     async def get_table_client(
         self, dataset: str, table_id: str, project_id: str, session: ClientSession

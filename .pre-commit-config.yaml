@@ -378,6 +378,12 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-common-sql-dependency-make-serializable
+        name: Check dependency of SQL Providers with '_make_serializable'
+        entry: ./scripts/ci/pre_commit/pre_commit_check_common_sql_dependency.py
+        language: python
+        files: ^airflow/providers/.*/hooks/.*\.py$
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml', 'packaging']
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
         entry: ./scripts/ci/pre_commit/pre_commit_update_providers_dependencies.py
@@ -744,7 +750,7 @@ repos:
         name: Update Breeze README.md with config files hash
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_update_breeze_config_hash.py
-        files: ^dev/breeze/pyproject\.toml$|^dev/breeze/setup\.cfg$|^dev/breeze/setup\.py$|^dev/breeze/README\.md$
+        files: ^dev/breeze/pyproject\.toml$|^dev/breeze/README\.md$
         pass_filenames: false
         require_serial: true
       - id: check-breeze-top-dependencies-limited
@@ -1004,7 +1010,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^dev/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema']
       - id: mypy-core
         name: Run mypy for core
         language: python
@@ -1012,7 +1018,7 @@ repos:
         files: \.py$
         exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema']
       - id: mypy-providers
         name: Run mypy for providers
         language: python
@@ -1020,7 +1026,7 @@ repos:
         files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$
         exclude: ^.*/.*_vendor/
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema']
       - id: mypy-docs
         name: Run mypy for /docs/ folder
         language: python
@@ -1028,7 +1034,7 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml', 'jsonschema']
       - id: check-provider-yaml-valid
         name: Validate provider.yaml files
         entry: ./scripts/ci/pre_commit/pre_commit_check_provider_yaml_files.py
