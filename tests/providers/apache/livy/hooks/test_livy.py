@@ -634,9 +634,7 @@ class TestLivyAsyncHook:
         assert response["status"] == "error"
 
     def set_conn(self):
-        db.merge_conn(
-            Connection(conn_id=LIVY_CONN_ID, conn_type="http", host="host", port=8998)
-        )
+        db.merge_conn(Connection(conn_id=LIVY_CONN_ID, conn_type="http", host="host", port=8998))
         db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
         db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
         db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
