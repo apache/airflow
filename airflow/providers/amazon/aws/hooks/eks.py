@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import base64
 import json
-import sys
 import tempfile
 from contextlib import contextmanager
 from enum import Enum
@@ -38,8 +37,6 @@ STS_TOKEN_EXPIRES_IN = 60
 AUTHENTICATION_API_VERSION = "client.authentication.k8s.io/v1alpha1"
 _POD_USERNAME = "aws"
 _CONTEXT_NAME = "aws"
-EKS_SCRIPT_PATH = "/usr/local/airflow/.local/lib/python3.10/site-packages/airflow/providers/amazon/aws/utils"
-
 
 class ClusterStates(Enum):
     """Contains the possible State values of an EKS Cluster."""
@@ -522,6 +519,31 @@ class EksHook(AwsBaseHook):
         :param eks_cluster_name: The name of the cluster to generate kubeconfig file for.
         :param pod_namespace: The namespace to run within kubernetes.
         """
+        args = ""
+        if self.region_name is not None:
+            args = args + f" --region-name {self.region_name}"
+        
+        if self.aws_conn_id is not None:
+            args = args + f" --aws-conn-id {self.aws_conn_id}"
+
+        COMMAND = f"""
+            output=$(python -m airflow.providers.amazon.aws.utils.eks_get_token \
+                --cluster-name {eks_cluster_name} {args} 2>&1)
+
+            if [ $? -ne 0 ]; then
+                echo "Error running the script"
+                exit 1
+            fi
+
+            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp:\s*\K[^,]+')
+            token=$(echo "$output" | grep -oP 'token:\s*\K[^,]+')
+
+            json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
+                "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
+                {{"expirationTimestamp": "%s","token": "%s"}}}}' "$expiration_timestamp" "$token")
+            echo $json_string
+
+            """
         # Set up the client
         eks_client = self.conn
 
@@ -558,10 +580,9 @@ class EksHook(AwsBaseHook):
                         "exec": {
                             "apiVersion": AUTHENTICATION_API_VERSION,
                             "command": "sh",
-                             "args": [
+                            "args": [
                                 "-c",
-                                f"chmod +x {EKS_SCRIPT_PATH}/eks_token_bash.sh &&"\
-                                    f"{EKS_SCRIPT_PATH}/eks_token_bash.sh {eks_cluster_name}"
+                                COMMAND,
                             ],
                             "interactiveMode": "Never",
                         }
