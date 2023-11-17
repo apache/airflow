@@ -17,8 +17,8 @@
 
 .. _howto/notifier:OpsgenieNotifier:
 
-OpsgenieNotifier
-===========================
+Opsgenie Alert Notifier
+=======================
 
 Use the :class:`~airflow.providers.opsgenie.notifications.opsgenie.OpsgenieNotifier` to send an alert to opsgenie.
 
