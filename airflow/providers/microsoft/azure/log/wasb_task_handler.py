@@ -33,6 +33,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     import logging
 
+    from airflow.models.taskinstance import TaskInstance
+
 
 def get_default_delete_local_copy():
     """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
@@ -93,7 +95,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             )
             return None
 
-    def set_context(self, ti) -> None:
+    def set_context(self, ti: TaskInstance, **kwargs) -> None:
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.

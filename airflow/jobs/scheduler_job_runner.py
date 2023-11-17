@@ -62,6 +62,7 @@ from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils import timezone
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
@@ -233,6 +234,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.processor_agent: DagFileProcessorAgent | None = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
+        self._task_context_logger: TaskContextLogger = TaskContextLogger(
+            component_name=self.job_type,
+            call_site_logger=self.log,
+        )
 
     @provide_session
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
@@ -773,7 +778,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     "Executor reports task instance %s finished (%s) although the "
                     "task says it's %s. (Info: %s) Was the task killed externally?"
                 )
-                self.log.error(msg, ti, state, ti.state, info)
+                self._task_context_logger.error(msg, ti, state, ti.state, info, ti=ti)
 
                 # Get task from the Serialized DAG
                 try:
