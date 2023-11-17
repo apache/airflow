@@ -21,8 +21,6 @@ from functools import cached_property
 
 from flask import make_response, redirect, request, session, url_for
 from flask_appbuilder import expose
-from onelogin.saml2.auth import OneLogin_Saml2_Auth
-from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -30,6 +28,16 @@ from airflow.providers.amazon.aws.auth_manager.constants import CONF_SAML_METADA
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.www.app import csrf
 from airflow.www.views import AirflowBaseView
+
+try:
+    from onelogin.saml2.auth import OneLogin_Saml2_Auth
+    from onelogin.saml2.idp_metadata_parser import OneLogin_Saml2_IdPMetadataParser
+except ImportError:
+    raise ImportError(
+        "AWS auth manager requires the python3-saml library but it is not installed by default. "
+        "Please install the python3-saml library by running: "
+        "pip install apache-airflow-providers-amazon[python3-saml]"
+    )
 
 
 class AwsAuthManagerAuthenticationViews(AirflowBaseView):

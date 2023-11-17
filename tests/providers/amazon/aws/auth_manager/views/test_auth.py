@@ -25,6 +25,8 @@ from airflow.exceptions import AirflowException
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 
+pytest.importorskip("python3-saml")
+
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {
     "idp": {
