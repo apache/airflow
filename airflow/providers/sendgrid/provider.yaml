@@ -26,6 +26,7 @@ dependencies:
   - sendgrid>=6.0.0
 
 suspended: false
+source-date-epoch: 1700148085
 versions:
   - 3.3.0
   - 3.2.2
