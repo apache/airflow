@@ -120,11 +120,7 @@ const FilterBar = () => {
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
             {...multiSelectStyles}
-            value={
-              runTypeDeserialized.length === runTypeOptionsDeserialized.length
-                ? []
-                : runTypeDeserialized
-            }
+            value={runTypeDeserialized}
             onChange={(typeOptions) => {
               if (
                 Array.isArray(typeOptions) &&
@@ -143,11 +139,7 @@ const FilterBar = () => {
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
             {...multiSelectStyles}
-            value={
-              runStateDeserialized.length === runStateOptionsDeserialized.length
-                ? []
-                : runStateDeserialized
-            }
+            value={runStateDeserialized}
             onChange={(stateOptions) => {
               if (
                 Array.isArray(stateOptions) &&
