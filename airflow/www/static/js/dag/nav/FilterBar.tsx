@@ -25,6 +25,7 @@ import React from "react";
 import type { DagRun, RunState, TaskState } from "src/types";
 import AutoRefresh from "src/components/AutoRefresh";
 import type { Size } from "chakra-react-select";
+import { useChakraSelectProps } from "chakra-react-select";
 
 import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
@@ -58,6 +59,45 @@ const FilterBar = () => {
     size: "lg",
   };
 
+  const multiSelectBoxStyle = { minWidth: "160px", zIndex: 3 };
+  const multiSelectStyles = useChakraSelectProps({
+    ...inputStyles,
+    isMulti: true,
+    tagVariant: "solid",
+    hideSelectedOptions: false,
+    isClearable: false,
+    selectedOptionStyle: "check",
+    chakraStyles: {
+      container: (provided) => ({
+        ...provided,
+        bg: "white",
+      }),
+    },
+  });
+
+  const transformCsvToMultiSelectOptions = (
+    options: string | null
+  ): { label: string; value: string }[] =>
+    options === null
+      ? []
+      : options.split(",").map((option) => ({ label: option, value: option }));
+  const transformCsvToMultiSelectValue = (
+    values: string | null
+  ): { label: string; value: string }[] =>
+    values === null
+      ? []
+      : values.split(",").map((option) => ({ label: option, value: option }));
+
+  const runTypeOptionsDeserialized = transformCsvToMultiSelectOptions(
+    filters.runTypeOptions
+  );
+  const runTypeDeserialized = transformCsvToMultiSelectValue(filters.runType);
+
+  const runStateOptionsDeserialized = transformCsvToMultiSelectOptions(
+    filters.runStateOptions
+  );
+  const runStateDeserialized = transformCsvToMultiSelectValue(filters.runState);
+
   return (
     <Flex
       backgroundColor="blackAlpha.200"
@@ -88,56 +128,49 @@ const FilterBar = () => {
             ))}
           </Select>
         </Box>
-        <Box px={2}>
-          <Select
-            {...inputStyles}
-            value={filters.runType || ""}
-            onChange={(e) => onRunTypeChange(e.target.value)}
-          >
-            <option value="" key="all">
-              All Run Types
-            </option>
-            {filtersOptions.runTypes.map((value) => (
-              <option value={value.toString()} key={value}>
-                {value}
-              </option>
-            ))}
-          </Select>
+        <Box px={2} style={multiSelectBoxStyle}>
+          <MultiSelect
+            {...multiSelectStyles}
+            value={
+              runTypeDeserialized.length === runTypeOptionsDeserialized.length
+                ? []
+                : runTypeDeserialized
+            }
+            onChange={(typeOptions) => {
+              if (
+                Array.isArray(typeOptions) &&
+                typeOptions.every((typeOption) => "value" in typeOption)
+              ) {
+                onRunTypeChange(
+                  typeOptions.map((typeOption) => typeOption.value).join(",")
+                );
+              }
+            }}
+            options={runTypeOptionsDeserialized}
+            placeholder="All Run Types"
+          />
         </Box>
         <Box />
-        <Box px={2} minWidth="max-content">
+        <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
-            {...inputStyles}
-            isMulti
+            {...multiSelectStyles}
             value={
-              filters.runState === null
+              runStateDeserialized.length === runStateOptionsDeserialized.length
                 ? []
-                : filters.runState
-                    .split(",")
-                    .map((option) => ({ label: option, value: option }))
+                : runStateDeserialized
             }
-            onChange={(stateOptions) =>
-              onRunStateChange(
-                stateOptions.map((stateOption) => stateOption.value).join(",")
-              )
-            }
-            options={
-              filters.runStateOptions === null
-                ? []
-                : filters.runStateOptions
-                    .split(",")
-                    .map((option) => ({ label: option, value: option }))
-            }
-            placeholder="All State Types"
-            hideSelectedOptions
-            tagVariant="solid"
-            isClearable={false}
-            chakraStyles={{
-              container: (provided) => ({
-                ...provided,
-                bg: "white",
-              }),
+            onChange={(stateOptions) => {
+              if (
+                Array.isArray(stateOptions) &&
+                stateOptions.every((stateOption) => "value" in stateOption)
+              ) {
+                onRunStateChange(
+                  stateOptions.map((stateOption) => stateOption.value).join(",")
+                );
+              }
             }}
+            options={runStateOptionsDeserialized}
+            placeholder="All Run States"
           />
         </Box>
         <Box px={2}>
