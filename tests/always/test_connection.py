@@ -790,3 +790,59 @@ class TestConnection:
         assert Connection(host="abc").get_uri() == "//abc"
         # parsing back as conn still works
         assert Connection(uri="//abc").host == "abc"
+
+    @pytest.mark.parametrize(
+        "conn, expected_json",
+        [
+            pytest.param(Connection(), "{}", id="empty"),
+            pytest.param(Connection(host="apache.org", extra={}), '{"host": "apache.org"}', id="empty-extra"),
+            pytest.param(
+                Connection(conn_type="foo", login="", password="p@$$"),
+                '{"conn_type": "foo", "login": "", "password": "p@$$"}',
+                id="some-fields",
+            ),
+            pytest.param(
+                Connection(
+                    conn_type="bar",
+                    description="Sample Description",
+                    host="example.org",
+                    login="user",
+                    password="p@$$",
+                    schema="schema",
+                    port=777,
+                    extra={"foo": "bar", "answer": 42},
+                ),
+                json.dumps(
+                    {
+                        "conn_type": "bar",
+                        "description": "Sample Description",
+                        "host": "example.org",
+                        "login": "user",
+                        "password": "p@$$",
+                        "schema": "schema",
+                        "port": 777,
+                        "extra": {"foo": "bar", "answer": 42},
+                    }
+                ),
+                id="all-fields",
+            ),
+            pytest.param(
+                Connection(uri="aws://"),
+                # During parsing URI some of the fields evaluated as an empty strings
+                '{"conn_type": "aws", "host": "", "schema": ""}',
+                id="uri",
+            ),
+        ],
+    )
+    def test_json_repr_from_connection(self, conn: Connection, expected_json):
+        result = conn.json_repr
+        assert result == expected_json
+        restored_conn = Connection.from_json(result)
+
+        assert restored_conn.conn_type == conn.conn_type
+        assert restored_conn.description == conn.description
+        assert restored_conn.host == conn.host
+        assert restored_conn.password == conn.password
+        assert restored_conn.schema == conn.schema
+        assert restored_conn.port == conn.port
+        assert restored_conn.extra_dejson == conn.extra_dejson
