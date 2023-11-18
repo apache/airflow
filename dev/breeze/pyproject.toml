@@ -80,7 +80,7 @@ line-length = 110
 target-version = ['py37', 'py38', 'py39', 'py310']
 
 [tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose"
+addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
 norecursedirs = [
     ".eggs",
 ]
