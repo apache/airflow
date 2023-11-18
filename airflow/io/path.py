@@ -361,9 +361,7 @@ class ObjectStoragePath(CloudPath):
             return
 
         # remote file -> remote dir
-        if self.is_file():
-            self._cp_file(dst, **kwargs)
-            return
+        self._cp_file(dst, **kwargs)
 
     def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
         """Move file(s) from this path to another location.
