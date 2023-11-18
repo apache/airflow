@@ -483,7 +483,7 @@ _devel_only_tests = [
     "backports.zoneinfo>=0.2.1;python_version<'3.9'",
     "beautifulsoup4>=4.7.1",
     "coverage>=7.2",
-    "pytest",
+    "pytest>=7.1",
     "pytest-asyncio",
     "pytest-cov",
     "pytest-httpx",
