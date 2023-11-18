@@ -353,12 +353,8 @@ class TestShouldHideValueForKey:
         ],
     )
     def test_hiding_config(self, sensitive_variable_fields, key, expected_result):
-        from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
-
         with conf_vars({("core", "sensitive_var_conn_names"): str(sensitive_variable_fields)}):
-            get_sensitive_variables_fields.cache_clear()
             assert expected_result == should_hide_value_for_key(key)
-        get_sensitive_variables_fields.cache_clear()
 
 
 class ShortExcFormatter(logging.Formatter):

@@ -29,7 +29,6 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.openlineage.utils.utils import is_source_enabled
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -56,11 +55,6 @@ def callable():
 
 
 CODE = "def callable():\n    print(10)\n"
-
-
-@pytest.fixture(autouse=True, scope="function")
-def clear_cache():
-    is_source_enabled.cache_clear()
 
 
 def test_extract_source_code():

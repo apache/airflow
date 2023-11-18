@@ -489,6 +489,7 @@ _devel_only_tests = [
     "pytest-httpx",
     "pytest-icdiff",
     "pytest-instafail",
+    "pytest-antilru",
     "pytest-mock",
     "pytest-rerunfailures",
     "pytest-timeouts",

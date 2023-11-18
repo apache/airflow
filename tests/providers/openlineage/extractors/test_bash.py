@@ -27,7 +27,6 @@ from openlineage.client.facet import SourceCodeJobFacet
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.openlineage.extractors.bash import BashExtractor
-from airflow.providers.openlineage.utils.utils import is_source_enabled
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -41,11 +40,6 @@ with DAG(
     max_active_runs=1,
 ) as dag:
     bash_task = BashOperator(task_id="bash-task", bash_command="ls -halt && exit 0", dag=dag)
-
-
-@pytest.fixture(autouse=True, scope="function")
-def clear_cache():
-    is_source_enabled.cache_clear()
 
 
 def test_extract_operator_bash_command_disables_without_env():

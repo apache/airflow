@@ -32,18 +32,12 @@ from airflow.serialization.serde import (
     DATA,
     SCHEMA_ID,
     VERSION,
-    _get_patterns,
     _match,
     deserialize,
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
 from tests.test_utils.config import conf_vars
-
-
-@pytest.fixture()
-def recalculate_patterns():
-    _get_patterns.cache_clear()
 
 
 class Z:
@@ -105,7 +99,6 @@ class C:
         return None
 
 
-@pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):
         i = 10
@@ -217,7 +210,6 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "airflow[.].*",
         }
     )
-    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_for_imports(self):
         i = Z(10)
         e = serialize(i)
@@ -231,7 +223,6 @@ class TestSerDe:
             ("core", "allowed_deserialization_classes"): "tests.*",
         }
     )
-    @pytest.mark.usefixtures("recalculate_patterns")
     def test_allow_list_replace(self):
         assert _match("tests.airflow.deep")
         assert _match("testsfault") is False
