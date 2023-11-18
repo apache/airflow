@@ -226,13 +226,13 @@ class KubernetesPodTrigger(BaseTrigger):
             )
         except Exception as e:
             self.log.exception("Exception occurred while checking pod phase:")
-            stack_trace = traceback.format_exc()
             yield TriggerEvent(
                 {
                     "name": self.pod_name,
                     "namespace": self.pod_namespace,
                     "status": "error",
-                    "message": f"{str(e)}\n{stack_trace}",
+                    "message": str(e),
+                    "stack_trace": traceback.format_exc(),
                 }
             )
 
