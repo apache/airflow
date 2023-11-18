@@ -16,23 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable
-
 import pytest
 
 from airflow_breeze.prepare_providers.provider_documentation import (
     Change,
-    PipRequirements,
     _convert_git_changes_to_table,
-    _convert_pip_requirements_to_table,
     _find_insertion_index_for_version,
     _get_change_from_line,
     _get_changes_classified,
     _get_git_log_command,
-    _get_version_tag,
     _verify_changelog_exists,
+    get_version_tag,
 )
-from airflow_breeze.utils.packages import get_pip_package_name, get_wheel_package_name
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 CHANGELOG_CONTENT = """
@@ -94,7 +89,7 @@ def test_find_insertion_index_insert_new_changelog():
     ],
 )
 def test_get_version_tag(version: str, provider_id: str, suffix: str, tag: str):
-    assert _get_version_tag(version, provider_id, suffix) == tag
+    assert get_version_tag(version, provider_id, suffix) == tag
 
 
 @pytest.mark.parametrize(
@@ -120,28 +115,6 @@ def test_get_git_log_command(from_commit: str | None, to_commit: str | None, git
 def test_get_git_log_command_wrong():
     with pytest.raises(ValueError, match=r"to_commit without from_commit"):
         _get_git_log_command(None, "to_commit")
-
-
-@pytest.mark.parametrize(
-    "provider_id, pip_package_name",
-    [
-        ("asana", "apache-airflow-providers-asana"),
-        ("apache.hdfs", "apache-airflow-providers-apache-hdfs"),
-    ],
-)
-def test_get_pip_package_name(provider_id: str, pip_package_name: str):
-    assert get_pip_package_name(provider_id) == pip_package_name
-
-
-@pytest.mark.parametrize(
-    "provider_id, wheel_package_name",
-    [
-        ("asana", "apache_airflow_providers_asana"),
-        ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
-    ],
-)
-def test_get_wheel_package_name(provider_id: str, wheel_package_name: str):
-    assert get_wheel_package_name(provider_id) == wheel_package_name
 
 
 @pytest.mark.parametrize(
@@ -235,77 +208,6 @@ def test_convert_git_changes_to_table(input: str, output: str, markdown: bool, c
     assert list_of_changes[0].pr is None
     assert list_of_changes[1].pr == "12345"
     assert list_of_changes[2].pr == "12346"
-
-
-@pytest.mark.parametrize(
-    "requirement_string, expected",
-    [
-        pytest.param("apache-airflow", ("apache-airflow", ""), id="no-version-specifier"),
-        pytest.param(
-            "apache-airflow <2.7,>=2.5", ("apache-airflow", ">=2.5,<2.7"), id="range-version-specifier"
-        ),
-        pytest.param("watchtower~=3.0.1", ("watchtower", "~=3.0.1"), id="compat-version-specifier"),
-        pytest.param("PyGithub!=1.58", ("PyGithub", "!=1.58"), id="not-equal-version-specifier"),
-        pytest.param(
-            "apache-airflow[amazon,google,microsoft.azure,docker]>2.7.0",
-            ("apache-airflow[amazon,docker,google,microsoft.azure]", ">2.7.0"),
-            id="package-with-extra",
-        ),
-        pytest.param(
-            'mysql-connector-python>=8.0.11; platform_machine != "aarch64"',
-            ("mysql-connector-python", '>=8.0.11; platform_machine != "aarch64"'),
-            id="version-with-platform-marker",
-        ),
-        pytest.param(
-            "backports.zoneinfo>=0.2.1;python_version<'3.9'",
-            ("backports.zoneinfo", '>=0.2.1; python_version < "3.9"'),
-            id="version-with-python-marker",
-        ),
-        pytest.param(
-            "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
-            ("celery", ">=5.3.0,!=5.3.2,!=5.3.3,<6"),
-            id="complex-version-specifier",
-        ),
-        pytest.param(
-            "apache-airflow; python_version<'3.12' or platform_machine != 'i386'",
-            ("apache-airflow", '; python_version < "3.12" or platform_machine != "i386"'),
-            id="no-version-specifier-with-complex-marker",
-        ),
-    ],
-)
-def test_parse_pip_requirements_parse(requirement_string, expected):
-    assert PipRequirements.from_requirement(requirement_string) == expected
-
-
-@pytest.mark.parametrize(
-    "requirements, markdown, table",
-    [
-        (
-            ["apache-airflow>2.5.0", "apache-airflow-providers-http"],
-            False,
-            """
-=================================  ==================
-PIP package                        Version required
-=================================  ==================
-``apache-airflow``                 ``>2.5.0``
-``apache-airflow-providers-http``
-=================================  ==================
-""",
-        ),
-        (
-            ["apache-airflow>2.5.0", "apache-airflow-providers-http"],
-            True,
-            """
-| PIP package                     | Version required   |
-|:--------------------------------|:-------------------|
-| `apache-airflow`                | `>2.5.0`           |
-| `apache-airflow-providers-http` |                    |
-""",
-        ),
-    ],
-)
-def test_convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool, table: str):
-    assert _convert_pip_requirements_to_table(requirements, markdown).strip() == table.strip()
 
 
 def test_verify_changelog_exists():
