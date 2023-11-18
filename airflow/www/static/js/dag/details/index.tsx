@@ -39,6 +39,7 @@ import {
   MdReorder,
   MdCode,
   MdOutlineViewTimeline,
+  MdSyncAlt,
 } from "react-icons/md";
 import { BiBracket } from "react-icons/bi";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
@@ -58,6 +59,7 @@ import ClearRun from "./dagRun/ClearRun";
 import MarkRunAs from "./dagRun/MarkRunAs";
 import ClearInstance from "./taskInstance/taskActions/ClearInstance";
 import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
+import Xcom from "./taskInstance/Xcom";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -80,6 +82,8 @@ const tabToIndex = (tab?: string) => {
     case "logs":
     case "mapped_tasks":
       return 4;
+    case "xcom":
+      return 5;
     case "details":
     default:
       return 0;
@@ -90,7 +94,8 @@ const indexToTab = (
   index: number,
   taskId: string | null,
   showLogs: boolean,
-  showMappedTasks: boolean
+  showMappedTasks: boolean,
+  showXcom: boolean
 ) => {
   switch (index) {
     case 1:
@@ -102,6 +107,9 @@ const indexToTab = (
     case 4:
       if (showMappedTasks) return "mapped_tasks";
       if (showLogs) return "logs";
+      return undefined;
+    case 5:
+      if (showXcom) return "xcom";
       return undefined;
     case 0:
     default:
@@ -138,6 +146,7 @@ const Details = ({
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
   const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
   const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
+  const showXcom = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get(TAB_PARAM) || undefined;
@@ -146,12 +155,18 @@ const Details = ({
   const onChangeTab = useCallback(
     (index: number) => {
       const params = new URLSearchParamsWrapper(searchParams);
-      const newTab = indexToTab(index, taskId, showLogs, showMappedTasks);
+      const newTab = indexToTab(
+        index,
+        taskId,
+        showLogs,
+        showMappedTasks,
+        showXcom
+      );
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, showLogs, showMappedTasks, taskId]
+    [setSearchParams, searchParams, showLogs, showMappedTasks, showXcom, taskId]
   );
 
   useEffect(() => {
@@ -268,6 +283,14 @@ const Details = ({
               </Text>
             </Tab>
           )}
+          {showXcom && (
+            <Tab>
+              <MdSyncAlt size={16} />
+              <Text as="strong" ml={1}>
+                XCom
+              </Text>
+            </Tab>
+          )}
         </TabList>
         <TabPanels height="100%">
           <TabPanel height="100%">
@@ -333,6 +356,17 @@ const Details = ({
                 onRowClicked={(row) =>
                   onSelect({ runId, taskId, mapIndex: row.values.mapIndex })
                 }
+              />
+            </TabPanel>
+          )}
+          {showXcom && run && (
+            <TabPanel height="100%">
+              <Xcom
+                dagId={dagId}
+                dagRunId={runId}
+                taskId={taskId}
+                mapIndex={mapIndex}
+                tryNumber={instance?.tryNumber}
               />
             </TabPanel>
           )}
