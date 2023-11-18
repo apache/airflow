@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-17T23:21:24Z
+# This constraints file was automatically generated on 2023-11-18T07:22:23Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -68,7 +68,7 @@ adal==1.2.7
 adlfs==2023.10.0
 aiobotocore==2.7.0
 aiofiles==23.2.1
-aiohttp==3.8.6
+aiohttp==3.9.0
 aioitertools==0.11.0
 aioresponses==0.7.5
 aiosignal==1.3.1
@@ -231,9 +231,9 @@ botocore==1.31.64
 cachelib==0.9.0
 cachetools==5.3.2
 cassandra-driver==3.28.0
-cattrs==23.2.0
+cattrs==23.2.1
 celery==5.3.5
-certifi==2023.7.22
+certifi==2023.11.17
 cffi==1.16.0
 cfgv==3.4.0
 cfn-lint==0.83.3
@@ -444,9 +444,9 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.29.0
-mypy-boto3-rds==1.29.1
+mypy-boto3-rds==1.29.3
 mypy-boto3-redshift-data==1.29.0
-mypy-boto3-s3==1.29.0
+mypy-boto3-s3==1.29.3
 mypy-extensions==1.0.0
 mypy==1.2.0
 mysql-connector-python==8.0.29
@@ -499,7 +499,7 @@ pendulum==2.1.2
 pexpect==4.8.0
 pgvector==0.2.3
 pinecone-client==2.2.4
-pinotdb==5.1.0
+pinotdb==5.1.1
 pipdeptree==2.13.1
 pipx==1.2.1
 pkginfo==1.9.6
