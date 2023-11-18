@@ -395,7 +395,7 @@ jobs:
       ${{needs.build-info.outputs.build-job-description}} PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, build-ci-images, generate-constraints]
+    needs: [build-info, build-ci-images]
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -445,7 +445,7 @@ jobs:
       ${{needs.build-info.outputs.build-job-description}} Bullseye PROD images
       ${{needs.build-info.outputs.all-python-versions-list-as-string}}
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, build-ci-images, generate-constraints]
+    needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.canary-run == 'true'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
@@ -1970,7 +1970,6 @@ jobs:
     runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
     needs:
       - build-info
-      - generate-constraints
       - docs
       - static-checks
       - tests-sqlite
