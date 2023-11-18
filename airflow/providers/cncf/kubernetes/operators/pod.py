@@ -672,6 +672,7 @@ class KubernetesPodOperator(BaseOperator):
         )
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
+        self.log.info("Triggered with event: %s", event)
         pod = None
         try:
             pod = self.hook.get_pod(
