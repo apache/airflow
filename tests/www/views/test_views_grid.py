@@ -162,15 +162,21 @@ def test_no_runs(admin_client, dag_without_runs):
     }
 
 
-def test_grid_data_filtered_on_run_state(admin_client, dag_with_runs):
-    for run_state_param, expected_states in [
-        ("run_state=success%2Cqueued", ["success"]),
-        ("run_state=running%2Cfailed", ["running"]),
+def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_runs):
+    for uri_params, expected_run_types, expected_run_states in [
+        ("run_state=success%2Cqueued", ["scheduled"], ["success"]),
+        ("run_state=running%2Cfailed", ["scheduled"], ["running"]),
+        ("run_type=scheduled%2Cmanual", ["scheduled", "scheduled"], ["success", "running"]),
+        ("run_type=backfill%2Cmanual", [], []),
+        ("run_state=running%2Cfailed&run_type=backfill%2Cmanual", [], []),
+        ("run_state=running%2Cfailed&run_type=scheduled%2Cbackfill%2Cmanual", ["scheduled"], ["running"]),
     ]:
-        resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}&{run_state_param}", follow_redirects=True)
+        resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}&{uri_params}", follow_redirects=True)
         assert resp.status_code == 200, resp.json
-        actual_states = list(map(lambda x: x["state"], resp.json["dag_runs"]))
-        assert actual_states == expected_states
+        actual_run_types = list(map(lambda x: x["run_type"], resp.json["dag_runs"]))
+        actual_run_states = list(map(lambda x: x["state"], resp.json["dag_runs"]))
+        assert actual_run_types == expected_run_types
+        assert actual_run_states == expected_run_states
 
 
 # Create this as a fixture so that it is applied before the `dag_with_runs` fixture is!

@@ -46,6 +46,7 @@ const FilterBar = () => {
     onRunTypeChange,
     onRunStateChange,
     clearFilters,
+    transformCsvToMultiSelectOptions,
   } = useFilters();
 
   const { timezone } = useTimezone();
@@ -75,28 +76,16 @@ const FilterBar = () => {
     },
   });
 
-  const transformCsvToMultiSelectOptions = (
-    options: string | null
-  ): { label: string; value: string }[] =>
-    options === null
-      ? []
-      : options.split(",").map((option) => ({ label: option, value: option }));
-  const transformCsvToMultiSelectValue = (
-    values: string | null
-  ): { label: string; value: string }[] =>
-    values === null
-      ? []
-      : values.split(",").map((option) => ({ label: option, value: option }));
-
   const runTypeOptionsDeserialized = transformCsvToMultiSelectOptions(
     filters.runTypeOptions
   );
-  const runTypeDeserialized = transformCsvToMultiSelectValue(filters.runType);
-
+  const runTypeDeserialized = transformCsvToMultiSelectOptions(filters.runType);
   const runStateOptionsDeserialized = transformCsvToMultiSelectOptions(
     filters.runStateOptions
   );
-  const runStateDeserialized = transformCsvToMultiSelectValue(filters.runState);
+  const runStateDeserialized = transformCsvToMultiSelectOptions(
+    filters.runState
+  );
 
   return (
     <Flex

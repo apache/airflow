@@ -56,6 +56,9 @@ export interface UtilFunctions {
   onRunTypeChange: (value: string) => void;
   onRunStateChange: (value: string) => void;
   onFilterTasksChange: (args: FilterTasksProps) => void;
+  transformCsvToMultiSelectOptions: (
+    options: string | null
+  ) => { label: string; value: string }[];
   clearFilters: () => void;
   resetRoot: () => void;
 }
@@ -95,10 +98,10 @@ const useFilters = (): FilterHookReturn => {
     searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber.toString();
 
   const runTypeOptions = filtersOptions.runTypes.join(",");
-  const runType = searchParams.get(RUN_TYPE_PARAM) || runTypeOptions;
+  const runType = searchParams.get(RUN_TYPE_PARAM);
 
   const runStateOptions = filtersOptions.dagStates.join(",");
-  const runState = searchParams.get(RUN_STATE_PARAM) || runStateOptions;
+  const runState = searchParams.get(RUN_STATE_PARAM);
 
   const makeOnChangeFn =
     (paramName: string, formatFn?: (arg: string) => string | null) =>
@@ -119,6 +122,13 @@ const useFilters = (): FilterHookReturn => {
     };
     return formatFn;
   };
+
+  const transformCsvToMultiSelectOptions = (
+    options: string | null
+  ): { label: string; value: string }[] =>
+    options === null
+      ? []
+      : options.split(",").map((option) => ({ label: option, value: option }));
 
   const onBaseDateChange = makeOnChangeFn(
     BASE_DATE_PARAM,
@@ -193,6 +203,7 @@ const useFilters = (): FilterHookReturn => {
     onFilterTasksChange,
     clearFilters,
     resetRoot,
+    transformCsvToMultiSelectOptions,
   };
 };
 

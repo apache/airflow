@@ -21,7 +21,7 @@
 import { act, renderHook } from "@testing-library/react";
 
 import { RouterWrapper } from "src/utils/testUtils";
-import type { RunState } from "src/types";
+import type { DagRun, RunState } from "src/types";
 
 declare global {
   namespace NodeJS {
@@ -29,6 +29,7 @@ declare global {
       defaultDagRunDisplayNumber: number;
       filtersOptions: {
         dagStates: RunState[];
+        runTypes: DagRun["runType"][];
       };
     }
   }
@@ -67,7 +68,7 @@ describe("Test useFilters hook", () => {
     expect(baseDate).toBe(date.toISOString());
     expect(numRuns).toBe(global.defaultDagRunDisplayNumber.toString());
     expect(runType).toBeNull();
-    expect(runState).toBe(global.filtersOptions.dagStates.join(","));
+    expect(runState).toBeNull();
     expect(root).toBeUndefined();
     expect(filterUpstream).toBeUndefined();
     expect(filterDownstream).toBeUndefined();
@@ -91,9 +92,19 @@ describe("Test useFilters hook", () => {
       paramValue: "manual",
     },
     {
+      fnName: "onRunTypeChange" as keyof UtilFunctions,
+      paramName: "runType" as keyof Filters,
+      paramValue: "manual,backfill",
+    },
+    {
       fnName: "onRunStateChange" as keyof UtilFunctions,
       paramName: "runState" as keyof Filters,
       paramValue: "success",
+    },
+    {
+      fnName: "onRunStateChange" as keyof UtilFunctions,
+      paramName: "runState" as keyof Filters,
+      paramValue: "success,failed,queued",
     },
   ])("Test $fnName functions", async ({ fnName, paramName, paramValue }) => {
     const { result } = renderHook<FilterHookReturn, undefined>(
@@ -117,10 +128,6 @@ describe("Test useFilters hook", () => {
     } else if (paramName === "numRuns") {
       expect(result.current.filters[paramName]).toBe(
         global.defaultDagRunDisplayNumber.toString()
-      );
-    } else if (paramName === "runState") {
-      expect(result.current.filters[paramName]).toBe(
-        global.filtersOptions.dagStates.join(",")
       );
     } else {
       expect(result.current.filters[paramName]).toBeNull();
