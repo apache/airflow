@@ -32,6 +32,7 @@ from typing import Any, Iterable, NamedTuple
 
 import jinja2
 import semver
+from packaging.requirements import Requirement
 from rich.syntax import Syntax
 
 from airflow_breeze.global_constants import PROVIDER_DEPENDENCIES
@@ -113,6 +114,34 @@ class Change(NamedTuple):
     message: str
     message_without_backticks: str
     pr: str | None
+
+
+class PipRequirements(NamedTuple):
+    """Store details about python packages"""
+
+    package: str
+    version_required: str
+
+    @classmethod
+    def from_requirement(cls, requirement_string: str) -> PipRequirements:
+        req = Requirement(requirement_string)
+
+        package = req.name
+        if req.extras:
+            # Sort extras by name
+            package += f"[{','.join(sorted(req.extras))}]"
+
+        version_required = ""
+        if req.specifier:
+            # String representation of `packaging.specifiers.SpecifierSet` sorted by the operator
+            # which might not looking good, e.g. '>=5.3.0,<6,!=5.3.3,!=5.3.2' transform into the
+            # '!=5.3.3,!=5.3.2,<6,>=5.3.0'. Instead of that we sort by version and resulting string would be
+            # '>=5.3.0,!=5.3.2,!=5.3.3,<6'
+            version_required = ",".join(map(str, sorted(req.specifier, key=lambda spec: spec.version)))
+        if req.marker:
+            version_required += f"; {req.marker}"
+
+        return cls(package=package, version_required=version_required.strip())
 
 
 class TypeOfChange(Enum):
@@ -566,15 +595,12 @@ def _convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bo
     headers = ["PIP package", "Version required"]
     table_data = []
     for dependency in requirements:
-        found = re.match(r"(^[^<=>~!]*)([^<=>~!]?.*)$", dependency)
-        if found:
-            package = found.group(1)
-            version_required = found.group(2)
-            if version_required != "":
-                version_required = f"`{version_required}`" if markdown else f"``{version_required}``"
-            table_data.append((f"`{package}`" if markdown else f"``{package}``", version_required))
-        else:
-            table_data.append((dependency, ""))
+        req = PipRequirements.from_requirement(dependency)
+        formatted_package = f"`{req.package}`" if markdown else f"``{req.package}``"
+        formatted_version = ""
+        if req.version_required:
+            formatted_version = f"`{req.version_required}`" if markdown else f"``{req.version_required}``"
+        table_data.append((formatted_package, formatted_version))
     return tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
 
 

@@ -22,6 +22,7 @@ import pytest
 
 from airflow_breeze.prepare_providers.provider_documentation import (
     Change,
+    PipRequirements,
     _convert_git_changes_to_table,
     _convert_pip_requirements_to_table,
     _find_insertion_index_for_version,
@@ -237,32 +238,73 @@ def test_convert_git_changes_to_table(input: str, output: str, markdown: bool, c
 
 
 @pytest.mark.parametrize(
+    "requirement_string, expected",
+    [
+        pytest.param("apache-airflow", ("apache-airflow", ""), id="no-version-specifier"),
+        pytest.param(
+            "apache-airflow <2.7,>=2.5", ("apache-airflow", ">=2.5,<2.7"), id="range-version-specifier"
+        ),
+        pytest.param("watchtower~=3.0.1", ("watchtower", "~=3.0.1"), id="compat-version-specifier"),
+        pytest.param("PyGithub!=1.58", ("PyGithub", "!=1.58"), id="not-equal-version-specifier"),
+        pytest.param(
+            "apache-airflow[amazon,google,microsoft.azure,docker]>2.7.0",
+            ("apache-airflow[amazon,docker,google,microsoft.azure]", ">2.7.0"),
+            id="package-with-extra",
+        ),
+        pytest.param(
+            'mysql-connector-python>=8.0.11; platform_machine != "aarch64"',
+            ("mysql-connector-python", '>=8.0.11; platform_machine != "aarch64"'),
+            id="version-with-platform-marker",
+        ),
+        pytest.param(
+            "backports.zoneinfo>=0.2.1;python_version<'3.9'",
+            ("backports.zoneinfo", '>=0.2.1; python_version < "3.9"'),
+            id="version-with-python-marker",
+        ),
+        pytest.param(
+            "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
+            ("celery", ">=5.3.0,!=5.3.2,!=5.3.3,<6"),
+            id="complex-version-specifier",
+        ),
+        pytest.param(
+            "apache-airflow; python_version<'3.12' or platform_machine != 'i386'",
+            ("apache-airflow", '; python_version < "3.12" or platform_machine != "i386"'),
+            id="no-version-specifier-with-complex-marker",
+        ),
+    ],
+)
+def test_parse_pip_requirements_parse(requirement_string, expected):
+    assert PipRequirements.from_requirement(requirement_string) == expected
+
+
+@pytest.mark.parametrize(
     "requirements, markdown, table",
     [
         (
-            ["apache-airflow>2.5.0"],
+            ["apache-airflow>2.5.0", "apache-airflow-providers-http"],
             False,
             """
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>2.5.0``
-==================  ==================
+=================================  ==================
+PIP package                        Version required
+=================================  ==================
+``apache-airflow``                 ``>2.5.0``
+``apache-airflow-providers-http``
+=================================  ==================
 """,
         ),
         (
-            ["apache-airflow>2.5.0"],
+            ["apache-airflow>2.5.0", "apache-airflow-providers-http"],
             True,
             """
-| PIP package      | Version required   |
-|:-----------------|:-------------------|
-| `apache-airflow` | `>2.5.0`           |
+| PIP package                     | Version required   |
+|:--------------------------------|:-------------------|
+| `apache-airflow`                | `>2.5.0`           |
+| `apache-airflow-providers-http` |                    |
 """,
         ),
     ],
 )
 def test_convert_pip_requirements_to_table(requirements: Iterable[str], markdown: bool, table: str):
-    print(_convert_pip_requirements_to_table(requirements, markdown))
     assert _convert_pip_requirements_to_table(requirements, markdown).strip() == table.strip()
 
 
