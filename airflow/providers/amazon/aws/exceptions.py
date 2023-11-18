@@ -45,6 +45,16 @@ class EcsOperatorError(Exception):
     def __reduce__(self):
         return EcsOperatorError, (self.failures, self.message)
 
+class EC2HibernationError(Exception):
+    """Raises when EC2 is not enabled for hibernation."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(message)
+
+    def __reduce__(self):
+        return EC2HibernationError, (self.message)
+
 
 class S3HookUriParseFailure(AirflowException):
     """When parse_s3_url fails to parse URL, this error is thrown."""

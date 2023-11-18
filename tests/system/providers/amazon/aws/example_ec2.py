@@ -26,8 +26,10 @@ from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.ec2 import (
     EC2CreateInstanceOperator,
+    EC2HibernateInstanceOperator,
     EC2StartInstanceOperator,
     EC2StopInstanceOperator,
+    EC2RebootInstanceOperator,
     EC2TerminateInstanceOperator,
 )
 from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor
@@ -103,6 +105,7 @@ with DAG(
         # Use IMDSv2 for greater security, see the following doc for more details:
         # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/configuring-instance-metadata-service.html
         "MetadataOptions": {"HttpEndpoint": "enabled", "HttpTokens": "required"},
+        "HibernationOptions": {"Configured": True},
     }
 
     # EC2CreateInstanceOperator creates and starts the EC2 instances. To test the EC2StartInstanceOperator,
@@ -150,6 +153,22 @@ with DAG(
     )
     # [END howto_operator_ec2_terminate_instance]
     terminate_instance.trigger_rule = TriggerRule.ALL_DONE
+
+    # [START howto_operator_ec2_hibernate_instance]
+    hibernate_instance = EC2HibernateInstanceOperator(
+        task_id="hibernate_instace",
+        instance_id=instance_id,
+    )
+    # [END howto_operator_ec2_hibernate_instance]
+    hibernate_instance.trigger_rule = TriggerRule.ALL_DONE
+    
+    # [START howto_operator_ec2_reboot_instance]
+    reboot_instance = EC2RebootInstanceOperator(
+        task_id="reboot_instace",
+        instance_id=instance_id,
+    )
+    # [END howto_operator_ec2_reboot_instance]
+    reboot_instance.trigger_rule = TriggerRule.ALL_DONE
     chain(
         # TEST SETUP
         test_context,
@@ -161,6 +180,8 @@ with DAG(
         stop_instance,
         start_instance,
         await_instance,
+        hibernate_instance,
+        reboot_instance,
         terminate_instance,
         # TEST TEARDOWN
         delete_key_pair(key_name),
