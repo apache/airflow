@@ -32,8 +32,8 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from airflow.hooks.base import BaseHook
-from typing import Any, Callable, Iterable, Mapping, Sequence, Union
+from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
+from typing import Any, Callable, Iterable, Mapping, Sequence
 from typing_extensions import Protocol
 
 def return_single_query_results(
@@ -45,7 +45,7 @@ def fetch_one_handler(cursor) -> Union[list[tuple], None]: ...
 class ConnectorProtocol(Protocol):
     def connect(self, host: str, port: int, username: str, schema: str) -> Any: ...
 
-class DbApiHook(BaseHook):
+class DbApiHook(BaseForDbApiHook):
     conn_name_attr: str
     default_conn_name: str
     supports_autocommit: bool
