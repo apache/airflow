@@ -346,7 +346,7 @@ def start_airflow(
         )
         skip_asset_compilation = True
     if use_airflow_version is None and not skip_asset_compilation:
-        run_compile_www_assets(dev=dev_mode, run_in_background=True)
+        run_compile_www_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
@@ -669,12 +669,19 @@ def static_checks(
     "recompile assets on-the-fly when they are changed.",
     is_flag=True,
 )
+@click.option(
+    "--force-clean",
+    help="Force cleanup of compile assets before building them.",
+    is_flag=True,
+)
 @option_verbose
 @option_dry_run
-def compile_www_assets(dev: bool):
+def compile_www_assets(dev: bool, force_clean: bool):
     perform_environment_checks()
     assert_pre_commit_installed()
-    compile_www_assets_result = run_compile_www_assets(dev=dev, run_in_background=False)
+    compile_www_assets_result = run_compile_www_assets(
+        dev=dev, run_in_background=False, force_clean=force_clean
+    )
     if compile_www_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")
     sys.exit(0)

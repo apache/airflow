@@ -105,29 +105,6 @@ function in_container_basic_sanity_check() {
     in_container_go_to_airflow_sources
 }
 
-export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
-
-function start_output_heartbeat() {
-    MESSAGE=${1:-"Still working!"}
-    INTERVAL=${2:=10}
-    echo
-    echo "Starting output heartbeat"
-    echo
-
-    bash 2>/dev/null <<EOF &
-while true; do
-  echo "\$(date): ${MESSAGE} "
-  sleep ${INTERVAL}
-done
-EOF
-    export HEARTBEAT_PID=$!
-}
-
-function stop_output_heartbeat() {
-    kill "${HEARTBEAT_PID}" || true
-    wait "${HEARTBEAT_PID}" || true 2>/dev/null
-}
-
 function dump_airflow_logs() {
     local dump_file
     dump_file=/files/airflow_logs_$(date "+%Y-%m-%d")_${CI_BUILD_ID}_${CI_JOB_ID}.log.tar.gz
@@ -329,45 +306,6 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=} \
         --upgrade --upgrade-strategy eager
     set +x
-}
-
-function install_all_provider_packages_from_wheels() {
-    echo
-    echo "Installing all provider packages from wheels"
-    echo
-    uninstall_providers
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    pip install /dist/apache_airflow_providers_*.whl
-}
-
-function install_all_provider_packages_from_sdist() {
-    echo
-    echo "Installing all provider packages from .tar.gz"
-    echo
-    uninstall_providers
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    pip install /dist/apache-airflow-providers-*.tar.gz
-}
-
-function twine_check_provider_packages_from_wheels() {
-    echo
-    echo "Twine check of all provider packages from wheels"
-    echo
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    ls -w 1 /dist
-    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-    twine check /dist/apache_airflow_providers_*.whl
-}
-
-function twine_check_provider_packages_from_sdist() {
-    echo
-    echo "Twine check all provider packages from sdist"
-    echo
-    twine check /dist/apache-airflow-providers-*.tar.gz
 }
 
 function install_supported_pip_version() {

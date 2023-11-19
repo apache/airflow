@@ -36,11 +36,11 @@ from rich.syntax import Syntax
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_PLATFORMS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    MOUNT_ALL,
     MOUNT_SELECTED,
     MULTI_PLATFORM,
 )
@@ -118,6 +118,7 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_WWW_DIR,
     CONSTRAINTS_CACHE_DIR,
     DIST_DIR,
     PROVIDER_METADATA_JSON_FILE_PATH,
@@ -132,7 +133,7 @@ from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
-    assert_pre_commit_installed,
+    clean_www_assets,
     run_command,
     run_compile_www_assets,
 )
@@ -200,43 +201,108 @@ echo -e '\\e[34mRun this command to debug:
         )
 
 
+AIRFLOW_PIP_VERSION = "23.3.1"
+WHEEL_VERSION = "0.36.2"
+GITPYTHON_VERSION = "3.1.40"
+RICH_VERSION = "13.7.0"
+
+
+AIRFLOW_BUILD_DOCKERFILE = f"""
+FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
+RUN apt-get update && apt-get install -y --no-install-recommends git
+RUN pip install pip=={AIRFLOW_PIP_VERSION} wheel=={WHEEL_VERSION} \\
+   gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION}
+"""
+
+AIRFLOW_BUILD_IMAGE_TAG = "apache/airflow:local-build-image"
+NODE_BUILD_IMAGE_TAG = "node:21.2.0-bookworm-slim"
+
+
+def _compile_assets_in_docker():
+    clean_www_assets()
+    result = run_command(
+        [
+            "docker",
+            "run",
+            "-t",
+            "-v",
+            f"{AIRFLOW_WWW_DIR}:/opt/airflow/airflow/www/",
+            "-e",
+            "FORCE_COLOR=true",
+            NODE_BUILD_IMAGE_TAG,
+            "bash",
+            "-c",
+            "cd /opt/airflow/airflow/www && yarn install --frozen-lockfile && yarn run build",
+        ],
+        text=True,
+        capture_output=not get_verbose(),
+        check=False,
+    )
+    if result.returncode != 0:
+        get_console().print("[error]Error compiling assets[/]")
+        get_console().print(result.stdout)
+        get_console().print(result.stderr)
+        sys.exit(result.returncode)
+
+
 @release_management.command(
     name="prepare-airflow-package",
     help="Prepare sdist/whl package of Airflow.",
 )
 @option_package_format
+@click.option(
+    "--use-container-for-assets-compilation",
+    is_flag=True,
+    help="If set, the assets are compiled in docker container. On MacOS, asset compilation in containers "
+    "is slower, due to slow mounted filesystem and number of node_module files so by default asset "
+    "compilation is done locally. This option is useful for officially building packages by release "
+    "manager on MacOS to make sure it is a reproducible build.",
+)
 @option_version_suffix_for_pypi
-@option_debug_release_management
-@option_github_repository
 @option_verbose
 @option_dry_run
 def prepare_airflow_packages(
     package_format: str,
     version_suffix_for_pypi: str,
-    debug: bool,
-    github_repository: str,
+    use_container_for_assets_compilation: bool,
 ):
     perform_environment_checks()
     cleanup_python_generated_files()
-    assert_pre_commit_installed()
-    run_compile_www_assets(dev=False, run_in_background=False)
-    shell_params = ShellParams(
-        github_repository=github_repository,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        package_format=package_format,
-        version_suffix_for_pypi=version_suffix_for_pypi,
-        skip_environment_initialization=True,
-        install_providers_from_sources=False,
-        mount_sources=MOUNT_ALL,
+    get_console().print("[info]Compiling assets\n")
+    from sys import platform
+
+    if platform == "darwin" and not use_container_for_assets_compilation:
+        run_compile_www_assets(dev=False, run_in_background=False, force_clean=True)
+    else:
+        _compile_assets_in_docker()
+    get_console().print("[success]Assets compiled successfully[/]")
+    run_command(
+        ["docker", "build", "--tag", AIRFLOW_BUILD_IMAGE_TAG, "-"],
+        input=AIRFLOW_BUILD_DOCKERFILE,
+        text=True,
+        check=True,
+        env={"DOCKER_CLI_HINTS": "false"},
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
-    result_command = run_docker_command_with_debug(
-        params=shell_params,
-        command=["/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"],
-        debug=debug,
-        output_outside_the_group=True,
+    run_command(
+        cmd=[
+            "docker",
+            "run",
+            "-t",
+            "-v",
+            f"{AIRFLOW_SOURCES_ROOT}:/opt/airflow:cached",
+            "-e",
+            f"VERSION_SUFFIX_FOR_PYPI={version_suffix_for_pypi}",
+            "-e",
+            "GITHUB_ACTIONS",
+            "-e",
+            f"PACKAGE_FORMAT={package_format}",
+            AIRFLOW_BUILD_IMAGE_TAG,
+            "python",
+            "/opt/airflow/scripts/in_container/run_prepare_airflow_packages.py",
+        ],
+        check=True,
     )
-    sys.exit(result_command.returncode)
+    get_console().print("[success]Successfully prepared Airflow package!\n\n")
 
 
 def provider_action_summary(description: str, message_type: MessageType, packages: list[str]):
@@ -1154,7 +1220,6 @@ def release_prod_images(
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
-    rebuild_or_pull_ci_image_if_needed(command_params=ShellParams(python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION))
     if not re.match(r"^\d*\.\d*\.\d*$", airflow_version):
         get_console().print(
             f"[warning]Skipping latest image tagging as this is a pre-release version: {airflow_version}"

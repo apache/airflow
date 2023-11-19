@@ -611,7 +611,6 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "VERBOSE", "false")
     set_value_to_default_if_not_set(env, "VERBOSE_COMMANDS", "false")
     set_value_to_default_if_not_set(env, "VERSION_SUFFIX_FOR_PYPI", "")
-    set_value_to_default_if_not_set(env, "WHEEL_VERSION", "0.36.2")
 
 
 DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
