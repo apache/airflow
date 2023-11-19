@@ -55,7 +55,7 @@
           <div class="panel-body">
             {% for category, m in dag_import_errors %}
               <div class="alert alert-error">
-                <div class="dag-import-error" onclick="toggleErrorMessage.call(this)"><span class="material-icons pull-right toggle-direction" aria-hidden="true">expand_more</span>{{ m }}</div>
+                <div class="dag-import-error expanded-error" onclick="toggleErrorMessage.call(this)"><span class="material-icons pull-right toggle-direction" aria-hidden="false">expand_more</span>{{ m }}</div>
               </div>
             {% endfor %}
           </div>
