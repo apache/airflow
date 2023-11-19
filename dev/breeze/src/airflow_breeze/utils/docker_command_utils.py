@@ -91,7 +91,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
     ("airflow", "/opt/airflow/airflow"),
     ("constraints", "/opt/airflow/constraints"),
-    ("provider_packages", "/opt/airflow/provider_packages"),
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
