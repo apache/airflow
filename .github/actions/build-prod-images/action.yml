@@ -52,7 +52,7 @@ runs:
     - name: "Download constraints from the CI build"
       uses: actions/download-artifact@v3
       with:
-        name: constraints
+        name: source-constraints
         path: ./docker-context-files
     - name: "Build & Push PROD images with source providers ${{ env.IMAGE_TAG }}:${{ env.PYTHON_VERSIONS }}"
       shell: bash
