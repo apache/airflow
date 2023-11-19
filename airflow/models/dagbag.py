@@ -666,7 +666,9 @@ class DagBag(LoggingMixin):
                 try:
                     # Write Serialized DAGs to DB, capturing errors
                     for dag in dags.values():
-                        serialize_errors.extend(_serialize_dag_capturing_errors(dag, session, processor_subdir))
+                        serialize_errors.extend(
+                            _serialize_dag_capturing_errors(dag, session, processor_subdir)
+                        )
 
                     DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
                 except OperationalError:
