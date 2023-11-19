@@ -380,6 +380,16 @@
                     "type": "string"
                 }
             }
+        },
+        "source-date-epoch": {
+            "type": "integer",
+            "description": "Source date epoch - seconds since epoch (gmtime) when the release documentation was prepared. Used to generate reproducible package builds with flint.",
+
+            "minimum": 0,
+            "default": 0,
+            "examples": [
+                1609459200
+            ]
         }
     },
     "additionalProperties": false,
@@ -442,6 +452,7 @@
         "package-name",
         "description",
         "suspended",
+        "source-date-epoch",
         "dependencies",
         "versions"
     ]
