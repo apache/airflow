@@ -76,17 +76,6 @@ const FilterBar = () => {
     },
   });
 
-  const runTypeOptionsDeserialized = transformCsvToMultiSelectOptions(
-    filters.runTypeOptions
-  );
-  const runTypeDeserialized = transformCsvToMultiSelectOptions(filters.runType);
-  const runStateOptionsDeserialized = transformCsvToMultiSelectOptions(
-    filters.runStateOptions
-  );
-  const runStateDeserialized = transformCsvToMultiSelectOptions(
-    filters.runState
-  );
-
   return (
     <Flex
       backgroundColor="blackAlpha.200"
@@ -120,7 +109,7 @@ const FilterBar = () => {
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
             {...multiSelectStyles}
-            value={runTypeDeserialized}
+            value={transformCsvToMultiSelectOptions(filters.runType)}
             onChange={(typeOptions) => {
               if (
                 Array.isArray(typeOptions) &&
@@ -131,7 +120,7 @@ const FilterBar = () => {
                 );
               }
             }}
-            options={runTypeOptionsDeserialized}
+            options={transformCsvToMultiSelectOptions(filters.runTypeOptions)}
             placeholder="All Run Types"
           />
         </Box>
@@ -139,7 +128,7 @@ const FilterBar = () => {
         <Box px={2} style={multiSelectBoxStyle}>
           <MultiSelect
             {...multiSelectStyles}
-            value={runStateDeserialized}
+            value={transformCsvToMultiSelectOptions(filters.runState)}
             onChange={(stateOptions) => {
               if (
                 Array.isArray(stateOptions) &&
@@ -150,7 +139,7 @@ const FilterBar = () => {
                 );
               }
             }}
-            options={runStateOptionsDeserialized}
+            options={transformCsvToMultiSelectOptions(filters.runStateOptions)}
             placeholder="All Run States"
           />
         </Box>
