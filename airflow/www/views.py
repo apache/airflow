@@ -1956,30 +1956,69 @@ class Airflow(AirflowBaseView):
 
         # Prepare form fields with param struct details to render a proper form with schema information
         form_fields = {}
+        allow_raw_html_descriptions = conf.getboolean("webserver", "allow_raw_html_descriptions")
+        form_trust_problems = []
         for k, v in dag.params.items():
             form_fields[k] = v.dump()
+            form_field: dict = form_fields[k]
             # If no schema is provided, auto-detect on default values
-            if "schema" not in form_fields[k]:
-                form_fields[k]["schema"] = {}
-            if "type" not in form_fields[k]["schema"]:
-                if isinstance(form_fields[k]["value"], bool):
-                    form_fields[k]["schema"]["type"] = "boolean"
-                elif isinstance(form_fields[k]["value"], int):
-                    form_fields[k]["schema"]["type"] = ["integer", "null"]
-                elif isinstance(form_fields[k]["value"], list):
-                    form_fields[k]["schema"]["type"] = ["array", "null"]
-                elif isinstance(form_fields[k]["value"], dict):
-                    form_fields[k]["schema"]["type"] = ["object", "null"]
-            # Mark markup fields as safe
-            if (
-                "description_html" in form_fields[k]["schema"]
-                and form_fields[k]["schema"]["description_html"]
-            ):
-                form_fields[k]["description"] = Markup(form_fields[k]["schema"]["description_html"])
-            if "custom_html_form" in form_fields[k]["schema"]:
-                form_fields[k]["schema"]["custom_html_form"] = Markup(
-                    form_fields[k]["schema"]["custom_html_form"]
-                )
+            if "schema" not in form_field:
+                form_field["schema"] = {}
+            form_field_schema: dict = form_field["schema"]
+            if "type" not in form_field_schema:
+                form_field_value = form_field["value"]
+                if isinstance(form_field_value, bool):
+                    form_field_schema["type"] = "boolean"
+                elif isinstance(form_field_value, int):
+                    form_field_schema["type"] = ["integer", "null"]
+                elif isinstance(form_field_value, list):
+                    form_field_schema["type"] = ["array", "null"]
+                elif isinstance(form_field_value, dict):
+                    form_field_schema["type"] = ["object", "null"]
+            # Mark HTML fields as safe if allowed
+            if allow_raw_html_descriptions:
+                if "description_html" in form_field_schema:
+                    form_field["description"] = Markup(form_field_schema["description_html"])
+                if "custom_html_form" in form_field_schema:
+                    form_field_schema["custom_html_form"] = Markup(form_field_schema["custom_html_form"])
+            else:
+                if "description_html" in form_field_schema and "description_md" not in form_field_schema:
+                    form_trust_problems.append(f"Field {k} uses HTML description")
+                    form_field["description"] = form_field_schema.pop("description_html")
+                if "custom_html_form" in form_field_schema:
+                    form_trust_problems.append(f"Field {k} uses custom HTML form definition")
+                    form_field_schema.pop("custom_html_form")
+            if "description_md" in form_field_schema:
+                form_field["description"] = wwwutils.wrapped_markdown(form_field_schema["description_md"])
+        if form_trust_problems:
+            flash(
+                Markup(
+                    "At least one field in the trigger form uses a raw HTML form definition. This is not allowed for "
+                    "security. Please switch to markdown description via <code>description_md</code>. "
+                    "Raw HTML is deprecated and must be enabled via "
+                    "<code>webserver.allow_raw_html_descriptions</code> configuration parameter. Using plain text "
+                    "as fallback for these fields. "
+                    f"<ul><li>{'</li><li>'.join(form_trust_problems)}</li></ul>"
+                ),
+                "warning",
+            )
+        if allow_raw_html_descriptions and any("description_html" in p.schema for p in dag.params.values()):
+            flash(
+                Markup(
+                    "The form params use raw HTML in <code>description_html</code> which is deprecated. "
+                    "Please migrate to <code>description_md</code>."
+                ),
+                "warning",
+            )
+        if allow_raw_html_descriptions and any("custom_html_form" in p.schema for p in dag.params.values()):
+            flash(
+                Markup(
+                    "The form params use <code>custom_html_form</code> definition. "
+                    "This is deprecated with Airflow 2.8.0 and will be removed in a future release."
+                ),
+                "warning",
+            )
+
         ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
         show_trigger_form_if_no_params = conf.getboolean("webserver", "show_trigger_form_if_no_params")
 

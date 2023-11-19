@@ -89,7 +89,7 @@ class HttpToS3Operator(BaseOperator):
                  CA cert bundle than the one used by botocore.
     """
 
-    template_fields: Sequence[str] = ("endpoint", "data", "headers", "s3_bucket", "s3_key")
+    template_fields: Sequence[str] = ("http_conn_id", "endpoint", "data", "headers", "s3_bucket", "s3_key")
     template_fields_renderers = {"headers": "json", "data": "py"}
     template_ext: Sequence[str] = ()
     ui_color = "#f4a460"

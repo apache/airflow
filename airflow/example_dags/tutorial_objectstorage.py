@@ -23,7 +23,7 @@ import pendulum
 import requests
 
 from airflow.decorators import dag, task
-from airflow.io.store.path import ObjectStoragePath
+from airflow.io.path import ObjectStoragePath
 
 # [END import_module]
 
@@ -93,7 +93,7 @@ def tutorial_objectstorage():
         response.raise_for_status()
 
         # ensure the bucket exists
-        base.mkdir(exists_ok=True)
+        base.mkdir(exist_ok=True)
 
         formatted_date = execution_date.format("YYYYMMDD")
         path = base / f"air_quality_{formatted_date}.parquet"

@@ -118,31 +118,33 @@ class TestHttpOperator:
         pagination_function is provided, and as long as this function returns
         a dictionary that override previous' call parameters.
         """
-        has_returned: bool = False
+        iterations: int = 0
 
         def pagination_function(response: Response) -> dict | None:
             """Paginated function which returns None at the second call."""
-            nonlocal has_returned
-            if not has_returned:
-                has_returned = True
+            nonlocal iterations
+            if iterations < 2:
+                iterations += 1
                 return dict(
-                    endpoint="/",
-                    data={"cursor": "example"},
+                    endpoint=response.json()["endpoint"],
+                    data={},
                     headers={},
                     extra_options={},
                 )
             return None
 
-        requests_mock.get("http://www.example.com", json={"value": 5})
+        requests_mock.get("http://www.example.com/foo", json={"value": 5, "endpoint": "bar"})
+        requests_mock.get("http://www.example.com/bar", json={"value": 10, "endpoint": "foo"})
         operator = HttpOperator(
             task_id="test_HTTP_op",
             method="GET",
-            endpoint="/",
+            endpoint="/foo",
             http_conn_id="HTTP_EXAMPLE",
             pagination_function=pagination_function,
+            response_filter=lambda resp: [entry.json()["value"] for entry in resp],
         )
         result = operator.execute({})
-        assert result == ['{"value": 5}', '{"value": 5}']
+        assert result == [5, 10, 5]
 
     def test_async_paginated_responses(self, requests_mock):
         """

@@ -22,6 +22,7 @@ description: |
     `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
 
 suspended: false
+source-date-epoch: 1700148061
 versions:
   - 3.4.0
   - 3.3.0

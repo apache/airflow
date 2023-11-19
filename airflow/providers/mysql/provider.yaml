@@ -22,6 +22,7 @@ description: |
     `MySQL <https://www.mysql.com/products/>`__
 
 suspended: false
+source-date-epoch: 1700148074
 versions:
   - 5.4.0
   - 5.3.1

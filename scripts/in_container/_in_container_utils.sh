@@ -16,9 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-OPTIONAL_VERBOSE_FLAG=()
-PROVIDER_PACKAGES_DIR="${AIRFLOW_SOURCES}/dev/provider_packages"
-
 #######################################################################################################
 #
 # Adds trap to the traps already set.
@@ -373,24 +370,6 @@ function twine_check_provider_packages_from_sdist() {
     twine check /dist/apache-airflow-providers-*.tar.gz
 }
 
-function setup_provider_packages() {
-    export PACKAGE_TYPE="regular"
-    export PACKAGE_PREFIX_UPPERCASE=""
-    export PACKAGE_PREFIX_LOWERCASE=""
-    export PACKAGE_PREFIX_HYPHEN=""
-    if [[ ${VERBOSE:="false"} == "true" ||  ${VERBOSE} == "True" ]]; then
-        OPTIONAL_VERBOSE_FLAG+=("--verbose")
-    fi
-    if [[ ${ANSWER:=""} != "" ]]; then
-        OPTIONAL_ANSWER_FLAG+=("--answer" "${ANSWER}")
-    fi
-    readonly PACKAGE_TYPE
-    readonly PACKAGE_PREFIX_UPPERCASE
-    readonly PACKAGE_PREFIX_LOWERCASE
-    readonly PACKAGE_PREFIX_HYPHEN
-}
-
-
 function install_supported_pip_version() {
     if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
         pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
@@ -399,16 +378,6 @@ function install_supported_pip_version() {
     fi
 
 }
-
-function filename_to_python_module() {
-    # Turn the file name into a python package name
-    file="$1"
-    no_leading_dotslash="${file#./}"
-    no_py="${no_leading_dotslash/.py/}"
-    no_init="${no_py/\/__init__/}"
-    echo "${no_init//\//.}"
-}
-
 
 function in_container_set_colors() {
     COLOR_BLUE=$'\e[34m'
@@ -423,71 +392,6 @@ function in_container_set_colors() {
     export COLOR_YELLOW
 }
 
-
-function check_missing_providers() {
-    PACKAGE_ERROR="false"
-
-    pushd "${AIRFLOW_SOURCES}/airflow/providers" >/dev/null 2>&1 || exit 1
-
-    LIST_OF_DIRS_FILE=$(mktemp)
-    find . -type d | sed 's!./!!; s!/!.!g' | grep -E 'hooks|operators|sensors|secrets|utils' \
-        > "${LIST_OF_DIRS_FILE}"
-
-    popd >/dev/null 2>&1 || exit 1
-
-    # Check if all providers are included
-    for PACKAGE in "${PROVIDER_PACKAGES[@]}"
-    do
-        if ! grep -E "^${PACKAGE}" <"${LIST_OF_DIRS_FILE}" >/dev/null; then
-            echo "The package ${PACKAGE} is not available in providers dir"
-            PACKAGE_ERROR="true"
-        fi
-        sed -i "/^${PACKAGE}.*/d" "${LIST_OF_DIRS_FILE}"
-    done
-
-    if [[ ${PACKAGE_ERROR} == "true" ]]; then
-        echo
-        echo "ERROR! Some packages from ${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py are missing in providers dir"
-        exit 1
-    fi
-
-    if [[ $(wc -l < "${LIST_OF_DIRS_FILE}") != "0" ]]; then
-        echo "ERROR! Some folders from providers package are not defined"
-        echo "       Please add them to ${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py:"
-        echo
-        cat "${LIST_OF_DIRS_FILE}"
-        echo
-
-        rm "$LIST_OF_DIRS_FILE"
-        exit 1
-    fi
-    rm "$LIST_OF_DIRS_FILE"
-}
-
-function get_providers_to_act_on() {
-    group_start "Get all providers"
-    if [[ -z "$*" ]]; then
-        while IFS='' read -r line; do PROVIDER_PACKAGES+=("$line"); done < <(
-            python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                list-providers-packages
-        )
-    else
-        if [[ "${1}" == "--help" ]]; then
-            echo
-            echo "Builds all provider packages."
-            echo
-            echo "You can provide list of packages to build out of:"
-            echo
-            python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-                list-providers-packages \
-                | tr '\n ' ' ' | fold -w 100 -s
-            echo
-            echo
-            exit
-        fi
-    fi
-    group_end
-}
 
 # Starts group for GitHub Actions - makes logs much more readable
 function group_start {

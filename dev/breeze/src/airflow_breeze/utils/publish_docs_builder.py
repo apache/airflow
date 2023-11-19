@@ -28,7 +28,8 @@ from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.docs_errors import DocBuildError, parse_sphinx_warnings
 from airflow_breeze.utils.helm_chart_utils import chart_version
-from airflow_breeze.utils.publish_docs_helpers import load_package_data, pretty_format_path
+from airflow_breeze.utils.packages import get_provider_packages_metadata, get_short_package_name
+from airflow_breeze.utils.publish_docs_helpers import pretty_format_path
 from airflow_breeze.utils.spelling_checks import SpellingError, parse_spelling_warnings
 
 PROCESS_TIMEOUT = 15 * 60
@@ -95,8 +96,7 @@ class PublishDocsBuilder:
         if self.package_name == "apache-airflow":
             return get_airflow_version()
         if self.package_name.startswith("apache-airflow-providers-"):
-            all_providers_yaml = load_package_data(include_suspended=True)
-            provider = next(p for p in all_providers_yaml if p["package-name"] == self.package_name)
+            provider = get_provider_packages_metadata().get(get_short_package_name(self.package_name))
             return provider["versions"][0]
         if self.package_name == "helm-chart":
             return chart_version()

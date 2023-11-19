@@ -566,6 +566,8 @@ class AirflowAppBuilder:
             This deletes any permission that is no longer part of any registered
             view or menu. Only invoke AFTER YOU HAVE REGISTERED ALL VIEWS.
         """
+        if not hasattr(self.sm, "security_cleanup"):
+            raise NotImplementedError("The auth manager used does not support security_cleanup method.")
         self.sm.security_cleanup(self.baseviews, self.menu)
 
     def security_converge(self, dry=False) -> dict:

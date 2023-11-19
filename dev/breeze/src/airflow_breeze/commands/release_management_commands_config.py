@@ -107,8 +107,10 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--package-format",
                 "--version-suffix-for-pypi",
+                "--clean-dist",
+                "--skip-tag-check",
+                "--skip-deleting-generated-files",
                 "--package-list-file",
-                "--debug",
                 "--github-repository",
             ],
         }
@@ -117,11 +119,12 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Provider documentation preparation flags",
             "options": [
-                "--debug",
                 "--github-repository",
+                "--skip-git-fetch",
                 "--base-branch",
                 "--only-min-version-update",
-                "--regenerate-missing-docs",
+                "--reapply-templates-only",
+                "--non-interactive",
             ],
         }
     ],
