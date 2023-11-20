@@ -35,7 +35,6 @@ from elasticsearch.exceptions import NotFoundError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models.dagrun import DagRun
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.utils import timezone
@@ -52,12 +51,6 @@ if TYPE_CHECKING:
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
 EsLogMsgType = List[Tuple[str, str]]
-
-# Compatibility: Airflow 2.3.3 and up uses this method, which accesses the
-# LogTemplate model to record the log ID template used. If this function does
-# not exist, the task handler should use the log_id_template attribute instead.
-USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
-
 
 VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
 # Remove `self` from the valid set of kwargs
@@ -128,7 +121,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     might have the same timestamp.
 
     :param base_log_folder: base folder to store logs locally
-    :param log_id_template: log id template
     :param host: Elasticsearch host name
     """
 
@@ -162,15 +154,15 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         super().__init__(base_log_folder, filename_template)
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
-        if USE_PER_RUN_LOG_ID and log_id_template is not None:
+        self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
+
+        if log_id_template is not None:
             warnings.warn(
                 "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
                 AirflowProviderDeprecationWarning,
             )
 
-        self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark.strip()
@@ -216,10 +208,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             if isinstance(ti, TaskInstanceKey):
                 ti = _ensure_ti(ti, session)
             dag_run = ti.get_dagrun(session=session)
-            if USE_PER_RUN_LOG_ID:
-                log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
-            else:
-                log_id_template = self.log_id_template
+            log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
 
         try:
             dag = ti.task.dag
