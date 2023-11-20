@@ -143,13 +143,10 @@ class TestTrinoHookConn:
     def test_exactly_one_jwt_token(
         self, mock_get_connection, jwt_file, jwt_token, error_suffix, jwt_token_file
     ):
-        error_match = "When auth set to 'jwt'"
+        error_match = f"When auth set to 'jwt'.*{error_suffix}"
         extras = {"auth": "jwt"}
         if jwt_file:
-            error_match += ".*provided both"
             extras["jwt__file"] = jwt_token_file
-        else:
-            error_match += ".*none of them provided"
         if jwt_token:
             extras["jwt__token"] = "TEST_JWT_TOKEN"
 
