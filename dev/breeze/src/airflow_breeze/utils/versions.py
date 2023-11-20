@@ -28,3 +28,9 @@ def strip_leading_zeros_from_version(version: str) -> str:
     :return: string with leading 0s after dot replaced.
     """
     return ".".join(str(int(i)) for i in version.split("."))
+
+
+def get_version_tag(version: str, provider_package_id: str, version_suffix: str = ""):
+    if version_suffix is None:
+        version_suffix = ""
+    return f"providers-{provider_package_id.replace('.','-')}/{version}{version_suffix}"

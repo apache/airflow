@@ -235,5 +235,8 @@ licenses/LICENSES-ui.txt
 # used to checkout target-branch in CI
 /target-airflow
 
+# This directory used for generate provider packages before https://github.com/apache/airflow/pull/35617
+/provider_packages/
+
 # Dask Executor tests generate this directory
 /tests/executors/dask-worker-space/

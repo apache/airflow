@@ -91,7 +91,6 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
     ("airflow", "/opt/airflow/airflow"),
     ("constraints", "/opt/airflow/constraints"),
-    ("provider_packages", "/opt/airflow/provider_packages"),
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
@@ -612,7 +611,6 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "VERBOSE", "false")
     set_value_to_default_if_not_set(env, "VERBOSE_COMMANDS", "false")
     set_value_to_default_if_not_set(env, "VERSION_SUFFIX_FOR_PYPI", "")
-    set_value_to_default_if_not_set(env, "WHEEL_VERSION", "0.36.2")
 
 
 DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
