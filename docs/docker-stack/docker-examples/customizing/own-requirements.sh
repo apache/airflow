@@ -28,7 +28,7 @@ mkdir -p docker-context-files
 
 cat <<EOF >./docker-context-files/requirements.txt
 beautifulsoup4==4.10.0
-apache-airflow==2.8.0.dev0
+apache-airflow==2.8.0
 EOF
 
 export DOCKER_BUILDKIT=1

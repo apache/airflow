@@ -103,7 +103,7 @@ the example below.
     $ airflow info
 
     Apache Airflow
-    version                | 2.8.0.dev0
+    version                | 2.8.0
     executor               | LocalExecutor
     task_logging_handler   | airflow.utils.log.file_task_handler.FileTaskHandler
     sql_alchemy_conn       | postgresql+psycopg2://postgres:airflow@postgres/airflow
