@@ -103,7 +103,7 @@ class TrinoHook(DbApiHook):
         elif extra.get("auth") == "jwt":
             if not exactly_one(jwt_file := "jwt__file" in extra, jwt_token := "jwt__token" in extra):
                 msg = (
-                    "When auth set to 'jwt' then expected exactly one parameter 'jwt_file' or 'jwt__token'"
+                    "When auth set to 'jwt' then expected exactly one parameter 'jwt__file' or 'jwt__token'"
                     " in connection extra, but "
                 )
                 if jwt_file and jwt_token:
