@@ -16,7 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.www.security_manager import AirflowSecurityManagerV2
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from airflow.www.security_manager import AirflowSecurityManagerV2
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(
+        "Failed to import AirflowSecurityManagerV2. This feature is only available in Airflow versions >= 2.8.0"
+    )
 
 
 class AwsSecurityManagerOverride(AirflowSecurityManagerV2):
