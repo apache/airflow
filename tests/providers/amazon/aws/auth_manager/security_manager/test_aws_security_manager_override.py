@@ -24,7 +24,6 @@ from flask import Flask
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
-from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 
 
@@ -44,10 +43,14 @@ class TestAwsSecurityManagerOverride:
     @patch(
         "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value", return_value="test"
     )
-    @patch.object(AwsAuthManagerAuthenticationViews, "idp_data")
-    def test_register_views(self, mock_idp_data, mock_get_mandatory_value, override, appbuilder):
+    def test_register_views(self, mock_get_mandatory_value, override, appbuilder):
         pytest.importorskip("onelogin")
-        appbuilder.add_view_no_menu = Mock()
-        override.register_views()
-        appbuilder.add_view_no_menu.assert_called_once()
-        assert isinstance(appbuilder.add_view_no_menu.call_args.args[0], AwsAuthManagerAuthenticationViews)
+        from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
+
+        with patch.object(AwsAuthManagerAuthenticationViews, "idp_data"):
+            appbuilder.add_view_no_menu = Mock()
+            override.register_views()
+            appbuilder.add_view_no_menu.assert_called_once()
+            assert isinstance(
+                appbuilder.add_view_no_menu.call_args.args[0], AwsAuthManagerAuthenticationViews
+            )
