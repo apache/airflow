@@ -91,12 +91,10 @@ class ObjectStoragePath(CloudPath):
     ) -> PT:
         args_list = list(args)
 
-        try:
-            other = args_list.pop(0)
-        except IndexError:
-            other = "."
+        if args_list:
+            other = args_list.pop(0) or "."
         else:
-            other = other or "."
+            other = "."
 
         if isinstance(other, PurePath):
             _cls: typing.Any = type(other)
@@ -122,18 +120,14 @@ class ObjectStoragePath(CloudPath):
 
         url = stringify_path(other)
         parsed_url: SplitResult = urlsplit(url)
-        protocol: str | None = split_protocol(url)[0] or parsed_url.scheme
 
-        # allow override of protocol
-        protocol = kwargs.get("scheme", protocol)
-
-        if scheme is not None:
+        if scheme:  # allow override of protocol
             parsed_url = parsed_url._replace(scheme=scheme)
 
-        if not parsed_url.path:
-            parsed_url = parsed_url._replace(path="/")  # ensure path has root
+        if not parsed_url.path:  # ensure path has root
+            parsed_url = parsed_url._replace(path="/")
 
-        if not protocol:
+        if not parsed_url.scheme and not split_protocol(url)[0]:
             args_list.insert(0, url)
         else:
             args_list.insert(0, parsed_url.path)
