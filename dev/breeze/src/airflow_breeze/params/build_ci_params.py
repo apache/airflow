@@ -94,7 +94,7 @@ class BuildCiParams(CommonBuildParams):
     @property
     def optional_image_args(self) -> list[str]:
         return [
-            "additional_extras",
+            "additional_airflow_extras",
             "additional_dev_apt_command",
             "additional_dev_apt_deps",
             "additional_dev_apt_env",
@@ -108,7 +108,7 @@ class BuildCiParams(CommonBuildParams):
             "additional_dev_apt_command",
             "additional_dev_apt_deps",
             "additional_dev_apt_env",
-            "additional_extras",
+            "additional_airflow_extras",
             "additional_pip_install_flags",
             "additional_python_deps",
             "version_suffix_for_pypi",

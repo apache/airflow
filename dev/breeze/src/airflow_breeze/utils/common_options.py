@@ -294,7 +294,7 @@ option_upgrade_on_failure = click.option(
     envvar="UPGRADE_ON_FAILURE",
 )
 option_additional_extras = click.option(
-    "--additional-extras",
+    "--additional-airflow-extras",
     help="Additional extra package while installing Airflow in the image.",
     envvar="ADDITIONAL_AIRFLOW_EXTRAS",
 )

@@ -226,7 +226,7 @@ class BuildProdParams(CommonBuildParams):
     @property
     def optional_image_args(self) -> list[str]:
         return [
-            "additional_extras",
+            "additional_airflow_extras",
             "additional_dev_apt_command",
             "additional_dev_apt_deps",
             "additional_dev_apt_env",

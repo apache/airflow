@@ -60,7 +60,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--python-image",
                 "--additional-python-deps",
-                "--additional-extras",
+                "--additional-airflow-extras",
                 "--additional-pip-install-flags",
                 "--additional-dev-apt-deps",
                 "--additional-dev-apt-env",

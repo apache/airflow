@@ -37,7 +37,7 @@ class CommonBuildParams:
     Common build parameters. Those parameters are common parameters for CI And PROD build.
     """
 
-    additional_extras: str = ""
+    additional_airflow_extras: str = ""
     additional_dev_apt_command: str = ""
     additional_dev_apt_deps: str = ""
     additional_dev_apt_env: str = ""
