@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 from airflow.www.security_manager import AirflowSecurityManagerV2
 
 
@@ -25,4 +24,6 @@ class AwsSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def register_views(self):
         """Register views specific to AWS auth manager."""
+        from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
+
         self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
