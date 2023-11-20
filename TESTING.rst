@@ -1075,7 +1075,7 @@ This prepares airflow .whl package in the dist folder.
 
 .. code-block:: bash
 
-     breeze --use-airflow-version wheel --use-packages-from-dist --skip-mounting-local-sources
+     breeze --use-airflow-version wheel --use-packages-from-dist --mount-sources skip
 
 Airflow Docker Compose Tests
 ============================

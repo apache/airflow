@@ -88,6 +88,11 @@ class FileGroupForCi(Enum):
     KUBERNETES_FILES = "kubernetes_files"
     ALL_PYTHON_FILES = "all_python_files"
     ALL_SOURCE_FILES = "all_sources_for_tests"
+    ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
+    ALL_PROVIDERS_PYTHON_FILES = "all_provider_python_files"
+    ALL_DEV_PYTHON_FILES = "all_dev_python_files"
+    ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
+    ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
 
 
 T = TypeVar("T", FileGroupForCi, SelectiveUnitTestTypes)
@@ -165,7 +170,21 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^tests/system/providers/cncf/kubernetes/",
         ],
         FileGroupForCi.ALL_PYTHON_FILES: [
-            r"\.py$",
+            r".*\.py$",
+        ],
+        FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
+            r".*\.py$",
+        ],
+        FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES: [
+            r"^airflow/providers/.*\.py$",
+            r"^tests/providers/.*\.py$",
+            r"^tests/system/providers/.*\.py$",
+        ],
+        FileGroupForCi.ALL_DOCS_PYTHON_FILES: [
+            r"^docs/.*\.py$",
+        ],
+        FileGroupForCi.ALL_DEV_PYTHON_FILES: [
+            r"^dev/.*\.py$",
         ],
         FileGroupForCi.ALL_SOURCE_FILES: [
             r"^.pre-commit-config.yaml$",
@@ -180,9 +199,27 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.ALWAYS_TESTS_FILES: [
             r"^tests/always/",
         ],
+        FileGroupForCi.ALL_PROVIDER_YAML_FILES: [
+            r".*/provider\.yaml$",
+        ],
     }
 )
 
+CI_FILE_GROUP_EXCLUDES = HashableDict(
+    {
+        FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES: [
+            r"^.*/.*_vendor/.*",
+            r"^airflow/migrations/.*",
+            r"^airflow/providers/.*",
+            r"^dev/.*",
+            r"^docs/.*",
+            r"^provider_packages/.*",
+            r"^tests/providers/.*",
+            r"^tests/system/providers/.*",
+            r"^tests/dags/test_imports.py",
+        ]
+    }
+)
 
 TEST_TYPE_MATCHES = HashableDict(
     {
@@ -214,6 +251,8 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
+
+TEST_TYPE_EXCLUDES = HashableDict({})
 
 
 def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
@@ -372,7 +411,9 @@ class SelectiveChecks:
         if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
             get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
-        if self._matching_files(FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES):
+        if self._matching_files(
+            FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
             get_console().print("[warning]Running everything because env files changed[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
@@ -487,16 +528,27 @@ class SelectiveChecks:
         )
         return " ".join(short_combo_titles)
 
-    def _match_files_with_regexps(self, matched_files, regexps):
+    def _match_files_with_regexps(self, matched_files, matching_regexps):
         for file in self._files:
-            if any(re.match(regexp, file) for regexp in regexps):
+            if any(re.match(regexp, file) for regexp in matching_regexps):
                 matched_files.append(file)
 
+    def _exclude_files_with_regexps(self, matched_files, exclude_regexps):
+        for file in self._files:
+            if any(re.match(regexp, file) for regexp in exclude_regexps):
+                if file in matched_files:
+                    matched_files.remove(file)
+
     @lru_cache(maxsize=None)
-    def _matching_files(self, match_group: T, match_dict: dict[T, list[str]]) -> list[str]:
+    def _matching_files(
+        self, match_group: T, match_dict: dict[T, list[str]], exclude_dict: dict[T, list[str]]
+    ) -> list[str]:
         matched_files: list[str] = []
-        regexps = match_dict[match_group]
-        self._match_files_with_regexps(matched_files, regexps)
+        match_regexps = match_dict[match_group]
+        excluded_regexps = exclude_dict.get(match_group)
+        self._match_files_with_regexps(matched_files, match_regexps)
+        if excluded_regexps:
+            self._exclude_files_with_regexps(matched_files, excluded_regexps)
         count = len(matched_files)
         if count > 0:
             get_console().print(f"[warning]{match_group} matched {count} files.[/]")
@@ -509,7 +561,7 @@ class SelectiveChecks:
         if self.full_tests_needed:
             get_console().print(f"[warning]{source_area} enabled because we are running everything[/]")
             return True
-        matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES)
+        matched_files = self._matching_files(source_area, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
         if matched_files:
             get_console().print(
                 f"[warning]{source_area} enabled because it matched {len(matched_files)} changed files[/]"
@@ -577,7 +629,7 @@ class SelectiveChecks:
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveUnitTestTypes
     ) -> list[str]:
-        matched_files = self._matching_files(test_type, TEST_TYPE_MATCHES)
+        matched_files = self._matching_files(test_type, TEST_TYPE_MATCHES, TEST_TYPE_EXCLUDES)
         count = len(matched_files)
         if count > 0:
             test_types.add(test_type.value)
@@ -614,10 +666,18 @@ class SelectiveChecks:
             self._select_test_type_if_matching(candidate_test_types, SelectiveUnitTestTypes.API)
         )
 
-        kubernetes_files = self._matching_files(FileGroupForCi.KUBERNETES_FILES, CI_FILE_GROUP_MATCHES)
-        system_test_files = self._matching_files(FileGroupForCi.SYSTEM_TEST_FILES, CI_FILE_GROUP_MATCHES)
-        all_source_files = self._matching_files(FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES)
-        test_always_files = self._matching_files(FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES)
+        kubernetes_files = self._matching_files(
+            FileGroupForCi.KUBERNETES_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
+        system_test_files = self._matching_files(
+            FileGroupForCi.SYSTEM_TEST_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
+        all_source_files = self._matching_files(
+            FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
+        test_always_files = self._matching_files(
+            FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
         remaining_files = (
             set(all_source_files)
             - set(matched_files)
@@ -710,7 +770,12 @@ class SelectiveChecks:
     @cached_property
     def upgrade_to_newer_dependencies(self) -> bool:
         return (
-            len(self._matching_files(FileGroupForCi.SETUP_FILES, CI_FILE_GROUP_MATCHES)) > 0
+            len(
+                self._matching_files(
+                    FileGroupForCi.SETUP_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+                )
+            )
+            > 0
             or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
             or UPGRADE_TO_NEWER_DEPENDENCIES_LABEL in self._pr_labels
         )
@@ -740,7 +805,7 @@ class SelectiveChecks:
         if any(file.startswith(("airflow/", "docs/apache-airflow/")) for file in self._files):
             packages.append("apache-airflow")
         if any(file.startswith("docs/apache-airflow-providers/") for file in self._files):
-            packages.append("providers-index")
+            packages.append("apache-airflow-providers")
         if any(file.startswith(("chart/", "docs/helm-chart")) for file in self._files):
             packages.append("helm-chart")
         if any(file.startswith("docs/docker-stack/") for file in self._files):
@@ -752,12 +817,63 @@ class SelectiveChecks:
 
     @cached_property
     def skip_pre_commits(self) -> str:
-        return (
-            "identity"
-            if self._default_branch == "main"
-            else "identity,check-airflow-provider-compatibility,"
-            "check-extra-packages-references,check-provider-yaml-valid"
-        )
+        pre_commits_to_skip = set()
+        pre_commits_to_skip.add("identity")
+        if self._default_branch != "main":
+            # Skip those tests on all "release" branches
+            pre_commits_to_skip.update(
+                (
+                    "check-airflow-provider-compatibility",
+                    "check-extra-packages-references",
+                    "check-provider-yaml-valid",
+                    "lint-helm-chart",
+                    "mypy-providers",
+                )
+            )
+        if self.full_tests_needed:
+            # when full tests are needed, we do not want to skip any checks and we should
+            # run all the pre-commits just to be sure everything is ok when some structural changes occurred
+            return ",".join(sorted(pre_commits_to_skip))
+        if not self._matching_files(
+            FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
+            pre_commits_to_skip.add("mypy-providers")
+        if not self._matching_files(
+            FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
+            pre_commits_to_skip.add("mypy-core")
+        if not self._matching_files(
+            FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
+            pre_commits_to_skip.add("mypy-docs")
+        if not self._matching_files(
+            FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
+            pre_commits_to_skip.add("mypy-dev")
+        if not self._matching_files(FileGroupForCi.WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
+            pre_commits_to_skip.add("ts-compile-format-lint-www")
+        if not self._matching_files(
+            FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        ):
+            pre_commits_to_skip.add("flynt")
+        if not self._matching_files(
+            FileGroupForCi.HELM_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
+        ):
+            pre_commits_to_skip.add("lint-helm-chart")
+        if not (
+            self._matching_files(
+                FileGroupForCi.ALL_PROVIDER_YAML_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            or self._matching_files(
+                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+        ):
+            # only skip provider validation if none of the provider.yaml and provider
+            # python files changed because validation also walks through all the provider python files
+            pre_commits_to_skip.add("check-provider-yaml-valid")
+        return ",".join(sorted(pre_commits_to_skip))
 
     @cached_property
     def skip_provider_tests(self) -> bool:

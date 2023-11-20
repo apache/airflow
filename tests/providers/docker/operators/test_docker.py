@@ -26,7 +26,7 @@ from docker import APIClient
 from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator
 
@@ -722,3 +722,66 @@ class TestDockerOperator:
         assert "host_config" in self.client_mock.create_container.call_args.kwargs
         assert "ulimits" in self.client_mock.create_host_config.call_args.kwargs
         assert ulimits == self.client_mock.create_host_config.call_args.kwargs["ulimits"]
+
+    @pytest.mark.parametrize(
+        "auto_remove, expected",
+        [
+            pytest.param(True, "success", id="true"),
+            pytest.param(False, "never", id="false"),
+        ],
+    )
+    def test_bool_auto_remove_fallback(self, auto_remove, expected):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="bool value for `auto_remove`"):
+            op = DockerOperator(task_id="test", image="test", auto_remove=auto_remove)
+        assert op.auto_remove == expected
+
+    @pytest.mark.parametrize(
+        "auto_remove",
+        ["True", "false", pytest.param(None, id="none"), pytest.param(None, id="empty"), "here-and-now"],
+    )
+    def test_auto_remove_invalid(self, auto_remove):
+        with pytest.raises(ValueError, match="Invalid `auto_remove` value"):
+            DockerOperator(task_id="test", image="test", auto_remove=auto_remove)
+
+    @pytest.mark.parametrize(
+        "skip_exit_code, skip_on_exit_code, expected",
+        [
+            pytest.param(101, None, [101], id="skip-on-exit-code-not-set"),
+            pytest.param(102, 102, [102], id="skip-on-exit-code-same"),
+        ],
+    )
+    def test_skip_exit_code_fallback(self, skip_exit_code, skip_on_exit_code, expected):
+        warning_match = "`skip_exit_code` is deprecated and will be removed in the future."
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+            op = DockerOperator(
+                task_id="test",
+                image="test",
+                skip_exit_code=skip_exit_code,
+                skip_on_exit_code=skip_on_exit_code,
+            )
+            assert op.skip_on_exit_code == expected
+
+    @pytest.mark.parametrize(
+        "skip_exit_code, skip_on_exit_code",
+        [
+            pytest.param(103, 0, id="skip-on-exit-code-zero"),
+            pytest.param(104, 105, id="skip-on-exit-code-not-same"),
+        ],
+    )
+    def test_skip_exit_code_invalid(self, skip_exit_code, skip_on_exit_code):
+        warning_match = "`skip_exit_code` is deprecated and will be removed in the future."
+        error_match = "Conflicting `skip_on_exit_code` provided"
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+            with pytest.raises(ValueError, match=error_match):
+                DockerOperator(task_id="test", image="test", skip_exit_code=103, skip_on_exit_code=104)
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+            with pytest.raises(ValueError, match=error_match):
+                DockerOperator(
+                    task_id="test",
+                    image="test",
+                    skip_exit_code=skip_exit_code,
+                    skip_on_exit_code=skip_on_exit_code,
+                )

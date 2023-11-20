@@ -19,14 +19,44 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass
 from unittest import mock
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlsplit
 
 import pyodbc
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.odbc.hooks.odbc import OdbcHook
+
+
+@pytest.fixture
+def mock_row():
+    """
+    Mock a pyodbc.Row object - This is a C object that can only be created from C API of pyodbc.
+    This mock implements the two features used by the hook:
+        - cursor_description: which return column names and type
+        - __iter__: which allows exploding a row instance (*row)
+    """
+
+    @dataclass
+    class Row:
+        key: int
+        column: str
+
+        def __iter__(self):
+            yield self.key
+            yield self.column
+
+        @property
+        def cursor_description(self):
+            return [
+                ("key", int, None, 11, 11, 0, None),
+                ("column", str, None, 256, 256, 0, None),
+            ]
+
+    return Row
 
 
 class TestOdbcHook:
@@ -40,10 +70,22 @@ class TestOdbcHook:
             }
         )
 
-        hook = OdbcHook(**hook_params)
-        hook.get_connection = mock.Mock()
-        hook.get_connection.return_value = connection
-        return hook
+        cursor = mock.MagicMock(
+            rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"]
+        )
+        conn = mock.MagicMock()
+        conn.cursor.return_value = cursor
+
+        class UnitTestOdbcHook(OdbcHook):
+            conn_name_attr = "test_conn_id"
+
+            def get_connection(self, conn_id: str):
+                return connection
+
+            def get_conn(self):
+                return conn
+
+        return UnitTestOdbcHook(**hook_params)
 
     def test_driver_in_extra_not_used(self):
         conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
@@ -235,3 +277,28 @@ class TestOdbcHook:
         hook = self.get_hook(conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme="my-scheme"))))
         uri = hook.get_uri()
         assert urlsplit(uri).scheme == "my-scheme"
+
+    def test_pyodbc_mock(self):
+        """Ensure that pyodbc.Row object has a `cursor_description` method.
+
+        In subsequent tests, pyodbc.Row is replaced by pure Python mock object, which implements the above
+        method. We want to detect any breaking change in the pyodbc object. If it fails, the 'mock_row'
+        needs to be updated.
+        """
+        assert hasattr(pyodbc.Row, "cursor_description")
+
+    def test_query_return_serializable_result(self, mock_row):
+        pyodbc_result = [mock_row(key=1, column="value1"), mock_row(key=2, column="value2")]
+        hook_result = [(1, "value1"), (2, "value2")]
+
+        def mock_handler(*_):
+            return pyodbc_result
+
+        hook = self.get_hook()
+        result = hook.run("SQL", handler=mock_handler)
+        assert hook_result == result
+
+    def test_query_no_handler_return_none(self):
+        hook = self.get_hook()
+        result = hook.run("SQL")
+        assert result is None

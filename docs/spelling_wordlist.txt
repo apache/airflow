@@ -272,6 +272,7 @@ codepoints
 Colour
 colour
 colours
+ColumnLineageDatasetFacet
 CommandType
 comparator
 compat
@@ -315,6 +316,7 @@ cpus
 crd
 createDisposition
 CreateQueryOperator
+CreateRunResponse
 creationTimestamp
 credssp
 Cron
@@ -496,6 +498,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+dotproduct
 DownloadReportV
 downscaling
 downstreams
@@ -547,6 +550,7 @@ env
 envFrom
 EnvVar
 envvar
+eof
 eol
 eols
 eRevalue
@@ -790,7 +794,9 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceFlexibilityPolicy
 InstanceGroupConfig
+InstanceSelection
 instanceTemplates
 instantiation
 integrations
@@ -801,6 +807,7 @@ intvl
 Investorise
 io
 ip
+ipc
 iPython
 irreproducible
 IRSA
@@ -1072,6 +1079,7 @@ onboarded
 OnFailure
 onkill
 Oozie
+openai
 openapi
 openfaas
 openlineage
@@ -1132,6 +1140,7 @@ permalinks
 personalizations
 pformat
 PgBouncer
+pgvector
 picklable
 pid
 pidbox
@@ -1140,6 +1149,7 @@ pinecone
 pinodb
 Pinot
 pinot
+PipelineRun
 pkill
 plaintext
 platformVersion
@@ -1624,6 +1634,7 @@ ui
 uid
 ukey
 ulimit
+ulimits
 Umask
 umask
 Un
@@ -1667,6 +1678,7 @@ updateonly
 Upsert
 upsert
 upserted
+upserting
 upserts
 Upsight
 upstreams

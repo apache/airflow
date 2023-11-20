@@ -158,23 +158,11 @@
     Trigger DAG: <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}">{{ dag.dag_id }}</a>
     <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
   </h2>
-  {{ dag_docs(doc_md) }}
+  {{ dag_docs(doc_md, False) }}
   <form method="POST" id="trigger_form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="dag_id" value="{{ dag_id }}">
     <input type="hidden" name="origin" value="{{ origin }}">
-    <div class="form-group">
-      <label for="execution_date">Logical date</label>
-      <div class="input-group">
-        {{ form.execution_date(class_="form-control", disabled=False) }}
-      </div>
-    </div>
-    <div class="form-group row">
-      <div class="col-md-2">
-        <label for="run_id">Run id (Optional)</label>
-        <input type="text" class="form-control" placeholder="Run ID" name="run_id">
-      </div>
-    </div>
     {% if recent_confs|length > 0 %}
     <div class="form-group row">
       <div class="col-md-2">
@@ -243,12 +231,36 @@
           <div class="panel panel-default">
             <div class="panel-heading">
               <h4 class="panel-title">
-                <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion_json_conf" href="#accordion_json_conf_href" data-original-title="" title="" id="generated_json_toggle">Generated Configuration JSON<span class="caret"></span></a>
+                <a class="accordion-toggle" data-toggle="collapse" data-parent="#accordion_json_conf" href="#accordion_json_conf_href" data-original-title="" title="" id="generated_json_toggle">Generated Configuration JSON and Dagrun Options<span class="caret"></span></a>
               </h4>
             </div>
             <div id="accordion_json_conf_href" class="panel-collapse collapse">
               <div class="panel-body">
-                <textarea name="conf" id="json">{{ conf }}</textarea>
+                <table class="table table-hover table-bordered">
+                  <tbody>
+                    <tr>
+                      <td class="col-lg-2">
+                        <label for="execution_date" control-label="">Logical date:</label>
+                      </td>
+                      <td>
+                        {{ form.execution_date(class_="form-control", disabled=False) }}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="col-lg-2">
+                        <label for="run_id" control-label="">Run id:</label>
+                      </td>
+                      <td>
+                        <input type="text" class="form-control" placeholder="Run id, optional - will be generated if not provided" name="run_id" id="run_id">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="2">
+                        <textarea name="conf" id="json">{{ conf }}</textarea>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -256,6 +268,18 @@
       </div>
     </div>
     {%- else %}
+    <div class="form-group">
+      <label for="execution_date">Logical date</label>
+      <div class="input-group">
+        {{ form.execution_date(class_="form-control", disabled=False) }}
+      </div>
+    </div>
+    <div class="form-group row">
+      <div class="col-md-2">
+        <label for="run_id">Run id (Optional)</label>
+        <input type="text" class="form-control" placeholder="Run ID" name="run_id">
+      </div>
+    </div>
     <label for="conf">Configuration JSON (Optional, must be a dict object)</label>
     <textarea class="form-control" name="conf" id="json">{{ conf }}</textarea>
     {%- endif %}

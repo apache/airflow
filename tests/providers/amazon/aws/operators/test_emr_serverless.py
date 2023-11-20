@@ -375,8 +375,8 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
-        default_name = operator.name
         id = operator.execute(None)
+        default_name = operator.name
 
         assert operator.wait_for_completion is True
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
@@ -413,11 +413,12 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
-        default_name = operator.name
         with pytest.raises(AirflowException) as ex_message:
             id = operator.execute(None)
             assert id == job_run_id
         assert "Serverless Job failed:" in str(ex_message.value)
+        default_name = operator.name
+
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
@@ -446,9 +447,8 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
-        default_name = operator.name
-
         id = operator.execute(None)
+        default_name = operator.name
 
         assert operator.wait_for_completion is True
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
@@ -516,8 +516,8 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
             wait_for_completion=False,
         )
-        default_name = operator.name
         id = operator.execute(None)
+        default_name = operator.name
 
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
         mock_get_waiter().wait.assert_called_once()
@@ -550,9 +550,10 @@ class TestEmrServerlessStartJobOperator:
             configuration_overrides=configuration_overrides,
             wait_for_completion=False,
         )
-        default_name = operator.name
         id = operator.execute(None)
         assert id == job_run_id
+        default_name = operator.name
+
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
             applicationId=application_id,
@@ -581,11 +582,11 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
-        default_name = operator.name
         with pytest.raises(AirflowException) as ex_message:
             operator.execute(None)
-
         assert "EMR serverless job failed to start:" in str(ex_message.value)
+        default_name = operator.name
+
         mock_conn.get_application.assert_called_once_with(applicationId=application_id)
         mock_get_waiter().wait.assert_called_once()
         mock_conn.start_job_run.assert_called_once_with(
@@ -619,11 +620,11 @@ class TestEmrServerlessStartJobOperator:
             job_driver=job_driver,
             configuration_overrides=configuration_overrides,
         )
-        default_name = operator.name
         with pytest.raises(AirflowException) as ex_message:
             operator.execute(None)
-
         assert "Serverless Job failed:" in str(ex_message.value)
+        default_name = operator.name
+
         mock_conn.get_application.call_count == 2
         mock_conn.start_job_run.assert_called_once_with(
             clientToken=client_request_token,
