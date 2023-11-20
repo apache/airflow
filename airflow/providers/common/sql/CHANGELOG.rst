@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+1.8.1
+.....
+
+Misc
+~~~~
+
+* ``Add '_make_serializable' method which other SQL operators can overrides when result from cursor is not JSON-serializable (#32319)``
+
 1.8.0
 .....
 

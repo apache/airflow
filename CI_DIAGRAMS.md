@@ -68,7 +68,7 @@ sequenceDiagram
     and
         opt
             GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
-            Note over Tests: Build docs
+            Note over Tests: Build docs / Spellcheck docs
         end
     and
         opt
@@ -180,7 +180,7 @@ sequenceDiagram
     and
         opt
             GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
-            Note over Tests: Build docs
+            Note over Tests: Build docs/ Spellcheck docs
         end
     and
         opt
@@ -279,7 +279,7 @@ sequenceDiagram
         Note over Tests: Run static checks
     and
         GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
-        Note over Tests: Build docs
+        Note over Tests: Build docs / Spellcheck docs
     and
         GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
         Note over Tests: Test Pytest collection<br>[COMMIT_SHA]
@@ -365,7 +365,7 @@ sequenceDiagram
         Note over Tests: Run static checks
     and
         GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
-        Note over Tests: Build docs
+        Note over Tests: Build docs / Spellcheck docs
     and
         GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
         Note over Tests: Test Pytest collection<br>[COMMIT_SHA]
