@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-11-20T16:26:22Z
+# This constraints file was automatically generated on 2023-11-20T23:31:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -70,7 +70,7 @@ aiobotocore==2.7.0
 aiofiles==23.2.1
 aiohttp==3.9.0
 aioitertools==0.11.0
-aioresponses==0.7.5
+aioresponses==0.7.6
 aiosignal==1.3.1
 alabaster==0.7.13
 alembic==1.12.1
@@ -527,7 +527,7 @@ pyOpenSSL==23.3.0
 pyarrow-hotfix==0.5
 pyarrow==11.0.0
 pyasn1-modules==0.3.0
-pyasn1==0.5.0
+pyasn1==0.5.1
 pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.19.0
@@ -577,7 +577,7 @@ pyzmq==25.1.1
 reactivex==4.0.4
 readme-renderer==42.0
 redis==4.6.0
-redshift-connector==2.0.916
+redshift-connector==2.0.917
 referencing==0.31.0
 regex==2023.10.3
 requests-file==1.5.1
@@ -708,7 +708,7 @@ wrapt==1.16.0
 xmltodict==0.13.0
 yamllint==1.33.0
 yandexcloud==0.243.0
-yarl==1.9.2
+yarl==1.9.3
 zeep==4.2.1
 zenpy==2.0.41
 zict==3.0.0
