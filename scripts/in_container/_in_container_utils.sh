@@ -56,46 +56,6 @@ function in_container_script_start() {
     fi
 }
 
-#
-# Fixes ownership of files generated in container - if they are owned by root, they will be owned by
-# The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
-# changed to the Host user via osxfs filesystem
-#
-function in_container_fix_ownership() {
-    if [[ ${HOST_OS:=} == "linux" ]]; then
-        if [[ ${DOCKER_IS_ROOTLESS=} == "true" ]]; then
-             echo "${COLOR_YELLOW}Skip fixing ownership of generated files: Docker is rootless${COLOR_RESET}"
-             return
-        fi
-        DIRECTORIES_TO_FIX=(
-            "/dist"
-            "/files"
-            "${AIRFLOW_SOURCES}/logs"
-            "${AIRFLOW_SOURCES}/docs"
-            "${AIRFLOW_SOURCES}/dags"
-            "${AIRFLOW_SOURCES}/airflow/"
-            "${AIRFLOW_SOURCES}/constraints/"
-            "${AIRFLOW_SOURCES}/images/"
-            "${AIRFLOW_SOURCES}/.mypy_cache/"
-            "${AIRFLOW_SOURCES}/dev/"
-        )
-        count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
-        if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
-            echo
-            echo "${COLOR_BLUE}Fixing ownership of ${count_matching} root owned files on ${HOST_OS}${COLOR_RESET}"
-            echo
-            find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -print0 2> /dev/null |
-                xargs --null chown "${HOST_USER_ID}:${HOST_GROUP_ID}" --no-dereference || true >/dev/null 2>&1
-            echo "${COLOR_BLUE}Fixed ownership of generated files${COLOR_RESET}."
-            echo
-        fi
-     else
-        echo
-        echo "${COLOR_YELLOW}Skip fixing ownership of generated files as Host OS is ${HOST_OS}${COLOR_RESET}"
-        echo
-    fi
-}
-
 function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }

@@ -362,6 +362,3 @@ jobs:
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always()
-      - name: "Fix ownership"
-        run: breeze ci fix-ownership
-        if: always()

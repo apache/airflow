@@ -41,8 +41,10 @@ except ImportError:
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
+    ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_PACKAGE_FORMATS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     FLOWER_HOST_PORT,
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
@@ -763,8 +765,15 @@ LABEL description="test warmup image"
         )
 
 
+OWNERSHIP_CLEANUP_DOCKER_TAG = (
+    f"python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}"
+)
+
+
 def fix_ownership_using_docker():
-    perform_environment_checks()
+    if get_host_os() != "linux":
+        # no need to even attempt fixing ownership on MacOS/Windows
+        return
     shell_params = find_available_ci_image(
         github_repository=APACHE_AIRFLOW_GITHUB_REPOSITORY,
     )
@@ -775,10 +784,8 @@ def fix_ownership_using_docker():
         "run",
         "-t",
         *extra_docker_flags,
-        "--pull",
-        "never",
-        shell_params.airflow_image_name_with_tag,
-        "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
+        OWNERSHIP_CLEANUP_DOCKER_TAG,
+        "/opt/airflow/scripts/in_container/run_fix_ownership.py",
     ]
     run_command(cmd, text=True, env=env, check=False)
 

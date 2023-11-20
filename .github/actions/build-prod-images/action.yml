@@ -72,7 +72,3 @@ runs:
       env:
         COMMIT_SHA: ${{ github.sha }}
       if: ${{ inputs.build-provider-packages != 'true' }}
-    - name: "Fix ownership"
-      shell: bash
-      run: breeze ci fix-ownership
-      if: always()
