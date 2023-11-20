@@ -24,6 +24,7 @@ description: |
     `pgvector <https://github.com/pgvector/pgvector>`__
 
 suspended: false
+source-date-epoch: 1700148080
 
 versions:
   - 1.0.0

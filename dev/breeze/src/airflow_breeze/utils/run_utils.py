@@ -172,6 +172,8 @@ def run_command(
                 get_console(output=output).print(
                     "[error]========================= STDERR end ==============================[/]"
                 )
+            if check:
+                raise
             return ex
 
 

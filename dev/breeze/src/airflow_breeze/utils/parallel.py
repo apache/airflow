@@ -228,7 +228,7 @@ def get_single_tuple_array(title: str, t: NamedTuple) -> Table:
     for key, value in t._asdict().items():
         table.add_column(header=key, header_style="info")
         row.append(get_printable_value(key, value))
-    table.add_row(*row, style="magenta")
+    table.add_row(*row, style="special")
     return table
 
 
@@ -245,7 +245,7 @@ def get_multi_tuple_array(title: str, tuples: list[tuple[NamedTuple, ...]]) -> T
         for named_tuple in t:
             for key, value in named_tuple._asdict().items():
                 row.append(get_printable_value(key, value))
-        table.add_row(*row, style="magenta")
+        table.add_row(*row, style="special")
     return table
 
 

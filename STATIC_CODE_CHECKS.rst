@@ -140,6 +140,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | ID                                                        | Description                                                  | Image   |
 +===========================================================+==============================================================+=========+
+| bandit                                                    | bandit                                                       |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | blacken-docs                                              | Run black on Python code blocks in documentation files       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only          |         |
@@ -164,6 +166,8 @@ require Breeze Docker image to be built locally.
 | check-changelog-has-no-duplicates                         | Check changelogs for duplicate entries                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-cncf-k8s-only-for-executors                         | Check cncf.kubernetes imports used for executors only        |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-common-sql-dependency-make-serializable             | Check dependency of SQL Providers with '_make_serializable'  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-core-deprecation-classes                            | Verify usage of Airflow deprecation classes in core          |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

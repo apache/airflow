@@ -1,5 +1,4 @@
-
- .. Licensed to the Apache Software Foundation (ASF) under one
+.. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -29,6 +28,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.0.1
+.....
+
+Latest change: 2023-11-07
+
+=================================================================================================  ===========  =======================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================
+`865b3a5646 <https://github.com/apache/airflow/commit/865b3a56462adf6ec0715d3cde166f7e506dc227>`_  2023-11-07   ``Improvements to airflow.io (#35478)``
+`17c6a7e640 <https://github.com/apache/airflow/commit/17c6a7e64076977a10afc44c0102884af9f3ca23>`_  2023-11-05   ``fix changelog of common-io (#35241)``
+=================================================================================================  ===========  =======================================
+
 1.0.0
 .....
 
@@ -37,6 +48,7 @@ Latest change: 2023-10-28
 =================================================================================================  ===========  =====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================
+`d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `e637f08188 <https://github.com/apache/airflow/commit/e637f08188bd7c9348531dc3f013e95aecb3572c>`_  2023-10-28   ``Fix errors in common.io release documentation generation with prevention (#35236)``
 `04e2fbd92b <https://github.com/apache/airflow/commit/04e2fbd92bb6cb2b5abf6f16786b9800a0d49808>`_  2023-10-27   ``AIP-58: Add Airflow ObjectStore (AFS) (#34729)``
 =================================================================================================  ===========  =====================================================================================

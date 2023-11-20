@@ -22,6 +22,7 @@ description: |
     `Tabular <https://tabular.io/>`__
 
 suspended: false
+source-date-epoch: 1700148091
 versions:
   - 1.3.0
   - 1.2.1

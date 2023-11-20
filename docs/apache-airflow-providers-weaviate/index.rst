@@ -96,3 +96,47 @@ PIP package          Version required
 ``apache-airflow``    ``>=2.5.0``
 ``weaviate-client``  ``>=3.24.2``
 ===================  ==================
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-weaviate
+------------------------------------------------------
+
+`Weaviate <https://weaviate.io/developers/weaviate>`__
+
+
+Release: 1.0.0
+
+Provider package
+----------------
+
+This is a provider package for ``weaviate`` provider. All classes for this provider package
+are in ``airflow.providers.weaviate`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
+``pip install apache-airflow-providers-weaviate``
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.5.0``.
+
+===================  ==================
+PIP package          Version required
+===================  ==================
+``apache-airflow``   ``>=2.5.0``
+``weaviate-client``  ``>=3.24.2``
+===================  ==================
