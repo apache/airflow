@@ -46,6 +46,7 @@ class TestAwsSecurityManagerOverride:
     )
     @patch.object(AwsAuthManagerAuthenticationViews, "idp_data")
     def test_register_views(self, mock_idp_data, mock_get_mandatory_value, override, appbuilder):
+        pytest.importorskip("onelogin")
         appbuilder.add_view_no_menu = Mock()
         override.register_views()
         appbuilder.add_view_no_menu.assert_called_once()
