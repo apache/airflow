@@ -997,3 +997,27 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{- define "kubernetesVersion" -}}
+{{ printf "%s" .Capabilities.KubeVersion.Version | trimPrefix "v" }}
+{{- end -}}
+
+{{- define "airflowKerberosContainerArgs" -}}
+{{- $kubectl_version := include "kubernetesVersion" . -}}
+{{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) (semverCompare "<1.28" $kubectl_version) }}
+- airflow
+- kerberos
+- "&"
+- while [ ! -f /opt/kerberos-exit/EXIT ]; do
+    if [ -f /opt/kerberos-exit/EXIT ]; then
+        echo "Exit lockfile found. Exiting kerberos process."
+        break
+    else
+        echo "Exit lockfile not found. Sleeping for 1 second..."
+        sleep 5
+     fi
+  done
+{{- else }}
+- kerberos
+{{- end }}
+{{- end }}

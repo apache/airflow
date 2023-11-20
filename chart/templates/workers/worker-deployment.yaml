@@ -39,6 +39,7 @@
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
 {{- $podAnnotations := mergeOverwrite .Values.airflowPodAnnotations $safeToEvict .Values.workers.podAnnotations }}
+{{- $kubeVersion := include "kubernetesVersion" . }}
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
@@ -256,6 +257,10 @@ spec:
             - name: worker-logs
               containerPort: {{ .Values.ports.workerLogs }}
           volumeMounts:
+            {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosSidecar.enabled (semverCompare "<1.28" $kubeVersion) }}
+            - name: kerberos-exit
+              mountPath: /opt/kerberos-exit
+            {{- end }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
@@ -342,9 +347,13 @@ spec:
           {{- if $containerLifecycleHooksKerberosSidecar }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooksKerberosSidecar) . | nindent 12 }}
           {{- end }}
-          args: ["kerberos"]
+          args: {{ include "airflowKerberosContainerArgs" . | nindent 12 }}
           resources: {{- toYaml .Values.workers.kerberosSidecar.resources | nindent 12 }}
           volumeMounts:
+            {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) (semverCompare "<1.28" $kubeVersion) }}
+            - name: kerberos-exit
+              mountPath: /opt/kerberos-exit
+            {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
             {{- include "airflow_config_mount" . | nindent 12 }}
@@ -386,6 +395,10 @@ spec:
         {{- end }}
         {{- if .Values.workers.extraVolumes }}
           {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 8 }}
+        {{- end }}
+        {{- if and (semverCompare ">=2.8.0" .Values.airflowVersion) .Values.workers.kerberosSidecar.enabled (semverCompare "<1.28" $kubeVersion) }}
+        - name: kerberos-exit
+          emptyDir: {}
         {{- end }}
         - name: config
           configMap:
