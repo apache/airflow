@@ -83,7 +83,6 @@ class BaseAuthManager(LoggingMixin):
         """Return API endpoint(s) definition for the auth manager."""
         return None
 
-    @abstractmethod
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
         user = self.get_user()
