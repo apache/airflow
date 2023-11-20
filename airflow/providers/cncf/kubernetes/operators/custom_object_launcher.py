@@ -23,8 +23,7 @@ from datetime import datetime as dt
 from functools import cached_property
 
 import tenacity
-from kubernetes import client
-from kubernetes.client import models as k8s
+from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
@@ -206,13 +205,14 @@ class CustomObjectLauncher(LoggingMixin):
         self,
         name: str | None,
         namespace: str | None,
-        kube_client: client.CoreV1Api,
-        custom_obj_api: client.CustomObjectsApi,
+        kube_client: CoreV1Api,
+        custom_obj_api: CustomObjectsApi,
         template_body: str | None = None,
     ):
         """
         Creates custom object launcher(sparkapplications crd).
-        :param kube_client: kubernetes client.
+
+                :param kube_client: kubernetes client.
         """
         super().__init__()
         self.name = name
